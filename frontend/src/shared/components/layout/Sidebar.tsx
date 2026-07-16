@@ -65,6 +65,7 @@ const navItems: NavItem[] = [
     title: 'Purchases',
     icon: <ShoppingBag className="w-5 h-5" />,
     children: [
+      { title: 'Vendors', href: '/purchases/vendors' },
       { title: 'Purchase Orders', href: '/purchases/orders' },
       { title: 'Purchase Receives', href: '/purchases/receives' }
     ]

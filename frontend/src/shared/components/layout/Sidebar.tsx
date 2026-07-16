@@ -15,7 +15,8 @@ import {
   Layers, 
   ChevronRight, 
   ChevronDown,
-  Circle
+  Circle,
+  Plus
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -141,11 +142,18 @@ export function Sidebar() {
                 <Link
                   href={item.href || '#'}
                   className={cn(
-                    "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors pl-10",
-                    active ? "bg-indigo-50 text-indigo-700" : "text-slate-600 hover:bg-slate-100"
+                    "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
+                    active 
+                      ? (item.title === 'Home' ? "bg-[#3b82f6] text-white" : "bg-blue-50 text-blue-700") 
+                      : "text-slate-700 hover:bg-slate-100"
                   )}
                 >
-                  {item.icon}
+                  <div className={cn("w-4 flex justify-center", active && item.title === 'Home' ? "text-white" : "text-slate-500")}>
+                     {/* Empty div for alignment if needed, or we can just render icon directly */}
+                  </div>
+                  {React.cloneElement(item.icon as React.ReactElement, { 
+                    className: cn("w-4 h-4", active && item.title === 'Home' ? "text-white" : "text-slate-500") 
+                  })}
                   <span>{item.title}</span>
                 </Link>
               )}
@@ -158,13 +166,14 @@ export function Sidebar() {
                       key={child.title}
                       href={child.href || '#'}
                       className={cn(
-                        "block px-3 py-2 text-sm rounded-md transition-colors pl-12",
+                        "flex items-center justify-between px-3 py-1.5 text-sm rounded-lg transition-colors ml-10 mr-3",
                         isActive(child.href)
-                          ? "bg-indigo-50 text-indigo-700 font-medium"
-                          : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                          ? "bg-[#3b82f6] text-white font-medium shadow-sm"
+                          : "text-slate-600 hover:bg-slate-100"
                       )}
                     >
-                      {child.title}
+                      <span>{child.title}</span>
+                      {isActive(child.href) && <Plus className="w-4 h-4 text-white opacity-80 hover:opacity-100" />}
                     </Link>
                   ))}
                 </div>

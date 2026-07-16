@@ -226,8 +226,15 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
         throw new ApiError(400, 'Validation failed', rowErrors);
       }
 
-      // Check database uniqueness and required constraints
-      await validateDynamicData(dynamicData, metadata.fields);
+      // Check required constraints synchronously
+      for (const field of metadata.fields) {
+         if (field.required) {
+            const value = dynamicData[field.name];
+            if (value === undefined || value === null || value === '') {
+               rowErrors.push(`${field.label} is required.`);
+            }
+         }
+      }
       
       // If validation passed, push to valid items array
       validItems.push({ dynamicData });
@@ -244,6 +251,43 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
   if (errors.length > 0) {
     // If ANY row has an error, abort the entire import
     return res.status(400).json(new ApiResponse(400, { errors }, 'Import failed due to validation errors. No items were imported.'));
+  }
+
+  // Batch Uniqueness Check against Database
+  if (uniqueFields.length > 0 && validItems.length > 0) {
+    const orConditions = [];
+    for (const uField of uniqueFields) {
+      const values = validItems.map(item => item.dynamicData[uField]).filter(Boolean);
+      if (values.length > 0) {
+        orConditions.push({ [`dynamicData.${uField}`]: { $in: values } });
+      }
+    }
+    
+    if (orConditions.length > 0) {
+      const existingDuplicates = await Item.find({ $or: orConditions }).select('dynamicData').lean();
+      
+      if (existingDuplicates.length > 0) {
+        const duplicateDetails = new Set<string>();
+        for (const existing of existingDuplicates) {
+          for (const uField of uniqueFields) {
+            const val = (existing as any).dynamicData?.[uField];
+            if (val && validItems.some(item => item.dynamicData[uField] === val)) {
+              duplicateDetails.add(`The value '${val}' for field '${uField}' already exists in the database.`);
+            }
+          }
+        }
+        
+        if (duplicateDetails.size > 0) {
+          return res.status(400).json(new ApiResponse(400, { 
+            errors: [{ 
+              row: 'Database Check', 
+              message: 'Uniqueness validation failed', 
+              details: Array.from(duplicateDetails) 
+            }] 
+          }, 'Import failed due to database uniqueness constraints.'));
+        }
+      }
+    }
   }
 
   // Atomic bulk insert

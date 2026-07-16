@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { FieldMetadata } from "./DynamicForm";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Settings2, ChevronUp, ChevronDown, ArrowUpDown } from "lucide-react";
+import { Settings2, ChevronUp, ChevronDown, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface DynamicTableProps {
   fields: FieldMetadata[];
@@ -56,6 +56,29 @@ export function DynamicTable({
   };
 
   const columns = sortedFields.filter(f => visibleColumns.includes(f.name));
+
+  const getPageNumbers = () => {
+    if (!pagination) return [];
+    const { currentPage, totalPages } = pagination;
+    const pages: (number | string)[] = [];
+    
+    let startPage = Math.max(1, currentPage - 2);
+    let endPage = Math.min(totalPages, startPage + 5);
+    
+    if (endPage - startPage < 5) {
+      startPage = Math.max(1, endPage - 5);
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+    
+    if (endPage < totalPages) {
+      pages.push('...');
+    }
+    
+    return pages;
+  };
 
   return (
     <div className="space-y-4">
@@ -154,44 +177,70 @@ export function DynamicTable({
         </div>
         
         {pagination && pagination.totalItems > 0 && (
-          <div className="flex items-center justify-between border-t px-4 py-3 bg-slate-50/50 sm:px-6">
-            <div className="hidden sm:flex sm:items-center space-x-4">
-              <p className="text-sm text-slate-700">
-                Showing <span className="font-medium">{(pagination.currentPage - 1) * pagination.limit + 1}</span> to <span className="font-medium">{Math.min(pagination.currentPage * pagination.limit, pagination.totalItems)}</span> of{' '}
-                <span className="font-medium">{pagination.totalItems}</span> results
-              </p>
-              {onLimitChange && (
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-slate-500">Rows per page:</span>
-                  <select
-                    className="h-8 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    value={pagination.limit}
-                    onChange={(e) => onLimitChange(Number(e.target.value))}
-                  >
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                  </select>
-                </div>
-              )}
+          <div className="flex flex-col sm:flex-row items-center justify-between border-t px-4 py-3 bg-white sm:px-6 h-16">
+            
+            {/* Left: Showing X out of Y */}
+            <div className="flex items-center text-[13px] text-slate-500 w-full sm:w-1/3 justify-center sm:justify-start mb-4 sm:mb-0">
+               Showing {Math.min(pagination.currentPage * pagination.limit, pagination.totalItems)} out of {pagination.totalItems}
             </div>
-            <div className="flex flex-1 justify-between sm:justify-end space-x-2">
+
+            {/* Middle: Pagination Controls */}
+            <div className="flex items-center justify-center space-x-1 w-full sm:w-1/3 mb-4 sm:mb-0">
               <button
                 onClick={() => onPageChange && onPageChange(pagination.currentPage - 1)}
                 disabled={pagination.currentPage === 1}
-                className="relative inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                Previous
+                <ChevronLeft className="w-[18px] h-[18px]" strokeWidth={1.5} />
               </button>
+              
+              <div className="flex items-center space-x-1">
+                {getPageNumbers().map((pageNum, idx) => (
+                  pageNum === '...' ? (
+                    <span key={`ellipsis-${idx}`} className="px-1 text-slate-400 text-sm tracking-widest">...</span>
+                  ) : (
+                    <button
+                      key={pageNum}
+                      onClick={() => onPageChange && onPageChange(pageNum as number)}
+                      className={`min-w-[28px] h-[28px] flex items-center justify-center text-[13px] transition-colors ${
+                        pageNum === pagination.currentPage
+                          ? 'border border-[#0099ab] text-[#0099ab] rounded-[4px] font-medium'
+                          : 'text-slate-500 hover:text-slate-800 rounded-[4px]'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  )
+                ))}
+              </div>
+
               <button
                 onClick={() => onPageChange && onPageChange(pagination.currentPage + 1)}
                 disabled={pagination.currentPage === pagination.totalPages}
-                className="relative inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                Next
+                <ChevronRight className="w-[18px] h-[18px]" strokeWidth={1.5} />
               </button>
             </div>
+
+            {/* Right: Rows per page */}
+            <div className="flex items-center justify-center sm:justify-end space-x-3 text-[13px] text-slate-500 w-full sm:w-1/3">
+               <span>Rows per page</span>
+               {onLimitChange && (
+                 <select
+                    className="h-8 rounded-[4px] border border-slate-300 bg-white px-2 py-1 text-[13px] text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                    value={pagination.limit}
+                    onChange={(e) => onLimitChange(Number(e.target.value))}
+                 >
+                    <option value={10}>10</option>
+                    <option value={16}>16</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                 </select>
+               )}
+            </div>
+
           </div>
         )}
       </div>

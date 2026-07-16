@@ -21,21 +21,25 @@ export function NewPurchaseOrderForm() {
         <div className="max-w-6xl mx-auto p-8 flex flex-col gap-10">
           
           {/* Top Form Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-8">
             
             {/* Left Column */}
             <div className="space-y-6">
               {/* Vendor Name */}
-              <div className="grid grid-cols-[160px_1fr] items-center gap-4">
-                <label className="text-sm font-semibold text-red-500 flex items-center justify-between">
+              <div className="grid grid-cols-[160px_24px_1fr] items-center gap-4">
+                <label className="text-sm font-semibold text-red-500">
                   Vendor Name*
-                  <span className="w-4 h-4 rounded-full bg-blue-100 flex items-center justify-center ml-2 border-2 border-white shadow-sm ring-1 ring-slate-200"><div className="w-2 h-2 bg-blue-500 rounded-full"></div></span>
                 </label>
+                <div className="flex items-center justify-center">
+                  <span className="w-4 h-4 rounded-full bg-blue-100 flex items-center justify-center border-2 border-white shadow-sm ring-1 ring-blue-300">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  </span>
+                </div>
                 <div className="flex">
-                  <select className="flex-1 border border-blue-400 rounded-l-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
+                  <select className="flex-1 border border-blue-400 rounded-l-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white appearance-none">
                     <option value="">Select a Vendor</option>
                   </select>
-                  <button className="bg-blue-500 text-white px-3 py-2 rounded-r-md hover:bg-blue-600 transition-colors">
+                  <button className="bg-[#3b82f6] text-white px-3 py-2 rounded-r-md hover:bg-blue-600 transition-colors border border-[#3b82f6]">
                     <Search className="w-4 h-4" />
                   </button>
                 </div>
@@ -50,16 +54,17 @@ export function NewPurchaseOrderForm() {
               </div>
 
               {/* Delivery Address */}
-              <div className="grid grid-cols-[160px_1fr] items-start gap-4 pt-4">
+              <div className="grid grid-cols-[160px_24px_1fr] items-start gap-4 pt-2">
                 <label className="text-sm font-semibold text-red-500 mt-1">Delivery Address*</label>
-                <div className="space-y-3">
+                <div className="col-span-1"></div> {/* Spacer for radio button column alignment */}
+                <div className="space-y-4">
                   <div className="flex items-center gap-6">
-                    <label className="flex items-center gap-2 text-sm text-slate-700">
-                      <input type="radio" name="delivery_type" className="text-blue-500 focus:ring-blue-500" defaultChecked />
+                    <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                      <input type="radio" name="delivery_type" className="text-blue-500 focus:ring-blue-500 cursor-pointer" defaultChecked />
                       Locations
                     </label>
-                    <label className="flex items-center gap-2 text-sm text-slate-700">
-                      <input type="radio" name="delivery_type" className="text-blue-500 focus:ring-blue-500" />
+                    <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                      <input type="radio" name="delivery_type" className="text-blue-500 focus:ring-blue-500 cursor-pointer" />
                       Customer
                     </label>
                   </div>
@@ -82,10 +87,10 @@ export function NewPurchaseOrderForm() {
             {/* Right Column */}
             <div className="space-y-6">
               {/* Purchase Order Number */}
-              <div className="grid grid-cols-[140px_1fr] items-center gap-4 pt-[72px]">
+              <div className="grid grid-cols-[160px_1fr] items-center gap-4">
                 <label className="text-sm font-semibold text-red-500">Purchase Order#*</label>
                 <div className="relative">
-                  <input type="text" defaultValue="PO-00003" className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 pr-10" />
+                  <input type="text" defaultValue="PO-00003" className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 pr-10 bg-slate-50" />
                   <button className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-500 hover:text-blue-600">
                     <Settings className="w-4 h-4" />
                   </button>
@@ -93,72 +98,66 @@ export function NewPurchaseOrderForm() {
               </div>
 
               {/* Reference */}
-              <div className="grid grid-cols-[140px_1fr] items-center gap-4">
+              <div className="grid grid-cols-[160px_1fr] items-center gap-4">
                 <label className="text-sm font-semibold text-slate-800">Reference#</label>
                 <input type="text" className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500" />
               </div>
 
               {/* Date */}
-              <div className="grid grid-cols-[140px_1fr] items-center gap-4">
+              <div className="grid grid-cols-[160px_1fr] items-center gap-4">
                 <label className="text-sm font-semibold text-slate-800">Date</label>
                 <input type="text" defaultValue="16/07/2026" className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500" />
               </div>
 
               {/* Delivery Date & Payment Terms Row */}
-              <div className="grid grid-cols-[140px_1fr] items-center gap-4">
+              <div className="grid grid-cols-[160px_1fr] items-center gap-4">
                 <label className="text-sm font-semibold text-slate-800">Delivery Date</label>
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
                   <input type="text" placeholder="dd/MM/yyyy" className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500" />
-                  <div className="flex items-center gap-4">
-                    <label className="text-sm font-semibold text-slate-800 shrink-0">Payment Terms</label>
-                    <select className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white">
-                      <option>Due on Receipt</option>
-                    </select>
-                  </div>
+                  <label className="text-sm font-semibold text-slate-800">Payment Terms</label>
+                  <select className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white">
+                    <option>Due on Receipt</option>
+                  </select>
                 </div>
               </div>
 
               {/* PO Quantity & Circle Row */}
-              <div className="grid grid-cols-[140px_1fr] items-center gap-4">
+              <div className="grid grid-cols-[160px_1fr] items-center gap-4">
                 <label className="text-sm font-semibold text-slate-800">PO Quantity</label>
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
                   <input type="text" className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500" />
-                  <div className="flex items-center gap-4">
-                    <label className="text-sm font-semibold text-slate-800 shrink-0">Circle</label>
-                    <div className="relative w-full">
-                       <select className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white appearance-none">
-                         <option>Package 1(S/N)</option>
-                       </select>
-                       <div className="absolute right-3 top-1/2 -translate-y-1/2 flex gap-2 text-slate-400 pointer-events-none">
-                         <span className="text-red-400 font-bold">×</span>
-                         <span className="text-xs">▼</span>
-                       </div>
-                    </div>
+                  <label className="text-sm font-semibold text-slate-800 whitespace-nowrap px-4">Circle</label>
+                  <div className="relative w-full">
+                     <select className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white appearance-none">
+                       <option>Package 1(S/N)</option>
+                     </select>
+                     <div className="absolute right-3 top-1/2 -translate-y-1/2 flex gap-2 text-slate-400 pointer-events-none">
+                       <span className="text-red-400 font-bold">×</span>
+                       <span className="text-xs">▼</span>
+                     </div>
                   </div>
                 </div>
               </div>
               
               {/* Package 1 & 2 Row */}
-              <div className="grid grid-cols-[140px_1fr] items-center gap-4 pt-2">
+              <div className="grid grid-cols-[160px_1fr] items-center gap-4 pt-1">
                 <label className="text-sm font-semibold text-slate-800">Package 1</label>
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
                   <select className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white">
                     <option></option>
                   </select>
-                  <div className="flex items-center gap-4">
-                    <label className="text-sm font-semibold text-slate-800 shrink-0">Package 2</label>
-                    <select className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white">
-                      <option></option>
-                    </select>
-                  </div>
+                  <label className="text-sm font-semibold text-slate-800 whitespace-nowrap">Package 2</label>
+                  <select className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white">
+                    <option></option>
+                  </select>
                 </div>
               </div>
               
               {/* Shipment Preference */}
-              <div className="grid grid-cols-[140px_1fr] items-center gap-4">
+              <div className="grid grid-cols-[160px_1fr] items-center gap-4">
                 <label className="text-sm font-semibold text-slate-800">Shipment Preference</label>
-                <select className="w-[calc(50%-12px)] border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-500 focus:outline-none focus:border-blue-500 bg-white">
-                  <option>Choose the shipment preference or type to add</option>
+                <select className="w-full sm:w-[50%] border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-500 focus:outline-none focus:border-blue-500 bg-white">
+                  <option>Choose the shipment preference</option>
                 </select>
               </div>
 

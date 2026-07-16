@@ -1,11 +1,29 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import User from '../users/user.model';
-import { generateToken } from '../../core/utils/jwt';
+import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../../core/utils/jwt';
 import { AuthRequest } from '../../core/middlewares/auth.middleware';
 import { asyncHandler } from '../../core/utils/asyncHandler';
 import { ApiError } from '../../core/utils/ApiError';
 import { ApiResponse } from '../../core/utils/ApiResponse';
+
+const setCookies = (res: Response, accessToken: string, refreshToken: string) => {
+  const options = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict' as const,
+  };
+
+  res.cookie('accessToken', accessToken, {
+    ...options,
+    maxAge: 15 * 60 * 1000 // 15 minutes
+  });
+
+  res.cookie('refreshToken', refreshToken, {
+    ...options,
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+  });
+};
 
 export const login = asyncHandler(async (req: Request, res: Response) => {
   const { email, password } = req.body;
@@ -20,20 +38,67 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(401, 'Invalid credentials');
   }
 
-  const token = generateToken(user);
+  const accessToken = generateAccessToken(user);
+  const refreshToken = generateRefreshToken(user);
 
-  res.cookie('token', token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 24 * 60 * 60 * 1000 // 1 day
-  });
+  user.refreshToken = refreshToken;
+  await user.save({ validateBeforeSave: false });
+
+  setCookies(res, accessToken, refreshToken);
 
   const userResponse = user.toJSON();
   
   res.status(200).json(
-    new ApiResponse(200, { token, user: userResponse }, 'Login successful')
+    new ApiResponse(200, { user: userResponse }, 'Login successful')
   );
+});
+
+export const logout = asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (req.user) {
+    await User.findByIdAndUpdate(req.user._id, { $unset: { refreshToken: 1 } });
+  }
+
+  const options = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict' as const,
+  };
+
+  res.clearCookie('accessToken', options);
+  res.clearCookie('refreshToken', options);
+
+  res.status(200).json(new ApiResponse(200, {}, 'Logout successful'));
+});
+
+export const refreshAccessToken = asyncHandler(async (req: Request, res: Response) => {
+  const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+
+  if (!incomingRefreshToken) {
+    throw new ApiError(401, 'Unauthorized request');
+  }
+
+  try {
+    const decodedToken: any = verifyRefreshToken(incomingRefreshToken);
+    
+    const user = await User.findById(decodedToken.id);
+    if (!user || user.refreshToken !== incomingRefreshToken) {
+      throw new ApiError(401, 'Invalid refresh token');
+    }
+
+    const accessToken = generateAccessToken(user);
+    const newRefreshToken = generateRefreshToken(user);
+
+    user.refreshToken = newRefreshToken;
+    await user.save({ validateBeforeSave: false });
+
+    setCookies(res, accessToken, newRefreshToken);
+
+    res.status(200).json(
+      new ApiResponse(200, {}, 'Access token refreshed successfully')
+    );
+  } catch (error) {
+    throw new ApiError(401, 'Invalid or expired refresh token');
+  }
 });
 
 export const getMe = asyncHandler(async (req: AuthRequest, res: Response) => {

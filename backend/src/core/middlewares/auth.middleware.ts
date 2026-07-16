@@ -2,8 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../../modules/users/user.model';
 import { IRole } from '../../modules/roles/role.model';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key';
+import { verifyAccessToken } from '../utils/jwt';
 
 export interface AuthRequest extends Request {
   user?: any;
@@ -14,8 +13,8 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
 
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     token = req.headers.authorization.split(' ')[1];
-  } else if (req.cookies && req.cookies.token) {
-    token = req.cookies.token;
+  } else if (req.cookies && req.cookies.accessToken) {
+    token = req.cookies.accessToken;
   }
 
   if (!token) {
@@ -24,7 +23,7 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
   }
 
   try {
-    const decoded: any = jwt.verify(token, JWT_SECRET);
+    const decoded: any = verifyAccessToken(token);
     
     const user = await User.findById(decoded.id).populate('role').select('-password');
     if (!user) {

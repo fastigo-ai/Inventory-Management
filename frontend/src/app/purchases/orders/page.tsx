@@ -3,11 +3,27 @@
 import React, { useEffect, useState } from 'react';
 import { ChevronDown, RefreshCw, Plus, MoreHorizontal } from 'lucide-react';
 import Link from 'next/link';
-import { getPurchaseOrders } from '@/features/purchases/api/purchases.api';
+import { getPurchaseOrders, exportPurchaseOrdersToCsv } from '@/features/purchases/api/purchases.api';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { PurchaseOrderImportModal } from '@/features/purchases/components/PurchaseOrderImportModal';
+import { Upload, Download, Loader2 } from 'lucide-react';
 
 export default function PurchaseOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async () => {
+    try {
+      setIsExporting(true);
+      await exportPurchaseOrdersToCsv();
+    } catch (error) {
+      console.error("Export failed", error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const fetchOrders = async () => {
     try {
@@ -47,9 +63,21 @@ export default function PurchaseOrdersPage() {
             New
           </Link>
 
-          <button className="flex items-center justify-center text-slate-500 hover:bg-slate-100 p-2 rounded-md border border-slate-200 transition-colors">
-            <MoreHorizontal className="w-4 h-4" />
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger className="flex items-center justify-center text-slate-500 hover:bg-slate-100 p-2 rounded-md border border-slate-200 transition-colors">
+              <MoreHorizontal className="w-4 h-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 text-[13px]">
+              <DropdownMenuItem onClick={() => setIsImportModalOpen(true)} className="cursor-pointer">
+                <Upload className="w-4 h-4 mr-2 text-slate-500" />
+                Import Purchase Orders
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExport} className="cursor-pointer" disabled={isExporting}>
+                {isExporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin text-slate-500" /> : <Download className="w-4 h-4 mr-2 text-slate-500" />}
+                Export Purchase Orders
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -122,6 +150,16 @@ export default function PurchaseOrdersPage() {
           </tbody>
         </table>
       </div>
+
+      {isImportModalOpen && (
+        <PurchaseOrderImportModal
+          isOpen={isImportModalOpen}
+          onClose={() => setIsImportModalOpen(false)}
+          onSuccess={() => {
+            fetchOrders();
+          }}
+        />
+      )}
     </div>
   );
 }

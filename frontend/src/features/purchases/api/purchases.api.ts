@@ -48,5 +48,27 @@ export const getPurchaseOrders = async () => {
 
 export const getPurchaseOrderById = async (id: string) => {
   const response = await api.get(`/purchases/orders/${id}`);
+  return response.data.data;
+};
+
+export const exportPurchaseOrdersToCsv = async () => {
+  const response = await api.get('/purchases/orders/export', { responseType: 'blob' });
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', 'purchase_orders_export.csv');
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+};
+
+export const importPurchaseOrdersFromCsv = async (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post('/purchases/orders/import', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
   return response.data;
 };

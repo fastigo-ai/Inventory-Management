@@ -7,7 +7,7 @@ import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { createPurchaseOrder } from '../api/purchases.api';
-import { getItems } from '@/features/items/api/items.api';
+import { getItems, getEntityMetadata } from '@/features/items/api/items.api';
 import { getLocations } from '@/features/settings/api/locations.api';
 
 interface PurchaseOrderForm {
@@ -46,6 +46,7 @@ export function NewPurchaseOrderForm() {
   const router = useRouter();
   const [itemsList, setItemsList] = useState<any[]>([]);
   const [locationsList, setLocationsList] = useState<any[]>([]);
+  const [circleOptions, setCircleOptions] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [selectedBulkItems, setSelectedBulkItems] = useState<string[]>([]);
@@ -97,11 +98,18 @@ export function NewPurchaseOrderForm() {
   const taxPercentage = useWatch({ control, name: 'taxPercentage' }) || 0;
   const adjustment = useWatch({ control, name: 'adjustment' }) || 0;
 
-  // Fetch items and locations
+  // Fetch items, metadata, and locations
   useEffect(() => {
     getItems({ limit: 5000 }).then(data => {
       setItemsList(data.items || data);
     }).catch(err => console.error('Failed to fetch items:', err));
+
+    getEntityMetadata('Item').then(data => {
+       const circleField = data.fields?.find((f: any) => f.name === 'circle');
+       if (circleField && circleField.options) {
+          setCircleOptions(circleField.options);
+       }
+    }).catch(err => console.error('Failed to fetch item metadata:', err));
 
     getLocations().then(res => {
       if (res.success) {
@@ -345,7 +353,11 @@ export function NewPurchaseOrderForm() {
                   <label className="text-sm font-semibold text-slate-800 whitespace-nowrap px-4">Circle</label>
                   <div className="relative w-full">
                      <select {...register('circle')} className="w-full border border-slate-200 rounded-md pl-3 pr-10 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white appearance-none">
-                       <option value="Package 1(S/N)">Package 1(S/N)</option>
+                       <option value="">Select Circle</option>
+                       {circleOptions.map((opt, i) => (
+                         <option key={i} value={opt}>{opt}</option>
+                       ))}
+                       {circleOptions.length === 0 && <option value="Package 1(S/N)">Package 1(S/N)</option>}
                      </select>
                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-slate-400 pointer-events-none">
                        <span className="text-red-400 font-bold text-xs">✕</span>

@@ -84,6 +84,13 @@ const navItems: NavItem[] = [
     children: [
       { title: 'Module 1', href: '/modules/1' }
     ]
+  },
+  {
+    title: 'Settings',
+    icon: <Folder className="w-5 h-5" />,
+    children: [
+      { title: 'Item Preferences', href: '/settings/preferences/items' }
+    ]
   }
 ];
 

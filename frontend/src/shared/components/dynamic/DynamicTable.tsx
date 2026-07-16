@@ -11,8 +11,8 @@ interface DynamicTableProps {
 }
 
 export function DynamicTable({ fields, data }: DynamicTableProps) {
-  // Only show fields that are visible by default and sort by order
-  const sortedFields = [...fields].sort((a,b) => a.order - b.order);
+  // Only show fields that are visible by default, active, and sort by order
+  const sortedFields = [...fields].filter(f => f.active !== false).sort((a,b) => a.order - b.order);
   const defaultVisible = sortedFields.filter(f => f.visible).map(f => f.name);
   const [visibleColumns, setVisibleColumns] = useState<string[]>(defaultVisible);
   const [showConfig, setShowConfig] = useState(false);

@@ -79,6 +79,12 @@ export default function ItemsPage() {
     updateUrl({ sortBy: column, sortOrder: order, page: '1' }); // reset to page 1 on sort
   };
 
+  const handleRowClick = (row: any) => {
+    const queryString = searchParams.toString();
+    const targetUrl = `/items/${row._id}${queryString ? `?${queryString}` : ''}`;
+    router.push(targetUrl);
+  };
+
   const handleExport = async () => {
     try {
       setIsExporting(true);
@@ -143,6 +149,7 @@ export default function ItemsPage() {
         onPageChange={handlePageChange}
         onLimitChange={handleLimitChange}
         onSortChange={handleSortChange}
+        onRowClick={handleRowClick}
         sortColumn={sortBy}
         sortDirection={sortOrder}
       />

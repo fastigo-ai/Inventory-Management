@@ -17,6 +17,7 @@ interface DynamicTableProps {
   onSortChange?: (column: string, order: 'asc' | 'desc') => void;
   onPageChange?: (page: number) => void;
   onLimitChange?: (limit: number) => void;
+  onRowClick?: (row: any) => void;
   sortColumn?: string | null;
   sortDirection?: 'asc' | 'desc';
 }
@@ -28,6 +29,7 @@ export function DynamicTable({
   onSortChange,
   onPageChange,
   onLimitChange,
+  onRowClick,
   sortColumn,
   sortDirection
 }: DynamicTableProps) {
@@ -122,7 +124,11 @@ export function DynamicTable({
             {data.map((row, i) => {
               const srNo = pagination ? (pagination.currentPage - 1) * pagination.limit + i + 1 : i + 1;
               return (
-                <TableRow key={row._id || i}>
+                <TableRow 
+                  key={row._id || i}
+                  onClick={() => onRowClick && onRowClick(row)}
+                  className={onRowClick ? "cursor-pointer hover:bg-slate-50 transition-colors" : ""}
+                >
                   <TableCell className="text-slate-600 text-center font-medium text-xs bg-slate-50/30">
                     {srNo}
                   </TableCell>

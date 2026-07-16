@@ -31,6 +31,11 @@ export const getItems = async (params?: GetItemsParams) => {
   return response.data.data;
 };
 
+export const getItem = async (id: string) => {
+  const response = await api.get(`/items/${id}`);
+  return response.data.data;
+};
+
 export const createItem = async (dynamicData: any) => {
   const response = await api.post('/items', { dynamicData });
   return response.data.data;

@@ -85,6 +85,21 @@ export const getItems = asyncHandler(async (req: Request, res: Response) => {
   }, 'Items fetched successfully'));
 });
 
+export const getItemById = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  
+  // Validate ObjectId to prevent 500 CastErrors
+  if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+    throw new ApiError(404, 'Item not found');
+  }
+
+  const item = await Item.findById(id);
+  if (!item) {
+    throw new ApiError(404, 'Item not found');
+  }
+  res.status(200).json(new ApiResponse(200, item, 'Item fetched successfully'));
+});
+
 export const exportItems = asyncHandler(async (req: Request, res: Response) => {
   const metadata = await Metadata.findOne({ entityName: 'Item' });
   if (!metadata) {

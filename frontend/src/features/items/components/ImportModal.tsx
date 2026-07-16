@@ -37,7 +37,15 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
         onSuccess();
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || err.message || "Failed to upload file");
+      const responseData = err.response?.data;
+      if (responseData?.data?.errors) {
+        // Detailed row errors were returned
+        setResult({ successCount: 0, errors: responseData.data.errors });
+        setError(responseData.message || "Import failed due to validation errors.");
+      } else {
+        // Generic error
+        setError(responseData?.message || err.message || "Failed to upload file");
+      }
     } finally {
       setIsUploading(false);
     }
@@ -96,13 +104,15 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
 
           {result && (
             <div className="mt-4 space-y-4">
-              <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
-                <CheckCircle className="w-6 h-6 text-green-600" />
-                <div>
-                  <h4 className="font-medium text-green-900">Successfully Imported</h4>
-                  <p className="text-sm text-green-700">{result.successCount} items added</p>
+              {result.successCount > 0 && (
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
+                  <CheckCircle className="w-6 h-6 text-green-600" />
+                  <div>
+                    <h4 className="font-medium text-green-900">Successfully Imported</h4>
+                    <p className="text-sm text-green-700">{result.successCount} items added</p>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {result.errors && result.errors.length > 0 && (
                 <div className="border border-red-200 rounded-lg overflow-hidden">

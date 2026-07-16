@@ -8,18 +8,35 @@ import { Settings2, ChevronUp, ChevronDown, ArrowUpDown } from "lucide-react";
 interface DynamicTableProps {
   fields: FieldMetadata[];
   data: any[];
+  pagination?: {
+    totalItems: number;
+    currentPage: number;
+    limit: number;
+    totalPages: number;
+  };
+  onSortChange?: (column: string, order: 'asc' | 'desc') => void;
+  onPageChange?: (page: number) => void;
+  onLimitChange?: (limit: number) => void;
+  sortColumn?: string | null;
+  sortDirection?: 'asc' | 'desc';
 }
 
-export function DynamicTable({ fields, data }: DynamicTableProps) {
+export function DynamicTable({ 
+  fields, 
+  data,
+  pagination,
+  onSortChange,
+  onPageChange,
+  onLimitChange,
+  sortColumn,
+  sortDirection
+}: DynamicTableProps) {
   // Only show fields that are visible by default, active, and sort by order
   const sortedFields = [...fields].filter(f => f.active !== false).sort((a,b) => a.order - b.order);
   const defaultVisible = sortedFields.filter(f => f.visible).map(f => f.name);
   const [visibleColumns, setVisibleColumns] = useState<string[]>(defaultVisible);
   const [showConfig, setShowConfig] = useState(false);
   
-  const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-
   const toggleColumn = (name: string) => {
     setVisibleColumns(prev => 
       prev.includes(name) ? prev.filter(c => c !== name) : [...prev, name]
@@ -27,37 +44,16 @@ export function DynamicTable({ fields, data }: DynamicTableProps) {
   };
 
   const handleSort = (columnName: string) => {
-    if (sortColumn === columnName) {
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortColumn(columnName);
-      setSortDirection('asc');
+    if (onSortChange) {
+      let order: 'asc' | 'desc' = 'asc';
+      if (sortColumn === columnName) {
+        order = sortDirection === 'asc' ? 'desc' : 'asc';
+      }
+      onSortChange(columnName, order);
     }
   };
 
   const columns = sortedFields.filter(f => visibleColumns.includes(f.name));
-
-  const sortedData = [...data].sort((a, b) => {
-    if (!sortColumn) return 0;
-    
-    const valA = a.dynamicData?.[sortColumn];
-    const valB = b.dynamicData?.[sortColumn];
-    
-    if (valA == null && valB == null) return 0;
-    if (valA == null) return 1;
-    if (valB == null) return -1;
-    
-    if (typeof valA === 'number' && typeof valB === 'number') {
-      return sortDirection === 'asc' ? valA - valB : valB - valA;
-    }
-    
-    const strA = String(valA).toLowerCase();
-    const strB = String(valB).toLowerCase();
-    
-    if (strA < strB) return sortDirection === 'asc' ? -1 : 1;
-    if (strA > strB) return sortDirection === 'asc' ? 1 : -1;
-    return 0;
-  });
 
   return (
     <div className="space-y-4">
@@ -90,10 +86,14 @@ export function DynamicTable({ fields, data }: DynamicTableProps) {
         </div>
       )}
 
-      <div className="rounded-md border bg-white shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-slate-50/50 hover:bg-slate-50/50">
+      <div className="rounded-md border bg-white shadow-sm overflow-hidden flex flex-col">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-slate-50/50 hover:bg-slate-50/50">
+                <TableHead className="font-semibold text-slate-700 w-16 text-center select-none">
+                  Sr. No
+                </TableHead>
               {columns.map(col => (
                 <TableHead 
                   key={col.name} 
@@ -119,18 +119,24 @@ export function DynamicTable({ fields, data }: DynamicTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedData.map((row, i) => (
-              <TableRow key={row._id || i}>
-                {columns.map(col => (
-                  <TableCell key={col.name} className="text-slate-600">
-                    {typeof row.dynamicData?.[col.name] === 'boolean' 
-                      ? (row.dynamicData?.[col.name] ? 'Yes' : 'No') 
-                      : row.dynamicData?.[col.name] ?? '-'}
+            {data.map((row, i) => {
+              const srNo = pagination ? (pagination.currentPage - 1) * pagination.limit + i + 1 : i + 1;
+              return (
+                <TableRow key={row._id || i}>
+                  <TableCell className="text-slate-600 text-center font-medium text-xs bg-slate-50/30">
+                    {srNo}
                   </TableCell>
-                ))}
-              </TableRow>
-            ))}
-            {sortedData.length === 0 && (
+                  {columns.map(col => (
+                    <TableCell key={col.name} className="text-slate-600">
+                      {typeof row.dynamicData?.[col.name] === 'boolean' 
+                        ? (row.dynamicData?.[col.name] ? 'Yes' : 'No') 
+                        : row.dynamicData?.[col.name] ?? '-'}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              );
+            })}
+            {data.length === 0 && (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center text-slate-500">
                   No records found.
@@ -139,6 +145,49 @@ export function DynamicTable({ fields, data }: DynamicTableProps) {
             )}
           </TableBody>
         </Table>
+        </div>
+        
+        {pagination && pagination.totalItems > 0 && (
+          <div className="flex items-center justify-between border-t px-4 py-3 bg-slate-50/50 sm:px-6">
+            <div className="hidden sm:flex sm:items-center space-x-4">
+              <p className="text-sm text-slate-700">
+                Showing <span className="font-medium">{(pagination.currentPage - 1) * pagination.limit + 1}</span> to <span className="font-medium">{Math.min(pagination.currentPage * pagination.limit, pagination.totalItems)}</span> of{' '}
+                <span className="font-medium">{pagination.totalItems}</span> results
+              </p>
+              {onLimitChange && (
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-slate-500">Rows per page:</span>
+                  <select
+                    className="h-8 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    value={pagination.limit}
+                    onChange={(e) => onLimitChange(Number(e.target.value))}
+                  >
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              )}
+            </div>
+            <div className="flex flex-1 justify-between sm:justify-end space-x-2">
+              <button
+                onClick={() => onPageChange && onPageChange(pagination.currentPage - 1)}
+                disabled={pagination.currentPage === 1}
+                className="relative inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => onPageChange && onPageChange(pagination.currentPage + 1)}
+                disabled={pagination.currentPage === pagination.totalPages}
+                className="relative inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

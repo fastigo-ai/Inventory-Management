@@ -6,6 +6,7 @@ import { exportItemsToCsv } from "@/features/items/api/items.api";
 import { DynamicTable } from "@/shared/components/dynamic/DynamicTable";
 import { FieldMetadata } from "@/shared/components/dynamic/DynamicForm";
 import Link from "next/link";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Loader2, Plus, Settings, Download, Upload, MoreHorizontal } from "lucide-react";
 import {
@@ -17,8 +18,18 @@ import {
 import { ImportModal } from "@/features/items/components/ImportModal";
 
 export default function ItemsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+
+  const page = parseInt(searchParams.get('page') || '1');
+  const sortBy = searchParams.get('sortBy') || null;
+  const sortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') || 'asc';
+  const limit = parseInt(searchParams.get('limit') || '50');
+
   const [fields, setFields] = useState<FieldMetadata[]>([]);
   const [items, setItems] = useState<any[]>([]);
+  const [pagination, setPagination] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -28,10 +39,11 @@ export default function ItemsPage() {
     try {
       const [metaRes, itemsRes] = await Promise.all([
         getEntityMetadata('Item'),
-        getItems()
+        getItems({ page, limit, sortBy: sortBy || undefined, sortOrder })
       ]);
       setFields(metaRes.fields);
-      setItems(itemsRes);
+      setItems(itemsRes.items || itemsRes);
+      setPagination(itemsRes.pagination || null);
     } catch (error) {
       console.error("Failed to load items data", error);
     } finally {
@@ -41,7 +53,31 @@ export default function ItemsPage() {
 
   useEffect(() => {
     fetchItemsData();
-  }, []);
+  }, [page, limit, sortBy, sortOrder]);
+
+  const updateUrl = (updates: Record<string, string | null>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === null) {
+        params.delete(key);
+      } else {
+        params.set(key, value);
+      }
+    });
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    updateUrl({ page: newPage.toString() });
+  };
+
+  const handleLimitChange = (newLimit: number) => {
+    updateUrl({ limit: newLimit.toString(), page: '1' });
+  };
+
+  const handleSortChange = (column: string, order: 'asc' | 'desc') => {
+    updateUrl({ sortBy: column, sortOrder: order, page: '1' }); // reset to page 1 on sort
+  };
 
   const handleExport = async () => {
     try {
@@ -100,7 +136,16 @@ export default function ItemsPage() {
         </div>
       </div>
 
-      <DynamicTable fields={fields} data={items} />
+      <DynamicTable 
+        fields={fields} 
+        data={items} 
+        pagination={pagination}
+        onPageChange={handlePageChange}
+        onLimitChange={handleLimitChange}
+        onSortChange={handleSortChange}
+        sortColumn={sortBy}
+        sortDirection={sortOrder}
+      />
 
       {isImportModalOpen && (
         <ImportModal 

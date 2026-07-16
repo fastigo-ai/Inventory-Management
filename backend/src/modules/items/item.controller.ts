@@ -55,8 +55,34 @@ export const createItem = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getItems = asyncHandler(async (req: Request, res: Response) => {
-  const items = await Item.find({}).sort({ createdAt: -1 });
-  res.status(200).json(new ApiResponse(200, items, 'Items fetched successfully'));
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 50;
+  const sortBy = req.query.sortBy as string;
+  const sortOrder = (req.query.sortOrder as string) === 'desc' ? -1 : 1;
+
+  let sortObject: any = { createdAt: -1 };
+  if (sortBy) {
+    sortObject = { [`dynamicData.${sortBy}`]: sortOrder };
+  }
+
+  const skip = (page - 1) * limit;
+
+  const totalItems = await Item.countDocuments();
+  const items = await Item.find({})
+    .sort(sortObject)
+    .collation({ locale: 'en', numericOrdering: true }) // helps sort numbers/strings nicely
+    .skip(skip)
+    .limit(limit);
+
+  res.status(200).json(new ApiResponse(200, {
+    items,
+    pagination: {
+      totalItems,
+      currentPage: page,
+      limit,
+      totalPages: Math.ceil(totalItems / limit)
+    }
+  }, 'Items fetched successfully'));
 });
 
 export const exportItems = asyncHandler(async (req: Request, res: Response) => {
@@ -97,8 +123,8 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const results: any[] = [];
-  let successCount = 0;
   const errors: any[] = [];
+  const validItems: any[] = [];
 
   const parser = parse(req.file.buffer, {
     columns: true,
@@ -108,31 +134,38 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
 
   // Create a map of Label -> Internal Field Name with normalized keys
   const labelToNameMap: Record<string, string> = {};
+  const uniqueFields: string[] = [];
+  
   for (const field of metadata.fields) {
     const normalized = field.label.toLowerCase().replace(/[^a-z0-9]/g, '');
     labelToNameMap[normalized] = field.name;
     labelToNameMap[field.label.toLowerCase()] = field.name;
+    
+    if (field.unique) {
+      uniqueFields.push(field.name);
+    }
   }
 
   // Common aliases for import
   const aliases: Record<string, string> = {
     'itemname': 'name',
     'itemdesc': 'description',
-    'loaserialno': 'loaserialno', // If added as custom field
+    'loaserialno': 'loaserialno',
   };
 
   let rowIndex = 1;
+  const seenUniqueValues: Record<string, Set<any>> = {};
+  uniqueFields.forEach(f => seenUniqueValues[f] = new Set());
+
   for await (const row of parser) {
     rowIndex++;
     try {
       const dynamicData: any = {};
       
-      // Map CSV column (label) to internal name using normalization and aliases
       for (const [columnName, cellValue] of Object.entries(row)) {
         const normalizedCol = columnName.toLowerCase().replace(/[^a-z0-9]/g, '');
         let fieldName = labelToNameMap[normalizedCol] || labelToNameMap[columnName.toLowerCase()];
         
-        // Try alias if not found
         if (!fieldName && aliases[normalizedCol]) {
           fieldName = aliases[normalizedCol];
         }
@@ -140,13 +173,11 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
         if (fieldName) {
            dynamicData[fieldName] = cellValue;
         } else {
-           // Fallback for custom fields that might not be perfectly mapped
            dynamicData[columnName] = cellValue;
            dynamicData[normalizedCol] = cellValue;
         }
       }
 
-      // Convert number fields from string to number
       for (const field of metadata.fields) {
         if (dynamicData[field.name]) {
            if (['number', 'decimal', 'amount'].includes(field.type)) {
@@ -158,15 +189,34 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
         }
       }
 
-      // Apply default values for strictly required fields if missing from CSV
       if (!dynamicData.type) dynamicData.type = 'Goods';
       if (!dynamicData.costPrice && dynamicData.costPrice !== 0) dynamicData.costPrice = 0;
       if (!dynamicData.sellingPrice && dynamicData.sellingPrice !== 0) dynamicData.sellingPrice = 0;
       if (!dynamicData.unit) dynamicData.unit = 'pcs';
 
+      // Check uniqueness within the CSV file itself
+      const rowErrors: string[] = [];
+      for (const uField of uniqueFields) {
+        const val = dynamicData[uField];
+        if (val) {
+          if (seenUniqueValues[uField].has(val)) {
+            rowErrors.push(`Duplicate value '${val}' found within the CSV for field '${uField}'.`);
+          } else {
+            seenUniqueValues[uField].add(val);
+          }
+        }
+      }
+
+      if (rowErrors.length > 0) {
+        throw new ApiError(400, 'Validation failed', rowErrors);
+      }
+
+      // Check database uniqueness and required constraints
       await validateDynamicData(dynamicData, metadata.fields);
-      await Item.create({ dynamicData });
-      successCount++;
+      
+      // If validation passed, push to valid items array
+      validItems.push({ dynamicData });
+
     } catch (err: any) {
       errors.push({
         row: rowIndex,
@@ -176,5 +226,13 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
     }
   }
 
-  res.status(200).json(new ApiResponse(200, { successCount, errors }, 'Import processed'));
+  if (errors.length > 0) {
+    // If ANY row has an error, abort the entire import
+    return res.status(400).json(new ApiResponse(400, { errors }, 'Import failed due to validation errors. No items were imported.'));
+  }
+
+  // Atomic bulk insert
+  await Item.insertMany(validItems);
+
+  res.status(200).json(new ApiResponse(200, { successCount: validItems.length }, 'Import processed successfully'));
 });

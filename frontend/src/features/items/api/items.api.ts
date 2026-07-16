@@ -10,8 +10,24 @@ export const updateEntityMetadata = async (entityName: string, fields: any[]) =>
   return response.data.data;
 };
 
-export const getItems = async () => {
-  const response = await api.get('/items');
+interface GetItemsParams {
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
+export const getItems = async (params?: GetItemsParams) => {
+  const query = new URLSearchParams();
+  if (params?.page) query.append('page', params.page.toString());
+  if (params?.limit) query.append('limit', params.limit.toString());
+  if (params?.sortBy) query.append('sortBy', params.sortBy);
+  if (params?.sortOrder) query.append('sortOrder', params.sortOrder);
+  
+  const queryString = query.toString();
+  const url = queryString ? `/items?${queryString}` : '/items';
+
+  const response = await api.get(url);
   return response.data.data;
 };
 

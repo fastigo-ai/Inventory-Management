@@ -3,6 +3,7 @@ import { importItemsFromCsv } from "../api/items.api";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Loader2, UploadCloud, FileText, CheckCircle, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
 
 interface ImportModalProps {
   isOpen: boolean;
@@ -32,10 +33,18 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
 
     try {
       const res = await importItemsFromCsv(file);
-      setResult(res);
+      
       if (res.successCount > 0) {
+        toast.success(`Imported successfully! ${res.successCount} items added.`);
         onSuccess();
+        
+        // If there are zero errors, close the modal immediately since it's perfectly successful
+        if (!res.errors || res.errors.length === 0) {
+           onClose();
+           return; // Stop here, so we don't set result which keeps it open
+        }
       }
+      setResult(res);
     } catch (err: any) {
       const responseData = err.response?.data;
       if (responseData?.data?.errors) {

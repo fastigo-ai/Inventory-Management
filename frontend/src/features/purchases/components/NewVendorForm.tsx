@@ -28,12 +28,6 @@ export function NewVendorForm() {
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-5xl mx-auto p-8 flex flex-col">
           
-          {/* Blue Alert Banner */}
-          <div className="bg-[#eff6ff] border border-[#bfdbfe] rounded-md p-3 mb-8 flex items-center gap-2 text-sm text-[#1e40af]">
-            <DownloadCloud className="w-5 h-5 text-[#3b82f6]" />
-            Prefill Vendor details from the GST portal using the Vendor's GSTIN. 
-            <button className="font-semibold ml-1 hover:underline text-[#2563eb]">Prefill {'>'}</button>
-          </div>
 
           {/* Primary Details Grid */}
           <div className="space-y-6 max-w-3xl">

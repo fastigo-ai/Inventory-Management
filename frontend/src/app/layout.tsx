@@ -14,6 +14,8 @@ export const metadata: Metadata = {
 
 import { ClientLayout } from "@/shared/components/layout/ClientLayout";
 
+import { Toaster } from "sonner";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -26,6 +28,7 @@ export default function RootLayout({
     >
       <body className="min-h-full">
         <ClientLayout>{children}</ClientLayout>
+        <Toaster richColors position="top-center" />
       </body>
     </html>
   );

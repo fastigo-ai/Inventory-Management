@@ -9,6 +9,7 @@ import roleRoutes from './modules/roles/role.routes';
 import userRoutes from './modules/users/user.routes';
 import metadataRoutes from './modules/metadata/metadata.routes';
 import itemRoutes from './modules/items/item.routes';
+import purchaseRoutes from './modules/purchases/purchase.routes';
 import { errorHandler } from './core/middlewares/error.middleware';
 
 const app: Express = express();
@@ -25,6 +26,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(compression());
 
+import path from 'path';
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
 // Health Check Route
 app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'UP', message: 'ERP Backend is running.' });
@@ -36,6 +40,7 @@ app.use('/api/roles', roleRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/metadata', metadataRoutes);
 app.use('/api/items', itemRoutes);
+app.use('/api/purchases', purchaseRoutes);
 
 // Global Error Handler
 app.use(errorHandler);

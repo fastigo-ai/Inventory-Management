@@ -1,0 +1,52 @@
+import { api } from "@/shared/api/axios";
+
+export interface CreatePurchaseOrderDto {
+  vendorName: string;
+  location?: string;
+  deliveryAddressType?: 'Locations' | 'Customer';
+  deliveryAddressId?: string;
+  purchaseOrderNumber: string;
+  reference?: string;
+  date: Date | string;
+  deliveryDate?: Date | string;
+  paymentTerms?: string;
+  poQuantity?: string;
+  circle?: string;
+  package1?: string;
+  package2?: string;
+  shipmentPreference?: string;
+  warehouseLocation?: string;
+  lineItems: Array<{
+    itemId?: string;
+    itemName: string;
+    tempCode?: string;
+    account?: string;
+    quantity: number;
+    rate: number;
+  }>;
+  notes?: string;
+  termsConditions?: string;
+  discountPercentage?: number;
+  taxType?: 'TDS' | 'TCS';
+  taxPercentage?: number;
+  adjustment?: number;
+  status?: 'Draft' | 'Sent';
+}
+
+export const createPurchaseOrder = async (payload: CreatePurchaseOrderDto | FormData) => {
+  const isFormData = payload instanceof FormData;
+  const response = await api.post('/purchases/orders', payload, {
+    headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : undefined,
+  });
+  return response.data;
+};
+
+export const getPurchaseOrders = async () => {
+  const response = await api.get('/purchases/orders');
+  return response.data;
+};
+
+export const getPurchaseOrderById = async (id: string) => {
+  const response = await api.get(`/purchases/orders/${id}`);
+  return response.data;
+};

@@ -106,11 +106,20 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
     trim: true,
   });
 
-  // Create a map of Label -> Internal Field Name
+  // Create a map of Label -> Internal Field Name with normalized keys
   const labelToNameMap: Record<string, string> = {};
   for (const field of metadata.fields) {
+    const normalized = field.label.toLowerCase().replace(/[^a-z0-9]/g, '');
+    labelToNameMap[normalized] = field.name;
     labelToNameMap[field.label.toLowerCase()] = field.name;
   }
+
+  // Common aliases for import
+  const aliases: Record<string, string> = {
+    'itemname': 'name',
+    'itemdesc': 'description',
+    'loaserialno': 'loaserialno', // If added as custom field
+  };
 
   let rowIndex = 1;
   for await (const row of parser) {
@@ -118,11 +127,22 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
     try {
       const dynamicData: any = {};
       
-      // Map CSV column (label) to internal name
+      // Map CSV column (label) to internal name using normalization and aliases
       for (const [columnName, cellValue] of Object.entries(row)) {
-        const fieldName = labelToNameMap[columnName.toLowerCase()];
+        const normalizedCol = columnName.toLowerCase().replace(/[^a-z0-9]/g, '');
+        let fieldName = labelToNameMap[normalizedCol] || labelToNameMap[columnName.toLowerCase()];
+        
+        // Try alias if not found
+        if (!fieldName && aliases[normalizedCol]) {
+          fieldName = aliases[normalizedCol];
+        }
+
         if (fieldName) {
            dynamicData[fieldName] = cellValue;
+        } else {
+           // Fallback for custom fields that might not be perfectly mapped
+           dynamicData[columnName] = cellValue;
+           dynamicData[normalizedCol] = cellValue;
         }
       }
 
@@ -137,6 +157,12 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
            }
         }
       }
+
+      // Apply default values for strictly required fields if missing from CSV
+      if (!dynamicData.type) dynamicData.type = 'Goods';
+      if (!dynamicData.costPrice && dynamicData.costPrice !== 0) dynamicData.costPrice = 0;
+      if (!dynamicData.sellingPrice && dynamicData.sellingPrice !== 0) dynamicData.sellingPrice = 0;
+      if (!dynamicData.unit) dynamicData.unit = 'pcs';
 
       await validateDynamicData(dynamicData, metadata.fields);
       await Item.create({ dynamicData });

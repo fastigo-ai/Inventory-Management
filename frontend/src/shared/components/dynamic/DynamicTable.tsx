@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { FieldMetadata } from "./DynamicForm";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Settings2 } from "lucide-react";
+import { Settings2, ChevronUp, ChevronDown, ArrowUpDown } from "lucide-react";
 
 interface DynamicTableProps {
   fields: FieldMetadata[];
@@ -16,6 +16,9 @@ export function DynamicTable({ fields, data }: DynamicTableProps) {
   const defaultVisible = sortedFields.filter(f => f.visible).map(f => f.name);
   const [visibleColumns, setVisibleColumns] = useState<string[]>(defaultVisible);
   const [showConfig, setShowConfig] = useState(false);
+  
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   const toggleColumn = (name: string) => {
     setVisibleColumns(prev => 
@@ -23,7 +26,38 @@ export function DynamicTable({ fields, data }: DynamicTableProps) {
     );
   };
 
+  const handleSort = (columnName: string) => {
+    if (sortColumn === columnName) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(columnName);
+      setSortDirection('asc');
+    }
+  };
+
   const columns = sortedFields.filter(f => visibleColumns.includes(f.name));
+
+  const sortedData = [...data].sort((a, b) => {
+    if (!sortColumn) return 0;
+    
+    const valA = a.dynamicData?.[sortColumn];
+    const valB = b.dynamicData?.[sortColumn];
+    
+    if (valA == null && valB == null) return 0;
+    if (valA == null) return 1;
+    if (valB == null) return -1;
+    
+    if (typeof valA === 'number' && typeof valB === 'number') {
+      return sortDirection === 'asc' ? valA - valB : valB - valA;
+    }
+    
+    const strA = String(valA).toLowerCase();
+    const strB = String(valB).toLowerCase();
+    
+    if (strA < strB) return sortDirection === 'asc' ? -1 : 1;
+    if (strA > strB) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
 
   return (
     <div className="space-y-4">
@@ -61,14 +95,31 @@ export function DynamicTable({ fields, data }: DynamicTableProps) {
           <TableHeader>
             <TableRow className="bg-slate-50/50 hover:bg-slate-50/50">
               {columns.map(col => (
-                <TableHead key={col.name} className="font-semibold text-slate-700">
-                  {col.label}
+                <TableHead 
+                  key={col.name} 
+                  className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-200 select-none group transition-colors"
+                  onClick={() => handleSort(col.name)}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>{col.label}</span>
+                    <div className="flex flex-col">
+                      {sortColumn === col.name ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 text-indigo-600" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-indigo-600" />
+                        )
+                      ) : (
+                        <ArrowUpDown className="w-4 h-4 opacity-0 group-hover:opacity-40 transition-opacity" />
+                      )}
+                    </div>
+                  </div>
                 </TableHead>
               ))}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.map((row, i) => (
+            {sortedData.map((row, i) => (
               <TableRow key={row._id || i}>
                 {columns.map(col => (
                   <TableCell key={col.name} className="text-slate-600">
@@ -79,7 +130,7 @@ export function DynamicTable({ fields, data }: DynamicTableProps) {
                 ))}
               </TableRow>
             ))}
-            {data.length === 0 && (
+            {sortedData.length === 0 && (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center text-slate-500">
                   No records found.

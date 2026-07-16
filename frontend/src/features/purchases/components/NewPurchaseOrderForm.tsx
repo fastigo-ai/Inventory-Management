@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { createPurchaseOrder } from '../api/purchases.api';
 import { getItems } from '@/features/items/api/items.api';
+import { getLocations } from '@/features/settings/api/locations.api';
 
 interface PurchaseOrderForm {
   vendorName: string;
@@ -44,6 +45,7 @@ interface PurchaseOrderForm {
 export function NewPurchaseOrderForm() {
   const router = useRouter();
   const [itemsList, setItemsList] = useState<any[]>([]);
+  const [locationsList, setLocationsList] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [selectedBulkItems, setSelectedBulkItems] = useState<string[]>([]);
@@ -95,11 +97,17 @@ export function NewPurchaseOrderForm() {
   const taxPercentage = useWatch({ control, name: 'taxPercentage' }) || 0;
   const adjustment = useWatch({ control, name: 'adjustment' }) || 0;
 
-  // Fetch items for the dropdown
+  // Fetch items and locations
   useEffect(() => {
     getItems({ limit: 5000 }).then(data => {
       setItemsList(data.items || data);
     }).catch(err => console.error('Failed to fetch items:', err));
+
+    getLocations().then(res => {
+      if (res.success) {
+        setLocationsList(res.data);
+      }
+    }).catch(err => console.error('Failed to fetch locations:', err));
   }, []);
 
   // Calculations
@@ -245,12 +253,14 @@ export function NewPurchaseOrderForm() {
                 </div>
               </div>
 
-              {/* Location */}
               <div className="grid grid-cols-[160px_24px_1fr] items-center gap-4">
                 <label className="text-sm font-semibold text-slate-800">Location</label>
                 <div className="col-span-1"></div>
                 <select {...register('location')} className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white">
-                  <option value="head-office">Head Office</option>
+                  <option value="">Select Location</option>
+                  {locationsList.map((loc) => (
+                    <option key={loc._id} value={loc.name}>{loc.name}</option>
+                  ))}
                 </select>
               </div>
 
@@ -270,7 +280,10 @@ export function NewPurchaseOrderForm() {
                     </label>
                   </div>
                   <select {...register('deliveryAddressId')} className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white">
-                    <option value="Head Office">Head Office</option>
+                    <option value="">Select Delivery Location</option>
+                    {locationsList.map((loc) => (
+                      <option key={loc._id} value={loc.name}>{loc.name}</option>
+                    ))}
                   </select>
                   
                   <div className="bg-slate-50 border border-slate-100 rounded-md p-4 text-sm text-slate-600 space-y-1">
@@ -374,9 +387,15 @@ export function NewPurchaseOrderForm() {
           {/* Item Table Section */}
           <div className="space-y-4">
             <div className="flex items-center gap-6 border-b border-slate-200">
-               <button type="button" className="pb-3 text-sm font-semibold text-slate-800 border-b-2 border-blue-600 flex items-center gap-2">
-                 Warehouse Location <span className="text-xs font-normal">Head Office ▼</span>
-               </button>
+               <div className="pb-3 border-b-2 border-blue-600 flex items-center gap-2">
+                 <label className="text-sm font-semibold text-slate-800">Warehouse Location</label>
+                 <select {...register('warehouseLocation')} className="text-xs font-normal bg-transparent border-none focus:outline-none text-slate-600 cursor-pointer appearance-none">
+                   {locationsList.map((loc) => (
+                     <option key={loc._id} value={loc.name}>{loc.name} ▼</option>
+                   ))}
+                   {locationsList.length === 0 && <option>Head Office ▼</option>}
+                 </select>
+               </div>
                <button type="button" className="pb-3 text-sm font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-2">
                  % At Transaction Level ▼
                </button>

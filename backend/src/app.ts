@@ -10,6 +10,7 @@ import userRoutes from './modules/users/user.routes';
 import metadataRoutes from './modules/metadata/metadata.routes';
 import itemRoutes from './modules/items/item.routes';
 import purchaseRoutes from './modules/purchases/purchase.routes';
+import locationRoutes from './modules/locations/location.routes';
 import { errorHandler } from './core/middlewares/error.middleware';
 
 const app: Express = express();
@@ -41,6 +42,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/metadata', metadataRoutes);
 app.use('/api/items', itemRoutes);
 app.use('/api/purchases', purchaseRoutes);
+app.use('/api/locations', locationRoutes);
 
 // Global Error Handler
 app.use(errorHandler);

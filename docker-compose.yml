@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: erp_mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=erp_system
+    networks:
+      - erp_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: erp_backend
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    environment:
+      - PORT=5000
+      - NODE_ENV=development
+      - MONGO_URI=mongodb://mongodb:27017/erp_system
+      - CLIENT_URL=http://localhost:3000
+    depends_on:
+      - mongodb
+    networks:
+      - erp_network
+    command: npm run dev
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: erp_frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:5000/api
+      - NEXT_PUBLIC_APP_NAME=ERP Inventory System
+    depends_on:
+      - backend
+    networks:
+      - erp_network
+    command: npm run dev
+
+networks:
+  erp_network:
+    driver: bridge
+
+volumes:
+  mongodb_data:

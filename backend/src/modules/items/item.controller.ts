@@ -98,7 +98,7 @@ export const getItemById = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   
   // Validate ObjectId to prevent 500 CastErrors
-  if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+  if (typeof id !== 'string' || !id.match(/^[0-9a-fA-F]{24}$/)) {
     throw new ApiError(404, 'Item not found');
   }
 

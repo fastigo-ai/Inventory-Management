@@ -77,3 +77,74 @@ export const getNextPurchaseOrderNumber = async () => {
   const response = await api.get('/purchases/orders/next-number');
   return response.data;
 };
+
+// Purchase Receives
+export interface CreatePurchaseReceiveDto {
+  vendorName: string;
+  purchaseOrderId?: string;
+  purchaseOrderNumber?: string;
+  purchaseReceiveNumber: string;
+  receiveDate: string | Date;
+  diNo?: string;
+  diDate?: string | Date;
+  packageName?: string;
+  package1?: string;
+  package2?: string;
+  loaSerialNo?: string;
+  sku?: string;
+  itemName?: string;
+  unit?: string;
+  quantity?: number;
+  lineItems: Array<{
+    itemId?: string;
+    itemName: string;
+    tempCode?: string;
+    ordered: number;
+    received: number;
+    inTransit: number;
+    quantityToReceive: number;
+  }>;
+  notes?: string;
+  status?: 'Draft' | 'Received' | 'In Transit';
+  billed?: boolean;
+}
+
+export const createPurchaseReceive = async (payload: CreatePurchaseReceiveDto | FormData) => {
+  const isFormData = payload instanceof FormData;
+  const response = await api.post('/purchases/receives', payload, {
+    headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : undefined,
+  });
+  return response.data;
+};
+
+export const getPurchaseReceives = async (params?: { page?: number; limit?: number }) => {
+  const query = new URLSearchParams();
+  if (params?.page) query.append('page', params.page.toString());
+  if (params?.limit) query.append('limit', params.limit.toString());
+  
+  const queryString = query.toString();
+  const url = queryString ? `/purchases/receives?${queryString}` : '/purchases/receives';
+  
+  const response = await api.get(url);
+  return response.data;
+};
+
+export const getPurchaseReceiveById = async (id: string) => {
+  const response = await api.get(`/purchases/receives/${id}`);
+  return response.data.data;
+};
+
+export const updatePurchaseReceive = async (id: string, data: any) => {
+  const response = await api.put(`/purchases/receives/${id}`, data);
+  return response.data;
+};
+
+export const deletePurchaseReceive = async (id: string) => {
+  const response = await api.delete(`/purchases/receives/${id}`);
+  return response.data;
+};
+
+export const getNextPurchaseReceiveNumber = async () => {
+  const response = await api.get('/purchases/receives/next-number');
+  return response.data;
+};

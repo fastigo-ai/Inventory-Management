@@ -6,7 +6,9 @@ import {
   getVendors,
   getVendorById,
   importVendors,
-  exportVendors
+  exportVendors,
+  updateVendor,
+  deleteVendor
 } from './vendor.controller';
 
 const router = Router();
@@ -19,5 +21,7 @@ router.get('/export', exportVendors);
 router.post('/', createVendor);
 router.get('/', getVendors);
 router.get('/:id', getVendorById);
+router.put('/:id', updateVendor);
+router.delete('/:id', deleteVendor);
 
 export default router;

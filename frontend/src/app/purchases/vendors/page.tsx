@@ -8,7 +8,7 @@ import { FieldMetadata } from "@/shared/components/dynamic/DynamicForm";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Loader2, Plus, Settings, Download, Upload, MoreHorizontal } from "lucide-react";
+import { Loader2, Plus, Settings, Download, Upload, MoreHorizontal, Search } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +26,7 @@ export default function VendorsPage() {
   const sortBy = searchParams.get('sortBy') || null;
   const sortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') || 'asc';
   const limit = parseInt(searchParams.get('limit') || '50');
+  const searchQuery = searchParams.get('search') || '';
 
   const [fields, setFields] = useState<FieldMetadata[]>([]);
   const [vendors, setVendors] = useState<any[]>([]);
@@ -33,13 +34,14 @@ export default function VendorsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [searchInput, setSearchInput] = useState(searchQuery);
 
   const fetchVendorsData = async () => {
     setIsLoading(true);
     try {
       const [metaRes, vendorsRes] = await Promise.all([
         getEntityMetadata('Vendor'),
-        getVendors({ page, limit, sortBy: sortBy || undefined, sortOrder })
+        getVendors({ page, limit, sortBy: sortBy || undefined, sortOrder, search: searchQuery || undefined })
       ]);
       setFields(metaRes.fields);
       setVendors(vendorsRes.vendors || vendorsRes);
@@ -53,7 +55,7 @@ export default function VendorsPage() {
 
   useEffect(() => {
     fetchVendorsData();
-  }, [page, limit, sortBy, sortOrder]);
+  }, [page, limit, sortBy, sortOrder, searchQuery]);
 
   const updateUrl = (updates: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -83,6 +85,28 @@ export default function VendorsPage() {
     const queryString = searchParams.toString();
     const targetUrl = `/purchases/vendors/${row._id}${queryString ? `?${queryString}` : ''}`;
     router.push(targetUrl);
+  };
+
+  const handleEdit = (row: any) => {
+    router.push(`/purchases/vendors/${row._id}/edit`);
+  };
+
+  const handleDelete = async (row: any) => {
+    if (window.confirm(`Are you sure you want to delete vendor "${row.dynamicData?.companyName || row.dynamicData?.displayName || 'Unknown'}"?`)) {
+      try {
+        const { deleteVendor } = await import('@/features/vendors/api/vendors.api');
+        await deleteVendor(row._id);
+        fetchVendorsData();
+      } catch (error) {
+        console.error("Failed to delete vendor", error);
+        alert("Failed to delete vendor.");
+      }
+    }
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateUrl({ search: searchInput || null, page: '1' });
   };
 
   const handleExport = async () => {
@@ -142,6 +166,19 @@ export default function VendorsPage() {
         </div>
       </div>
 
+      <div className="flex items-center space-x-4 mb-2">
+        <form onSubmit={handleSearch} className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input 
+            type="text" 
+            placeholder="Search by company, contact name, or phone..." 
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          />
+        </form>
+      </div>
+
       <DynamicTable 
         fields={fields} 
         data={vendors} 
@@ -150,6 +187,8 @@ export default function VendorsPage() {
         onLimitChange={handleLimitChange}
         onSortChange={handleSortChange}
         onRowClick={handleRowClick}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
         sortColumn={sortBy}
         sortDirection={sortOrder}
       />

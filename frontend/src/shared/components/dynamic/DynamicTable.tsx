@@ -23,6 +23,8 @@ interface DynamicTableProps {
   enableSelection?: boolean;
   onSelectionChange?: (selectedIds: string[]) => void;
   selectedIds?: string[];
+  onEdit?: (row: any) => void;
+  onDelete?: (row: any) => void;
 }
 
 export function DynamicTable({ 
@@ -37,7 +39,9 @@ export function DynamicTable({
   sortDirection,
   enableSelection = false,
   onSelectionChange,
-  selectedIds = []
+  selectedIds = [],
+  onEdit,
+  onDelete
 }: DynamicTableProps) {
   // Only show fields that are visible by default, active, and sort by order
   const sortedFields = [...fields].filter(f => f.active !== false).sort((a,b) => a.order - b.order);
@@ -79,6 +83,29 @@ export function DynamicTable({
     } else {
       onSelectionChange([...selectedIds, id]);
     }
+  };
+
+  const formatCellValue = (val: any): string => {
+    if (val === undefined || val === null || val === '') return '-';
+    if (typeof val === 'boolean') return val ? 'Yes' : 'No';
+    if (typeof val === 'object') {
+      if (val.firstName && val.lastName) {
+        return `${val.salutation || ''} ${val.firstName} ${val.lastName}`.trim();
+      }
+      if (val.work || val.mobile) {
+        return val.work ? `${val.workCountryCode || ''} ${val.work}`.trim() : `${val.mobileCountryCode || ''} ${val.mobile}`.trim();
+      }
+      if (val.stage) {
+        let text = `${val.stage}`;
+        if (val.type) text += ` - ${val.type}`;
+        if (val.value) text += ` (${val.value}${val.unit === 'Amount' ? '' : val.unit})`;
+        return text;
+      }
+      // Fallback for arrays or other objects
+      if (Array.isArray(val)) return val.join(', ');
+      return '[Complex Data]';
+    }
+    return String(val);
   };
 
   const isAllSelected = data.length > 0 && selectedIds.length === data.length && data.every(row => selectedIds.includes(row._id));
@@ -176,10 +203,15 @@ export function DynamicTable({
                         <ArrowUpDown className="w-4 h-4 opacity-0 group-hover:opacity-40 transition-opacity" />
                       )}
                     </div>
-                  </div>
-                </TableHead>
-              ))}
-            </TableRow>
+                    </div>
+                  </TableHead>
+                ))}
+                {(onEdit || onDelete) && (
+                  <TableHead className="font-semibold text-slate-700 w-16 text-center select-none">
+                    Actions
+                  </TableHead>
+                )}
+              </TableRow>
           </TableHeader>
           <TableBody>
             {data.map((row, i) => {
@@ -211,11 +243,33 @@ export function DynamicTable({
                   </TableCell>
                   {columns.map(col => (
                     <TableCell key={col.name} className="text-slate-600">
-                      {typeof row.dynamicData?.[col.name] === 'boolean' 
-                        ? (row.dynamicData?.[col.name] ? 'Yes' : 'No') 
-                        : row.dynamicData?.[col.name] ?? '-'}
+                      {formatCellValue(row.dynamicData?.[col.name])}
                     </TableCell>
                   ))}
+                  {(onEdit || onDelete) && (
+                    <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-center space-x-2">
+                        {onEdit && (
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); onEdit(row); }}
+                            className="text-slate-400 hover:text-indigo-600 transition-colors p-1"
+                            title="Edit"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                          </button>
+                        )}
+                        {onDelete && (
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); onDelete(row); }}
+                            className="text-slate-400 hover:text-red-600 transition-colors p-1"
+                            title="Delete"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                          </button>
+                        )}
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               );
             })}

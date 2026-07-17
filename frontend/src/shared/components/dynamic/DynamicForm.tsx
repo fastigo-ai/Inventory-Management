@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { UploadCloud, Globe, MessageCircle } from "lucide-react";
+import { UploadCloud, Globe, MessageCircle, Info } from "lucide-react";
+import { PaymentTermsWidget } from "./PaymentTermsWidget";
 
 export interface FieldMetadata {
   name: string;
@@ -42,9 +43,11 @@ interface DynamicFormProps {
   isLoading?: boolean;
   layoutStyle?: 'sections' | 'tabs';
   formHeader?: React.ReactNode;
+  onCancel?: () => void;
+  submitLabel?: string;
 }
 
-export function DynamicForm({ fields, initialData = {}, onSubmit, isLoading, layoutStyle = 'sections', formHeader }: DynamicFormProps) {
+export function DynamicForm({ fields, initialData = {}, onSubmit, isLoading, layoutStyle = 'sections', formHeader, onCancel, submitLabel }: DynamicFormProps) {
   
   const defaultValues = fields.reduce((acc, field) => {
     acc[field.name] = initialData[field.name] ?? (field.defaultValue ?? (field.type === 'boolean' ? false : ""));
@@ -87,7 +90,7 @@ export function DynamicForm({ fields, initialData = {}, onSubmit, isLoading, lay
              <div key={tabName} className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start mb-8">
                 <div className={`grid grid-cols-1 gap-6 ${imageField ? 'md:col-span-7' : 'md:col-span-12'}`}>
                   {leftFields.map(field => (
-                    <div key={field.name}>{renderField(field, register, errors, control, layoutStyle, setValue, getValues)}</div>
+                    <div key={field.name}>{renderField(field, register, errors, control, layoutStyle, setValue, getValues, watch)}</div>
                   ))}
                 </div>
                 {imageField && (
@@ -120,7 +123,7 @@ export function DynamicForm({ fields, initialData = {}, onSubmit, isLoading, lay
                 <div className="grid grid-cols-1 gap-y-6">
                   {nonToggleFields.map(field => (
                     <div key={field.name} className={`space-y-2 ${field.colSpan === 2 ? 'md:col-span-2' : 'md:col-span-1'}`}>
-                      {renderField(field, register, errors, control, layoutStyle, setValue, getValues)}
+                      {renderField(field, register, errors, control, layoutStyle, setValue, getValues, watch)}
                     </div>
                   ))}
                 </div>
@@ -164,9 +167,9 @@ export function DynamicForm({ fields, initialData = {}, onSubmit, isLoading, lay
 
       <div className="sticky bottom-0 h-16 bg-white border-t border-slate-200 flex items-center px-6 gap-3 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] -mx-6 -mb-6 mt-6 rounded-b-lg">
         <Button type="submit" size="default" disabled={isSubmitting || isLoading} className="bg-[#0076f2] hover:bg-[#0060c5] text-white px-6 font-normal">
-          {isSubmitting || isLoading ? "Saving..." : "Save"}
+          {isSubmitting || isLoading ? "Saving..." : (submitLabel || "Save")}
         </Button>
-        <Button type="button" variant="outline" size="default" className="text-slate-700 font-normal px-6 bg-white hover:bg-slate-50">
+        <Button type="button" onClick={onCancel} variant="outline" size="default" className="text-slate-700 font-normal px-6 bg-white hover:bg-slate-50">
           Cancel
         </Button>
       </div>
@@ -174,7 +177,7 @@ export function DynamicForm({ fields, initialData = {}, onSubmit, isLoading, lay
   );
 }
 
-function renderField(field: FieldMetadata, register: any, errors: any, control: any, layoutStyle: string = 'sections', setValue?: any, getValues?: any) {
+function renderField(field: FieldMetadata, register: any, errors: any, control: any, layoutStyle: string = 'sections', setValue?: any, getValues?: any, watch?: any) {
   let fieldInput = null;
 
   if (field.widget === 'vendor_address') {
@@ -264,7 +267,7 @@ function renderField(field: FieldMetadata, register: any, errors: any, control: 
       <div className="col-span-full pt-2 -ml-2 pb-6">
          <div className="flex flex-col md:flex-row gap-12 mb-8">
             {renderAddressSide('billing', 'Billing Address', false)}
-            {renderAddressSide('shipping', 'Shipping Address', true)}
+            {renderAddressSide('shipping', 'Factory Address', true)}
          </div>
          <div className="bg-[#fff9eb] border-l-2 border-[#f5b849] p-4 text-sm rounded-r-md">
             <h4 className="font-semibold text-slate-800 mb-1">Note:</h4>
@@ -329,6 +332,47 @@ function renderField(field: FieldMetadata, register: any, errors: any, control: 
          </select>
        </div>
     );
+  } else if (field.name === 'displayName') {
+    let options: string[] = [];
+    if (watch) {
+      const companyName = watch('companyName') || '';
+      const primaryContact = watch('primaryContact') || {};
+      const firstName = primaryContact.firstName || '';
+      const lastName = primaryContact.lastName || '';
+      const fullName = `${firstName} ${lastName}`.trim();
+
+      const possibleOptions = [
+        fullName,
+        companyName,
+        companyName && fullName ? `${companyName} - ${fullName}` : '',
+        companyName && fullName ? `${fullName} - ${companyName}` : ''
+      ];
+
+      options = possibleOptions.filter(opt => opt.length > 0);
+      options = Array.from(new Set(options)); // Deduplicate
+    }
+    if (options.length === 0) {
+      options = ['Select or type to add'];
+    }
+
+    fieldInput = (
+      <div className="relative">
+        <Input
+          id={field.name}
+          list={`${field.name}-options`}
+          autoComplete="off"
+          disabled={!field.editable}
+          placeholder="Select or type to add"
+          {...register(field.name, { required: field.required ? `${field.label} is required` : false })}
+          className="bg-white"
+        />
+        <datalist id={`${field.name}-options`}>
+          {options.map(opt => (
+            <option key={opt} value={opt} />
+          ))}
+        </datalist>
+      </div>
+    );
   } else if (field.type === 'dropdown') {
     fieldInput = (
       <select 
@@ -360,36 +404,40 @@ function renderField(field: FieldMetadata, register: any, errors: any, control: 
     );
   } else if (field.widget === 'vendor_primary_contact') {
     fieldInput = (
-      <div className="flex items-center space-x-4">
-        <select className="h-9 w-[120px] rounded-md border border-slate-300 bg-white px-3 text-[13px]" {...register('primaryContact.salutation')}>
+      <div className="grid grid-cols-1 sm:grid-cols-[100px_1fr_1fr] items-start gap-4">
+        <select className="h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-[13px] focus:border-blue-500 focus:outline-none" {...register('primaryContact.salutation')}>
           <option value="">Salutation</option>
           <option value="Mr.">Mr.</option>
           <option value="Mrs.">Mrs.</option>
           <option value="Ms.">Ms.</option>
           <option value="Dr.">Dr.</option>
         </select>
-        <Input placeholder="First Name" className="h-9 text-[13px] bg-white flex-1" {...register('primaryContact.firstName')} />
-        <Input placeholder="Last Name" className="h-9 text-[13px] bg-white flex-1" {...register('primaryContact.lastName')} />
+        <Input placeholder="First Name" className="h-9 text-[13px] bg-white w-full" {...register('primaryContact.firstName')} />
+        <Input placeholder="Last Name" className="h-9 text-[13px] bg-white w-full" {...register('primaryContact.lastName')} />
       </div>
     );
   } else if (field.widget === 'vendor_phone') {
     fieldInput = (
-      <div className="flex items-center space-x-6">
-        <div className="flex items-center space-x-2 flex-1">
-          <select className="h-9 w-[80px] rounded-md border border-slate-300 bg-white px-2 text-[13px]" {...register('phone.workCountryCode')}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+        <div className="flex">
+          <select className="h-9 w-[70px] shrink-0 rounded-l-md border border-slate-300 border-r-0 bg-slate-50 px-2 text-[13px] focus:outline-none" {...register('phone.workCountryCode')}>
             <option value="+91">+91</option>
             <option value="+1">+1</option>
           </select>
-          <Input placeholder="Work Phone" className="h-9 text-[13px] bg-white flex-1" {...register('phone.work')} />
+          <Input placeholder="Work Phone" className="h-9 text-[13px] bg-white flex-1 rounded-l-none" {...register('phone.work')} />
         </div>
-        <div className="flex items-center space-x-2 flex-1">
-          <select className="h-9 w-[80px] rounded-md border border-slate-300 bg-white px-2 text-[13px]" {...register('phone.mobileCountryCode')}>
+        <div className="flex">
+          <select className="h-9 w-[70px] shrink-0 rounded-l-md border border-slate-300 border-r-0 bg-slate-50 px-2 text-[13px] focus:outline-none" {...register('phone.mobileCountryCode')}>
             <option value="+91">+91</option>
             <option value="+1">+1</option>
           </select>
-          <Input placeholder="Mobile" className="h-9 text-[13px] bg-white flex-1" {...register('phone.mobile')} />
+          <Input placeholder="Mobile" className="h-9 text-[13px] bg-white flex-1 rounded-l-none" {...register('phone.mobile')} />
         </div>
       </div>
+    );
+  } else if (field.widget === 'payment_terms_complex') {
+    fieldInput = (
+      <PaymentTermsWidget control={control} register={register} name={field.name} />
     );
   } else if (field.icon) {
     const TwitterIcon = (props: any) => (
@@ -456,9 +504,9 @@ function renderField(field: FieldMetadata, register: any, errors: any, control: 
   }
 
   return (
-    <div className={layoutStyle === 'tabs' ? "grid grid-cols-[200px_1fr] items-center gap-6" : `grid ${field.tab === 'Basic' ? 'grid-cols-3' : 'grid-cols-1'} items-center gap-4`}>
-      <div className={layoutStyle === 'tabs' ? "flex items-center space-x-1" : ""}>
-        <Label htmlFor={field.name} className={layoutStyle === 'tabs' ? `text-[13px] ${field.labelColor === 'red' ? 'text-red-500' : 'text-slate-800'}` : `text-[13px] text-slate-600 ${field.tab === 'Basic' ? 'col-span-1' : ''}`}>
+    <div className={layoutStyle === 'tabs' ? "grid grid-cols-1 sm:grid-cols-[160px_1fr] md:grid-cols-[200px_1fr] sm:items-start gap-4 sm:gap-6" : `grid ${field.tab === 'Basic' ? 'grid-cols-3' : 'grid-cols-1'} items-center gap-4`}>
+      <div className={layoutStyle === 'tabs' ? "flex sm:justify-end sm:pt-2 space-x-1" : ""}>
+        <Label htmlFor={field.name} className={layoutStyle === 'tabs' ? `text-[13px] sm:text-right ${field.labelColor === 'red' ? 'text-red-500' : 'text-slate-800'}` : `text-[13px] text-slate-600 ${field.tab === 'Basic' ? 'col-span-1' : ''}`}>
           {field.label} {field.required && <span className="text-red-500">*</span>}
         </Label>
         {layoutStyle === 'tabs' && field.hasInfo && (

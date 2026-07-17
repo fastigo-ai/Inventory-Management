@@ -15,6 +15,7 @@ interface GetVendorsParams {
   limit?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  search?: string;
 }
 
 export const getVendors = async (params?: GetVendorsParams) => {
@@ -23,6 +24,7 @@ export const getVendors = async (params?: GetVendorsParams) => {
   if (params?.limit) query.append('limit', params.limit.toString());
   if (params?.sortBy) query.append('sortBy', params.sortBy);
   if (params?.sortOrder) query.append('sortOrder', params.sortOrder);
+  if (params?.search) query.append('search', params.search);
   
   const queryString = query.toString();
   const url = queryString ? `/vendors?${queryString}` : '/vendors';
@@ -38,6 +40,16 @@ export const getVendor = async (id: string) => {
 
 export const createVendor = async (dynamicData: any) => {
   const response = await api.post('/vendors', { dynamicData });
+  return response.data.data;
+};
+
+export const updateVendor = async (id: string, dynamicData: any) => {
+  const response = await api.put(`/vendors/${id}`, { dynamicData });
+  return response.data.data;
+};
+
+export const deleteVendor = async (id: string) => {
+  const response = await api.delete(`/vendors/${id}`);
   return response.data.data;
 };
 

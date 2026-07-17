@@ -60,15 +60,32 @@ export const getVendors = asyncHandler(async (req: Request, res: Response) => {
   const sortBy = req.query.sortBy as string;
   const sortOrder = (req.query.sortOrder as string) === 'desc' ? -1 : 1;
 
+  const search = req.query.search as string;
+
   let sortObject: any = { createdAt: -1 };
   if (sortBy) {
     sortObject = { [`dynamicData.${sortBy}`]: sortOrder };
   }
 
+  let matchQuery: any = {};
+  if (search) {
+    const searchRegex = new RegExp(search, 'i');
+    matchQuery = {
+      $or: [
+        { 'dynamicData.companyName': searchRegex },
+        { 'dynamicData.displayName': searchRegex },
+        { 'dynamicData.primaryContact.firstName': searchRegex },
+        { 'dynamicData.primaryContact.lastName': searchRegex },
+        { 'dynamicData.phone.work': searchRegex },
+        { 'dynamicData.phone.mobile': searchRegex }
+      ]
+    };
+  }
+
   const skip = (page - 1) * limit;
 
-  const totalVendors = await Vendor.countDocuments();
-  const vendors = await Vendor.find({})
+  const totalVendors = await Vendor.countDocuments(matchQuery);
+  const vendors = await Vendor.find(matchQuery)
     .sort(sortObject)
     .collation({ locale: 'en', numericOrdering: true }) // helps sort numbers/strings nicely
     .skip(skip)
@@ -98,6 +115,47 @@ export const getVendorById = asyncHandler(async (req: Request, res: Response) =>
     throw new ApiError(404, 'Vendor not found');
   }
   res.status(200).json(new ApiResponse(200, vendor, 'Vendor fetched successfully'));
+});
+
+export const updateVendor = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { dynamicData } = req.body;
+
+  if (typeof id !== 'string' || !id.match(/^[0-9a-fA-F]{24}$/)) {
+    throw new ApiError(404, 'Vendor not found');
+  }
+
+  const vendor = await Vendor.findById(id);
+  if (!vendor) {
+    throw new ApiError(404, 'Vendor not found');
+  }
+
+  const metadata = await Metadata.findOne({ entityName: 'Vendor' });
+  if (!metadata) {
+    throw new ApiError(500, 'Vendor metadata configuration missing');
+  }
+
+  await validateDynamicData(dynamicData, metadata.fields, id);
+
+  vendor.dynamicData = dynamicData;
+  await vendor.save();
+
+  res.status(200).json(new ApiResponse(200, vendor, 'Vendor updated successfully'));
+});
+
+export const deleteVendor = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  if (typeof id !== 'string' || !id.match(/^[0-9a-fA-F]{24}$/)) {
+    throw new ApiError(404, 'Vendor not found');
+  }
+
+  const vendor = await Vendor.findByIdAndDelete(id);
+  if (!vendor) {
+    throw new ApiError(404, 'Vendor not found');
+  }
+
+  res.status(200).json(new ApiResponse(200, {}, 'Vendor deleted successfully'));
 });
 
 export const exportVendors = asyncHandler(async (req: Request, res: Response) => {

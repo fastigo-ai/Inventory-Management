@@ -163,7 +163,12 @@ export default function VendorSplitViewPage({ params }: { params: Promise<{ id: 
             </h1>
           </div>
           <div className="flex items-center space-x-3">
-            <Button variant="outline" size="sm" className="h-8 border-slate-300 text-slate-600 hover:bg-slate-50">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => router.push(`/purchases/vendors/${vendorId}/edit`)}
+              className="h-8 border-slate-300 text-slate-600 hover:bg-slate-50"
+            >
               <Edit2 className="w-3.5 h-3.5 mr-2" />
               Edit
             </Button>

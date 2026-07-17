@@ -191,20 +191,6 @@ export function Sidebar() {
           );
         })}
 
-        {/* APPS Section */}
-        <div className="pt-6 pb-2">
-          <p className="px-10 text-xs font-semibold text-slate-400 tracking-wider">APPS</p>
-        </div>
-        <Link
-          href="/payments"
-          className={cn(
-            "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors pl-10",
-            isActive('/payments') ? "bg-indigo-50 text-indigo-700" : "text-slate-600 hover:bg-slate-100"
-          )}
-        >
-          <Layers className="w-5 h-5 text-slate-500" />
-          <span>Zoho Payments</span>
-        </Link>
       </div>
 
       {/* Footer Button */}

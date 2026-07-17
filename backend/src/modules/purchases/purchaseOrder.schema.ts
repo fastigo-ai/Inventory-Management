@@ -5,6 +5,7 @@ export interface IPurchaseOrderLineItem {
   itemName: string;
   tempCode?: string;
   account?: string;
+  unit?: string;
   quantity: number;
   rate: number;
   amount: number;
@@ -60,6 +61,7 @@ const purchaseOrderLineItemSchema = new Schema<IPurchaseOrderLineItem>({
   itemName: { type: String, required: true },
   tempCode: { type: String },
   account: { type: String },
+  unit: { type: String },
   quantity: { type: Number, required: true, default: 1 },
   rate: { type: Number, required: true, default: 0 },
   amount: { type: Number, required: true, default: 0 },

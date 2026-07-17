@@ -73,30 +73,32 @@ const seedMetadata = async () => {
       { name: 'displayName', label: 'Display Name', type: 'dropdown', options: ['Select or type to add'], required: true, visible: true, editable: true, unique: true, tab: 'Basic Info', order: 3, colSpan: 1, systemLocked: true, hasInfo: true, labelColor: 'red' },
       { name: 'emailAddress', label: 'Email Address', type: 'email', widget: 'email_input', required: false, visible: true, editable: true, tab: 'Basic Info', order: 4, colSpan: 1, systemLocked: true, hasInfo: true },
       { name: 'phone', label: 'Phone', type: 'compound', widget: 'vendor_phone', required: false, visible: true, editable: true, tab: 'Basic Info', order: 5, colSpan: 1, systemLocked: true, hasInfo: true },
-      { name: 'vendorLanguage', label: 'Vendor Language', type: 'dropdown', options: ['English', 'Spanish', 'French'], defaultValue: 'English', required: false, visible: true, editable: true, tab: 'Basic Info', order: 6, colSpan: 1, systemLocked: true, hasInfo: true },
+      { name: 'vendorLanguage', label: 'Vendor Language', type: 'dropdown', options: ['English', 'Spanish', 'French'], defaultValue: 'English', required: false, visible: false, editable: true, tab: 'Basic Info', order: 6, colSpan: 1, systemLocked: true, hasInfo: true },
 
       // Other Details Tab
-      { name: 'pan', label: 'PAN', type: 'text', required: false, visible: true, editable: true, tab: 'Other Details', order: 10, colSpan: 1, hasInfo: true },
-      { name: 'msmeRegistered', label: 'MSME Registered?', type: 'boolean', defaultValue: false, required: false, visible: true, editable: true, tab: 'Other Details', order: 11, colSpan: 1, hasInfo: true, checkboxLabel: 'This vendor is MSME registered' },
-      { name: 'currency', label: 'Currency', type: 'dropdown', options: ['INR- Indian Rupee', 'USD- US Dollar', 'EUR- Euro'], defaultValue: 'INR- Indian Rupee', required: false, visible: true, editable: true, tab: 'Other Details', order: 12, colSpan: 1 },
-      { name: 'paymentTerms', label: 'Payment Terms', type: 'dropdown', options: ['Due on Receipt', 'Net 15', 'Net 30'], defaultValue: 'Due on Receipt', required: false, visible: true, editable: true, tab: 'Other Details', order: 13, colSpan: 1 },
-      { name: 'tds', label: 'TDS', type: 'dropdown', options: ['Select a Tax', '5%', '10%', '18%'], defaultValue: 'Select a Tax', required: false, visible: true, editable: true, tab: 'Other Details', order: 14, colSpan: 1 },
-      { name: 'enablePortal', label: 'Enable Portal?', type: 'boolean', defaultValue: false, required: false, visible: true, editable: true, tab: 'Other Details', order: 15, colSpan: 1, checkboxLabel: 'Allow portal access for this vendor' },
-      { name: 'documents', label: 'Documents', type: 'text', widget: 'file_upload', required: false, visible: true, editable: true, tab: 'Other Details', order: 16, colSpan: 1 },
-      { name: 'websiteUrl', label: 'Website URL', type: 'text', required: false, visible: true, editable: true, tab: 'Other Details', order: 16.1, colSpan: 1, placeholder: 'ex: www.zylker.com', icon: 'globe' },
-      { name: 'department', label: 'Department', type: 'text', required: false, visible: true, editable: true, tab: 'Other Details', order: 16.2, colSpan: 1 },
-      { name: 'designation', label: 'Designation', type: 'text', required: false, visible: true, editable: true, tab: 'Other Details', order: 16.3, colSpan: 1 },
-      { name: 'twitter', label: 'X', type: 'text', required: false, visible: true, editable: true, tab: 'Other Details', order: 16.4, colSpan: 1, placeholder: 'https://x.com/', icon: 'twitter' },
-      { name: 'skype', label: 'Skype Name/Number', type: 'text', required: false, visible: true, editable: true, tab: 'Other Details', order: 16.5, colSpan: 1, icon: 'skype' },
-      { name: 'facebook', label: 'Facebook', type: 'text', required: false, visible: true, editable: true, tab: 'Other Details', order: 16.6, colSpan: 1, placeholder: 'http://www.facebook.com/', icon: 'facebook' },
+      { name: 'gstTreatment', label: 'GST Treatment', type: 'dropdown', options: ['Registered Business - Regular', 'Registered Business - Composition', 'Unregistered Business', 'Consumer', 'Overseas', 'Special Economic Zone', 'Deemed Export'], required: false, visible: false, editable: true, tab: 'Other Details', order: 8, colSpan: 1, hasInfo: true },
+      { name: 'gstin', label: 'GSTIN (UIN)', type: 'text', required: false, visible: false, editable: true, tab: 'Other Details', order: 9, colSpan: 1, hasInfo: true },
+      { name: 'pan', label: 'PAN', type: 'text', required: false, visible: false, editable: true, tab: 'Other Details', order: 10, colSpan: 1, hasInfo: true },
+      { name: 'msmeRegistered', label: 'MSME Registered?', type: 'boolean', defaultValue: false, required: false, visible: false, editable: true, tab: 'Other Details', order: 11, colSpan: 1, hasInfo: true, checkboxLabel: 'This vendor is MSME registered' },
+      { name: 'currency', label: 'Currency', type: 'dropdown', options: ['INR- Indian Rupee', 'USD- US Dollar', 'EUR- Euro'], defaultValue: 'INR- Indian Rupee', required: false, visible: false, editable: true, tab: 'Other Details', order: 12, colSpan: 1 },
+      { name: 'paymentTerms', label: 'Payment Terms', type: 'compound', widget: 'payment_terms_complex', required: false, visible: false, editable: true, tab: 'Other Details', order: 13, colSpan: 2 },
+      { name: 'tds', label: 'TDS', type: 'dropdown', options: ['Select a Tax', '5%', '10%', '18%'], defaultValue: 'Select a Tax', required: false, visible: false, editable: true, tab: 'Other Details', order: 14, colSpan: 1 },
+      { name: 'enablePortal', label: 'Enable Portal?', type: 'boolean', defaultValue: false, required: false, visible: false, editable: true, tab: 'Other Details', order: 15, colSpan: 1, checkboxLabel: 'Allow portal access for this vendor' },
+      { name: 'documents', label: 'Documents', type: 'text', widget: 'file_upload', required: false, visible: false, editable: true, tab: 'Other Details', order: 16, colSpan: 1 },
+      { name: 'websiteUrl', label: 'Website URL', type: 'text', required: false, visible: false, editable: true, tab: 'Other Details', order: 16.1, colSpan: 1, placeholder: 'ex: www.zylker.com', icon: 'globe' },
+      { name: 'department', label: 'Department', type: 'text', required: false, visible: false, editable: true, tab: 'Other Details', order: 16.2, colSpan: 1 },
+      { name: 'designation', label: 'Designation', type: 'text', required: false, visible: false, editable: true, tab: 'Other Details', order: 16.3, colSpan: 1 },
+      { name: 'twitter', label: 'X', type: 'text', required: false, visible: false, editable: true, tab: 'Other Details', order: 16.4, colSpan: 1, placeholder: 'https://x.com/', icon: 'twitter' },
+      { name: 'skype', label: 'Skype Name/Number', type: 'text', required: false, visible: false, editable: true, tab: 'Other Details', order: 16.5, colSpan: 1, icon: 'skype' },
+      { name: 'facebook', label: 'Facebook', type: 'text', required: false, visible: false, editable: true, tab: 'Other Details', order: 16.6, colSpan: 1, placeholder: 'http://www.facebook.com/', icon: 'facebook' },
 
       // Address Tab
-      { name: 'vendorAddresses', label: 'Addresses', type: 'compound', widget: 'vendor_address', required: false, visible: true, editable: true, tab: 'Address', order: 17, colSpan: 2 },
-      { name: 'contactPersons', label: 'Contact Persons', type: 'text', widget: 'textarea', required: false, visible: true, editable: true, tab: 'Contact Persons', order: 19, colSpan: 1 },
-      { name: 'bankDetails', label: 'Bank Details', type: 'text', widget: 'textarea', required: false, visible: true, editable: true, tab: 'Bank Details', order: 20, colSpan: 1 },
-      { name: 'customFields', label: 'Custom Fields', type: 'text', widget: 'textarea', required: false, visible: true, editable: true, tab: 'Custom Fields', order: 21, colSpan: 1 },
-      { name: 'reportingTags', label: 'Reporting Tags', type: 'text', widget: 'textarea', required: false, visible: true, editable: true, tab: 'Reporting Tags', order: 22, colSpan: 1 },
-      { name: 'remarks', label: 'Remarks', type: 'text', widget: 'textarea', required: false, visible: true, editable: true, tab: 'Remarks', order: 23, colSpan: 1 }
+      { name: 'vendorAddresses', label: 'Addresses', type: 'compound', widget: 'vendor_address', required: false, visible: false, editable: true, tab: 'Address', order: 17, colSpan: 2 },
+      { name: 'contactPersons', label: 'Contact Persons', type: 'text', widget: 'textarea', required: false, visible: false, editable: true, tab: 'Contact Persons', order: 19, colSpan: 1 },
+      { name: 'bankDetails', label: 'Bank Details', type: 'text', widget: 'textarea', required: false, visible: false, editable: true, tab: 'Bank Details', order: 20, colSpan: 1 },
+      { name: 'customFields', label: 'Custom Fields', type: 'text', widget: 'textarea', required: false, visible: false, editable: true, tab: 'Custom Fields', order: 21, colSpan: 1 },
+      { name: 'reportingTags', label: 'Reporting Tags', type: 'text', widget: 'textarea', required: false, visible: false, editable: true, tab: 'Reporting Tags', order: 22, colSpan: 1 },
+      { name: 'remarks', label: 'Remarks', type: 'text', widget: 'textarea', required: false, visible: false, editable: true, tab: 'Remarks', order: 23, colSpan: 1 }
     ];
 
     await Metadata.findOneAndUpdate(

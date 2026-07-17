@@ -1,20 +1,22 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Settings, UploadCloud, ChevronDown } from "lucide-react";
+import { X, Settings, UploadCloud, ChevronDown, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { createPurchaseReceive, getNextPurchaseReceiveNumber } from "@/features/purchases/api/purchases.api";
+import { getPurchaseReceiveById, updatePurchaseReceive, deletePurchaseReceive } from "@/features/purchases/api/purchases.api";
 import { getVendors } from "@/features/vendors/api/vendors.api";
 import { getPurchaseOrders } from "@/features/purchases/api/purchases.api";
 import { uploadDocument } from "@/features/documents/api/documents.api";
 import { Loader2 } from "lucide-react";
 
-export default function NewPurchaseReceivePage() {
+export default function EditPurchaseReceivePage() {
   const router = useRouter();
+  const params = useParams();
+  const prId = params.id as string;
   
   // Data State
   const [vendors, setVendors] = useState<any[]>([]);
@@ -25,6 +27,7 @@ export default function NewPurchaseReceivePage() {
   const [purchaseOrderInput, setPurchaseOrderInput] = useState("");
   const [purchaseReceiveNumber, setPurchaseReceiveNumber] = useState("");
   const [receiveDate, setReceiveDate] = useState("");
+  const [status, setStatus] = useState<string>("Draft");
   
   // Extra fields
   const [diNo, setDiNo] = useState("");
@@ -34,38 +37,56 @@ export default function NewPurchaseReceivePage() {
   const [lineItems, setLineItems] = useState<any[]>([]);
   const [uploadedDocs, setUploadedDocs] = useState<any[]>([]);
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // Load vendors on mount
-    getVendors({ limit: 100 }).then(res => setVendors(res.vendors || res));
-    getPurchaseOrders().then(res => setPurchaseOrders(Array.isArray(res.data) ? res.data : (res.data?.pos || res.data || [])));
-    getNextPurchaseReceiveNumber().then(res => {
-      if (res.data?.fullNumber && !purchaseReceiveNumber) {
-        setPurchaseReceiveNumber(res.data.fullNumber);
-      }
+    Promise.all([
+      getVendors({ limit: 100 }).then(res => setVendors(res.vendors || res)),
+      getPurchaseOrders().then(res => setPurchaseOrders(Array.isArray(res.data) ? res.data : (res.data?.pos || res.data || []))),
+      getPurchaseReceiveById(prId).then(data => {
+        setVendorName(data.vendorName || "");
+        setPurchaseOrderInput(data.purchaseOrderNumber || "");
+        setPurchaseReceiveNumber(data.purchaseReceiveNumber || "");
+        setReceiveDate(data.receiveDate ? new Date(data.receiveDate).toISOString().split('T')[0] : "");
+        setDiNo(data.diNo || "");
+        setDiDate(data.diDate ? new Date(data.diDate).toISOString().split('T')[0] : "");
+        setNotes(data.notes || "");
+        setStatus(data.status || "Draft");
+        
+        if (data.lineItems) {
+          setLineItems(data.lineItems);
+        }
+        if (data.attachments) {
+          setUploadedDocs(data.attachments.map((a: any) => ({ _id: a._id || Math.random().toString(), fileName: a.name, url: a.url })));
+        }
+      })
+    ]).finally(() => {
+      setIsLoading(false);
+      // Allow the PO auto-fetching logic to run only after initial data is set
+      setTimeout(() => setInitialLoadDone(true), 500);
     });
-  }, []);
+  }, [prId]);
 
-  // When vendor changes, set dates and filter POs
+  // When vendor changes, filter POs
   useEffect(() => {
-    if (vendorName) {
+    if (initialLoadDone && vendorName) {
       if (!receiveDate) {
         setReceiveDate(new Date().toISOString().split('T')[0]);
       }
-      
       const vendorPOs = purchaseOrders.filter(po => po.vendorName === vendorName);
       if (vendorPOs.length > 0) {
         setPurchaseOrderInput(vendorPOs[0].purchaseOrderNumber);
       } else {
-        setPurchaseOrderInput(""); // Reset PO when vendor changes and no POs exist
+        setPurchaseOrderInput(""); 
       }
     }
-  }, [vendorName, purchaseOrders]);
+  }, [vendorName, purchaseOrders, initialLoadDone]);
 
   // When PO changes, populate line items
   useEffect(() => {
-    if (purchaseOrderInput) {
+    if (initialLoadDone && purchaseOrderInput) {
       const po = purchaseOrders.find(p => p.purchaseOrderNumber === purchaseOrderInput);
       if (po && po.lineItems) {
         setLineItems(po.lineItems.map((item: any) => ({
@@ -78,17 +99,15 @@ export default function NewPurchaseReceivePage() {
           quantityToReceive: item.quantity || 0,
           package: "",
           subPackage: "",
-          unit: "",
+          unit: item.unit || "",
           rate: item.rate || 0,
           amount: item.amount || 0
         })));
       } else {
         setLineItems([]);
       }
-    } else {
-      setLineItems([]);
     }
-  }, [purchaseOrderInput, purchaseOrders]);
+  }, [purchaseOrderInput, purchaseOrders, initialLoadDone]);
 
   // Recalculate amount when quantityToReceive or rate changes
   const updateLineItem = (index: number, field: string, value: any) => {
@@ -110,7 +129,7 @@ export default function NewPurchaseReceivePage() {
     setLineItems(newItems);
   };
 
-  const handleSubmit = async (status: 'Draft' | 'Received') => {
+  const handleSubmit = async (submitStatus: 'Draft' | 'Received') => {
     if (!vendorName || !purchaseReceiveNumber || !receiveDate) {
       alert("Please fill in the required fields");
       return;
@@ -127,15 +146,26 @@ export default function NewPurchaseReceivePage() {
         diNo, diDate, 
         notes,
         lineItems,
-        status,
+        status: submitStatus,
         attachments: uploadedDocs.map(doc => ({ name: doc.fileName, url: doc.url }))
       };
 
-      await createPurchaseReceive(payload);
+      await updatePurchaseReceive(prId, payload);
       router.push('/purchases/receives');
     } catch (error) {
-      console.error("Failed to create PR", error);
-      alert("Failed to save Purchase Receive");
+      console.error("Failed to update PR", error);
+      alert("Failed to update Purchase Receive");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm("Are you sure you want to delete this Purchase Receive?")) return;
+    try {
+      await deletePurchaseReceive(prId);
+      router.push('/purchases/receives');
+    } catch (error) {
+      console.error("Failed to delete PR", error);
+      alert("Failed to delete Purchase Receive");
     }
   };
 
@@ -165,6 +195,14 @@ export default function NewPurchaseReceivePage() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full bg-[#fcfcfc]">
+        <Loader2 className="w-8 h-8 animate-spin text-[#4285f4]" />
+      </div>
+    );
+  }
+
   const isBlurred = !vendorName;
 
   return (
@@ -173,7 +211,7 @@ export default function NewPurchaseReceivePage() {
       <div className="flex-none h-16 border-b border-slate-200 flex items-center justify-between px-6 shrink-0 bg-[#f8f9fa]">
         <div className="flex items-center space-x-2">
           <svg className="w-5 h-5 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-          <h1 className="text-xl text-slate-800 font-semibold tracking-tight">New Purchase Receive</h1>
+          <h1 className="text-xl text-slate-800 font-semibold tracking-tight">Edit Purchase Receive</h1>
         </div>
         <Link href="/purchases/receives">
           <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:bg-slate-200 rounded-full">
@@ -248,8 +286,9 @@ export default function NewPurchaseReceivePage() {
                   className="h-9 text-[13px] pr-8"
                   value={purchaseReceiveNumber}
                   onChange={(e) => setPurchaseReceiveNumber(e.target.value)}
+                  disabled // PR number is usually not editable once created
                 />
-                <Settings className="w-4 h-4 text-blue-300 absolute right-3 top-2.5" />
+                <Settings className="w-4 h-4 text-slate-300 absolute right-3 top-2.5" />
               </div>
               <div className="md:col-span-6"></div>
 
@@ -427,23 +466,29 @@ export default function NewPurchaseReceivePage() {
             </div>
 
             {/* Bottom Actions */}
-            <div className="flex items-center space-x-3 pt-6 border-t border-slate-200">
-              <Button variant="outline" className="text-slate-700 font-normal hover:bg-slate-50" onClick={() => handleSubmit('Draft')}>
-                Save as Draft
+            <div className="flex items-center justify-between pt-6 border-t border-slate-200">
+              <Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 font-normal" onClick={handleDelete}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete
               </Button>
-              <div className="flex rounded-md shadow-sm">
-                <Button className="bg-[#4285f4] hover:bg-[#3367d6] text-white font-normal rounded-r-none border-r border-[#3367d6]" onClick={() => handleSubmit('Received')}>
-                  Save as Received
+              <div className="flex items-center space-x-3">
+                <Button variant="outline" className="text-slate-700 font-normal hover:bg-slate-50" onClick={() => handleSubmit('Draft')}>
+                  Save as Draft
                 </Button>
-                <Button className="bg-[#4285f4] hover:bg-[#3367d6] text-white font-normal rounded-l-none px-2">
-                  <ChevronDown className="w-4 h-4" />
-                </Button>
+                <div className="flex rounded-md shadow-sm">
+                  <Button className="bg-[#4285f4] hover:bg-[#3367d6] text-white font-normal rounded-r-none border-r border-[#3367d6]" onClick={() => handleSubmit('Received')}>
+                    Save Changes
+                  </Button>
+                  <Button className="bg-[#4285f4] hover:bg-[#3367d6] text-white font-normal rounded-l-none px-2">
+                    <ChevronDown className="w-4 h-4" />
+                  </Button>
+                </div>
+                <Link href="/purchases/receives">
+                  <Button variant="ghost" className="text-slate-500 font-normal hover:text-slate-700 hover:bg-slate-100">
+                    Cancel
+                  </Button>
+                </Link>
               </div>
-              <Link href="/purchases/receives">
-                <Button variant="ghost" className="text-slate-500 font-normal hover:text-slate-700 hover:bg-slate-100">
-                  Cancel
-                </Button>
-              </Link>
             </div>
             
           </div>

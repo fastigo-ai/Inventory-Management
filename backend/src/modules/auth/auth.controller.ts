@@ -41,7 +41,8 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user);
 
-  user.refreshToken = refreshToken;
+  if (!user.refreshTokens) user.refreshTokens = [];
+  user.refreshTokens.push(refreshToken);
   await user.save({ validateBeforeSave: false });
 
   setCookies(res, accessToken, refreshToken);
@@ -55,7 +56,12 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
 
 export const logout = asyncHandler(async (req: AuthRequest, res: Response) => {
   if (req.user) {
-    await User.findByIdAndUpdate(req.user._id, { $unset: { refreshToken: 1 } });
+    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+    if (incomingRefreshToken) {
+      await User.findByIdAndUpdate(req.user._id, { $pull: { refreshTokens: incomingRefreshToken } });
+    } else {
+      // If we don't know the token, maybe clear all or do nothing. We'll just pull nothing.
+    }
   }
 
   res.status(200).json(new ApiResponse(200, {}, 'Logout successful'));
@@ -72,14 +78,16 @@ export const refreshAccessToken = asyncHandler(async (req: Request, res: Respons
     const decodedToken: any = verifyRefreshToken(incomingRefreshToken);
 
     const user = await User.findById(decodedToken.id);
-    if (!user || user.refreshToken !== incomingRefreshToken) {
+    if (!user || !user.refreshTokens?.includes(incomingRefreshToken)) {
       throw new ApiError(401, 'Invalid refresh token');
     }
 
     const accessToken = generateAccessToken(user);
     const newRefreshToken = generateRefreshToken(user);
 
-    user.refreshToken = newRefreshToken;
+    // Remove the old token and add the new one
+    user.refreshTokens = user.refreshTokens.filter(t => t !== incomingRefreshToken);
+    user.refreshTokens.push(newRefreshToken);
     await user.save({ validateBeforeSave: false });
 
     setCookies(res, accessToken, newRefreshToken);

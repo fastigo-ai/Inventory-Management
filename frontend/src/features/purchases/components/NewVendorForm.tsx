@@ -6,6 +6,9 @@ import Link from 'next/link';
 
 export function NewVendorForm() {
   const [activeTab, setActiveTab] = useState('other');
+  
+  const [paymentStage, setPaymentStage] = useState('');
+  const [paymentType, setPaymentType] = useState('');
 
   const tabs = [
     { id: 'other', label: 'Other Details' },
@@ -33,7 +36,7 @@ export function NewVendorForm() {
           <div className="space-y-6 max-w-3xl">
              
              {/* Primary Contact */}
-             <div className="grid grid-cols-[160px_1fr] items-start gap-6">
+             <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-start gap-6">
                 <label className="text-sm font-semibold text-slate-700 flex items-center gap-1.5 mt-2">
                   Primary Contact <Info className="w-4 h-4 text-slate-400" />
                 </label>
@@ -47,13 +50,13 @@ export function NewVendorForm() {
              </div>
 
              {/* Company Name */}
-             <div className="grid grid-cols-[160px_1fr] items-center gap-6">
+             <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-center gap-6">
                 <label className="text-sm font-semibold text-slate-700">Company Name</label>
                 <input type="text" className="border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white w-full" />
              </div>
 
              {/* Display Name */}
-             <div className="grid grid-cols-[160px_1fr] items-center gap-6">
+             <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-center gap-6">
                 <label className="text-sm font-semibold text-red-500 flex items-center gap-1.5">
                   Display Name* <Info className="w-4 h-4 text-slate-400" />
                 </label>
@@ -63,7 +66,7 @@ export function NewVendorForm() {
              </div>
 
              {/* Email Address */}
-             <div className="grid grid-cols-[160px_1fr] items-center gap-6">
+             <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-center gap-6">
                 <label className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
                   Email Address <Info className="w-4 h-4 text-slate-400" />
                 </label>
@@ -74,7 +77,7 @@ export function NewVendorForm() {
              </div>
 
              {/* Phone */}
-             <div className="grid grid-cols-[160px_1fr] items-start gap-6">
+             <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-start gap-6">
                 <label className="text-sm font-semibold text-slate-700 flex items-center gap-1.5 mt-2">
                   Phone <Info className="w-4 h-4 text-slate-400" />
                 </label>
@@ -95,7 +98,7 @@ export function NewVendorForm() {
              </div>
 
              {/* Vendor Language */}
-             <div className="grid grid-cols-[160px_1fr] items-center gap-6 pb-6">
+             <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-center gap-6 pb-6">
                 <label className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
                   Vendor Language <Info className="w-4 h-4 text-slate-400" />
                 </label>
@@ -131,7 +134,7 @@ export function NewVendorForm() {
             <div className="py-8 space-y-6 max-w-3xl">
                
                {/* PAN */}
-               <div className="grid grid-cols-[160px_1fr] items-center gap-6">
+               <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-center gap-6">
                   <label className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
                     PAN <Info className="w-4 h-4 text-slate-400" />
                   </label>
@@ -139,7 +142,7 @@ export function NewVendorForm() {
                </div>
 
                {/* GST Treatment & GSTIN (Added as requested) */}
-               <div className="grid grid-cols-[160px_1fr] items-start gap-6">
+               <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-start gap-6">
                   <label className="text-sm font-semibold text-red-500 flex items-center gap-1.5 mt-2">
                     GST Treatment* <Info className="w-4 h-4 text-slate-400" />
                   </label>
@@ -158,7 +161,7 @@ export function NewVendorForm() {
                </div>
 
                {/* MSME Registered */}
-               <div className="grid grid-cols-[160px_1fr] items-center gap-6 pt-2">
+               <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-center gap-6 pt-2">
                   <label className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
                     MSME Registered? <Info className="w-4 h-4 text-slate-400" />
                   </label>
@@ -169,7 +172,7 @@ export function NewVendorForm() {
                </div>
 
                {/* Currency */}
-               <div className="grid grid-cols-[160px_1fr] items-center gap-6 pt-4">
+               <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-center gap-6 pt-4">
                   <label className="text-sm font-semibold text-slate-700">Currency</label>
                   <select className="border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white w-full">
                     <option>INR - Indian Rupee</option>
@@ -177,15 +180,52 @@ export function NewVendorForm() {
                </div>
                
                {/* Payment Terms */}
-               <div className="grid grid-cols-[160px_1fr] items-center gap-6">
-                  <label className="text-sm font-semibold text-slate-700">Payment Terms</label>
-                  <select className="border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white w-full">
-                    <option>Due on Receipt</option>
-                  </select>
+               <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-start gap-6">
+                  <label className="text-sm font-semibold text-slate-700 mt-2">Payment Terms</label>
+                  <div className="space-y-4">
+                     <select 
+                       value={paymentStage} 
+                       onChange={(e) => { setPaymentStage(e.target.value); setPaymentType(''); }} 
+                       className="border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white w-full max-w-[200px]"
+                     >
+                       <option value="">Select Stage</option>
+                       <option value="1st stage">1st stage</option>
+                       <option value="2nd stage">2nd stage</option>
+                       <option value="3rd stage">3rd stage</option>
+                     </select>
+                     
+                     {paymentStage && (
+                       <select 
+                         value={paymentType} 
+                         onChange={(e) => setPaymentType(e.target.value)} 
+                         className="border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white w-full max-w-[200px] block"
+                       >
+                         <option value="">Select Type</option>
+                         <option value="Advance">Advance</option>
+                         <option value="Adhoc">Adhoc</option>
+                         <option value="Before Advance">Before Advance</option>
+                         <option value="After Advance">After Advance</option>
+                       </select>
+                     )}
+                     
+                     {paymentStage && paymentType && (
+                       <div className="flex items-center space-x-2">
+                         <input 
+                           type="number" 
+                           placeholder="Value" 
+                           className="border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white w-[120px]" 
+                         />
+                         <select className="border border-slate-200 rounded-md px-2 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white w-[80px]">
+                           <option value="%">%</option>
+                           <option value="Amount">Amount</option>
+                         </select>
+                       </div>
+                     )}
+                  </div>
                </div>
 
                {/* TDS Section */}
-               <div className="grid grid-cols-[160px_1fr] items-center gap-6">
+               <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-center gap-6">
                   <label className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
                     TDS <HelpCircle className="w-4 h-4 text-slate-400" />
                   </label>

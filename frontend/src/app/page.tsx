@@ -1,6 +1,6 @@
 import React from 'react';
 import { Building } from 'lucide-react';
-import { TopSellingItems } from '@/features/dashboard/components/TopSellingItems';
+import { PurchaseOrderSummary } from '@/features/dashboard/components/PurchaseOrderSummary';
 import { TopStockedItems } from '@/features/dashboard/components/TopStockedItems';
 import { SalesByChannel } from '@/features/dashboard/components/SalesByChannel';
 import { PendingActions } from '@/features/dashboard/components/PendingActions';
@@ -16,7 +16,7 @@ export default function Home() {
               <Building className="w-7 h-7 text-slate-400" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Hello, akhil</h1>
+              <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Holistic TechnoEngineer Pvt Ltd</h1>
               <p className="text-sm text-slate-500 mt-0.5">Fastigo AI</p>
             </div>
           </div>
@@ -38,7 +38,7 @@ export default function Home() {
       <div className="p-6 flex gap-6 flex-1 bg-slate-50/50">
         {/* Left Column */}
         <div className="flex-1 flex flex-col gap-6 min-w-0">
-          <TopSellingItems />
+
           <div className="flex gap-6">
             <div className="flex-1 min-w-0">
               <TopStockedItems />

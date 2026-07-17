@@ -10,6 +10,7 @@ import userRoutes from './modules/users/user.routes';
 import metadataRoutes from './modules/metadata/metadata.routes';
 import itemRoutes from './modules/items/item.routes';
 import purchaseRoutes from './modules/purchases/purchase.routes';
+import documentRoutes from './modules/documents/document.routes';
 import locationRoutes from './modules/locations/location.routes';
 import vendorRoutes from './modules/vendors/vendor.routes';
 import { errorHandler } from './core/middlewares/error.middleware';
@@ -60,6 +61,7 @@ apiRouter.use('/users', userRoutes);
 apiRouter.use('/metadata', metadataRoutes);
 apiRouter.use('/items', itemRoutes);
 apiRouter.use('/purchases', purchaseRoutes);
+apiRouter.use('/documents', documentRoutes);
 apiRouter.use('/locations', locationRoutes);
 apiRouter.use('/vendors', vendorRoutes);
 

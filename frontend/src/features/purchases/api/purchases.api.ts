@@ -41,6 +41,14 @@ export const createPurchaseOrder = async (payload: CreatePurchaseOrderDto | Form
   return response.data;
 };
 
+export const updatePurchaseOrder = async (id: string, payload: CreatePurchaseOrderDto | FormData) => {
+  const isFormData = payload instanceof FormData;
+  const response = await api.put(`/purchases/orders/${id}`, payload, {
+    headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : undefined,
+  });
+  return response.data;
+};
+
 export const getPurchaseOrders = async () => {
   const response = await api.get('/purchases/orders');
   return response.data;

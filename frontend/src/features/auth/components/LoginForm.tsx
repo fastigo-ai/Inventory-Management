@@ -37,10 +37,7 @@ export function LoginForm() {
     setError(null);
     try {
       const response = await api.post("/auth/login", data);
-      const { user, accessToken, refreshToken } = response.data.data;
-      
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
+      const { user } = response.data.data;
       
       login(user);
       router.push("/");

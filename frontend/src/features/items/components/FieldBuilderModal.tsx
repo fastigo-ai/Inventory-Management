@@ -53,6 +53,7 @@ export function FieldBuilderModal({ isOpen, onClose, onSave, initialData }: Fiel
     if (!name || !label) return;
 
     onSave({
+      ...(initialData || {}),
       name,
       label,
       type,

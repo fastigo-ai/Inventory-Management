@@ -58,7 +58,7 @@ export default function NewVendorPage() {
 
       {/* Scrollable Form Content */}
       <div className="flex-1 overflow-y-auto px-10 py-6">
-        <div className="max-w-[900px] mx-auto bg-white p-6 shadow-sm border border-slate-200 rounded-lg">
+        <div className="w-full bg-white p-6 shadow-sm border border-slate-200 rounded-lg">
           <DynamicForm 
             fields={fields} 
             onSubmit={handleSubmit} 

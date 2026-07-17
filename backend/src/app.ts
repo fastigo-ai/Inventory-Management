@@ -21,6 +21,7 @@ app.use(helmet());
 const allowedOrigins = [
   'http://localhost:3000',
   'https://seashell-app-r36uj.ondigitalocean.app',
+  'https://erp.fastigo.co',
   process.env.CLIENT_URL
 ].filter(Boolean);
 

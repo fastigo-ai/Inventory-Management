@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Printer, Edit, MoreHorizontal, Paperclip, CheckCircle2, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { getPurchaseOrderById } from '@/features/purchases/api/purchases.api';
+import { API_BASE_URL } from "@/shared/api/axios";
 
 export default function PurchaseOrderDetailPage() {
   const params = useParams();
@@ -197,7 +198,7 @@ export default function PurchaseOrderDetailPage() {
                      {order.attachments.map((file: any, i: number) => (
                        <a 
                          key={i} 
-                         href={`http://localhost:5000${file.url}`} 
+                         href={`${API_BASE_URL}${file.url}`} 
                          target="_blank" 
                          rel="noopener noreferrer"
                          className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-all group"

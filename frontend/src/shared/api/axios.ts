@@ -1,8 +1,10 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/auth.store';
 
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'production' ? 'https://seashell-app-r36uj.ondigitalocean.app' : 'http://localhost:5000');
+
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'production' ? 'https://seashell-app-r36uj.ondigitalocean.app/api' : 'http://localhost:5000/api'),
+  baseURL: `${API_BASE_URL}/api`,
   withCredentials: true, // Essential for sending/receiving httpOnly cookies
   headers: {
     'Content-Type': 'application/json',

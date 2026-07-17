@@ -48,15 +48,19 @@ app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'UP', message: 'ERP Backend is running.' });
 });
 
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/roles', roleRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/metadata', metadataRoutes);
-app.use('/api/items', itemRoutes);
-app.use('/api/purchases', purchaseRoutes);
-app.use('/api/locations', locationRoutes);
-app.use('/api/vendors', vendorRoutes);
+const apiRouter = express.Router();
+apiRouter.use('/auth', authRoutes);
+apiRouter.use('/roles', roleRoutes);
+apiRouter.use('/users', userRoutes);
+apiRouter.use('/metadata', metadataRoutes);
+apiRouter.use('/items', itemRoutes);
+apiRouter.use('/purchases', purchaseRoutes);
+apiRouter.use('/locations', locationRoutes);
+apiRouter.use('/vendors', vendorRoutes);
+
+// Mount API routes on both / and /api to handle DigitalOcean path stripping
+app.use('/', apiRouter);
+app.use('/api', apiRouter);
 
 // Global Error Handler
 app.use(errorHandler);

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Building } from 'lucide-react';
-import { PurchaseOrderSummary } from '@/features/dashboard/components/PurchaseOrderSummary';
+
 import { TopStockedItems } from '@/features/dashboard/components/TopStockedItems';
 import { SalesByChannel } from '@/features/dashboard/components/SalesByChannel';
 import { PendingActions } from '@/features/dashboard/components/PendingActions';

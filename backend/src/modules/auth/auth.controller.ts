@@ -49,7 +49,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   const userResponse = user.toJSON();
   
   res.status(200).json(
-    new ApiResponse(200, { user: userResponse }, 'Login successful')
+    new ApiResponse(200, { user: userResponse, accessToken, refreshToken }, 'Login successful')
   );
 });
 
@@ -57,15 +57,6 @@ export const logout = asyncHandler(async (req: AuthRequest, res: Response) => {
   if (req.user) {
     await User.findByIdAndUpdate(req.user._id, { $unset: { refreshToken: 1 } });
   }
-
-  const options = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' as const : 'lax' as const,
-  };
-
-  res.clearCookie('accessToken', options);
-  res.clearCookie('refreshToken', options);
 
   res.status(200).json(new ApiResponse(200, {}, 'Logout successful'));
 });
@@ -93,8 +84,10 @@ export const refreshAccessToken = asyncHandler(async (req: Request, res: Respons
 
     setCookies(res, accessToken, newRefreshToken);
 
+    setCookies(res, accessToken, newRefreshToken);
+
     res.status(200).json(
-      new ApiResponse(200, {}, 'Access token refreshed successfully')
+      new ApiResponse(200, { accessToken, refreshToken: newRefreshToken }, 'Access token refreshed successfully')
     );
   } catch (error) {
     throw new ApiError(401, 'Invalid or expired refresh token');

@@ -11,6 +11,16 @@ export const api = axios.create({
   },
 });
 
+api.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  return config;
+});
+
 // Queue for failed requests while token is refreshing
 let isRefreshing = false;
 let failedQueue: any[] = [];
@@ -54,23 +64,33 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        // Attempt to refresh the token
-        await axios.post(
+        const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('refreshToken') : null;
+        
+        const refreshResponse = await axios.post(
           `${API_BASE_URL}/api/auth/refresh-token`,
-          {},
+          { refreshToken },
           { withCredentials: true }
         );
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('accessToken', refreshResponse.data.data.accessToken);
+          localStorage.setItem('refreshToken', refreshResponse.data.data.refreshToken);
+        }
 
         isRefreshing = false;
         processQueue(null, 'success');
 
-        // If successful, retry the original request
+        originalRequest.headers.Authorization = `Bearer ${refreshResponse.data.data.accessToken}`;
         return api(originalRequest);
       } catch (refreshError) {
         isRefreshing = false;
         processQueue(refreshError, null);
         
-        // If refresh fails (e.g. refresh token expired), force logout
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+        }
+        
         useAuthStore.getState().logout();
         return Promise.reject(refreshError);
       }

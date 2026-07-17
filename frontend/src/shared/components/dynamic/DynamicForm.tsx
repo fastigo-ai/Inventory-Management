@@ -67,7 +67,7 @@ export function DynamicForm({ fields, initialData = {}, onSubmit, isLoading, lay
   const [activeTab, setActiveTab] = useState(remainingTabs.length > 0 ? remainingTabs[0] : "");
 
   const renderTabFields = (tabName: string) => {
-    const tabFields = fields.filter(f => (f.tab || "General") === tabName && f.visible && f.active !== false).sort((a,b) => a.order - b.order);
+    const tabFields = fields.filter(f => (f.tab || "General") === tabName && f.active !== false).sort((a,b) => a.order - b.order);
     if (tabFields.length === 0) return null;
 
         const toggleField = tabFields.find(f => f.sectionToggle);

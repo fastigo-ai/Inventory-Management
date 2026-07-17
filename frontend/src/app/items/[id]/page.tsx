@@ -243,7 +243,7 @@ export default function ItemSplitViewPage({ params }: { params: Promise<{ id: st
           {activeTab === 'Overview' && (
             <div className="max-w-3xl">
               {tabs.map(tab => {
-                const tabFields = fields.filter(f => (f.tab || "General") === tab && f.visible).sort((a,b) => a.order - b.order);
+                const tabFields = fields.filter(f => (f.tab || "General") === tab && f.active !== false).sort((a,b) => a.order - b.order);
                 if (tabFields.length === 0) return null;
 
                 return (

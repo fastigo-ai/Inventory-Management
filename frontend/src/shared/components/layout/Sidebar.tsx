@@ -160,7 +160,7 @@ export function Sidebar() {
                   <div className={cn("w-4 flex justify-center", active && item.title === 'Home' ? "text-white" : "text-slate-500")}>
                      {/* Empty div for alignment if needed, or we can just render icon directly */}
                   </div>
-                  {React.cloneElement(item.icon as React.ReactElement, { 
+                  {React.cloneElement(item.icon as React.ReactElement<any>, { 
                     className: cn("w-4 h-4", active && item.title === 'Home' ? "text-white" : "text-slate-500") 
                   })}
                   <span>{item.title}</span>

@@ -47,7 +47,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   setCookies(res, accessToken, refreshToken);
 
   const userResponse = user.toJSON();
-  
+
   res.status(200).json(
     new ApiResponse(200, { user: userResponse, accessToken, refreshToken }, 'Login successful')
   );
@@ -70,7 +70,7 @@ export const refreshAccessToken = asyncHandler(async (req: Request, res: Respons
 
   try {
     const decodedToken: any = verifyRefreshToken(incomingRefreshToken);
-    
+
     const user = await User.findById(decodedToken.id);
     if (!user || user.refreshToken !== incomingRefreshToken) {
       throw new ApiError(401, 'Invalid refresh token');

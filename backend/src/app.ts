@@ -20,17 +20,21 @@ const app: Express = express();
 app.use(helmet());
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://seashell-app-r36uj.ondigitalocean.app',
-  'https://erp.fastigo.co',
+  'seashell-app-r36uj.ondigitalocean.app',
+  'fastigo.co',
   process.env.CLIENT_URL
-].filter(Boolean);
+].filter(Boolean) as string[];
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin) return callback(null, true);
+    
+    const isAllowed = allowedOrigins.some(o => origin.includes(o));
+    if (isAllowed) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      // Gracefully reject without crashing the preflight request
+      callback(null, false);
     }
   },
   credentials: true

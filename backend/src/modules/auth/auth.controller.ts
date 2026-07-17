@@ -11,7 +11,7 @@ const setCookies = (res: Response, accessToken: string, refreshToken: string) =>
   const options = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict' as const,
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' as const : 'lax' as const,
   };
 
   res.cookie('accessToken', accessToken, {
@@ -61,7 +61,7 @@ export const logout = asyncHandler(async (req: AuthRequest, res: Response) => {
   const options = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict' as const,
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' as const : 'lax' as const,
   };
 
   res.clearCookie('accessToken', options);

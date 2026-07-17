@@ -6,10 +6,17 @@ import Link from 'next/link';
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { createPurchaseOrder } from '../api/purchases.api';
+import { createPurchaseOrder, getNextPurchaseOrderNumber } from '../api/purchases.api';
 import { getItems, getEntityMetadata } from '@/features/items/api/items.api';
-import { getLocations } from '@/features/settings/api/locations.api';
+import { getLocations, createLocation } from '@/features/settings/api/locations.api';
 import { getVendors } from '@/features/vendors/api/vendors.api';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+
+const COUNTRIES = [
+  "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria", "Burkina Faso", "Burundi", "Cabo Verde", "Cambodia", "Cameroon", "Canada", "Central African Republic", "Chad", "Chile", "China", "Colombia", "Comoros", "Congo (Congo-Brazzaville)", "Costa Rica", "Croatia", "Cuba", "Cyprus", "Czechia (Czech Republic)", "Democratic Republic of the Congo", "Denmark", "Djibouti", "Dominica", "Dominican Republic", "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini", "Ethiopia", "Fiji", "Finland", "France", "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Greece", "Grenada", "Guatemala", "Guinea", "Guinea-Bissau", "Guyana", "Haiti", "Honduras", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Israel", "Italy", "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kiribati", "Kuwait", "Kyrgyzstan", "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg", "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands", "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", "Myanmar (formerly Burma)", "Namibia", "Nauru", "Nepal", "Netherlands", "New Zealand", "Nicaragua", "Niger", "Nigeria", "North Korea", "North Macedonia", "Norway", "Oman", "Pakistan", "Palau", "Palestine State", "Panama", "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Qatar", "Romania", "Russia", "Rwanda", "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa", "San Marino", "Sao Tome and Principe", "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore", "Slovakia", "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Korea", "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname", "Sweden", "Switzerland", "Syria", "Tajikistan", "Tanzania", "Thailand", "Timor-Leste", "Togo", "Tonga", "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu", "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom", "United States of America", "Uruguay", "Uzbekistan", "Vanuatu", "Vatican City", "Venezuela", "Vietnam", "Yemen", "Zambia", "Zimbabwe"
+];
 
 interface PurchaseOrderForm {
   vendorName: string;
@@ -20,11 +27,7 @@ interface PurchaseOrderForm {
   reference: string;
   date: string;
   deliveryDate: string;
-  paymentTerms: string;
   poQuantity: string;
-  circle: string;
-  package1: string;
-  package2: string;
   shipmentPreference: string;
   warehouseLocation: string;
   lineItems: {
@@ -48,7 +51,6 @@ export function NewPurchaseOrderForm() {
   const [itemsList, setItemsList] = useState<any[]>([]);
   const [locationsList, setLocationsList] = useState<any[]>([]);
   const [vendorsList, setVendorsList] = useState<any[]>([]);
-  const [circleOptions, setCircleOptions] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [selectedBulkItems, setSelectedBulkItems] = useState<string[]>([]);
@@ -65,21 +67,40 @@ export function NewPurchaseOrderForm() {
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [dropdownSearchQueries, setDropdownSearchQueries] = useState<Record<string, string>>({});
 
+  const [isDeliveryDropdownOpen, setIsDeliveryDropdownOpen] = useState(false);
+  const [isNewAddressModalOpen, setIsNewAddressModalOpen] = useState(false);
+  const [newAddress, setNewAddress] = useState({
+    attention: '', street1: '', street2: '', city: '', state: '', zip: '', country: '', phone: ''
+  });
+  const deliveryDropdownRef = useRef<HTMLDivElement>(null);
+  const [deliverySearchQuery, setDeliverySearchQuery] = useState('');
+  
+  const [isPoSettingsModalOpen, setIsPoSettingsModalOpen] = useState(false);
+  const [isAutoGeneratePO, setIsAutoGeneratePO] = useState(true);
+  const [poPrefix, setPoPrefix] = useState('PO-');
+  const [poNextNumber, setPoNextNumber] = useState('00003');
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (deliveryDropdownRef.current && !deliveryDropdownRef.current.contains(event.target as Node)) {
+        setIsDeliveryDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const { register, control, handleSubmit, setValue, formState: { errors } } = useForm<PurchaseOrderForm>({
     defaultValues: {
       vendorName: '',
       location: 'Head Office',
       deliveryAddressType: 'Locations',
       deliveryAddressId: 'Head Office',
-      purchaseOrderNumber: `PO-${Math.floor(Math.random() * 10000).toString().padStart(5, '0')}`,
+      purchaseOrderNumber: '', // Will be fetched from backend
       reference: '',
       date: new Date().toISOString().split('T')[0],
       deliveryDate: '',
-      paymentTerms: 'Due on Receipt',
       poQuantity: '',
-      circle: 'Package 1(S/N)',
-      package1: '',
-      package2: '',
       shipmentPreference: '',
       warehouseLocation: 'Head Office',
       lineItems: [{ itemId: '', itemName: '', tempCode: '', account: '', quantity: 1, rate: 0 }],
@@ -102,6 +123,18 @@ export function NewPurchaseOrderForm() {
   const discountPercentage = useWatch({ control, name: 'discountPercentage' }) || 0;
   const taxPercentage = useWatch({ control, name: 'taxPercentage' }) || 0;
   const adjustment = useWatch({ control, name: 'adjustment' }) || 0;
+  
+  const currentLocation = useWatch({ control, name: 'location' });
+  const deliveryAddressId = useWatch({ control, name: 'deliveryAddressId' });
+  const deliveryAddressType = useWatch({ control, name: 'deliveryAddressType' });
+  
+  useEffect(() => {
+    if (deliveryAddressType === 'Locations') {
+      setValue('deliveryAddressId', currentLocation);
+    }
+  }, [currentLocation, deliveryAddressType, setValue]);
+  
+  const selectedDeliveryLocation = locationsList.find(loc => loc.name === deliveryAddressId);
 
   // Fetch items, metadata, and locations
   useEffect(() => {
@@ -110,10 +143,7 @@ export function NewPurchaseOrderForm() {
     }).catch(err => console.error('Failed to fetch items:', err));
 
     getEntityMetadata('Item').then(data => {
-       const circleField = data.fields?.find((f: any) => f.name === 'circle');
-       if (circleField && circleField.options) {
-          setCircleOptions(circleField.options);
-       }
+       if (data) {}
     }).catch(err => console.error('Failed to fetch item metadata:', err));
 
     getLocations().then(res => {
@@ -125,6 +155,17 @@ export function NewPurchaseOrderForm() {
     getVendors({ limit: 5000 }).then(data => {
       setVendorsList(data.vendors || data.items || []);
     }).catch(err => console.error('Failed to fetch vendors:', err));
+    
+    // Fetch next sequential PO Number
+    getNextPurchaseOrderNumber().then(res => {
+      if (res.success && res.data) {
+        setPoPrefix(res.data.prefix);
+        setPoNextNumber(res.data.nextNumber);
+        if (isAutoGeneratePO) {
+          setValue('purchaseOrderNumber', `${res.data.prefix}${res.data.nextNumber}`);
+        }
+      }
+    }).catch(err => console.error('Failed to fetch next PO number:', err));
   }, []);
 
   // Calculations
@@ -132,6 +173,44 @@ export function NewPurchaseOrderForm() {
   const discountAmount = (subTotal * discountPercentage) / 100;
   const taxAmount = ((subTotal - discountAmount) * taxPercentage) / 100;
   const total = subTotal - discountAmount - taxAmount + Number(adjustment);
+
+  const handleSaveNewAddress = async () => {
+    try {
+      const addressParts = [
+        newAddress.street1,
+        newAddress.street2,
+        [newAddress.city, newAddress.state, newAddress.zip].filter(Boolean).join(' '),
+        newAddress.country
+      ].filter(Boolean);
+      
+      const addressString = addressParts.join('\n');
+      const name = newAddress.attention || newAddress.city || `Address ${locationsList.length + 1}`;
+      
+      const payload = {
+        name,
+        type: 'Other',
+        address: addressString,
+        contactPerson: newAddress.attention,
+        phone: newAddress.phone,
+        status: 'Active'
+      };
+      
+      const response = await createLocation(payload as any);
+      if (response.success) {
+        setLocationsList([response.data, ...locationsList]);
+        setValue('deliveryAddressId', response.data.name);
+        setIsNewAddressModalOpen(false);
+        setIsDeliveryDropdownOpen(false);
+        setNewAddress({attention: '', street1: '', street2: '', city: '', state: '', zip: '', country: '', phone: ''});
+        toast.success('Address saved successfully');
+      } else {
+        toast.error(response.message || 'Failed to save address');
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to save address');
+    }
+  };
 
   const onSubmit = async (data: PurchaseOrderForm, status: 'Draft' | 'Sent') => {
     try {
@@ -277,7 +356,7 @@ export function NewPurchaseOrderForm() {
                 <div className="col-span-1"></div>
                 <select {...register('location')} className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white">
                   <option value="">Select Location</option>
-                  {locationsList.map((loc) => (
+                  {locationsList.filter(loc => loc.type !== 'Other').map((loc) => (
                     <option key={loc._id} value={loc.name}>{loc.name}</option>
                   ))}
                 </select>
@@ -298,21 +377,102 @@ export function NewPurchaseOrderForm() {
                       Customer
                     </label>
                   </div>
-                  <select {...register('deliveryAddressId')} className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white">
+                  
+                  <select 
+                    value={currentLocation}
+                    onChange={(e) => setValue('location', e.target.value)}
+                    className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white mb-4"
+                  >
                     <option value="">Select Delivery Location</option>
-                    {locationsList.map((loc) => (
+                    {locationsList.filter(loc => loc.type !== 'Other').map((loc) => (
                       <option key={loc._id} value={loc.name}>{loc.name}</option>
                     ))}
                   </select>
                   
-                  <div className="bg-slate-50 border border-slate-100 rounded-md p-4 text-sm text-slate-600 space-y-1">
-                    <p className="font-bold text-slate-800">Head Office</p>
-                    <p>Uttar Pradesh</p>
-                    <p>India ,</p>
-                    <p>91-9599094941</p>
-                  </div>
+                  {deliveryAddressType === 'Locations' && selectedDeliveryLocation ? (
+                    <div className="mb-4">
+                      <div className="border border-blue-400 rounded-md p-3 mb-3 bg-white shadow-sm">
+                        <p className="font-bold text-slate-800">{currentLocation || 'Select Location'}</p>
+                      </div>
+                      <div className="text-sm text-slate-600 leading-relaxed px-1">
+                        {selectedDeliveryLocation.address ? (
+                          <p className="whitespace-pre-wrap">{selectedDeliveryLocation.address}</p>
+                        ) : (
+                          <p className="italic text-slate-400">No address provided</p>
+                        )}
+                        {selectedDeliveryLocation.phone && <p className="mt-1">{selectedDeliveryLocation.phone}</p>}
+                      </div>
+                    </div>
+                  ) : deliveryAddressType === 'Locations' && !selectedDeliveryLocation ? (
+                    <div className="bg-slate-50 border border-slate-100 rounded-md p-4 text-sm text-slate-600 flex items-center justify-center mb-4">
+                      <p className="text-slate-500 italic">Please select a delivery location</p>
+                    </div>
+                  ) : null}
                   
-                  <button type="button" className="text-sm text-blue-600 hover:underline font-medium">Change destination to deliver</button>
+                  <div className="relative" ref={deliveryDropdownRef}>
+                    <button 
+                      type="button" 
+                      onClick={() => setIsDeliveryDropdownOpen(!isDeliveryDropdownOpen)}
+                      className="text-sm text-blue-600 hover:underline font-medium"
+                    >
+                      Change destination to deliver
+                    </button>
+                    
+                    {isDeliveryDropdownOpen && (
+                      <div className="absolute top-full left-0 mt-2 w-80 bg-white border border-slate-200 shadow-xl rounded-md z-50 flex flex-col max-h-[400px]">
+                        <div className="p-2 border-b border-slate-100">
+                          <input 
+                            type="text" 
+                            placeholder="Search" 
+                            value={deliverySearchQuery}
+                            onChange={(e) => setDeliverySearchQuery(e.target.value)}
+                            className="w-full border border-blue-400 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-2 space-y-2 max-h-[250px]">
+                          {locationsList
+                            .filter(loc => (loc.address || '').toLowerCase().includes(deliverySearchQuery.toLowerCase()))
+                            .map((loc) => (
+                            <div 
+                              key={loc._id} 
+                              className={`p-3 rounded-md cursor-pointer border ${deliveryAddressId === loc.name ? 'bg-blue-500 text-white border-blue-500' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'}`}
+                              onClick={() => {
+                                setValue('deliveryAddressId', loc.name);
+                                setIsDeliveryDropdownOpen(false);
+                              }}
+                            >
+                              {loc.address ? (
+                                <div className={`text-sm whitespace-pre-wrap ${deliveryAddressId === loc.name ? 'text-white' : 'text-slate-700'}`}>
+                                  {loc.address}
+                                </div>
+                              ) : (
+                                <div className={`text-sm italic ${deliveryAddressId === loc.name ? 'text-blue-100' : 'text-slate-400'}`}>
+                                  No address provided
+                                </div>
+                              )}
+                              {loc.phone && (
+                                <div className={`text-xs mt-1 ${deliveryAddressId === loc.name ? 'text-blue-100' : 'text-slate-500'}`}>
+                                  {loc.phone}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="p-2 border-t border-slate-100">
+                          <button 
+                            type="button" 
+                            onClick={() => {
+                              setIsNewAddressModalOpen(true);
+                              setIsDeliveryDropdownOpen(false);
+                            }}
+                            className="flex items-center text-blue-600 text-sm font-medium hover:underline w-full p-2"
+                          >
+                            <Plus className="w-4 h-4 mr-1" /> New Address
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -323,8 +483,13 @@ export function NewPurchaseOrderForm() {
               <div className="grid grid-cols-[150px_1fr] items-center gap-4">
                 <label className="text-sm font-semibold text-red-500">Purchase Order#*</label>
                 <div className="relative">
-                  <input type="text" {...register('purchaseOrderNumber', { required: true })} className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 pr-10 bg-slate-50" />
-                  <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-500 hover:text-blue-600">
+                  <input 
+                    type="text" 
+                    {...register('purchaseOrderNumber', { required: true })} 
+                    className={`w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 pr-10 ${isAutoGeneratePO ? 'bg-slate-50 cursor-not-allowed text-slate-500' : 'bg-white'}`}
+                    readOnly={isAutoGeneratePO}
+                  />
+                  <button type="button" onClick={() => setIsPoSettingsModalOpen(true)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                     <Settings className="w-4 h-4" />
                   </button>
                 </div>
@@ -342,54 +507,16 @@ export function NewPurchaseOrderForm() {
                 <input type="date" {...register('date')} className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white" />
               </div>
 
-              {/* Delivery Date & Payment Terms Row */}
+              {/* Delivery Date */}
               <div className="grid grid-cols-[150px_1fr] items-center gap-4">
                 <label className="text-sm font-semibold text-slate-800">Delivery Date</label>
-                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-                  <input type="date" {...register('deliveryDate')} className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500" />
-                  <label className="text-sm font-semibold text-slate-800">Payment Terms</label>
-                  <select {...register('paymentTerms')} className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white">
-                    <option value="Due on Receipt">Due on Receipt</option>
-                    <option value="Net 15">Net 15</option>
-                    <option value="Net 30">Net 30</option>
-                  </select>
-                </div>
+                <input type="date" {...register('deliveryDate')} className="w-full sm:w-[50%] border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white" />
               </div>
 
-              {/* PO Quantity & Circle Row */}
+              {/* PO Quantity */}
               <div className="grid grid-cols-[150px_1fr] items-center gap-4">
                 <label className="text-sm font-semibold text-slate-800">PO Quantity</label>
-                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-                  <input type="text" {...register('poQuantity')} className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500" />
-                  <label className="text-sm font-semibold text-slate-800 whitespace-nowrap px-4">Circle</label>
-                  <div className="relative w-full">
-                     <select {...register('circle')} className="w-full border border-slate-200 rounded-md pl-3 pr-10 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white appearance-none">
-                       <option value="">Select Circle</option>
-                       {circleOptions.map((opt, i) => (
-                         <option key={i} value={opt}>{opt}</option>
-                       ))}
-                       {circleOptions.length === 0 && <option value="Package 1(S/N)">Package 1(S/N)</option>}
-                     </select>
-                     <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-slate-400 pointer-events-none">
-                       <span className="text-red-400 font-bold text-xs">✕</span>
-                       <span className="text-[10px]">▼</span>
-                     </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Package 1 & 2 Row */}
-              <div className="grid grid-cols-[150px_1fr] items-center gap-4 pt-1">
-                <label className="text-sm font-semibold text-slate-800">Package 1</label>
-                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-                  <select {...register('package1')} className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white">
-                    <option></option>
-                  </select>
-                  <label className="text-sm font-semibold text-slate-800 whitespace-nowrap">Package 2</label>
-                  <select {...register('package2')} className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white">
-                    <option></option>
-                  </select>
-                </div>
+                <input type="text" {...register('poQuantity')} className="w-full sm:w-[50%] border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white" />
               </div>
               
               {/* Shipment Preference */}
@@ -413,10 +540,10 @@ export function NewPurchaseOrderForm() {
                <div className="pb-3 border-b-2 border-blue-600 flex items-center gap-2">
                  <label className="text-sm font-semibold text-slate-800">Warehouse Location</label>
                  <select {...register('warehouseLocation')} className="text-xs font-normal bg-transparent border-none focus:outline-none text-slate-600 cursor-pointer appearance-none">
-                   {locationsList.map((loc) => (
+                   {locationsList.filter(loc => loc.type !== 'Other').map((loc) => (
                      <option key={loc._id} value={loc.name}>{loc.name} ▼</option>
                    ))}
-                   {locationsList.length === 0 && <option>Head Office ▼</option>}
+                   {locationsList.filter(loc => loc.type !== 'Other').length === 0 && <option>Head Office ▼</option>}
                  </select>
                </div>
                <button type="button" className="pb-3 text-sm font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-2">
@@ -680,8 +807,172 @@ export function NewPurchaseOrderForm() {
           </p>
 
         </div>
-      </div>
 
+      <Dialog open={isPoSettingsModalOpen} onOpenChange={setIsPoSettingsModalOpen}>
+        <DialogContent className="w-[95vw] max-w-[700px] sm:max-w-[700px] md:max-w-[700px] bg-white p-0 overflow-hidden border-0 [&>button]:text-red-500 [&>button]:hover:text-red-600 [&>button]:right-6 [&>button]:top-6">
+          <DialogHeader className="px-8 py-6 pb-4 border-b border-slate-100">
+            <DialogTitle className="text-lg font-medium text-slate-800">Configure Purchase Order# Preferences</DialogTitle>
+          </DialogHeader>
+          <div className="px-8 py-6 space-y-6">
+            <div className="grid grid-cols-2 gap-4 text-[13px]">
+              <div>
+                <p className="font-semibold text-slate-800 mb-1">Location</p>
+                <p className="text-slate-600">{currentLocation || 'Head Office'}</p>
+              </div>
+              <div>
+                <p className="font-semibold text-slate-800 mb-1">Associated Series</p>
+                <p className="text-slate-600">Default Transaction Series</p>
+              </div>
+            </div>
+            
+            <p className="text-[13px] text-slate-600 mt-6">
+              Your purchase order numbers are set on auto-generate mode to save your time. Are you sure about changing this setting?
+            </p>
+            
+            <div className="space-y-4">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input 
+                  type="radio" 
+                  checked={isAutoGeneratePO}
+                  onChange={() => setIsAutoGeneratePO(true)}
+                  className="mt-1 w-4 h-4 text-blue-600 focus:ring-blue-500"
+                />
+                <div className="flex-1">
+                  <span className="text-[13px] font-medium text-slate-800 flex items-center gap-1">
+                    Continue auto-generating purchase order numbers
+                    <span className="text-slate-400 border border-slate-200 rounded-full w-3.5 h-3.5 inline-flex items-center justify-center text-[9px] ml-1">i</span>
+                  </span>
+                  {isAutoGeneratePO && (
+                    <div className="grid grid-cols-[200px_300px] gap-6 mt-4">
+                      <div>
+                        <p className="text-xs text-slate-500 mb-1.5">Prefix</p>
+                        <input 
+                          type="text" 
+                          value={poPrefix}
+                          onChange={(e) => setPoPrefix(e.target.value)}
+                          className="w-full border border-slate-200 rounded-md px-3 py-1.5 text-[13px] focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 mb-1.5">Next Number</p>
+                        <input 
+                          type="text" 
+                          value={poNextNumber}
+                          onChange={(e) => setPoNextNumber(e.target.value)}
+                          className="w-full border border-slate-200 rounded-md px-3 py-1.5 text-[13px] focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </label>
+              
+              <label className="flex items-center gap-3 cursor-pointer pt-3">
+                <input 
+                  type="radio" 
+                  checked={!isAutoGeneratePO}
+                  onChange={() => setIsAutoGeneratePO(false)}
+                  className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-[13px] font-medium text-slate-800">Enter purchase order numbers manually</span>
+              </label>
+            </div>
+          </div>
+          
+          <div className="border-t border-slate-100 px-8 py-5 bg-white flex gap-3">
+            <Button 
+              onClick={() => {
+                if (isAutoGeneratePO) {
+                  setValue('purchaseOrderNumber', `${poPrefix}${poNextNumber}`);
+                } else {
+                  setValue('purchaseOrderNumber', '');
+                }
+                setIsPoSettingsModalOpen(false);
+              }} 
+              className="bg-[#4285f4] hover:bg-blue-600 text-white px-5 h-8 font-medium text-[13px]"
+            >
+              Save
+            </Button>
+            <Button 
+              onClick={() => setIsPoSettingsModalOpen(false)} 
+              variant="outline" 
+              className="bg-[#f8f9fa] hover:bg-[#f1f3f4] border-slate-200 text-slate-700 h-8 font-medium text-[13px]"
+            >
+              Cancel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isNewAddressModalOpen} onOpenChange={setIsNewAddressModalOpen}>
+        <DialogContent className="w-[95vw] max-w-[700px] sm:max-w-[700px] md:max-w-[700px] bg-white p-0 overflow-hidden border-0 [&>button]:text-red-500 [&>button]:hover:text-red-600 [&>button]:right-6 [&>button]:top-6">
+          <DialogHeader className="px-8 py-6">
+            <DialogTitle className="text-[22px] font-normal text-slate-800">New address</DialogTitle>
+          </DialogHeader>
+          
+          <div className="px-8 pb-4 space-y-[18px] max-h-[70vh] overflow-y-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-center gap-4">
+              <label className="text-[15px] text-slate-700">Attention</label>
+              <Input className="h-10 text-[15px] border-slate-200" value={newAddress.attention} onChange={e => setNewAddress({...newAddress, attention: e.target.value})} />
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-start gap-4">
+              <label className="text-[15px] text-slate-700 pt-2">Street 1</label>
+              <textarea className="w-full border border-slate-200 rounded-md p-2.5 text-[15px] focus:outline-none focus:border-blue-500 h-[80px]" value={newAddress.street1} onChange={e => setNewAddress({...newAddress, street1: e.target.value})} />
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-start gap-4">
+              <label className="text-[15px] text-slate-700 pt-2">Street 2</label>
+              <textarea className="w-full border border-slate-200 rounded-md p-2.5 text-[15px] focus:outline-none focus:border-blue-500 h-[80px]" value={newAddress.street2} onChange={e => setNewAddress({...newAddress, street2: e.target.value})} />
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-center gap-4">
+              <label className="text-[15px] text-slate-700">City</label>
+              <Input className="h-10 text-[15px] border-slate-200" value={newAddress.city} onChange={e => setNewAddress({...newAddress, city: e.target.value})} />
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-center gap-4">
+              <label className="text-[15px] text-slate-700">State/Province</label>
+              <Input className="h-10 text-[15px] border-slate-200" value={newAddress.state} onChange={e => setNewAddress({...newAddress, state: e.target.value})} />
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-center gap-4">
+              <label className="text-[15px] text-slate-700">ZIP/Postal Code</label>
+              <Input className="h-10 text-[15px] border-slate-200" value={newAddress.zip} onChange={e => setNewAddress({...newAddress, zip: e.target.value})} />
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-center gap-4">
+              <label className="text-[15px] text-slate-700">Country/Region</label>
+              <select className="h-10 w-full border border-slate-200 rounded-md px-3 text-[15px] text-slate-600 focus:outline-none focus:border-blue-500 bg-white" value={newAddress.country} onChange={e => setNewAddress({...newAddress, country: e.target.value})}>
+                <option value="">Select or type to add</option>
+                {COUNTRIES.map(country => (
+                  <option key={country} value={country}>{country}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-center gap-4">
+              <label className="text-[15px] text-slate-700">Phone</label>
+              <div className="relative w-full">
+                <Input className="h-10 text-[15px] border-slate-200 pr-8" value={newAddress.phone} onChange={e => setNewAddress({...newAddress, phone: e.target.value})} />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-500"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="border-t border-slate-100 px-8 py-6">
+            <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] gap-4">
+              <div></div>
+              <div className="flex gap-3">
+                <Button onClick={handleSaveNewAddress} className="bg-[#4285f4] hover:bg-blue-600 text-white px-6 h-9 font-medium text-[15px]">Save</Button>
+                <Button onClick={() => setIsNewAddressModalOpen(false)} variant="outline" className="bg-[#f8f9fa] hover:bg-[#f1f3f4] border-slate-200 text-slate-700 h-9 font-medium text-[15px]">Cancel</Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
       {/* Sticky Footer Area */}
       <div className="sticky bottom-0 bg-white border-t border-slate-200 px-6 py-4 flex items-center justify-between shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
          <div className="flex gap-4">

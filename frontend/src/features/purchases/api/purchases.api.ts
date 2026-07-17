@@ -72,3 +72,8 @@ export const importPurchaseOrdersFromCsv = async (file: File) => {
   });
   return response.data;
 };
+
+export const getNextPurchaseOrderNumber = async () => {
+  const response = await api.get('/purchases/orders/next-number');
+  return response.data;
+};

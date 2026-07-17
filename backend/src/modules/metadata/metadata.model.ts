@@ -18,6 +18,12 @@ export interface IField extends Document {
   colSpan?: number;
   sectionToggle?: boolean;
   widget?: string;
+  hasInfo?: boolean;
+  checkboxLabel?: string;
+  labelColor?: string;
+  icon?: string;
+  placeholder?: string;
+  helperText?: string;
 }
 
 export interface IMetadata extends Document {
@@ -42,7 +48,13 @@ const FieldSchema = new Schema({
   options: [{ type: String }],
   colSpan: { type: Number, default: 1 },
   sectionToggle: { type: Boolean, default: false },
-  widget: { type: String }
+  widget: { type: String },
+  hasInfo: { type: Boolean },
+  checkboxLabel: { type: String },
+  labelColor: { type: String },
+  icon: { type: String },
+  placeholder: { type: String },
+  helperText: { type: String }
 }, { _id: false });
 
 const MetadataSchema = new Schema({

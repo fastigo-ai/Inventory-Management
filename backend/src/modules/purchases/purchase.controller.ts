@@ -119,6 +119,36 @@ export const getPurchaseOrderById = async (req: Request, res: Response) => {
   }
 };
 
+export const getNextPurchaseOrderNumber = async (req: Request, res: Response) => {
+  try {
+    const lastOrder = await PurchaseOrder.findOne({ purchaseOrderNumber: { $regex: /^PO-/i } })
+      .sort({ createdAt: -1 })
+      .lean();
+      
+    let nextNumber = 1;
+    if (lastOrder && lastOrder.purchaseOrderNumber) {
+      const match = lastOrder.purchaseOrderNumber.match(/^PO-(\d+)$/i);
+      if (match) {
+        nextNumber = parseInt(match[1], 10) + 1;
+      }
+    }
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        prefix: 'PO-',
+        nextNumber: nextNumber.toString().padStart(5, '0')
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate next PO number',
+      error: error.message,
+    });
+  }
+};
+
 export const exportPurchaseOrders = async (req: Request, res: Response) => {
   try {
     const orders = await PurchaseOrder.find().sort({ createdAt: -1 }).lean();

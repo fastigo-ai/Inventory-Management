@@ -90,9 +90,8 @@ const seedMetadata = async () => {
       { name: 'skype', label: 'Skype Name/Number', type: 'text', required: false, visible: true, editable: true, tab: 'Other Details', order: 16.5, colSpan: 1, icon: 'skype' },
       { name: 'facebook', label: 'Facebook', type: 'text', required: false, visible: true, editable: true, tab: 'Other Details', order: 16.6, colSpan: 1, placeholder: 'http://www.facebook.com/', icon: 'facebook' },
 
-      // Other Tabs Placeholders
-      { name: 'billingAddress', label: 'Billing Address', type: 'text', widget: 'textarea', required: false, visible: true, editable: true, tab: 'Address', order: 17, colSpan: 1 },
-      { name: 'shippingAddress', label: 'Shipping Address', type: 'text', widget: 'textarea', required: false, visible: true, editable: true, tab: 'Address', order: 18, colSpan: 1 },
+      // Address Tab
+      { name: 'vendorAddresses', label: 'Addresses', type: 'compound', widget: 'vendor_address', required: false, visible: true, editable: true, tab: 'Address', order: 17, colSpan: 2 },
       { name: 'contactPersons', label: 'Contact Persons', type: 'text', widget: 'textarea', required: false, visible: true, editable: true, tab: 'Contact Persons', order: 19, colSpan: 1 },
       { name: 'bankDetails', label: 'Bank Details', type: 'text', widget: 'textarea', required: false, visible: true, editable: true, tab: 'Bank Details', order: 20, colSpan: 1 },
       { name: 'customFields', label: 'Custom Fields', type: 'text', widget: 'textarea', required: false, visible: true, editable: true, tab: 'Custom Fields', order: 21, colSpan: 1 },

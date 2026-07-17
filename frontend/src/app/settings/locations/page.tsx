@@ -106,8 +106,9 @@ export default function LocationsSettingsPage() {
 
   // Group locations hierarchically
   const buildHierarchy = () => {
-    const parentLocations = locations.filter(loc => !loc.parentLocation);
-    const childLocations = locations.filter(loc => loc.parentLocation);
+    const filteredLocations = locations.filter(loc => loc.type !== 'Other');
+    const parentLocations = filteredLocations.filter(loc => !loc.parentLocation);
+    const childLocations = filteredLocations.filter(loc => loc.parentLocation);
     
     return parentLocations.map(parent => {
       const children = childLocations.filter(child => child.parentLocation._id === parent._id);

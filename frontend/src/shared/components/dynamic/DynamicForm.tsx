@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { UploadCloud } from "lucide-react";
+import { UploadCloud, Globe, MessageCircle } from "lucide-react";
 
 export interface FieldMetadata {
   name: string;
@@ -30,6 +30,9 @@ export interface FieldMetadata {
   hasInfo?: boolean;
   checkboxLabel?: string;
   labelColor?: string;
+  icon?: string;
+  placeholder?: string;
+  helperText?: string;
 }
 
 interface DynamicFormProps {
@@ -53,6 +56,8 @@ export function DynamicForm({ fields, initialData = {}, onSubmit, isLoading, lay
     handleSubmit,
     watch,
     control,
+    setValue,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm({ defaultValues });
 
@@ -82,7 +87,7 @@ export function DynamicForm({ fields, initialData = {}, onSubmit, isLoading, lay
              <div key={tabName} className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start mb-8">
                 <div className={`grid grid-cols-1 gap-6 ${imageField ? 'md:col-span-7' : 'md:col-span-12 max-w-3xl'}`}>
                   {leftFields.map(field => (
-                    <div key={field.name}>{renderField(field, register, errors, control, layoutStyle)}</div>
+                    <div key={field.name}>{renderField(field, register, errors, control, layoutStyle, setValue, getValues)}</div>
                   ))}
                 </div>
                 {imageField && (
@@ -111,11 +116,11 @@ export function DynamicForm({ fields, initialData = {}, onSubmit, isLoading, lay
               </div>
             )}
             {isSectionEnabled && (
-              <div className={layoutStyle === 'sections' ? "pt-2 pb-8" : "pt-6 pb-6 max-w-3xl"}>
+              <div className={layoutStyle === 'sections' ? "pt-2 pb-8" : "pt-6 pb-6 w-full max-w-5xl"}>
                 <div className="grid grid-cols-1 gap-y-6">
                   {nonToggleFields.map(field => (
                     <div key={field.name} className={`space-y-2 ${field.colSpan === 2 ? 'md:col-span-2' : 'md:col-span-1'}`}>
-                      {renderField(field, register, errors, control, layoutStyle)}
+                      {renderField(field, register, errors, control, layoutStyle, setValue, getValues)}
                     </div>
                   ))}
                 </div>
@@ -169,8 +174,108 @@ export function DynamicForm({ fields, initialData = {}, onSubmit, isLoading, lay
   );
 }
 
-function renderField(field: FieldMetadata, register: any, errors: any, control: any, layoutStyle: string = 'sections') {
+function renderField(field: FieldMetadata, register: any, errors: any, control: any, layoutStyle: string = 'sections', setValue?: any, getValues?: any) {
   let fieldInput = null;
+
+  if (field.widget === 'vendor_address') {
+    const renderAddressSide = (type: 'billing' | 'shipping', title: string, hasCopy: boolean) => {
+      const prefix = `${field.name}.${type}`;
+      return (
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-semibold text-slate-800 text-[15px]">{title}</h3>
+            {hasCopy && (
+              <button 
+                type="button" 
+                className="text-[#0076f2] text-[13px] font-medium hover:underline flex items-center"
+                onClick={() => {
+                  if (setValue && getValues) {
+                    const billing = getValues(`${field.name}.billing`);
+                    if (billing) {
+                      setValue(`${field.name}.shipping`, billing);
+                    }
+                  }
+                }}
+              >
+                <span className="mr-1">⬇</span> Copy billing address
+              </button>
+            )}
+          </div>
+          <div className="space-y-4">
+             <div className="grid grid-cols-[130px_1fr] items-start gap-4">
+                <Label className="text-[13px] text-slate-600 pt-2">Attention</Label>
+                <Input className="h-9 text-[13px] bg-white" {...register(`${prefix}.attention`)} />
+             </div>
+             <div className="grid grid-cols-[130px_1fr] items-start gap-4">
+                <Label className="text-[13px] text-slate-600 pt-2">Country/Region</Label>
+                <select className="h-9 rounded-md border border-slate-300 bg-white px-3 text-[13px]" {...register(`${prefix}.country`)}>
+                  <option value="">Select</option>
+                  <option value="India">India</option>
+                  <option value="USA">USA</option>
+                </select>
+             </div>
+             <div className="grid grid-cols-[130px_1fr] items-start gap-4">
+                <Label className="text-[13px] text-slate-600 pt-2">Address</Label>
+                <div className="space-y-2">
+                  <Textarea className="text-[13px] min-h-[60px] bg-white" placeholder="Street 1" {...register(`${prefix}.street1`)} />
+                  <Textarea className="text-[13px] min-h-[60px] bg-white" placeholder="Street 2" {...register(`${prefix}.street2`)} />
+                </div>
+             </div>
+             <div className="grid grid-cols-[130px_1fr] items-start gap-4">
+                <Label className="text-[13px] text-slate-600 pt-2">City</Label>
+                <Input className="h-9 text-[13px] bg-white" {...register(`${prefix}.city`)} />
+             </div>
+             <div className="grid grid-cols-[130px_1fr] items-start gap-4">
+                <Label className="text-[13px] text-slate-600 pt-2">State</Label>
+                <select className="h-9 rounded-md border border-slate-300 bg-white px-3 text-[13px]" {...register(`${prefix}.state`)}>
+                  <option value="">Select or type to add</option>
+                  <option value="Delhi">Delhi</option>
+                  <option value="Maharashtra">Maharashtra</option>
+                  <option value="Karnataka">Karnataka</option>
+                  <option value="Tamil Nadu">Tamil Nadu</option>
+                  <option value="Telangana">Telangana</option>
+                  <option value="Gujarat">Gujarat</option>
+                </select>
+             </div>
+             <div className="grid grid-cols-[130px_1fr] items-start gap-4">
+                <Label className="text-[13px] text-slate-600 pt-2">Pin Code</Label>
+                <Input className="h-9 text-[13px] bg-white" {...register(`${prefix}.zip`)} />
+             </div>
+             <div className="grid grid-cols-[130px_1fr] items-start gap-4">
+                <Label className="text-[13px] text-slate-600 pt-2">Phone</Label>
+                <div className="flex items-center space-x-2 w-full">
+                  <select className="h-9 w-[70px] rounded-md border border-slate-300 bg-white px-1 text-[13px]" {...register(`${prefix}.phoneCode`)}>
+                    <option value="+91">+91</option>
+                    <option value="+1">+1</option>
+                  </select>
+                  <Input className="h-9 text-[13px] flex-1 bg-white" {...register(`${prefix}.phone`)} />
+                </div>
+             </div>
+             <div className="grid grid-cols-[130px_1fr] items-start gap-4">
+                <Label className="text-[13px] text-slate-600 pt-2">Fax Number</Label>
+                <Input className="h-9 text-[13px] bg-white" {...register(`${prefix}.fax`)} />
+             </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="col-span-full pt-2 -ml-2 pb-6">
+         <div className="flex flex-col md:flex-row gap-12 mb-8">
+            {renderAddressSide('billing', 'Billing Address', false)}
+            {renderAddressSide('shipping', 'Shipping Address', true)}
+         </div>
+         <div className="bg-[#fff9eb] border-l-2 border-[#f5b849] p-4 text-sm rounded-r-md">
+            <h4 className="font-semibold text-slate-800 mb-1">Note:</h4>
+            <ul className="list-disc list-inside text-[13px] text-slate-700 space-y-1 ml-1 marker:text-slate-500">
+              <li>Add and manage additional addresses from this Customers and Vendors details section.</li>
+              <li>You can customise how customers' addresses are displayed in transaction PDFs. To do this, go to Settings &gt; Preferences &gt; Customers and Vendors, and navigate to the Address Format sections.</li>
+            </ul>
+         </div>
+      </div>
+    );
+  }
 
   if (field.type === 'text_multi' || field.widget === 'textarea') {
     fieldInput = (
@@ -286,19 +391,67 @@ function renderField(field: FieldMetadata, register: any, errors: any, control: 
         </div>
       </div>
     );
+  } else if (field.icon) {
+    const TwitterIcon = (props: any) => (
+      <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+      </svg>
+    );
+    const FacebookIcon = (props: any) => (
+      <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+        <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" />
+      </svg>
+    );
+    const getIcon = (name: string) => {
+      switch (name) {
+        case 'globe': return Globe;
+        case 'twitter': return TwitterIcon;
+        case 'facebook': return FacebookIcon;
+        case 'skype': return MessageCircle;
+        default: return Globe;
+      }
+    };
+    const Icon = getIcon(field.icon);
+    
+    fieldInput = (
+      <div>
+        <div className="flex h-9 rounded-md border border-slate-300 overflow-hidden bg-white">
+          <div className="flex items-center justify-center px-3 bg-slate-50 border-r border-slate-300">
+             <Icon className="w-4 h-4 text-slate-500" />
+          </div>
+          <Input 
+            id={field.name}
+            type="text"
+            disabled={!field.editable}
+            placeholder={field.placeholder}
+            {...register(field.name, { required: field.required ? `${field.label} is required` : false })} 
+            className="flex-1 h-full border-0 focus-visible:ring-0 rounded-none shadow-none text-[13px]"
+          />
+        </div>
+        {field.helperText && (
+          <p className="text-xs text-slate-500 mt-1">{field.helperText}</p>
+        )}
+      </div>
+    );
   } else {
     fieldInput = (
-      <Input 
-        id={field.name}
-        type={field.type === 'email' ? 'email' : field.type === 'url' ? 'url' : field.type === 'phone' ? 'tel' : field.type === 'number' || field.type === 'decimal' || field.type === 'amount' ? 'number' : 'text'}
-        step={field.type === 'decimal' || field.type === 'amount' ? '0.01' : undefined}
-        disabled={!field.editable}
-        {...register(field.name, { 
-          required: field.required ? `${field.label} is required` : false,
-          valueAsNumber: field.type === 'number' || field.type === 'decimal' || field.type === 'amount'
-        })} 
-        className="bg-white"
-      />
+      <div>
+        <Input 
+          id={field.name}
+          type={field.type === 'email' ? 'email' : field.type === 'url' ? 'url' : field.type === 'phone' ? 'tel' : field.type === 'number' || field.type === 'decimal' || field.type === 'amount' ? 'number' : 'text'}
+          step={field.type === 'decimal' || field.type === 'amount' ? '0.01' : undefined}
+          disabled={!field.editable}
+          placeholder={field.placeholder}
+          {...register(field.name, { 
+            required: field.required ? `${field.label} is required` : false,
+            valueAsNumber: field.type === 'number' || field.type === 'decimal' || field.type === 'amount'
+          })} 
+          className="bg-white"
+        />
+        {field.helperText && (
+          <p className="text-xs text-slate-500 mt-1">{field.helperText}</p>
+        )}
+      </div>
     );
   }
 

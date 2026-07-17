@@ -11,6 +11,21 @@ export const api = axios.create({
   },
 });
 
+// Queue for failed requests while token is refreshing
+let isRefreshing = false;
+let failedQueue: any[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 // Response interceptor for catching 401s and silently refreshing tokens
 api.interceptors.response.use(
   (response) => response,
@@ -24,19 +39,37 @@ api.interceptors.response.use(
       !originalRequest._retry &&
       !originalRequest.url.includes('/auth/refresh-token')
     ) {
+      if (isRefreshing) {
+        // If already refreshing, wait for it to finish then retry
+        return new Promise(function(resolve, reject) {
+          failedQueue.push({ resolve, reject });
+        }).then(() => {
+          return api(originalRequest);
+        }).catch((err) => {
+          return Promise.reject(err);
+        });
+      }
+
       originalRequest._retry = true;
+      isRefreshing = true;
 
       try {
         // Attempt to refresh the token
         await axios.post(
-          `${api.defaults.baseURL}/auth/refresh-token`,
+          `${API_BASE_URL}/api/auth/refresh-token`,
           {},
           { withCredentials: true }
         );
 
+        isRefreshing = false;
+        processQueue(null, 'success');
+
         // If successful, retry the original request
         return api(originalRequest);
       } catch (refreshError) {
+        isRefreshing = false;
+        processQueue(refreshError, null);
+        
         // If refresh fails (e.g. refresh token expired), force logout
         useAuthStore.getState().logout();
         return Promise.reject(refreshError);

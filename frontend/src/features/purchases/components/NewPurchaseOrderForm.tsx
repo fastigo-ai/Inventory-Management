@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { createPurchaseOrder } from '../api/purchases.api';
 import { getItems, getEntityMetadata } from '@/features/items/api/items.api';
 import { getLocations } from '@/features/settings/api/locations.api';
+import { getVendors } from '@/features/vendors/api/vendors.api';
 
 interface PurchaseOrderForm {
   vendorName: string;
@@ -46,11 +47,15 @@ export function NewPurchaseOrderForm() {
   const router = useRouter();
   const [itemsList, setItemsList] = useState<any[]>([]);
   const [locationsList, setLocationsList] = useState<any[]>([]);
+  const [vendorsList, setVendorsList] = useState<any[]>([]);
   const [circleOptions, setCircleOptions] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [selectedBulkItems, setSelectedBulkItems] = useState<string[]>([]);
   const [bulkSearchQuery, setBulkSearchQuery] = useState('');
+  
+  const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
+  const [vendorSearchQuery, setVendorSearchQuery] = useState('');
   
   // File attachments state
   const [files, setFiles] = useState<File[]>([]);
@@ -116,6 +121,10 @@ export function NewPurchaseOrderForm() {
         setLocationsList(res.data);
       }
     }).catch(err => console.error('Failed to fetch locations:', err));
+
+    getVendors({ limit: 5000 }).then(data => {
+      setVendorsList(data.vendors || data.items || []);
+    }).catch(err => console.error('Failed to fetch vendors:', err));
   }, []);
 
   // Calculations
@@ -251,11 +260,13 @@ export function NewPurchaseOrderForm() {
                 <div className="flex">
                   <select {...register('vendorName', { required: true })} className="flex-1 border border-blue-400 rounded-l-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white appearance-none">
                     <option value="">Select a Vendor</option>
-                    <option value="Acme Corp">Acme Corp</option>
-                    <option value="Global Tech">Global Tech</option>
-                    <option value="Local Supplier">Local Supplier</option>
+                    {vendorsList.map(v => (
+                      <option key={v._id} value={v.dynamicData?.displayName || v.dynamicData?.companyName || v._id}>
+                        {v.dynamicData?.displayName || v.dynamicData?.companyName || v._id}
+                      </option>
+                    ))}
                   </select>
-                  <button type="button" className="bg-[#3b82f6] text-white px-3 py-2 rounded-r-md hover:bg-blue-600 transition-colors border border-[#3b82f6]">
+                  <button type="button" onClick={() => setIsVendorModalOpen(true)} className="bg-[#3b82f6] text-white px-3 py-2 rounded-r-md hover:bg-blue-600 transition-colors border border-[#3b82f6]">
                     <Search className="w-4 h-4" />
                   </button>
                 </div>
@@ -470,8 +481,8 @@ export function NewPurchaseOrderForm() {
                                  {itemsList
                                    .filter(item => {
                                      const sq = (dropdownSearchQueries[field.id] || '').toLowerCase();
-                                     const name = (item.dynamicData?.name || item.dynamicData?.itemDescription || '').toLowerCase();
-                                     const sku = (item.dynamicData?.sku || item.dynamicData?.tempCode || '').toLowerCase();
+                                     const name = String(item.dynamicData?.name || item.dynamicData?.itemDescription || '').toLowerCase();
+                                     const sku = String(item.dynamicData?.sku || item.dynamicData?.tempCode || '').toLowerCase();
                                      return name.includes(sq) || sku.includes(sq);
                                    })
                                    .map(item => (
@@ -493,7 +504,7 @@ export function NewPurchaseOrderForm() {
                                  ))}
                                  {itemsList.filter(item => {
                                      const sq = (dropdownSearchQueries[field.id] || '').toLowerCase();
-                                     const name = (item.dynamicData?.name || item.dynamicData?.itemDescription || '').toLowerCase();
+                                     const name = String(item.dynamicData?.name || item.dynamicData?.itemDescription || '').toLowerCase();
                                      return name.includes(sq);
                                  }).length === 0 && (
                                    <div className="px-3 py-3 text-xs text-slate-500 text-center">No items found</div>
@@ -749,9 +760,9 @@ export function NewPurchaseOrderForm() {
                 <tbody className="divide-y divide-slate-100">
                   {itemsList
                     .filter(item => {
-                      const query = bulkSearchQuery.toLowerCase();
-                      const name = (item.dynamicData?.name || item.dynamicData?.itemDescription || '').toLowerCase();
-                      const code = (item.dynamicData?.tempCode || item.dynamicData?.sku || '').toLowerCase();
+                      const query = (bulkSearchQuery || '').toLowerCase();
+                      const name = String(item.dynamicData?.name || item.dynamicData?.itemDescription || '').toLowerCase();
+                      const code = String(item.dynamicData?.tempCode || item.dynamicData?.sku || '').toLowerCase();
                       return name.includes(query) || code.includes(query);
                     })
                     .map(item => (
@@ -793,6 +804,93 @@ export function NewPurchaseOrderForm() {
                 <button type="button" onClick={handleBulkAdd} disabled={selectedBulkItems.length === 0} className="px-4 py-2 text-sm font-medium text-white bg-[#3b82f6] rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                   Add Selected Items
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Advanced Vendor Search Modal */}
+      {isVendorModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[80vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+              <h2 className="text-lg font-bold text-slate-800">Advanced Vendor Search</h2>
+              <button type="button" onClick={() => setIsVendorModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center gap-4">
+               <div className="flex bg-white border border-slate-300 rounded-md overflow-hidden shadow-sm flex-1">
+                 <select className="border-none bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:outline-none border-r border-slate-300">
+                   <option>Display Name</option>
+                   <option>Email</option>
+                   <option>Company Name</option>
+                 </select>
+                 <input 
+                   type="text" 
+                   className="flex-1 px-3 py-2 text-sm focus:outline-none"
+                   value={vendorSearchQuery}
+                   onChange={(e) => setVendorSearchQuery(e.target.value)}
+                 />
+               </div>
+               <button type="button" className="bg-[#3b82f6] text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors text-sm font-medium shadow-sm">
+                 Search
+               </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-0">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-white border-b border-slate-200 sticky top-0 z-10">
+                  <tr className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
+                    <th className="px-6 py-3 w-[30%]">VENDOR NAME</th>
+                    <th className="px-6 py-3 w-[25%]">EMAIL</th>
+                    <th className="px-6 py-3 w-[25%]">COMPANY NAME</th>
+                    <th className="px-6 py-3 w-[20%]">PHONE</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {vendorsList
+                    .filter(vendor => {
+                      const query = (vendorSearchQuery || '').toLowerCase();
+                      const name = String(vendor.dynamicData?.displayName || vendor.dynamicData?.companyName || '').toLowerCase();
+                      const email = String(vendor.dynamicData?.emailAddress || vendor.dynamicData?.email || '').toLowerCase();
+                      return name.includes(query) || email.includes(query);
+                    })
+                    .map(vendor => (
+                    <tr 
+                      key={vendor._id} 
+                      className="hover:bg-blue-50 transition-colors cursor-pointer bg-white" 
+                      onClick={() => {
+                        setValue('vendorName', vendor.dynamicData?.displayName || vendor.dynamicData?.companyName || vendor._id);
+                        setIsVendorModalOpen(false);
+                      }}
+                    >
+                      <td className="px-6 py-4 text-blue-600 font-medium">
+                        {vendor.dynamicData?.displayName || vendor.dynamicData?.companyName || '--'}
+                      </td>
+                      <td className="px-6 py-4 text-slate-600">{vendor.dynamicData?.email || '--'}</td>
+                      <td className="px-6 py-4 text-slate-600">{vendor.dynamicData?.companyName || '--'}</td>
+                      <td className="px-6 py-4 text-slate-600">{vendor.dynamicData?.phone || '--'}</td>
+                    </tr>
+                  ))}
+                  {vendorsList.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="text-center py-10 text-slate-500 text-sm">No vendors found.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            
+            <div className="px-6 py-3 border-t border-slate-200 bg-white flex items-center justify-end">
+              <div className="flex items-center gap-4 text-sm text-slate-600">
+                <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-md px-2 py-1">
+                  <button type="button" className="p-1 hover:text-slate-800 disabled:opacity-50">&lt;</button>
+                  <span className="px-2 font-medium">1 - {vendorsList.length}</span>
+                  <button type="button" className="p-1 hover:text-slate-800 disabled:opacity-50">&gt;</button>
+                </div>
               </div>
             </div>
           </div>

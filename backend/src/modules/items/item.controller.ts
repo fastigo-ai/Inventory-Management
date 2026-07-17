@@ -79,7 +79,7 @@ export const getItems = asyncHandler(async (req: Request, res: Response) => {
   const totalItems = await Item.countDocuments(queryCondition);
   const items = await Item.find(queryCondition)
     .sort(sortObject)
-    .collation({ locale: 'en', numericOrdering: true }) // helps sort numbers/strings nicely
+    .collation({ locale: 'en', numericOrdering: true })
     .skip(skip)
     .limit(limit);
 

@@ -83,6 +83,12 @@ const seedMetadata = async () => {
       { name: 'tds', label: 'TDS', type: 'dropdown', options: ['Select a Tax', '5%', '10%', '18%'], defaultValue: 'Select a Tax', required: false, visible: true, editable: true, tab: 'Other Details', order: 14, colSpan: 1 },
       { name: 'enablePortal', label: 'Enable Portal?', type: 'boolean', defaultValue: false, required: false, visible: true, editable: true, tab: 'Other Details', order: 15, colSpan: 1, checkboxLabel: 'Allow portal access for this vendor' },
       { name: 'documents', label: 'Documents', type: 'text', widget: 'file_upload', required: false, visible: true, editable: true, tab: 'Other Details', order: 16, colSpan: 1 },
+      { name: 'websiteUrl', label: 'Website URL', type: 'text', required: false, visible: true, editable: true, tab: 'Other Details', order: 16.1, colSpan: 1, placeholder: 'ex: www.zylker.com', icon: 'globe' },
+      { name: 'department', label: 'Department', type: 'text', required: false, visible: true, editable: true, tab: 'Other Details', order: 16.2, colSpan: 1 },
+      { name: 'designation', label: 'Designation', type: 'text', required: false, visible: true, editable: true, tab: 'Other Details', order: 16.3, colSpan: 1 },
+      { name: 'twitter', label: 'X', type: 'text', required: false, visible: true, editable: true, tab: 'Other Details', order: 16.4, colSpan: 1, placeholder: 'https://x.com/', icon: 'twitter' },
+      { name: 'skype', label: 'Skype Name/Number', type: 'text', required: false, visible: true, editable: true, tab: 'Other Details', order: 16.5, colSpan: 1, icon: 'skype' },
+      { name: 'facebook', label: 'Facebook', type: 'text', required: false, visible: true, editable: true, tab: 'Other Details', order: 16.6, colSpan: 1, placeholder: 'http://www.facebook.com/', icon: 'facebook' },
 
       // Other Tabs Placeholders
       { name: 'billingAddress', label: 'Billing Address', type: 'text', widget: 'textarea', required: false, visible: true, editable: true, tab: 'Address', order: 17, colSpan: 1 },

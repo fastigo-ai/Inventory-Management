@@ -49,7 +49,13 @@ export const createItem = asyncHandler(async (req: Request, res: Response) => {
 
   await validateDynamicData(dynamicData, metadata.fields);
 
-  const item = await Item.create({ dynamicData });
+  // Note: in a real app, performedBy should come from req.user
+  const performedBy = 'system'; 
+
+  const item = await Item.create({ 
+    dynamicData,
+    history: [{ action: 'Created', performedBy }]
+  });
 
   res.status(201).json(new ApiResponse(201, item, 'Item created successfully'));
 });
@@ -59,6 +65,7 @@ export const getItems = asyncHandler(async (req: Request, res: Response) => {
   const limit = parseInt(req.query.limit as string) || 50;
   const sortBy = req.query.sortBy as string;
   const sortOrder = (req.query.sortOrder as string) === 'desc' ? -1 : 1;
+  const isDeleted = req.query.isDeleted === 'true';
 
   let sortObject: any = { createdAt: -1 };
   if (sortBy) {
@@ -67,8 +74,10 @@ export const getItems = asyncHandler(async (req: Request, res: Response) => {
 
   const skip = (page - 1) * limit;
 
-  const totalItems = await Item.countDocuments();
-  const items = await Item.find({})
+  const queryCondition = isDeleted ? { isDeleted: true } : { isDeleted: { $ne: true } };
+
+  const totalItems = await Item.countDocuments(queryCondition);
+  const items = await Item.find(queryCondition)
     .sort(sortObject)
     .collation({ locale: 'en', numericOrdering: true }) // helps sort numbers/strings nicely
     .skip(skip)
@@ -98,6 +107,24 @@ export const getItemById = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(404, 'Item not found');
   }
   res.status(200).json(new ApiResponse(200, item, 'Item fetched successfully'));
+});
+
+export const bulkDeleteItems = asyncHandler(async (req: Request, res: Response) => {
+  const { ids } = req.body;
+  if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    throw new ApiError(400, 'Please provide an array of item IDs to delete');
+  }
+
+  const performedBy = 'system';
+  const result = await Item.updateMany(
+    { _id: { $in: ids } },
+    { 
+      $set: { isDeleted: true },
+      $push: { history: { action: 'Deleted', performedBy } }
+    }
+  );
+  
+  res.status(200).json(new ApiResponse(200, { deletedCount: result.modifiedCount }, 'Items deleted successfully'));
 });
 
 export const exportItems = asyncHandler(async (req: Request, res: Response) => {
@@ -165,7 +192,8 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
   const aliases: Record<string, string> = {
     'itemname': 'name',
     'itemdesc': 'description',
-    'loaserialno': 'loaserialno',
+    'itemdescription': 'description',
+    'loaserialno': 'sku',
   };
 
   let rowIndex = 1;
@@ -237,7 +265,11 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
       }
       
       // If validation passed, push to valid items array
-      validItems.push({ dynamicData });
+      const performedBy = 'system';
+      validItems.push({ 
+        dynamicData,
+        history: [{ action: 'Imported', performedBy }]
+      });
 
     } catch (err: any) {
       errors.push({

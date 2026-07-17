@@ -145,10 +145,32 @@ export default function ItemSplitViewPage({ params }: { params: Promise<{ id: st
           })}
         </div>
         
-        {/* Simple pagination indicator for sidebar */}
+        {/* Pagination controls for sidebar */}
         {pagination && pagination.totalPages > 1 && (
-          <div className="h-10 border-t border-slate-200 flex items-center justify-center bg-white text-xs text-slate-500">
-            Page {pagination.currentPage} of {pagination.totalPages}
+          <div className="h-12 border-t border-slate-200 flex items-center justify-between px-4 bg-white text-xs text-slate-500 shrink-0">
+            <button 
+              onClick={() => {
+                const p = new URLSearchParams(searchParams.toString());
+                p.set('page', (pagination.currentPage - 1).toString());
+                router.push(`/items/${itemId}?${p.toString()}`);
+              }}
+              disabled={pagination.currentPage === 1}
+              className="p-1.5 rounded hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
+            </button>
+            <span className="font-medium">Page {pagination.currentPage} of {pagination.totalPages}</span>
+            <button 
+              onClick={() => {
+                const p = new URLSearchParams(searchParams.toString());
+                p.set('page', (pagination.currentPage + 1).toString());
+                router.push(`/items/${itemId}?${p.toString()}`);
+              }}
+              disabled={pagination.currentPage === pagination.totalPages}
+              className="p-1.5 rounded hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
+            </button>
           </div>
         )}
       </div>
@@ -158,8 +180,13 @@ export default function ItemSplitViewPage({ params }: { params: Promise<{ id: st
         {/* Detail Header */}
         <div className="h-14 border-b border-slate-200 flex items-center justify-between px-6 shrink-0">
           <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-semibold text-slate-900">
-              {selectedItem.dynamicData[nameField] || 'Unnamed Item'}
+            <h1 className="text-xl font-semibold text-slate-900 flex items-center space-x-3">
+              <span>{selectedItem.dynamicData[nameField] || 'Unnamed Item'}</span>
+              {selectedItem.isDeleted && (
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-200">
+                  Deleted
+                </span>
+              )}
             </h1>
           </div>
           <div className="flex items-center space-x-3">
@@ -251,31 +278,51 @@ export default function ItemSplitViewPage({ params }: { params: Promise<{ id: st
                     </tr>
                   </thead>
                   <tbody>
-                    {selectedItem.updatedAt && selectedItem.updatedAt !== selectedItem.createdAt && (
-                      <tr className="border-b border-slate-100 hover:bg-slate-50">
-                        <td className="px-6 py-4 text-slate-600 whitespace-nowrap">
-                          {new Date(selectedItem.updatedAt).toLocaleString('en-IN', {
-                            day: '2-digit', month: '2-digit', year: 'numeric',
-                            hour: '2-digit', minute: '2-digit', hour12: true
-                          })}
-                        </td>
-                        <td className="px-6 py-4 text-slate-900 font-medium">
-                          updated by - {selectedItem.updatedBy || 'system'}
-                        </td>
-                      </tr>
-                    )}
-                    {selectedItem.createdAt && (
-                      <tr className="hover:bg-slate-50">
-                        <td className="px-6 py-4 text-slate-600 whitespace-nowrap">
-                          {new Date(selectedItem.createdAt).toLocaleString('en-IN', {
-                            day: '2-digit', month: '2-digit', year: 'numeric',
-                            hour: '2-digit', minute: '2-digit', hour12: true
-                          })}
-                        </td>
-                        <td className="px-6 py-4 text-slate-900 font-medium">
-                          created by - {selectedItem.createdBy || 'system'}
-                        </td>
-                      </tr>
+                    {selectedItem.history && selectedItem.history.length > 0 ? (
+                      [...selectedItem.history].reverse().map((log: any, index: number) => (
+                        <tr key={index} className="border-b border-slate-100 hover:bg-slate-50">
+                          <td className="px-6 py-4 text-slate-600 whitespace-nowrap">
+                            {new Date(log.timestamp).toLocaleString('en-IN', {
+                              day: '2-digit', month: '2-digit', year: 'numeric',
+                              hour: '2-digit', minute: '2-digit', hour12: true
+                            })}
+                          </td>
+                          <td className="px-6 py-4 text-slate-900 font-medium">
+                            {log.action} by - {log.performedBy || 'system'}
+                            {log.details && <span className="block text-xs text-slate-500 font-normal mt-0.5">{log.details}</span>}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      // Fallback for older items before history array was added
+                      <>
+                        {selectedItem.updatedAt && selectedItem.updatedAt !== selectedItem.createdAt && (
+                          <tr className="border-b border-slate-100 hover:bg-slate-50">
+                            <td className="px-6 py-4 text-slate-600 whitespace-nowrap">
+                              {new Date(selectedItem.updatedAt).toLocaleString('en-IN', {
+                                day: '2-digit', month: '2-digit', year: 'numeric',
+                                hour: '2-digit', minute: '2-digit', hour12: true
+                              })}
+                            </td>
+                            <td className="px-6 py-4 text-slate-900 font-medium">
+                              Updated by - {selectedItem.updatedBy || 'system'}
+                            </td>
+                          </tr>
+                        )}
+                        {selectedItem.createdAt && (
+                          <tr className="hover:bg-slate-50">
+                            <td className="px-6 py-4 text-slate-600 whitespace-nowrap">
+                              {new Date(selectedItem.createdAt).toLocaleString('en-IN', {
+                                day: '2-digit', month: '2-digit', year: 'numeric',
+                                hour: '2-digit', minute: '2-digit', hour12: true
+                              })}
+                            </td>
+                            <td className="px-6 py-4 text-slate-900 font-medium">
+                              Created by - {selectedItem.createdBy || 'system'}
+                            </td>
+                          </tr>
+                        )}
+                      </>
                     )}
                   </tbody>
                 </table>

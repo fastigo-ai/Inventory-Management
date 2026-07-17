@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getEntityMetadata, getItems } from "@/features/items/api/items.api";
+import { getEntityMetadata, getItems, bulkDeleteItems } from "@/features/items/api/items.api";
 import { exportItemsToCsv } from "@/features/items/api/items.api";
 import { DynamicTable } from "@/shared/components/dynamic/DynamicTable";
 import { FieldMetadata } from "@/shared/components/dynamic/DynamicForm";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Loader2, Plus, Settings, Download, Upload, MoreHorizontal } from "lucide-react";
+import { Loader2, Plus, Settings, Download, Upload, MoreHorizontal, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +27,7 @@ export default function ItemsPage() {
   const sortBy = searchParams.get('sortBy') || null;
   const sortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') || 'asc';
   const limit = parseInt(searchParams.get('limit') || '50');
+  const isDeleted = searchParams.get('isDeleted') === 'true';
 
   const [fields, setFields] = useState<FieldMetadata[]>([]);
   const [items, setItems] = useState<any[]>([]);
@@ -33,13 +35,15 @@ export default function ItemsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
 
   const fetchItemsData = async () => {
     setIsLoading(true);
     try {
       const [metaRes, itemsRes] = await Promise.all([
         getEntityMetadata('Item'),
-        getItems({ page, limit, sortBy: sortBy || undefined, sortOrder })
+        getItems({ page, limit, sortBy: sortBy || undefined, sortOrder, isDeleted })
       ]);
       setFields(metaRes.fields);
       setItems(itemsRes.items || itemsRes);
@@ -53,7 +57,7 @@ export default function ItemsPage() {
 
   useEffect(() => {
     fetchItemsData();
-  }, [page, limit, sortBy, sortOrder]);
+  }, [page, limit, sortBy, sortOrder, isDeleted]);
 
   const updateUrl = (updates: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -93,6 +97,24 @@ export default function ItemsPage() {
       console.error("Export failed", error);
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (!confirm(`Are you sure you want to delete ${selectedIds.length} items? This cannot be undone.`)) {
+      return;
+    }
+    
+    setIsDeletingBulk(true);
+    try {
+      await bulkDeleteItems(selectedIds);
+      toast.success(`${selectedIds.length} items deleted successfully.`);
+      setSelectedIds([]);
+      fetchItemsData();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to delete items');
+    } finally {
+      setIsDeletingBulk(false);
     }
   };
 
@@ -142,6 +164,48 @@ export default function ItemsPage() {
         </div>
       </div>
 
+      <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-md w-fit">
+        <button
+          onClick={() => updateUrl({ isDeleted: null, page: '1' })}
+          className={`px-4 py-1.5 text-sm font-medium rounded-sm transition-colors ${!isDeleted ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'}`}
+        >
+          Active
+        </button>
+        <button
+          onClick={() => updateUrl({ isDeleted: 'true', page: '1' })}
+          className={`px-4 py-1.5 text-sm font-medium rounded-sm transition-colors ${isDeleted ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'}`}
+        >
+          Trash
+        </button>
+      </div>
+
+      {selectedIds.length > 0 && (
+        <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4 flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+          <div className="text-sm text-indigo-800 font-medium">
+            {selectedIds.length} item{selectedIds.length > 1 ? 's' : ''} selected
+          </div>
+          <div className="flex space-x-3">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setSelectedIds([])}
+              className="bg-white border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+            >
+              Cancel
+            </Button>
+            <Button 
+              size="sm" 
+              onClick={handleDeleteSelected}
+              disabled={isDeletingBulk}
+              className="bg-red-600 hover:bg-red-700 text-white border-transparent"
+            >
+              {isDeletingBulk ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+              Delete Selected
+            </Button>
+          </div>
+        </div>
+      )}
+
       <DynamicTable 
         fields={fields} 
         data={items} 
@@ -152,6 +216,9 @@ export default function ItemsPage() {
         onRowClick={handleRowClick}
         sortColumn={sortBy}
         sortDirection={sortOrder}
+        enableSelection={true}
+        onSelectionChange={setSelectedIds}
+        selectedIds={selectedIds}
       />
 
       {isImportModalOpen && (

@@ -20,6 +20,9 @@ interface DynamicTableProps {
   onRowClick?: (row: any) => void;
   sortColumn?: string | null;
   sortDirection?: 'asc' | 'desc';
+  enableSelection?: boolean;
+  onSelectionChange?: (selectedIds: string[]) => void;
+  selectedIds?: string[];
 }
 
 export function DynamicTable({ 
@@ -31,7 +34,10 @@ export function DynamicTable({
   onLimitChange,
   onRowClick,
   sortColumn,
-  sortDirection
+  sortDirection,
+  enableSelection = false,
+  onSelectionChange,
+  selectedIds = []
 }: DynamicTableProps) {
   // Only show fields that are visible by default, active, and sort by order
   const sortedFields = [...fields].filter(f => f.active !== false).sort((a,b) => a.order - b.order);
@@ -54,6 +60,28 @@ export function DynamicTable({
       onSortChange(columnName, order);
     }
   };
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!onSelectionChange) return;
+    if (e.target.checked) {
+      // Select all on current page
+      const newSelectedIds = data.map(row => row._id);
+      onSelectionChange(newSelectedIds);
+    } else {
+      onSelectionChange([]);
+    }
+  };
+
+  const handleSelectRow = (id: string) => {
+    if (!onSelectionChange) return;
+    if (selectedIds.includes(id)) {
+      onSelectionChange(selectedIds.filter(selectedId => selectedId !== id));
+    } else {
+      onSelectionChange([...selectedIds, id]);
+    }
+  };
+
+  const isAllSelected = data.length > 0 && selectedIds.length === data.length && data.every(row => selectedIds.includes(row._id));
 
   const columns = sortedFields.filter(f => visibleColumns.includes(f.name));
 
@@ -116,6 +144,16 @@ export function DynamicTable({
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-50/50 hover:bg-slate-50/50">
+                {enableSelection && (
+                  <TableHead className="w-12 text-center">
+                    <input 
+                      type="checkbox" 
+                      className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                      checked={isAllSelected}
+                      onChange={handleSelectAll}
+                    />
+                  </TableHead>
+                )}
                 <TableHead className="font-semibold text-slate-700 w-16 text-center select-none">
                   Sr. No
                 </TableHead>
@@ -149,9 +187,25 @@ export function DynamicTable({
               return (
                 <TableRow 
                   key={row._id || i}
-                  onClick={() => onRowClick && onRowClick(row)}
+                  onClick={(e) => {
+                    // Prevent row click if clicking on the checkbox or its cell
+                    const target = e.target as HTMLElement;
+                    if (target.tagName !== 'INPUT' && target.closest('td:first-child') === null) {
+                      onRowClick && onRowClick(row);
+                    }
+                  }}
                   className={onRowClick ? "cursor-pointer hover:bg-slate-50 transition-colors" : ""}
                 >
+                  {enableSelection && (
+                    <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                      <input 
+                        type="checkbox" 
+                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                        checked={selectedIds.includes(row._id)}
+                        onChange={() => handleSelectRow(row._id)}
+                      />
+                    </TableCell>
+                  )}
                   <TableCell className="text-slate-600 text-center font-medium text-xs bg-slate-50/30">
                     {srNo}
                   </TableCell>

@@ -10,19 +10,13 @@ export const updateEntityMetadata = async (entityName: string, fields: any[]) =>
   return response.data.data;
 };
 
-interface GetItemsParams {
-  page?: number;
-  limit?: number;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
-}
-
-export const getItems = async (params?: GetItemsParams) => {
+export const getItems = async (params: { page?: number, limit?: number, sortBy?: string, sortOrder?: string, isDeleted?: boolean } = {}) => {
   const query = new URLSearchParams();
   if (params?.page) query.append('page', params.page.toString());
   if (params?.limit) query.append('limit', params.limit.toString());
   if (params?.sortBy) query.append('sortBy', params.sortBy);
   if (params?.sortOrder) query.append('sortOrder', params.sortOrder);
+  if (params?.isDeleted !== undefined) query.append('isDeleted', params.isDeleted.toString());
   
   const queryString = query.toString();
   const url = queryString ? `/items?${queryString}` : '/items';
@@ -39,6 +33,11 @@ export const getItem = async (id: string) => {
 export const createItem = async (dynamicData: any) => {
   const response = await api.post('/items', { dynamicData });
   return response.data.data;
+};
+
+export const bulkDeleteItems = async (ids: string[]) => {
+  const response = await api.post('/items/bulk-delete', { ids });
+  return response.data;
 };
 
 export const exportItemsToCsv = async () => {

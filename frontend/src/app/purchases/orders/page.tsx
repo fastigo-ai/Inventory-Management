@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { ChevronDown, RefreshCw, Plus, MoreHorizontal } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { getPurchaseOrders, exportPurchaseOrdersToCsv } from '@/features/purchases/api/purchases.api';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PurchaseOrderImportModal } from '@/features/purchases/components/PurchaseOrderImportModal';
@@ -13,6 +14,7 @@ export default function PurchaseOrdersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const router = useRouter();
 
   const handleExport = async () => {
     try {
@@ -113,8 +115,12 @@ export default function PurchaseOrdersPage() {
               </tr>
             ) : (
               orders.map((order) => (
-                <tr key={order._id} className="hover:bg-slate-50/50 transition-colors group">
-                  <td className="px-6 py-4 text-center">
+                <tr 
+                  key={order._id} 
+                  onClick={() => router.push(`/purchases/orders/${order._id}`)}
+                  className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
+                >
+                  <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
                     <input type="checkbox" className="rounded border-slate-300 text-blue-500 focus:ring-blue-500 w-4 h-4 cursor-pointer" />
                   </td>
                   <td className="px-4 py-4 text-slate-800 whitespace-nowrap">

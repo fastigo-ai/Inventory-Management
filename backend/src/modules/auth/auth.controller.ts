@@ -11,7 +11,7 @@ const setCookies = (res: Response, accessToken: string, refreshToken: string) =>
   const options = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'none' as const,
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' as const : 'lax' as const,
   };
 
   res.cookie('accessToken', accessToken, {
@@ -64,6 +64,15 @@ export const logout = asyncHandler(async (req: AuthRequest, res: Response) => {
     }
   }
 
+  const options = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' as const : 'lax' as const,
+  };
+
+  res.clearCookie('accessToken', options);
+  res.clearCookie('refreshToken', options);
+
   res.status(200).json(new ApiResponse(200, {}, 'Logout successful'));
 });
 
@@ -89,8 +98,6 @@ export const refreshAccessToken = asyncHandler(async (req: Request, res: Respons
     user.refreshTokens = user.refreshTokens.filter(t => t !== incomingRefreshToken);
     user.refreshTokens.push(newRefreshToken);
     await user.save({ validateBeforeSave: false });
-
-    setCookies(res, accessToken, newRefreshToken);
 
     setCookies(res, accessToken, newRefreshToken);
 

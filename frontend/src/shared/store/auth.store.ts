@@ -23,10 +23,6 @@ export const useAuthStore = create<AuthState>((set) => ({
   isLoading: true, // Starts true until verified on initial app load
   login: (user) => set({ user, isAuthenticated: true }),
   logout: () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-    }
     set({ user: null, isAuthenticated: false });
   },
   setLoading: (isLoading) => set({ isLoading }),

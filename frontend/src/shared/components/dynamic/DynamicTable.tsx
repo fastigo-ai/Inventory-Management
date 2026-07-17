@@ -241,11 +241,34 @@ export function DynamicTable({
                   <TableCell className="text-slate-600 text-center font-medium text-xs bg-slate-50/30">
                     {srNo}
                   </TableCell>
-                  {columns.map(col => (
-                    <TableCell key={col.name} className="text-slate-600">
-                      {formatCellValue(row.dynamicData?.[col.name])}
-                    </TableCell>
-                  ))}
+                  {columns.map(col => {
+                    const renderValue = (v: any): React.ReactNode => {
+                      if (v === null || v === undefined || v === '') return '-';
+                      if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+                      if (Array.isArray(v)) {
+                         return v.map(item => typeof item === 'object' && item !== null ? (item.name || item.title || JSON.stringify(item)) : String(item)).join(', ');
+                      }
+                      if (typeof v === 'object') {
+                        if (v.salutation || v.firstName || v.lastName) {
+                          return [v.salutation, v.firstName, v.lastName].filter(Boolean).join(' ');
+                        }
+                        if (v.name) return v.name;
+                        if (v.title) return v.title;
+                        try {
+                           return JSON.stringify(v);
+                        } catch (e) {
+                           return String(v);
+                        }
+                      }
+                      return String(v);
+                    };
+
+                    return (
+                      <TableCell key={col.name} className="text-slate-600">
+                        {renderValue(row.dynamicData?.[col.name])}
+                      </TableCell>
+                    );
+                  })}
                   {(onEdit || onDelete) && (
                     <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-center space-x-2">

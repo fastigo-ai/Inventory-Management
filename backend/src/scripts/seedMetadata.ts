@@ -70,7 +70,7 @@ const seedMetadata = async () => {
       // Basic Info
       { name: 'primaryContact', label: 'Primary Contact', type: 'compound', widget: 'vendor_primary_contact', required: false, visible: true, editable: true, tab: 'Basic Info', order: 1, colSpan: 1, systemLocked: true, hasInfo: true },
       { name: 'companyName', label: 'Company Name', type: 'text', required: false, visible: true, editable: true, tab: 'Basic Info', order: 2, colSpan: 1, systemLocked: true },
-      { name: 'displayName', label: 'Display Name', type: 'dropdown', options: ['Select or type to add'], required: true, visible: true, editable: true, unique: true, tab: 'Basic Info', order: 3, colSpan: 1, systemLocked: true, hasInfo: true, labelColor: 'red' },
+      { name: 'displayName', label: 'Display Name', type: 'text', required: true, visible: true, editable: true, unique: true, tab: 'Basic Info', order: 3, colSpan: 1, systemLocked: true, hasInfo: true, labelColor: 'red' },
       { name: 'emailAddress', label: 'Email Address', type: 'email', widget: 'email_input', required: false, visible: true, editable: true, tab: 'Basic Info', order: 4, colSpan: 1, systemLocked: true, hasInfo: true },
       { name: 'phone', label: 'Phone', type: 'compound', widget: 'vendor_phone', required: false, visible: true, editable: true, tab: 'Basic Info', order: 5, colSpan: 1, systemLocked: true, hasInfo: true },
       { name: 'vendorLanguage', label: 'Vendor Language', type: 'dropdown', options: ['English', 'Spanish', 'French'], defaultValue: 'English', required: false, visible: false, editable: true, tab: 'Basic Info', order: 6, colSpan: 1, systemLocked: true, hasInfo: true },

@@ -5,6 +5,9 @@ export interface IPurchaseOrderLineItem {
   itemName: string;
   tempCode?: string;
   account?: string;
+  description?: string;
+  package?: string;
+  circle?: string;
   unit?: string;
   quantity: number;
   rate: number;
@@ -20,7 +23,9 @@ export interface IPurchaseOrder extends Document {
   reference?: string;
   date: Date;
   deliveryDate?: Date;
-  paymentTerms?: string;
+  paymentTermStage?: string;
+  paymentTermType?: string;
+  paymentTermAmount?: string;
   poQuantity?: string;
   circle?: string;
   package1?: string;
@@ -37,6 +42,12 @@ export interface IPurchaseOrder extends Document {
 
   // Financials
   subTotal: number;
+  cgstPercentage?: number;
+  sgstPercentage?: number;
+  igstPercentage?: number;
+  freightInsuranceType?: string;
+  freightInsuranceValueType?: string;
+  freightInsuranceAmount?: number;
   discountPercentage?: number;
   discountAmount?: number;
   taxType?: 'TDS' | 'TCS';
@@ -61,6 +72,9 @@ const purchaseOrderLineItemSchema = new Schema<IPurchaseOrderLineItem>({
   itemName: { type: String, required: true },
   tempCode: { type: String },
   account: { type: String },
+  description: { type: String },
+  package: { type: String },
+  circle: { type: String },
   unit: { type: String },
   quantity: { type: Number, required: true, default: 1 },
   rate: { type: Number, required: true, default: 0 },
@@ -77,7 +91,9 @@ const purchaseOrderSchema = new Schema<IPurchaseOrder>(
     reference: { type: String },
     date: { type: Date, required: true, default: Date.now },
     deliveryDate: { type: Date },
-    paymentTerms: { type: String },
+    paymentTermStage: { type: String },
+    paymentTermType: { type: String },
+    paymentTermAmount: { type: String },
     poQuantity: { type: String },
     circle: { type: String },
     package1: { type: String },
@@ -91,6 +107,12 @@ const purchaseOrderSchema = new Schema<IPurchaseOrder>(
     termsConditions: { type: String },
     
     subTotal: { type: Number, required: true, default: 0 },
+    cgstPercentage: { type: Number, default: 0 },
+    sgstPercentage: { type: Number, default: 0 },
+    igstPercentage: { type: Number, default: 0 },
+    freightInsuranceType: { type: String },
+    freightInsuranceValueType: { type: String },
+    freightInsuranceAmount: { type: Number, default: 0 },
     discountPercentage: { type: Number, default: 0 },
     discountAmount: { type: Number, default: 0 },
     taxType: { type: String, enum: ['TDS', 'TCS'] },

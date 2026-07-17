@@ -36,16 +36,36 @@ export const createPurchaseOrder = async (req: Request, res: Response) => {
     });
 
     const discountAmount = (calculatedSubTotal * (data.discountPercentage || 0)) / 100;
+    
+    let freightAmount = 0;
+    if (data.freightInsuranceType === 'Exclusive') {
+      if (data.freightInsuranceValueType === 'Percentage') {
+        freightAmount = ((calculatedSubTotal - discountAmount) * (data.freightInsuranceAmount || 0)) / 100;
+      } else {
+        freightAmount = Number(data.freightInsuranceAmount || 0);
+      }
+    }
+
+    const taxableAmountForGst = calculatedSubTotal - discountAmount + freightAmount;
+    const cgstPercentageVal = Number(data.cgstPercentage) || 0;
+    const sgstPercentageVal = Number(data.sgstPercentage) || 0;
+    const igstPercentageVal = Number(data.igstPercentage) || 0;
+    
+    const cgstAmountVal = (taxableAmountForGst * cgstPercentageVal) / 100;
+    const sgstAmountVal = (taxableAmountForGst * sgstPercentageVal) / 100;
+    const igstAmountVal = (taxableAmountForGst * igstPercentageVal) / 100;
+
     const taxAmount = ((calculatedSubTotal - discountAmount) * (data.taxPercentage || 0)) / 100;
     const adjustment = data.adjustment || 0;
     
-    // Total = Subtotal - Discount - Tax + Adjustment
-    // Note: Depends on whether TDS/TCS is subtracted or added. Usually TDS is deducted from payment, 
-    // but in PO total value, it depends on business logic. Let's assume minus for TDS/TCS for now.
-    const calculatedTotal = calculatedSubTotal - discountAmount - taxAmount + adjustment;
+    // Total = Subtotal - Discount + Freight + CGST + SGST + IGST - TDS/TCS + Adjustment
+    const calculatedTotal = calculatedSubTotal - discountAmount + freightAmount + cgstAmountVal + sgstAmountVal + igstAmountVal - taxAmount + adjustment;
 
     const newPurchaseOrder = new PurchaseOrder({
       ...data,
+      cgstPercentage: cgstPercentageVal,
+      sgstPercentage: sgstPercentageVal,
+      igstPercentage: igstPercentageVal,
       lineItems: processedLineItems,
       subTotal: calculatedSubTotal,
       discountAmount,
@@ -114,6 +134,117 @@ export const getPurchaseOrderById = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch Purchase Order details',
+      error: error.message,
+    });
+  }
+};
+
+export const updatePurchaseOrder = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const data = req.body;
+    
+    // Parse lineItems if they come as string from multipart/form-data
+    let parsedLineItems = data.lineItems || [];
+    if (typeof parsedLineItems === 'string') {
+      try {
+        parsedLineItems = JSON.parse(parsedLineItems);
+      } catch (e) {
+        parsedLineItems = [];
+      }
+    }
+
+    // Process attachments
+    const files = req.files as Express.Multer.File[];
+    let newAttachments: any[] = [];
+    if (files && files.length > 0) {
+      newAttachments = files.map(file => ({
+        name: file.originalname,
+        url: `/uploads/purchases/${file.filename}`
+      }));
+    }
+
+    // Recalculate financials to prevent tampering
+    let calculatedSubTotal = 0;
+    const processedLineItems = parsedLineItems.map((item: any) => {
+      const amount = (item.quantity || 0) * (item.rate || 0);
+      calculatedSubTotal += amount;
+      return {
+        ...item,
+        amount
+      };
+    });
+
+    const discountAmount = (calculatedSubTotal * (data.discountPercentage || 0)) / 100;
+    
+    let freightAmount = 0;
+    if (data.freightInsuranceType === 'Exclusive') {
+      if (data.freightInsuranceValueType === 'Percentage') {
+        freightAmount = ((calculatedSubTotal - discountAmount) * (data.freightInsuranceAmount || 0)) / 100;
+      } else {
+        freightAmount = Number(data.freightInsuranceAmount || 0);
+      }
+    }
+
+    const taxableAmountForGst = calculatedSubTotal - discountAmount + freightAmount;
+    const cgstPercentageVal = Number(data.cgstPercentage) || 0;
+    const sgstPercentageVal = Number(data.sgstPercentage) || 0;
+    const igstPercentageVal = Number(data.igstPercentage) || 0;
+    
+    const cgstAmountVal = (taxableAmountForGst * cgstPercentageVal) / 100;
+    const sgstAmountVal = (taxableAmountForGst * sgstPercentageVal) / 100;
+    const igstAmountVal = (taxableAmountForGst * igstPercentageVal) / 100;
+
+    const taxAmount = ((calculatedSubTotal - discountAmount) * (data.taxPercentage || 0)) / 100;
+    const adjustment = Number(data.adjustment || 0);
+    
+    // Total = Subtotal - Discount + Freight + CGST + SGST + IGST - TDS/TCS + Adjustment
+    const calculatedTotal = calculatedSubTotal - discountAmount + freightAmount + cgstAmountVal + sgstAmountVal + igstAmountVal - taxAmount + adjustment;
+
+    const existingOrder = await PurchaseOrder.findById(id);
+    if (!existingOrder) {
+      return res.status(404).json({ success: false, message: 'Purchase Order not found' });
+    }
+
+    const updatedData: any = {
+      ...data,
+      cgstPercentage: cgstPercentageVal,
+      sgstPercentage: sgstPercentageVal,
+      igstPercentage: igstPercentageVal,
+      lineItems: processedLineItems,
+      subTotal: calculatedSubTotal,
+      discountAmount,
+      taxAmount,
+      total: calculatedTotal,
+      status: data.status || existingOrder.status,
+    };
+    
+    if (newAttachments.length > 0) {
+       updatedData.attachments = [...(existingOrder.attachments || []), ...newAttachments];
+    }
+
+    const updatedPurchaseOrder = await PurchaseOrder.findByIdAndUpdate(
+      id,
+      updatedData,
+      { new: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      data: updatedPurchaseOrder,
+      message: 'Purchase Order updated successfully',
+    });
+  } catch (error: any) {
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Purchase Order Number already exists',
+      });
+    }
+    console.error('Error updating Purchase Order:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update Purchase Order',
       error: error.message,
     });
   }

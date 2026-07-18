@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { useAuthStore } from '@/shared/store/auth.store';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -94,15 +95,29 @@ const navItems: NavItem[] = [
     children: [
       { title: 'Item Preferences', href: '/settings/preferences/items' },
       { title: 'Locations', href: '/settings/locations' },
-      { title: 'Billing Companies', href: '/settings/billing-companies' }
+      { title: 'Billing Companies', href: '/settings/billing-companies' },
+      { title: 'Store Managers', href: '/settings/store-managers' }
     ]
   }
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({
-    'Items': true // Default expanded
+  const isActive = (href?: string) => pathname === href;
+  
+  const isChildActive = (children?: NavItem[]) => {
+    if (!children) return false;
+    return children.some(child => pathname === child.href);
+  };
+
+  const [expanded, setExpanded] = useState<Record<string, boolean>>(() => {
+    const initialState: Record<string, boolean> = { 'Items': true };
+    navItems.forEach(item => {
+      if (item.children && isChildActive(item.children)) {
+        initialState[item.title] = true;
+      }
+    });
+    return initialState;
   });
 
   const toggleExpand = (title: string) => {
@@ -112,17 +127,17 @@ export function Sidebar() {
     }));
   };
 
-  const isActive = (href?: string) => pathname === href;
-  
-  const isChildActive = (children?: NavItem[]) => {
-    if (!children) return false;
-    return children.some(child => pathname === child.href);
-  };
+  const { user } = useAuthStore();
+  const isStoreManager = user?.role?.name === 'Store Manager';
+
+  const visibleNavItems = isStoreManager 
+    ? navItems.filter(item => item.title === 'Store Portal')
+    : navItems;
 
   return (
     <aside className="w-64 bg-[#f8f9fc] border-r border-slate-200 flex flex-col h-screen overflow-y-auto shrink-0">
       <div className="flex-1 py-4 px-3 space-y-1">
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const hasChildren = !!item.children;
           const isItemExpanded = expanded[item.title];
           const active = isActive(item.href) || (hasChildren && isChildActive(item.children));

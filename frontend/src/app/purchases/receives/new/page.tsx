@@ -68,7 +68,9 @@ export default function NewPurchaseReceivePage() {
     if (purchaseOrderInput) {
       const po = purchaseOrders.find(p => p.purchaseOrderNumber === purchaseOrderInput);
       if (po && po.lineItems) {
-        setLineItems(po.lineItems.map((item: any) => ({
+        setLineItems(po.lineItems
+          .filter((item: any) => !item.isCanceled)
+          .map((item: any) => ({
           itemId: item.itemId,
           itemName: item.itemName,
           tempCode: item.tempCode || '',

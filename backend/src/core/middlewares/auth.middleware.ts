@@ -71,3 +71,28 @@ export const authorize = (requiredPermissions: string[]) => {
     next();
   };
 };
+
+export const requireRole = (allowedRoles: string[]) => {
+  return (req: AuthRequest, res: Response, next: NextFunction): void => {
+    if (!req.user || !req.user.role) {
+      res.status(403).json({ message: 'Not authorized' });
+      return;
+    }
+
+    const role = req.user.role as IRole;
+    const userPermissions = role.permissions || [];
+
+    // Super admin wildcard gives them access to everything
+    if (userPermissions.includes('*')) {
+      next();
+      return;
+    }
+
+    if (allowedRoles.includes(role.name)) {
+      next();
+      return;
+    }
+
+    res.status(403).json({ message: `Forbidden. Requires one of roles: ${allowedRoles.join(', ')}` });
+  };
+};

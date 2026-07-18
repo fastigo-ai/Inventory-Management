@@ -38,7 +38,9 @@ export default function NewDIRegistrationPage() {
     if (purchaseOrderId) {
       const po = purchaseOrders.find(p => p._id === purchaseOrderId);
       if (po && po.lineItems) {
-        setLineItems(po.lineItems.map((item: any) => ({
+        setLineItems(po.lineItems
+          .filter((item: any) => !item.isCanceled)
+          .map((item: any) => ({
           itemId: item.itemId,
           itemName: item.itemName,
           tempCode: item.tempCode || '',

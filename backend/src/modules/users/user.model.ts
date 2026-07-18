@@ -8,6 +8,8 @@ export interface IUser extends Document {
   password?: string;
   role: IRole['_id'] | IRole; // Can be ObjectId or populated Role
   sessionVersion: number;
+  assignedPackage?: string;
+  assignedCircle?: string;
 }
 
 const UserSchema: Schema = new Schema(
@@ -18,6 +20,8 @@ const UserSchema: Schema = new Schema(
     password: { type: String, required: true },
     role: { type: Schema.Types.ObjectId, ref: 'Role', required: true },
     sessionVersion: { type: Number, default: 0 },
+    assignedPackage: { type: String },
+    assignedCircle: { type: String },
   },
   { timestamps: true }
 );

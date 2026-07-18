@@ -7,7 +7,7 @@ import { ApiError } from '../../core/utils/ApiError';
 import { ApiResponse } from '../../core/utils/ApiResponse';
 
 export const createUser = asyncHandler(async (req: Request, res: Response) => {
-  const { firstName, lastName, email, password, roleId } = req.body;
+  const { firstName, lastName, email, password, roleId, assignedPackage, assignedCircle } = req.body;
 
   const existingUser = await User.findOne({ email });
   if (existingUser) {
@@ -27,7 +27,9 @@ export const createUser = asyncHandler(async (req: Request, res: Response) => {
     lastName,
     email,
     password: hashedPassword,
-    role: role._id
+    role: role._id,
+    assignedPackage,
+    assignedCircle
   });
 
   const userResponse = user.toJSON();

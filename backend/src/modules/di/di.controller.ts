@@ -27,9 +27,16 @@ export const createDI = asyncHandler(async (req: Request, res: Response) => {
 
 export const getDIs = asyncHandler(async (req: Request, res: Response) => {
   const { purchaseOrderId, status } = req.query;
+  const user = (req as any).user;
   const filter: any = {};
+  
   if (purchaseOrderId) filter.purchaseOrderId = purchaseOrderId;
   if (status) filter.status = status;
+
+  if (user && user.role?.name === 'Store Manager') {
+    if (user.assignedPackage) filter.package = user.assignedPackage;
+    if (user.assignedCircle) filter.circle = user.assignedCircle;
+  }
 
   const dis = await DI.find(filter)
     .populate('purchaseOrderId', 'purchaseOrderNumber vendorName')

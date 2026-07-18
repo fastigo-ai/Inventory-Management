@@ -250,6 +250,29 @@ export const updatePurchaseOrder = async (req: Request, res: Response) => {
   }
 };
 
+export const deletePurchaseOrder = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const deletedOrder = await PurchaseOrder.findByIdAndDelete(id);
+    
+    if (!deletedOrder) {
+      return res.status(404).json({ success: false, message: 'Purchase Order not found' });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Purchase Order deleted successfully',
+    });
+  } catch (error: any) {
+    console.error('Error deleting Purchase Order:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete Purchase Order',
+      error: error.message,
+    });
+  }
+};
+
 export const getNextPurchaseOrderNumber = async (req: Request, res: Response) => {
   try {
     const lastOrder = await PurchaseOrder.findOne({ purchaseOrderNumber: { $regex: /^PO-/i } })

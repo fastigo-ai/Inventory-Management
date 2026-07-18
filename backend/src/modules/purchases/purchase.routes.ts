@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { createPurchaseOrder, getPurchaseOrders, getPurchaseOrderById, exportPurchaseOrders, importPurchaseOrders, getNextPurchaseOrderNumber, updatePurchaseOrder } from './purchase.controller';
+import { createPurchaseOrder, getPurchaseOrders, getPurchaseOrderById, exportPurchaseOrders, importPurchaseOrders, getNextPurchaseOrderNumber, updatePurchaseOrder, deletePurchaseOrder } from './purchase.controller';
 import { createPurchaseReceive, getPurchaseReceives, getPurchaseReceiveById, getNextPurchaseReceiveNumber, updatePurchaseReceive, deletePurchaseReceive } from './pr.controller';
 import { authenticate } from '../../core/middlewares/auth.middleware';
 
@@ -19,6 +19,7 @@ router.post('/orders', upload.array('files', 10), createPurchaseOrder);
 router.get('/orders', getPurchaseOrders);
 router.get('/orders/:id', getPurchaseOrderById);
 router.put('/orders/:id', upload.array('files', 10), updatePurchaseOrder);
+router.delete('/orders/:id', deletePurchaseOrder);
 
 router.get('/receives/next-number', getNextPurchaseReceiveNumber);
 router.post('/receives', createPurchaseReceive);

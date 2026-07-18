@@ -59,6 +59,11 @@ export const getPurchaseOrderById = async (id: string) => {
   return response.data.data;
 };
 
+export const deletePurchaseOrder = async (id: string) => {
+  const response = await api.delete(`/purchases/orders/${id}`);
+  return response.data;
+};
+
 export const exportPurchaseOrdersToCsv = async () => {
   const response = await api.get('/purchases/orders/export', { responseType: 'blob' });
   const url = window.URL.createObjectURL(new Blob([response.data]));

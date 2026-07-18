@@ -4,9 +4,9 @@ import React, { useEffect, useState, useRef } from 'react';
 import { ShoppingBag, X, Search, Settings, FileUp, Plus, ChevronDown, Trash2, Paperclip, Edit } from 'lucide-react';
 import Link from 'next/link';
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
-import { createPurchaseOrder, getNextPurchaseOrderNumber, updatePurchaseOrder } from '../api/purchases.api';
+import { createPurchaseOrder, getNextPurchaseOrderNumber, updatePurchaseOrder, getPurchaseOrderById } from '../api/purchases.api';
 import { getItems, getEntityMetadata } from '@/features/items/api/items.api';
 import { getLocations, createLocation } from '@/features/settings/api/locations.api';
 import { getVendors } from '@/features/vendors/api/vendors.api';
@@ -68,21 +68,47 @@ interface NewPurchaseOrderFormProps {
 
 export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderFormProps = {}) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const cloneId = searchParams.get('cloneId');
+
   const [itemsList, setItemsList] = useState<any[]>([]);
   const [locationsList, setLocationsList] = useState<any[]>([]);
   const [vendorsList, setVendorsList] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [isBillingPopoverOpen, setIsBillingPopoverOpen] = useState(false);
+  const [isShippingPopoverOpen, setIsShippingPopoverOpen] = useState(false);
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
   const [selectedBulkItems, setSelectedBulkItems] = useState<string[]>([]);
   const [bulkSearchQuery, setBulkSearchQuery] = useState('');
-  
+
   const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
   const [vendorSearchQuery, setVendorSearchQuery] = useState('');
-  
+
+  const [showShippingAddress, setShowShippingAddress] = useState(false);
+
   // File attachments state
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
+  const billingPopoverRef = useRef<HTMLDivElement>(null);
+  const shippingPopoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (billingPopoverRef.current && !billingPopoverRef.current.contains(event.target as Node)) {
+        setIsBillingPopoverOpen(false);
+      }
+      if (shippingPopoverRef.current && !shippingPopoverRef.current.contains(event.target as Node)) {
+        setIsShippingPopoverOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   // States for custom searchable dropdowns in the item table
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [dropdownSearchQueries, setDropdownSearchQueries] = useState<Record<string, string>>({});
@@ -101,7 +127,7 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
   });
   const deliveryDropdownRef = useRef<HTMLDivElement>(null);
   const [deliverySearchQuery, setDeliverySearchQuery] = useState('');
-  
+
   const [isPoSettingsModalOpen, setIsPoSettingsModalOpen] = useState(false);
   const [isAutoGeneratePO, setIsAutoGeneratePO] = useState(true);
   const [poPrefix, setPoPrefix] = useState('PO-');
@@ -158,8 +184,27 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
       };
       reset(formattedData);
       setIsAutoGeneratePO(false);
+    } else if (cloneId) {
+        getPurchaseOrderById(cloneId).then(data => {
+            if (data) {
+                const cloneData = { ...data };
+                delete cloneData._id;
+                delete cloneData.createdAt;
+                delete cloneData.updatedAt;
+                cloneData.status = 'Draft';
+                cloneData.date = new Date().toISOString().split('T')[0];
+                cloneData.deliveryDate = cloneData.deliveryDate ? new Date(cloneData.deliveryDate).toISOString().split('T')[0] : '';
+                
+                getNextPurchaseOrderNumber().then(res => {
+                    if (res.success && res.data) {
+                        cloneData.purchaseOrderNumber = `${res.data.prefix}${res.data.nextNumber}`;
+                    }
+                    reset(cloneData);
+                });
+            }
+        });
     }
-  }, [initialData, reset]);
+  }, [initialData, cloneId, reset]);
 
   const { fields, append, remove, update } = useFieldArray({
     control,
@@ -171,24 +216,24 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
   const discountPercentage = useWatch({ control, name: 'discountPercentage' }) || 0;
   const taxPercentage = useWatch({ control, name: 'taxPercentage' }) || 0;
   const adjustment = useWatch({ control, name: 'adjustment' }) || 0;
-  
+
   const freightInsuranceType = useWatch({ control, name: 'freightInsuranceType' });
   const freightInsuranceValueType = useWatch({ control, name: 'freightInsuranceValueType' });
   const freightInsuranceAmount = useWatch({ control, name: 'freightInsuranceAmount' }) || 0;
   const cgstPercentage = useWatch({ control, name: 'cgstPercentage' }) || 9;
   const sgstPercentage = useWatch({ control, name: 'sgstPercentage' }) || 9;
   const igstPercentage = useWatch({ control, name: 'igstPercentage' }) || 0;
-  
+
   const paymentTermStage = useWatch({ control, name: 'paymentTermStage' });
   const paymentTermType = useWatch({ control, name: 'paymentTermType' });
 
   const currentLocation = useWatch({ control, name: 'location' });
   const deliveryAddressId = useWatch({ control, name: 'deliveryAddressId' });
   const deliveryAddressType = useWatch({ control, name: 'deliveryAddressType' });
-  
+
   const currentVendorName = useWatch({ control, name: 'vendorName' });
   const selectedVendor = vendorsList.find(v => (v.dynamicData?.displayName || v.dynamicData?.companyName || v._id) === currentVendorName);
-  
+
   const formatAddress = (addr: any) => {
     if (!addr) return null;
     if (typeof addr === 'string') return addr;
@@ -205,13 +250,13 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
 
   const vendorBillingAddress = formatAddress(selectedVendor?.dynamicData?.vendorAddresses?.billing) || selectedVendor?.dynamicData?.billingAddress || selectedVendor?.dynamicData?.address || null;
   const vendorShippingAddress = formatAddress(selectedVendor?.dynamicData?.vendorAddresses?.shipping) || selectedVendor?.dynamicData?.shippingAddress || null;
-  
+
   useEffect(() => {
     if (deliveryAddressType === 'Locations') {
       setValue('deliveryAddressId', currentLocation);
     }
   }, [currentLocation, deliveryAddressType, setValue]);
-  
+
   const selectedDeliveryLocation = locationsList.find(loc => loc.name === deliveryAddressId);
 
   // Fetch items, metadata, and locations
@@ -221,9 +266,9 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
     }).catch(err => console.error('Failed to fetch items:', err));
 
     getEntityMetadata('Item').then(data => {
-       if (data && data.fields) {
-         setItemMetadataFields(data.fields);
-       }
+      if (data && data.fields) {
+        setItemMetadataFields(data.fields);
+      }
     }).catch(err => console.error('Failed to fetch item metadata:', err));
 
     getLocations().then(res => {
@@ -235,9 +280,9 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
     getVendors({ limit: 5000 }).then(data => {
       setVendorsList(data.vendors || data.items || []);
     }).catch(err => console.error('Failed to fetch vendors:', err));
-    
+
     // Fetch next sequential PO Number if not in edit mode
-    if (!initialData) {
+    if (!initialData && !cloneId) {
       getNextPurchaseOrderNumber().then(res => {
         if (res.success && res.data) {
           setPoPrefix(res.data.prefix);
@@ -250,10 +295,17 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
     }
   }, []);
 
+  // Ensure vendorName is synced after vendors list loads
+  useEffect(() => {
+    if (vendorsList.length > 0 && initialData?.vendorName) {
+      setValue('vendorName', initialData.vendorName);
+    }
+  }, [vendorsList, initialData, setValue]);
+
   // Calculations
   const subTotal = lineItems.reduce((acc, item) => acc + (Number(item.quantity || 0) * Number(item.rate || 0)), 0);
   const discountAmount = (subTotal * discountPercentage) / 100;
-  
+
   let freightAmount = 0;
   if (freightInsuranceType === 'Exclusive') {
     if (freightInsuranceValueType === 'Percentage') {
@@ -279,10 +331,10 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
         [newAddress.city, newAddress.state, newAddress.zip].filter(Boolean).join(' '),
         newAddress.country
       ].filter(Boolean);
-      
+
       const addressString = addressParts.join('\n');
       const name = newAddress.attention || newAddress.city || `Address ${locationsList.length + 1}`;
-      
+
       const payload = {
         name,
         type: 'Other',
@@ -291,14 +343,14 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
         phone: newAddress.phone,
         status: 'Active'
       };
-      
+
       const response = await createLocation(payload as any);
       if (response.success) {
         setLocationsList([response.data, ...locationsList]);
         setValue('deliveryAddressId', response.data.name);
         setIsNewAddressModalOpen(false);
         setIsDeliveryDropdownOpen(false);
-        setNewAddress({attention: '', street1: '', street2: '', city: '', state: '', zip: '', country: '', phone: ''});
+        setNewAddress({ attention: '', street1: '', street2: '', city: '', state: '', zip: '', country: '', phone: '' });
         toast.success('Address saved successfully');
       } else {
         toast.error(response.message || 'Failed to save address');
@@ -312,7 +364,7 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
   const onSubmit = async (data: PurchaseOrderForm, status: 'Draft' | 'Sent') => {
     try {
       setIsSubmitting(true);
-      
+
       // Ensure itemNames are populated correctly if an itemId is selected
       const processedLineItems = data.lineItems.map(item => {
         if (item.itemId) {
@@ -323,7 +375,7 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
         }
         return item;
       });
-      
+
       let payloadToSubmit: any;
 
       if (files.length > 0) {
@@ -331,13 +383,13 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
         // Append all text fields
         Object.keys(data).forEach(key => {
           if (key === 'lineItems') {
-             formData.append('lineItems', JSON.stringify(processedLineItems));
+            formData.append('lineItems', JSON.stringify(processedLineItems));
           } else {
-             formData.append(key, (data as any)[key]);
+            formData.append(key, (data as any)[key]);
           }
         });
         formData.append('status', status);
-        
+
         // Append files
         files.forEach(file => {
           formData.append('files', file);
@@ -357,14 +409,14 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
         }
         payloadToSubmit = payload;
       }
-      
+
       // If we are using FormData, we must also ensure they are set
       if (payloadToSubmit instanceof FormData) {
-          if (!payloadToSubmit.has('cgstPercentage')) payloadToSubmit.append('cgstPercentage', '9');
-          if (!payloadToSubmit.has('sgstPercentage')) payloadToSubmit.append('sgstPercentage', '9');
-          if (!payloadToSubmit.has('igstPercentage')) payloadToSubmit.append('igstPercentage', '0');
+        if (!payloadToSubmit.has('cgstPercentage')) payloadToSubmit.append('cgstPercentage', '9');
+        if (!payloadToSubmit.has('sgstPercentage')) payloadToSubmit.append('sgstPercentage', '9');
+        if (!payloadToSubmit.has('igstPercentage')) payloadToSubmit.append('igstPercentage', '0');
       }
-      
+
       if (orderId) {
         await updatePurchaseOrder(orderId, payloadToSubmit);
         toast.success(`Purchase Order updated as ${status}!`);
@@ -446,10 +498,10 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
       {/* Main Form Content */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-6xl mx-auto p-8 flex flex-col gap-10">
-          
+
           {/* Top Form Section */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-20 gap-y-8">
-            
+
             {/* Left Column */}
             <div className="space-y-6">
               {/* Vendor Name */}
@@ -479,28 +531,92 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                       <Search className="w-4 h-4" />
                     </button>
                   </div>
-                  
+
                   {currentVendorName && selectedVendor && (
                     <div className="grid grid-cols-2 gap-6 mt-1">
-                      <div className="text-xs text-slate-600 space-y-1">
+                      {/* Billing Address Section */}
+                      <div className="text-xs text-slate-600 space-y-1 relative">
                         <p className="font-semibold text-slate-500 uppercase tracking-wider text-[10px] flex items-center gap-1 mb-2">
-                          Billing Address <Edit className="w-3 h-3 cursor-pointer hover:text-blue-500" />
+                          Billing Address <Edit className="w-3 h-3 cursor-pointer hover:text-blue-500" onClick={() => { setIsBillingPopoverOpen(!isBillingPopoverOpen); setIsShippingPopoverOpen(false); }} />
                         </p>
                         {vendorBillingAddress ? (
                           <div className="whitespace-pre-wrap">{vendorBillingAddress}</div>
                         ) : (
                           <p className="text-blue-500 cursor-pointer hover:underline">New Address</p>
                         )}
+
+                        {isBillingPopoverOpen && (
+                          <div ref={billingPopoverRef} className="absolute top-6 left-0 w-[320px] bg-white rounded-md shadow-[0_4px_20px_-4px_rgba(0,0,0,0.15)] border border-slate-200 z-50 py-2">
+                            <div className="px-3 pb-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Select Billing Address</div>
+                            <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                              <div
+                                className="px-4 py-3 cursor-pointer border-l-2 border-blue-500 bg-blue-50/40 hover:bg-blue-50 transition-colors flex items-start justify-between group"
+                                onClick={() => setIsBillingPopoverOpen(false)}
+                              >
+                                <div className="pr-4">
+                                  <div className="font-semibold text-slate-800 mb-1.5 text-[13px]">{selectedVendor?.dynamicData?.companyName || selectedVendor?.dynamicData?.displayName || 'Supplier'}</div>
+                                  <div className="whitespace-pre-wrap text-[12px] leading-relaxed text-slate-600">
+                                    {vendorBillingAddress}
+                                  </div>
+                                </div>
+                                <button type="button" className="opacity-0 group-hover:opacity-100 p-1.5 rounded text-blue-500 hover:bg-blue-100 transition-all shrink-0">
+                                  <Edit className="w-3.5 h-3.5" onClick={(e) => { e.stopPropagation(); setIsAddressModalOpen(true); }} />
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="mt-2 pt-2 border-t border-slate-100 px-2">
+                              <button type="button" onClick={() => setIsAddressModalOpen(true)} className="text-[#0076f2] flex items-center gap-2 text-[13px] font-medium hover:bg-blue-50 w-full px-2 py-2 rounded-md transition-colors">
+                                <div className="w-[18px] h-[18px] bg-[#0076f2] rounded-full flex items-center justify-center text-white font-medium text-lg leading-none pb-[2px]">
+                                  +
+                                </div>
+                                Add New Address
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      
-                      <div className="text-xs text-slate-600 space-y-1">
+
+                      {/* Shipping Address Section */}
+                      <div className="text-xs text-slate-600 space-y-1 relative">
                         <p className="font-semibold text-slate-500 uppercase tracking-wider text-[10px] flex items-center gap-1 mb-2">
-                          Shipping Address <Edit className="w-3 h-3 cursor-pointer hover:text-blue-500" />
+                          Shipping Address <Edit className="w-3 h-3 cursor-pointer hover:text-blue-500" onClick={() => { setIsShippingPopoverOpen(!isShippingPopoverOpen); setIsBillingPopoverOpen(false); }} />
                         </p>
-                        {vendorShippingAddress ? (
+                        {showShippingAddress && vendorShippingAddress ? (
                           <div className="whitespace-pre-wrap">{vendorShippingAddress}</div>
                         ) : (
-                          <p className="text-blue-500 cursor-pointer hover:underline">New Address</p>
+                          <p className="text-blue-500 cursor-pointer hover:underline" onClick={() => setIsShippingPopoverOpen(true)}>New Address</p>
+                        )}
+
+                        {isShippingPopoverOpen && (
+                          <div ref={shippingPopoverRef} className="absolute top-6 left-0 w-[320px] bg-white rounded-md shadow-[0_4px_20px_-4px_rgba(0,0,0,0.15)] border border-slate-200 z-50 py-2">
+                            <div className="px-3 pb-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Select Shipping Address</div>
+                            <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                              <div
+                                className="px-4 py-3 cursor-pointer border-l-2 border-blue-500 bg-blue-50/40 hover:bg-blue-50 transition-colors flex items-start justify-between group"
+                                onClick={() => { setShowShippingAddress(true); setIsShippingPopoverOpen(false); }}
+                              >
+                                <div className="pr-4">
+                                  <div className="font-semibold text-slate-800 mb-1.5 text-[13px]">{selectedVendor?.dynamicData?.companyName || selectedVendor?.dynamicData?.displayName || 'Supplier'}</div>
+                                  <div className="whitespace-pre-wrap text-[12px] leading-relaxed text-slate-600">
+                                    {vendorShippingAddress}
+                                  </div>
+                                </div>
+                                <button type="button" className="opacity-0 group-hover:opacity-100 p-1.5 rounded text-blue-500 hover:bg-blue-100 transition-all shrink-0">
+                                  <Edit className="w-3.5 h-3.5" onClick={(e) => { e.stopPropagation(); setIsAddressModalOpen(true); }} />
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="mt-2 pt-2 border-t border-slate-100 px-2">
+                              <button type="button" onClick={() => setIsAddressModalOpen(true)} className="text-[#0076f2] flex items-center gap-2 text-[13px] font-medium hover:bg-blue-50 w-full px-2 py-2 rounded-md transition-colors">
+                                <div className="w-[18px] h-[18px] bg-[#0076f2] rounded-full flex items-center justify-center text-white font-medium text-lg leading-none pb-[2px]">
+                                  +
+                                </div>
+                                Add New Address
+                              </button>
+                            </div>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -537,8 +653,8 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                       Customer
                     </label>
                   </div>
-                  
-                  <select 
+
+                  <select
                     value={deliveryAddressId}
                     onChange={(e) => setValue('deliveryAddressId', e.target.value)}
                     className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white mb-4"
@@ -548,7 +664,7 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                       <option key={loc._id} value={loc.name}>{loc.name}</option>
                     ))}
                   </select>
-                  
+
                   {deliveryAddressType === 'Locations' && selectedDeliveryLocation ? (
                     <div className="mb-4">
                       <div className="border border-blue-400 rounded-md p-3 mb-3 bg-white shadow-sm">
@@ -568,22 +684,22 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                       <p className="text-slate-500 italic">Please select a delivery location</p>
                     </div>
                   ) : null}
-                  
+
                   <div className="relative" ref={deliveryDropdownRef}>
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => setIsDeliveryDropdownOpen(!isDeliveryDropdownOpen)}
                       className="text-sm text-blue-600 hover:underline font-medium"
                     >
                       Change destination to deliver
                     </button>
-                    
+
                     {isDeliveryDropdownOpen && (
                       <div className="absolute top-full left-0 mt-2 w-80 bg-white border border-slate-200 shadow-xl rounded-md z-50 flex flex-col max-h-[400px]">
                         <div className="p-2 border-b border-slate-100">
-                          <input 
-                            type="text" 
-                            placeholder="Search" 
+                          <input
+                            type="text"
+                            placeholder="Search"
                             value={deliverySearchQuery}
                             onChange={(e) => setDeliverySearchQuery(e.target.value)}
                             className="w-full border border-blue-400 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -593,34 +709,34 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                           {locationsList
                             .filter(loc => (loc.address || '').toLowerCase().includes(deliverySearchQuery.toLowerCase()))
                             .map((loc) => (
-                            <div 
-                              key={loc._id} 
-                              className={`p-3 rounded-md cursor-pointer border ${deliveryAddressId === loc.name ? 'bg-blue-500 text-white border-blue-500' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'}`}
-                              onClick={() => {
-                                setValue('deliveryAddressId', loc.name);
-                                setIsDeliveryDropdownOpen(false);
-                              }}
-                            >
-                              {loc.address ? (
-                                <div className={`text-sm whitespace-pre-wrap ${deliveryAddressId === loc.name ? 'text-white' : 'text-slate-700'}`}>
-                                  {loc.address}
-                                </div>
-                              ) : (
-                                <div className={`text-sm italic ${deliveryAddressId === loc.name ? 'text-blue-100' : 'text-slate-400'}`}>
-                                  No address provided
-                                </div>
-                              )}
-                              {loc.phone && (
-                                <div className={`text-xs mt-1 ${deliveryAddressId === loc.name ? 'text-blue-100' : 'text-slate-500'}`}>
-                                  {loc.phone}
-                                </div>
-                              )}
-                            </div>
-                          ))}
+                              <div
+                                key={loc._id}
+                                className={`p-3 rounded-md cursor-pointer border ${deliveryAddressId === loc.name ? 'bg-blue-500 text-white border-blue-500' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'}`}
+                                onClick={() => {
+                                  setValue('deliveryAddressId', loc.name);
+                                  setIsDeliveryDropdownOpen(false);
+                                }}
+                              >
+                                {loc.address ? (
+                                  <div className={`text-sm whitespace-pre-wrap ${deliveryAddressId === loc.name ? 'text-white' : 'text-slate-700'}`}>
+                                    {loc.address}
+                                  </div>
+                                ) : (
+                                  <div className={`text-sm italic ${deliveryAddressId === loc.name ? 'text-blue-100' : 'text-slate-400'}`}>
+                                    No address provided
+                                  </div>
+                                )}
+                                {loc.phone && (
+                                  <div className={`text-xs mt-1 ${deliveryAddressId === loc.name ? 'text-blue-100' : 'text-slate-500'}`}>
+                                    {loc.phone}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
                         </div>
                         <div className="p-2 border-t border-slate-100">
-                          <button 
-                            type="button" 
+                          <button
+                            type="button"
                             onClick={() => {
                               setIsNewAddressModalOpen(true);
                               setIsDeliveryDropdownOpen(false);
@@ -643,9 +759,9 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
               <div className="grid grid-cols-[150px_1fr] items-center gap-4">
                 <label className="text-sm font-semibold text-red-500">Purchase Order#*</label>
                 <div className="relative">
-                  <input 
-                    type="text" 
-                    {...register('purchaseOrderNumber', { required: true })} 
+                  <input
+                    type="text"
+                    {...register('purchaseOrderNumber', { required: true })}
                     className={`w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 pr-10 ${isAutoGeneratePO ? 'bg-slate-50 cursor-not-allowed text-slate-500' : 'bg-white'}`}
                     readOnly={isAutoGeneratePO}
                   />
@@ -678,7 +794,7 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                 <label className="text-sm font-semibold text-slate-800">PO Quantity</label>
                 <input type="text" {...register('poQuantity')} className="w-full sm:w-[50%] border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white" />
               </div>
-              
+
               {/* Shipment Preference */}
               <div className="grid grid-cols-[150px_1fr] items-center gap-4">
                 <label className="text-sm font-semibold text-slate-800">Shipment Preference</label>
@@ -698,172 +814,172 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
           <div className="space-y-4">
 
             <div className="border border-slate-200 rounded-lg overflow-visible">
-               <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200 rounded-t-lg">
-                  <h3 className="font-semibold text-slate-800">Item Table</h3>
-                  <button type="button" className="text-[#3b82f6] text-[13px] font-medium flex items-center gap-1 hover:underline">
-                    <Settings className="w-3.5 h-3.5" /> Bulk Actions
-                  </button>
-               </div>
-               <table className="w-full text-sm text-left table-fixed">
-                  <thead className="bg-slate-50/50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                    <tr>
-                      <th className="px-4 py-2 w-12 text-center">SR.NO</th>
-                      {isFieldActive('tempCode') && <th className="px-4 py-2 w-[12%]">TEMP CODE</th>}
-                      {isFieldActive('description') && <th className="px-4 py-2 w-[15%]">DESCRIPTION</th>}
-                      <th className="px-4 py-2 w-[15%]">NAME</th>
-                      {isFieldActive('package') && <th className="px-4 py-2 w-[8%]">PACKAGE</th>}
-                      {isFieldActive('loaSerialNo') && <th className="px-4 py-2 w-[8%]">LOA SERIAL NO.</th>}
-                      {isFieldActive('circle') && <th className="px-4 py-2 w-[8%]">CIRCLE</th>}
-                      {isFieldActive('unit') && <th className="px-4 py-2 w-[8%]">UNIT</th>}
-                      <th className="px-4 py-2 text-right w-[8%]">QUANTITY</th>
-                      <th className="px-4 py-2 text-right w-[8%]">RATE</th>
-                      <th className="px-4 py-2 text-right w-[8%]">AMOUNT</th>
-                      <th className="px-2 py-2 w-8"></th>
+              <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200 rounded-t-lg">
+                <h3 className="font-semibold text-slate-800">Item Table</h3>
+                <button type="button" className="text-[#3b82f6] text-[13px] font-medium flex items-center gap-1 hover:underline">
+                  <Settings className="w-3.5 h-3.5" /> Bulk Actions
+                </button>
+              </div>
+              <table className="w-full text-sm text-left table-fixed">
+                <thead className="bg-[#fcfdff] border-y border-slate-200/80 text-[11px] font-bold text-[#5e7790] uppercase tracking-wider">
+                  <tr>
+                    <th className="px-4 py-2 w-12 text-center">SR.NO</th>
+                    {isFieldActive('tempCode') && <th className="px-4 py-2 w-[12%]">TEMP CODE</th>}
+                    {isFieldActive('description') && <th className="px-4 py-2 w-[15%]">DESCRIPTION</th>}
+                    <th className="px-4 py-2 w-[15%]">NAME</th>
+                    {isFieldActive('package') && <th className="px-4 py-2 w-[8%]">PACKAGE</th>}
+                    {isFieldActive('loaSerialNo') && <th className="px-4 py-2 w-[8%]">LOA SERIAL NO.</th>}
+                    {isFieldActive('circle') && <th className="px-4 py-2 w-[8%]">CIRCLE</th>}
+                    {isFieldActive('unit') && <th className="px-4 py-2 w-[8%]">UNIT</th>}
+                    <th className="px-4 py-2 text-right w-[8%]">QUANTITY</th>
+                    <th className="px-4 py-2 text-right w-[8%]">RATE</th>
+                    <th className="px-4 py-2 text-right w-[8%]">AMOUNT</th>
+                    <th className="px-2 py-2 w-8"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {fields.map((field, index) => (
+                    <tr key={field.id} className="bg-white hover:bg-slate-50 transition-colors last:[&>td:first-child]:rounded-bl-lg last:[&>td:last-child]:rounded-br-lg">
+                      <td className="px-4 py-4 text-center text-[#5e7790] text-[13px]">{index + 1}</td>
+                      {isFieldActive('tempCode') && (
+                        <td className="px-4 py-4 text-[#5e7790] text-[13px]">
+                          <input type="text" defaultValue={field.tempCode} {...register(`lineItems.${index}.tempCode`)} className="w-full bg-transparent border-none focus:outline-none text-[#5e7790] pointer-events-none" readOnly placeholder="0" />
+                        </td>
+                      )}
+                      {isFieldActive('description') && (
+                        <td className="px-4 py-4">
+                          <input type="text" defaultValue={field.description} {...register(`lineItems.${index}.description`)} className="w-full bg-transparent border-none focus:outline-none text-[#5e7790] text-[13px] pointer-events-none" placeholder="--" />
+                        </td>
+                      )}
+                      <td className="px-4 py-4 relative">
+                        <div
+                          className="w-full border-b border-dashed border-slate-400 pb-1 cursor-pointer flex justify-between items-center"
+                          onClick={(e) => { e.stopPropagation(); setOpenDropdownId(openDropdownId === field.id ? null : field.id); }}
+                        >
+                          <span className="text-[#334155] truncate w-[90%] text-[13px]">
+                            {lineItems[index]?.itemName || 'Select an item...'}
+                          </span>
+                          <ChevronDown className="w-4 h-4 text-slate-400" />
+                        </div>
+
+                        {openDropdownId === field.id && (
+                          <div
+                            className="absolute left-0 top-full mt-1 w-[300px] bg-white border border-slate-200 shadow-xl rounded-md z-50 overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="p-2 border-b border-slate-100 bg-slate-50 sticky top-0">
+                              <div className="relative">
+                                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                                <input
+                                  type="text"
+                                  placeholder="Search item..."
+                                  className="w-full border border-slate-200 rounded-md pl-9 pr-3 py-1.5 text-sm focus:outline-none focus:border-blue-500"
+                                  value={dropdownSearchQueries[field.id] || ''}
+                                  onChange={(e) => setDropdownSearchQueries(prev => ({ ...prev, [field.id]: e.target.value }))}
+                                  autoFocus
+                                />
+                              </div>
+                            </div>
+                            <div className="max-h-60 overflow-y-auto py-1">
+                              {itemsList
+                                .filter(item => {
+                                  const sq = (dropdownSearchQueries[field.id] || '').toLowerCase();
+                                  const name = String(item.dynamicData?.name || item.dynamicData?.itemDescription || '').toLowerCase();
+                                  const sku = String(item.dynamicData?.sku || item.dynamicData?.tempCode || '').toLowerCase();
+                                  return name.includes(sq) || sku.includes(sq);
+                                })
+                                .map(item => (
+                                  <div
+                                    key={item._id}
+                                    className="px-3 py-2 hover:bg-blue-50 cursor-pointer flex flex-col transition-colors"
+                                    onClick={() => {
+                                      const d = item.dynamicData || {};
+                                      const getVal = (key: string) => {
+                                        if (d[key] !== undefined) return d[key];
+                                        const lowerKey = key.toLowerCase();
+                                        const foundKey = Object.keys(d).find(k => k.toLowerCase() === lowerKey);
+                                        return foundKey ? d[foundKey] : '';
+                                      };
+
+                                      update(index, {
+                                        ...lineItems[index],
+                                        itemId: item._id,
+                                        itemName: getVal('name') || getVal('itemDescription') || 'Item',
+                                        tempCode: getVal('tempCode') || getVal('sku') || getVal('itemCode') || '',
+                                        description: getVal('description') || getVal('itemDescription') || '',
+                                        package: getVal('package') || '',
+                                        loaSerialNo: getVal('loaSerialNo') || getVal('loaSerialNumber') || getVal('LOA Serial No.') || getVal('loa') || '',
+                                        circle: getVal('circle') || '',
+                                        unit: getVal('unit') || '',
+                                        rate: getVal('price') || getVal('costPrice') || getVal('sellingPrice') || 0
+                                      });
+                                      setOpenDropdownId(null);
+                                      setDropdownSearchQueries(prev => ({ ...prev, [field.id]: '' }));
+                                    }}
+                                  >
+                                    <span className="text-sm text-slate-800 font-medium">{item.dynamicData?.name || item.dynamicData?.itemDescription || 'Unnamed Item'}</span>
+                                    <span className="text-[10px] text-slate-500">Code: {item.dynamicData?.tempCode || item.dynamicData?.sku || '--'} | Price: {(item.dynamicData?.price || item.dynamicData?.costPrice || 0).toFixed(2)}</span>
+                                  </div>
+                                ))}
+                              {itemsList.filter(item => {
+                                const sq = (dropdownSearchQueries[field.id] || '').toLowerCase();
+                                const name = String(item.dynamicData?.name || item.dynamicData?.itemDescription || '').toLowerCase();
+                                return name.includes(sq);
+                              }).length === 0 && (
+                                  <div className="px-3 py-3 text-xs text-slate-500 text-center">No items found</div>
+                                )}
+                            </div>
+                          </div>
+                        )}
+                      </td>
+                      {isFieldActive('package') && (
+                        <td className="px-4 py-4 text-[#5e7790] text-[13px]">
+                          <input type="text" defaultValue={field.package} {...register(`lineItems.${index}.package`)} className="w-full bg-transparent border-none focus:outline-none text-[#5e7790] pointer-events-none" placeholder="--" />
+                        </td>
+                      )}
+                      {isFieldActive('loaSerialNo') && (
+                        <td className="px-4 py-4 text-[#5e7790] text-[13px]">
+                          <input type="text" defaultValue={field.loaSerialNo} {...register(`lineItems.${index}.loaSerialNo`)} className="w-full bg-transparent border-none focus:outline-none text-[#5e7790] pointer-events-none" placeholder="--" />
+                        </td>
+                      )}
+                      {isFieldActive('circle') && (
+                        <td className="px-4 py-4 text-[#5e7790] text-[13px]">
+                          <input type="text" defaultValue={field.circle} {...register(`lineItems.${index}.circle`)} className="w-full bg-transparent border-none focus:outline-none text-[#5e7790] pointer-events-none" placeholder="--" />
+                        </td>
+                      )}
+                      {isFieldActive('unit') && (
+                        <td className="px-4 py-4 text-[#5e7790] text-[13px]">
+                          <input type="text" defaultValue={field.unit} {...register(`lineItems.${index}.unit`)} className="w-full bg-transparent border-none focus:outline-none text-[#5e7790] pointer-events-none" placeholder="--" />
+                        </td>
+                      )}
+                      <td className="px-4 py-4">
+                        <input
+                          type="number"
+                          step="any"
+                          {...register(`lineItems.${index}.quantity`)}
+                          className="w-full text-right border border-slate-200 rounded px-3 py-1.5 focus:outline-none focus:border-blue-500 text-[13px] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none shadow-sm"
+                        />
+                      </td>
+                      <td className="px-4 py-4">
+                        <input
+                          type="number"
+                          step="any"
+                          {...register(`lineItems.${index}.rate`)}
+                          className="w-full text-right border border-slate-200 rounded px-3 py-1.5 focus:outline-none focus:border-blue-500 text-[13px] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none shadow-sm"
+                        />
+                      </td>
+                      <td className="px-4 py-4 text-right font-medium text-slate-800 text-[13px]">
+                        {((Number(lineItems[index]?.quantity) || 0) * (Number(lineItems[index]?.rate) || 0)).toFixed(2)}
+                      </td>
+                      <td className="px-2 py-4 text-center">
+                        <button type="button" onClick={() => remove(index)} className="text-red-400 hover:text-red-600 transition-colors">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {fields.map((field, index) => (
-                      <tr key={field.id} className="bg-white hover:bg-slate-50 transition-colors last:[&>td:first-child]:rounded-bl-lg last:[&>td:last-child]:rounded-br-lg">
-                        <td className="px-4 py-3 text-center text-slate-500 font-medium">{index + 1}</td>
-                        {isFieldActive('tempCode') && (
-                          <td className="px-4 py-3 text-slate-600 text-xs font-medium">
-                            <input type="text" defaultValue={field.tempCode} {...register(`lineItems.${index}.tempCode`)} className="w-full bg-transparent border-none focus:outline-none text-slate-600" readOnly placeholder="--" />
-                          </td>
-                        )}
-                        {isFieldActive('description') && (
-                          <td className="px-4 py-3">
-                            <input type="text" defaultValue={field.description} {...register(`lineItems.${index}.description`)} className="w-full bg-transparent border-none focus:outline-none text-slate-600 text-xs" placeholder="Description" />
-                          </td>
-                        )}
-                        <td className="px-4 py-3 relative">
-                           <div 
-                             className="w-full border-b border-dashed border-slate-300 pb-1 cursor-pointer flex justify-between items-center"
-                             onClick={(e) => { e.stopPropagation(); setOpenDropdownId(openDropdownId === field.id ? null : field.id); }}
-                           >
-                             <span className="text-slate-700 truncate w-[90%] text-xs font-medium">
-                               {lineItems[index]?.itemName || 'Select an item...'}
-                             </span>
-                             <ChevronDown className="w-4 h-4 text-slate-400" />
-                           </div>
-                           
-                           {openDropdownId === field.id && (
-                             <div 
-                               className="absolute left-0 top-full mt-1 w-[300px] bg-white border border-slate-200 shadow-xl rounded-md z-50 overflow-hidden"
-                               onClick={(e) => e.stopPropagation()}
-                             >
-                               <div className="p-2 border-b border-slate-100 bg-slate-50 sticky top-0">
-                                 <div className="relative">
-                                   <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                                   <input 
-                                     type="text" 
-                                     placeholder="Search item..."
-                                     className="w-full border border-slate-200 rounded-md pl-9 pr-3 py-1.5 text-sm focus:outline-none focus:border-blue-500"
-                                     value={dropdownSearchQueries[field.id] || ''}
-                                     onChange={(e) => setDropdownSearchQueries(prev => ({...prev, [field.id]: e.target.value}))}
-                                     autoFocus
-                                   />
-                                 </div>
-                               </div>
-                               <div className="max-h-60 overflow-y-auto py-1">
-                                 {itemsList
-                                   .filter(item => {
-                                     const sq = (dropdownSearchQueries[field.id] || '').toLowerCase();
-                                     const name = String(item.dynamicData?.name || item.dynamicData?.itemDescription || '').toLowerCase();
-                                     const sku = String(item.dynamicData?.sku || item.dynamicData?.tempCode || '').toLowerCase();
-                                     return name.includes(sq) || sku.includes(sq);
-                                   })
-                                   .map(item => (
-                                   <div 
-                                     key={item._id} 
-                                     className="px-3 py-2 hover:bg-blue-50 cursor-pointer flex flex-col transition-colors"
-                                     onClick={() => {
-                                       const d = item.dynamicData || {};
-                                       const getVal = (key: string) => {
-                                         if (d[key] !== undefined) return d[key];
-                                         const lowerKey = key.toLowerCase();
-                                         const foundKey = Object.keys(d).find(k => k.toLowerCase() === lowerKey);
-                                         return foundKey ? d[foundKey] : '';
-                                       };
-                                       
-                                       update(index, {
-                                         ...lineItems[index],
-                                         itemId: item._id,
-                                         itemName: getVal('name') || getVal('itemDescription') || 'Item',
-                                         tempCode: getVal('tempCode') || getVal('sku') || getVal('itemCode') || '',
-                                         description: getVal('description') || getVal('itemDescription') || '',
-                                         package: getVal('package') || '',
-                                         loaSerialNo: getVal('loaSerialNo') || getVal('loaSerialNumber') || getVal('LOA Serial No.') || getVal('loa') || '',
-                                         circle: getVal('circle') || '',
-                                         unit: getVal('unit') || '',
-                                         rate: getVal('price') || getVal('costPrice') || getVal('sellingPrice') || 0
-                                       });
-                                       setOpenDropdownId(null);
-                                       setDropdownSearchQueries(prev => ({...prev, [field.id]: ''}));
-                                     }}
-                                   >
-                                     <span className="text-sm text-slate-800 font-medium">{item.dynamicData?.name || item.dynamicData?.itemDescription || 'Unnamed Item'}</span>
-                                     <span className="text-[10px] text-slate-500">Code: {item.dynamicData?.tempCode || item.dynamicData?.sku || '--'} | Price: {(item.dynamicData?.price || item.dynamicData?.costPrice || 0).toFixed(2)}</span>
-                                   </div>
-                                 ))}
-                                 {itemsList.filter(item => {
-                                     const sq = (dropdownSearchQueries[field.id] || '').toLowerCase();
-                                     const name = String(item.dynamicData?.name || item.dynamicData?.itemDescription || '').toLowerCase();
-                                     return name.includes(sq);
-                                 }).length === 0 && (
-                                   <div className="px-3 py-3 text-xs text-slate-500 text-center">No items found</div>
-                                 )}
-                               </div>
-                             </div>
-                           )}
-                        </td>
-                        {isFieldActive('package') && (
-                          <td className="px-4 py-3 text-slate-600 text-xs font-medium">
-                            <input type="text" defaultValue={field.package} {...register(`lineItems.${index}.package`)} className="w-full bg-transparent border-none focus:outline-none text-slate-600" placeholder="--" />
-                          </td>
-                        )}
-                        {isFieldActive('loaSerialNo') && (
-                          <td className="px-4 py-3 text-slate-600 text-xs font-medium">
-                            <input type="text" defaultValue={field.loaSerialNo} {...register(`lineItems.${index}.loaSerialNo`)} className="w-full bg-transparent border-none focus:outline-none text-slate-600" placeholder="--" />
-                          </td>
-                        )}
-                        {isFieldActive('circle') && (
-                          <td className="px-4 py-3 text-slate-600 text-xs font-medium">
-                            <input type="text" defaultValue={field.circle} {...register(`lineItems.${index}.circle`)} className="w-full bg-transparent border-none focus:outline-none text-slate-600" placeholder="--" />
-                          </td>
-                        )}
-                        {isFieldActive('unit') && (
-                          <td className="px-4 py-3 text-slate-600 text-xs font-medium">
-                            <input type="text" defaultValue={field.unit} {...register(`lineItems.${index}.unit`)} className="w-full bg-transparent border-none focus:outline-none text-slate-600" placeholder="--" />
-                          </td>
-                        )}
-                        <td className="px-4 py-3">
-                          <input 
-                            type="number" 
-                            step="any"
-                            {...register(`lineItems.${index}.quantity`)} 
-                            className="w-full text-right border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
-                          />
-                        </td>
-                        <td className="px-4 py-3">
-                          <input 
-                            type="number" 
-                            step="any"
-                            {...register(`lineItems.${index}.rate`)} 
-                            className="w-full text-right border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
-                          />
-                        </td>
-                        <td className="px-4 py-3 text-right font-bold text-slate-800">
-                          {((Number(lineItems[index]?.quantity) || 0) * (Number(lineItems[index]?.rate) || 0)).toFixed(2)}
-                        </td>
-                        <td className="px-2 py-3 text-center">
-                          <button type="button" onClick={() => remove(index)} className="text-red-400 hover:text-red-600 transition-colors">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-               </table>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
             <div className="flex gap-4">
@@ -878,421 +994,421 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
 
           {/* Bottom Section (Calculations & Notes) */}
           <div className="flex flex-col lg:flex-row gap-12 pt-6">
-             
-             {/* Left side: Notes & Terms */}
-             <div className="flex-1 space-y-6">
-               <div className="space-y-2">
-                 <label className="text-sm font-semibold text-slate-800">Notes</label>
-                 <textarea 
-                   {...register('notes')}
-                   rows={3} 
-                   placeholder="Will be displayed on purchase order"
-                   className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 resize-none"
-                 />
-               </div>
-               
-               <div className="space-y-2">
-                 <label className="text-sm font-semibold text-slate-800">Terms & Conditions</label>
-                 <textarea 
-                   {...register('termsConditions')}
-                   rows={4} 
-                   placeholder="Enter the terms and conditions of your business to be displayed in your transaction"
-                   className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 resize-none"
-                 />
-               </div>
 
-               <div className="space-y-3 pt-4 border-t border-slate-100">
-                 <label className="text-sm font-semibold text-slate-800">Payment Terms</label>
-                 
-                 <div className="relative">
-                   <select
-                     {...register('paymentTermStage')}
-                     className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 appearance-none bg-white cursor-pointer"
-                   >
-                     <option value="">Select Payment Stage</option>
-                     <option value="1st stage">1st stage</option>
-                     <option value="2nd stage">2nd stage</option>
-                     <option value="3rd stage">3rd stage</option>
-                   </select>
-                   <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                 </div>
-
-                 {paymentTermStage && (
-                   <div className="relative animate-in fade-in slide-in-from-top-2 duration-200">
-                     <select
-                       {...register('paymentTermType')}
-                       className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 appearance-none bg-white cursor-pointer"
-                     >
-                       <option value="">Select Payment Type</option>
-                       <option value="Advance">Advance</option>
-                       <option value="Adhoc">Adhoc</option>
-                       <option value="Before Advance">Before Advance</option>
-                       <option value="After Advance">After Advance</option>
-                     </select>
-                     <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                   </div>
-                 )}
-
-                 {paymentTermStage && paymentTermType && (
-                   <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                     <input
-                       type="text"
-                       {...register('paymentTermAmount')}
-                       placeholder="Amount or Percentage (e.g., 50% or ₹1000)"
-                       className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500"
-                     />
-                   </div>
-                 )}
-               </div>
-             </div>
-
-             {/* Right side: Totals & File Upload */}
-             <div className="w-full lg:w-[400px] space-y-8 bg-[#f8fafc] p-6 rounded-[12px] border border-slate-100">
-                <div className="space-y-4">
-                   <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
-                     <span className="text-sm font-semibold text-slate-800 w-40">Sub Total</span>
-                     <span className="text-sm font-bold text-slate-800 w-24 text-right">{subTotal.toFixed(2)}</span>
-                   </div>
-                   
-                   <div className="flex items-center justify-between gap-4">
-                     <span className="text-sm text-slate-600 w-40 shrink-0">Discount</span>
-                     <div className="flex-1 flex justify-end">
-                       <div className="flex items-center w-24 border border-slate-200 rounded-md overflow-hidden bg-white shadow-sm">
-                          <input type="number" {...register('discountPercentage')} className="w-full text-right px-2 py-1 text-sm focus:outline-none" />
-                          <span className="bg-slate-50 px-2 py-1 text-sm border-l border-slate-200 text-slate-500">%</span>
-                       </div>
-                     </div>
-                     <span className="text-sm font-semibold text-slate-800 w-24 text-right">{discountAmount.toFixed(2)}</span>
-                   </div>
-
-                   <div className="flex items-start justify-between gap-4">
-                     <span className="text-sm text-slate-600 w-40 shrink-0 pt-1">Freight & Insurance</span>
-                     <div className="flex-1 flex flex-col items-end gap-2">
-                       <select {...register('freightInsuranceType')} className="border border-slate-200 rounded-md px-2 py-1 text-sm text-slate-700 focus:outline-none w-28 bg-white shadow-sm">
-                         <option value="Inclusive">Inclusive</option>
-                         <option value="Exclusive">Exclusive</option>
-                       </select>
-                       {freightInsuranceType === 'Exclusive' && (
-                         <div className="flex items-center w-28 border border-slate-200 rounded-md overflow-hidden bg-white shadow-sm">
-                            <input type="number" {...register('freightInsuranceAmount')} className="w-full text-right px-2 py-1 text-sm focus:outline-none" />
-                            <select {...register('freightInsuranceValueType')} className="bg-slate-50 border-l border-slate-200 text-slate-500 text-sm focus:outline-none px-1 h-full py-1">
-                              <option value="Amount">₹</option>
-                              <option value="Percentage">%</option>
-                            </select>
-                         </div>
-                       )}
-                     </div>
-                     <span className="text-sm font-semibold text-slate-800 w-24 text-right pt-1">{freightInsuranceType === 'Exclusive' ? freightAmount.toFixed(2) : '0.00'}</span>
-                   </div>
-
-                   <div className="border border-slate-200 rounded-lg p-3 space-y-3 bg-white shadow-sm">
-                     <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block mb-1">GST Group</span>
-                     
-                     <div className="flex items-center justify-between gap-4">
-                       <span className="text-sm text-slate-600 w-20 shrink-0">CGST</span>
-                       <div className="flex-1 flex justify-end">
-                         <div className="flex items-center w-20 border border-slate-200 rounded-md overflow-hidden bg-slate-50">
-                            <input type="number" readOnly {...register('cgstPercentage')} className="w-full text-right px-2 py-1 text-sm focus:outline-none bg-transparent" />
-                            <span className="bg-slate-100 px-2 py-1 text-sm border-l border-slate-200 text-slate-500">%</span>
-                         </div>
-                       </div>
-                       <span className="text-sm font-semibold text-slate-800 w-24 text-right">{cgstAmountVal.toFixed(2)}</span>
-                     </div>
-                     
-                     <div className="flex items-center justify-between gap-4">
-                       <span className="text-sm text-slate-600 w-20 shrink-0">SGST</span>
-                       <div className="flex-1 flex justify-end">
-                         <div className="flex items-center w-20 border border-slate-200 rounded-md overflow-hidden bg-slate-50">
-                            <input type="number" readOnly {...register('sgstPercentage')} className="w-full text-right px-2 py-1 text-sm focus:outline-none bg-transparent" />
-                            <span className="bg-slate-100 px-2 py-1 text-sm border-l border-slate-200 text-slate-500">%</span>
-                         </div>
-                       </div>
-                       <span className="text-sm font-semibold text-slate-800 w-24 text-right">{sgstAmountVal.toFixed(2)}</span>
-                     </div>
-                     
-                     <div className="flex items-center justify-between gap-4">
-                       <span className="text-sm text-slate-600 w-20 shrink-0">IGST</span>
-                       <div className="flex-1 flex justify-end">
-                         <div className="flex items-center w-20 border border-slate-200 rounded-md overflow-hidden bg-white shadow-sm">
-                            <input type="number" {...register('igstPercentage')} className="w-full text-right px-2 py-1 text-sm focus:outline-none" />
-                            <span className="bg-slate-50 px-2 py-1 text-sm border-l border-slate-200 text-slate-500">%</span>
-                         </div>
-                       </div>
-                       <span className="text-sm font-semibold text-slate-800 w-24 text-right">{igstAmountVal.toFixed(2)}</span>
-                     </div>
-                   </div>
-
-                   <div className="flex items-center justify-between gap-4">
-                     <div className="flex items-center gap-3 w-40 shrink-0">
-                        <label className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 cursor-pointer">
-                          <input type="radio" value="TDS" {...register('taxType')} className="text-blue-500" /> TDS
-                        </label>
-                        <label className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 cursor-pointer">
-                          <input type="radio" value="TCS" {...register('taxType')} className="text-blue-500" /> TCS
-                        </label>
-                     </div>
-                     <div className="flex-1 flex justify-end">
-                       <select {...register('taxPercentage')} className="border border-slate-200 rounded-md px-2 py-1 text-sm text-slate-700 focus:outline-none w-28 bg-white shadow-sm">
-                         <option value={0}>Select a Tax</option>
-                         <option value={5}>5%</option>
-                         <option value={10}>10%</option>
-                         <option value={18}>18%</option>
-          
-                       </select>
-                     </div>
-                     <span className="text-sm font-semibold text-slate-800 w-24 text-right">- {taxAmount.toFixed(2)}</span>
-                   </div>
-                   
-                   <div className="flex items-center justify-between gap-4">
-                     <span className="text-sm text-slate-600 border border-slate-200 border-dashed rounded-md px-2 py-1 bg-slate-50 w-24 text-center shrink-0">Adjustment</span>
-                     <div className="flex-1 flex justify-end">
-                       <input type="number" {...register('adjustment')} className="w-24 border border-slate-200 rounded-md px-2 py-1 text-sm text-right focus:outline-none bg-white shadow-sm" />
-                     </div>
-                     <span className="text-sm font-semibold text-slate-800 w-24 text-right">{Number(adjustment).toFixed(2)}</span>
-                   </div>
-
-                   <hr className="border-slate-200 border-dashed my-2" />
-                   
-                   <div className="flex justify-between items-center bg-[#f1f5f9] rounded-md p-3">
-                     <span className="text-base font-bold text-slate-800">Total</span>
-                     <span className="text-lg font-bold text-slate-800 w-32 text-right">₹ {total.toFixed(2)}</span>
-                   </div>
-                   <div className="text-[11px] text-slate-500 text-right font-medium italic mt-1 px-1">
-                     {numberToWords(total)}
-                   </div>
-                </div>
-
-                <div className="pt-4 border-t border-slate-200">
-                   <p className="text-sm font-semibold text-slate-800 mb-2">Attach File(s) to Purchase Order</p>
-                   
-                   {files.length > 0 && (
-                     <div className="mb-3 space-y-2">
-                       {files.map((file, i) => (
-                         <div key={i} className="flex items-center justify-between bg-white border border-slate-200 px-3 py-2 rounded-md shadow-sm">
-                           <div className="flex items-center gap-2 overflow-hidden">
-                             <Paperclip className="w-4 h-4 text-blue-500 shrink-0" />
-                             <span className="text-xs text-slate-700 truncate">{file.name}</span>
-                           </div>
-                           <button type="button" onClick={() => removeFile(i)} className="text-slate-400 hover:text-red-500 transition-colors ml-2 shrink-0">
-                             <X className="w-4 h-4" />
-                           </button>
-                         </div>
-                       ))}
-                     </div>
-                   )}
-                   
-                   <input 
-                     type="file" 
-                     ref={fileInputRef} 
-                     onChange={handleFileChange} 
-                     className="hidden" 
-                     multiple 
-                   />
-                   
-                   <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full flex items-center justify-center gap-2 border border-slate-200 border-dashed bg-white rounded-md py-3 hover:bg-slate-50 transition-colors">
-                      <FileUp className="w-4 h-4 text-slate-500" />
-                      <span className="text-sm font-medium text-slate-700">Upload File(s) ▼</span>
-                   </button>
-                   <p className="text-xs text-slate-400 mt-2 text-center">You can upload a maximum of 10 files, 10MB each</p>
-                </div>
-             </div>
-          </div>
-          
-        </div>
-
-      <Dialog open={isPoSettingsModalOpen} onOpenChange={setIsPoSettingsModalOpen}>
-        <DialogContent className="w-[95vw] max-w-[700px] sm:max-w-[700px] md:max-w-[700px] bg-white p-0 overflow-hidden border-0 [&>button]:text-red-500 [&>button]:hover:text-red-600 [&>button]:right-6 [&>button]:top-6">
-          <DialogHeader className="px-8 py-6 pb-4 border-b border-slate-100">
-            <DialogTitle className="text-lg font-medium text-slate-800">Configure Purchase Order# Preferences</DialogTitle>
-          </DialogHeader>
-          <div className="px-8 py-6 space-y-6">
-            <div className="grid grid-cols-2 gap-4 text-[13px]">
-              <div>
-                <p className="font-semibold text-slate-800 mb-1">Location</p>
-                <p className="text-slate-600">{currentLocation || 'Head Office'}</p>
+            {/* Left side: Notes & Terms */}
+            <div className="flex-1 space-y-6">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-800">Notes</label>
+                <textarea
+                  {...register('notes')}
+                  rows={3}
+                  placeholder="Will be displayed on purchase order"
+                  className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 resize-none"
+                />
               </div>
-              <div>
-                <p className="font-semibold text-slate-800 mb-1">Associated Series</p>
-                <p className="text-slate-600">Default Transaction Series</p>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-800">Terms & Conditions</label>
+                <textarea
+                  {...register('termsConditions')}
+                  rows={4}
+                  placeholder="Enter the terms and conditions of your business to be displayed in your transaction"
+                  className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 resize-none"
+                />
+              </div>
+
+              <div className="space-y-3 pt-4 border-t border-slate-100">
+                <label className="text-sm font-semibold text-slate-800">Payment Terms</label>
+
+                <div className="relative">
+                  <select
+                    {...register('paymentTermStage')}
+                    className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 appearance-none bg-white cursor-pointer"
+                  >
+                    <option value="">Select Payment Stage</option>
+                    <option value="1st stage">1st stage</option>
+                    <option value="2nd stage">2nd stage</option>
+                    <option value="3rd stage">3rd stage</option>
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+
+                {paymentTermStage && (
+                  <div className="relative animate-in fade-in slide-in-from-top-2 duration-200">
+                    <select
+                      {...register('paymentTermType')}
+                      className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 appearance-none bg-white cursor-pointer"
+                    >
+                      <option value="">Select Payment Type</option>
+                      <option value="Advance">Advance</option>
+                      <option value="Adhoc">Adhoc</option>
+                      <option value="Before Advance">Before Advance</option>
+                      <option value="After Advance">After Advance</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                )}
+
+                {paymentTermStage && paymentTermType && (
+                  <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                    <input
+                      type="text"
+                      {...register('paymentTermAmount')}
+                      placeholder="Amount or Percentage (e.g., 50% or ₹1000)"
+                      className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                )}
               </div>
             </div>
-            
-            <p className="text-[13px] text-slate-600 mt-6">
-              Your purchase order numbers are set on auto-generate mode to save your time. Are you sure about changing this setting?
-            </p>
-            
-            <div className="space-y-4">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input 
-                  type="radio" 
-                  checked={isAutoGeneratePO}
-                  onChange={() => setIsAutoGeneratePO(true)}
-                  className="mt-1 w-4 h-4 text-blue-600 focus:ring-blue-500"
-                />
-                <div className="flex-1">
-                  <span className="text-[13px] font-medium text-slate-800 flex items-center gap-1">
-                    Continue auto-generating purchase order numbers
-                    <span className="text-slate-400 border border-slate-200 rounded-full w-3.5 h-3.5 inline-flex items-center justify-center text-[9px] ml-1">i</span>
-                  </span>
-                  {isAutoGeneratePO && (
-                    <div className="grid grid-cols-[200px_300px] gap-6 mt-4">
-                      <div>
-                        <p className="text-xs text-slate-500 mb-1.5">Prefix</p>
-                        <input 
-                          type="text" 
-                          value={poPrefix}
-                          onChange={(e) => setPoPrefix(e.target.value)}
-                          className="w-full border border-slate-200 rounded-md px-3 py-1.5 text-[13px] focus:outline-none focus:border-blue-500"
-                        />
+
+            {/* Right side: Totals & File Upload */}
+            <div className="w-full lg:w-[400px] space-y-8 bg-[#f8fafc] p-6 rounded-[12px] border border-slate-100">
+              <div className="space-y-4">
+                <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
+                  <span className="text-sm font-semibold text-slate-800 w-40">Sub Total</span>
+                  <span className="text-sm font-bold text-slate-800 w-24 text-right">{subTotal.toFixed(2)}</span>
+                </div>
+
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm text-slate-600 w-40 shrink-0">Discount</span>
+                  <div className="flex-1 flex justify-end">
+                    <div className="flex items-center w-24 border border-slate-200 rounded-md overflow-hidden bg-white shadow-sm">
+                      <input type="number" {...register('discountPercentage')} className="w-full text-right px-2 py-1 text-sm focus:outline-none" />
+                      <span className="bg-slate-50 px-2 py-1 text-sm border-l border-slate-200 text-slate-500">%</span>
+                    </div>
+                  </div>
+                  <span className="text-sm font-semibold text-slate-800 w-24 text-right">{discountAmount.toFixed(2)}</span>
+                </div>
+
+                <div className="flex items-start justify-between gap-4">
+                  <span className="text-sm text-slate-600 w-40 shrink-0 pt-1">Freight & Insurance</span>
+                  <div className="flex-1 flex flex-col items-end gap-2">
+                    <select {...register('freightInsuranceType')} className="border border-slate-200 rounded-md px-2 py-1 text-sm text-slate-700 focus:outline-none w-28 bg-white shadow-sm">
+                      <option value="Inclusive">Inclusive</option>
+                      <option value="Exclusive">Exclusive</option>
+                    </select>
+                    {freightInsuranceType === 'Exclusive' && (
+                      <div className="flex items-center w-28 border border-slate-200 rounded-md overflow-hidden bg-white shadow-sm">
+                        <input type="number" {...register('freightInsuranceAmount')} className="w-full text-right px-2 py-1 text-sm focus:outline-none" />
+                        <select {...register('freightInsuranceValueType')} className="bg-slate-50 border-l border-slate-200 text-slate-500 text-sm focus:outline-none px-1 h-full py-1">
+                          <option value="Amount">₹</option>
+                          <option value="Percentage">%</option>
+                        </select>
                       </div>
-                      <div>
-                        <p className="text-xs text-slate-500 mb-1.5">Next Number</p>
-                        <input 
-                          type="text" 
-                          value={poNextNumber}
-                          onChange={(e) => setPoNextNumber(e.target.value)}
-                          className="w-full border border-slate-200 rounded-md px-3 py-1.5 text-[13px] focus:outline-none focus:border-blue-500"
-                        />
+                    )}
+                  </div>
+                  <span className="text-sm font-semibold text-slate-800 w-24 text-right pt-1">{freightInsuranceType === 'Exclusive' ? freightAmount.toFixed(2) : '0.00'}</span>
+                </div>
+
+                <div className="border border-slate-200 rounded-lg p-3 space-y-3 bg-white shadow-sm">
+                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block mb-1">GST Group</span>
+
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm text-slate-600 w-20 shrink-0">CGST</span>
+                    <div className="flex-1 flex justify-end">
+                      <div className="flex items-center w-20 border border-slate-200 rounded-md overflow-hidden bg-slate-50">
+                        <input type="number" readOnly {...register('cgstPercentage')} className="w-full text-right px-2 py-1 text-sm focus:outline-none bg-transparent" />
+                        <span className="bg-slate-100 px-2 py-1 text-sm border-l border-slate-200 text-slate-500">%</span>
                       </div>
                     </div>
-                  )}
+                    <span className="text-sm font-semibold text-slate-800 w-24 text-right">{cgstAmountVal.toFixed(2)}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm text-slate-600 w-20 shrink-0">SGST</span>
+                    <div className="flex-1 flex justify-end">
+                      <div className="flex items-center w-20 border border-slate-200 rounded-md overflow-hidden bg-slate-50">
+                        <input type="number" readOnly {...register('sgstPercentage')} className="w-full text-right px-2 py-1 text-sm focus:outline-none bg-transparent" />
+                        <span className="bg-slate-100 px-2 py-1 text-sm border-l border-slate-200 text-slate-500">%</span>
+                      </div>
+                    </div>
+                    <span className="text-sm font-semibold text-slate-800 w-24 text-right">{sgstAmountVal.toFixed(2)}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm text-slate-600 w-20 shrink-0">IGST</span>
+                    <div className="flex-1 flex justify-end">
+                      <div className="flex items-center w-20 border border-slate-200 rounded-md overflow-hidden bg-white shadow-sm">
+                        <input type="number" {...register('igstPercentage')} className="w-full text-right px-2 py-1 text-sm focus:outline-none" />
+                        <span className="bg-slate-50 px-2 py-1 text-sm border-l border-slate-200 text-slate-500">%</span>
+                      </div>
+                    </div>
+                    <span className="text-sm font-semibold text-slate-800 w-24 text-right">{igstAmountVal.toFixed(2)}</span>
+                  </div>
                 </div>
-              </label>
-              
-              <label className="flex items-center gap-3 cursor-pointer pt-3">
-                <input 
-                  type="radio" 
-                  checked={!isAutoGeneratePO}
-                  onChange={() => setIsAutoGeneratePO(false)}
-                  className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 w-40 shrink-0">
+                    <label className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 cursor-pointer">
+                      <input type="radio" value="TDS" {...register('taxType')} className="text-blue-500" /> TDS
+                    </label>
+                    <label className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 cursor-pointer">
+                      <input type="radio" value="TCS" {...register('taxType')} className="text-blue-500" /> TCS
+                    </label>
+                  </div>
+                  <div className="flex-1 flex justify-end">
+                    <select {...register('taxPercentage')} className="border border-slate-200 rounded-md px-2 py-1 text-sm text-slate-700 focus:outline-none w-28 bg-white shadow-sm">
+                      <option value={0}>Select a Tax</option>
+                      <option value={5}>5%</option>
+                      <option value={10}>10%</option>
+                      <option value={18}>18%</option>
+
+                    </select>
+                  </div>
+                  <span className="text-sm font-semibold text-slate-800 w-24 text-right">- {taxAmount.toFixed(2)}</span>
+                </div>
+
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm text-slate-600 border border-slate-200 border-dashed rounded-md px-2 py-1 bg-slate-50 w-24 text-center shrink-0">Adjustment</span>
+                  <div className="flex-1 flex justify-end">
+                    <input type="number" {...register('adjustment')} className="w-24 border border-slate-200 rounded-md px-2 py-1 text-sm text-right focus:outline-none bg-white shadow-sm" />
+                  </div>
+                  <span className="text-sm font-semibold text-slate-800 w-24 text-right">{Number(adjustment).toFixed(2)}</span>
+                </div>
+
+                <hr className="border-slate-200 border-dashed my-2" />
+
+                <div className="flex justify-between items-center bg-[#f1f5f9] rounded-md p-3">
+                  <span className="text-base font-bold text-slate-800">Total</span>
+                  <span className="text-lg font-bold text-slate-800 w-32 text-right">₹ {total.toFixed(2)}</span>
+                </div>
+                <div className="text-[11px] text-slate-500 text-right font-medium italic mt-1 px-1">
+                  {numberToWords(total)}
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-200">
+                <p className="text-sm font-semibold text-slate-800 mb-2">Attach File(s) to Purchase Order</p>
+
+                {files.length > 0 && (
+                  <div className="mb-3 space-y-2">
+                    {files.map((file, i) => (
+                      <div key={i} className="flex items-center justify-between bg-white border border-slate-200 px-3 py-2 rounded-md shadow-sm">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <Paperclip className="w-4 h-4 text-blue-500 shrink-0" />
+                          <span className="text-xs text-slate-700 truncate">{file.name}</span>
+                        </div>
+                        <button type="button" onClick={() => removeFile(i)} className="text-slate-400 hover:text-red-500 transition-colors ml-2 shrink-0">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  className="hidden"
+                  multiple
                 />
-                <span className="text-[13px] font-medium text-slate-800">Enter purchase order numbers manually</span>
-              </label>
+
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full flex items-center justify-center gap-2 border border-slate-200 border-dashed bg-white rounded-md py-3 hover:bg-slate-50 transition-colors">
+                  <FileUp className="w-4 h-4 text-slate-500" />
+                  <span className="text-sm font-medium text-slate-700">Upload File(s) ▼</span>
+                </button>
+                <p className="text-xs text-slate-400 mt-2 text-center">You can upload a maximum of 10 files, 10MB each</p>
+              </div>
             </div>
           </div>
-          
-          <div className="border-t border-slate-100 px-8 py-5 bg-white flex gap-3">
-            <Button 
-              onClick={() => {
-                if (isAutoGeneratePO) {
-                  setValue('purchaseOrderNumber', `${poPrefix}${poNextNumber}`);
-                } else {
-                  setValue('purchaseOrderNumber', '');
-                }
-                setIsPoSettingsModalOpen(false);
-              }} 
-              className="bg-[#4285f4] hover:bg-blue-600 text-white px-5 h-8 font-medium text-[13px]"
-            >
-              Save
-            </Button>
-            <Button 
-              onClick={() => setIsPoSettingsModalOpen(false)} 
-              variant="outline" 
-              className="bg-[#f8f9fa] hover:bg-[#f1f3f4] border-slate-200 text-slate-700 h-8 font-medium text-[13px]"
-            >
-              Cancel
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={isNewAddressModalOpen} onOpenChange={setIsNewAddressModalOpen}>
-        <DialogContent className="w-[95vw] max-w-[700px] sm:max-w-[700px] md:max-w-[700px] bg-white p-0 overflow-hidden border-0 [&>button]:text-red-500 [&>button]:hover:text-red-600 [&>button]:right-6 [&>button]:top-6">
-          <DialogHeader className="px-8 py-6">
-            <DialogTitle className="text-[22px] font-normal text-slate-800">New address</DialogTitle>
-          </DialogHeader>
-          
-          <div className="px-8 pb-4 space-y-[18px] max-h-[70vh] overflow-y-auto">
-            <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-center gap-4">
-              <label className="text-[15px] text-slate-700">Attention</label>
-              <Input className="h-10 text-[15px] border-slate-200" value={newAddress.attention} onChange={e => setNewAddress({...newAddress, attention: e.target.value})} />
+
+        </div>
+
+        <Dialog open={isPoSettingsModalOpen} onOpenChange={setIsPoSettingsModalOpen}>
+          <DialogContent className="w-[95vw] max-w-[700px] sm:max-w-[700px] md:max-w-[700px] bg-white p-0 overflow-hidden border-0 [&>button]:text-red-500 [&>button]:hover:text-red-600 [&>button]:right-6 [&>button]:top-6">
+            <DialogHeader className="px-8 py-6 pb-4 border-b border-slate-100">
+              <DialogTitle className="text-lg font-medium text-slate-800">Configure Purchase Order# Preferences</DialogTitle>
+            </DialogHeader>
+            <div className="px-8 py-6 space-y-6">
+              <div className="grid grid-cols-2 gap-4 text-[13px]">
+                <div>
+                  <p className="font-semibold text-slate-800 mb-1">Location</p>
+                  <p className="text-slate-600">{currentLocation || 'Head Office'}</p>
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-800 mb-1">Associated Series</p>
+                  <p className="text-slate-600">Default Transaction Series</p>
+                </div>
+              </div>
+
+              <p className="text-[13px] text-slate-600 mt-6">
+                Your purchase order numbers are set on auto-generate mode to save your time. Are you sure about changing this setting?
+              </p>
+
+              <div className="space-y-4">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    checked={isAutoGeneratePO}
+                    onChange={() => setIsAutoGeneratePO(true)}
+                    className="mt-1 w-4 h-4 text-blue-600 focus:ring-blue-500"
+                  />
+                  <div className="flex-1">
+                    <span className="text-[13px] font-medium text-slate-800 flex items-center gap-1">
+                      Continue auto-generating purchase order numbers
+                      <span className="text-slate-400 border border-slate-200 rounded-full w-3.5 h-3.5 inline-flex items-center justify-center text-[9px] ml-1">i</span>
+                    </span>
+                    {isAutoGeneratePO && (
+                      <div className="grid grid-cols-[200px_300px] gap-6 mt-4">
+                        <div>
+                          <p className="text-xs text-slate-500 mb-1.5">Prefix</p>
+                          <input
+                            type="text"
+                            value={poPrefix}
+                            onChange={(e) => setPoPrefix(e.target.value)}
+                            className="w-full border border-slate-200 rounded-md px-3 py-1.5 text-[13px] focus:outline-none focus:border-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <p className="text-xs text-slate-500 mb-1.5">Next Number</p>
+                          <input
+                            type="text"
+                            value={poNextNumber}
+                            onChange={(e) => setPoNextNumber(e.target.value)}
+                            className="w-full border border-slate-200 rounded-md px-3 py-1.5 text-[13px] focus:outline-none focus:border-blue-500"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 cursor-pointer pt-3">
+                  <input
+                    type="radio"
+                    checked={!isAutoGeneratePO}
+                    onChange={() => setIsAutoGeneratePO(false)}
+                    className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-[13px] font-medium text-slate-800">Enter purchase order numbers manually</span>
+                </label>
+              </div>
             </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-start gap-4">
-              <label className="text-[15px] text-slate-700 pt-2">Street 1</label>
-              <textarea className="w-full border border-slate-200 rounded-md p-2.5 text-[15px] focus:outline-none focus:border-blue-500 h-[80px]" value={newAddress.street1} onChange={e => setNewAddress({...newAddress, street1: e.target.value})} />
+
+            <div className="border-t border-slate-100 px-8 py-5 bg-white flex gap-3">
+              <Button
+                onClick={() => {
+                  if (isAutoGeneratePO) {
+                    setValue('purchaseOrderNumber', `${poPrefix}${poNextNumber}`);
+                  } else {
+                    setValue('purchaseOrderNumber', '');
+                  }
+                  setIsPoSettingsModalOpen(false);
+                }}
+                className="bg-[#4285f4] hover:bg-blue-600 text-white px-5 h-8 font-medium text-[13px]"
+              >
+                Save
+              </Button>
+              <Button
+                onClick={() => setIsPoSettingsModalOpen(false)}
+                variant="outline"
+                className="bg-[#f8f9fa] hover:bg-[#f1f3f4] border-slate-200 text-slate-700 h-8 font-medium text-[13px]"
+              >
+                Cancel
+              </Button>
             </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-start gap-4">
-              <label className="text-[15px] text-slate-700 pt-2">Street 2</label>
-              <textarea className="w-full border border-slate-200 rounded-md p-2.5 text-[15px] focus:outline-none focus:border-blue-500 h-[80px]" value={newAddress.street2} onChange={e => setNewAddress({...newAddress, street2: e.target.value})} />
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-center gap-4">
-              <label className="text-[15px] text-slate-700">City</label>
-              <Input className="h-10 text-[15px] border-slate-200" value={newAddress.city} onChange={e => setNewAddress({...newAddress, city: e.target.value})} />
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-center gap-4">
-              <label className="text-[15px] text-slate-700">State/Province</label>
-              <Input className="h-10 text-[15px] border-slate-200" value={newAddress.state} onChange={e => setNewAddress({...newAddress, state: e.target.value})} />
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-center gap-4">
-              <label className="text-[15px] text-slate-700">ZIP/Postal Code</label>
-              <Input className="h-10 text-[15px] border-slate-200" value={newAddress.zip} onChange={e => setNewAddress({...newAddress, zip: e.target.value})} />
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-center gap-4">
-              <label className="text-[15px] text-slate-700">Country/Region</label>
-              <select className="h-10 w-full border border-slate-200 rounded-md px-3 text-[15px] text-slate-600 focus:outline-none focus:border-blue-500 bg-white" value={newAddress.country} onChange={e => setNewAddress({...newAddress, country: e.target.value})}>
-                <option value="">Select or type to add</option>
-                {COUNTRIES.map(country => (
-                  <option key={country} value={country}>{country}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-center gap-4">
-              <label className="text-[15px] text-slate-700">Phone</label>
-              <div className="relative w-full">
-                <Input className="h-10 text-[15px] border-slate-200 pr-8" value={newAddress.phone} onChange={e => setNewAddress({...newAddress, phone: e.target.value})} />
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-500"><path d="M6 9l6 6 6-6"/></svg>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={isNewAddressModalOpen} onOpenChange={setIsNewAddressModalOpen}>
+          <DialogContent className="w-[95vw] max-w-[700px] sm:max-w-[700px] md:max-w-[700px] bg-white p-0 overflow-hidden border-0 [&>button]:text-red-500 [&>button]:hover:text-red-600 [&>button]:right-6 [&>button]:top-6">
+            <DialogHeader className="px-8 py-6">
+              <DialogTitle className="text-[22px] font-normal text-slate-800">New address</DialogTitle>
+            </DialogHeader>
+
+            <div className="px-8 pb-4 space-y-[18px] max-h-[70vh] overflow-y-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-center gap-4">
+                <label className="text-[15px] text-slate-700">Attention</label>
+                <Input className="h-10 text-[15px] border-slate-200" value={newAddress.attention} onChange={e => setNewAddress({ ...newAddress, attention: e.target.value })} />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-start gap-4">
+                <label className="text-[15px] text-slate-700 pt-2">Street 1</label>
+                <textarea className="w-full border border-slate-200 rounded-md p-2.5 text-[15px] focus:outline-none focus:border-blue-500 h-[80px]" value={newAddress.street1} onChange={e => setNewAddress({ ...newAddress, street1: e.target.value })} />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-start gap-4">
+                <label className="text-[15px] text-slate-700 pt-2">Street 2</label>
+                <textarea className="w-full border border-slate-200 rounded-md p-2.5 text-[15px] focus:outline-none focus:border-blue-500 h-[80px]" value={newAddress.street2} onChange={e => setNewAddress({ ...newAddress, street2: e.target.value })} />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-center gap-4">
+                <label className="text-[15px] text-slate-700">City</label>
+                <Input className="h-10 text-[15px] border-slate-200" value={newAddress.city} onChange={e => setNewAddress({ ...newAddress, city: e.target.value })} />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-center gap-4">
+                <label className="text-[15px] text-slate-700">State/Province</label>
+                <Input className="h-10 text-[15px] border-slate-200" value={newAddress.state} onChange={e => setNewAddress({ ...newAddress, state: e.target.value })} />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-center gap-4">
+                <label className="text-[15px] text-slate-700">ZIP/Postal Code</label>
+                <Input className="h-10 text-[15px] border-slate-200" value={newAddress.zip} onChange={e => setNewAddress({ ...newAddress, zip: e.target.value })} />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-center gap-4">
+                <label className="text-[15px] text-slate-700">Country/Region</label>
+                <select className="h-10 w-full border border-slate-200 rounded-md px-3 text-[15px] text-slate-600 focus:outline-none focus:border-blue-500 bg-white" value={newAddress.country} onChange={e => setNewAddress({ ...newAddress, country: e.target.value })}>
+                  <option value="">Select or type to add</option>
+                  {COUNTRIES.map(country => (
+                    <option key={country} value={country}>{country}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-center gap-4">
+                <label className="text-[15px] text-slate-700">Phone</label>
+                <div className="relative w-full">
+                  <Input className="h-10 text-[15px] border-slate-200 pr-8" value={newAddress.phone} onChange={e => setNewAddress({ ...newAddress, phone: e.target.value })} />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-500"><path d="M6 9l6 6 6-6" /></svg>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-          
-          <div className="border-t border-slate-100 px-8 py-6">
-            <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] gap-4">
-              <div></div>
-              <div className="flex gap-3">
-                <Button onClick={handleSaveNewAddress} className="bg-[#4285f4] hover:bg-blue-600 text-white px-6 h-9 font-medium text-[15px]">Save</Button>
-                <Button onClick={() => setIsNewAddressModalOpen(false)} variant="outline" className="bg-[#f8f9fa] hover:bg-[#f1f3f4] border-slate-200 text-slate-700 h-9 font-medium text-[15px]">Cancel</Button>
+
+            <div className="border-t border-slate-100 px-8 py-6">
+              <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] gap-4">
+                <div></div>
+                <div className="flex gap-3">
+                  <Button onClick={handleSaveNewAddress} className="bg-[#4285f4] hover:bg-blue-600 text-white px-6 h-9 font-medium text-[15px]">Save</Button>
+                  <Button onClick={() => setIsNewAddressModalOpen(false)} variant="outline" className="bg-[#f8f9fa] hover:bg-[#f1f3f4] border-slate-200 text-slate-700 h-9 font-medium text-[15px]">Cancel</Button>
+                </div>
               </div>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+          </DialogContent>
+        </Dialog>
+      </div>
       {/* Sticky Footer Area */}
       <div className="sticky bottom-0 bg-white border-t border-slate-200 px-6 py-4 flex items-center justify-between shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
-         <div className="flex gap-4">
-           <button 
-             type="button" 
-             onClick={() => handleSubmit((d) => onSubmit(d, 'Draft'))()}
-             disabled={isSubmitting}
-             className="px-4 py-2 text-[13px] font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 rounded-md transition-colors border border-slate-200 disabled:opacity-50"
-           >
-             Save as Draft
-           </button>
-           <button 
-             type="button"
-             onClick={() => handleSubmit((d) => onSubmit(d, 'Sent'))()}
-             disabled={isSubmitting}
-             className="px-4 py-2 text-[13px] font-semibold text-white bg-[#3b82f6] hover:bg-blue-600 rounded-md shadow-sm transition-colors disabled:opacity-50"
-           >
-             Save and Send
-           </button>
-           <Link href="/purchases/orders" className="px-4 py-2 text-[13px] font-semibold text-slate-600 hover:bg-slate-50 rounded-md transition-colors border border-transparent flex items-center">
-             Cancel
-           </Link>
-         </div>
-         <div className="text-sm text-slate-600 font-medium">
-           PDF Template: <span className="text-slate-500">'Standard Template'</span> <button type="button" className="text-blue-500 hover:underline ml-1">Change</button>
-         </div>
+        <div className="flex gap-4">
+          <button
+            type="button"
+            onClick={() => handleSubmit((d) => onSubmit(d, 'Draft'))()}
+            disabled={isSubmitting}
+            className="px-4 py-2 text-[13px] font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 rounded-md transition-colors border border-slate-200 disabled:opacity-50"
+          >
+            Save as Draft
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSubmit((d) => onSubmit(d, 'Sent'))()}
+            disabled={isSubmitting}
+            className="px-4 py-2 text-[13px] font-semibold text-white bg-[#3b82f6] hover:bg-blue-600 rounded-md shadow-sm transition-colors disabled:opacity-50"
+          >
+            Save and Send
+          </button>
+          <Link href="/purchases/orders" className="px-4 py-2 text-[13px] font-semibold text-slate-600 hover:bg-slate-50 rounded-md transition-colors border border-transparent flex items-center">
+            Cancel
+          </Link>
+        </div>
+        <div className="text-sm text-slate-600 font-medium">
+          PDF Template: <span className="text-slate-500">'Standard Template'</span> <button type="button" className="text-blue-500 hover:underline ml-1">Change</button>
+        </div>
       </div>
-      
+
       {/* Bulk Add Items Modal */}
       {isBulkModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
@@ -1303,12 +1419,12 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="px-6 py-3 border-b border-slate-200 bg-slate-50">
               <div className="relative">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   placeholder="Search items by name or code..."
                   className="w-full border border-slate-200 rounded-md pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white shadow-sm"
                   value={bulkSearchQuery}
@@ -1316,24 +1432,24 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                 />
               </div>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto p-2">
               <table className="w-full text-sm text-left">
                 <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
                   <tr>
                     <th className="px-4 py-2 w-10">
-                       <input 
-                         type="checkbox" 
-                         className="rounded text-blue-500 focus:ring-blue-500 cursor-pointer"
-                         onChange={(e) => {
-                           if (e.target.checked) {
-                             setSelectedBulkItems(itemsList.map(i => i._id));
-                           } else {
-                             setSelectedBulkItems([]);
-                           }
-                         }}
-                         checked={selectedBulkItems.length === itemsList.length && itemsList.length > 0}
-                       />
+                      <input
+                        type="checkbox"
+                        className="rounded text-blue-500 focus:ring-blue-500 cursor-pointer"
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedBulkItems(itemsList.map(i => i._id));
+                          } else {
+                            setSelectedBulkItems([]);
+                          }
+                        }}
+                        checked={selectedBulkItems.length === itemsList.length && itemsList.length > 0}
+                      />
                     </th>
                     <th className="px-4 py-2 font-bold text-slate-500">Item Name</th>
                     <th className="px-4 py-2 font-bold text-slate-500">Temp Code</th>
@@ -1349,35 +1465,35 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                       return name.includes(query) || code.includes(query);
                     })
                     .map(item => (
-                    <tr key={item._id} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => {
+                      <tr key={item._id} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => {
                         setSelectedBulkItems(prev => prev.includes(item._id) ? prev.filter(id => id !== item._id) : [...prev, item._id]);
                       }}>
-                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                        <input 
-                          type="checkbox" 
-                          className="rounded text-blue-500 focus:ring-blue-500 cursor-pointer"
-                          checked={selectedBulkItems.includes(item._id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedBulkItems([...selectedBulkItems, item._id]);
-                            } else {
-                              setSelectedBulkItems(selectedBulkItems.filter(id => id !== item._id));
-                            }
-                          }}
-                        />
-                      </td>
-                      <td className="px-4 py-3 text-slate-700">{item.dynamicData?.name || item.dynamicData?.itemDescription || 'Unnamed Item'}</td>
-                      <td className="px-4 py-3 text-slate-500">{item.dynamicData?.tempCode || '--'}</td>
-                      <td className="px-4 py-3 text-slate-700 text-right">{(item.dynamicData?.price || item.dynamicData?.costPrice || 0).toFixed(2)}</td>
-                    </tr>
-                  ))}
+                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            className="rounded text-blue-500 focus:ring-blue-500 cursor-pointer"
+                            checked={selectedBulkItems.includes(item._id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedBulkItems([...selectedBulkItems, item._id]);
+                              } else {
+                                setSelectedBulkItems(selectedBulkItems.filter(id => id !== item._id));
+                              }
+                            }}
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-slate-700">{item.dynamicData?.name || item.dynamicData?.itemDescription || 'Unnamed Item'}</td>
+                        <td className="px-4 py-3 text-slate-500">{item.dynamicData?.tempCode || '--'}</td>
+                        <td className="px-4 py-3 text-slate-700 text-right">{(item.dynamicData?.price || item.dynamicData?.costPrice || 0).toFixed(2)}</td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
               {itemsList.length === 0 && (
                 <div className="text-center py-10 text-slate-500 text-sm">No items found in your inventory.</div>
               )}
             </div>
-            
+
             <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
               <span className="text-sm font-medium text-slate-600">{selectedBulkItems.length} items selected</span>
               <div className="flex gap-3">
@@ -1403,26 +1519,26 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center gap-4">
-               <div className="flex bg-white border border-slate-300 rounded-md overflow-hidden shadow-sm flex-1">
-                 <select className="border-none bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:outline-none border-r border-slate-300">
-                   <option>Display Name</option>
-                   <option>Email</option>
-                   <option>Company Name</option>
-                 </select>
-                 <input 
-                   type="text" 
-                   className="flex-1 px-3 py-2 text-sm focus:outline-none"
-                   value={vendorSearchQuery}
-                   onChange={(e) => setVendorSearchQuery(e.target.value)}
-                 />
-               </div>
-               <button type="button" className="bg-[#3b82f6] text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors text-sm font-medium shadow-sm">
-                 Search
-               </button>
+              <div className="flex bg-white border border-slate-300 rounded-md overflow-hidden shadow-sm flex-1">
+                <select className="border-none bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:outline-none border-r border-slate-300">
+                  <option>Display Name</option>
+                  <option>Email</option>
+                  <option>Company Name</option>
+                </select>
+                <input
+                  type="text"
+                  className="flex-1 px-3 py-2 text-sm focus:outline-none"
+                  value={vendorSearchQuery}
+                  onChange={(e) => setVendorSearchQuery(e.target.value)}
+                />
+              </div>
+              <button type="button" className="bg-[#3b82f6] text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors text-sm font-medium shadow-sm">
+                Search
+              </button>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto p-0">
               <table className="w-full text-sm text-left">
                 <thead className="bg-white border-b border-slate-200 sticky top-0 z-10">
@@ -1442,22 +1558,22 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                       return name.includes(query) || email.includes(query);
                     })
                     .map(vendor => (
-                    <tr 
-                      key={vendor._id} 
-                      className="hover:bg-blue-50 transition-colors cursor-pointer bg-white" 
-                      onClick={() => {
-                        setValue('vendorName', vendor.dynamicData?.displayName || vendor.dynamicData?.companyName || vendor._id);
-                        setIsVendorModalOpen(false);
-                      }}
-                    >
-                      <td className="px-6 py-4 text-blue-600 font-medium">
-                        {vendor.dynamicData?.displayName || vendor.dynamicData?.companyName || '--'}
-                      </td>
-                      <td className="px-6 py-4 text-slate-600">{vendor.dynamicData?.email || '--'}</td>
-                      <td className="px-6 py-4 text-slate-600">{vendor.dynamicData?.companyName || '--'}</td>
-                      <td className="px-6 py-4 text-slate-600">{vendor.dynamicData?.phone || '--'}</td>
-                    </tr>
-                  ))}
+                      <tr
+                        key={vendor._id}
+                        className="hover:bg-blue-50 transition-colors cursor-pointer bg-white"
+                        onClick={() => {
+                          setValue('vendorName', vendor.dynamicData?.displayName || vendor.dynamicData?.companyName || vendor._id);
+                          setIsVendorModalOpen(false);
+                        }}
+                      >
+                        <td className="px-6 py-4 text-blue-600 font-medium">
+                          {vendor.dynamicData?.displayName || vendor.dynamicData?.companyName || '--'}
+                        </td>
+                        <td className="px-6 py-4 text-slate-600">{vendor.dynamicData?.email || '--'}</td>
+                        <td className="px-6 py-4 text-slate-600">{vendor.dynamicData?.companyName || '--'}</td>
+                        <td className="px-6 py-4 text-slate-600">{vendor.dynamicData?.phone || '--'}</td>
+                      </tr>
+                    ))}
                   {vendorsList.length === 0 && (
                     <tr>
                       <td colSpan={4} className="text-center py-10 text-slate-500 text-sm">No vendors found.</td>
@@ -1466,7 +1582,7 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                 </tbody>
               </table>
             </div>
-            
+
             <div className="px-6 py-3 border-t border-slate-200 bg-white flex items-center justify-end">
               <div className="flex items-center gap-4 text-sm text-slate-600">
                 <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-md px-2 py-1">
@@ -1479,6 +1595,72 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
           </div>
         </div>
       )}
+      {/* Address Modal */}
+      {isAddressModalOpen && (
+        <Dialog open={isAddressModalOpen} onOpenChange={setIsAddressModalOpen}>
+          <DialogContent className="sm:max-w-[550px] p-0 overflow-hidden bg-white">
+            <DialogHeader className="px-6 py-4 border-b border-slate-200">
+              <DialogTitle className="text-lg font-normal text-slate-800">Additional Address</DialogTitle>
+            </DialogHeader>
+            <div className="p-6 space-y-5 max-h-[60vh] overflow-y-auto custom-scrollbar">
+              <div className="space-y-1.5">
+                <label className="text-[13px] text-slate-700">Attention</label>
+                <input type="text" className="w-full border border-slate-300 rounded px-3 py-2 text-[13px] focus:outline-none focus:border-blue-500" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[13px] text-slate-700">Country/Region</label>
+                <select className="w-full border border-slate-300 rounded px-3 py-2 text-[13px] focus:outline-none focus:border-blue-500 bg-white">
+                  <option>Select</option>
+                  <option>India</option>
+                  <option>United States</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[13px] text-slate-700">Address</label>
+                <textarea rows={2} placeholder="Street 1" className="w-full border border-slate-300 rounded px-3 py-2 text-[13px] focus:outline-none focus:border-blue-500 mb-2"></textarea>
+                <textarea rows={2} placeholder="Street 2" className="w-full border border-slate-300 rounded px-3 py-2 text-[13px] focus:outline-none focus:border-blue-500"></textarea>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[13px] text-slate-700">City</label>
+                <input type="text" className="w-full border border-slate-300 rounded px-3 py-2 text-[13px] focus:outline-none focus:border-blue-500" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[13px] text-slate-700">State</label>
+                  <select className="w-full border border-slate-300 rounded px-3 py-2 text-[13px] focus:outline-none focus:border-blue-500 bg-white">
+                    <option>Select or type to add</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[13px] text-slate-700">Pin Code</label>
+                  <input type="text" className="w-full border border-slate-300 rounded px-3 py-2 text-[13px] focus:outline-none focus:border-blue-500" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[13px] text-slate-700">Phone</label>
+                  <div className="flex">
+                    <select className="w-[70px] border border-slate-300 rounded-l px-2 py-2 text-[13px] focus:outline-none focus:border-blue-500 bg-white border-r-0">
+                      <option>+91</option>
+                    </select>
+                    <input type="text" className="flex-1 border border-slate-300 rounded-r px-3 py-2 text-[13px] focus:outline-none focus:border-blue-500" />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[13px] text-slate-700">Fax Number</label>
+                  <input type="text" className="w-full border border-slate-300 rounded px-3 py-2 text-[13px] focus:outline-none focus:border-blue-500" />
+                </div>
+              </div>
+              <p className="text-[13px] text-slate-500 pt-2"><span className="font-semibold text-slate-600">Note:</span> Changes made here will be updated for this vendor.</p>
+            </div>
+            <DialogFooter className="px-6 py-4 border-t border-slate-200 sm:justify-start">
+              <Button type="button" onClick={() => setIsAddressModalOpen(false)} className="bg-[#78a5fd] hover:bg-[#5b8df5] text-white font-normal px-5">Save</Button>
+              <Button type="button" variant="outline" onClick={() => setIsAddressModalOpen(false)} className="bg-slate-50 font-normal px-5 text-slate-700 border-slate-300 hover:bg-slate-100">Cancel</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
     </form>
   );
 }

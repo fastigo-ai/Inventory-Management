@@ -12,6 +12,7 @@ export interface IPurchaseOrderLineItem {
   quantity: number;
   rate: number;
   amount: number;
+  isCanceled?: boolean;
 }
 
 export interface IPurchaseOrder extends Document {
@@ -57,6 +58,8 @@ export interface IPurchaseOrder extends Document {
   total: number;
   
   status: 'Draft' | 'Sent' | 'Cancelled';
+  receiveStatus: 'Yet To Be Received' | 'Received';
+  
   
   attachments?: {
     name: string;
@@ -79,6 +82,7 @@ const purchaseOrderLineItemSchema = new Schema<IPurchaseOrderLineItem>({
   quantity: { type: Number, required: true, default: 1 },
   rate: { type: Number, required: true, default: 0 },
   amount: { type: Number, required: true, default: 0 },
+  isCanceled: { type: Boolean, default: false },
 });
 
 const purchaseOrderSchema = new Schema<IPurchaseOrder>(
@@ -122,6 +126,7 @@ const purchaseOrderSchema = new Schema<IPurchaseOrder>(
     total: { type: Number, required: true, default: 0 },
     
     status: { type: String, enum: ['Draft', 'Sent', 'Cancelled'], default: 'Draft' },
+    receiveStatus: { type: String, enum: ['Yet To Be Received', 'Received'], default: 'Yet To Be Received' },
     
     attachments: [{
       name: { type: String },

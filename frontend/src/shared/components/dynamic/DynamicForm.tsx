@@ -11,6 +11,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { UploadCloud, Globe, MessageCircle, Info } from "lucide-react";
 import { PaymentTermsWidget } from "./PaymentTermsWidget";
 import { FileUploadWidget } from "./FileUploadWidget";
+import { BankDetailsWidget } from "./BankDetailsWidget";
+import { ContactPersonsWidget } from "./ContactPersonsWidget";
 
 export interface FieldMetadata {
   name: string;
@@ -440,6 +442,14 @@ function renderField(field: FieldMetadata, register: any, errors: any, control: 
     fieldInput = (
       <PaymentTermsWidget control={control} register={register} name={field.name} />
     );
+  } else if (field.widget === 'vendor_bank_details') {
+    fieldInput = (
+      <BankDetailsWidget control={control} register={register} name={field.name} />
+    );
+  } else if (field.widget === 'vendor_contact_persons') {
+    fieldInput = (
+      <ContactPersonsWidget control={control} register={register} name={field.name} />
+    );
   } else if (field.widget === 'file_upload') {
     fieldInput = (
       <FileUploadWidget control={control} name={field.name} />
@@ -504,6 +514,34 @@ function renderField(field: FieldMetadata, register: any, errors: any, control: 
         {field.helperText && (
           <p className="text-xs text-slate-500 mt-1">{field.helperText}</p>
         )}
+      </div>
+    );
+  }
+
+  if (field.colSpan === 2) {
+    return (
+      <div className="w-full pb-2">
+        {field.label && (
+          <div className="flex items-center space-x-1 mb-2">
+            <Label htmlFor={field.name} className={`text-[13px] ${field.labelColor === 'red' ? 'text-red-500' : 'text-slate-800'}`}>
+              {field.label} {field.required && <span className="text-red-500">*</span>}
+            </Label>
+            {field.hasInfo && (
+              <div className="text-slate-400 hover:text-slate-600 cursor-help" title={`Information about ${field.label}`}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+              </div>
+            )}
+          </div>
+        )}
+        <div>
+          {fieldInput}
+          
+          {errors[field.name] && (
+            <p className="text-xs text-red-500 mt-1 font-medium">
+              {errors[field.name]?.message as string}
+            </p>
+          )}
+        </div>
       </div>
     );
   }

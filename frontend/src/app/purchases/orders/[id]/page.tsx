@@ -92,6 +92,26 @@ export default function PurchaseOrderDetailPage() {
     }
   };
 
+  const renderPaymentTerms = (terms: any) => {
+    if (!terms) return '--';
+    if (typeof terms === 'string') return terms;
+    if (Array.isArray(terms)) {
+      const validTerms = terms.filter((t: any) => t.stage && t.value);
+      if (validTerms.length === 0) return '--';
+      return (
+        <ul className="list-disc list-inside space-y-1 mt-1">
+          {validTerms.map((pt: any, idx: number) => (
+            <li key={idx} className="text-xs text-slate-700">
+              {pt.value}{pt.unit === 'Percentage' ? '%' : (pt.unit === 'Amount' ? '₹' : '')} {pt.type} on {pt.stage}
+              {pt.remark && <span className="italic text-slate-500 ml-1">({pt.remark})</span>}
+            </li>
+          ))}
+        </ul>
+      );
+    }
+    return '--';
+  };
+
   if (isLoading && !order) {
     return (
       <div className="flex flex-col min-h-screen bg-slate-50/50">
@@ -778,9 +798,12 @@ export default function PurchaseOrderDetailPage() {
                     </div>
                   )}
                   {(order.paymentTerms || order.paymentTermStage || order.paymentTermType || order.paymentTermAmount) && (
-                    <div className="flex">
+                    <div className="flex items-start">
                       <span className="w-32 text-slate-500 font-medium">Payment Terms</span>
-                      <span className="font-semibold text-slate-800">: {order.paymentTerms || `${order.paymentTermStage || ''} ${order.paymentTermType || ''} ${order.paymentTermAmount || ''}`.trim()}</span>
+                      <div className="font-semibold text-slate-800 flex items-start gap-1">
+                        <span>:</span>
+                        <div>{renderPaymentTerms(order.paymentTerms)}</div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -858,7 +881,7 @@ export default function PurchaseOrderDetailPage() {
                   </div>
                   <div>
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Payment Terms</p>
-                    <p className="text-sm font-medium text-slate-800">{order.paymentTerms || '--'}</p>
+                    <div className="text-sm font-medium text-slate-800">{renderPaymentTerms(order.paymentTerms)}</div>
                   </div>
                   {order.package && (
                     <div>
@@ -989,7 +1012,7 @@ export default function PurchaseOrderDetailPage() {
                       {(order.paymentTerms || order.paymentTermStage || order.paymentTermType || order.paymentTermAmount) && (
                         <div>
                           <span className="block text-slate-500 text-xs mb-0.5">Payment Terms</span>
-                          <span className="font-medium text-slate-800">{order.paymentTerms || `${order.paymentTermStage || ''} ${order.paymentTermType || ''} ${order.paymentTermAmount || ''}`.trim()}</span>
+                          <div className="font-medium text-slate-800">{renderPaymentTerms(order.paymentTerms)}</div>
                         </div>
                       )}
                     </div>

@@ -39,21 +39,29 @@ const PaymentTermRow = ({ control, register, baseName, index }: { control: any, 
       )}
 
       {stage && type && (
-        <div className="flex items-center space-x-2">
+        <>
+          <div className="flex items-center space-x-2">
+            <Input 
+              type="number" 
+              placeholder="Value" 
+              className="h-9 w-[120px] text-[13px] bg-white" 
+              {...register(`${name}.value`)} 
+            />
+            <select 
+              className="h-9 w-[80px] rounded-md border border-slate-300 bg-white px-2 text-[13px]" 
+              {...register(`${name}.unit`)}
+            >
+              <option value="%">%</option>
+              <option value="Amount">Amount</option>
+            </select>
+          </div>
           <Input 
-            type="number" 
-            placeholder="Value" 
-            className="h-9 w-[120px] text-[13px] bg-white" 
-            {...register(`${name}.value`)} 
+            type="text" 
+            placeholder="Remark (optional)" 
+            className="h-9 w-[220px] text-[13px] bg-white" 
+            {...register(`${name}.remark`)} 
           />
-          <select 
-            className="h-9 w-[80px] rounded-md border border-slate-300 bg-white px-2 text-[13px]" 
-            {...register(`${name}.unit`)}
-          >
-            <option value="%">%</option>
-            <option value="Amount">Amount</option>
-          </select>
-        </div>
+        </>
       )}
     </div>
   );

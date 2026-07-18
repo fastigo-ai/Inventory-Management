@@ -37,6 +37,7 @@ export interface IPurchaseOrder extends Document {
     type: string;
     value: string;
     unit: string;
+    remark?: string;
   }[];
   poQuantity?: string;
   circle?: string;
@@ -118,7 +119,8 @@ const purchaseOrderSchema = new Schema<IPurchaseOrder>(
       stage: { type: String },
       type: { type: String },
       value: { type: String },
-      unit: { type: String }
+      unit: { type: String },
+      remark: { type: String }
     }],
     poQuantity: { type: String },
     circle: { type: String },

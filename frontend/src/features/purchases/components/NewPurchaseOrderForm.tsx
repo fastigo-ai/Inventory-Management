@@ -181,7 +181,7 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
       termsConditions: '',
       package: '',
       circle: '',
-      paymentTerms: [{ stage: '', type: '', value: '', unit: '%' }, { stage: '', type: '', value: '', unit: '%' }, { stage: '', type: '', value: '', unit: '%' }],
+      paymentTerms: [{ stage: '', type: '', value: '', unit: '%', remark: '' }, { stage: '', type: '', value: '', unit: '%', remark: '' }, { stage: '', type: '', value: '', unit: '%', remark: '' }],
       discountPercentage: 0,
       taxType: 'TDS',
       taxPercentage: 0,

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Mail, Info, DownloadCloud, HelpCircle } from 'lucide-react';
+import { Mail, Info, DownloadCloud, HelpCircle, Eye, EyeOff, Plus } from 'lucide-react';
 import Link from 'next/link';
 
 export function NewVendorForm() {
@@ -9,6 +9,7 @@ export function NewVendorForm() {
   
   const [paymentStage, setPaymentStage] = useState('');
   const [paymentType, setPaymentType] = useState('');
+  const [showAccountNumber, setShowAccountNumber] = useState(false);
 
   const tabs = [
     { id: 'other', label: 'Other Details' },
@@ -234,6 +235,69 @@ export function NewVendorForm() {
                     Enable TDS for this vendor
                   </label>
                </div>
+
+            </div>
+          )}
+
+          {/* Tab Content (Bank Details) */}
+          {activeTab === 'bank' && (
+            <div className="py-8 space-y-6 max-w-3xl">
+              
+              <div className="grid grid-cols-1 sm:grid-cols-[180px_1fr] items-center gap-6">
+                <label className="text-sm font-semibold text-slate-700">Account Holder Name</label>
+                <input type="text" className="border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white w-full max-w-md" />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-[180px_1fr] items-center gap-6">
+                <label className="text-sm font-semibold text-slate-700">Bank Name</label>
+                <input type="text" className="border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white w-full max-w-md" />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-[180px_1fr] items-center gap-6">
+                <label className="text-sm font-semibold text-red-500">Account Number*</label>
+                <div className="relative w-full max-w-md">
+                  <input 
+                    type={showAccountNumber ? 'text' : 'password'} 
+                    placeholder="••••••••••••" 
+                    className="border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white w-full pr-10" 
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => setShowAccountNumber(!showAccountNumber)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    {showAccountNumber ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-[180px_1fr] items-center gap-6">
+                <label className="text-sm font-semibold text-red-500">Re-enter Account Number*</label>
+                <input type="password" placeholder="••••••••••••" className="border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white w-full max-w-md" />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-[180px_1fr] items-center gap-6">
+                <label className="text-sm font-semibold text-red-500">IFSC*</label>
+                <input type="text" className="border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white w-full max-w-md" />
+              </div>
+
+              {/* Upload Document */}
+              <div className="grid grid-cols-1 sm:grid-cols-[180px_1fr] items-start gap-6 mt-4">
+                <label className="text-sm font-semibold text-slate-700 mt-2">Bank Document</label>
+                <div className="space-y-2">
+                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 flex flex-col items-center justify-center text-slate-500 hover:bg-slate-50 hover:border-blue-400 transition-colors cursor-pointer max-w-md">
+                    <DownloadCloud className="w-6 h-6 mb-2 text-slate-400" />
+                    <p className="text-sm font-medium">Click or drag file to upload</p>
+                    <p className="text-xs mt-1">Upload cancelled check or passbook statement</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-200 mt-8">
+                <button className="flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-3 py-1.5 rounded-md transition-colors -ml-3">
+                  <Plus className="w-4 h-4" /> Add New Bank
+                </button>
+              </div>
 
             </div>
           )}

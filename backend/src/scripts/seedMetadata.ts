@@ -94,8 +94,8 @@ const seedMetadata = async () => {
 
       // Address Tab
       { name: 'vendorAddresses', label: 'Addresses', type: 'compound', widget: 'vendor_address', required: false, visible: false, editable: true, tab: 'Address', order: 17, colSpan: 2 },
-      { name: 'contactPersons', label: 'Contact Persons', type: 'text', widget: 'textarea', required: false, visible: false, editable: true, tab: 'Contact Persons', order: 19, colSpan: 1 },
-      { name: 'bankDetails', label: 'Bank Details', type: 'text', widget: 'textarea', required: false, visible: false, editable: true, tab: 'Bank Details', order: 20, colSpan: 1 },
+      { name: 'contactPersons', label: '', type: 'compound', widget: 'vendor_contact_persons', required: false, visible: false, editable: true, tab: 'Contact Persons', order: 19, colSpan: 2 },
+      { name: 'bankDetails', label: '', type: 'compound', widget: 'vendor_bank_details', required: false, visible: false, editable: true, tab: 'Bank Details', order: 20, colSpan: 2 },
       { name: 'customFields', label: 'Custom Fields', type: 'text', widget: 'textarea', required: false, visible: false, editable: true, tab: 'Custom Fields', order: 21, colSpan: 1 },
       { name: 'reportingTags', label: 'Reporting Tags', type: 'text', widget: 'textarea', required: false, visible: false, editable: true, tab: 'Reporting Tags', order: 22, colSpan: 1 },
       { name: 'remarks', label: 'Remarks', type: 'text', widget: 'textarea', required: false, visible: false, editable: true, tab: 'Remarks', order: 23, colSpan: 1 }

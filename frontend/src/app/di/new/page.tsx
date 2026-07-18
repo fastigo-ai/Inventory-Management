@@ -10,6 +10,9 @@ import Link from "next/link";
 import { createDI } from "@/features/di/api/di.api";
 import { getPurchaseOrders } from "@/features/purchases/api/purchases.api";
 
+const PACKAGES = ["Package 1 (S/N)", "Package 2 (R/R)"];
+const CIRCLES = ["Solan", "Nahan", "Rohru", "Rampur"];
+
 export default function NewDIRegistrationPage() {
   const router = useRouter();
   
@@ -21,6 +24,8 @@ export default function NewDIRegistrationPage() {
   const [diNumber, setDiNumber] = useState("");
   const [date, setDate] = useState("");
   const [notes, setNotes] = useState("");
+  const [diPackage, setDiPackage] = useState("");
+  const [diCircle, setDiCircle] = useState("");
   
   const [lineItems, setLineItems] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -86,6 +91,8 @@ export default function NewDIRegistrationPage() {
         purchaseOrderId,
         date,
         notes,
+        package: diPackage,
+        circle: diCircle,
         lineItems: lineItems.map(item => ({
           itemId: item.itemId,
           itemName: item.itemName,
@@ -174,6 +181,42 @@ export default function NewDIRegistrationPage() {
                   onChange={(e) => setDate(e.target.value)}
                   className="h-9"
                 />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-12 gap-4 items-center">
+              <div className="col-span-3">
+                <label className="text-[13px] font-medium text-slate-700">Package</label>
+              </div>
+              <div className="col-span-9">
+                <select
+                  value={diPackage}
+                  onChange={(e) => setDiPackage(e.target.value)}
+                  className="flex h-9 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm ring-offset-white placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="" disabled>Select Package</option>
+                  {PACKAGES.map((pkg, i) => (
+                    <option key={i} value={pkg}>{pkg}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-12 gap-4 items-center">
+              <div className="col-span-3">
+                <label className="text-[13px] font-medium text-slate-700">Circle</label>
+              </div>
+              <div className="col-span-9">
+                <select
+                  value={diCircle}
+                  onChange={(e) => setDiCircle(e.target.value)}
+                  className="flex h-9 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm ring-offset-white placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="" disabled>Select Circle</option>
+                  {CIRCLES.map((c, i) => (
+                    <option key={i} value={c}>{c}</option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>

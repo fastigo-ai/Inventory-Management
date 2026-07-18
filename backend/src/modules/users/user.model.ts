@@ -7,7 +7,6 @@ export interface IUser extends Document {
   email: string;
   password?: string;
   role: IRole['_id'] | IRole; // Can be ObjectId or populated Role
-  refreshTokens?: string[];
   sessionVersion: number;
 }
 
@@ -18,7 +17,6 @@ const UserSchema: Schema = new Schema(
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     role: { type: Schema.Types.ObjectId, ref: 'Role', required: true },
-    refreshTokens: [{ type: String }],
     sessionVersion: { type: Number, default: 0 },
   },
   { timestamps: true }
@@ -28,7 +26,6 @@ const UserSchema: Schema = new Schema(
 UserSchema.set('toJSON', {
   transform: (doc, ret) => {
     delete ret.password;
-    delete ret.refreshTokens;
     return ret;
   },
 });

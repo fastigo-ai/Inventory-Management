@@ -10,10 +10,12 @@ import { createPurchaseOrder, getNextPurchaseOrderNumber, updatePurchaseOrder, g
 import { getItems, getEntityMetadata } from '@/features/items/api/items.api';
 import { getLocations, createLocation } from '@/features/settings/api/locations.api';
 import { getVendors } from '@/features/vendors/api/vendors.api';
+import { getBillingCompanies } from '@/features/settings/api/billingCompanies.api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { numberToWords } from '@/shared/utils/numberToWords';
+import { PaymentTermsWidget } from '@/shared/components/dynamic/PaymentTermsWidget';
 
 const COUNTRIES = [
   "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria", "Burkina Faso", "Burundi", "Cabo Verde", "Cambodia", "Cameroon", "Canada", "Central African Republic", "Chad", "Chile", "China", "Colombia", "Comoros", "Congo (Congo-Brazzaville)", "Costa Rica", "Croatia", "Cuba", "Cyprus", "Czechia (Czech Republic)", "Democratic Republic of the Congo", "Denmark", "Djibouti", "Dominica", "Dominican Republic", "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini", "Ethiopia", "Fiji", "Finland", "France", "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Greece", "Grenada", "Guatemala", "Guinea", "Guinea-Bissau", "Guyana", "Haiti", "Honduras", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Israel", "Italy", "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kiribati", "Kuwait", "Kyrgyzstan", "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg", "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands", "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", "Myanmar (formerly Burma)", "Namibia", "Nauru", "Nepal", "Netherlands", "New Zealand", "Nicaragua", "Niger", "Nigeria", "North Korea", "North Macedonia", "Norway", "Oman", "Pakistan", "Palau", "Palestine State", "Panama", "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Qatar", "Romania", "Russia", "Rwanda", "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa", "San Marino", "Sao Tome and Principe", "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore", "Slovakia", "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Korea", "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname", "Sweden", "Switzerland", "Syria", "Tajikistan", "Tanzania", "Thailand", "Timor-Leste", "Togo", "Tonga", "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu", "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom", "United States of America", "Uruguay", "Uzbekistan", "Vanuatu", "Vatican City", "Venezuela", "Vietnam", "Yemen", "Zambia", "Zimbabwe"
@@ -22,6 +24,7 @@ const COUNTRIES = [
 interface PurchaseOrderForm {
   vendorName: string;
   location: string;
+  billingCompanyId: string;
   deliveryAddressType: string;
   deliveryAddressId: string;
   purchaseOrderNumber: string;
@@ -37,6 +40,7 @@ interface PurchaseOrderForm {
     tempCode: string;
     account: string;
     description: string;
+    hsnCode: string;
     package: string;
     loaSerialNo: string;
     circle: string;
@@ -46,9 +50,14 @@ interface PurchaseOrderForm {
   }[];
   notes: string;
   termsConditions: string;
-  paymentTermStage: string;
-  paymentTermType: string;
-  paymentTermAmount: string;
+  package?: string;
+  circle?: string;
+  paymentTerms: {
+    stage: string;
+    type: string;
+    value: string;
+    unit: string;
+  }[];
   discountPercentage: number;
   taxType: string;
   taxPercentage: number;
@@ -59,6 +68,7 @@ interface PurchaseOrderForm {
   cgstPercentage: number;
   sgstPercentage: number;
   igstPercentage: number;
+  gstTreatment: string;
 }
 
 interface NewPurchaseOrderFormProps {
@@ -74,6 +84,7 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
   const [itemsList, setItemsList] = useState<any[]>([]);
   const [locationsList, setLocationsList] = useState<any[]>([]);
   const [vendorsList, setVendorsList] = useState<any[]>([]);
+  const [billingCompaniesList, setBillingCompaniesList] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [isBillingPopoverOpen, setIsBillingPopoverOpen] = useState(false);
@@ -89,6 +100,7 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
 
   // File attachments state
   const [files, setFiles] = useState<File[]>([]);
+  const [activeTab, setActiveTab] = useState<'notes'|'terms'|'attachments'>('notes');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const billingPopoverRef = useRef<HTMLDivElement>(null);
@@ -102,6 +114,12 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
       if (shippingPopoverRef.current && !shippingPopoverRef.current.contains(event.target as Node)) {
         setIsShippingPopoverOpen(false);
       }
+      // Click outside item dropdowns will close them
+      const target = event.target as Element;
+      if (!target.closest('.item-dropdown-container')) {
+        setOpenDropdownId(null);
+        setOpenTempCodeDropdownId(null);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
@@ -112,6 +130,8 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
   // States for custom searchable dropdowns in the item table
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [dropdownSearchQueries, setDropdownSearchQueries] = useState<Record<string, string>>({});
+  const [openTempCodeDropdownId, setOpenTempCodeDropdownId] = useState<string | null>(null);
+  const [tempCodeSearchQueries, setTempCodeSearchQueries] = useState<Record<string, string>>({});
   const [itemMetadataFields, setItemMetadataFields] = useState<any[]>([]);
 
   const isFieldActive = (fieldName: string) => {
@@ -156,12 +176,12 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
       poQuantity: '',
       shipmentPreference: '',
       warehouseLocation: 'Head Office',
-      lineItems: [{ itemId: '', itemName: '', tempCode: '', description: '', package: '', loaSerialNo: '', circle: '', unit: '', account: '', quantity: 1, rate: 0 }],
+      lineItems: [{ itemId: '', itemName: '', tempCode: '', description: '', hsnCode: '', package: '', loaSerialNo: '', circle: '', unit: '', account: '', quantity: 1, rate: 0 }],
       notes: '',
       termsConditions: '',
-      paymentTermStage: '',
-      paymentTermType: '',
-      paymentTermAmount: '',
+      package: '',
+      circle: '',
+      paymentTerms: [{ stage: '', type: '', value: '', unit: '%' }, { stage: '', type: '', value: '', unit: '%' }, { stage: '', type: '', value: '', unit: '%' }],
       discountPercentage: 0,
       taxType: 'TDS',
       taxPercentage: 0,
@@ -172,6 +192,7 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
       cgstPercentage: 9,
       sgstPercentage: 9,
       igstPercentage: 0,
+      gstTreatment: 'intra_state',
     }
   });
 
@@ -215,7 +236,13 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
   const lineItems = useWatch({ control, name: 'lineItems' });
   const discountPercentage = useWatch({ control, name: 'discountPercentage' }) || 0;
   const taxPercentage = useWatch({ control, name: 'taxPercentage' }) || 0;
+  const taxType = useWatch({ control, name: 'taxType' }) || 'TDS';
   const adjustment = useWatch({ control, name: 'adjustment' }) || 0;
+  const selectedPackage = useWatch({ control, name: 'package' });
+
+  useEffect(() => {
+    setValue('circle', '');
+  }, [selectedPackage, setValue]);
 
   const freightInsuranceType = useWatch({ control, name: 'freightInsuranceType' });
   const freightInsuranceValueType = useWatch({ control, name: 'freightInsuranceValueType' });
@@ -223,9 +250,7 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
   const cgstPercentage = useWatch({ control, name: 'cgstPercentage' }) || 9;
   const sgstPercentage = useWatch({ control, name: 'sgstPercentage' }) || 9;
   const igstPercentage = useWatch({ control, name: 'igstPercentage' }) || 0;
-
-  const paymentTermStage = useWatch({ control, name: 'paymentTermStage' });
-  const paymentTermType = useWatch({ control, name: 'paymentTermType' });
+  const gstTreatment = useWatch({ control, name: 'gstTreatment' }) || 'intra_state';
 
   const currentLocation = useWatch({ control, name: 'location' });
   const deliveryAddressId = useWatch({ control, name: 'deliveryAddressId' });
@@ -281,6 +306,12 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
       setVendorsList(data.vendors || data.items || []);
     }).catch(err => console.error('Failed to fetch vendors:', err));
 
+    getBillingCompanies().then(res => {
+      if (res.success) {
+        setBillingCompaniesList(res.data);
+      }
+    }).catch(err => console.error('Failed to fetch billing companies:', err));
+
     // Fetch next sequential PO Number if not in edit mode
     if (!initialData && !cloneId) {
       getNextPurchaseOrderNumber().then(res => {
@@ -295,12 +326,23 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
     }
   }, []);
 
-  // Ensure vendorName is synced after vendors list loads
+  // Ensure vendorName and billingCompanyId are synced after lists load
   useEffect(() => {
     if (vendorsList.length > 0 && initialData?.vendorName) {
       setValue('vendorName', initialData.vendorName);
     }
   }, [vendorsList, initialData, setValue]);
+
+  useEffect(() => {
+    if (billingCompaniesList.length > 0 && initialData?.billingCompany?.name) {
+      const match = billingCompaniesList.find(c => c.name === initialData.billingCompany.name);
+      if (match) {
+        setValue('billingCompanyId', match._id);
+      } else {
+        setValue('billingCompanyId', 'legacy');
+      }
+    }
+  }, [billingCompaniesList, initialData, setValue]);
 
   // Calculations
   const subTotal = lineItems.reduce((acc, item) => acc + (Number(item.quantity || 0) * Number(item.rate || 0)), 0);
@@ -316,12 +358,14 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
   }
 
   const taxableAmountForGst = subTotal - discountAmount + freightAmount;
-  const cgstAmountVal = (taxableAmountForGst * Number(cgstPercentage)) / 100;
-  const sgstAmountVal = (taxableAmountForGst * Number(sgstPercentage)) / 100;
-  const igstAmountVal = (taxableAmountForGst * Number(igstPercentage)) / 100;
+  const isIntraState = gstTreatment === 'intra_state';
+  const cgstAmountVal = isIntraState ? (taxableAmountForGst * Number(cgstPercentage)) / 100 : 0;
+  const sgstAmountVal = isIntraState ? (taxableAmountForGst * Number(sgstPercentage)) / 100 : 0;
+  const igstAmountVal = !isIntraState ? (taxableAmountForGst * Number(igstPercentage)) / 100 : 0;
 
   const taxAmount = ((subTotal - discountAmount) * taxPercentage) / 100; // TDS/TCS
-  const total = subTotal - discountAmount + freightAmount + cgstAmountVal + sgstAmountVal + igstAmountVal - taxAmount + Number(adjustment);
+  const taxAmountValue = taxType === 'TCS' ? taxAmount : -taxAmount;
+  const total = subTotal - discountAmount + freightAmount + cgstAmountVal + sgstAmountVal + igstAmountVal + taxAmountValue + Number(adjustment);
 
   const handleSaveNewAddress = async () => {
     try {
@@ -378,16 +422,39 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
 
       let payloadToSubmit: any;
 
+      const selectedBillingCompany = billingCompaniesList.find(c => c._id === data.billingCompanyId);
+      const billingCompanySnapshot = selectedBillingCompany ? {
+        name: selectedBillingCompany.name,
+        address: selectedBillingCompany.address,
+        phone: selectedBillingCompany.phone,
+        email: selectedBillingCompany.email,
+        logoUrl: selectedBillingCompany.logoUrl
+      } : undefined;
+
+      const isIntraState = data.gstTreatment === 'intra_state';
+      const submitCgst = isIntraState ? (Number(data.cgstPercentage) || 9) : 0;
+      const submitSgst = isIntraState ? (Number(data.sgstPercentage) || 9) : 0;
+      const submitIgst = !isIntraState ? (Number(data.igstPercentage) || 0) : 0;
+
       if (files.length > 0) {
         const formData = new FormData();
         // Append all text fields
         Object.keys(data).forEach(key => {
           if (key === 'lineItems') {
             formData.append('lineItems', JSON.stringify(processedLineItems));
+          } else if (key === 'cgstPercentage') {
+            formData.append('cgstPercentage', String(submitCgst));
+          } else if (key === 'sgstPercentage') {
+            formData.append('sgstPercentage', String(submitSgst));
+          } else if (key === 'igstPercentage') {
+            formData.append('igstPercentage', String(submitIgst));
           } else {
             formData.append(key, (data as any)[key]);
           }
         });
+        if (billingCompanySnapshot) {
+          formData.append('billingCompany', JSON.stringify(billingCompanySnapshot));
+        }
         formData.append('status', status);
 
         // Append files
@@ -398,23 +465,17 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
       } else {
         const payload: any = {
           ...data,
-          cgstPercentage: Number(data.cgstPercentage) || 9,
-          sgstPercentage: Number(data.sgstPercentage) || 9,
-          igstPercentage: Number(data.igstPercentage) || 0,
+          cgstPercentage: submitCgst,
+          sgstPercentage: submitSgst,
+          igstPercentage: submitIgst,
           lineItems: processedLineItems,
+          billingCompany: billingCompanySnapshot,
           status
         };
         if (!payload.deliveryDate) {
           delete payload.deliveryDate;
         }
         payloadToSubmit = payload;
-      }
-
-      // If we are using FormData, we must also ensure they are set
-      if (payloadToSubmit instanceof FormData) {
-        if (!payloadToSubmit.has('cgstPercentage')) payloadToSubmit.append('cgstPercentage', '9');
-        if (!payloadToSubmit.has('sgstPercentage')) payloadToSubmit.append('sgstPercentage', '9');
-        if (!payloadToSubmit.has('igstPercentage')) payloadToSubmit.append('igstPercentage', '0');
       }
 
       if (orderId) {
@@ -451,6 +512,7 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
           itemName: getVal('name') || getVal('itemDescription') || 'Item',
           tempCode: getVal('tempCode') || getVal('sku') || getVal('itemCode') || '',
           description: getVal('description') || getVal('itemDescription') || '',
+          hsnCode: getVal('hsnCode') || getVal('hsn') || '',
           package: getVal('package') || '',
           loaSerialNo: getVal('loaSerialNo') || getVal('loaSerialNumber') || getVal('LOA Serial No.') || getVal('loa') || '',
           circle: getVal('circle') || '',
@@ -483,27 +545,35 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
   };
 
   return (
-    <form className="flex flex-col h-full bg-white relative">
+    <form className="flex flex-col h-full bg-[#f4f7fb] relative">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
-        <div className="flex items-center gap-2">
-          <ShoppingBag className="w-5 h-5 text-slate-700" />
-          <h1 className="text-xl font-bold text-slate-800">{orderId ? 'Edit Purchase Order' : 'New Purchase Order'}</h1>
+      <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-slate-200 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
+            <ShoppingBag className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-slate-800">{orderId ? 'Edit Purchase Order' : 'New Purchase Order'}</h1>
+            <p className="text-sm text-slate-500">Create a new purchase order for your vendor</p>
+          </div>
         </div>
-        <Link href="/purchases/orders" className="p-2 hover:bg-slate-100 rounded-md transition-colors">
+        <Link href="/purchases/orders" className="p-2 border border-slate-200 hover:bg-slate-50 rounded-md transition-colors">
           <X className="w-5 h-5 text-slate-500" />
         </Link>
       </div>
 
       {/* Main Form Content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-6xl mx-auto p-8 flex flex-col gap-10">
+        <div className="max-w-[1400px] mx-auto p-6 flex flex-col gap-6">
 
           {/* Top Form Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-20 gap-y-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-            {/* Left Column */}
-            <div className="space-y-6">
+            {/* Vendor & Delivery Card */}
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-6">
+              <h2 className="text-blue-600 font-semibold mb-6 flex items-center gap-2">
+                <ShoppingBag className="w-4 h-4" /> Vendor & Delivery
+              </h2>
               {/* Vendor Name */}
               <div className="grid grid-cols-[160px_24px_1fr] items-start gap-4 pt-1">
                 <label className="text-sm font-semibold text-red-500 mt-2">
@@ -622,6 +692,20 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                     </div>
                   )}
                 </div>
+              </div>
+
+              <div className="grid grid-cols-[160px_24px_1fr] items-center gap-4">
+                <label className="text-sm font-semibold text-slate-800">Billing From</label>
+                <div className="col-span-1"></div>
+                <select {...register('billingCompanyId')} className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white">
+                  <option value="">Select Billing Company</option>
+                  {billingCompaniesList.map(c => (
+                    <option key={c._id} value={c._id}>{c.name}</option>
+                  ))}
+                  {initialData?.billingCompany && !billingCompaniesList.find(c => c.name === initialData.billingCompany.name) && (
+                    <option value="legacy" disabled>{initialData.billingCompany.name}</option>
+                  )}
+                </select>
               </div>
 
               <div className="grid grid-cols-[160px_24px_1fr] items-center gap-4">
@@ -753,8 +837,11 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
               </div>
             </div>
 
-            {/* Right Column */}
-            <div className="space-y-6">
+            {/* Purchase Information Card */}
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-6">
+              <h2 className="text-blue-600 font-semibold mb-6 flex items-center gap-2">
+                <Settings className="w-4 h-4" /> Purchase Information
+              </h2>
               {/* Purchase Order Number */}
               <div className="grid grid-cols-[150px_1fr] items-center gap-4">
                 <label className="text-sm font-semibold text-red-500">Purchase Order#*</label>
@@ -789,11 +876,7 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                 <input type="date" {...register('deliveryDate')} className="w-full sm:w-[50%] border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white" />
               </div>
 
-              {/* PO Quantity */}
-              <div className="grid grid-cols-[150px_1fr] items-center gap-4">
-                <label className="text-sm font-semibold text-slate-800">PO Quantity</label>
-                <input type="text" {...register('poQuantity')} className="w-full sm:w-[50%] border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white" />
-              </div>
+             
 
               {/* Shipment Preference */}
               <div className="grid grid-cols-[150px_1fr] items-center gap-4">
@@ -805,36 +888,69 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                 </select>
               </div>
 
+              {/* Package */}
+              <div className="grid grid-cols-[150px_1fr] items-center gap-4">
+                <label className="text-sm font-semibold text-slate-800">Package</label>
+                <select {...register('package')} className="w-full sm:w-[50%] border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-500 focus:outline-none focus:border-blue-500 bg-white">
+                  <option value="">Select Package</option>
+                  <option value="Package 1 (S/N)">Package 1 (S/N)</option>
+                  <option value="Package 2 (R/R)">Package 2 (R/R)</option>
+                </select>
+              </div>
+
+              {/* Circle */}
+              <div className="grid grid-cols-[150px_1fr] items-center gap-4">
+                <label className="text-sm font-semibold text-slate-800">Circle</label>
+                <select {...register('circle')} className="w-full sm:w-[50%] border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-500 focus:outline-none focus:border-blue-500 bg-white" disabled={!selectedPackage}>
+                  <option value="">Select Circle</option>
+                  {selectedPackage === 'Package 1 (S/N)' && (
+                    <>
+                      <option value="Solan">Solan</option>
+                      <option value="Nahan">Nahan</option>
+                    </>
+                  )}
+                  {selectedPackage === 'Package 2 (R/R)' && (
+                    <>
+                      <option value="Rampur">Rampur</option>
+                      <option value="Rohru">Rohru</option>
+                    </>
+                  )}
+                </select>
+              </div>
+
             </div>
           </div>
 
-          <hr className="border-slate-200 border-dashed my-4" />
-
           {/* Item Table Section */}
-          <div className="space-y-4">
-
-            <div className="border border-slate-200 rounded-lg overflow-visible">
-              <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200 rounded-t-lg">
-                <h3 className="font-semibold text-slate-800">Item Table</h3>
-                <button type="button" className="text-[#3b82f6] text-[13px] font-medium flex items-center gap-1 hover:underline">
-                  <Settings className="w-3.5 h-3.5" /> Bulk Actions
+          <div className="bg-white border border-slate-200 rounded-xl shadow-sm space-y-4">
+            
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+              <h3 className="text-lg font-bold text-slate-800">Item Details</h3>
+              <div className="flex items-center gap-4">
+                <button type="button" className="text-[#3b82f6] text-sm font-medium flex items-center gap-1 hover:underline">
+                  <Settings className="w-4 h-4" /> Bulk Actions
+                </button>
+                <button type="button" className="text-[#3b82f6] text-sm font-medium flex items-center gap-1 hover:underline">
+                  <FileUp className="w-4 h-4" /> Import Items
                 </button>
               </div>
-              <table className="w-full text-sm text-left table-fixed">
+            </div>
+
+            <div className="overflow-visible px-6 pb-6">
+              <table className="w-full text-sm text-left table-fixed min-w-[1000px]">
                 <thead className="bg-[#fcfdff] border-y border-slate-200/80 text-[11px] font-bold text-[#5e7790] uppercase tracking-wider">
                   <tr>
                     <th className="px-4 py-2 w-12 text-center">SR.NO</th>
-                    {isFieldActive('tempCode') && <th className="px-4 py-2 w-[12%]">TEMP CODE</th>}
-                    {isFieldActive('description') && <th className="px-4 py-2 w-[15%]">DESCRIPTION</th>}
-                    <th className="px-4 py-2 w-[15%]">NAME</th>
-                    {isFieldActive('package') && <th className="px-4 py-2 w-[8%]">PACKAGE</th>}
-                    {isFieldActive('loaSerialNo') && <th className="px-4 py-2 w-[8%]">LOA SERIAL NO.</th>}
-                    {isFieldActive('circle') && <th className="px-4 py-2 w-[8%]">CIRCLE</th>}
-                    {isFieldActive('unit') && <th className="px-4 py-2 w-[8%]">UNIT</th>}
-                    <th className="px-4 py-2 text-right w-[8%]">QUANTITY</th>
-                    <th className="px-4 py-2 text-right w-[8%]">RATE</th>
-                    <th className="px-4 py-2 text-right w-[8%]">AMOUNT</th>
-                    <th className="px-2 py-2 w-8"></th>
+                    {isFieldActive('tempCode') && <th className="px-4 py-2 w-[10%] min-w-[100px]">TEMP CODE</th>}
+                    {isFieldActive('description') && <th className="px-4 py-2 w-[12%] min-w-[120px]">DESCRIPTION</th>}
+                    <th className="px-4 py-2 w-[10%] min-w-[100px]">HSN CODE</th>
+                    <th className="px-4 py-2 w-[14%] min-w-[140px]">NAME</th>
+                    <th className="px-4 py-2 w-[8%] min-w-[80px]">PACKAGE</th>
+                    <th className="px-4 py-2 w-[8%] min-w-[80px]">CIRCLE</th>
+                    <th className="px-4 py-2 text-right w-[8%] min-w-[80px]">QUANTITY</th>
+                    <th className="px-4 py-2 text-right w-[10%] min-w-[100px]">RATE</th>
+                    <th className="px-4 py-2 text-right w-[10%] min-w-[100px]">AMOUNT</th>
+                    <th className="px-2 py-2 w-10"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -842,24 +958,119 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                     <tr key={field.id} className="bg-white hover:bg-slate-50 transition-colors last:[&>td:first-child]:rounded-bl-lg last:[&>td:last-child]:rounded-br-lg">
                       <td className="px-4 py-4 text-center text-[#5e7790] text-[13px]">{index + 1}</td>
                       {isFieldActive('tempCode') && (
-                        <td className="px-4 py-4 text-[#5e7790] text-[13px]">
-                          <input type="text" defaultValue={field.tempCode} {...register(`lineItems.${index}.tempCode`)} className="w-full bg-transparent border-none focus:outline-none text-[#5e7790] pointer-events-none" readOnly placeholder="0" />
+                        <td className="px-4 py-4 relative item-dropdown-container">
+                          <div className="relative w-full flex items-center border-b border-dashed border-slate-400 pb-1">
+                            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-0" />
+                            <input
+                              type="text"
+                              placeholder="Search code..."
+                              className="w-full bg-transparent pl-5 text-[13px] text-[#334155] focus:outline-none cursor-text"
+                              value={tempCodeSearchQueries[field.id] !== undefined ? tempCodeSearchQueries[field.id] : (lineItems[index]?.tempCode || '')}
+                              onChange={(e) => {
+                                setTempCodeSearchQueries(prev => ({ ...prev, [field.id]: e.target.value }));
+                                if (openTempCodeDropdownId !== field.id) setOpenTempCodeDropdownId(field.id);
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (openTempCodeDropdownId !== field.id) setOpenTempCodeDropdownId(field.id);
+                              }}
+                            />
+                            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-0 pointer-events-none" />
+                          </div>
+
+                          {openTempCodeDropdownId === field.id && (
+                            <div
+                              className="absolute left-0 top-full mt-1 w-[300px] bg-white border border-slate-200 shadow-xl rounded-md z-50 overflow-hidden"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="max-h-60 overflow-y-auto py-1">
+                                {itemsList
+                                  .filter(item => {
+                                  const inputValue = tempCodeSearchQueries[field.id] !== undefined ? tempCodeSearchQueries[field.id] : (lineItems[index]?.tempCode || '');
+                                  const sq = String(inputValue).toLowerCase();
+                                  const tempCodeStr = String(item.dynamicData?.tempCode || '').toLowerCase();
+                                  return tempCodeStr.includes(sq);
+                                  })
+                                  .map(item => (
+                                    <div
+                                      key={item._id}
+                                      className="px-3 py-2 hover:bg-blue-50 cursor-pointer flex flex-col transition-colors"
+                                      onClick={() => {
+                                        const d = item.dynamicData || {};
+                                        const getVal = (key: string) => {
+                                          if (d[key] !== undefined) return d[key];
+                                          const lowerKey = key.toLowerCase();
+                                          const foundKey = Object.keys(d).find(k => k.toLowerCase() === lowerKey);
+                                          return foundKey ? d[foundKey] : '';
+                                        };
+
+                                        update(index, {
+                                          ...lineItems[index],
+                                          itemId: item._id,
+                                          itemName: getVal('name') || getVal('itemDescription') || 'Item',
+                                          tempCode: getVal('tempCode') || getVal('sku') || getVal('itemCode') || '',
+                                          description: getVal('description') || getVal('itemDescription') || '',
+                                          hsnCode: getVal('hsnCode') || getVal('hsn') || '',
+                                          package: getVal('package') || '',
+                                          loaSerialNo: getVal('loaSerialNo') || getVal('loaSerialNumber') || getVal('LOA Serial No.') || getVal('loa') || '',
+                                          circle: getVal('circle') || '',
+                                          unit: getVal('unit') || '',
+                                          rate: getVal('price') || getVal('costPrice') || getVal('sellingPrice') || 0
+                                        });
+                                        setOpenTempCodeDropdownId(null);
+                                        setTempCodeSearchQueries(prev => {
+                                          const newQueries = { ...prev };
+                                          delete newQueries[field.id];
+                                          return newQueries;
+                                        });
+                                      }}
+                                    >
+                                      <span className="text-sm text-slate-800 font-medium">{item.dynamicData?.name || item.dynamicData?.itemDescription || 'Unnamed Item'}</span>
+                                      <span className="text-[10px] text-slate-500">Code: {item.dynamicData?.tempCode || item.dynamicData?.sku || '--'} | Price: {(item.dynamicData?.price || item.dynamicData?.costPrice || 0).toFixed(2)}</span>
+                                    </div>
+                                  ))}
+                                {itemsList.filter(item => {
+                                  const inputValue = tempCodeSearchQueries[field.id] !== undefined ? tempCodeSearchQueries[field.id] : (lineItems[index]?.tempCode || '');
+                                  const sq = String(inputValue).toLowerCase();
+                                  const tempCodeStr = String(item.dynamicData?.tempCode || '').toLowerCase();
+                                  return tempCodeStr.includes(sq);
+                                }).length === 0 && (
+                                    <div className="px-3 py-3 text-xs text-slate-500 text-center">No items found</div>
+                                  )}
+                              </div>
+                            </div>
+                          )}
                         </td>
                       )}
                       {isFieldActive('description') && (
-                        <td className="px-4 py-4">
-                          <input type="text" defaultValue={field.description} {...register(`lineItems.${index}.description`)} className="w-full bg-transparent border-none focus:outline-none text-[#5e7790] text-[13px] pointer-events-none" placeholder="--" />
+                        <td className="px-4 py-4 align-top">
+                          <input type="hidden" {...register(`lineItems.${index}.description`)} />
+                          <div className="w-full text-[#5e7790] text-[13px] break-words whitespace-pre-wrap min-h-[20px]">
+                            {lineItems[index]?.description || '--'}
+                          </div>
                         </td>
                       )}
-                      <td className="px-4 py-4 relative">
-                        <div
-                          className="w-full border-b border-dashed border-slate-400 pb-1 cursor-pointer flex justify-between items-center"
-                          onClick={(e) => { e.stopPropagation(); setOpenDropdownId(openDropdownId === field.id ? null : field.id); }}
-                        >
-                          <span className="text-[#334155] truncate w-[90%] text-[13px]">
-                            {lineItems[index]?.itemName || 'Select an item...'}
-                          </span>
-                          <ChevronDown className="w-4 h-4 text-slate-400" />
+                      <td className="px-4 py-4">
+                        <input type="text" defaultValue={field.hsnCode} {...register(`lineItems.${index}.hsnCode`)} className="w-full bg-transparent border-b border-dashed border-slate-300 focus:outline-none text-[#334155] text-[13px]" placeholder="HSN Code" />
+                      </td>
+                      <td className="px-4 py-4 relative item-dropdown-container">
+                        <div className="relative w-full flex items-center border-b border-dashed border-slate-400 pb-1">
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-0" />
+                          <input
+                            type="text"
+                            placeholder="Search by name or code..."
+                            className="w-full bg-transparent pl-5 text-[13px] text-[#334155] focus:outline-none cursor-text"
+                            value={dropdownSearchQueries[field.id] !== undefined ? dropdownSearchQueries[field.id] : (lineItems[index]?.itemName || '')}
+                            onChange={(e) => {
+                              setDropdownSearchQueries(prev => ({ ...prev, [field.id]: e.target.value }));
+                              if (openDropdownId !== field.id) setOpenDropdownId(field.id);
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (openDropdownId !== field.id) setOpenDropdownId(field.id);
+                            }}
+                          />
+                          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-0 pointer-events-none" />
                         </div>
 
                         {openDropdownId === field.id && (
@@ -867,26 +1078,13 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                             className="absolute left-0 top-full mt-1 w-[300px] bg-white border border-slate-200 shadow-xl rounded-md z-50 overflow-hidden"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <div className="p-2 border-b border-slate-100 bg-slate-50 sticky top-0">
-                              <div className="relative">
-                                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                                <input
-                                  type="text"
-                                  placeholder="Search item..."
-                                  className="w-full border border-slate-200 rounded-md pl-9 pr-3 py-1.5 text-sm focus:outline-none focus:border-blue-500"
-                                  value={dropdownSearchQueries[field.id] || ''}
-                                  onChange={(e) => setDropdownSearchQueries(prev => ({ ...prev, [field.id]: e.target.value }))}
-                                  autoFocus
-                                />
-                              </div>
-                            </div>
                             <div className="max-h-60 overflow-y-auto py-1">
                               {itemsList
                                 .filter(item => {
-                                  const sq = (dropdownSearchQueries[field.id] || '').toLowerCase();
+                                  const inputValue = dropdownSearchQueries[field.id] !== undefined ? dropdownSearchQueries[field.id] : (lineItems[index]?.itemName || '');
+                                  const sq = String(inputValue).toLowerCase();
                                   const name = String(item.dynamicData?.name || item.dynamicData?.itemDescription || '').toLowerCase();
-                                  const sku = String(item.dynamicData?.sku || item.dynamicData?.tempCode || '').toLowerCase();
-                                  return name.includes(sq) || sku.includes(sq);
+                                  return name.includes(sq);
                                 })
                                 .map(item => (
                                   <div
@@ -907,6 +1105,7 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                                         itemName: getVal('name') || getVal('itemDescription') || 'Item',
                                         tempCode: getVal('tempCode') || getVal('sku') || getVal('itemCode') || '',
                                         description: getVal('description') || getVal('itemDescription') || '',
+                                        hsnCode: getVal('hsnCode') || getVal('hsn') || '',
                                         package: getVal('package') || '',
                                         loaSerialNo: getVal('loaSerialNo') || getVal('loaSerialNumber') || getVal('LOA Serial No.') || getVal('loa') || '',
                                         circle: getVal('circle') || '',
@@ -914,7 +1113,11 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                                         rate: getVal('price') || getVal('costPrice') || getVal('sellingPrice') || 0
                                       });
                                       setOpenDropdownId(null);
-                                      setDropdownSearchQueries(prev => ({ ...prev, [field.id]: '' }));
+                                      setDropdownSearchQueries(prev => {
+                                        const newQueries = { ...prev };
+                                        delete newQueries[field.id];
+                                        return newQueries;
+                                      });
                                     }}
                                   >
                                     <span className="text-sm text-slate-800 font-medium">{item.dynamicData?.name || item.dynamicData?.itemDescription || 'Unnamed Item'}</span>
@@ -922,7 +1125,8 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                                   </div>
                                 ))}
                               {itemsList.filter(item => {
-                                const sq = (dropdownSearchQueries[field.id] || '').toLowerCase();
+                                const inputValue = dropdownSearchQueries[field.id] !== undefined ? dropdownSearchQueries[field.id] : (lineItems[index]?.itemName || '');
+                                const sq = String(inputValue).toLowerCase();
                                 const name = String(item.dynamicData?.name || item.dynamicData?.itemDescription || '').toLowerCase();
                                 return name.includes(sq);
                               }).length === 0 && (
@@ -932,26 +1136,12 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                           </div>
                         )}
                       </td>
-                      {isFieldActive('package') && (
-                        <td className="px-4 py-4 text-[#5e7790] text-[13px]">
-                          <input type="text" defaultValue={field.package} {...register(`lineItems.${index}.package`)} className="w-full bg-transparent border-none focus:outline-none text-[#5e7790] pointer-events-none" placeholder="--" />
-                        </td>
-                      )}
-                      {isFieldActive('loaSerialNo') && (
-                        <td className="px-4 py-4 text-[#5e7790] text-[13px]">
-                          <input type="text" defaultValue={field.loaSerialNo} {...register(`lineItems.${index}.loaSerialNo`)} className="w-full bg-transparent border-none focus:outline-none text-[#5e7790] pointer-events-none" placeholder="--" />
-                        </td>
-                      )}
-                      {isFieldActive('circle') && (
-                        <td className="px-4 py-4 text-[#5e7790] text-[13px]">
-                          <input type="text" defaultValue={field.circle} {...register(`lineItems.${index}.circle`)} className="w-full bg-transparent border-none focus:outline-none text-[#5e7790] pointer-events-none" placeholder="--" />
-                        </td>
-                      )}
-                      {isFieldActive('unit') && (
-                        <td className="px-4 py-4 text-[#5e7790] text-[13px]">
-                          <input type="text" defaultValue={field.unit} {...register(`lineItems.${index}.unit`)} className="w-full bg-transparent border-none focus:outline-none text-[#5e7790] pointer-events-none" placeholder="--" />
-                        </td>
-                      )}
+                      <td className="px-4 py-4 text-[#5e7790] text-[13px]">
+                        <input type="text" defaultValue={field.package} {...register(`lineItems.${index}.package`)} className="w-full bg-transparent border-none focus:outline-none text-[#5e7790] pointer-events-none" placeholder="--" />
+                      </td>
+                      <td className="px-4 py-4 text-[#5e7790] text-[13px]">
+                        <input type="text" defaultValue={field.circle} {...register(`lineItems.${index}.circle`)} className="w-full bg-transparent border-none focus:outline-none text-[#5e7790] pointer-events-none" placeholder="--" />
+                      </td>
                       <td className="px-4 py-4">
                         <input
                           type="number"
@@ -960,15 +1150,21 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                           className="w-full text-right border border-slate-200 rounded px-3 py-1.5 focus:outline-none focus:border-blue-500 text-[13px] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none shadow-sm"
                         />
                       </td>
-                      <td className="px-4 py-4">
-                        <input
-                          type="number"
-                          step="any"
+                      <td className="px-4 py-4 align-top">
+                        <textarea
                           {...register(`lineItems.${index}.rate`)}
-                          className="w-full text-right border border-slate-200 rounded px-3 py-1.5 focus:outline-none focus:border-blue-500 text-[13px] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none shadow-sm"
+                          className="w-full text-right border border-slate-200 rounded px-3 py-1.5 focus:outline-none focus:border-blue-500 text-[13px] resize-none overflow-hidden min-h-[34px] break-all leading-tight shadow-sm"
+                          rows={1}
+                          onInput={(e) => {
+                            e.currentTarget.style.height = '34px';
+                            e.currentTarget.style.height = e.currentTarget.scrollHeight + 'px';
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') e.preventDefault();
+                          }}
                         />
                       </td>
-                      <td className="px-4 py-4 text-right font-medium text-slate-800 text-[13px]">
+                      <td className="px-4 py-4 text-right font-medium text-slate-800 text-[13px] overflow-hidden text-ellipsis whitespace-nowrap" title={((Number(lineItems[index]?.quantity) || 0) * (Number(lineItems[index]?.rate) || 0)).toFixed(2)}>
                         {((Number(lineItems[index]?.quantity) || 0) * (Number(lineItems[index]?.rate) || 0)).toFixed(2)}
                       </td>
                       <td className="px-2 py-4 text-center">
@@ -983,7 +1179,7 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
             </div>
 
             <div className="flex gap-4">
-              <button type="button" onClick={() => append({ itemId: '', itemName: '', tempCode: '', description: '', package: '', loaSerialNo: '', circle: '', unit: '', account: '', quantity: 1, rate: 0 })} className="flex items-center gap-1.5 text-sm font-medium text-[#3b82f6] bg-white border border-[#bfdbfe] px-3.5 py-1.5 rounded-md hover:bg-blue-50 transition-colors shadow-sm">
+              <button type="button" onClick={() => append({ itemId: '', itemName: '', tempCode: '', description: '', hsnCode: '', package: '', loaSerialNo: '', circle: '', unit: '', account: '', quantity: 1, rate: 0 })} className="flex items-center gap-1.5 text-sm font-medium text-[#3b82f6] bg-white border border-[#bfdbfe] px-3.5 py-1.5 rounded-md hover:bg-blue-50 transition-colors shadow-sm">
                 <Plus className="w-4 h-4" /> Add New Row <ChevronDown className="w-3 h-3 ml-1" />
               </button>
               <button type="button" onClick={() => setIsBulkModalOpen(true)} className="flex items-center gap-1.5 text-sm font-medium text-[#3b82f6] bg-white border border-[#bfdbfe] px-3.5 py-1.5 rounded-md hover:bg-blue-50 transition-colors shadow-sm">
@@ -992,224 +1188,225 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
             </div>
           </div>
 
-          {/* Bottom Section (Calculations & Notes) */}
-          <div className="flex flex-col lg:flex-row gap-12 pt-6">
-
-            {/* Left side: Notes & Terms */}
-            <div className="flex-1 space-y-6">
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-800">Notes</label>
-                <textarea
-                  {...register('notes')}
-                  rows={3}
-                  placeholder="Will be displayed on purchase order"
-                  className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 resize-none"
-                />
+          {/* Bottom Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
+            
+            {/* Left Card: Tabs */}
+            <div className="bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col min-h-[350px]">
+              <div className="flex items-center gap-6 px-6 pt-4 border-b border-slate-200">
+                <button type="button" onClick={() => setActiveTab('notes')} className={`pb-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'notes' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+                  Notes
+                </button>
+                <button type="button" onClick={() => setActiveTab('terms')} className={`pb-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'terms' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+                  Terms & Conditions
+                </button>
+                <button type="button" onClick={() => setActiveTab('attachments')} className={`pb-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'attachments' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+                  Attachments
+                </button>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-800">Terms & Conditions</label>
-                <textarea
-                  {...register('termsConditions')}
-                  rows={4}
-                  placeholder="Enter the terms and conditions of your business to be displayed in your transaction"
-                  className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 resize-none"
-                />
-              </div>
-
-              <div className="space-y-3 pt-4 border-t border-slate-100">
-                <label className="text-sm font-semibold text-slate-800">Payment Terms</label>
-
-                <div className="relative">
-                  <select
-                    {...register('paymentTermStage')}
-                    className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 appearance-none bg-white cursor-pointer"
-                  >
-                    <option value="">Select Payment Stage</option>
-                    <option value="1st stage">1st stage</option>
-                    <option value="2nd stage">2nd stage</option>
-                    <option value="3rd stage">3rd stage</option>
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-
-                {paymentTermStage && (
-                  <div className="relative animate-in fade-in slide-in-from-top-2 duration-200">
-                    <select
-                      {...register('paymentTermType')}
-                      className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 appearance-none bg-white cursor-pointer"
-                    >
-                      <option value="">Select Payment Type</option>
-                      <option value="Advance">Advance</option>
-                      <option value="Adhoc">Adhoc</option>
-                      <option value="Before Advance">Before Advance</option>
-                      <option value="After Advance">After Advance</option>
-                    </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <div className="p-6 flex-1 flex flex-col">
+                {activeTab === 'notes' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
+                    <div className="flex flex-col h-full">
+                      <label className="text-sm font-semibold text-slate-800 mb-2">Notes</label>
+                      <textarea
+                        {...register('notes')}
+                        placeholder="Write additional notes or instructions..."
+                        className="w-full flex-1 min-h-[150px] border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 resize-none bg-slate-50"
+                      />
+                    </div>
+                    <div className="flex flex-col space-y-6 h-full">
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-slate-800">Payment Terms</label>
+                        <PaymentTermsWidget control={control} register={register} name="paymentTerms" />
+                      </div>
+                      
+                      <div className="flex flex-col flex-1 space-y-2">
+                        <label className="text-sm font-semibold text-slate-800">Internal Notes</label>
+                        <textarea
+                          placeholder="Add private notes for internal reference..."
+                          className="w-full flex-1 border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 resize-none bg-slate-50"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {activeTab === 'terms' && (
+                  <div className="flex flex-col h-full">
+                    <textarea
+                      {...register('termsConditions')}
+                      placeholder="Enter the terms and conditions..."
+                      className="w-full flex-1 min-h-[150px] border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 resize-none bg-slate-50"
+                    />
                   </div>
                 )}
 
-                {paymentTermStage && paymentTermType && (
-                  <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                {activeTab === 'attachments' && (
+                  <div className="flex flex-col h-full">
+                    {files.length > 0 && (
+                      <div className="mb-4 space-y-2 max-h-[150px] overflow-y-auto custom-scrollbar">
+                        {files.map((file, i) => (
+                          <div key={i} className="flex items-center justify-between bg-white border border-slate-200 px-3 py-2 rounded-md shadow-sm">
+                            <div className="flex items-center gap-2 overflow-hidden">
+                              <Paperclip className="w-4 h-4 text-blue-500 shrink-0" />
+                              <span className="text-xs text-slate-700 truncate">{file.name}</span>
+                            </div>
+                            <button type="button" onClick={() => removeFile(i)} className="text-slate-400 hover:text-red-500 transition-colors ml-2 shrink-0">
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     <input
-                      type="text"
-                      {...register('paymentTermAmount')}
-                      placeholder="Amount or Percentage (e.g., 50% or ₹1000)"
-                      className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500"
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileChange}
+                      className="hidden"
+                      multiple
                     />
+                    <div 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex-1 border-2 border-dashed border-slate-200 rounded-lg p-6 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer flex flex-col items-center justify-center min-h-[150px]"
+                    >
+                       <FileUp className="w-8 h-8 text-slate-400 mb-2" />
+                       <span className="text-sm font-medium text-slate-700">Click or drag files here to upload</span>
+                       <p className="text-xs text-slate-400 mt-1">Maximum 10 files, 10MB each</p>
+                    </div>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Right side: Totals & File Upload */}
-            <div className="w-full lg:w-[400px] space-y-8 bg-[#f8fafc] p-6 rounded-[12px] border border-slate-100">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
-                  <span className="text-sm font-semibold text-slate-800 w-40">Sub Total</span>
-                  <span className="text-sm font-bold text-slate-800 w-24 text-right">{subTotal.toFixed(2)}</span>
-                </div>
-
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-sm text-slate-600 w-40 shrink-0">Discount</span>
-                  <div className="flex-1 flex justify-end">
-                    <div className="flex items-center w-24 border border-slate-200 rounded-md overflow-hidden bg-white shadow-sm">
-                      <input type="number" {...register('discountPercentage')} className="w-full text-right px-2 py-1 text-sm focus:outline-none" />
-                      <span className="bg-slate-50 px-2 py-1 text-sm border-l border-slate-200 text-slate-500">%</span>
-                    </div>
-                  </div>
-                  <span className="text-sm font-semibold text-slate-800 w-24 text-right">{discountAmount.toFixed(2)}</span>
-                </div>
-
-                <div className="flex items-start justify-between gap-4">
-                  <span className="text-sm text-slate-600 w-40 shrink-0 pt-1">Freight & Insurance</span>
-                  <div className="flex-1 flex flex-col items-end gap-2">
-                    <select {...register('freightInsuranceType')} className="border border-slate-200 rounded-md px-2 py-1 text-sm text-slate-700 focus:outline-none w-28 bg-white shadow-sm">
-                      <option value="Inclusive">Inclusive</option>
-                      <option value="Exclusive">Exclusive</option>
-                    </select>
-                    {freightInsuranceType === 'Exclusive' && (
-                      <div className="flex items-center w-28 border border-slate-200 rounded-md overflow-hidden bg-white shadow-sm">
-                        <input type="number" {...register('freightInsuranceAmount')} className="w-full text-right px-2 py-1 text-sm focus:outline-none" />
-                        <select {...register('freightInsuranceValueType')} className="bg-slate-50 border-l border-slate-200 text-slate-500 text-sm focus:outline-none px-1 h-full py-1">
-                          <option value="Amount">₹</option>
-                          <option value="Percentage">%</option>
-                        </select>
-                      </div>
-                    )}
-                  </div>
-                  <span className="text-sm font-semibold text-slate-800 w-24 text-right pt-1">{freightInsuranceType === 'Exclusive' ? freightAmount.toFixed(2) : '0.00'}</span>
-                </div>
-
-                <div className="border border-slate-200 rounded-lg p-3 space-y-3 bg-white shadow-sm">
-                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block mb-1">GST Group</span>
-
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-sm text-slate-600 w-20 shrink-0">CGST</span>
-                    <div className="flex-1 flex justify-end">
-                      <div className="flex items-center w-20 border border-slate-200 rounded-md overflow-hidden bg-slate-50">
-                        <input type="number" readOnly {...register('cgstPercentage')} className="w-full text-right px-2 py-1 text-sm focus:outline-none bg-transparent" />
-                        <span className="bg-slate-100 px-2 py-1 text-sm border-l border-slate-200 text-slate-500">%</span>
-                      </div>
-                    </div>
-                    <span className="text-sm font-semibold text-slate-800 w-24 text-right">{cgstAmountVal.toFixed(2)}</span>
+            {/* Right Card: Order Summary */}
+            <div className="bg-[#f8fafc] border border-slate-200 rounded-xl shadow-sm p-6 flex flex-col justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 mb-6">Order Summary</h3>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-semibold text-slate-800 w-40 shrink-0">Sub Total</span>
+                    <span className="text-sm font-bold text-slate-800 text-right truncate pl-4" title={`₹ ${subTotal.toFixed(2)}`}>₹ {subTotal.toFixed(2)}</span>
                   </div>
 
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-sm text-slate-600 w-20 shrink-0">SGST</span>
+                    <span className="text-sm text-slate-600 w-40 shrink-0">Discount</span>
                     <div className="flex-1 flex justify-end">
-                      <div className="flex items-center w-20 border border-slate-200 rounded-md overflow-hidden bg-slate-50">
-                        <input type="number" readOnly {...register('sgstPercentage')} className="w-full text-right px-2 py-1 text-sm focus:outline-none bg-transparent" />
-                        <span className="bg-slate-100 px-2 py-1 text-sm border-l border-slate-200 text-slate-500">%</span>
-                      </div>
-                    </div>
-                    <span className="text-sm font-semibold text-slate-800 w-24 text-right">{sgstAmountVal.toFixed(2)}</span>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-sm text-slate-600 w-20 shrink-0">IGST</span>
-                    <div className="flex-1 flex justify-end">
-                      <div className="flex items-center w-20 border border-slate-200 rounded-md overflow-hidden bg-white shadow-sm">
-                        <input type="number" {...register('igstPercentage')} className="w-full text-right px-2 py-1 text-sm focus:outline-none" />
+                      <div className="flex items-center w-24 border border-slate-200 rounded-md overflow-hidden bg-white shadow-sm">
+                        <input type="number" {...register('discountPercentage')} className="w-full text-right px-2 py-1 text-sm focus:outline-none" />
                         <span className="bg-slate-50 px-2 py-1 text-sm border-l border-slate-200 text-slate-500">%</span>
                       </div>
                     </div>
-                    <span className="text-sm font-semibold text-slate-800 w-24 text-right">{igstAmountVal.toFixed(2)}</span>
+                    <span className="text-sm font-semibold text-slate-800 text-right w-28 shrink-0 truncate" title={`₹ ${discountAmount.toFixed(2)}`}>₹ {discountAmount.toFixed(2)}</span>
                   </div>
-                </div>
 
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3 w-40 shrink-0">
-                    <label className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 cursor-pointer">
-                      <input type="radio" value="TDS" {...register('taxType')} className="text-blue-500" /> TDS
-                    </label>
-                    <label className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 cursor-pointer">
-                      <input type="radio" value="TCS" {...register('taxType')} className="text-blue-500" /> TCS
-                    </label>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm text-slate-600 w-40 shrink-0">Freight & Insurance</span>
+                    <div className="flex-1 flex flex-col items-end gap-2">
+                      <select {...register('freightInsuranceType')} className="border border-slate-200 rounded-md px-2 py-1 text-sm text-slate-700 focus:outline-none w-24 bg-white shadow-sm">
+                        <option value="Inclusive">Inclusive</option>
+                        <option value="Exclusive">Exclusive</option>
+                      </select>
+                      {freightInsuranceType === 'Exclusive' && (
+                        <div className="flex items-center w-24 border border-slate-200 rounded-md overflow-hidden bg-white shadow-sm">
+                          <input type="number" {...register('freightInsuranceAmount')} className="w-full text-right px-2 py-1 text-sm focus:outline-none" />
+                          <select {...register('freightInsuranceValueType')} className="bg-slate-50 border-l border-slate-200 text-slate-500 text-sm focus:outline-none px-1 h-full py-1">
+                            <option value="Amount">₹</option>
+                            <option value="Percentage">%</option>
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-sm font-semibold text-slate-800 text-right w-28 shrink-0 truncate" title={`₹ ${freightInsuranceType === 'Exclusive' ? freightAmount.toFixed(2) : '0.00'}`}>₹ {freightInsuranceType === 'Exclusive' ? freightAmount.toFixed(2) : '0.00'}</span>
                   </div>
-                  <div className="flex-1 flex justify-end">
-                    <select {...register('taxPercentage')} className="border border-slate-200 rounded-md px-2 py-1 text-sm text-slate-700 focus:outline-none w-28 bg-white shadow-sm">
-                      <option value={0}>Select a Tax</option>
-                      <option value={5}>5%</option>
-                      <option value={10}>10%</option>
-                      <option value={18}>18%</option>
 
-                    </select>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm text-slate-600 w-40 shrink-0">GST Treatment</span>
+                    <div className="flex-1 flex justify-end">
+                      <select {...register('gstTreatment')} className="border border-slate-200 rounded-md px-2 py-1 text-sm text-slate-700 focus:outline-none w-32 bg-white shadow-sm">
+                        <option value="intra_state">Intra-State</option>
+                        <option value="inter_state">Inter-State</option>
+                      </select>
+                    </div>
                   </div>
-                  <span className="text-sm font-semibold text-slate-800 w-24 text-right">- {taxAmount.toFixed(2)}</span>
-                </div>
 
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-sm text-slate-600 border border-slate-200 border-dashed rounded-md px-2 py-1 bg-slate-50 w-24 text-center shrink-0">Adjustment</span>
-                  <div className="flex-1 flex justify-end">
-                    <input type="number" {...register('adjustment')} className="w-24 border border-slate-200 rounded-md px-2 py-1 text-sm text-right focus:outline-none bg-white shadow-sm" />
+                  {gstTreatment === 'intra_state' && (
+                    <>
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-sm text-slate-600 w-40 shrink-0">CGST</span>
+                        <div className="flex-1 flex justify-end">
+                          <div className="flex items-center w-24 border border-slate-200 rounded-md overflow-hidden bg-white shadow-sm">
+                            <input type="number" min="0" {...register('cgstPercentage')} className="w-full text-right px-2 py-1 text-sm focus:outline-none" />
+                            <span className="bg-slate-50 px-2 py-1 text-sm border-l border-slate-200 text-slate-500">%</span>
+                          </div>
+                        </div>
+                        <span className="text-sm font-semibold text-slate-800 text-right w-28 shrink-0 truncate" title={`₹ ${cgstAmountVal.toFixed(2)}`}>₹ {cgstAmountVal.toFixed(2)}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-sm text-slate-600 w-40 shrink-0">SGST</span>
+                        <div className="flex-1 flex justify-end">
+                          <div className="flex items-center w-24 border border-slate-200 rounded-md overflow-hidden bg-white shadow-sm">
+                            <input type="number" min="0" {...register('sgstPercentage')} className="w-full text-right px-2 py-1 text-sm focus:outline-none" />
+                            <span className="bg-slate-50 px-2 py-1 text-sm border-l border-slate-200 text-slate-500">%</span>
+                          </div>
+                        </div>
+                        <span className="text-sm font-semibold text-slate-800 text-right w-28 shrink-0 truncate" title={`₹ ${sgstAmountVal.toFixed(2)}`}>₹ {sgstAmountVal.toFixed(2)}</span>
+                      </div>
+                    </>
+                  )}
+                  
+                  {gstTreatment === 'inter_state' && (
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-sm text-slate-600 w-40 shrink-0">IGST</span>
+                      <div className="flex-1 flex justify-end">
+                        <div className="flex items-center w-24 border border-slate-200 rounded-md overflow-hidden bg-white shadow-sm">
+                          <input type="number" min="0" {...register('igstPercentage')} className="w-full text-right px-2 py-1 text-sm focus:outline-none" />
+                          <span className="bg-slate-50 px-2 py-1 text-sm border-l border-slate-200 text-slate-500">%</span>
+                        </div>
+                      </div>
+                      <span className="text-sm font-semibold text-slate-800 text-right w-28 shrink-0 truncate" title={`₹ ${igstAmountVal.toFixed(2)}`}>₹ {igstAmountVal.toFixed(2)}</span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2 w-40 shrink-0">
+                      <label className="text-sm text-slate-600">TDS / TCS</label>
+                      <select {...register('taxType')} className="border border-slate-200 rounded-md px-1 py-1 text-xs text-slate-700 focus:outline-none w-16 bg-white shadow-sm">
+                        <option value="TDS">TDS</option>
+                        <option value="TCS">TCS</option>
+                      </select>
+                    </div>
+                    <div className="flex-1 flex justify-end">
+                      <div className="flex items-center w-24 border border-slate-200 rounded-md overflow-hidden bg-white shadow-sm">
+                        <input type="number" step="0.01" min="0" {...register('taxPercentage')} className="w-full text-right px-2 py-1 text-sm focus:outline-none" />
+                        <span className="bg-slate-50 px-2 py-1 text-sm border-l border-slate-200 text-slate-500">%</span>
+                      </div>
+                    </div>
+                    <span className="text-sm font-semibold text-slate-800 text-right w-28 shrink-0 truncate" title={`${taxType === 'TCS' ? '+' : '-'} ₹ ${taxAmount.toFixed(2)}`}>
+                      {taxType === 'TCS' ? '+' : '-'} ₹ {taxAmount.toFixed(2)}
+                    </span>
                   </div>
-                  <span className="text-sm font-semibold text-slate-800 w-24 text-right">{Number(adjustment).toFixed(2)}</span>
-                </div>
 
-                <hr className="border-slate-200 border-dashed my-2" />
-
-                <div className="flex justify-between items-center bg-[#f1f5f9] rounded-md p-3">
-                  <span className="text-base font-bold text-slate-800">Total</span>
-                  <span className="text-lg font-bold text-slate-800 w-32 text-right">₹ {total.toFixed(2)}</span>
-                </div>
-                <div className="text-[11px] text-slate-500 text-right font-medium italic mt-1 px-1">
-                  {numberToWords(total)}
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm text-slate-600 w-40 shrink-0">Adjustment</span>
+                    <div className="flex-1 flex justify-end">
+                      <input type="number" {...register('adjustment')} className="w-24 border border-slate-200 rounded-md px-2 py-1 text-sm text-right focus:outline-none bg-white shadow-sm" />
+                    </div>
+                    <span className="text-sm font-semibold text-slate-800 text-right w-28 shrink-0 truncate" title={`₹ ${Number(adjustment).toFixed(2)}`}>₹ {Number(adjustment).toFixed(2)}</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-slate-200">
-                <p className="text-sm font-semibold text-slate-800 mb-2">Attach File(s) to Purchase Order</p>
-
-                {files.length > 0 && (
-                  <div className="mb-3 space-y-2">
-                    {files.map((file, i) => (
-                      <div key={i} className="flex items-center justify-between bg-white border border-slate-200 px-3 py-2 rounded-md shadow-sm">
-                        <div className="flex items-center gap-2 overflow-hidden">
-                          <Paperclip className="w-4 h-4 text-blue-500 shrink-0" />
-                          <span className="text-xs text-slate-700 truncate">{file.name}</span>
-                        </div>
-                        <button type="button" onClick={() => removeFile(i)} className="text-slate-400 hover:text-red-500 transition-colors ml-2 shrink-0">
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  className="hidden"
-                  multiple
-                />
-
-                <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full flex items-center justify-center gap-2 border border-slate-200 border-dashed bg-white rounded-md py-3 hover:bg-slate-50 transition-colors">
-                  <FileUp className="w-4 h-4 text-slate-500" />
-                  <span className="text-sm font-medium text-slate-700">Upload File(s) ▼</span>
-                </button>
-                <p className="text-xs text-slate-400 mt-2 text-center">You can upload a maximum of 10 files, 10MB each</p>
+              <div className="mt-8 bg-[#f0f7ff] rounded-xl p-4 flex flex-col border border-[#bfdbfe] gap-1.5">
+                <div className="flex justify-between items-center">
+                  <span className="text-lg font-bold text-slate-800 shrink-0">Grand Total</span>
+                  <span className="text-2xl font-bold text-[#0076f2] truncate pl-4" title={`₹ ${total.toFixed(2)}`}>₹ {total.toFixed(2)}</span>
+                </div>
+                <div className="text-[13px] font-medium text-slate-500 text-right">
+                  {numberToWords(total)}
+                </div>
               </div>
             </div>
           </div>

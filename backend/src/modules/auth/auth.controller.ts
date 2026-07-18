@@ -38,13 +38,18 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(401, 'Invalid credentials');
   }
 
-  user.sessionVersion = (user.sessionVersion || 0) + 1;
+  // Only initialize sessionVersion if it doesn't exist. Do not increment on every login, 
+  // otherwise it logs out all other devices/tabs.
+  if (user.sessionVersion === undefined) {
+    user.sessionVersion = 0;
+  }
 
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user);
 
-  user.refreshTokens = [refreshToken];
-  await user.save({ validateBeforeSave: false });
+  if (user.isModified('sessionVersion')) {
+    await user.save({ validateBeforeSave: false });
+  }
 
   setCookies(res, accessToken, refreshToken);
 
@@ -56,14 +61,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const logout = asyncHandler(async (req: AuthRequest, res: Response) => {
-  if (req.user) {
-    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
-    if (incomingRefreshToken) {
-      await User.findByIdAndUpdate(req.user._id, { $pull: { refreshTokens: incomingRefreshToken } });
-    } else {
-      // If we don't know the token, maybe clear all or do nothing. We'll just pull nothing.
-    }
-  }
+  // Stateless logout: just clear cookies
 
   const options = {
     httpOnly: true,
@@ -88,7 +86,7 @@ export const refreshAccessToken = asyncHandler(async (req: Request, res: Respons
     const decodedToken: any = verifyRefreshToken(incomingRefreshToken);
 
     const user = await User.findById(decodedToken.id);
-    if (!user || !user.refreshTokens?.includes(incomingRefreshToken)) {
+    if (!user) {
       throw new ApiError(401, 'Invalid refresh token');
     }
     if (user.sessionVersion !== decodedToken.sessionVersion) {

@@ -17,6 +17,16 @@ export const createPurchaseOrder = async (req: Request, res: Response) => {
       }
     }
 
+    // Parse billingCompany if it comes as string from multipart/form-data
+    let parsedBillingCompany = data.billingCompany;
+    if (typeof parsedBillingCompany === 'string') {
+      try {
+        parsedBillingCompany = JSON.parse(parsedBillingCompany);
+      } catch (e) {
+        parsedBillingCompany = undefined;
+      }
+    }
+
     // Process attachments
     const files = req.files as Express.Multer.File[];
     const attachments = files ? files.map(file => ({
@@ -58,8 +68,10 @@ export const createPurchaseOrder = async (req: Request, res: Response) => {
     const taxAmount = ((calculatedSubTotal - discountAmount) * (data.taxPercentage || 0)) / 100;
     const adjustment = data.adjustment || 0;
     
-    // Total = Subtotal - Discount + Freight + CGST + SGST + IGST - TDS/TCS + Adjustment
-    const calculatedTotal = calculatedSubTotal - discountAmount + freightAmount + cgstAmountVal + sgstAmountVal + igstAmountVal - taxAmount + adjustment;
+    // Total = Subtotal - Discount + Freight + CGST + SGST + IGST +/- TDS/TCS + Adjustment
+    const taxType = data.taxType || 'TDS';
+    const taxAmountValue = taxType === 'TCS' ? taxAmount : -taxAmount;
+    const calculatedTotal = calculatedSubTotal - discountAmount + freightAmount + cgstAmountVal + sgstAmountVal + igstAmountVal + taxAmountValue + adjustment;
 
     const newPurchaseOrder = new PurchaseOrder({
       ...data,
@@ -198,8 +210,10 @@ export const updatePurchaseOrder = async (req: Request, res: Response) => {
     const taxAmount = ((calculatedSubTotal - discountAmount) * (data.taxPercentage || 0)) / 100;
     const adjustment = Number(data.adjustment || 0);
     
-    // Total = Subtotal - Discount + Freight + CGST + SGST + IGST - TDS/TCS + Adjustment
-    const calculatedTotal = calculatedSubTotal - discountAmount + freightAmount + cgstAmountVal + sgstAmountVal + igstAmountVal - taxAmount + adjustment;
+    // Total = Subtotal - Discount + Freight + CGST + SGST + IGST +/- TDS/TCS + Adjustment
+    const taxType = data.taxType || 'TDS';
+    const taxAmountValue = taxType === 'TCS' ? taxAmount : -taxAmount;
+    const calculatedTotal = calculatedSubTotal - discountAmount + freightAmount + cgstAmountVal + sgstAmountVal + igstAmountVal + taxAmountValue + adjustment;
 
     const existingOrder = await PurchaseOrder.findById(id);
     if (!existingOrder) {
@@ -208,6 +222,7 @@ export const updatePurchaseOrder = async (req: Request, res: Response) => {
 
     const updatedData: any = {
       ...data,
+      billingCompany: parsedBillingCompany !== undefined ? parsedBillingCompany : existingOrder.billingCompany,
       cgstPercentage: cgstPercentageVal,
       sgstPercentage: sgstPercentageVal,
       igstPercentage: igstPercentageVal,

@@ -15,6 +15,7 @@ import locationRoutes from './modules/locations/location.routes';
 import vendorRoutes from './modules/vendors/vendor.routes';
 import diRoutes from './modules/di/di.routes';
 import contractorRoutes from './modules/contractors/contractor.routes';
+import billingCompanyRoutes from './modules/billing-companies/billingCompany.routes';
 import { errorHandler } from './core/middlewares/error.middleware';
 
 const app: Express = express();
@@ -68,6 +69,7 @@ apiRouter.use('/locations', locationRoutes);
 apiRouter.use('/vendors', vendorRoutes);
 apiRouter.use('/di', diRoutes);
 apiRouter.use('/contractors', contractorRoutes);
+apiRouter.use('/billing-companies', billingCompanyRoutes);
 
 // Mount API routes on both / and /api to handle DigitalOcean path stripping
 app.use('/', apiRouter);

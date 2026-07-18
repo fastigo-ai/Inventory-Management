@@ -593,7 +593,11 @@ export default function PurchaseOrderDetailPage() {
               {/* Header */}
               <div className="flex justify-between items-start pb-6 mb-8">
                 <div className="flex flex-col gap-2">
-                  <img src="/logoholistic.png" alt="Holistic Logo" className="h-16 object-contain self-start" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                  {order.billingCompany?.logoUrl ? (
+                    <img src={order.billingCompany.logoUrl} alt={order.billingCompany.name} className="h-16 object-contain self-start" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                  ) : (
+                    <img src="/logoholistic.png" alt="Holistic Logo" className="h-16 object-contain self-start" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                  )}
                 </div>
                 <div className="text-right">
                   <h2 className="text-3xl font-light text-slate-800 uppercase tracking-widest mb-1">Purchase Order</h2>
@@ -601,13 +605,19 @@ export default function PurchaseOrderDetailPage() {
                 </div>
               </div>
 
-              {/* Holistic Address */}
+              {/* Billing Company Address */}
               <div className="text-[11px] text-slate-600 space-y-0.5 mb-8">
-                <p className="font-bold text-slate-800 text-xs">Holistic Techno</p>
-                <p>Uttar Pradesh</p>
-                <p>India</p>
-                <p>95655954341</p>
-                <p className="text-blue-600">info@holistic.co</p>
+                <p className="font-bold text-slate-800 text-xs">{order.billingCompany?.name || 'Holistic Techno'}</p>
+                {order.billingCompany?.address ? (
+                  <div className="whitespace-pre-wrap">{order.billingCompany.address}</div>
+                ) : (
+                  <>
+                    <p>Uttar Pradesh</p>
+                    <p>India</p>
+                  </>
+                )}
+                {order.billingCompany?.phone ? <p>{order.billingCompany.phone}</p> : (!order.billingCompany && <p>95655954341</p>)}
+                {order.billingCompany?.email ? <p className="text-blue-600">{order.billingCompany.email}</p> : (!order.billingCompany && <p className="text-blue-600">info@holistic.co</p>)}
               </div>
 
               {/* Vendor and Deliver To */}
@@ -749,16 +759,16 @@ export default function PurchaseOrderDetailPage() {
               <div className="mt-8 pt-6 border-t border-slate-200">
                 <h3 className="text-[10px] font-bold text-slate-800 mb-4 uppercase tracking-wider">Custom Fields</h3>
                 <div className="grid grid-cols-2 gap-y-3 gap-x-8 text-[11px]">
-                  {order.lineItems[0]?.circle && (
+                  {order.circle && (
                     <div className="flex">
                       <span className="w-32 text-slate-500 font-medium">Circle</span>
-                      <span className="font-semibold text-slate-800">: {order.lineItems[0].circle}</span>
+                      <span className="font-semibold text-slate-800">: {order.circle}</span>
                     </div>
                   )}
-                  {order.lineItems[0]?.package && (
+                  {order.package && (
                     <div className="flex">
                       <span className="w-32 text-slate-500 font-medium">Package</span>
-                      <span className="font-semibold text-slate-800">: {order.lineItems[0].package}</span>
+                      <span className="font-semibold text-slate-800">: {order.package}</span>
                     </div>
                   )}
                   {order.lineItems[0]?.loaSerialNo && (
@@ -796,6 +806,20 @@ export default function PurchaseOrderDetailPage() {
               {/* Metadata Card */}
               <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col md:flex-row gap-8 justify-between">
                 <div className="space-y-4 flex-1">
+                  {order.billingCompany && (
+                    <div className="pb-2">
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Billing From</p>
+                      <div className="flex items-center gap-3 mb-1">
+                        {order.billingCompany.logoUrl && (
+                          <img src={order.billingCompany.logoUrl} alt={order.billingCompany.name} className="w-8 h-8 object-contain rounded" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                        )}
+                        <p className="text-base font-semibold text-slate-800">{order.billingCompany.name}</p>
+                      </div>
+                      <div className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed mb-1">{order.billingCompany.address}</div>
+                      {order.billingCompany.phone && <p className="text-sm text-slate-500">{order.billingCompany.phone}</p>}
+                    </div>
+                  )}
+                  
                   <div>
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Vendor Details</p>
                     <p className="text-base font-semibold text-blue-600 mb-1">{order.vendorName}</p>
@@ -836,6 +860,18 @@ export default function PurchaseOrderDetailPage() {
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Payment Terms</p>
                     <p className="text-sm font-medium text-slate-800">{order.paymentTerms || '--'}</p>
                   </div>
+                  {order.package && (
+                    <div>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Package</p>
+                      <p className="text-sm font-medium text-slate-800">{order.package}</p>
+                    </div>
+                  )}
+                  {order.circle && (
+                    <div>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Circle</p>
+                      <p className="text-sm font-medium text-slate-800">{order.circle}</p>
+                    </div>
+                  )}
                 </div>
               </div>
 

@@ -6,6 +6,7 @@ export interface IPurchaseOrderLineItem {
   tempCode?: string;
   account?: string;
   description?: string;
+  hsnCode?: string;
   package?: string;
   circle?: string;
   unit?: string;
@@ -22,15 +23,24 @@ export interface IPurchaseOrder extends Document {
   deliveryAddressId?: string;
   purchaseOrderNumber: string;
   reference?: string;
+  billingCompany?: {
+    name: string;
+    address: string;
+    phone?: string;
+    email?: string;
+    logoUrl?: string;
+  };
   date: Date;
   deliveryDate?: Date;
-  paymentTermStage?: string;
-  paymentTermType?: string;
-  paymentTermAmount?: string;
+  paymentTerms?: {
+    stage: string;
+    type: string;
+    value: string;
+    unit: string;
+  }[];
   poQuantity?: string;
   circle?: string;
-  package1?: string;
-  package2?: string;
+  package?: string;
   shipmentPreference?: string;
   
   // Table
@@ -46,6 +56,7 @@ export interface IPurchaseOrder extends Document {
   cgstPercentage?: number;
   sgstPercentage?: number;
   igstPercentage?: number;
+  gstTreatment?: string;
   freightInsuranceType?: string;
   freightInsuranceValueType?: string;
   freightInsuranceAmount?: number;
@@ -76,6 +87,7 @@ const purchaseOrderLineItemSchema = new Schema<IPurchaseOrderLineItem>({
   tempCode: { type: String },
   account: { type: String },
   description: { type: String },
+  hsnCode: { type: String },
   package: { type: String },
   circle: { type: String },
   unit: { type: String },
@@ -93,15 +105,24 @@ const purchaseOrderSchema = new Schema<IPurchaseOrder>(
     deliveryAddressId: { type: String },
     purchaseOrderNumber: { type: String, required: true, unique: true },
     reference: { type: String },
+    billingCompany: {
+      name: { type: String },
+      address: { type: String },
+      phone: { type: String },
+      email: { type: String },
+      logoUrl: { type: String },
+    },
     date: { type: Date, required: true, default: Date.now },
     deliveryDate: { type: Date },
-    paymentTermStage: { type: String },
-    paymentTermType: { type: String },
-    paymentTermAmount: { type: String },
+    paymentTerms: [{
+      stage: { type: String },
+      type: { type: String },
+      value: { type: String },
+      unit: { type: String }
+    }],
     poQuantity: { type: String },
     circle: { type: String },
-    package1: { type: String },
-    package2: { type: String },
+    package: { type: String },
     shipmentPreference: { type: String },
     
     warehouseLocation: { type: String },
@@ -114,6 +135,7 @@ const purchaseOrderSchema = new Schema<IPurchaseOrder>(
     cgstPercentage: { type: Number, default: 0 },
     sgstPercentage: { type: Number, default: 0 },
     igstPercentage: { type: Number, default: 0 },
+    gstTreatment: { type: String, enum: ['intra_state', 'inter_state'], default: 'intra_state' },
     freightInsuranceType: { type: String },
     freightInsuranceValueType: { type: String },
     freightInsuranceAmount: { type: Number, default: 0 },

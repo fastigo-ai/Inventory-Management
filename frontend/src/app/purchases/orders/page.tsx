@@ -102,11 +102,20 @@ export default function PurchaseOrdersPage() {
           </thead>
           <tbody className="divide-y divide-slate-100 bg-white">
             {isLoading ? (
-              <tr>
-                <td colSpan={8} className="px-6 py-10 text-center text-slate-500">
-                  Loading orders...
-                </td>
-              </tr>
+              <>
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <tr key={i} className="animate-pulse border-b border-slate-100">
+                    <td className="px-6 py-4 text-center"><div className="w-4 h-4 bg-slate-200 rounded mx-auto"></div></td>
+                    <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-20"></div></td>
+                    <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
+                    <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-28"></div></td>
+                    <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
+                    <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-40"></div></td>
+                    <td className="px-4 py-4"><div className="h-5 bg-slate-200 rounded-full w-16"></div></td>
+                    <td className="px-6 py-4 flex justify-end"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
+                  </tr>
+                ))}
+              </>
             ) : orders.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-6 py-10 text-center text-slate-500">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { getEntityMetadata, createVendor } from "@/features/vendors/api/vendors.api";
 import { DynamicForm, FieldMetadata } from "@/shared/components/dynamic/DynamicForm";
 import { Loader2, ArrowLeft } from "lucide-react";
@@ -13,19 +13,35 @@ export default function NewVendorPage() {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
+  const [initialData, setInitialData] = useState<any>({});
+  const searchParams = useSearchParams();
+  const cloneId = searchParams.get('cloneId');
+
   useEffect(() => {
-    const fetchMetadata = async () => {
+    const fetchMetadataAndCloneData = async () => {
       try {
         const metaRes = await getEntityMetadata('Vendor');
         setFields(metaRes.fields);
+
+        if (cloneId) {
+          const { getVendor } = await import('@/features/vendors/api/vendors.api');
+          const vendorToClone = await getVendor(cloneId);
+          if (vendorToClone && vendorToClone.dynamicData) {
+            // Remove unique fields or fields that shouldn't be cloned directly
+            const clonedData = { ...vendorToClone.dynamicData };
+            delete clonedData.displayName; // Must be unique usually
+            delete clonedData.companyName;
+            setInitialData(clonedData);
+          }
+        }
       } catch (error) {
-        console.error("Failed to load metadata", error);
+        console.error("Failed to load metadata or clone data", error);
       } finally {
         setIsLoading(false);
       }
     };
-    fetchMetadata();
-  }, []);
+    fetchMetadataAndCloneData();
+  }, [cloneId]);
 
   const handleSubmit = async (data: any) => {
     try {
@@ -63,6 +79,7 @@ export default function NewVendorPage() {
             fields={fields} 
             onSubmit={handleSubmit} 
             layoutStyle="tabs"
+            initialData={initialData}
             formHeader={
               <div className="bg-[#eef5ff] border border-[#cce5ff] rounded p-3 mb-6 flex items-center text-sm text-[#0076f2]">
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>

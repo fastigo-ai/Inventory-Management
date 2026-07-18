@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, use } from "react";
-import { getEntityMetadata, getVendors, getVendor } from "@/features/vendors/api/vendors.api";
+import { getEntityMetadata, getVendors, getVendor, updateVendor, deleteVendor } from "@/features/vendors/api/vendors.api";
 import { FieldMetadata } from "@/shared/components/dynamic/DynamicForm";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
@@ -63,6 +63,34 @@ export default function VendorSplitViewPage({ params }: { params: Promise<{ id: 
   const handleVendorSelect = (id: string) => {
     const queryString = searchParams.toString();
     router.push(`/purchases/vendors/${id}${queryString ? `?${queryString}` : ''}`);
+  };
+
+  const handleClone = () => {
+    router.push(`/purchases/vendors/new?cloneId=${vendorId}`);
+  };
+
+  const handleToggleStatus = async () => {
+    try {
+      const currentStatus = selectedVendor?.dynamicData?.status || 'Active';
+      const newStatus = currentStatus === 'Active' ? 'Inactive' : 'Active';
+      const updatedData = { ...selectedVendor.dynamicData, status: newStatus };
+      await updateVendor(vendorId, updatedData);
+      setSelectedVendor({ ...selectedVendor, dynamicData: updatedData });
+      setVendors(vendors.map(v => v._id === vendorId ? { ...v, dynamicData: { ...v.dynamicData, status: newStatus } } : v));
+    } catch (err) {
+      console.error("Failed to update status", err);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (window.confirm("Are you sure you want to delete this vendor?")) {
+      try {
+        await deleteVendor(vendorId);
+        handleBackToTable();
+      } catch (err) {
+        console.error("Failed to delete vendor", err);
+      }
+    }
   };
 
   if (isLoading) {
@@ -178,9 +206,11 @@ export default function VendorSplitViewPage({ params }: { params: Promise<{ id: 
                 More <svg className="w-3.5 h-3.5 ml-2 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48 text-[13px]">
-                <DropdownMenuItem className="cursor-pointer">Clone Vendor</DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer">Mark as Inactive</DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer text-red-600">Delete</DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer" onClick={handleClone}>Clone Vendor</DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer" onClick={handleToggleStatus}>
+                  {selectedVendor?.dynamicData?.status === 'Inactive' ? 'Mark as Active' : 'Mark as Inactive'}
+                </DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer text-red-600" onClick={handleDelete}>Delete</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 

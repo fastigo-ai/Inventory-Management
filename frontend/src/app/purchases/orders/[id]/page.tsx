@@ -94,10 +94,64 @@ export default function PurchaseOrderDetailPage() {
 
   if (isLoading && !order) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-slate-50 min-h-screen">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-slate-500 font-medium">Loading Purchase Order...</p>
+      <div className="flex flex-col min-h-screen bg-slate-50/50">
+        {/* Header Skeleton */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 bg-white border-b border-slate-200 gap-4 shrink-0 shadow-sm animate-pulse">
+          <div className="flex items-center gap-4">
+            <div className="w-8 h-8 bg-slate-200 rounded-lg"></div>
+            <div>
+              <div className="w-48 h-6 bg-slate-200 rounded mb-2"></div>
+              <div className="w-32 h-4 bg-slate-200 rounded"></div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-24 h-9 bg-slate-200 rounded-md"></div>
+            <div className="w-24 h-9 bg-slate-200 rounded-md"></div>
+            <div className="w-24 h-9 bg-slate-200 rounded-md"></div>
+          </div>
+        </div>
+
+        {/* Content Skeleton */}
+        <div className="flex-1 overflow-auto p-6 max-w-6xl mx-auto w-full space-y-6 animate-pulse">
+          {/* Metadata Card Skeleton */}
+          <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col md:flex-row gap-8 justify-between">
+            <div className="space-y-4 flex-1">
+              <div>
+                <div className="w-24 h-3 bg-slate-200 rounded mb-2"></div>
+                <div className="w-32 h-5 bg-slate-200 rounded mb-2"></div>
+                <div className="w-48 h-4 bg-slate-200 rounded"></div>
+              </div>
+              <div className="pt-2">
+                <div className="w-20 h-3 bg-slate-200 rounded mb-2"></div>
+                <div className="w-32 h-4 bg-slate-200 rounded mb-2"></div>
+                <div className="w-48 h-4 bg-slate-200 rounded"></div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-x-12 gap-y-6 flex-1">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i}>
+                  <div className="w-20 h-3 bg-slate-200 rounded mb-2"></div>
+                  <div className="w-24 h-4 bg-slate-200 rounded"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Items Table Skeleton */}
+          <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/50">
+              <div className="w-24 h-5 bg-slate-200 rounded"></div>
+            </div>
+            <div className="p-6 space-y-4">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="flex justify-between items-center border-b border-slate-100 pb-4">
+                  <div className="w-1/3 h-4 bg-slate-200 rounded"></div>
+                  <div className="w-1/4 h-4 bg-slate-200 rounded"></div>
+                  <div className="w-1/6 h-4 bg-slate-200 rounded"></div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );

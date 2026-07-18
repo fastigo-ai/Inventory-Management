@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { UploadCloud, Globe, MessageCircle, Info } from "lucide-react";
 import { PaymentTermsWidget } from "./PaymentTermsWidget";
+import { FileUploadWidget } from "./FileUploadWidget";
 
 export interface FieldMetadata {
   name: string;
@@ -438,6 +439,10 @@ function renderField(field: FieldMetadata, register: any, errors: any, control: 
   } else if (field.widget === 'payment_terms_complex') {
     fieldInput = (
       <PaymentTermsWidget control={control} register={register} name={field.name} />
+    );
+  } else if (field.widget === 'file_upload') {
+    fieldInput = (
+      <FileUploadWidget control={control} name={field.name} />
     );
   } else if (field.icon) {
     const TwitterIcon = (props: any) => (

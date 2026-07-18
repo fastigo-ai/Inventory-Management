@@ -96,15 +96,13 @@ export const refreshAccessToken = asyncHandler(async (req: Request, res: Respons
     }
 
     const accessToken = generateAccessToken(user);
-    const newRefreshToken = generateRefreshToken(user);
-
-    user.refreshTokens = [newRefreshToken];
-    await user.save({ validateBeforeSave: false });
-
-    setCookies(res, accessToken, newRefreshToken);
+    
+    // Do not rotate the refresh token to avoid concurrency issues (e.g. multiple tabs or strict mode)
+    // We just return a new access token and the same refresh token
+    setCookies(res, accessToken, incomingRefreshToken);
 
     res.status(200).json(
-      new ApiResponse(200, { accessToken, refreshToken: newRefreshToken }, 'Access token refreshed successfully')
+      new ApiResponse(200, { accessToken, refreshToken: incomingRefreshToken }, 'Access token refreshed successfully')
     );
   } catch (error) {
     throw new ApiError(401, 'Invalid or expired refresh token');

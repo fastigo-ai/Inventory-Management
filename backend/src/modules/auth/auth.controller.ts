@@ -38,11 +38,12 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(401, 'Invalid credentials');
   }
 
+  user.sessionVersion = (user.sessionVersion || 0) + 1;
+
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user);
 
-  if (!user.refreshTokens) user.refreshTokens = [];
-  user.refreshTokens.push(refreshToken);
+  user.refreshTokens = [refreshToken];
   await user.save({ validateBeforeSave: false });
 
   setCookies(res, accessToken, refreshToken);
@@ -90,13 +91,14 @@ export const refreshAccessToken = asyncHandler(async (req: Request, res: Respons
     if (!user || !user.refreshTokens?.includes(incomingRefreshToken)) {
       throw new ApiError(401, 'Invalid refresh token');
     }
+    if (user.sessionVersion !== decodedToken.sessionVersion) {
+      throw new ApiError(401, 'Session expired by a newer login');
+    }
 
     const accessToken = generateAccessToken(user);
     const newRefreshToken = generateRefreshToken(user);
 
-    // Remove the old token and add the new one
-    user.refreshTokens = user.refreshTokens.filter(t => t !== incomingRefreshToken);
-    user.refreshTokens.push(newRefreshToken);
+    user.refreshTokens = [newRefreshToken];
     await user.save({ validateBeforeSave: false });
 
     setCookies(res, accessToken, newRefreshToken);

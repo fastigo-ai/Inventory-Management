@@ -1,0 +1,38 @@
+import { api } from "@/shared/api/axios";
+
+export interface CreateDIDto {
+  diNumber: string;
+  purchaseOrderId: string;
+  date: Date | string;
+  circle?: string;
+  package?: string;
+  lineItems: Array<{
+    itemId?: string;
+    itemName: string;
+    tempCode?: string;
+    package?: string;
+    circle?: string;
+    quantity: number;
+  }>;
+  notes?: string;
+}
+
+export const createDI = async (payload: CreateDIDto) => {
+  const response = await api.post('/di', payload);
+  return response.data;
+};
+
+export const getDIs = async () => {
+  const response = await api.get('/di');
+  return response.data;
+};
+
+export const getDIById = async (id: string) => {
+  const response = await api.get(`/di/${id}`);
+  return response.data.data;
+};
+
+export const updateDIStatus = async (id: string, status: string) => {
+  const response = await api.patch(`/di/${id}/status`, { status });
+  return response.data;
+};

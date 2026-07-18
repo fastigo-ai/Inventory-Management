@@ -31,6 +31,11 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
       return;
     }
 
+    if (user.sessionVersion !== decoded.sessionVersion) {
+      res.status(401).json({ message: 'Session expired by a newer login' });
+      return;
+    }
+
     req.user = user;
     next();
   } catch (error) {

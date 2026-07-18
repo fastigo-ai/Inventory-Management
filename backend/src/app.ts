@@ -13,6 +13,8 @@ import purchaseRoutes from './modules/purchases/purchase.routes';
 import documentRoutes from './modules/documents/document.routes';
 import locationRoutes from './modules/locations/location.routes';
 import vendorRoutes from './modules/vendors/vendor.routes';
+import diRoutes from './modules/di/di.routes';
+import contractorRoutes from './modules/contractors/contractor.routes';
 import { errorHandler } from './core/middlewares/error.middleware';
 
 const app: Express = express();
@@ -64,6 +66,8 @@ apiRouter.use('/purchases', purchaseRoutes);
 apiRouter.use('/documents', documentRoutes);
 apiRouter.use('/locations', locationRoutes);
 apiRouter.use('/vendors', vendorRoutes);
+apiRouter.use('/di', diRoutes);
+apiRouter.use('/contractors', contractorRoutes);
 
 // Mount API routes on both / and /api to handle DigitalOcean path stripping
 app.use('/', apiRouter);

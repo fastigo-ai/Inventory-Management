@@ -6,7 +6,7 @@ const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'super_secret_refre
 
 export const generateAccessToken = (user: IUser) => {
   return jwt.sign(
-    { id: user._id, email: user.email },
+    { id: user._id, email: user.email, sessionVersion: user.sessionVersion },
     JWT_ACCESS_SECRET,
     { expiresIn: '15m' } // Short-lived access token
   );
@@ -14,7 +14,7 @@ export const generateAccessToken = (user: IUser) => {
 
 export const generateRefreshToken = (user: IUser) => {
   return jwt.sign(
-    { id: user._id },
+    { id: user._id, sessionVersion: user.sessionVersion },
     JWT_REFRESH_SECRET,
     { expiresIn: '7d' } // Long-lived refresh token
   );

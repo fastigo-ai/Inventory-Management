@@ -47,18 +47,10 @@ const navItems: NavItem[] = [
     ]
   },
   {
-    title: 'Inventory',
-    icon: <Archive className="w-5 h-5" />,
-    children: [
-      { title: 'Adjustments', href: '/inventory/adjustments' }
-    ]
-  },
-  {
     title: 'Sales',
     icon: <ShoppingCart className="w-5 h-5" />,
     children: [
-      { title: 'Invoices', href: '/sales/invoices' },
-      { title: 'Sales Orders', href: '/sales/orders' }
+      { title: 'Invoices', href: '/sales/invoices' }
     ]
   },
   {
@@ -67,6 +59,7 @@ const navItems: NavItem[] = [
     children: [
       { title: 'Vendors', href: '/purchases/vendors' },
       { title: 'Purchase Orders', href: '/purchases/orders' },
+      { title: 'DI Registrations', href: '/di' },
       { title: 'Purchase Receives', href: '/purchases/receives' }
     ]
   },
@@ -85,6 +78,14 @@ const navItems: NavItem[] = [
     icon: <MoreHorizontal className="w-5 h-5" />,
     children: [
       { title: 'Module 1', href: '/modules/1' }
+    ]
+  },
+  {
+    title: 'Store Portal',
+    icon: <Archive className="w-5 h-5" />,
+    children: [
+      { title: 'Store Receipts', href: '/store/receipts' },
+      { title: 'Contractor Assignments', href: '/contractors' }
     ]
   },
   {

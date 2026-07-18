@@ -8,6 +8,7 @@ export interface IUser extends Document {
   password?: string;
   role: IRole['_id'] | IRole; // Can be ObjectId or populated Role
   refreshTokens?: string[];
+  sessionVersion: number;
 }
 
 const UserSchema: Schema = new Schema(
@@ -18,6 +19,7 @@ const UserSchema: Schema = new Schema(
     password: { type: String, required: true },
     role: { type: Schema.Types.ObjectId, ref: 'Role', required: true },
     refreshTokens: [{ type: String }],
+    sessionVersion: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

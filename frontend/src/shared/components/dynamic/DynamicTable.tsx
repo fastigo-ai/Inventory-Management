@@ -252,6 +252,12 @@ export function DynamicTable({
                         if (v.salutation || v.firstName || v.lastName) {
                           return [v.salutation, v.firstName, v.lastName].filter(Boolean).join(' ');
                         }
+                        if ('work' in v || 'mobile' in v || 'workCountryCode' in v) {
+                          const phoneParts = [];
+                          if (v.work) phoneParts.push((v.workCountryCode ? v.workCountryCode + ' ' : '') + v.work);
+                          if (v.mobile) phoneParts.push((v.mobileCountryCode ? v.mobileCountryCode + ' ' : '') + v.mobile);
+                          return phoneParts.join(', ');
+                        }
                         if (v.name) return v.name;
                         if (v.title) return v.title;
                         try {

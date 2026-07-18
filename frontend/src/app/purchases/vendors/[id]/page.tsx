@@ -234,8 +234,16 @@ export default function VendorSplitViewPage({ params }: { params: Promise<{ id: 
                         if (typeof val === 'boolean') {
                           displayVal = val ? 'Yes' : 'No';
                         } else if (val !== null && typeof val === 'object') {
-                          // Handle compound fields like primaryContact, phone
-                          displayVal = Object.values(val).filter(Boolean).join(' ');
+                          if (field.name === 'phone') {
+                            const phoneParts = [];
+                            if (val.work) phoneParts.push((val.workCountryCode ? val.workCountryCode + ' ' : '') + val.work);
+                            if (val.mobile) phoneParts.push((val.mobileCountryCode ? val.mobileCountryCode + ' ' : '') + val.mobile);
+                            displayVal = phoneParts.join(', ');
+                          } else if (field.name === 'primaryContact') {
+                            displayVal = [val.salutation, val.firstName, val.lastName].filter(Boolean).join(' ');
+                          } else {
+                            displayVal = Object.values(val).filter(Boolean).join(' ');
+                          }
                         }
                         
                         return (

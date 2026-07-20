@@ -16,8 +16,8 @@ export const getAuditLogs = asyncHandler(async (req: Request, res: Response) => 
   if (userId) query.performedBy = userId;
   
   // Multi-tenant check
-  if (req.user?.companyId) {
-    query.companyId = req.user.companyId;
+  if ((req as any).user?.companyId) {
+    query.companyId = (req as any).user.companyId;
   }
   
   const skip = (page - 1) * limit;

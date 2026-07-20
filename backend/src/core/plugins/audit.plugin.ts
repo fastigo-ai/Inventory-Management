@@ -63,10 +63,11 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions) {
   };
 
   // --- SAVE HOOKS ---
-  schema.pre('save', async function (next) {
+  schema.pre('save', async function (this: any, next: any) {
     if (!this.isNew) {
       try {
         const original = await (this.constructor as any).findById(this._id).lean();
+        this.$locals = this.$locals || {};
         this.$locals.original = original;
       } catch (err) {
         console.warn('Audit plugin could not fetch original document for diffing');
@@ -75,22 +76,22 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions) {
     next();
   });
 
-  schema.post('save', async function (doc, next) {
+  schema.post('save', async function (doc: any, next: any) {
     try {
-      const action = doc.$locals.original ? AuditAction.UPDATE : AuditAction.CREATE;
+      const action = doc.$locals?.original ? AuditAction.UPDATE : AuditAction.CREATE;
       const changes: IAuditChange[] = [];
 
       if (action === AuditAction.CREATE) {
         // Log all fields for create, except ignored
-        const obj = doc.toObject();
+        const obj: Record<string, any> = doc.toObject();
         for (const key of Object.keys(obj)) {
           if (!ignoredFields.includes(key) && key !== '_id') {
             changes.push({ field: key, newValue: obj[key] });
           }
         }
       } else {
-        const original = doc.$locals.original || {};
-        const current = doc.toObject();
+        const original: Record<string, any> = doc.$locals?.original || {};
+        const current: Record<string, any> = doc.toObject();
         
         // Find modified paths (top level for simplicity, deep diff can be added for arrays)
         for (const key of Object.keys(current)) {
@@ -126,9 +127,10 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions) {
   });
 
   // --- FIND ONE AND UPDATE HOOKS ---
-  schema.pre('findOneAndUpdate', async function (next) {
+  schema.pre('findOneAndUpdate', async function (this: any, next: any) {
     try {
       const docToUpdate = await this.model.findOne(this.getQuery()).lean();
+      this.$locals = this.$locals || {};
       this.$locals.original = docToUpdate;
     } catch (err) {
       console.warn('Audit plugin could not fetch original document for findOneAndUpdate');
@@ -136,12 +138,12 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions) {
     next();
   });
 
-  schema.post('findOneAndUpdate', async function (doc, next) {
+  schema.post('findOneAndUpdate', async function (this: any, doc: any, next: any) {
     if (!doc) return next();
     
     try {
-      const original = this.$locals.original || {};
-      const current = doc.toObject ? doc.toObject() : doc;
+      const original: Record<string, any> = this.$locals?.original || {};
+      const current: Record<string, any> = doc.toObject ? doc.toObject() : doc;
       const changes: IAuditChange[] = [];
       
       // If it's a soft delete
@@ -181,9 +183,10 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions) {
   });
   
   // --- DELETE HOOKS ---
-  schema.pre('findOneAndDelete', async function (next) {
+  schema.pre('findOneAndDelete', async function (this: any, next: any) {
     try {
       const docToDelete = await this.model.findOne(this.getQuery()).lean();
+      this.$locals = this.$locals || {};
       this.$locals.original = docToDelete;
     } catch (err) {
       console.warn('Audit plugin error in findOneAndDelete');
@@ -191,10 +194,10 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions) {
     next();
   });
 
-  schema.post('findOneAndDelete', async function (doc, next) {
+  schema.post('findOneAndDelete', async function (this: any, doc: any, next: any) {
     if (!doc) return next();
     try {
-      const original = this.$locals.original || {};
+      const original = this.$locals?.original || {};
       // For hard deletes, maybe we want to log the whole object, or just record DELETE
       await createLog(doc._id, AuditAction.DELETE, []);
     } catch (err) {

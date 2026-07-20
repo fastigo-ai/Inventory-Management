@@ -43,8 +43,8 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
     const store = requestContext.getStore();
     if (store) {
       store.userId = user._id?.toString();
-      store.companyId = user.companyId?.toString();
-      store.branchId = user.branchId?.toString();
+      store.companyId = (user as any).companyId?.toString();
+      store.branchId = (user as any).branchId?.toString();
     }
     
     next();

@@ -56,8 +56,8 @@ export const getDIPrefillData = asyncHandler(async (req: Request, res: Response)
 
   // Get the first item from DI to map properties (assuming 1 item per DI typically, or sum them)
   const item = di.lineItems[0];
-  const poItem = po.lineItems.find(li => li.itemId?.toString() === item?.itemId?.toString() || li.tempCode === item?.tempCode);
-  const invoiceItem = invoice?.lineItems?.find(li => li.itemId?.toString() === item?.itemId?.toString());
+  const poItem = po.lineItems.find((li: any) => li.itemId?.toString() === item?.itemId?.toString() || li.tempCode === item?.tempCode);
+  const invoiceItem = invoice?.lineItems?.find((li: any) => li.itemId?.toString() === item?.itemId?.toString());
 
   const prefillData = {
     diId: di._id,

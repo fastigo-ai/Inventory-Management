@@ -2,14 +2,17 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IPrLineItem {
   itemId?: mongoose.Types.ObjectId;
+  loaSerialNo?: string;
   itemName: string;
+  itemDescription?: string;
   tempCode?: string;
-  ordered: number;
-  received: number;
-  inTransit: number;
-  quantityToReceive: number;
+  poQuantity: number;
+  invoiceQuantity: number;
+  srt: number;
+  act: number;
+  totalInvoiceQuantity: number;
   package?: string;
-  subPackage?: string;
+  circle?: string;
   unit?: string;
   rate?: number;
   amount?: number;
@@ -43,14 +46,17 @@ export interface IPr extends Document {
 
 const prLineItemSchema = new Schema<IPrLineItem>({
   itemId: { type: Schema.Types.ObjectId, ref: 'Item' },
+  loaSerialNo: { type: String },
   itemName: { type: String, required: true },
+  itemDescription: { type: String },
   tempCode: { type: String },
-  ordered: { type: Number, required: true, default: 0 },
-  received: { type: Number, required: true, default: 0 },
-  inTransit: { type: Number, required: true, default: 0 },
-  quantityToReceive: { type: Number, required: true, default: 0 },
+  poQuantity: { type: Number, required: true, default: 0 },
+  invoiceQuantity: { type: Number, required: true, default: 0 },
+  srt: { type: Number, required: true, default: 0 },
+  act: { type: Number, required: true, default: 0 },
+  totalInvoiceQuantity: { type: Number, required: true, default: 0 },
   package: { type: String },
-  subPackage: { type: String },
+  circle: { type: String },
   unit: { type: String },
   rate: { type: Number, default: 0 },
   amount: { type: Number, default: 0 },

@@ -215,6 +215,16 @@ export const updatePurchaseOrder = async (req: Request, res: Response) => {
     const taxAmountValue = taxType === 'TCS' ? taxAmount : -taxAmount;
     const calculatedTotal = calculatedSubTotal - discountAmount + freightAmount + cgstAmountVal + sgstAmountVal + igstAmountVal + taxAmountValue + adjustment;
 
+    // Parse billingCompany if it comes as string from multipart/form-data
+    let parsedBillingCompany = data.billingCompany;
+    if (typeof parsedBillingCompany === 'string') {
+      try {
+        parsedBillingCompany = JSON.parse(parsedBillingCompany);
+      } catch (e) {
+        parsedBillingCompany = undefined;
+      }
+    }
+
     const existingOrder = await PurchaseOrder.findById(id);
     if (!existingOrder) {
       return res.status(404).json({ success: false, message: 'Purchase Order not found' });

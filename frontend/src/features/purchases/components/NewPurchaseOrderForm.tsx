@@ -956,7 +956,11 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                 <tbody className="divide-y divide-slate-100">
                   {fields.map((field, index) => (
                     <tr key={field.id} className="bg-white hover:bg-slate-50 transition-colors last:[&>td:first-child]:rounded-bl-lg last:[&>td:last-child]:rounded-br-lg">
-                      <td className="px-4 py-4 text-center text-[#5e7790] text-[13px]">{index + 1}</td>
+                      <td className="px-4 py-4 text-center text-[#5e7790] text-[13px]">
+                        <input type="hidden" {...register(`lineItems.${index}.loaSerialNo`)} />
+                        <input type="hidden" {...register(`lineItems.${index}.description`)} />
+                        {index + 1}
+                      </td>
                       {isFieldActive('tempCode') && (
                         <td className="px-4 py-4 relative item-dropdown-container">
                           <div className="relative w-full flex items-center border-b border-dashed border-slate-400 pb-1">
@@ -1012,7 +1016,7 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                                           description: getVal('description') || getVal('itemDescription') || '',
                                           hsnCode: getVal('hsnCode') || getVal('hsn') || '',
                                           package: getVal('package') || '',
-                                          loaSerialNo: getVal('loaSerialNo') || getVal('loaSerialNumber') || getVal('LOA Serial No.') || getVal('loa') || '',
+                                          loaSerialNo: getVal('loaSerialNo') || getVal('loaSerialNumber') || getVal('LOA Serial No.') || getVal('loa') || getVal('sku') || '',
                                           circle: getVal('circle') || '',
                                           unit: getVal('unit') || '',
                                           rate: getVal('price') || getVal('costPrice') || getVal('sellingPrice') || 0
@@ -1044,7 +1048,6 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                       )}
                       {isFieldActive('description') && (
                         <td className="px-4 py-4 align-top">
-                          <input type="hidden" {...register(`lineItems.${index}.description`)} />
                           <div className="w-full text-[#5e7790] text-[13px] break-words whitespace-pre-wrap min-h-[20px]">
                             {lineItems[index]?.description || '--'}
                           </div>
@@ -1107,7 +1110,7 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                                         description: getVal('description') || getVal('itemDescription') || '',
                                         hsnCode: getVal('hsnCode') || getVal('hsn') || '',
                                         package: getVal('package') || '',
-                                        loaSerialNo: getVal('loaSerialNo') || getVal('loaSerialNumber') || getVal('LOA Serial No.') || getVal('loa') || '',
+                                        loaSerialNo: getVal('loaSerialNo') || getVal('loaSerialNumber') || getVal('LOA Serial No.') || getVal('loa') || getVal('sku') || '',
                                         circle: getVal('circle') || '',
                                         unit: getVal('unit') || '',
                                         rate: getVal('price') || getVal('costPrice') || getVal('sellingPrice') || 0

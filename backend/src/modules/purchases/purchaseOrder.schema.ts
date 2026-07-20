@@ -6,6 +6,7 @@ export interface IPurchaseOrderLineItem {
   tempCode?: string;
   account?: string;
   description?: string;
+  loaSerialNo?: string;
   hsnCode?: string;
   package?: string;
   circle?: string;
@@ -88,6 +89,7 @@ const purchaseOrderLineItemSchema = new Schema<IPurchaseOrderLineItem>({
   tempCode: { type: String },
   account: { type: String },
   description: { type: String },
+  loaSerialNo: { type: String },
   hsnCode: { type: String },
   package: { type: String },
   circle: { type: String },

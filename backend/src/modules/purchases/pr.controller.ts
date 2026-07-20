@@ -20,10 +20,10 @@ export const createPurchaseReceive = async (req: Request, res: Response): Promis
       data: newPr
     });
   } catch (error: any) {
-    console.error('Error creating Purchase Receive:', error);
+    console.error('Error creating Purchase Invoice:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to create Purchase Receive',
+      message: 'Failed to create Purchase Invoice',
       error: error.message
     });
   }
@@ -53,10 +53,10 @@ export const getPurchaseReceives = async (req: Request, res: Response): Promise<
       }
     });
   } catch (error: any) {
-    console.error('Error fetching Purchase Receives:', error);
+    console.error('Error fetching Purchase Invoices:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch Purchase Receives',
+      message: 'Failed to fetch Purchase Invoices',
       error: error.message
     });
   }
@@ -70,7 +70,7 @@ export const getPurchaseReceiveById = async (req: Request, res: Response): Promi
     if (!pr) {
       res.status(404).json({
         success: false,
-        message: 'Purchase Receive not found'
+        message: 'Purchase Invoice not found'
       });
       return;
     }
@@ -80,10 +80,10 @@ export const getPurchaseReceiveById = async (req: Request, res: Response): Promi
       data: pr
     });
   } catch (error: any) {
-    console.error('Error fetching Purchase Receive:', error);
+    console.error('Error fetching Purchase Invoice:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch Purchase Receive',
+      message: 'Failed to fetch Purchase Invoice',
       error: error.message
     });
   }
@@ -131,21 +131,21 @@ export const updatePurchaseReceive = async (req: Request, res: Response): Promis
     if (!updatedPr) {
       res.status(404).json({
         success: false,
-        message: 'Purchase Receive not found'
+        message: 'Purchase Invoice not found'
       });
       return;
     }
 
     res.status(200).json({
       success: true,
-      message: 'Purchase Receive updated successfully',
+      message: 'Purchase Invoice updated successfully',
       data: updatedPr
     });
   } catch (error: any) {
-    console.error('Error updating Purchase Receive:', error);
+    console.error('Error updating Purchase Invoice:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to update Purchase Receive',
+      message: 'Failed to update Purchase Invoice',
       error: error.message
     });
   }
@@ -160,20 +160,20 @@ export const deletePurchaseReceive = async (req: Request, res: Response): Promis
     if (!deletedPr) {
       res.status(404).json({
         success: false,
-        message: 'Purchase Receive not found'
+        message: 'Purchase Invoice not found'
       });
       return;
     }
 
     res.status(200).json({
       success: true,
-      message: 'Purchase Receive deleted successfully'
+      message: 'Purchase Invoice deleted successfully'
     });
   } catch (error: any) {
-    console.error('Error deleting Purchase Receive:', error);
+    console.error('Error deleting Purchase Invoice:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to delete Purchase Receive',
+      message: 'Failed to delete Purchase Invoice',
       error: error.message
     });
   }

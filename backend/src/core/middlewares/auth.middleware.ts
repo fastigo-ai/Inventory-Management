@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import User from '../../modules/users/user.model';
 import { IRole } from '../../modules/roles/role.model';
 import { verifyAccessToken } from '../utils/jwt';
+import { requestContext } from '../utils/context';
 
 export interface AuthRequest extends Request {
   user?: any;
@@ -37,6 +38,15 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
     }
 
     req.user = user;
+    
+    // Attach user to context
+    const store = requestContext.getStore();
+    if (store) {
+      store.userId = user._id?.toString();
+      store.companyId = user.companyId?.toString();
+      store.branchId = user.branchId?.toString();
+    }
+    
     next();
   } catch (error) {
     console.error('Token verification failed:', error);

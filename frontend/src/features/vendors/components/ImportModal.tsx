@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { importVendorsFromCsv } from "../api/vendors.api";
+import { importVendorsFromCsv, exportVendorTemplateToCsv } from "../api/vendors.api";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Loader2, UploadCloud, FileText, CheckCircle, AlertCircle } from "lucide-react";
@@ -78,7 +78,7 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
 
         <div className="py-4">
           {!result && (
-            <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 flex flex-col vendors-center justify-center bg-slate-50 relative">
+            <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 flex flex-col items-center justify-center bg-slate-50 relative">
               <input 
                 type="file" 
                 accept=".csv"
@@ -87,7 +87,7 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
               />
               
               {file ? (
-                <div className="flex flex-col vendors-center">
+                <div className="flex flex-col items-center">
                   <FileText className="w-10 h-10 text-[#0076f2] mb-3" />
                   <p className="text-sm font-medium text-slate-700">{file.name}</p>
                   <p className="text-xs text-slate-500 mt-1">{(file.size / 1024).toFixed(1)} KB</p>
@@ -96,7 +96,7 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
                   </Button>
                 </div>
               ) : (
-                <div className="flex flex-col vendors-center">
+                <div className="flex flex-col items-center">
                   <UploadCloud className="w-10 h-10 text-slate-400 mb-3" />
                   <p className="text-sm font-semibold text-slate-700">Click or drag CSV to upload</p>
                 </div>
@@ -105,7 +105,7 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
           )}
 
           {error && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-600 flex vendors-start gap-2">
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-600 flex items-start gap-2">
               <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
               <span>{error}</span>
             </div>
@@ -114,7 +114,7 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
           {result && (
             <div className="mt-4 space-y-4">
               {result.successCount > 0 && (
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex vendors-center gap-3">
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
                   <CheckCircle className="w-6 h-6 text-green-600" />
                   <div>
                     <h4 className="font-medium text-green-900">Successfully Imported</h4>
@@ -153,6 +153,21 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
             <Button onClick={onClose} variant="outline" className="w-full">Close</Button>
           ) : (
             <>
+              <div className="flex-1">
+                <Button 
+                  onClick={async () => {
+                    try {
+                      await exportVendorTemplateToCsv();
+                    } catch (e) {
+                      toast.error("Failed to download template");
+                    }
+                  }} 
+                  variant="link" 
+                  className="text-[#0076f2] hover:text-[#0060c5] px-0"
+                >
+                  Download Sample CSV
+                </Button>
+              </div>
               <Button onClick={onClose} variant="outline" disabled={isUploading}>Cancel</Button>
               <Button 
                 onClick={handleUpload} 

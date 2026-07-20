@@ -152,6 +152,8 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
   const [isAutoGeneratePO, setIsAutoGeneratePO] = useState(true);
   const [poPrefix, setPoPrefix] = useState('PO-');
   const [poNextNumber, setPoNextNumber] = useState('00003');
+  
+  const csvInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -525,6 +527,138 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
     });
     setIsBulkModalOpen(false);
     setSelectedBulkItems([]);
+  };
+
+  const exportSelectedToCsv = () => {
+    const headers = ['Item ID', 'Temp Code', 'Item Name', 'Description', 'HSN Code', 'Package', 'Circle', 'Quantity', 'Rate', 'Amount'];
+    
+    const escapeCsv = (str: any) => {
+      if (str === null || str === undefined) return '""';
+      const s = String(str).replace(/"/g, '""');
+      return `"${s}"`;
+    };
+
+    const rows = [headers];
+
+    selectedBulkItems.forEach(itemId => {
+      const selectedItem = itemsList.find(i => i._id === itemId);
+      if (selectedItem) {
+        const d = selectedItem.dynamicData || {};
+        const getVal = (key: string) => {
+          if (d[key] !== undefined) return d[key];
+          const lowerKey = key.toLowerCase();
+          const foundKey = Object.keys(d).find(k => k.toLowerCase() === lowerKey);
+          return foundKey ? d[foundKey] : '';
+        };
+        
+        const qty = 1;
+        const rate = getVal('price') || getVal('costPrice') || getVal('sellingPrice') || 0;
+        const amount = qty * rate;
+
+        rows.push([
+          escapeCsv(selectedItem._id),
+          escapeCsv(getVal('tempCode') || getVal('sku') || getVal('itemCode')),
+          escapeCsv(getVal('name') || getVal('itemDescription') || 'Item'),
+          escapeCsv(getVal('description') || getVal('itemDescription')),
+          escapeCsv(getVal('hsnCode') || getVal('hsn')),
+          escapeCsv(getVal('package')),
+          escapeCsv(getVal('circle')),
+          escapeCsv(qty),
+          escapeCsv(rate),
+          escapeCsv(amount)
+        ]);
+      }
+    });
+
+    const csvContent = rows.map(r => r.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'bulk_items.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleImportCsv = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      const rows: string[][] = [];
+      let row: string[] = [];
+      let inQuotes = false;
+      let val = '';
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        if (char === '"') {
+          if (inQuotes && text[i+1] === '"') {
+            val += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (char === ',' && !inQuotes) {
+          row.push(val);
+          val = '';
+        } else if ((char === '\n' || char === '\r') && !inQuotes) {
+          if (char === '\r' && text[i+1] === '\n') i++;
+          row.push(val);
+          if (row.length > 1 || row[0] !== '') rows.push(row);
+          row = [];
+          val = '';
+        } else {
+          val += char;
+        }
+      }
+      if (val || row.length > 0) {
+        row.push(val);
+        rows.push(row);
+      }
+
+      if (rows.length < 2) {
+        toast.error('Invalid or empty CSV file.');
+        return;
+      }
+      
+      const dataRows = rows.slice(1);
+      let added = 0;
+      dataRows.forEach(row => {
+        if (row.length >= 9) {
+          const itemId = row[0];
+          if (itemId) {
+             append({
+                itemId: itemId,
+                tempCode: row[1] || '',
+                itemName: row[2] || 'Item',
+                description: row[3] || '',
+                hsnCode: row[4] || '',
+                package: row[5] || '',
+                circle: row[6] || '',
+                unit: '',
+                loaSerialNo: '',
+                account: '',
+                quantity: Number(row[7]) || 1,
+                rate: Number(row[8]) || 0,
+             });
+             added++;
+          }
+        }
+      });
+      
+      if (added > 0) {
+         toast.success(`Imported ${added} items successfully!`);
+         setIsBulkModalOpen(false);
+         setSelectedBulkItems([]);
+      } else {
+         toast.error('No valid items found in the CSV.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1697,6 +1831,19 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
             <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
               <span className="text-sm font-medium text-slate-600">{selectedBulkItems.length} items selected</span>
               <div className="flex gap-3">
+                <input 
+                  type="file" 
+                  accept=".csv" 
+                  ref={csvInputRef} 
+                  onChange={handleImportCsv} 
+                  className="hidden" 
+                />
+                <button type="button" onClick={() => csvInputRef.current?.click()} className="px-4 py-2 text-sm font-medium text-[#3b82f6] bg-white border border-blue-200 rounded-md hover:bg-blue-50 transition-colors">
+                  Import CSV
+                </button>
+                <button type="button" onClick={exportSelectedToCsv} disabled={selectedBulkItems.length === 0} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  Export to CSV
+                </button>
                 <button type="button" onClick={() => setIsBulkModalOpen(false)} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 transition-colors">
                   Cancel
                 </button>

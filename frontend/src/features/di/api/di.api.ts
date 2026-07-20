@@ -17,8 +17,13 @@ export interface CreateDIDto {
   notes?: string;
 }
 
-export const createDI = async (payload: CreateDIDto) => {
+export const createDI = async (payload: CreateDIDto | FormData) => {
   const response = await api.post('/di', payload);
+  return response.data;
+};
+
+export const updateDI = async (id: string, payload: CreateDIDto | FormData) => {
+  const response = await api.put(`/di/${id}`, payload);
   return response.data;
 };
 

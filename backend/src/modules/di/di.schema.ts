@@ -16,7 +16,7 @@ export interface IDI extends Document {
   circle?: string;
   package?: string;
   lineItems: IDILineItem[];
-  status: 'Pending Receipt' | 'Received' | 'Cancelled';
+  status: 'Draft' | 'Pending Receipt' | 'Received' | 'Cancelled';
   notes?: string;
   attachments?: {
     name: string;
@@ -43,7 +43,7 @@ const diSchema = new Schema<IDI>(
     circle: { type: String },
     package: { type: String },
     lineItems: [diLineItemSchema],
-    status: { type: String, enum: ['Pending Receipt', 'Received', 'Cancelled'], default: 'Pending Receipt' },
+    status: { type: String, enum: ['Draft', 'Pending Receipt', 'Received', 'Cancelled'], default: 'Pending Receipt' },
     notes: { type: String },
     attachments: [{
       name: { type: String },

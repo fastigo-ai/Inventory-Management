@@ -5,7 +5,30 @@ import { ApiResponse } from '../../core/utils/ApiResponse';
 import { DI } from './di.schema';
 
 export const createDI = asyncHandler(async (req: Request, res: Response) => {
-  const diData = req.body;
+  const data = req.body;
+
+  // Parse lineItems if they come as string from multipart/form-data
+  let parsedLineItems = data.lineItems || [];
+  if (typeof parsedLineItems === 'string') {
+    try {
+      parsedLineItems = JSON.parse(parsedLineItems);
+    } catch (e) {
+      parsedLineItems = [];
+    }
+  }
+
+  // Process attachments
+  const files = req.files as Express.Multer.File[];
+  const attachments = files ? files.map(file => ({
+    name: file.originalname,
+    url: `/uploads/dis/${file.filename}`
+  })) : [];
+  
+  const diData = {
+    ...data,
+    lineItems: parsedLineItems,
+    attachments
+  };
   
   // Basic validation
   if (!diData.diNumber || !diData.purchaseOrderId || !diData.lineItems || diData.lineItems.length === 0) {
@@ -98,5 +121,56 @@ export const receiveDI = asyncHandler(async (req: Request, res: Response) => {
 
   res.status(200).json(
     new ApiResponse(200, di, 'DI Received Successfully')
+  );
+});
+
+export const updateDI = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const data = req.body;
+
+  const existingDI = await DI.findById(id);
+  if (!existingDI) {
+    throw new ApiError(404, 'DI not found');
+  }
+
+  // Parse lineItems if they come as string from multipart/form-data
+  let parsedLineItems = data.lineItems || [];
+  if (typeof parsedLineItems === 'string') {
+    try {
+      parsedLineItems = JSON.parse(parsedLineItems);
+    } catch (e) {
+      parsedLineItems = [];
+    }
+  }
+
+  // Parse existingAttachments if they come as string
+  let existingAttachments = data.existingAttachments || [];
+  if (typeof existingAttachments === 'string') {
+    try {
+      existingAttachments = JSON.parse(existingAttachments);
+    } catch (e) {
+      existingAttachments = [];
+    }
+  }
+
+  // Process new attachments
+  const files = req.files as Express.Multer.File[];
+  const newAttachments = files ? files.map(file => ({
+    name: file.originalname,
+    url: `/uploads/dis/${file.filename}`
+  })) : [];
+  
+  const mergedAttachments = [...existingAttachments, ...newAttachments];
+
+  const updateData = {
+    ...data,
+    lineItems: parsedLineItems,
+    attachments: mergedAttachments
+  };
+
+  const updatedDI = await DI.findByIdAndUpdate(id, updateData, { new: true });
+
+  res.status(200).json(
+    new ApiResponse(200, updatedDI, 'DI Updated Successfully')
   );
 });

@@ -1,20 +1,21 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { X, Settings, UploadCloud, FileText } from "lucide-react";
 import Link from "next/link";
-import { createDI } from "@/features/di/api/di.api";
+import { getDIById, updateDI } from "@/features/di/api/di.api";
 import { getPurchaseOrders } from "@/features/purchases/api/purchases.api";
 import { getItems } from "@/features/items/api/items.api";
 
 const PACKAGES = ["Package 1 (S/N)", "Package 2 (R/R)"];
 
-export default function NewDIRegistrationPage() {
+export default function EditDIRegistrationPage() {
   const router = useRouter();
+  const { id } = useParams();
   
   // Data State
   const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
@@ -30,19 +31,38 @@ export default function NewDIRegistrationPage() {
   
   const [lineItems, setLineItems] = useState<any[]>([]);
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [existingAttachments, setExistingAttachments] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   useEffect(() => {
     // Load POs and Items on mount
-    getPurchaseOrders().then(res => setPurchaseOrders(Array.isArray(res.data) ? res.data : (res.data?.pos || res.data || [])));
-    getItems({ limit: 1000 }).then(res => setItems(Array.isArray(res) ? res : (res?.items || [])));
-    
-    // Default Date
-    setDate(new Date().toISOString().split('T')[0]);
-  }, []);
+    Promise.all([
+      getPurchaseOrders(),
+      getItems({ limit: 1000 }),
+      getDIById(id as string)
+    ]).then(([posRes, itemsRes, diRes]) => {
+      setPurchaseOrders(Array.isArray(posRes.data) ? posRes.data : (posRes.data?.pos || posRes.data || []));
+      setItems(Array.isArray(itemsRes) ? itemsRes : (itemsRes?.items || []));
+      
+      // Hydrate DI
+      if (diRes) {
+        setPurchaseOrderId(diRes.purchaseOrderId || "");
+        setDiNumber(diRes.diNumber || "");
+        setDate(diRes.date ? new Date(diRes.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
+        setNotes(diRes.notes || "");
+        setDiPackage(diRes.package || "");
+        setDiCircle(diRes.circle || "");
+        setLineItems(diRes.lineItems || []);
+        setExistingAttachments(diRes.attachments || []);
+      }
+      setTimeout(() => setIsInitialLoad(false), 100);
+    }).catch(console.error);
+  }, [id]);
 
-  // When PO changes, populate line items
+  // When PO changes, populate line items (skip on initial load)
   useEffect(() => {
+    if (isInitialLoad) return;
     if (purchaseOrderId) {
       const po = purchaseOrders.find(p => p._id === purchaseOrderId);
       if (po && po.lineItems) {
@@ -113,11 +133,14 @@ export default function NewDIRegistrationPage() {
       if (diCircle) formData.append('circle', diCircle);
       formData.append('lineItems', JSON.stringify(itemsToSave));
 
+      if (existingAttachments.length > 0) {
+        formData.append('existingAttachments', JSON.stringify(existingAttachments));
+      }
       attachments.forEach(file => {
         formData.append('files', file);
       });
 
-      await createDI(formData as any);
+      await updateDI(id as string, formData as any);
       router.push('/di'); // Assuming we will have a list page
     } catch (error: any) {
       console.error(error);
@@ -465,10 +488,31 @@ export default function NewDIRegistrationPage() {
                 </div>
               </div>
 
-              {attachments.length > 0 && (
+              {(existingAttachments.length > 0 || attachments.length > 0) && (
                 <ul role="list" className="mt-4 divide-y divide-slate-100 rounded-md border border-slate-200 bg-white">
+                  {existingAttachments.map((file, index) => (
+                    <li key={`existing-${index}`} className="flex items-center justify-between py-3 pl-3 pr-4 text-sm leading-6 hover:bg-slate-50 transition-colors">
+                      <div className="flex w-0 flex-1 items-center">
+                        <FileText className="h-5 w-5 flex-shrink-0 text-slate-400" aria-hidden="true" />
+                        <div className="ml-4 flex min-w-0 flex-1 gap-2">
+                          <span className="truncate font-medium text-slate-700">{file.name}</span>
+                          <span className="flex-shrink-0 text-slate-400">Already Uploaded</span>
+                        </div>
+                      </div>
+                      <div className="ml-4 flex-shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setExistingAttachments(existingAttachments.filter((_, i) => i !== index))}
+                          className="font-medium text-slate-400 hover:text-red-500 p-1.5 rounded-md hover:bg-red-50 transition-colors"
+                          title="Remove file"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </li>
+                  ))}
                   {attachments.map((file, index) => (
-                    <li key={index} className="flex items-center justify-between py-3 pl-3 pr-4 text-sm leading-6 hover:bg-slate-50 transition-colors">
+                    <li key={`new-${index}`} className="flex items-center justify-between py-3 pl-3 pr-4 text-sm leading-6 hover:bg-slate-50 transition-colors">
                       <div className="flex w-0 flex-1 items-center">
                         <FileText className="h-5 w-5 flex-shrink-0 text-blue-500" aria-hidden="true" />
                         <div className="ml-4 flex min-w-0 flex-1 gap-2">

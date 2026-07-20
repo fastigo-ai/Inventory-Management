@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { Plus } from "lucide-react";
 import { getDIs } from "@/features/di/api/di.api";
 
 export default function DIPage() {
+  const router = useRouter();
   const [dis, setDis] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -57,13 +59,26 @@ export default function DIPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {dis.map(di => (
-                  <tr key={di._id} className="hover:bg-slate-50 transition-colors cursor-pointer">
+                  <tr 
+                    key={di._id} 
+                    className="hover:bg-slate-50 transition-colors cursor-pointer"
+                    onClick={() => {
+                      if (di.status === 'Draft') {
+                        router.push(`/di/edit/${di._id}`);
+                      } else {
+                        // Assuming a view page exists, otherwise edit is fine or no-op
+                        router.push(`/di/${di._id}`);
+                      }
+                    }}
+                  >
                     <td className="px-6 py-4 font-medium text-blue-600">{di.diNumber}</td>
                     <td className="px-6 py-4">{di.purchaseOrderId?.purchaseOrderNumber || '-'}</td>
                     <td className="px-6 py-4">{new Date(di.date).toLocaleDateString()}</td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                        di.status === 'Received' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                        di.status === 'Received' ? 'bg-green-100 text-green-700' :
+                        di.status === 'Draft' ? 'bg-slate-100 text-slate-700' :
+                        'bg-amber-100 text-amber-700'
                       }`}>
                         {di.status}
                       </span>

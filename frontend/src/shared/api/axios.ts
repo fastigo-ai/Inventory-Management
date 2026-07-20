@@ -13,6 +13,13 @@ export const api = axios.create({
 
 api.interceptors.request.use((config) => {
   // Cookies are automatically sent because of `withCredentials: true`
+  // We ALSO send the token via Bearer header as a fallback for strict cross-origin cookie blocking in Safari/Chrome
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
   return config;
 });
 
@@ -59,14 +66,18 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        await axios.post(
+        const response = await axios.post(
           `${API_BASE_URL}/api/auth/refresh-token`,
           {},
           { withCredentials: true }
         );
 
+        const { accessToken } = response.data.data;
+        if (typeof window !== 'undefined' && accessToken) {
+          localStorage.setItem('accessToken', accessToken);
+        }
         isRefreshing = false;
-        processQueue(null, 'success');
+        processQueue(null, accessToken);
 
         return api(originalRequest);
       } catch (refreshError) {

@@ -10,20 +10,30 @@ export interface User {
 
 interface AuthState {
   user: User | null;
+  accessToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (user: User) => void;
+  login: (user: User, token?: string) => void;
   logout: () => void;
   setLoading: (isLoading: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
-  isAuthenticated: false,
+  accessToken: typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null,
+  isAuthenticated: typeof window !== 'undefined' ? !!localStorage.getItem('accessToken') : false,
   isLoading: true, // Starts true until verified on initial app load
-  login: (user) => set({ user, isAuthenticated: true }),
+  login: (user, token) => {
+    if (token && typeof window !== 'undefined') {
+      localStorage.setItem('accessToken', token);
+    }
+    set({ user, accessToken: token || null, isAuthenticated: true });
+  },
   logout: () => {
-    set({ user: null, isAuthenticated: false });
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('accessToken');
+    }
+    set({ user: null, accessToken: null, isAuthenticated: false });
   },
   setLoading: (isLoading) => set({ isLoading }),
 }));

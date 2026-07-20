@@ -16,11 +16,15 @@ import vendorRoutes from './modules/vendors/vendor.routes';
 import diRoutes from './modules/di/di.routes';
 import contractorRoutes from './modules/contractors/contractor.routes';
 import billingCompanyRoutes from './modules/billing-companies/billingCompany.routes';
+import auditRoutes from './modules/audit/audit.routes';
 import { errorHandler } from './core/middlewares/error.middleware';
+
+import { contextMiddleware } from './core/middlewares/context.middleware';
 
 const app: Express = express();
 
 // Middlewares
+app.use(contextMiddleware);
 app.use(helmet());
 const allowedOrigins = [
   'http://localhost:3000',
@@ -70,6 +74,7 @@ apiRouter.use('/vendors', vendorRoutes);
 apiRouter.use('/di', diRoutes);
 apiRouter.use('/contractors', contractorRoutes);
 apiRouter.use('/billing-companies', billingCompanyRoutes);
+apiRouter.use('/audit', auditRoutes);
 
 // Mount API routes on both / and /api to handle DigitalOcean path stripping
 app.use('/', apiRouter);

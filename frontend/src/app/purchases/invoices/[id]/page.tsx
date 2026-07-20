@@ -6,10 +6,12 @@ import { getPurchaseInvoiceById, deletePurchaseInvoice } from '@/features/purcha
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, Edit, Trash2, Printer, FileText, CheckCircle2, AlertCircle, Clock, Banknote, HelpCircle } from 'lucide-react';
 import Link from 'next/link';
+import { AuditTimeline } from '@/shared/components/audit/AuditTimeline';
 
 export default function PurchaseInvoiceDetailPage({ params }: { params: { id: string } }) {
   const [invoice, setInvoice] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'details' | 'history'>('details');
   const router = useRouter();
 
   useEffect(() => {
@@ -104,6 +106,20 @@ export default function PurchaseInvoiceDetailPage({ params }: { params: { id: st
               {invoice.status.toUpperCase()}
             </span>
           </div>
+          <div className="ml-8 flex space-x-1 bg-slate-100 p-1 rounded-lg">
+            <button
+              onClick={() => setActiveTab('details')}
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'details' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Details
+            </button>
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'history' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              History
+            </button>
+          </div>
         </div>
         
         <div className="flex items-center space-x-2">
@@ -122,7 +138,14 @@ export default function PurchaseInvoiceDetailPage({ params }: { params: { id: st
       <div className="flex-1 overflow-y-auto px-6 py-8">
         <div className="max-w-[1000px] mx-auto space-y-8">
           
-          {/* Lifecycle Flowchart */}
+          {activeTab === 'history' ? (
+            <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
+              <h2 className="text-xl font-semibold text-slate-800 mb-8 border-b border-slate-100 pb-4">Audit History</h2>
+              <AuditTimeline entityType="PurchaseInvoice" entityId={params.id} />
+            </div>
+          ) : (
+            <>
+              {/* Lifecycle Flowchart */}
           <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 text-center">
             <h2 className="text-lg font-semibold text-slate-800 mb-2">Life cycle of an Invoice</h2>
             <p className="text-sm text-slate-500 mb-8">Follow the status of your invoice through its lifecycle.</p>
@@ -324,6 +347,8 @@ export default function PurchaseInvoiceDetailPage({ params }: { params: { id: st
               </div>
             )}
           </div>
+            </>
+          )}
         </div>
       </div>
     </div>

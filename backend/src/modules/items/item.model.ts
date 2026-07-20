@@ -24,7 +24,10 @@ const ItemSchema = new Schema({
   // Instead of hardcoding sku, name, brand, etc., we store everything here.
   dynamicData: { type: Schema.Types.Mixed, required: true },
   isDeleted: { type: Boolean, default: false },
-  history: [HistorySchema]
+  history: [HistorySchema] // We'll phase this out
 }, { timestamps: true });
 
-export default mongoose.model<IItem>('Item', ItemSchema);
+import { auditPlugin } from '../../core/plugins/audit.plugin';
+ItemSchema.plugin(auditPlugin, { entityName: 'Item', track: true });
+
+export default mongoose.models.Item || mongoose.model<IItem>('Item', ItemSchema);

@@ -9,6 +9,7 @@ import { getLocations } from '@/features/settings/api/locations.api';
 import { getVendors } from '@/features/vendors/api/vendors.api';
 import { numberToWords } from '@/shared/utils/numberToWords';
 import { toast } from 'sonner';
+import { AuditTimeline } from '@/shared/components/audit/AuditTimeline';
 
 export default function PurchaseOrderDetailPage() {
   const params = useParams();
@@ -20,6 +21,7 @@ export default function PurchaseOrderDetailPage() {
   const [vendorsList, setVendorsList] = useState<any[]>([]);
   const [locationsList, setLocationsList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'details' | 'history'>('details');
 
   // UI States
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
@@ -373,6 +375,20 @@ export default function PurchaseOrderDetailPage() {
               <p className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Location: {order.location || 'Head Office'}</p>
               <h1 className="text-xl font-bold text-slate-800 leading-tight">{order.purchaseOrderNumber}</h1>
             </div>
+            <div className="ml-8 flex space-x-1 bg-slate-100 p-1 rounded-lg">
+              <button
+                onClick={() => setActiveTab('details')}
+                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'details' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Details
+              </button>
+              <button
+                onClick={() => setActiveTab('history')}
+                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'history' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                History
+              </button>
+            </div>
           </div>
           
           <div className="flex items-center gap-2">
@@ -496,7 +512,16 @@ export default function PurchaseOrderDetailPage() {
 
         <div className="flex-1 overflow-auto pb-20 scrollbar-thin scrollbar-thumb-slate-300 print:overflow-visible print:pb-0 print:block">
           
-          {/* WHAT'S NEXT Banner */}
+          {activeTab === 'history' ? (
+            <div className="p-8 max-w-4xl mx-auto mt-6">
+              <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
+                <h2 className="text-xl font-semibold text-slate-800 mb-8 border-b border-slate-100 pb-4">Audit History</h2>
+                <AuditTimeline entityType="PurchaseOrder" entityId={id} />
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* WHAT'S NEXT Banner */}
           {order.status === 'Draft' && (
             <>
               <div className="max-w-[850px] mx-auto mt-6 px-4 print:hidden">
@@ -1087,6 +1112,8 @@ export default function PurchaseOrderDetailPage() {
                 </div>
               </div>
             </div>
+          )}
+            </>
           )}
         </div>
       </div>

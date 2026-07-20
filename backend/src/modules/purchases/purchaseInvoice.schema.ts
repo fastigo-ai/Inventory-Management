@@ -135,4 +135,7 @@ purchaseInvoiceSchema.pre('save', function(next: any) {
   next();
 });
 
+import { auditPlugin } from '../../core/plugins/audit.plugin';
+purchaseInvoiceSchema.plugin(auditPlugin, { entityName: 'PurchaseInvoice', track: true });
+
 export const PurchaseInvoice = mongoose.models.PurchaseInvoice || mongoose.model<IPurchaseInvoice>('PurchaseInvoice', purchaseInvoiceSchema);

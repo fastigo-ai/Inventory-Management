@@ -7,6 +7,7 @@ import {
   getVendorById,
   importVendors,
   exportVendors,
+  exportVendorTemplate,
   updateVendor,
   deleteVendor
 } from './vendor.controller';
@@ -18,6 +19,7 @@ router.use(authenticate);
 
 router.post('/import', uploadCsv.single('file'), importVendors);
 router.get('/export', exportVendors);
+router.get('/template', exportVendorTemplate);
 router.post('/', createVendor);
 router.get('/', getVendors);
 router.get('/:id', getVendorById);

@@ -185,6 +185,22 @@ export const exportVendors = asyncHandler(async (req: Request, res: Response) =>
   res.send(csv);
 });
 
+export const exportVendorTemplate = asyncHandler(async (req: Request, res: Response) => {
+  const metadata = await Metadata.findOne({ entityName: 'Vendor' });
+  if (!metadata) {
+    throw new ApiError(500, 'Vendor metadata configuration missing');
+  }
+
+  // Headers based on metadata labels
+  const headers = metadata.fields.map((f: any) => f.label);
+  
+  const csv = stringify([], { header: true, columns: headers });
+  
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="vendors_template.csv"');
+  res.send(csv);
+});
+
 export const importVendors = asyncHandler(async (req: Request, res: Response) => {
   if (!req.file) {
     throw new ApiError(400, 'No CSV file uploaded');

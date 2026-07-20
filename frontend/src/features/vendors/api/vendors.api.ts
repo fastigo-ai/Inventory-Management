@@ -64,6 +64,17 @@ export const exportVendorsToCsv = async () => {
   link.remove();
 };
 
+export const exportVendorTemplateToCsv = async () => {
+  const response = await api.get('/vendors/template', { responseType: 'blob' });
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', 'vendors_template.csv');
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+};
+
 export const importVendorsFromCsv = async (file: File) => {
   const formData = new FormData();
   formData.append('file', file);

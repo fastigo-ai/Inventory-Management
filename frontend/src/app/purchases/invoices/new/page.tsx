@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { X, User, Table as TableIcon, Trash2, Plus, Settings } from "lucide-react";
+import { X, User, Table as TableIcon, Trash2, Plus, Settings, Search } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { createPurchaseInvoice, getNextPurchaseInvoiceNumber } from "@/features/purchases/api/purchases.api";
 import { getVendors } from "@/features/vendors/api/vendors.api";
+import { getItems } from "@/features/items/api/items.api";
 
 export default function NewPurchaseInvoicePage() {
   const router = useRouter();
@@ -33,9 +35,18 @@ export default function NewPurchaseInvoicePage() {
   const [adjustment, setAdjustment] = useState(0);
   const [amountPaid, setAmountPaid] = useState(0);
 
+  // Bulk Modal State
+  const [itemsList, setItemsList] = useState<any[]>([]);
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [bulkSearchQuery, setBulkSearchQuery] = useState('');
+  const [selectedBulkItems, setSelectedBulkItems] = useState<string[]>([]);
+  const csvInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     // Load vendors on mount
     getVendors({ limit: 100 }).then(res => setVendors(res.vendors || res));
+    getItems({ limit: 5000 }).then(data => setItemsList(data.items || data)).catch(err => console.error(err));
+    
     getNextPurchaseInvoiceNumber().then(res => {
       if (res.data?.fullNumber && !invoiceNumber) {
         setInvoiceNumber(res.data.fullNumber);
@@ -70,6 +81,168 @@ export default function NewPurchaseInvoicePage() {
         amount: 0
       }
     ]);
+  };
+
+  const handleBulkAdd = () => {
+    const newItems = selectedBulkItems.map(itemId => {
+      const selectedItem = itemsList.find(i => i._id === itemId);
+      if (selectedItem) {
+        const d = selectedItem.dynamicData || {};
+        const getVal = (key: string) => {
+          if (d[key] !== undefined) return d[key];
+          const lowerKey = key.toLowerCase();
+          const foundKey = Object.keys(d).find(k => k.toLowerCase() === lowerKey);
+          return foundKey ? d[foundKey] : '';
+        };
+
+        const quantity = 1;
+        const rate = getVal('price') || getVal('costPrice') || getVal('sellingPrice') || 0;
+        
+        return {
+          itemId: selectedItem._id,
+          itemName: getVal('name') || getVal('itemDescription') || 'Item',
+          description: getVal('description') || getVal('itemDescription') || '',
+          quantity,
+          rate,
+          amount: quantity * rate
+        };
+      }
+      return null;
+    }).filter(item => item !== null);
+
+    setLineItems([...lineItems, ...newItems]);
+    setIsBulkModalOpen(false);
+    setSelectedBulkItems([]);
+  };
+
+  const exportSelectedToCsv = () => {
+    const headers = ['Item ID', 'Temp Code', 'Item Name', 'Description', 'HSN Code', 'Package', 'Circle', 'Quantity', 'Rate', 'Amount'];
+    
+    const escapeCsv = (str: any) => {
+      if (str === null || str === undefined) return '""';
+      const s = String(str).replace(/"/g, '""');
+      return `"${s}"`;
+    };
+
+    const rows = [headers];
+
+    selectedBulkItems.forEach(itemId => {
+      const selectedItem = itemsList.find(i => i._id === itemId);
+      if (selectedItem) {
+        const d = selectedItem.dynamicData || {};
+        const getVal = (key: string) => {
+          if (d[key] !== undefined) return d[key];
+          const lowerKey = key.toLowerCase();
+          const foundKey = Object.keys(d).find(k => k.toLowerCase() === lowerKey);
+          return foundKey ? d[foundKey] : '';
+        };
+        
+        const qty = 1;
+        const rate = getVal('price') || getVal('costPrice') || getVal('sellingPrice') || 0;
+        const amount = qty * rate;
+
+        rows.push([
+          escapeCsv(selectedItem._id),
+          escapeCsv(getVal('tempCode') || getVal('sku') || getVal('itemCode')),
+          escapeCsv(getVal('name') || getVal('itemDescription') || 'Item'),
+          escapeCsv(getVal('description') || getVal('itemDescription')),
+          escapeCsv(getVal('hsnCode') || getVal('hsn')),
+          escapeCsv(getVal('package')),
+          escapeCsv(getVal('circle')),
+          escapeCsv(qty),
+          escapeCsv(rate),
+          escapeCsv(amount)
+        ]);
+      }
+    });
+
+    const csvContent = rows.map(r => r.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'bulk_items.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleImportCsv = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      const rows: string[][] = [];
+      let row: string[] = [];
+      let inQuotes = false;
+      let val = '';
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        if (char === '"') {
+          if (inQuotes && text[i+1] === '"') {
+            val += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (char === ',' && !inQuotes) {
+          row.push(val);
+          val = '';
+        } else if ((char === '\n' || char === '\r') && !inQuotes) {
+          if (char === '\r' && text[i+1] === '\n') i++;
+          row.push(val);
+          if (row.length > 1 || row[0] !== '') rows.push(row);
+          row = [];
+          val = '';
+        } else {
+          val += char;
+        }
+      }
+      if (val || row.length > 0) {
+        row.push(val);
+        rows.push(row);
+      }
+
+      if (rows.length < 2) {
+        toast.error('Invalid or empty CSV file.');
+        return;
+      }
+      
+      const dataRows = rows.slice(1);
+      const newItems: any[] = [];
+      let added = 0;
+      dataRows.forEach(row => {
+        if (row.length >= 9) {
+          const itemId = row[0];
+          if (itemId) {
+             const quantity = Number(row[7]) || 1;
+             const rate = Number(row[8]) || 0;
+             newItems.push({
+                itemId: itemId,
+                itemName: row[2] || 'Item',
+                description: row[3] || '',
+                quantity,
+                rate,
+                amount: quantity * rate
+             });
+             added++;
+          }
+        }
+      });
+      
+      if (added > 0) {
+         setLineItems([...lineItems, ...newItems]);
+         toast.success(`Imported ${added} items successfully!`);
+         setIsBulkModalOpen(false);
+         setSelectedBulkItems([]);
+      } else {
+         toast.error('No valid items found in the CSV.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   };
 
   const calculateTotals = () => {
@@ -205,9 +378,14 @@ export default function NewPurchaseInvoicePage() {
               <h3 className="text-sm font-bold text-slate-800 flex items-center">
                 <TableIcon className="w-4 h-4 mr-2 text-blue-500" /> Items
               </h3>
-              <Button variant="outline" size="sm" onClick={handleAddItem} className="h-8 text-blue-600 border-blue-200 hover:bg-blue-50">
-                <Plus className="w-4 h-4 mr-1" /> Add Line Item
-              </Button>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => setIsBulkModalOpen(true)} className="text-[#3b82f6] text-[13px] font-medium flex items-center gap-1 hover:underline px-3 py-1.5 border border-transparent">
+                  <Settings className="w-4 h-4" /> Bulk Actions
+                </button>
+                <Button variant="outline" size="sm" onClick={handleAddItem} className="h-8 text-blue-600 border-blue-200 hover:bg-blue-50">
+                  <Plus className="w-4 h-4 mr-1" /> Add Line Item
+                </Button>
+              </div>
             </div>
             
             <div className="border border-slate-200 rounded-lg overflow-x-auto">
@@ -384,6 +562,119 @@ export default function NewPurchaseInvoicePage() {
           Save and Send
         </Button>
       </div>
+
+      {/* Bulk Add Items Modal */}
+      {isBulkModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+              <h2 className="text-lg font-bold text-slate-800">Add Items in Bulk</h2>
+              <button type="button" onClick={() => setIsBulkModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="px-6 py-3 border-b border-slate-200 bg-slate-50">
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search items by name or code..."
+                  className="w-full border border-slate-200 rounded-md pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white shadow-sm"
+                  value={bulkSearchQuery}
+                  onChange={(e) => setBulkSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-2">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
+                  <tr>
+                    <th className="px-4 py-2 w-10">
+                      <input
+                        type="checkbox"
+                        className="rounded text-blue-500 focus:ring-blue-500 cursor-pointer"
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedBulkItems(itemsList.map(i => i._id));
+                          } else {
+                            setSelectedBulkItems([]);
+                          }
+                        }}
+                        checked={selectedBulkItems.length === itemsList.length && itemsList.length > 0}
+                      />
+                    </th>
+                    <th className="px-4 py-2 font-bold text-slate-500">Item Name</th>
+                    <th className="px-4 py-2 font-bold text-slate-500">Temp Code</th>
+                    <th className="px-4 py-2 font-bold text-slate-500 text-right">Price</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {itemsList
+                    .filter(item => {
+                      const query = (bulkSearchQuery || '').toLowerCase();
+                      const name = String(item.dynamicData?.name || item.dynamicData?.itemDescription || '').toLowerCase();
+                      const code = String(item.dynamicData?.tempCode || item.dynamicData?.sku || '').toLowerCase();
+                      return name.includes(query) || code.includes(query);
+                    })
+                    .map(item => (
+                      <tr key={item._id} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => {
+                        setSelectedBulkItems(prev => prev.includes(item._id) ? prev.filter(id => id !== item._id) : [...prev, item._id]);
+                      }}>
+                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            className="rounded text-blue-500 focus:ring-blue-500 cursor-pointer"
+                            checked={selectedBulkItems.includes(item._id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedBulkItems([...selectedBulkItems, item._id]);
+                              } else {
+                                setSelectedBulkItems(selectedBulkItems.filter(id => id !== item._id));
+                              }
+                            }}
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-slate-700">{item.dynamicData?.name || item.dynamicData?.itemDescription || 'Unnamed Item'}</td>
+                        <td className="px-4 py-3 text-slate-500">{item.dynamicData?.tempCode || '--'}</td>
+                        <td className="px-4 py-3 text-slate-700 text-right">{(item.dynamicData?.price || item.dynamicData?.costPrice || 0).toFixed(2)}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+              {itemsList.length === 0 && (
+                <div className="text-center py-10 text-slate-500 text-sm">No items found in your inventory.</div>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+              <span className="text-sm font-medium text-slate-600">{selectedBulkItems.length} items selected</span>
+              <div className="flex gap-3">
+                <input 
+                  type="file" 
+                  accept=".csv" 
+                  ref={csvInputRef} 
+                  onChange={handleImportCsv} 
+                  className="hidden" 
+                />
+                <button type="button" onClick={() => csvInputRef.current?.click()} className="px-4 py-2 text-sm font-medium text-[#3b82f6] bg-white border border-blue-200 rounded-md hover:bg-blue-50 transition-colors">
+                  Import CSV
+                </button>
+                <button type="button" onClick={exportSelectedToCsv} disabled={selectedBulkItems.length === 0} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  Export to CSV
+                </button>
+                <button type="button" onClick={() => setIsBulkModalOpen(false)} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 transition-colors">
+                  Cancel
+                </button>
+                <button type="button" onClick={handleBulkAdd} disabled={selectedBulkItems.length === 0} className="px-4 py-2 text-sm font-medium text-white bg-[#3b82f6] rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  Add Selected Items
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

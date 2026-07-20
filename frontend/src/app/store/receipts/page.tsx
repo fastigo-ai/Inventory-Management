@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { getDIs, updateDIStatus } from "@/features/di/api/di.api";
 
 export default function StoreReceiptsPage() {
+  const router = useRouter();
   const [dis, setDis] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -84,7 +86,12 @@ export default function StoreReceiptsPage() {
                           Approve Receipt
                         </Button>
                       ) : (
-                        <span className="text-slate-400 font-medium">Received</span>
+                        <Button
+                          onClick={() => router.push(`/store/inventory/inward/${di._id}`)}
+                          className="h-8 bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          Register Inward
+                        </Button>
                       )}
                     </td>
                   </tr>

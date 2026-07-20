@@ -45,13 +45,7 @@ const navItems: NavItem[] = [
     children: [
       { title: 'Items', href: '/items' },
       { title: 'Item Groups', href: '/items/groups' },
-    ]
-  },
-  {
-    title: 'Sales',
-    icon: <ShoppingCart className="w-5 h-5" />,
-    children: [
-      { title: 'Invoices', href: '/sales/invoices' }
+      { title: 'Store Manager Data', href: '/items/store-manager' },
     ]
   },
   {
@@ -75,17 +69,11 @@ const navItems: NavItem[] = [
     icon: <Folder className="w-5 h-5" />
   },
   {
-    title: 'Custom Modules',
-    icon: <MoreHorizontal className="w-5 h-5" />,
-    children: [
-      { title: 'Module 1', href: '/modules/1' }
-    ]
-  },
-  {
     title: 'Store Portal',
     icon: <Archive className="w-5 h-5" />,
     children: [
       { title: 'Store Receipts', href: '/store/receipts' },
+      { title: 'Inward Registration', href: '/store/inventory' },
       { title: 'Contractor Assignments', href: '/contractors' }
     ]
   },

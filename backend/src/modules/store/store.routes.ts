@@ -1,0 +1,32 @@
+import { Router } from 'express';
+import { authenticate } from '../../core/middlewares/auth.middleware';
+import {
+  getPendingDIs,
+  getDIPrefillData,
+  createInwardEntry,
+  updateInwardEntry,
+  getInwardEntryById,
+  queryInwardEntries,
+  getAdminInwardEntries
+} from './store.controller';
+
+const router = Router();
+
+router.use(authenticate);
+
+// Store Manager Routes
+router.route('/di/pending').get(getPendingDIs);
+router.route('/di/:diId/prefill').get(getDIPrefillData);
+
+router.route('/inventory/inward')
+  .post(createInwardEntry)
+  .get(queryInwardEntries);
+
+router.route('/inventory/inward/:id')
+  .get(getInwardEntryById)
+  .put(updateInwardEntry);
+
+// Admin Routes (Note: in a real app, you might secure these with an admin role check)
+router.route('/admin/inventory/store-manager').get(getAdminInwardEntries);
+
+export default router;

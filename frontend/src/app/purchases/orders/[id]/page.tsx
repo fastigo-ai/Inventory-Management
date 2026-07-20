@@ -520,7 +520,7 @@ export default function PurchaseOrderDetailPage() {
                   </div>
                   <div className="p-8 text-center text-sm text-slate-500 flex items-center justify-center gap-1">
                     No items received yet! <span className="text-slate-400 cursor-help mx-1" title="You can track received items here.">?</span>
-                    <button className="text-blue-600 font-medium hover:underline">New Purchase Receive</button>
+                    <button className="text-blue-600 font-medium hover:underline">New Purchase Invoice</button>
                   </div>
                 </div>
               </div>

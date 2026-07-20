@@ -22,7 +22,7 @@ export default function PurchaseReceivesPage() {
         const res = await getPurchaseReceives();
         setReceives(res.data?.prs || []);
       } catch (error) {
-        console.error("Failed to load purchase receives", error);
+        console.error("Failed to load Purchase Invoices", error);
       } finally {
         setIsLoading(false);
       }
@@ -77,7 +77,7 @@ export default function PurchaseReceivesPage() {
                   </th>
                   <th className="px-6 py-3 font-semibold w-[50px]"><svg className="w-4 h-4 text-[#0076f2]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg></th>
                   <th className="px-4 py-3 font-semibold">DATE</th>
-                  <th className="px-4 py-3 font-semibold">PURCHASE RECEIVE#</th>
+                  <th className="px-4 py-3 font-semibold">Purchase Invoice#</th>
                   <th className="px-4 py-3 font-semibold">PURCHASE ORDER#</th>
                   <th className="px-4 py-3 font-semibold">VENDOR NAME</th>
                   <th className="px-4 py-3 font-semibold">STATUS</th>
@@ -90,7 +90,7 @@ export default function PurchaseReceivesPage() {
                 {receives.length === 0 ? (
                   <tr>
                     <td colSpan={10} className="py-20 text-center">
-                      <p className="text-[15px] text-slate-500">No Purchase Receives to display!</p>
+                      <p className="text-[15px] text-slate-500">No Purchase Invoices to display!</p>
                     </td>
                   </tr>
                 ) : (

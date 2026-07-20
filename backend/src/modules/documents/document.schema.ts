@@ -7,7 +7,7 @@ export interface IDocument extends Document {
   size: number;
   url: string;
   publicId: string; // Cloudinary public_id
-  sourceType?: string; // e.g. 'Purchase Receive'
+  sourceType?: string; // e.g. 'Purchase Invoice'
   sourceId?: string; // ID of the source module
   uploadedBy?: mongoose.Types.ObjectId;
   status: 'Unreadable' | 'Pending' | 'Processed';

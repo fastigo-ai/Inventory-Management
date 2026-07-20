@@ -91,7 +91,7 @@ export const getNextPurchaseOrderNumber = async () => {
   return response.data;
 };
 
-// Purchase Receives
+// Purchase Invoices
 export interface CreatePurchaseReceiveDto {
   vendorName: string;
   purchaseOrderId?: string;
@@ -159,5 +159,81 @@ export const deletePurchaseReceive = async (id: string) => {
 
 export const getNextPurchaseReceiveNumber = async () => {
   const response = await api.get('/purchases/receives/next-number');
+  return response.data;
+};
+
+// Purchase Invoices
+export interface CreatePurchaseInvoiceDto {
+  invoiceNumber: string;
+  vendorName: string;
+  purchaseOrderId?: string;
+  purchaseOrderNumber?: string;
+  date: string | Date;
+  dueDate?: string | Date;
+  lineItems: Array<{
+    itemId?: string;
+    itemName: string;
+    description?: string;
+    hsnCode?: string;
+    quantity: number;
+    rate: number;
+    amount: number;
+  }>;
+  notes?: string;
+  termsConditions?: string;
+  subTotal: number;
+  cgstPercentage?: number;
+  sgstPercentage?: number;
+  igstPercentage?: number;
+  discountPercentage?: number;
+  discountAmount?: number;
+  taxAmount?: number;
+  adjustment?: number;
+  total: number;
+  amountPaid: number;
+  balanceDue: number;
+  status: 'Draft' | 'Sent' | 'Unpaid' | 'Overdue' | 'Partially Paid' | 'Paid';
+}
+
+export const createPurchaseInvoice = async (payload: CreatePurchaseInvoiceDto | FormData) => {
+  const isFormData = payload instanceof FormData;
+  const response = await api.post('/purchases/invoices', payload, {
+    headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : undefined,
+  });
+  return response.data;
+};
+
+export const getPurchaseInvoices = async (params?: { page?: number; limit?: number }) => {
+  const query = new URLSearchParams();
+  if (params?.page) query.append('page', params.page.toString());
+  if (params?.limit) query.append('limit', params.limit.toString());
+  
+  const queryString = query.toString();
+  const url = queryString ? `/purchases/invoices?${queryString}` : '/purchases/invoices';
+  
+  const response = await api.get(url);
+  return response.data;
+};
+
+export const getPurchaseInvoiceById = async (id: string) => {
+  const response = await api.get(`/purchases/invoices/${id}`);
+  return response.data.data;
+};
+
+export const updatePurchaseInvoice = async (id: string, payload: any) => {
+  const isFormData = payload instanceof FormData;
+  const response = await api.put(`/purchases/invoices/${id}`, payload, {
+    headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : undefined,
+  });
+  return response.data;
+};
+
+export const deletePurchaseInvoice = async (id: string) => {
+  const response = await api.delete(`/purchases/invoices/${id}`);
+  return response.data;
+};
+
+export const getNextPurchaseInvoiceNumber = async () => {
+  const response = await api.get('/purchases/invoices/next-number');
   return response.data;
 };

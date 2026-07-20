@@ -61,7 +61,7 @@ const navItems: NavItem[] = [
       { title: 'Vendors', href: '/purchases/vendors' },
       { title: 'Purchase Orders', href: '/purchases/orders' },
       { title: 'DI Registrations', href: '/di' },
-      { title: 'Purchase Receives', href: '/purchases/receives' }
+      { title: 'Purchase Invoices', href: '/purchases/receives' }
     ]
   },
   {

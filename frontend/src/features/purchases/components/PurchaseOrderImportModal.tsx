@@ -58,11 +58,10 @@ export function PurchaseOrderImportModal({ isOpen, onClose, onSuccess }: Purchas
   };
 
   const downloadSampleCsv = () => {
-    const headers = "PurchaseOrderNumber,VendorName,Date,Location,ItemName,Quantity,Rate,Status\n";
-    const sampleRow1 = "PO-1001,Acme Corp,2023-10-27,Head Office,Widget A,10,15.50,Draft\n";
-    const sampleRow2 = "PO-1001,Acme Corp,2023-10-27,Head Office,Widget B,5,25.00,Draft\n";
-    const sampleRow3 = "PO-1002,Global Tech,2023-10-28,Warehouse 1,Gadget X,100,5.00,Sent\n";
-    const csvContent = headers + sampleRow1 + sampleRow2 + sampleRow3;
+    const headers = "PurchaseOrderNumber,VendorName,Location,DeliveryAddressType,Reference,Date,DeliveryDate,Circle,Package,ShipmentPreference,WarehouseLocation,Notes,TermsConditions,CGSTPercentage,SGSTPercentage,IGSTPercentage,ItemName,TempCode,Account,Description,LoaSerialNo,HsnCode,ItemPackage,ItemCircle,Unit,Quantity,Rate\n";
+    const sampleRow1 = "PO-10001,Fastigo Tech,Mumbai HQ,Locations,REF-992,2026-07-21,2026-08-01,Mumbai,Hardware Pack 1,Air,Warehouse A,Please deliver safely,\"Net 30, Standard SLA\",9,9,0,Optical Fiber,FBR-001,Inventory,10km roll of fiber,SN-1234,8544,Hardware Pack 1,Mumbai,Roll,2,5000\n";
+    const sampleRow2 = "PO-10001,Fastigo Tech,Mumbai HQ,Locations,REF-992,2026-07-21,2026-08-01,Mumbai,Hardware Pack 1,Air,Warehouse A,Please deliver safely,\"Net 30, Standard SLA\",9,9,0,Router,RTR-900,Inventory,Enterprise Router,SN-9988,8517,Hardware Pack 1,Mumbai,Pcs,5,12000\n";
+    const csvContent = headers + sampleRow1 + sampleRow2;
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);

@@ -228,6 +228,11 @@ export const updatePurchaseInvoice = async (id: string, payload: any) => {
   return response.data;
 };
 
+export const updatePurchaseInvoiceReceiptStatus = async (id: string, receiptStatus: string) => {
+  const response = await api.put(`/purchases/invoices/${id}/receipt-status`, { receiptStatus });
+  return response.data;
+};
+
 export const deletePurchaseInvoice = async (id: string) => {
   const response = await api.delete(`/purchases/invoices/${id}`);
   return response.data;

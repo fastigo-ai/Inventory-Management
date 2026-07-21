@@ -166,14 +166,75 @@ export const exportVendors = asyncHandler(async (req: Request, res: Response) =>
 
   const vendors = await Vendor.find({}).sort({ createdAt: -1 });
   
-  // Headers based on metadata labels
-  const headers = metadata.fields.map((f: any) => f.label);
+  // Headers based on metadata labels, expanding compound fields
+  const headers: string[] = [];
+  const expandHeaders = (field: any) => {
+    if (field.widget === 'vendor_address') {
+      headers.push(
+        'Billing Attention', 'Billing Country', 'Billing Street 1', 'Billing Street 2', 'Billing City', 'Billing State', 'Billing Zip',
+        'Shipping Attention', 'Shipping Country', 'Shipping Street 1', 'Shipping Street 2', 'Shipping City', 'Shipping State', 'Shipping Zip'
+      );
+    } else if (field.widget === 'vendor_contact_persons') {
+      headers.push('Contact Salutation', 'Contact First Name', 'Contact Last Name', 'Contact Email', 'Contact Work Phone', 'Contact Mobile');
+    } else if (field.widget === 'vendor_bank_details') {
+      headers.push('Bank Account Holder', 'Bank Name', 'Bank Account Number');
+    } else if (field.widget === 'vendor_primary_contact') {
+      headers.push('Primary Contact Salutation', 'Primary Contact First Name', 'Primary Contact Last Name');
+    } else if (field.widget === 'vendor_phone') {
+      headers.push('Work Phone Code', 'Work Phone', 'Mobile Phone Code', 'Mobile Phone');
+    } else if (field.type !== 'compound') {
+      headers.push(field.label);
+    }
+  };
+
+  metadata.fields.forEach(expandHeaders);
   
   // Build rows mapping dynamicData back to labels
   const rows = vendors.map(vendor => {
     const row: any = {};
     for (const field of metadata.fields) {
-      row[field.label] = vendor.dynamicData?.[field.name] ?? '';
+      const val = vendor.dynamicData?.[field.name];
+      if (field.widget === 'vendor_address') {
+        row['Billing Attention'] = val?.billing?.attention || '';
+        row['Billing Country'] = val?.billing?.country || '';
+        row['Billing Street 1'] = val?.billing?.street1 || '';
+        row['Billing Street 2'] = val?.billing?.street2 || '';
+        row['Billing City'] = val?.billing?.city || '';
+        row['Billing State'] = val?.billing?.state || '';
+        row['Billing Zip'] = val?.billing?.zip || '';
+        
+        row['Shipping Attention'] = val?.shipping?.attention || '';
+        row['Shipping Country'] = val?.shipping?.country || '';
+        row['Shipping Street 1'] = val?.shipping?.street1 || '';
+        row['Shipping Street 2'] = val?.shipping?.street2 || '';
+        row['Shipping City'] = val?.shipping?.city || '';
+        row['Shipping State'] = val?.shipping?.state || '';
+        row['Shipping Zip'] = val?.shipping?.zip || '';
+      } else if (field.widget === 'vendor_contact_persons') {
+        const cp = Array.isArray(val) && val.length > 0 ? val[0] : {};
+        row['Contact Salutation'] = cp.salutation || '';
+        row['Contact First Name'] = cp.firstName || '';
+        row['Contact Last Name'] = cp.lastName || '';
+        row['Contact Email'] = cp.email || '';
+        row['Contact Work Phone'] = cp.workPhone || '';
+        row['Contact Mobile'] = cp.mobile || '';
+      } else if (field.widget === 'vendor_bank_details') {
+        const bk = Array.isArray(val) && val.length > 0 ? val[0] : {};
+        row['Bank Account Holder'] = bk.accountHolderName || '';
+        row['Bank Name'] = bk.bankName || '';
+        row['Bank Account Number'] = bk.accountNumber || '';
+      } else if (field.widget === 'vendor_primary_contact') {
+        row['Primary Contact Salutation'] = val?.salutation || '';
+        row['Primary Contact First Name'] = val?.firstName || '';
+        row['Primary Contact Last Name'] = val?.lastName || '';
+      } else if (field.widget === 'vendor_phone') {
+        row['Work Phone Code'] = val?.workCountryCode || '';
+        row['Work Phone'] = val?.work || '';
+        row['Mobile Phone Code'] = val?.mobileCountryCode || '';
+        row['Mobile Phone'] = val?.mobile || '';
+      } else if (field.type !== 'compound') {
+        row[field.label] = val ?? '';
+      }
     }
     return row;
   });
@@ -191,8 +252,28 @@ export const exportVendorTemplate = asyncHandler(async (req: Request, res: Respo
     throw new ApiError(500, 'Vendor metadata configuration missing');
   }
 
-  // Headers based on metadata labels
-  const headers = metadata.fields.map((f: any) => f.label);
+  // Headers based on metadata labels, expanding compound fields
+  const headers: string[] = [];
+  const expandHeaders = (field: any) => {
+    if (field.widget === 'vendor_address') {
+      headers.push(
+        'Billing Attention', 'Billing Country', 'Billing Street 1', 'Billing Street 2', 'Billing City', 'Billing State', 'Billing Zip',
+        'Shipping Attention', 'Shipping Country', 'Shipping Street 1', 'Shipping Street 2', 'Shipping City', 'Shipping State', 'Shipping Zip'
+      );
+    } else if (field.widget === 'vendor_contact_persons') {
+      headers.push('Contact Salutation', 'Contact First Name', 'Contact Last Name', 'Contact Email', 'Contact Work Phone', 'Contact Mobile');
+    } else if (field.widget === 'vendor_bank_details') {
+      headers.push('Bank Account Holder', 'Bank Name', 'Bank Account Number');
+    } else if (field.widget === 'vendor_primary_contact') {
+      headers.push('Primary Contact Salutation', 'Primary Contact First Name', 'Primary Contact Last Name');
+    } else if (field.widget === 'vendor_phone') {
+      headers.push('Work Phone Code', 'Work Phone', 'Mobile Phone Code', 'Mobile Phone');
+    } else if (field.type !== 'compound') {
+      headers.push(field.label);
+    }
+  };
+
+  metadata.fields.forEach(expandHeaders);
   
   const csv = stringify([], { header: true, columns: headers });
   
@@ -264,6 +345,70 @@ export const importVendors = asyncHandler(async (req: Request, res: Response) =>
            dynamicData[columnName] = cellValue;
            dynamicData[normalizedCol] = cellValue;
         }
+      }
+
+      // Reconstruct compound fields
+      if (row['Billing Attention'] !== undefined || row['Shipping Attention'] !== undefined) {
+        dynamicData.vendorAddresses = {
+          billing: {
+            attention: row['Billing Attention'] || '',
+            country: row['Billing Country'] || '',
+            street1: row['Billing Street 1'] || '',
+            street2: row['Billing Street 2'] || '',
+            city: row['Billing City'] || '',
+            state: row['Billing State'] || '',
+            zip: row['Billing Zip'] || '',
+            phone: row['Billing Phone'] || '',
+            fax: row['Billing Fax'] || ''
+          },
+          shipping: {
+            attention: row['Shipping Attention'] || '',
+            country: row['Shipping Country'] || '',
+            street1: row['Shipping Street 1'] || '',
+            street2: row['Shipping Street 2'] || '',
+            city: row['Shipping City'] || '',
+            state: row['Shipping State'] || '',
+            zip: row['Shipping Zip'] || '',
+            phone: row['Shipping Phone'] || '',
+            fax: row['Shipping Fax'] || ''
+          }
+        };
+      }
+      
+      if (row['Contact Salutation'] !== undefined || row['Contact First Name'] !== undefined) {
+        dynamicData.contactPersons = [{
+          salutation: row['Contact Salutation'] || '',
+          firstName: row['Contact First Name'] || '',
+          lastName: row['Contact Last Name'] || '',
+          email: row['Contact Email'] || '',
+          workPhone: row['Contact Work Phone'] || '',
+          mobile: row['Contact Mobile'] || ''
+        }];
+      }
+
+      if (row['Bank Account Holder'] !== undefined || row['Bank Account Number'] !== undefined) {
+        dynamicData.bankDetails = [{
+          accountHolderName: row['Bank Account Holder'] || '',
+          bankName: row['Bank Name'] || '',
+          accountNumber: row['Bank Account Number'] || ''
+        }];
+      }
+
+      if (row['Primary Contact First Name'] !== undefined) {
+        dynamicData.primaryContact = {
+          salutation: row['Primary Contact Salutation'] || '',
+          firstName: row['Primary Contact First Name'] || '',
+          lastName: row['Primary Contact Last Name'] || ''
+        };
+      }
+
+      if (row['Work Phone'] !== undefined || row['Mobile Phone'] !== undefined) {
+        dynamicData.phone = {
+          workCountryCode: row['Work Phone Code'] || '',
+          work: row['Work Phone'] || '',
+          mobileCountryCode: row['Mobile Phone Code'] || '',
+          mobile: row['Mobile Phone'] || ''
+        };
       }
 
       for (const field of metadata.fields) {

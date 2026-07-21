@@ -277,3 +277,36 @@ export const getNextPurchaseInvoiceNumber = async (req: Request, res: Response) 
     });
   }
 };
+
+export const updatePurchaseInvoiceReceiptStatus = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { receiptStatus } = req.body;
+    
+    if (!['Pending Receipt', 'Received'].includes(receiptStatus)) {
+      return res.status(400).json({ success: false, message: 'Invalid receipt status' });
+    }
+
+    const invoice = await PurchaseInvoice.findByIdAndUpdate(
+      id,
+      { receiptStatus },
+      { new: true }
+    );
+
+    if (!invoice) {
+      return res.status(404).json({ success: false, message: 'Purchase Invoice not found' });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: invoice,
+      message: 'Receipt status updated successfully'
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update receipt status',
+      error: error.message
+    });
+  }
+};

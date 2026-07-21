@@ -4,6 +4,8 @@ import { parse } from 'csv-parse';
 import { stringify } from 'csv-stringify/sync';
 import Item from './item.model';
 import Metadata from '../metadata/metadata.model';
+import { PurchaseOrder } from '../purchases/purchaseOrder.schema';
+import { DI } from '../di/di.schema';
 import { asyncHandler } from '../../core/utils/asyncHandler';
 import { ApiResponse } from '../../core/utils/ApiResponse';
 import { ApiError } from '../../core/utils/ApiError';
@@ -74,10 +76,44 @@ export const getItems = asyncHandler(async (req: Request, res: Response) => {
 
   const skip = (page - 1) * limit;
 
-  const queryCondition = isDeleted ? { isDeleted: true } : { isDeleted: { $ne: true } };
+  let queryCondition: any = isDeleted ? { isDeleted: true } : { isDeleted: { $ne: true } };
+  
+  let hasFilterSort = false;
+  const exprFilters: any[] = [];
 
-  const totalItems = await Item.countDocuments(queryCondition);
-  const items = await Item.find(queryCondition)
+  // Apply column filters
+  for (const [key, value] of Object.entries(req.query)) {
+    if (key.startsWith('filter_') && value) {
+      const fieldName = key.replace('filter_', '');
+      
+      exprFilters.push({
+        $regexMatch: {
+          input: { $toString: `$dynamicData.${fieldName}` },
+          regex: String(value),
+          options: "i"
+        }
+      });
+
+      // Implicitly sort by the filtered field alphabetically (shorter/exact matches first) if no explicit sort is provided
+      if (!sortBy && !hasFilterSort) {
+        sortObject = { [`dynamicData.${fieldName}`]: 1 };
+        hasFilterSort = true;
+      }
+    }
+  }
+
+  if (exprFilters.length > 0) {
+    if (exprFilters.length === 1) {
+      queryCondition.$expr = exprFilters[0];
+    } else {
+      queryCondition.$expr = { $and: exprFilters };
+    }
+  }
+
+  let query = Item.find(queryCondition);
+  const filter = query.getFilter();
+  const totalItems = await Item.countDocuments(filter);
+  const items = await query
     .sort(sortObject)
     .collation({ locale: 'en', numericOrdering: true })
     .skip(skip)
@@ -107,6 +143,29 @@ export const getItemById = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(404, 'Item not found');
   }
   res.status(200).json(new ApiResponse(200, item, 'Item fetched successfully'));
+});
+
+export const getItemUsage = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  if (typeof id !== 'string' || !id.match(/^[0-9a-fA-F]{24}$/)) {
+    throw new ApiError(404, 'Item not found');
+  }
+
+  // Find Purchase Orders containing this item
+  const purchaseOrders = await PurchaseOrder.find({ 'lineItems.itemId': id })
+    .select('_id purchaseOrderNumber date vendorName status')
+    .sort({ date: -1 });
+
+  // Find DI Registrations containing this item
+  const dis = await DI.find({ 'lineItems.itemId': id })
+    .select('_id diNumber date status')
+    .sort({ date: -1 });
+
+  res.status(200).json(new ApiResponse(200, {
+    purchaseOrders,
+    dis
+  }, 'Item usage fetched successfully'));
 });
 
 export const bulkDeleteItems = asyncHandler(async (req: Request, res: Response) => {

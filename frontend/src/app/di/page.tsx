@@ -66,8 +66,8 @@ export default function DIPage() {
                       if (di.status === 'Draft') {
                         router.push(`/di/edit/${di._id}`);
                       } else {
-                        // Assuming a view page exists, otherwise edit is fine or no-op
-                        router.push(`/di/${di._id}`);
+                        // A dedicated view page doesn't exist yet, so we redirect to edit mode for now
+                        router.push(`/di/edit/${di._id}`);
                       }
                     }}
                   >

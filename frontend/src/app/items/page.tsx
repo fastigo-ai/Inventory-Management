@@ -37,13 +37,63 @@ export default function ItemsPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+  
+  const [columnFilters, setColumnFilters] = useState<Record<string, string>>(() => {
+    const filters: Record<string, string> = {};
+    searchParams.forEach((value, key) => {
+      if (key.startsWith('filter_')) {
+        filters[key.replace('filter_', '')] = value;
+      }
+    });
+    return filters;
+  });
+
+  const handleColumnFilterChange = (columnName: string, value: string) => {
+    setColumnFilters(prev => ({ ...prev, [columnName]: value }));
+  };
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      const updates: Record<string, string | null> = { page: '1' };
+      
+      searchParams.forEach((val, key) => {
+        if (key.startsWith('filter_')) {
+          updates[key] = null;
+        }
+      });
+      
+      Object.entries(columnFilters).forEach(([key, val]) => {
+        if (val) {
+          updates[`filter_${key}`] = val;
+        }
+      });
+      
+      let hasChanges = false;
+      const currentParams = new URLSearchParams(searchParams.toString());
+      Object.entries(updates).forEach(([key, val]) => {
+        if (val === null && currentParams.has(key)) hasChanges = true;
+        if (val !== null && currentParams.get(key) !== val) hasChanges = true;
+      });
+      
+      if (hasChanges) {
+        updateUrl(updates);
+      }
+    }, 500);
+    return () => clearTimeout(timeout);
+  }, [columnFilters, searchParams]);
 
   const fetchItemsData = async () => {
     setIsLoading(true);
     try {
+      const urlFilters: Record<string, string> = {};
+      searchParams.forEach((value, key) => {
+        if (key.startsWith('filter_')) {
+          urlFilters[key.replace('filter_', '')] = value;
+        }
+      });
       const [metaRes, itemsRes] = await Promise.all([
         getEntityMetadata('Item'),
-        getItems({ page, limit, sortBy: sortBy || undefined, sortOrder, isDeleted })
+        getItems({ page, limit, sortBy: sortBy || undefined, sortOrder, isDeleted, filters: urlFilters })
       ]);
       setFields(metaRes.fields);
       setItems(itemsRes.items || itemsRes);
@@ -57,7 +107,7 @@ export default function ItemsPage() {
 
   useEffect(() => {
     fetchItemsData();
-  }, [page, limit, sortBy, sortOrder, isDeleted]);
+  }, [searchParams]);
 
   const updateUrl = (updates: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -118,7 +168,7 @@ export default function ItemsPage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading && fields.length === 0) {
     return (
       <div className="flex h-full items-center justify-center p-12">
         <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
@@ -130,7 +180,10 @@ export default function ItemsPage() {
     <div className="p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Items</h1>
+          <div className="flex items-center space-x-3">
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Items</h1>
+            {isLoading && fields.length > 0 && <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />}
+          </div>
           <p className="text-sm text-slate-500 mt-1">Metadata-driven inventory management</p>
         </div>
         <div className="flex items-center space-x-3">
@@ -219,6 +272,8 @@ export default function ItemsPage() {
         enableSelection={true}
         onSelectionChange={setSelectedIds}
         selectedIds={selectedIds}
+        columnFilters={columnFilters}
+        onColumnFilterChange={handleColumnFilterChange}
       />
 
       {isImportModalOpen && (

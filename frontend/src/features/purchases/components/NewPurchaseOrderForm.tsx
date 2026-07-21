@@ -1064,7 +1064,8 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                 <button type="button" className="text-[#3b82f6] text-sm font-medium flex items-center gap-1 hover:underline">
                   <Settings className="w-4 h-4" /> Bulk Actions
                 </button>
-                <button type="button" className="text-[#3b82f6] text-sm font-medium flex items-center gap-1 hover:underline">
+                <input type="file" accept=".csv" ref={csvInputRef} onChange={handleImportCsv} className="hidden" />
+                <button type="button" onClick={() => csvInputRef.current?.click()} className="text-[#3b82f6] text-sm font-medium flex items-center gap-1 hover:underline">
                   <FileUp className="w-4 h-4" /> Import Items
                 </button>
               </div>
@@ -1831,13 +1832,7 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
             <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
               <span className="text-sm font-medium text-slate-600">{selectedBulkItems.length} items selected</span>
               <div className="flex gap-3">
-                <input 
-                  type="file" 
-                  accept=".csv" 
-                  ref={csvInputRef} 
-                  onChange={handleImportCsv} 
-                  className="hidden" 
-                />
+
                 <button type="button" onClick={() => csvInputRef.current?.click()} className="px-4 py-2 text-sm font-medium text-[#3b82f6] bg-white border border-blue-200 rounded-md hover:bg-blue-50 transition-colors">
                   Import CSV
                 </button>

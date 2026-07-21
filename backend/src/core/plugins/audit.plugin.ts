@@ -63,7 +63,7 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions) {
   };
 
   // --- SAVE HOOKS ---
-  schema.pre('save', async function (this: any, next: any) {
+  schema.pre('save', async function (this: any) {
     if (!this.isNew) {
       try {
         const original = await (this.constructor as any).findById(this._id).lean();
@@ -73,10 +73,9 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions) {
         console.warn('Audit plugin could not fetch original document for diffing');
       }
     }
-    next();
   });
 
-  schema.post('save', async function (doc: any, next: any) {
+  schema.post('save', async function (doc: any) {
     try {
       const action = doc.$locals?.original ? AuditAction.UPDATE : AuditAction.CREATE;
       const changes: IAuditChange[] = [];
@@ -123,11 +122,10 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions) {
     } catch (err) {
       console.error('Audit plugin save error:', err);
     }
-    next();
   });
 
   // --- FIND ONE AND UPDATE HOOKS ---
-  schema.pre('findOneAndUpdate', async function (this: any, next: any) {
+  schema.pre('findOneAndUpdate', async function (this: any) {
     try {
       const docToUpdate = await this.model.findOne(this.getQuery()).lean();
       this.$locals = this.$locals || {};
@@ -135,11 +133,10 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions) {
     } catch (err) {
       console.warn('Audit plugin could not fetch original document for findOneAndUpdate');
     }
-    next();
   });
 
-  schema.post('findOneAndUpdate', async function (this: any, doc: any, next: any) {
-    if (!doc) return next();
+  schema.post('findOneAndUpdate', async function (this: any, doc: any) {
+    if (!doc) return;
     
     try {
       const original: Record<string, any> = this.$locals?.original || {};
@@ -149,7 +146,7 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions) {
       // If it's a soft delete
       if (current.isDeleted === true && original.isDeleted !== true) {
         await createLog(doc._id, AuditAction.DELETE, [{ field: 'isDeleted', oldValue: false, newValue: true }]);
-        return next();
+        return;
       }
 
       for (const key of Object.keys(current)) {
@@ -179,11 +176,10 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions) {
     } catch (err) {
       console.error('Audit plugin findOneAndUpdate error:', err);
     }
-    next();
   });
   
   // --- DELETE HOOKS ---
-  schema.pre('findOneAndDelete', async function (this: any, next: any) {
+  schema.pre('findOneAndDelete', async function (this: any) {
     try {
       const docToDelete = await this.model.findOne(this.getQuery()).lean();
       this.$locals = this.$locals || {};
@@ -191,11 +187,10 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions) {
     } catch (err) {
       console.warn('Audit plugin error in findOneAndDelete');
     }
-    next();
   });
 
-  schema.post('findOneAndDelete', async function (this: any, doc: any, next: any) {
-    if (!doc) return next();
+  schema.post('findOneAndDelete', async function (this: any, doc: any) {
+    if (!doc) return;
     try {
       const original = this.$locals?.original || {};
       // For hard deletes, maybe we want to log the whole object, or just record DELETE
@@ -203,11 +198,10 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions) {
     } catch (err) {
       console.error('Audit plugin findOneAndDelete error:', err);
     }
-    next();
   });
   
   // Update Many (Bulk Updates)
-  schema.post('updateMany', async function (res: any, next) {
+  schema.post('updateMany', async function (res: any) {
     try {
        // We can't easily get all updated docs, so we record a bulk action
        if (res.modifiedCount > 0) {
@@ -228,6 +222,5 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions) {
     } catch(err) {
       console.error(err);
     }
-    next();
   });
 }

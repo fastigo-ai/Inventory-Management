@@ -4,6 +4,7 @@ import { useEffect, useState, use } from "react";
 import { getEntityMetadata, getItems, getItem } from "@/features/items/api/items.api";
 import { FieldMetadata } from "@/shared/components/dynamic/DynamicForm";
 import { AuditTimeline } from '@/shared/components/audit/AuditTimeline';
+import { ItemUsageTab } from "@/features/items/components/ItemUsageTab";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -275,9 +276,7 @@ export default function ItemSplitViewPage({ params }: { params: Promise<{ id: st
           )}
 
           {activeTab === 'Transactions' && (
-            <div className="text-center py-10 text-slate-500">
-              No transactions found for this item.
-            </div>
+            <ItemUsageTab itemId={itemId} />
           )}
         </div>
       </div>

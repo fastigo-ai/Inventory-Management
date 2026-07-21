@@ -25,7 +25,7 @@ const ItemSchema = new Schema({
   dynamicData: { type: Schema.Types.Mixed, required: true },
   isDeleted: { type: Boolean, default: false },
   history: [HistorySchema] // We'll phase this out
-}, { timestamps: true });
+}, { timestamps: true, strictQuery: false });
 
 import { auditPlugin } from '../../core/plugins/audit.plugin';
 ItemSchema.plugin(auditPlugin, { entityName: 'Item', track: true });

@@ -6,7 +6,7 @@ import { StoreInwardEntry } from './storeInwardEntry.schema';
 import { DI } from '../di/di.schema';
 import { PurchaseOrder } from '../purchases/purchaseOrder.schema';
 import { PurchaseInvoice } from '../purchases/purchaseInvoice.schema';
-
+import Item from '../items/item.model';
 export const getPendingDIs = asyncHandler(async (req: Request, res: Response) => {
   const user = (req as any).user;
   const filter: any = { status: { $in: ['Pending Receipt', 'Received'] } };
@@ -35,6 +35,48 @@ export const getPendingDIs = asyncHandler(async (req: Request, res: Response) =>
 
   res.status(200).json(
     new ApiResponse(200, pendingDIs, 'Pending DIs fetched successfully')
+  );
+});
+
+export const getPurchaseInvoicePrefillData = asyncHandler(async (req: Request, res: Response) => {
+  const { invoiceId } = req.params;
+  
+  const invoice = await PurchaseInvoice.findById(invoiceId);
+  if (!invoice) {
+    throw new ApiError(404, 'Purchase Invoice not found');
+  }
+
+  let po = null;
+  if (invoice.purchaseOrderId) {
+    po = await PurchaseOrder.findById(invoice.purchaseOrderId);
+  }
+
+  const invoiceItem = invoice.lineItems && invoice.lineItems.length > 0 ? invoice.lineItems[0] : null;
+  const poItem = po ? po.lineItems.find((li: any) => li.itemId?.toString() === invoiceItem?.itemId?.toString()) : null;
+
+  const prefillData = {
+    purchaseInvoiceId: invoice._id,
+    purchaseOrderId: po?._id,
+    poNumber: po?.purchaseOrderNumber || '',
+    billingFrom: po?.billingCompany?.name || invoice.billingCompany?.name || '',
+    vendorName: invoice.vendorName || po?.vendorName,
+    unit: poItem?.unit || 'Nos',
+    invoiceQty: invoiceItem ? invoiceItem.quantity : 0,
+    rate: invoiceItem ? invoiceItem.rate : 0,
+    amount: invoiceItem ? invoiceItem.amount : 0,
+    hsnCode: invoiceItem?.hsnCode || poItem?.hsnCode || '',
+    gst: po?.cgstPercentage ? `${(po.cgstPercentage * 2)}%` : po?.igstPercentage ? `${po.igstPercentage}%` : '',
+    diRefNo: '',
+    circle: '',
+    package: '',
+    serialNumber: poItem?.loaSerialNo || '',
+    matchedInvoiceNumber: invoice.invoiceNumber,
+    matchedInvoiceId: invoice._id,
+    invoiceNumber: invoice.invoiceNumber
+  };
+
+  res.status(200).json(
+    new ApiResponse(200, prefillData, 'Prefill data fetched successfully')
   );
 });
 
@@ -87,18 +129,22 @@ export const getDIPrefillData = asyncHandler(async (req: Request, res: Response)
 export const createInwardEntry = asyncHandler(async (req: Request, res: Response) => {
   const data = req.body;
   
-  if (!data.diId) {
-    throw new ApiError(400, 'DI ID is required');
+  if (!data.diId && !data.purchaseInvoiceId) {
+    throw new ApiError(400, 'DI ID or Purchase Invoice ID is required');
   }
 
-  // Enforce 1 active inward entry per DI
-  const existing = await StoreInwardEntry.findOne({
-    diId: data.diId,
-    status: { $ne: 'DRAFT' } // If it's already submitted or verified
-  });
+  // Enforce 1 active inward entry per DI or PI
+  const existingFilter: any = { status: { $ne: 'DRAFT' } };
+  if (data.purchaseInvoiceId) {
+    existingFilter.purchaseInvoiceId = data.purchaseInvoiceId;
+  } else {
+    existingFilter.diId = data.diId;
+  }
+
+  const existing = await StoreInwardEntry.findOne(existingFilter);
 
   if (existing) {
-    throw new ApiError(400, 'A submitted Inward Entry already exists for this DI');
+    throw new ApiError(400, 'A submitted Inward Entry already exists for this Invoice/DI');
   }
 
   // Truck number validation
@@ -136,8 +182,14 @@ export const createInwardEntry = asyncHandler(async (req: Request, res: Response
     }
   }
 
-  // If DRAFT, we just upsert based on diId
-  let entry = await StoreInwardEntry.findOne({ diId: data.diId, status: 'DRAFT' });
+  // If DRAFT, we just upsert based on diId or purchaseInvoiceId
+  const draftFilter: any = { status: 'DRAFT' };
+  if (data.purchaseInvoiceId) {
+    draftFilter.purchaseInvoiceId = data.purchaseInvoiceId;
+  } else {
+    draftFilter.diId = data.diId;
+  }
+  let entry = await StoreInwardEntry.findOne(draftFilter);
   
   data.createdBy = (req as any).user?._id;
   
@@ -165,6 +217,42 @@ export const updateInwardEntry = asyncHandler(async (req: Request, res: Response
     // Allow status updates for admin/verification
     if (data.status === 'VERIFIED' || data.status === 'NEEDS_CORRECTION') {
       const updated = await StoreInwardEntry.findByIdAndUpdate(id, { status: data.status }, { new: true });
+      
+      // Update inventory and invoice receipt status if verified
+      if (data.status === 'VERIFIED' && updated && updated.purchaseInvoiceId) {
+        try {
+          const invoice = await PurchaseInvoice.findById(updated.purchaseInvoiceId);
+          if (invoice) {
+            // Update the receipt status of the invoice
+            invoice.receiptStatus = 'Received';
+            await invoice.save();
+            
+            // Loop through the line items to update the actual inventory stock
+            if (invoice.lineItems && invoice.lineItems.length > 0) {
+              for (const lineItem of invoice.lineItems) {
+                if (lineItem.itemId) {
+                  const item = await Item.findById(lineItem.itemId);
+                  if (item) {
+                    // Update dynamicData.stock 
+                    const currentStock = Number(item.dynamicData?.stock || 0);
+                    item.dynamicData = {
+                      ...item.dynamicData,
+                      stock: currentStock + Number(lineItem.quantity || 0)
+                    };
+                    
+                    // Mark as modified so mongoose saves the mixed type field
+                    item.markModified('dynamicData');
+                    await item.save();
+                  }
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Failed to update inventory stock on GRN verification:', err);
+        }
+      }
+      
       return res.status(200).json(new ApiResponse(200, updated, `Status updated to ${data.status}`));
     }
     throw new ApiError(400, 'Cannot fully update a non-draft entry via this endpoint');

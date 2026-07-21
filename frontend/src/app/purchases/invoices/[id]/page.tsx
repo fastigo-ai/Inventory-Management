@@ -1,24 +1,27 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { getPurchaseInvoiceById, deletePurchaseInvoice } from '@/features/purchases/api/purchases.api';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, Edit, Trash2, Printer, FileText, CheckCircle2, AlertCircle, Clock, Banknote, HelpCircle } from 'lucide-react';
 import Link from 'next/link';
 import { AuditTimeline } from '@/shared/components/audit/AuditTimeline';
 
-export default function PurchaseInvoiceDetailPage({ params }: { params: { id: string } }) {
+export default function PurchaseInvoiceDetailPage() {
+  const router = useRouter();
+  const params = useParams();
+  const id = params.id as string;
+  
   const [invoice, setInvoice] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'details' | 'history'>('details');
-  const router = useRouter();
 
   useEffect(() => {
     const fetchInvoice = async () => {
       try {
         setIsLoading(true);
-        const data = await getPurchaseInvoiceById(params.id);
+        const data = await getPurchaseInvoiceById(id);
         setInvoice(data);
       } catch (err) {
         console.error('Failed to fetch invoice:', err);
@@ -26,13 +29,13 @@ export default function PurchaseInvoiceDetailPage({ params }: { params: { id: st
         setIsLoading(false);
       }
     };
-    if (params.id) fetchInvoice();
-  }, [params.id]);
+    if (id) fetchInvoice();
+  }, [id]);
 
   const handleDelete = async () => {
     if (window.confirm('Are you sure you want to delete this invoice?')) {
       try {
-        await deletePurchaseInvoice(params.id);
+        await deletePurchaseInvoice(id);
         router.push('/purchases/invoices');
       } catch (error) {
         console.error('Failed to delete invoice:', error);
@@ -89,22 +92,38 @@ export default function PurchaseInvoiceDetailPage({ params }: { params: { id: st
     { id: 'Paid', label: 'PAID', icon: Banknote, color: 'green' }
   ];
 
+  const handleApproveReceipt = async () => {
+    if (window.confirm('Are you sure you want to approve this Invoice and receive items into inventory?')) {
+      try {
+        const { updatePurchaseInvoiceReceiptStatus } = await import('@/features/purchases/api/purchases.api');
+        await updatePurchaseInvoiceReceiptStatus(id, 'Received');
+        setInvoice({ ...invoice, receiptStatus: 'Received' });
+      } catch (error) {
+        console.error('Failed to update receipt status:', error);
+        alert('Failed to update receipt status');
+      }
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-[#f8f9fa] overflow-hidden">
       {/* Header */}
       <div className="flex-none h-16 border-b border-slate-200 flex items-center justify-between px-6 bg-white shrink-0 z-10 shadow-sm">
         <div className="flex items-center space-x-4">
-          <Link href="/purchases/invoices">
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:bg-slate-100 rounded-full">
-              <ChevronLeft className="w-5 h-5" />
-            </Button>
-          </Link>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:bg-slate-100 rounded-full" onClick={() => router.back()}>
+            <ChevronLeft className="w-5 h-5" />
+          </Button>
           <div className="flex items-center space-x-3">
             <h1 className="text-xl font-bold text-slate-800">{invoice.invoiceNumber}</h1>
             <span className={`text-xs font-semibold px-2.5 py-1 rounded-md border flex items-center ${getStatusColor(invoice.status)}`}>
               {getStatusIcon(invoice.status)}
               {invoice.status.toUpperCase()}
             </span>
+            {invoice.receiptStatus === 'Received' && (
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-md border bg-green-100 text-green-700 border-green-300 ml-2">
+                RECEIVED
+              </span>
+            )}
           </div>
           <div className="ml-8 flex space-x-1 bg-slate-100 p-1 rounded-lg">
             <button
@@ -123,6 +142,16 @@ export default function PurchaseInvoiceDetailPage({ params }: { params: { id: st
         </div>
         
         <div className="flex items-center space-x-2">
+          {(!invoice.receiptStatus || invoice.receiptStatus === 'Pending Receipt') ? (
+            <Button onClick={handleApproveReceipt} className="h-9 bg-green-600 hover:bg-green-700 text-white">
+              <CheckCircle2 className="w-4 h-4 mr-2" /> Approve Receipt
+            </Button>
+          ) : (
+            <Button onClick={() => router.push(`/store/inventory/inward/${id}`)} className="h-9 bg-blue-600 hover:bg-blue-700 text-white">
+              Register Inward
+            </Button>
+          )}
+          <div className="w-px h-6 bg-slate-200 mx-2"></div>
           <Button variant="outline" className="h-9 border-slate-300 text-slate-700 hover:bg-slate-50" onClick={() => window.print()}>
             <Printer className="w-4 h-4 mr-2" /> Print
           </Button>
@@ -145,73 +174,7 @@ export default function PurchaseInvoiceDetailPage({ params }: { params: { id: st
             </div>
           ) : (
             <>
-              {/* Lifecycle Flowchart */}
-          <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 text-center">
-            <h2 className="text-lg font-semibold text-slate-800 mb-2">Life cycle of an Invoice</h2>
-            <p className="text-sm text-slate-500 mb-8">Follow the status of your invoice through its lifecycle.</p>
-            
-            <div className="flex flex-col md:flex-row items-center justify-center relative w-full px-12">
-              
-              {/* Main Line */}
-              <div className="flex items-center space-x-4 md:space-x-8 relative z-10">
-                {workflowNodes.map((node, i) => {
-                  const isActive = currentStatus === node.id;
-                  const isPast = ['Sent', 'Unpaid', 'Overdue', 'Partially Paid', 'Paid'].includes(currentStatus) && node.id === 'Draft' || 
-                                 ['Unpaid', 'Overdue', 'Partially Paid', 'Paid'].includes(currentStatus) && node.id === 'Sent' ||
-                                 ['Overdue', 'Partially Paid', 'Paid'].includes(currentStatus) && node.id === 'Unpaid';
-                  
-                  return (
-                    <React.Fragment key={node.id}>
-                      {/* Node */}
-                      <div className={`flex items-center space-x-2 px-4 py-2 rounded-lg border-2 ${isActive ? `border-${node.color}-500 bg-${node.color}-50 text-${node.color}-700 shadow-sm` : isPast ? 'border-green-500 text-green-600 bg-white' : 'border-slate-200 text-slate-400 bg-white'} transition-colors duration-300 bg-white`}>
-                        <node.icon className={`w-5 h-5 ${isActive ? `text-${node.color}-500` : isPast ? 'text-green-500' : 'text-slate-400'}`} />
-                        <span className="font-bold text-sm">{node.label}</span>
-                      </div>
-                      
-                      {/* Connector to next */}
-                      {i < workflowNodes.length - 1 && (
-                        <div className={`h-0.5 w-8 md:w-16 border-t-2 border-dashed ${isPast ? 'border-green-400' : 'border-slate-300'}`}></div>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-
-                {/* Connector to Branches */}
-                <div className={`h-0.5 w-8 md:w-16 border-t-2 border-dashed ${['Overdue', 'Partially Paid', 'Paid'].includes(currentStatus) ? 'border-blue-400' : 'border-slate-300'}`}></div>
-
-                {/* Branches Container */}
-                <div className="flex flex-col space-y-4 relative">
-                  {endNodes.map((node) => {
-                    const isActive = currentStatus === node.id;
-                    const isPassedPartialToPaid = currentStatus === 'Paid' && node.id === 'Partially Paid';
-                    const displayColor = isActive ? node.color : isPassedPartialToPaid ? 'green' : 'slate';
-                    
-                    return (
-                      <div key={node.id} className="relative flex items-center">
-                        <div className={`absolute -left-12 h-0.5 w-12 border-t-2 border-dashed ${isActive || isPassedPartialToPaid ? `border-${node.color}-400` : 'border-slate-300'}`}></div>
-                        
-                        <div className={`flex items-center space-x-2 px-4 py-2 rounded-lg border-2 ${isActive ? `border-${node.color}-500 bg-${node.color}-50 text-${node.color}-700 shadow-sm` : isPassedPartialToPaid ? 'border-green-500 text-green-600 bg-white' : 'border-slate-200 text-slate-400 bg-white'} transition-colors duration-300 bg-white relative z-10 w-[170px] justify-center`}>
-                          <node.icon className={`w-5 h-5 ${isActive ? `text-${node.color}-500` : isPassedPartialToPaid ? 'text-green-500' : 'text-slate-400'}`} />
-                          <span className="font-bold text-sm">{node.label}</span>
-                        </div>
-                      </div>
-                    )
-                  })}
-                  
-                  {/* Vertical connector for branches */}
-                  <div className={`absolute -left-12 top-1/2 -translate-y-1/2 h-[calc(100%-2.5rem)] border-l-2 border-dashed ${['Overdue', 'Partially Paid', 'Paid'].includes(currentStatus) ? 'border-blue-400' : 'border-slate-300'}`}></div>
-                  
-                  {/* Partial to Paid extra line if Paid */}
-                  <div className={`absolute right-1/2 translate-x-[4rem] top-[calc(50%+1rem)] h-[4.5rem] border-r-2 border-dashed ${currentStatus === 'Paid' ? 'border-green-400 opacity-100' : 'opacity-0'} pointer-events-none rounded-br-xl`}></div>
-                  <div className={`absolute right-1/2 translate-x-[4rem] bottom-[1.2rem] w-8 border-b-2 border-dashed ${currentStatus === 'Paid' ? 'border-green-400 opacity-100' : 'opacity-0'} pointer-events-none`}></div>
-                </div>
-
-              </div>
-            </div>
-            
-          </div>
-
-          {/* Invoice Document Preview */}
+              {/* Invoice Document Preview */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="p-10">
               {/* Doc Header */}

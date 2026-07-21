@@ -10,13 +10,19 @@ export const updateEntityMetadata = async (entityName: string, fields: any[]) =>
   return response.data.data;
 };
 
-export const getItems = async (params: { page?: number, limit?: number, sortBy?: string, sortOrder?: string, isDeleted?: boolean } = {}) => {
+export const getItems = async (params: { page?: number, limit?: number, sortBy?: string, sortOrder?: string, isDeleted?: boolean, filters?: Record<string, string> } = {}) => {
   const query = new URLSearchParams();
   if (params?.page) query.append('page', params.page.toString());
   if (params?.limit) query.append('limit', params.limit.toString());
   if (params?.sortBy) query.append('sortBy', params.sortBy);
   if (params?.sortOrder) query.append('sortOrder', params.sortOrder);
   if (params?.isDeleted !== undefined) query.append('isDeleted', params.isDeleted.toString());
+  
+  if (params?.filters) {
+    Object.entries(params.filters).forEach(([key, value]) => {
+      if (value) query.append(`filter_${key}`, value);
+    });
+  }
   
   const queryString = query.toString();
   const url = queryString ? `/items?${queryString}` : '/items';
@@ -27,6 +33,11 @@ export const getItems = async (params: { page?: number, limit?: number, sortBy?:
 
 export const getItem = async (id: string) => {
   const response = await api.get(`/items/${id}`);
+  return response.data.data;
+};
+
+export const getItemUsage = async (id: string) => {
+  const response = await api.get(`/items/${id}/usage`);
   return response.data.data;
 };
 

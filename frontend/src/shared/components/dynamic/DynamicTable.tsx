@@ -25,6 +25,8 @@ interface DynamicTableProps {
   selectedIds?: string[];
   onEdit?: (row: any) => void;
   onDelete?: (row: any) => void;
+  columnFilters?: Record<string, string>;
+  onColumnFilterChange?: (columnName: string, value: string) => void;
 }
 
 export function DynamicTable({ 
@@ -41,7 +43,9 @@ export function DynamicTable({
   onSelectionChange,
   selectedIds = [],
   onEdit,
-  onDelete
+  onDelete,
+  columnFilters,
+  onColumnFilterChange
 }: DynamicTableProps) {
   // Only show fields that are visible by default, active, and sort by order
   const sortedFields = [...fields].filter(f => f.active !== false).sort((a,b) => a.order - b.order);
@@ -212,6 +216,25 @@ export function DynamicTable({
                   </TableHead>
                 )}
               </TableRow>
+              {onColumnFilterChange && (
+                <TableRow className="bg-slate-50/20">
+                  {enableSelection && <TableHead></TableHead>}
+                  <TableHead></TableHead>
+                  {columns.map(col => (
+                    <TableHead key={col.name} className="py-2 px-2">
+                      <input
+                        type="text"
+                        placeholder={`Search...`}
+                        value={columnFilters?.[col.name] || ''}
+                        onChange={(e) => onColumnFilterChange(col.name, e.target.value)}
+                        className="w-full h-8 px-2 text-xs border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </TableHead>
+                  ))}
+                  {(onEdit || onDelete) && <TableHead></TableHead>}
+                </TableRow>
+              )}
           </TableHeader>
           <TableBody>
             {data.map((row, i) => {

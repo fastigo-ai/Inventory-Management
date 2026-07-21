@@ -45,6 +45,7 @@ export interface IPurchaseInvoice extends Document {
   balanceDue: number;
   
   status: 'Draft' | 'Sent' | 'Unpaid' | 'Overdue' | 'Partially Paid' | 'Paid';
+  receiptStatus: 'Pending Receipt' | 'Received';
   
   attachments?: {
     name: string;
@@ -105,6 +106,11 @@ const purchaseInvoiceSchema = new Schema<IPurchaseInvoice>(
       enum: ['Draft', 'Sent', 'Unpaid', 'Overdue', 'Partially Paid', 'Paid'], 
       default: 'Draft' 
     },
+    receiptStatus: {
+      type: String,
+      enum: ['Pending Receipt', 'Received'],
+      default: 'Pending Receipt'
+    },
     
     attachments: [{
       name: { type: String },
@@ -117,7 +123,7 @@ const purchaseInvoiceSchema = new Schema<IPurchaseInvoice>(
 );
 
 // Pre-save hook to calculate balance due and update status if needed
-purchaseInvoiceSchema.pre('save', function(next: any) {
+purchaseInvoiceSchema.pre('save', function() {
   if (this.isModified('total') || this.isModified('amountPaid')) {
     this.balanceDue = this.total - (this.amountPaid || 0);
     
@@ -132,7 +138,6 @@ purchaseInvoiceSchema.pre('save', function(next: any) {
       }
     }
   }
-  next();
 });
 
 import { auditPlugin } from '../../core/plugins/audit.plugin';

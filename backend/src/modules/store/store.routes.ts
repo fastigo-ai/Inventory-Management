@@ -3,6 +3,7 @@ import { authenticate } from '../../core/middlewares/auth.middleware';
 import {
   getPendingDIs,
   getDIPrefillData,
+  getPurchaseInvoicePrefillData,
   createInwardEntry,
   updateInwardEntry,
   getInwardEntryById,
@@ -17,6 +18,7 @@ router.use(authenticate);
 // Store Manager Routes
 router.route('/di/pending').get(getPendingDIs);
 router.route('/di/:diId/prefill').get(getDIPrefillData);
+router.route('/pi/:invoiceId/prefill').get(getPurchaseInvoicePrefillData);
 
 router.route('/inventory/inward')
   .post(createInwardEntry)

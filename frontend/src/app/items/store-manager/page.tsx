@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { getAdminInwardEntries, updateInwardEntry } from "@/features/store/api/store.api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Filter, AlertTriangle, CheckCircle } from "lucide-react";
 
 export default function StoreManagerDataPage() {
+  const router = useRouter();
   const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -33,7 +35,8 @@ export default function StoreManagerDataPage() {
     }
   };
 
-  const handleAccept = async (id: string) => {
+  const handleAccept = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!confirm("Are you sure you want to verify and accept this inward entry?")) return;
     try {
       await updateInwardEntry(id, { status: 'VERIFIED' });
@@ -44,8 +47,33 @@ export default function StoreManagerDataPage() {
     }
   };
 
+  const handleVerifyAll = async () => {
+    const pendingEntries = entries.filter(e => e.status === 'SUBMITTED');
+    if (pendingEntries.length === 0) {
+      alert("No pending entries to verify.");
+      return;
+    }
+    if (!confirm(`Are you sure you want to verify all ${pendingEntries.length} pending entries?`)) return;
+
+    try {
+      setLoading(true);
+      await Promise.all(pendingEntries.map(entry => updateInwardEntry(entry._id, { status: 'VERIFIED' })));
+      fetchEntries();
+    } catch (error) {
+      console.error(error);
+      alert("Failed to verify some entries.");
+      fetchEntries(); // Refresh to show which ones succeeded
+    }
+  };
+
   const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleRowClick = (entry: any) => {
+    if (entry.purchaseInvoiceId) {
+      router.push(`/store/inventory/inward/${entry.purchaseInvoiceId}`);
+    }
   };
 
   return (
@@ -54,6 +82,14 @@ export default function StoreManagerDataPage() {
       {/* Header */}
       <div className="flex-none h-16 border-b border-slate-200 flex items-center px-6 bg-white shadow-sm z-10 shrink-0 justify-between">
         <h1 className="text-xl text-slate-800 font-bold">Store Manager Data (GRNs)</h1>
+        <Button 
+          onClick={handleVerifyAll}
+          disabled={loading || entries.filter(e => e.status === 'SUBMITTED').length === 0}
+          className="bg-green-600 hover:bg-green-700 text-white shadow-sm"
+        >
+          <CheckCircle className="w-4 h-4 mr-2" />
+          Verify All Pending
+        </Button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-6">
@@ -137,7 +173,11 @@ export default function StoreManagerDataPage() {
                       const isMismatch = entry.amount && Math.abs(entry.amount - calculatedAmount) > 0.1;
 
                       return (
-                        <tr key={entry._id} className="hover:bg-slate-50 transition-colors">
+                        <tr 
+                          key={entry._id} 
+                          className="hover:bg-slate-50 transition-colors cursor-pointer"
+                          onClick={() => handleRowClick(entry)}
+                        >
                           <td className="px-4 py-3 font-medium text-slate-800">
                             {entry.circle || '-'}
                             {isMismatch && (
@@ -173,7 +213,7 @@ export default function StoreManagerDataPage() {
                           <td className="px-4 py-3 text-center">
                             {entry.status === 'SUBMITTED' ? (
                               <Button 
-                                onClick={() => handleAccept(entry._id)}
+                                onClick={(e) => handleAccept(entry._id, e)}
                                 size="sm"
                                 className="bg-green-600 hover:bg-green-700 text-white h-7 text-xs"
                               >

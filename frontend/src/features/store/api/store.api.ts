@@ -10,6 +10,11 @@ export const getDIPrefillData = async (diId: string) => {
   return response.data;
 };
 
+export const getPurchaseInvoicePrefillData = async (invoiceId: string) => {
+  const response = await api.get(`/store/pi/${invoiceId}/prefill`);
+  return response.data;
+};
+
 export const createInwardEntry = async (data: any) => {
   const response = await api.post('/store/inventory/inward', data);
   return response.data;

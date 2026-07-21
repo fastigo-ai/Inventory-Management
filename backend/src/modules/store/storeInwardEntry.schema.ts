@@ -7,9 +7,9 @@ export interface IStoreInwardPackingList {
 }
 
 export interface IStoreInwardEntry extends Document {
-  diId: mongoose.Types.ObjectId;
+  diId?: mongoose.Types.ObjectId;
   purchaseOrderId: mongoose.Types.ObjectId;
-  purchaseInvoiceId?: mongoose.Types.ObjectId;
+  purchaseInvoiceId: mongoose.Types.ObjectId;
   
   poNumber?: string;
   billingFrom?: string;
@@ -54,9 +54,9 @@ const packingListSchema = new Schema<IStoreInwardPackingList>({
 
 const storeInwardEntrySchema = new Schema<IStoreInwardEntry>(
   {
-    diId: { type: Schema.Types.ObjectId, ref: 'DI', required: true },
+    diId: { type: Schema.Types.ObjectId, ref: 'DI' },
     purchaseOrderId: { type: Schema.Types.ObjectId, ref: 'PurchaseOrder', required: true },
-    purchaseInvoiceId: { type: Schema.Types.ObjectId, ref: 'PurchaseInvoice' },
+    purchaseInvoiceId: { type: Schema.Types.ObjectId, ref: 'PurchaseInvoice', required: true },
     
     poNumber: { type: String },
     billingFrom: { type: String },

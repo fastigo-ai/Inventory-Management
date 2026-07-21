@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Settings, UploadCloud, FileText } from "lucide-react";
+import { X, Settings, UploadCloud, FileText, Search, ChevronDown, Plus } from "lucide-react";
 import Link from "next/link";
 import { getDIById, updateDI } from "@/features/di/api/di.api";
 import { getPurchaseOrders } from "@/features/purchases/api/purchases.api";
@@ -34,6 +34,29 @@ export default function EditDIRegistrationPage() {
   const [existingAttachments, setExistingAttachments] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  // Bulk Add Modal & Custom Dropdown States
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [bulkSearchQuery, setBulkSearchQuery] = useState('');
+  const [selectedBulkItems, setSelectedBulkItems] = useState<string[]>([]);
+  const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
+  const [openNameDropdownId, setOpenNameDropdownId] = useState<number | null>(null);
+  const [openTempCodeDropdownId, setOpenTempCodeDropdownId] = useState<number | null>(null);
+  
+  // Outside click handler for dropdowns
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!(e.target as Element).closest('.item-dropdown-container')) {
+        setOpenDropdownId(null);
+        setOpenNameDropdownId(null);
+        setOpenTempCodeDropdownId(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     // Load POs and Items on mount
@@ -73,7 +96,7 @@ export default function EditDIRegistrationPage() {
             return {
               itemId: item.itemId,
               itemName: item.itemName,
-              sku: masterItem?.dynamicData?.sku || '',
+              sku: item.loaSerialNo || masterItem?.dynamicData?.loaSerialNo || masterItem?.dynamicData?.loaSerialNumber || masterItem?.dynamicData?.['LOA Serial No.'] || masterItem?.dynamicData?.loa || masterItem?.dynamicData?.sku || masterItem?.dynamicData?.tempCode || '',
               tempCode: item.tempCode || '',
               package: item.package || po.package1 || '',
               circle: item.circle || po.circle || '',
@@ -266,8 +289,8 @@ export default function EditDIRegistrationPage() {
         </div>
 
         {/* Item Table */}
-        <div className="mb-12 border border-slate-200 rounded-lg overflow-hidden">
-          <div className="bg-[#f8f9fc] px-4 py-3 border-b border-slate-200 flex justify-between items-center">
+        <div className="mb-12 border border-slate-200 rounded-lg overflow-visible">
+          <div className="bg-[#f8f9fc] px-4 py-3 border-b border-slate-200 flex justify-between items-center rounded-t-lg">
             <h2 className="text-sm font-semibold text-slate-800">Approved DI Items</h2>
           </div>
           
@@ -287,7 +310,7 @@ export default function EditDIRegistrationPage() {
             <tbody className="divide-y divide-slate-100">
               {lineItems.map((item, index) => (
                 <tr key={index} className="group hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 relative item-dropdown-container">
                     {item.readOnly ? (
                       <Input 
                         value={item.sku || ''} 
@@ -295,58 +318,234 @@ export default function EditDIRegistrationPage() {
                         className="border-transparent bg-transparent h-8 shadow-none focus-visible:ring-0 px-0 font-medium"
                       />
                     ) : (
-                      <>
-                        <Input
-                          type="text"
-                          list={`items-list-${index}`}
-                          placeholder="Search LOA No..."
-                          value={item.searchQuery ?? ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            updateLineItem(index, 'searchQuery', val);
-                            const selected = items.find(it => `[${it.dynamicData?.sku || it.dynamicData?.tempCode || 'N/A'}] ${it.dynamicData?.name || 'Unnamed Item'}` === val);
-                            if (selected) {
-                              const po = purchaseOrders.find(p => p._id === purchaseOrderId);
-                              const poLineItem = po?.lineItems?.find((li: any) => li.itemId === selected._id);
-                              
-                              updateLineItem(index, 'itemId', selected._id);
-                              updateLineItem(index, 'itemName', selected.dynamicData?.name || '');
-                              updateLineItem(index, 'tempCode', selected.dynamicData?.tempCode || '');
-                              updateLineItem(index, 'orderedQuantity', poLineItem ? (poLineItem.quantity || 0) : 0);
-                            } else {
-                              updateLineItem(index, 'itemId', '');
-                              updateLineItem(index, 'itemName', '');
-                              updateLineItem(index, 'tempCode', '');
-                              updateLineItem(index, 'orderedQuantity', 0);
-                            }
-                          }}
-                          className="h-8 w-full border-slate-200 bg-white shadow-sm focus-visible:ring-1 text-sm font-medium"
-                        />
-                        <datalist id={`items-list-${index}`}>
-                          {items.map(it => {
-                            const sku = it.dynamicData?.sku || it.dynamicData?.tempCode || 'N/A';
-                            const name = it.dynamicData?.name || 'Unnamed Item';
-                            return (
-                              <option key={it._id} value={`[${sku}] ${name}`} />
-                            );
-                          })}
-                        </datalist>
-                      </>
+                      <div className="relative">
+                        <div className="relative w-full flex items-center border border-slate-200 rounded-md overflow-hidden bg-white shadow-sm h-8">
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2" />
+                          <input
+                            type="text"
+                            placeholder="Search LOA No..."
+                            className="w-full bg-transparent pl-7 pr-7 text-[13px] text-[#334155] focus:outline-none cursor-text h-full"
+                            value={item.searchQuery ?? ''}
+                            onChange={(e) => {
+                              updateLineItem(index, 'searchQuery', e.target.value);
+                              if (openDropdownId !== index) setOpenDropdownId(index);
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (openDropdownId !== index) setOpenDropdownId(index);
+                              setOpenNameDropdownId(null);
+                              setOpenTempCodeDropdownId(null);
+                            }}
+                          />
+                          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2 pointer-events-none" />
+                        </div>
+
+                        {openDropdownId === index && (
+                          <div
+                            className="absolute left-0 top-full mt-1 w-[350px] bg-white border border-slate-200 shadow-xl rounded-md z-50 overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="max-h-60 overflow-y-auto py-1">
+                              {items
+                                .filter(it => {
+                                  const val = (item.searchQuery ?? '').toLowerCase();
+                                  const sku = String(it.dynamicData?.loaSerialNo || it.dynamicData?.loaSerialNumber || it.dynamicData?.['LOA Serial No.'] || it.dynamicData?.loa || it.dynamicData?.sku || it.dynamicData?.tempCode || '').toLowerCase();
+                                  return sku.includes(val);
+                                })
+                                .map(it => {
+                                  const sku = it.dynamicData?.loaSerialNo || it.dynamicData?.loaSerialNumber || it.dynamicData?.['LOA Serial No.'] || it.dynamicData?.loa || it.dynamicData?.sku || it.dynamicData?.tempCode || 'N/A';
+                                  const name = it.dynamicData?.name || 'Unnamed Item';
+                                  return (
+                                    <div
+                                      key={it._id}
+                                      className="px-3 py-2 hover:bg-blue-50 cursor-pointer flex flex-col transition-colors"
+                                      onClick={() => {
+                                        const po = purchaseOrders.find(p => p._id === purchaseOrderId);
+                                        const poLineItem = po?.lineItems?.find((li: any) => li.itemId === it._id);
+                                        
+                                        updateLineItem(index, 'itemId', it._id);
+                                        updateLineItem(index, 'itemName', name);
+                                        updateLineItem(index, 'sku', sku);
+                                        updateLineItem(index, 'tempCode', it.dynamicData?.tempCode || '');
+                                        updateLineItem(index, 'orderedQuantity', poLineItem ? (poLineItem.quantity || 0) : 0);
+                                        updateLineItem(index, 'searchQuery', sku);
+                                        setOpenDropdownId(null);
+                                      }}
+                                    >
+                                      <span className="text-sm text-slate-800 font-medium">{name}</span>
+                                      <span className="text-[10px] text-slate-500">LOA/SKU: {sku}</span>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </td>
-                  <td className="px-4 py-3">
-                    <Input 
-                      value={item.itemName} 
-                      readOnly
-                      className="border-transparent bg-transparent h-8 shadow-none focus-visible:ring-0 px-0 font-medium"
-                    />
+                  <td className="px-4 py-3 item-dropdown-container">
+                    {item.itemId ? (
+                      <Input 
+                        value={item.itemName}
+                        readOnly
+                        className="border-transparent bg-transparent h-8 shadow-none focus-visible:ring-0 px-0 font-medium"
+                      />
+                    ) : (
+                      <div className="relative">
+                        <div className="relative w-full flex items-center border border-slate-200 rounded-md overflow-hidden bg-white shadow-sm h-8">
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2" />
+                          <input
+                            type="text"
+                            placeholder="Search Name..."
+                            className="w-full bg-transparent pl-7 pr-7 text-[13px] text-[#334155] focus:outline-none cursor-text h-full"
+                            value={item.nameSearchQuery ?? ''}
+                            onChange={(e) => {
+                              updateLineItem(index, 'nameSearchQuery', e.target.value);
+                              if (openNameDropdownId !== index) setOpenNameDropdownId(index);
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (openNameDropdownId !== index) setOpenNameDropdownId(index);
+                              setOpenDropdownId(null);
+                              setOpenTempCodeDropdownId(null);
+                            }}
+                          />
+                          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2 pointer-events-none" />
+                        </div>
+
+                        {openNameDropdownId === index && (
+                          <div
+                            className="absolute left-0 top-full mt-1 w-[350px] bg-white border border-slate-200 shadow-xl rounded-md z-50 overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="max-h-60 overflow-y-auto py-1">
+                              {items
+                                .filter(it => {
+                                  const val = (item.nameSearchQuery ?? '').toLowerCase();
+                                  const name = String(it.dynamicData?.name || it.dynamicData?.itemDescription || it.name || '').toLowerCase();
+                                  return name.includes(val);
+                                })
+                                .map(it => {
+                                  const sku = it.dynamicData?.loaSerialNo || it.dynamicData?.loaSerialNumber || it.dynamicData?.['LOA Serial No.'] || it.dynamicData?.loa || it.dynamicData?.sku || it.dynamicData?.tempCode || 'N/A';
+                                  const name = it.dynamicData?.name || it.name || 'Unnamed Item';
+                                  const tempCode = it.dynamicData?.tempCode || it.tempCode || '';
+                                  return (
+                                    <div
+                                      key={it._id}
+                                      className="px-3 py-2 hover:bg-blue-50 cursor-pointer flex flex-col transition-colors"
+                                      onClick={() => {
+                                        const po = purchaseOrders.find(p => p._id === purchaseOrderId);
+                                        const poLineItem = po?.lineItems?.find((li: any) => li.itemId === it._id);
+                                        
+                                        updateLineItem(index, 'itemId', it._id);
+                                        updateLineItem(index, 'itemName', name);
+                                        updateLineItem(index, 'sku', sku);
+                                        updateLineItem(index, 'tempCode', tempCode);
+                                        updateLineItem(index, 'package', it.dynamicData?.package || poLineItem?.package1 || '');
+                                        updateLineItem(index, 'circle', it.dynamicData?.circle || poLineItem?.circle || '');
+                                        updateLineItem(index, 'orderedQuantity', poLineItem ? poLineItem.quantity : 0);
+                                        setOpenNameDropdownId(null);
+                                      }}
+                                    >
+                                      <span className="text-sm text-slate-800 font-medium">{name}</span>
+                                      <span className="text-[10px] text-slate-500">LOA/SKU: {sku}</span>
+                                    </div>
+                                  );
+                                })}
+                              {items.filter(it => {
+                                const val = (item.nameSearchQuery ?? '').toLowerCase();
+                                const name = String(it.dynamicData?.name || it.dynamicData?.itemDescription || it.name || '').toLowerCase();
+                                return name.includes(val);
+                              }).length === 0 && (
+                                <div className="px-3 py-3 text-xs text-slate-500 text-center">No items found</div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </td>
-                  <td className="px-4 py-3">
-                    <Input 
-                      value={item.tempCode}
-                      onChange={(e) => updateLineItem(index, 'tempCode', e.target.value)}
-                      className="h-8 shadow-none"
-                    />
+                  <td className="px-4 py-3 item-dropdown-container">
+                    {item.itemId ? (
+                      <Input 
+                        value={item.tempCode}
+                        readOnly
+                        className="border-transparent bg-transparent h-8 shadow-none focus-visible:ring-0 px-0 font-medium"
+                      />
+                    ) : (
+                      <div className="relative">
+                        <div className="relative w-full flex items-center border border-slate-200 rounded-md overflow-hidden bg-white shadow-sm h-8">
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2" />
+                          <input
+                            type="text"
+                            placeholder="Search Code..."
+                            className="w-full bg-transparent pl-7 pr-7 text-[13px] text-[#334155] focus:outline-none cursor-text h-full"
+                            value={item.tempCodeSearchQuery ?? ''}
+                            onChange={(e) => {
+                              updateLineItem(index, 'tempCodeSearchQuery', e.target.value);
+                              if (openTempCodeDropdownId !== index) setOpenTempCodeDropdownId(index);
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (openTempCodeDropdownId !== index) setOpenTempCodeDropdownId(index);
+                              setOpenDropdownId(null);
+                              setOpenNameDropdownId(null);
+                            }}
+                          />
+                          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2 pointer-events-none" />
+                        </div>
+
+                        {openTempCodeDropdownId === index && (
+                          <div
+                            className="absolute left-0 top-full mt-1 w-[350px] bg-white border border-slate-200 shadow-xl rounded-md z-50 overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="max-h-60 overflow-y-auto py-1">
+                              {items
+                                .filter(it => {
+                                  const val = (item.tempCodeSearchQuery ?? '').toLowerCase();
+                                  const tempCode = String(it.dynamicData?.tempCode || it.tempCode || '').toLowerCase();
+                                  return tempCode.includes(val);
+                                })
+                                .map(it => {
+                                  const sku = it.dynamicData?.loaSerialNo || it.dynamicData?.loaSerialNumber || it.dynamicData?.['LOA Serial No.'] || it.dynamicData?.loa || it.dynamicData?.sku || it.dynamicData?.tempCode || 'N/A';
+                                  const name = it.dynamicData?.name || it.name || 'Unnamed Item';
+                                  const tempCode = it.dynamicData?.tempCode || it.tempCode || '';
+                                  return (
+                                    <div
+                                      key={it._id}
+                                      className="px-3 py-2 hover:bg-blue-50 cursor-pointer flex flex-col transition-colors"
+                                      onClick={() => {
+                                        const po = purchaseOrders.find(p => p._id === purchaseOrderId);
+                                        const poLineItem = po?.lineItems?.find((li: any) => li.itemId === it._id);
+                                        
+                                        updateLineItem(index, 'itemId', it._id);
+                                        updateLineItem(index, 'itemName', name);
+                                        updateLineItem(index, 'sku', sku);
+                                        updateLineItem(index, 'tempCode', tempCode);
+                                        updateLineItem(index, 'package', it.dynamicData?.package || poLineItem?.package1 || '');
+                                        updateLineItem(index, 'circle', it.dynamicData?.circle || poLineItem?.circle || '');
+                                        updateLineItem(index, 'orderedQuantity', poLineItem ? poLineItem.quantity : 0);
+                                        setOpenTempCodeDropdownId(null);
+                                      }}
+                                    >
+                                      <span className="text-sm text-slate-800 font-medium">{tempCode || '--'}</span>
+                                      <span className="text-[10px] text-slate-500">{name}</span>
+                                    </div>
+                                  );
+                                })}
+                              {items.filter(it => {
+                                const val = (item.tempCodeSearchQuery ?? '').toLowerCase();
+                                const tempCode = String(it.dynamicData?.tempCode || it.tempCode || '').toLowerCase();
+                                return tempCode.includes(val);
+                              }).length === 0 && (
+                                <div className="px-3 py-3 text-xs text-slate-500 text-center">No items found</div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <select
@@ -414,7 +613,7 @@ export default function EditDIRegistrationPage() {
               )}
             </tbody>
           </table>
-          <div className="px-4 py-3 border-t border-slate-200 bg-slate-50">
+          <div className="px-4 py-3 border-t border-slate-200 bg-slate-50 flex gap-4">
             <Button
               type="button"
               variant="outline"
@@ -434,6 +633,15 @@ export default function EditDIRegistrationPage() {
               }}
             >
               + Add Item
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsBulkModalOpen(true)}
+              className="text-[#3b82f6] border-[#bfdbfe] bg-white hover:bg-blue-50"
+            >
+              <Plus className="w-4 h-4 mr-1.5" /> Add Items in Bulk
             </Button>
           </div>
         </div>
@@ -567,6 +775,138 @@ export default function EditDIRegistrationPage() {
           </div>
         </div>
       </div>
+
+      {/* Bulk Add Items Modal */}
+      {isBulkModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[80vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+              <h2 className="text-lg font-bold text-slate-800">Add Items in Bulk</h2>
+              <button type="button" onClick={() => setIsBulkModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="px-6 py-3 border-b border-slate-200 bg-slate-50">
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search items by LOA Serial No, name, or code..."
+                  className="w-full border border-slate-200 rounded-md pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white shadow-sm"
+                  value={bulkSearchQuery}
+                  onChange={(e) => setBulkSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-2">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
+                  <tr>
+                    <th className="px-4 py-2 w-10">
+                      <input
+                        type="checkbox"
+                        className="rounded text-blue-500 focus:ring-blue-500 cursor-pointer"
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedBulkItems(items.map(i => i._id));
+                          } else {
+                            setSelectedBulkItems([]);
+                          }
+                        }}
+                        checked={selectedBulkItems.length === items.length && items.length > 0}
+                      />
+                    </th>
+                    <th className="px-4 py-2 font-bold text-slate-500">LOA Serial No / SKU</th>
+                    <th className="px-4 py-2 font-bold text-slate-500">Item Name</th>
+                    <th className="px-4 py-2 font-bold text-slate-500">Temp Code</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {items
+                    .filter(item => {
+                      const query = (bulkSearchQuery || '').toLowerCase();
+                      const searchSku = String(item.dynamicData?.loaSerialNo || item.dynamicData?.loaSerialNumber || item.dynamicData?.['LOA Serial No.'] || item.dynamicData?.loa || item.dynamicData?.sku || item.dynamicData?.tempCode || '').toLowerCase();
+                      const searchName = String(item.dynamicData?.name || item.dynamicData?.itemDescription || item.name || '').toLowerCase();
+                      const searchCode = String(item.dynamicData?.tempCode || item.tempCode || '').toLowerCase();
+                      return searchSku.includes(query) || searchName.includes(query) || searchCode.includes(query);
+                    })
+                    .map(item => {
+                      const sku = item.dynamicData?.loaSerialNo || item.dynamicData?.loaSerialNumber || item.dynamicData?.['LOA Serial No.'] || item.dynamicData?.loa || item.dynamicData?.sku || item.dynamicData?.tempCode || 'N/A';
+                      return (
+                        <tr key={item._id} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => {
+                          setSelectedBulkItems(prev => prev.includes(item._id) ? prev.filter(id => id !== item._id) : [...prev, item._id]);
+                        }}>
+                          <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              className="rounded text-blue-500 focus:ring-blue-500 cursor-pointer"
+                              checked={selectedBulkItems.includes(item._id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedBulkItems([...selectedBulkItems, item._id]);
+                                } else {
+                                  setSelectedBulkItems(selectedBulkItems.filter(id => id !== item._id));
+                                }
+                              }}
+                            />
+                          </td>
+                          <td className="px-4 py-3 text-slate-700 font-medium">{sku}</td>
+                          <td className="px-4 py-3 text-slate-600">{item.dynamicData?.name || item.dynamicData?.itemDescription || 'Unnamed Item'}</td>
+                          <td className="px-4 py-3 text-slate-500">{item.dynamicData?.tempCode || '--'}</td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+              {items.length === 0 && (
+                <div className="text-center py-10 text-slate-500 text-sm">No items found in your inventory.</div>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+              <span className="text-sm font-medium text-slate-600">{selectedBulkItems.length} items selected</span>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setIsBulkModalOpen(false)} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 transition-colors">
+                  Cancel
+                </button>
+                <button type="button" onClick={() => {
+                  const po = purchaseOrders.find(p => p._id === purchaseOrderId);
+                  const newLineItems = selectedBulkItems.map(itemId => {
+                    const item = items.find(i => i._id === itemId);
+                    if (item) {
+                      const poLineItem = po?.lineItems?.find((li: any) => li.itemId === itemId);
+                      const sku = item.dynamicData?.loaSerialNo || item.dynamicData?.loaSerialNumber || item.dynamicData?.['LOA Serial No.'] || item.dynamicData?.loa || item.dynamicData?.sku || item.dynamicData?.tempCode || '';
+                      return {
+                        itemId: item._id,
+                        itemName: item.dynamicData?.name || item.dynamicData?.itemDescription || 'Unnamed Item',
+                        tempCode: item.dynamicData?.tempCode || '',
+                        sku: sku,
+                        searchQuery: sku,
+                        package: diPackage,
+                        circle: diCircle,
+                        orderedQuantity: poLineItem ? (poLineItem.quantity || 0) : 0,
+                        quantity: 0,
+                        readOnly: false
+                      };
+                    }
+                    return null;
+                  }).filter(Boolean);
+
+                  if (newLineItems.length > 0) {
+                    setLineItems([...lineItems, ...newLineItems]);
+                  }
+                  setIsBulkModalOpen(false);
+                  setSelectedBulkItems([]);
+                }} disabled={selectedBulkItems.length === 0} className="px-4 py-2 text-sm font-medium text-white bg-[#3b82f6] rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  Add Selected Items
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

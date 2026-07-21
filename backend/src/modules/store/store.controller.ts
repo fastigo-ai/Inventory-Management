@@ -8,6 +8,8 @@ import { PurchaseOrder } from '../purchases/purchaseOrder.schema';
 import { PurchaseInvoice } from '../purchases/purchaseInvoice.schema';
 import Item from '../items/item.model';
 import { ContractorAssignment } from '../contractors/contractorAssignment.schema';
+import { StoreTransfer } from './storeTransfer.schema';
+
 export const getPendingDIs = asyncHandler(async (req: Request, res: Response) => {
   const user = (req as any).user;
   const filter: any = { status: { $in: ['Pending Receipt', 'Received'] } };
@@ -106,14 +108,21 @@ export const getDIPrefillData = asyncHandler(async (req: Request, res: Response)
     diId: di._id,
     purchaseOrderId: po._id,
     poNumber: po.purchaseOrderNumber,
+    poDate: po.date,
     billingFrom: po.billingCompany?.name,
     vendorName: po.vendorName,
     unit: poItem?.unit || 'Nos',
     invoiceQty: invoiceItem ? invoiceItem.quantity : (item?.quantity || poItem?.quantity || 0),
+    totalQty: poItem?.quantity || item?.quantity || 0,
     rate: invoiceItem ? invoiceItem.rate : (poItem?.rate || 0),
     amount: invoiceItem ? invoiceItem.amount : (poItem?.amount || 0),
+    taxableAmount: invoiceItem ? invoiceItem.amount : (poItem?.amount || 0),
     hsnCode: invoiceItem ? invoiceItem.hsnCode : poItem?.hsnCode,
     gst: po.cgstPercentage ? `${(po.cgstPercentage * 2)}%` : po.igstPercentage ? `${po.igstPercentage}%` : '',
+    cgst: po.cgstPercentage || 0,
+    sgst: po.sgstPercentage || 0,
+    igst: po.igstPercentage || 0,
+    invoiceDate: invoice?.date,
     diRefNo: di.diNumber, // Usually DI number is the ref no
     circle: di.circle,
     package: di.package,
@@ -354,6 +363,9 @@ async function buildStockSummaryData(circleFilter?: string, packageFilter?: stri
   // 4. Fetch assignments
   const assignments = await ContractorAssignment.find(assignmentFilter);
 
+  // 4.5 Fetch completed transfers
+  const transfers = await StoreTransfer.find({ status: 'RECEIVED' });
+
   // 5. Aggregate data per item
   const summaryMap: Record<string, any> = {};
 
@@ -406,6 +418,25 @@ async function buildStockSummaryData(circleFilter?: string, packageFilter?: stri
         summaryMap[tc].contractorsIssuedQty += (line.quantity || 0);
         // Derived fields
         summaryMap[tc].contractorsActualIssued = summaryMap[tc].contractorsIssuedQty - summaryMap[tc].contractorsReturnQty;
+      }
+    });
+  });
+
+  // Calculate Transfers
+  transfers.forEach(transfer => {
+    transfer.items?.forEach(item => {
+      const tc = item.tempCode || '';
+      if (summaryMap[tc]) {
+        const rcvQty = item.receivedQty || 0;
+        
+        if (circleFilter && transfer.toStore === circleFilter) {
+          summaryMap[tc].receivedFromOtherStore += rcvQty;
+          summaryMap[tc].totalInStockAfterReceive = summaryMap[tc].acceptedQty + summaryMap[tc].receivedFromOtherStore;
+        }
+
+        if (circleFilter && transfer.fromStore === circleFilter) {
+          summaryMap[tc].transferToOtherStore += rcvQty;
+        }
       }
     });
   });
@@ -474,5 +505,78 @@ export const getAdminStockSummary = asyncHandler(async (req: Request, res: Respo
   const { circle, package: pkg } = req.query;
   const summary = await buildStockSummaryData(circle as string, pkg as string);
   res.status(200).json(new ApiResponse(200, summary, 'Admin stock summary fetched successfully'));
+});
+
+// -- INTER-STORE TRANSFERS --
+
+export const createStoreTransfer = asyncHandler(async (req: Request, res: Response) => {
+  const transferData = req.body;
+  transferData.requestedBy = req.user?._id;
+  
+  const transfer = await StoreTransfer.create(transferData);
+  res.status(201).json(new ApiResponse(201, transfer, 'Transfer request created successfully'));
+});
+
+export const getStoreTransfers = asyncHandler(async (req: Request, res: Response) => {
+  const { circle } = req.query;
+  
+  let filter: any = {};
+  if (circle) {
+    filter = { $or: [{ fromStore: circle }, { toStore: circle }] };
+  }
+
+  const transfers = await StoreTransfer.find(filter)
+    .populate('requestedBy', 'firstName lastName')
+    .sort({ createdAt: -1 });
+
+  res.status(200).json(new ApiResponse(200, transfers, 'Transfers fetched successfully'));
+});
+
+export const getStoreTransferById = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const transfer = await StoreTransfer.findById(id).populate('requestedBy', 'firstName lastName');
+  if (!transfer) throw new ApiError(404, 'Transfer not found');
+  res.status(200).json(new ApiResponse(200, transfer, 'Transfer fetched successfully'));
+});
+
+export const updateStoreTransferStatus = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  const transfer = await StoreTransfer.findByIdAndUpdate(id, { status }, { new: true });
+  if (!transfer) {
+    throw new ApiError(404, 'Transfer not found');
+  }
+
+  res.status(200).json(new ApiResponse(200, transfer, 'Transfer status updated successfully'));
+});
+
+export const dispatchStoreTransfer = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const dispatchData = req.body;
+
+  dispatchData.status = 'IN_TRANSIT';
+
+  const transfer = await StoreTransfer.findByIdAndUpdate(id, dispatchData, { new: true });
+  if (!transfer) {
+    throw new ApiError(404, 'Transfer not found');
+  }
+
+  res.status(200).json(new ApiResponse(200, transfer, 'Transfer dispatched successfully'));
+});
+
+export const receiveStoreTransfer = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const updateData = req.body;
+
+  // Expected updateData includes `items` (with receivedQty)
+  updateData.status = 'RECEIVED';
+
+  const transfer = await StoreTransfer.findByIdAndUpdate(id, updateData, { new: true });
+  if (!transfer) {
+    throw new ApiError(404, 'Transfer not found');
+  }
+
+  res.status(200).json(new ApiResponse(200, transfer, 'Transfer received successfully'));
 });
 

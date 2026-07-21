@@ -399,28 +399,52 @@ export const importPurchaseOrders = async (req: Request, res: Response) => {
           purchaseOrderNumber: poNumber,
           vendorName: row['VendorName'] || row['vendorName'] || 'Unknown Vendor',
           date: row['Date'] || row['date'] || new Date().toISOString().split('T')[0],
+          deliveryDate: row['DeliveryDate'] || row['deliveryDate'],
           location: row['Location'] || row['location'] || 'Head Office',
           status: row['Status'] || row['status'] || 'Draft',
-          lineItems: [],
-          deliveryAddressType: 'Locations',
-          deliveryAddressId: 'Head Office',
-          paymentTerms: 'Due on Receipt',
-          circle: 'Package 1(S/N)',
-          warehouseLocation: 'Head Office',
+          reference: row['Reference'] || row['reference'],
+          deliveryAddressType: row['DeliveryAddressType'] || row['deliveryAddressType'] || 'Locations',
+          deliveryAddressId: row['DeliveryAddressId'] || row['deliveryAddressId'] || 'Head Office',
+          paymentTerms: row['PaymentTerms'] ? [{ stage: 'Delivery', type: 'Fixed', value: row['PaymentTerms'], unit: 'Days' }] : [],
+          circle: row['Circle'] || row['circle'],
+          package: row['Package'] || row['package'],
+          shipmentPreference: row['ShipmentPreference'] || row['shipmentPreference'],
+          warehouseLocation: row['WarehouseLocation'] || row['warehouseLocation'] || 'Head Office',
+          notes: row['Notes'] || row['notes'],
+          termsConditions: row['TermsConditions'] || row['termsConditions'],
+          cgstPercentage: Number(row['CGSTPercentage'] || row['cgstPercentage'] || 0),
+          sgstPercentage: Number(row['SGSTPercentage'] || row['sgstPercentage'] || 0),
+          igstPercentage: Number(row['IGSTPercentage'] || row['igstPercentage'] || 0),
           taxType: 'TDS',
           taxPercentage: 0,
           discountPercentage: 0,
-          adjustment: 0
-        };
+          adjustment: 0,
+          lineItems: [],
       }
 
       const itemName = row['ItemName'] || row['itemName'] || row['Item Name'];
       const quantity = Number(row['Quantity'] || row['quantity'] || 1);
       const rate = Number(row['Rate'] || row['rate'] || 0);
+      const tempCode = row['TempCode'] || row['tempCode'];
+      const account = row['Account'] || row['account'];
+      const description = row['Description'] || row['description'];
+      const loaSerialNo = row['LoaSerialNo'] || row['loaSerialNo'];
+      const hsnCode = row['HsnCode'] || row['hsnCode'];
+      const itemPackage = row['ItemPackage'] || row['itemPackage'];
+      const itemCircle = row['ItemCircle'] || row['itemCircle'];
+      const unit = row['Unit'] || row['unit'];
 
       if (itemName) {
         ordersMap[poNumber].lineItems.push({
           itemName,
+          tempCode,
+          account,
+          description,
+          loaSerialNo,
+          hsnCode,
+          package: itemPackage,
+          circle: itemCircle,
+          unit,
           quantity,
           rate,
           amount: quantity * rate
@@ -440,8 +464,11 @@ export const importPurchaseOrders = async (req: Request, res: Response) => {
       
       const discountAmount = 0;
       const taxAmount = 0;
+      const cgstAmount = (calculatedSubTotal * (order.cgstPercentage || 0)) / 100;
+      const sgstAmount = (calculatedSubTotal * (order.sgstPercentage || 0)) / 100;
+      const igstAmount = (calculatedSubTotal * (order.igstPercentage || 0)) / 100;
       const adjustment = 0;
-      const calculatedTotal = calculatedSubTotal - discountAmount - taxAmount + adjustment;
+      const calculatedTotal = calculatedSubTotal - discountAmount - taxAmount + cgstAmount + sgstAmount + igstAmount + adjustment;
       
       order.subTotal = calculatedSubTotal;
       order.discountAmount = discountAmount;

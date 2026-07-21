@@ -301,6 +301,7 @@ export default function VendorPreferencesPage() {
           onClose={() => setIsModalOpen(false)}
           onSave={handleSaveField}
           initialData={editingField}
+          allFields={fields}
         />
       )}
     </div>

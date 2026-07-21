@@ -24,6 +24,8 @@ export interface IField extends Document {
   icon?: string;
   placeholder?: string;
   helperText?: string;
+  dependsOn?: string;
+  dependsOnOptions?: any;
 }
 
 export interface IMetadata extends Document {
@@ -54,7 +56,9 @@ const FieldSchema = new Schema({
   labelColor: { type: String },
   icon: { type: String },
   placeholder: { type: String },
-  helperText: { type: String }
+  helperText: { type: String },
+  dependsOn: { type: String },
+  dependsOnOptions: { type: Schema.Types.Mixed }
 }, { _id: false });
 
 const MetadataSchema = new Schema({

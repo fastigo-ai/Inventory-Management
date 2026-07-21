@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +37,8 @@ export interface FieldMetadata {
   icon?: string;
   placeholder?: string;
   helperText?: string;
+  dependsOn?: string;
+  dependsOnOptions?: any;
 }
 
 interface DynamicFormProps {
@@ -66,6 +68,33 @@ export function DynamicForm({ fields, initialData = {}, onSubmit, isLoading, lay
     getValues,
     formState: { errors, isSubmitting },
   } = useForm({ defaultValues });
+
+  // Handle dependent fields reset when parent changes
+  const dependentFields = fields.filter(f => f.dependsOn);
+  
+  useEffect(() => {
+    const subscription = watch((value, { name, type }) => {
+      // Find if the changed field is a parent of any dependent field
+      const dependents = dependentFields.filter(df => df.dependsOn === name);
+      if (dependents.length > 0) {
+        dependents.forEach(df => {
+          const currentVal = value[df.name as keyof typeof value];
+          if (currentVal) {
+            const parentValue = value[name as keyof typeof value];
+            const validOptions = (df.dependsOnOptions && parentValue && df.dependsOnOptions[parentValue]) 
+              ? df.dependsOnOptions[parentValue] 
+              : [];
+            
+            // If current value is not in the new valid options, reset it
+            if (!validOptions.includes(currentVal)) {
+              setValue(df.name, "");
+            }
+          }
+        });
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, dependentFields, setValue]);
 
   // Get unique tabs, ensuring 'Basic'/'Basic Info' is first if it exists
   const allTabs = Array.from(new Set(fields.map(f => f.tab || "General")));
@@ -377,6 +406,17 @@ function renderField(field: FieldMetadata, register: any, errors: any, control: 
       </div>
     );
   } else if (field.type === 'dropdown') {
+    let currentOptions = field.options || [];
+    
+    if (field.dependsOn && watch) {
+      const parentValue = watch(field.dependsOn);
+      if (parentValue && field.dependsOnOptions && field.dependsOnOptions[parentValue]) {
+        currentOptions = field.dependsOnOptions[parentValue];
+      } else if (field.dependsOn) {
+        currentOptions = []; // Empty if parent not selected or no mapping exists
+      }
+    }
+
     fieldInput = (
       <select 
         id={field.name}
@@ -385,7 +425,7 @@ function renderField(field: FieldMetadata, register: any, errors: any, control: 
         {...register(field.name, { required: field.required ? `${field.label} is required` : false })}
       >
         <option value="">Select...</option>
-        {field.options?.map(opt => (
+        {currentOptions.map((opt: any) => (
           <option key={opt} value={opt}>{opt}</option>
         ))}
       </select>

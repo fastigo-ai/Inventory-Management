@@ -14,6 +14,7 @@ interface FieldBuilderModalProps {
   onClose: () => void;
   onSave: (field: FieldMetadata) => void;
   initialData?: FieldMetadata | null;
+  allFields?: FieldMetadata[];
 }
 
 export function FieldBuilderModal({ isOpen, onClose, onSave, initialData }: FieldBuilderModalProps) {
@@ -25,7 +26,10 @@ export function FieldBuilderModal({ isOpen, onClose, onSave, initialData }: Fiel
   const [visible, setVisible] = useState(initialData?.visible ?? true);
   const [tab, setTab] = useState(initialData?.tab || "General");
   const [options, setOptions] = useState<string[]>(initialData?.options || []);
+  const [dependsOn, setDependsOn] = useState<string>(initialData?.dependsOn || "");
+  const [dependsOnOptions, setDependsOnOptions] = useState<any>(initialData?.dependsOnOptions || {});
   const [newOption, setNewOption] = useState("");
+  const [activeParentOption, setActiveParentOption] = useState<string>("");
   const [showTypeDropdown, setShowTypeDropdown] = useState(false);
 
   const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -38,14 +42,32 @@ export function FieldBuilderModal({ isOpen, onClose, onSave, initialData }: Fiel
   };
 
   const addOption = () => {
-    if (newOption && !options.includes(newOption)) {
-      setOptions([...options, newOption]);
+    if (newOption) {
+      if (dependsOn && activeParentOption) {
+        const currentOpts = dependsOnOptions[activeParentOption] || [];
+        if (!currentOpts.includes(newOption)) {
+          setDependsOnOptions({
+            ...dependsOnOptions,
+            [activeParentOption]: [...currentOpts, newOption]
+          });
+        }
+      } else if (!dependsOn && !options.includes(newOption)) {
+        setOptions([...options, newOption]);
+      }
       setNewOption("");
     }
   };
 
   const removeOption = (opt: string) => {
-    setOptions(options.filter(o => o !== opt));
+    if (dependsOn && activeParentOption) {
+      const currentOpts = dependsOnOptions[activeParentOption] || [];
+      setDependsOnOptions({
+        ...dependsOnOptions,
+        [activeParentOption]: currentOpts.filter((o: string) => o !== opt)
+      });
+    } else {
+      setOptions(options.filter(o => o !== opt));
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -63,7 +85,9 @@ export function FieldBuilderModal({ isOpen, onClose, onSave, initialData }: Fiel
       editable: initialData?.editable ?? true,
       tab,
       order: initialData?.order ?? 99,
-      options: type === 'dropdown' ? options : undefined
+      options: type === 'dropdown' && !dependsOn ? options : undefined,
+      dependsOn: type === 'dropdown' && dependsOn ? dependsOn : undefined,
+      dependsOnOptions: type === 'dropdown' && dependsOn ? dependsOnOptions : undefined
     });
   };
 
@@ -210,8 +234,33 @@ export function FieldBuilderModal({ isOpen, onClose, onSave, initialData }: Fiel
               </div>
             </div>
 
-            {/* Dropdown Options Row */}
+            {/* Dependent Field Setup */}
             {type === 'dropdown' && (
+              <div className="flex items-center">
+                <div className="w-1/3">
+                  <label className="text-[13px] text-slate-700 font-normal">Is Dependent Field</label>
+                </div>
+                <div className="w-2/3 max-w-sm flex flex-col gap-2">
+                  <select 
+                    value={dependsOn}
+                    onChange={(e) => {
+                      setDependsOn(e.target.value);
+                      setDependsOnOptions({});
+                      setActiveParentOption("");
+                    }}
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded focus:outline-none focus:border-blue-500 text-sm bg-white"
+                  >
+                    <option value="">No (Independent Dropdown)</option>
+                    {allFields?.filter(f => f.type === 'dropdown' && f.name !== name).map(f => (
+                      <option key={f.name} value={f.name}>Yes, depends on "{f.label}"</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* Dropdown Options Row */}
+            {type === 'dropdown' && !dependsOn && (
               <div className="flex items-start">
                 <div className="w-1/3 pt-1">
                   <label className="text-[13px] text-slate-700 font-normal">Dropdown Options</label>
@@ -238,6 +287,81 @@ export function FieldBuilderModal({ isOpen, onClose, onSave, initialData }: Fiel
                     ))}
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Dependent Dropdown Options Mapping */}
+            {type === 'dropdown' && dependsOn && (
+              <div className="flex flex-col gap-2 mt-4 p-4 bg-slate-50 border border-slate-200 rounded-md">
+                <label className="text-[13px] text-slate-800 font-semibold mb-2">Map Child Options</label>
+                
+                {(() => {
+                  const parentField = allFields?.find(f => f.name === dependsOn);
+                  const parentOptions = parentField?.options || [];
+                  
+                  if (parentOptions.length === 0) {
+                    return <p className="text-sm text-red-500">The parent field has no options defined.</p>;
+                  }
+
+                  return (
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Parent Options List */}
+                      <div className="flex flex-col gap-1 border-r border-slate-200 pr-4">
+                        <label className="text-xs text-slate-500 mb-1">Select Parent Value:</label>
+                        {parentOptions.map(pOpt => (
+                          <button
+                            key={pOpt}
+                            type="button"
+                            onClick={() => setActiveParentOption(pOpt)}
+                            className={`px-3 py-2 text-left text-sm rounded transition-colors ${
+                              activeParentOption === pOpt ? 'bg-blue-100 text-blue-700 font-medium' : 'hover:bg-slate-200 text-slate-700'
+                            }`}
+                          >
+                            {pOpt}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Child Options List */}
+                      <div>
+                        {activeParentOption ? (
+                          <div className="space-y-3">
+                            <label className="text-xs text-slate-500">
+                              Options when <span className="font-semibold text-slate-700">{activeParentOption}</span> is selected:
+                            </label>
+                            <div className="flex gap-2">
+                              <input 
+                                type="text" 
+                                value={newOption} 
+                                onChange={(e) => setNewOption(e.target.value)} 
+                                placeholder="Child option"
+                                className="w-full px-2 py-1.5 border border-slate-300 rounded focus:outline-none focus:border-blue-500 text-sm"
+                              />
+                              <button type="button" onClick={addOption} className="px-3 py-1 bg-white border border-slate-300 rounded text-sm hover:bg-slate-50">
+                                Add
+                              </button>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              {(dependsOnOptions[activeParentOption] || []).map((opt: string, i: number) => (
+                                <div key={i} className="flex justify-between items-center px-2 py-1.5 bg-white border border-slate-200 rounded text-sm">
+                                  <span>{opt}</span>
+                                  <button type="button" onClick={() => removeOption(opt)} className="text-red-500 hover:text-red-700">&times;</button>
+                                </div>
+                              ))}
+                              {!(dependsOnOptions[activeParentOption] || []).length && (
+                                <p className="text-xs text-slate-400 italic">No child options mapped yet.</p>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="h-full flex items-center justify-center text-sm text-slate-400 italic">
+                            Select a parent value on the left to map its options.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             )}
             

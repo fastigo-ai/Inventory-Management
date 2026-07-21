@@ -7,7 +7,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/shared/components/ui/table";
+} from "@/components/ui/table";
 
 interface StockSummaryTableProps {
   data: any[];

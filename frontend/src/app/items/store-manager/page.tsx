@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getAdminInwardEntries, updateInwardEntry, getAdminStockSummary } from "@/features/store/api/store.api";
-import { Input } from "@/shared/components/ui/input";
-import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Search, Filter, AlertTriangle, CheckCircle, ListChecks, Package } from "lucide-react";
 import { StockSummaryTable } from "@/features/store/components/StockSummaryTable";
 

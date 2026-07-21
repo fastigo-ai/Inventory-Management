@@ -34,3 +34,13 @@ export const getAdminInwardEntries = async (params: any) => {
   const response = await api.get('/store/admin/inventory/store-manager', { params });
   return response.data;
 };
+
+export const getStockSummary = async (params: any) => {
+  const response = await api.get('/store/inventory/stock-summary', { params });
+  return response.data;
+};
+
+export const getAdminStockSummary = async (params: any) => {
+  const response = await api.get('/store/admin/inventory/stock-summary', { params });
+  return response.data;
+};

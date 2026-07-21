@@ -7,7 +7,9 @@ import {
   updateInwardEntry,
   getInwardEntryById,
   queryInwardEntries,
-  getAdminInwardEntries
+  getAdminInwardEntries,
+  getStockSummary,
+  getAdminStockSummary
 } from './store.controller';
 
 const router = Router();
@@ -22,11 +24,14 @@ router.route('/inventory/inward')
   .post(createInwardEntry)
   .get(queryInwardEntries);
 
+router.route('/inventory/stock-summary').get(getStockSummary);
+
 router.route('/inventory/inward/:id')
   .get(getInwardEntryById)
   .put(updateInwardEntry);
 
 // Admin Routes (Note: in a real app, you might secure these with an admin role check)
 router.route('/admin/inventory/store-manager').get(getAdminInwardEntries);
+router.route('/admin/inventory/stock-summary').get(getAdminStockSummary);
 
 export default router;

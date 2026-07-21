@@ -507,11 +507,9 @@ export const getAdminStockSummary = asyncHandler(async (req: Request, res: Respo
   res.status(200).json(new ApiResponse(200, summary, 'Admin stock summary fetched successfully'));
 });
 
-// -- INTER-STORE TRANSFERS --
-
 export const createStoreTransfer = asyncHandler(async (req: Request, res: Response) => {
   const transferData = req.body;
-  transferData.requestedBy = req.user?._id;
+  transferData.requestedBy = (req as any).user?._id;
   
   const transfer = await StoreTransfer.create(transferData);
   res.status(201).json(new ApiResponse(201, transfer, 'Transfer request created successfully'));

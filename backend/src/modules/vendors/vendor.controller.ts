@@ -275,7 +275,41 @@ export const exportVendorTemplate = asyncHandler(async (req: Request, res: Respo
 
   metadata.fields.forEach(expandHeaders);
   
-  const csv = stringify([], { header: true, columns: headers });
+  const mockRow: Record<string, string> = {};
+  headers.forEach(header => {
+    const lower = header.toLowerCase();
+    if (lower.includes('email')) {
+      mockRow[header] = 'sample@example.com';
+    } else if (lower.includes('phone') || lower.includes('mobile')) {
+      mockRow[header] = '1234567890';
+    } else if (lower.includes('date')) {
+      mockRow[header] = '2023-12-31';
+    } else if (lower.includes('zip')) {
+      mockRow[header] = '10001';
+    } else if (lower.includes('country')) {
+      mockRow[header] = 'USA';
+    } else if (lower.includes('city')) {
+      mockRow[header] = 'New York';
+    } else if (lower.includes('state')) {
+      mockRow[header] = 'NY';
+    } else if (lower.includes('street')) {
+      mockRow[header] = '123 Main St';
+    } else if (lower.includes('company') || lower === 'vendor name') {
+      mockRow[header] = 'Acme Corp';
+    } else if (lower.includes('name') || lower.includes('attention') || lower.includes('holder')) {
+      mockRow[header] = 'John Doe';
+    } else if (lower.includes('salutation')) {
+      mockRow[header] = 'Mr.';
+    } else if (lower.includes('currency')) {
+      mockRow[header] = 'USD';
+    } else if (lower.includes('payment terms')) {
+      mockRow[header] = 'Net 30';
+    } else {
+      mockRow[header] = 'Sample Data';
+    }
+  });
+
+  const csv = stringify([mockRow], { header: true, columns: headers });
   
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', 'attachment; filename="vendors_template.csv"');

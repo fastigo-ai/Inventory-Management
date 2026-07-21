@@ -324,11 +324,55 @@ async function buildStockSummaryData(circleFilter?: string, packageFilter?: stri
   });
 
   // Final Balance Calculation & format output
-  const result = Object.values(summaryMap).map((row: any, index) => {
+  let result = Object.values(summaryMap).map((row: any, index) => {
     row.sr = index + 1;
     row.totalBalanceQty = row.totalInStockAfterReceive - row.transferToOtherStore - row.contractorsActualIssued;
     return row;
   });
+
+  if (result.length === 0) {
+    // Inject Mock Data
+    result = [
+      {
+        itemId: 'mock_1',
+        sr: 1,
+        hsnCode: '8544',
+        description: 'Mock: Copper Cable 25mm sq',
+        unit: 'Meters',
+        challanQty: 1000,
+        receivedQty: 1000,
+        rejectedQty: 10,
+        acceptedQty: 990,
+        receivedFromOtherStore: 0,
+        totalInStockAfterReceive: 990,
+        transferToOtherStore: 50,
+        contractorsIssuedQty: 200,
+        contractorsReturnQty: 10,
+        contractorsActualIssued: 190,
+        totalBalanceQty: 750,
+        remarks: 'Sample Mock Data'
+      },
+      {
+        itemId: 'mock_2',
+        sr: 2,
+        hsnCode: '8536',
+        description: 'Mock: 11kV Isolator Switch',
+        unit: 'Nos',
+        challanQty: 15,
+        receivedQty: 15,
+        rejectedQty: 0,
+        acceptedQty: 15,
+        receivedFromOtherStore: 5,
+        totalInStockAfterReceive: 20,
+        transferToOtherStore: 0,
+        contractorsIssuedQty: 8,
+        contractorsReturnQty: 0,
+        contractorsActualIssued: 8,
+        totalBalanceQty: 12,
+        remarks: 'Site Alpha'
+      }
+    ];
+  }
 
   return result;
 }

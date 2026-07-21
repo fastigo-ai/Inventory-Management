@@ -420,6 +420,7 @@ export const importPurchaseOrders = async (req: Request, res: Response) => {
           discountPercentage: 0,
           adjustment: 0,
           lineItems: [],
+        };
       }
 
       const itemName = row['ItemName'] || row['itemName'] || row['Item Name'];

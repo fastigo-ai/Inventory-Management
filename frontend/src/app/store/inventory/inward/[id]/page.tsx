@@ -10,7 +10,7 @@ import { ArrowLeft, Save, Send } from "lucide-react";
 export default function InwardRegistrationForm() {
   const params = useParams();
   const router = useRouter();
-  const invoiceId = params.id as string;
+  const diId = params.id as string;
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -64,19 +64,19 @@ export default function InwardRegistrationForm() {
   const packOptions = ['DRUM', 'PACKAGE', 'PACKET', 'BOX', 'BAG', 'OTHER'];
 
   useEffect(() => {
-    if (invoiceId) {
+    if (diId) {
       loadData();
     }
-  }, [invoiceId]);
+  }, [diId]);
 
   const loadData = async () => {
     try {
       // 1. Check if an entry exists
-      const entriesRes = await queryInwardEntries({ purchaseInvoiceId: invoiceId });
+      const entriesRes = await queryInwardEntries({ diId, status: 'DRAFT' });
       const existingDraft = entriesRes.data?.[0];
 
       // 2. Load Prefill data
-      const prefillRes = await getPurchaseInvoicePrefillData(invoiceId);
+      const prefillRes = await getDIPrefillData(diId);
       const prefill = prefillRes.data;
 
       if (existingDraft) {
@@ -179,7 +179,7 @@ export default function InwardRegistrationForm() {
       
       const payload = {
         ...formData,
-        purchaseInvoiceId: invoiceId,
+        diId,
         status,
         packingList: [
           { packType: formData.packType, quantity: Number(formData.packQty) }

@@ -299,7 +299,7 @@ async function buildStockSummaryData(circleFilter?: string, packageFilter?: stri
   verifiedInwards.forEach(inward => {
     const tc = inward.tempCode || '';
     if (summaryMap[tc]) {
-      const totalPackingListQty = inward.packingList?.reduce((sum, p) => sum + p.quantity, 0) || 0;
+      const totalPackingListQty = inward.packingList?.reduce((sum: number, p: any) => sum + p.quantity, 0) || 0;
       const invQty = inward.invoiceQty || 0;
       
       summaryMap[tc].challanQty += invQty;
@@ -313,7 +313,7 @@ async function buildStockSummaryData(circleFilter?: string, packageFilter?: stri
 
   // Calculate Contractor Assignments
   assignments.forEach(assignment => {
-    assignment.lineItems?.forEach(line => {
+    assignment.lineItems?.forEach((line: any) => {
       const tc = line.tempCode || '';
       if (summaryMap[tc]) {
         summaryMap[tc].contractorsIssuedQty += (line.quantity || 0);

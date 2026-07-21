@@ -12,6 +12,7 @@ import { getVendors } from "@/features/vendors/api/vendors.api";
 import { getPurchaseOrders } from "@/features/purchases/api/purchases.api";
 import { getItems } from "@/features/items/api/items.api";
 import { uploadDocument } from "@/features/documents/api/documents.api";
+import { getBillingCompanies } from "@/features/settings/api/billingCompanies.api";
 
 export default function EditPurchaseReceivePage() {
   const router = useRouter();
@@ -27,6 +28,8 @@ export default function EditPurchaseReceivePage() {
   const [purchaseOrderInput, setPurchaseOrderInput] = useState("");
   const [purchaseReceiveNumber, setPurchaseReceiveNumber] = useState("");
   const [receiveDate, setReceiveDate] = useState("");
+  const [billingFrom, setBillingFrom] = useState("");
+  const [billingCompanies, setBillingCompanies] = useState<any[]>([]);
   const [status, setStatus] = useState<string>("Draft");
   
   // Extra fields
@@ -59,11 +62,13 @@ export default function EditPurchaseReceivePage() {
       getVendors({ limit: 100 }).then(res => setVendors(res.vendors || res)),
       getPurchaseOrders().then(res => setPurchaseOrders(Array.isArray(res.data) ? res.data : (res.data?.pos || res.data || []))),
       getItems({ limit: 1000 }).then(res => setItemsList(res.items || res.data || res)),
+      getBillingCompanies().then(res => setBillingCompanies(res.data || [])),
       getPurchaseReceiveById(prId).then(data => {
         setVendorName(data.vendorName || "");
         setPurchaseOrderInput(data.purchaseOrderNumber || "");
         setPurchaseReceiveNumber(data.purchaseReceiveNumber || "");
         setReceiveDate(data.receiveDate ? new Date(data.receiveDate).toISOString().split('T')[0] : "");
+        setBillingFrom(data.billingFrom || "");
         setDiNo(data.diNo || "");
         setDiDate(data.diDate ? new Date(data.diDate).toISOString().split('T')[0] : "");
         setNotes(data.notes || "");
@@ -163,6 +168,7 @@ export default function EditPurchaseReceivePage() {
         purchaseOrderNumber: purchaseOrderInput || undefined,
         purchaseReceiveNumber,
         receiveDate,
+        billingFrom,
         diNo, diDate, 
         notes,
         lineItems,
@@ -323,7 +329,24 @@ export default function EditPurchaseReceivePage() {
                 onChange={(e) => setReceiveDate(e.target.value)}
               />
             </div>
-            <div className="col-span-1"></div>
+            <div className="col-span-1">
+              <label className="block text-[13px] font-medium text-slate-700 mb-2">Billing From</label>
+              <div className="relative">
+                <select 
+                  className="w-full h-10 rounded-md text-[13px] border border-slate-300 px-3 bg-white focus:outline-none focus:border-[#0076f2] focus:ring-1 focus:ring-[#0076f2] appearance-none"
+                  value={billingFrom}
+                  onChange={(e) => setBillingFrom(e.target.value)}
+                >
+                  <option value="">Select Billing Company</option>
+                  {billingCompanies.map(c => (
+                    <option key={c._id} value={c.name}>{c.name}</option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                  <ChevronDown className="h-4 w-4 text-slate-400" />
+                </div>
+              </div>
+            </div>
 
           </div>
 
@@ -508,9 +531,12 @@ export default function EditPurchaseReceivePage() {
                             </select>
                           </td>
                           <td className="px-4 py-3 align-top text-center">
-                            <div className="h-8 flex items-center justify-center text-[13px] text-slate-700 border border-slate-200 rounded bg-white">
-                              {item.poQuantity}
-                            </div>
+                            <Input 
+                              type="number" 
+                              className="h-8 w-full text-[13px] text-center border-slate-200 focus:border-blue-500 bg-white"
+                              value={item.poQuantity || 0}
+                              onChange={(e) => updateLineItem(index, 'poQuantity', e.target.value)}
+                            />
                           </td>
                           <td className="px-4 py-3 align-top">
                             <Input 

@@ -26,6 +26,7 @@ export interface IPr extends Document {
   receiveDate: Date;
   diNo?: string;
   diDate?: Date;
+  billingFrom?: string;
   
   // Table
   lineItems: IPrLineItem[];
@@ -71,6 +72,7 @@ const prSchema = new Schema<IPr>(
     receiveDate: { type: Date, required: true },
     diNo: { type: String },
     diDate: { type: Date },
+    billingFrom: { type: String },
     
     lineItems: [prLineItemSchema],
     

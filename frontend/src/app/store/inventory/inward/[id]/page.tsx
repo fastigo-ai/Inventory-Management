@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getPurchaseInvoicePrefillData, createInwardEntry, queryInwardEntries, updateInwardEntry } from "@/features/store/api/store.api";
+import { getDIPrefillData, createInwardEntry, queryInwardEntries, updateInwardEntry } from "@/features/store/api/store.api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Save, Send } from "lucide-react";

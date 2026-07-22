@@ -194,6 +194,7 @@ export const exportDIs = asyncHandler(async (req: Request, res: Response) => {
         Notes: di.notes || '',
         ItemName: '',
         TempCode: '',
+        LoaSerialNo: '',
         ItemPackage: '',
         ItemCircle: '',
         Quantity: ''
@@ -210,6 +211,7 @@ export const exportDIs = asyncHandler(async (req: Request, res: Response) => {
           Notes: di.notes || '',
           ItemName: item.itemName || '',
           TempCode: item.tempCode || '',
+          LoaSerialNo: item.loaSerialNo || '',
           ItemPackage: item.package || '',
           ItemCircle: item.circle || '',
           Quantity: item.quantity || 0
@@ -218,7 +220,7 @@ export const exportDIs = asyncHandler(async (req: Request, res: Response) => {
     }
   }
 
-  const headers = ['DINumber', 'Date', 'PONumber', 'Circle', 'Package', 'Status', 'Notes', 'ItemName', 'TempCode', 'ItemPackage', 'ItemCircle', 'Quantity'];
+  const headers = ['DINumber', 'Date', 'PONumber', 'Circle', 'Package', 'Status', 'Notes', 'ItemName', 'TempCode', 'LoaSerialNo', 'ItemPackage', 'ItemCircle', 'Quantity'];
   const csv = stringify(rows, { header: true, columns: headers });
   
   res.setHeader('Content-Type', 'text/csv');
@@ -265,6 +267,7 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
 
     const itemName = row['ItemName'] || row['itemName'] || row['Item Name'];
     const tempCode = row['TempCode'] || row['tempCode'];
+    const loaSerialNo = row['LoaSerialNo'] || row['loaSerialNo'];
     const itemPackage = row['ItemPackage'] || row['itemPackage'];
     const itemCircle = row['ItemCircle'] || row['itemCircle'];
     const quantity = Number(row['Quantity'] || row['quantity'] || 0);
@@ -273,6 +276,7 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
       disMap[diNumber].lineItems.push({
         itemName,
         tempCode,
+        loaSerialNo,
         package: itemPackage,
         circle: itemCircle,
         quantity

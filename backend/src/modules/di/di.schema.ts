@@ -4,6 +4,7 @@ export interface IDILineItem {
   itemId?: mongoose.Types.ObjectId;
   itemName: string;
   tempCode?: string;
+  loaSerialNo?: string;
   package?: string;
   circle?: string;
   quantity: number;
@@ -30,6 +31,7 @@ const diLineItemSchema = new Schema<IDILineItem>({
   itemId: { type: Schema.Types.ObjectId, ref: 'Item' },
   itemName: { type: String, required: true },
   tempCode: { type: String },
+  loaSerialNo: { type: String },
   package: { type: String },
   circle: { type: String },
   quantity: { type: Number, required: true, default: 0 },

@@ -166,4 +166,7 @@ const purchaseOrderSchema = new Schema<IPurchaseOrder>(
   }
 );
 
+import { auditPlugin } from '../../core/plugins/audit.plugin';
+purchaseOrderSchema.plugin(auditPlugin, { entityName: 'PurchaseOrder', track: true });
+
 export const PurchaseOrder = mongoose.models.PurchaseOrder || mongoose.model<IPurchaseOrder>('PurchaseOrder', purchaseOrderSchema);

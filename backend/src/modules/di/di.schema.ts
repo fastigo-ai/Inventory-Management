@@ -53,4 +53,7 @@ const diSchema = new Schema<IDI>(
   { timestamps: true }
 );
 
+import { auditPlugin } from '../../core/plugins/audit.plugin';
+diSchema.plugin(auditPlugin, { entityName: 'DI', track: true });
+
 export const DI = mongoose.models.DI || mongoose.model<IDI>('DI', diSchema);

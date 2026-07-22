@@ -42,6 +42,11 @@ export const updateDIStatus = async (id: string, status: string) => {
   return response.data;
 };
 
+export const deleteDI = async (id: string) => {
+  const response = await api.delete(`/di/${id}`);
+  return response.data;
+};
+
 export const importDIsFromCsv = async (file: File) => {
   const formData = new FormData();
   formData.append('file', file);

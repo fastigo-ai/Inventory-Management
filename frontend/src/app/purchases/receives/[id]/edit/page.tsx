@@ -13,6 +13,8 @@ import { getPurchaseOrders } from "@/features/purchases/api/purchases.api";
 import { getItems } from "@/features/items/api/items.api";
 import { uploadDocument } from "@/features/documents/api/documents.api";
 import { getBillingCompanies } from "@/features/settings/api/billingCompanies.api";
+import { AuditTimeline } from "@/shared/components/audit/AuditTimeline";
+import { toast } from "sonner";
 
 export default function EditPurchaseReceivePage() {
   const router = useRouter();
@@ -185,13 +187,14 @@ export default function EditPurchaseReceivePage() {
   };
 
   const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this Purchase Invoice?")) return;
+    if (!confirm("Are you sure you want to delete this Purchase Receive?")) return;
     try {
       await deletePurchaseReceive(prId);
+      toast.success("Purchase Receive deleted successfully");
       router.push('/purchases/receives');
     } catch (error) {
       console.error("Failed to delete PR", error);
-      alert("Failed to delete Purchase Invoice");
+      toast.error("Failed to delete Purchase Receive");
     }
   };
 
@@ -646,6 +649,13 @@ export default function EditPurchaseReceivePage() {
                 <p className="text-[11px] text-slate-400 mt-3">You can upload a maximum of 5 files, 10MB each</p>
               </div>
             </div>
+
+            {prId && (
+              <div className="mt-12 mb-8 bg-white p-8 rounded-xl shadow-sm border border-slate-200">
+                <h2 className="text-xl font-semibold text-slate-800 mb-8 border-b border-slate-100 pb-4">Audit History</h2>
+                <AuditTimeline entityType="PurchaseReceive" entityId={prId} />
+              </div>
+            )}
 
             {/* Bottom Actions */}
             <div className="flex items-center justify-between pt-6 border-t border-slate-200 mt-12">

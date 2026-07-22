@@ -5,12 +5,14 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Settings, UploadCloud, FileText, Search, ChevronDown, Plus } from "lucide-react";
+import { X, Settings, UploadCloud, FileText, Search, ChevronDown, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { getDIById, updateDI } from "@/features/di/api/di.api";
+import { getDIById, updateDI, deleteDI } from "@/features/di/api/di.api";
 import { getPurchaseOrders } from "@/features/purchases/api/purchases.api";
 import { getItems } from "@/features/items/api/items.api";
 import { API_BASE_URL } from "@/shared/api/axios";
+import { AuditTimeline } from "@/shared/components/audit/AuditTimeline";
+import { toast } from "sonner";
 const PACKAGES = ["Package 1 (S/N)", "Package 2 (R/R)"];
 
 export default function EditDIRegistrationPage() {
@@ -170,6 +172,17 @@ export default function EditDIRegistrationPage() {
       alert(error.response?.data?.message || "Failed to register DI");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteDI = async () => {
+    if (!confirm('Are you sure you want to delete this DI?')) return;
+    try {
+      await deleteDI(id as string);
+      toast.success('DI deleted successfully');
+      router.push('/di');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to delete DI');
     }
   };
 
@@ -751,8 +764,16 @@ export default function EditDIRegistrationPage() {
                 </ul>
               )}
             </div>
+            </div>
           </div>
         </div>
+        
+        {id && (
+          <div className="mt-12 bg-white p-8 rounded-xl shadow-sm border border-slate-200">
+            <h2 className="text-xl font-semibold text-slate-800 mb-8 border-b border-slate-100 pb-4">Audit History</h2>
+            <AuditTimeline entityType="DI" entityId={id as string} />
+          </div>
+        )}
       </div>
 
       {/* Sticky Bottom Bar */}
@@ -775,6 +796,9 @@ export default function EditDIRegistrationPage() {
           </Button>
           <Button variant="ghost" className="h-9 px-4" onClick={() => router.push('/di')}>
             Cancel
+          </Button>
+          <Button variant="ghost" className="h-9 px-4 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={handleDeleteDI}>
+            Delete
           </Button>
         </div>
         <div className="text-right flex items-center gap-8">

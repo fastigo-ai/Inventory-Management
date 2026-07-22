@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../../core/middlewares/auth.middleware';
-import { createDI, getDIs, getDIById, updateDIStatus, receiveDI, updateDI, importDIs } from './di.controller';
+import { createDI, getDIs, getDIById, updateDIStatus, receiveDI, updateDI, importDIs, deleteDI } from './di.controller';
 
 import multer from 'multer';
 
@@ -24,7 +24,8 @@ router.route('/:id')
   .put(upload.fields([
     { name: 'diLetterCopyUrl', maxCount: 1 },
     { name: 'inspectionReportCopyUrl', maxCount: 1 }
-  ]), updateDI);
+  ]), updateDI)
+  .delete(deleteDI);
 
 router.route('/:id/status')
   .patch(updateDIStatus);

@@ -259,3 +259,18 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
     });
   }
 });
+
+export const deleteDI = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  const di = await DI.findById(id);
+  if (!di) {
+    throw new ApiError(404, 'DI not found');
+  }
+
+  await DI.findByIdAndDelete(id);
+
+  res.status(200).json(
+    new ApiResponse(200, null, 'DI deleted successfully')
+  );
+});

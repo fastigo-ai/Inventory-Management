@@ -10,7 +10,7 @@ import Link from "next/link";
 import { getDIById, updateDI } from "@/features/di/api/di.api";
 import { getPurchaseOrders } from "@/features/purchases/api/purchases.api";
 import { getItems } from "@/features/items/api/items.api";
-
+import { API_BASE_URL } from "@/shared/api/axios";
 const PACKAGES = ["Package 1 (S/N)", "Package 2 (R/R)"];
 
 export default function EditDIRegistrationPage() {
@@ -384,9 +384,9 @@ export default function EditDIRegistrationPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 item-dropdown-container">
-                    {item.itemId ? (
+                    {item.readOnly ? (
                       <Input 
-                        value={item.itemName}
+                        value={item.itemName || ''}
                         readOnly
                         className="border-transparent bg-transparent h-8 shadow-none focus-visible:ring-0 px-0 font-medium"
                       />
@@ -398,9 +398,9 @@ export default function EditDIRegistrationPage() {
                             type="text"
                             placeholder="Search Name..."
                             className="w-full bg-transparent pl-7 pr-7 text-[13px] text-[#334155] focus:outline-none cursor-text h-full"
-                            value={item.nameSearchQuery ?? ''}
+                            value={item.itemName ?? ''}
                             onChange={(e) => {
-                              updateLineItem(index, 'nameSearchQuery', e.target.value);
+                              updateLineItem(index, 'itemName', e.target.value);
                               if (openNameDropdownId !== index) setOpenNameDropdownId(index);
                             }}
                             onClick={(e) => {
@@ -421,7 +421,7 @@ export default function EditDIRegistrationPage() {
                             <div className="max-h-60 overflow-y-auto py-1">
                               {items
                                 .filter(it => {
-                                  const val = (item.nameSearchQuery ?? '').toLowerCase();
+                                  const val = (item.itemName ?? '').toLowerCase();
                                   const name = String(it.dynamicData?.name || it.dynamicData?.itemDescription || it.name || '').toLowerCase();
                                   return name.includes(val);
                                 })
@@ -444,16 +444,17 @@ export default function EditDIRegistrationPage() {
                                         updateLineItem(index, 'package', it.dynamicData?.package || poLineItem?.package1 || '');
                                         updateLineItem(index, 'circle', it.dynamicData?.circle || poLineItem?.circle || '');
                                         updateLineItem(index, 'orderedQuantity', poLineItem ? poLineItem.quantity : 0);
+                                        updateLineItem(index, 'searchQuery', sku);
                                         setOpenNameDropdownId(null);
                                       }}
                                     >
                                       <span className="text-sm text-slate-800 font-medium">{name}</span>
-                                      <span className="text-[10px] text-slate-500">LOA/SKU: {sku}</span>
+                                      <span className="text-[10px] text-slate-500">LOA/SKU: {sku} | Temp Code: {tempCode || '--'}</span>
                                     </div>
                                   );
                                 })}
                               {items.filter(it => {
-                                const val = (item.nameSearchQuery ?? '').toLowerCase();
+                                const val = (item.itemName ?? '').toLowerCase();
                                 const name = String(it.dynamicData?.name || it.dynamicData?.itemDescription || it.name || '').toLowerCase();
                                 return name.includes(val);
                               }).length === 0 && (
@@ -466,9 +467,9 @@ export default function EditDIRegistrationPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 item-dropdown-container">
-                    {item.itemId ? (
+                    {item.readOnly ? (
                       <Input 
-                        value={item.tempCode}
+                        value={item.tempCode || ''}
                         readOnly
                         className="border-transparent bg-transparent h-8 shadow-none focus-visible:ring-0 px-0 font-medium"
                       />
@@ -480,9 +481,9 @@ export default function EditDIRegistrationPage() {
                             type="text"
                             placeholder="Search Code..."
                             className="w-full bg-transparent pl-7 pr-7 text-[13px] text-[#334155] focus:outline-none cursor-text h-full"
-                            value={item.tempCodeSearchQuery ?? ''}
+                            value={item.tempCode ?? ''}
                             onChange={(e) => {
-                              updateLineItem(index, 'tempCodeSearchQuery', e.target.value);
+                              updateLineItem(index, 'tempCode', e.target.value);
                               if (openTempCodeDropdownId !== index) setOpenTempCodeDropdownId(index);
                             }}
                             onClick={(e) => {
@@ -503,7 +504,7 @@ export default function EditDIRegistrationPage() {
                             <div className="max-h-60 overflow-y-auto py-1">
                               {items
                                 .filter(it => {
-                                  const val = (item.tempCodeSearchQuery ?? '').toLowerCase();
+                                  const val = (item.tempCode ?? '').toLowerCase();
                                   const tempCode = String(it.dynamicData?.tempCode || it.tempCode || '').toLowerCase();
                                   return tempCode.includes(val);
                                 })
@@ -526,16 +527,17 @@ export default function EditDIRegistrationPage() {
                                         updateLineItem(index, 'package', it.dynamicData?.package || poLineItem?.package1 || '');
                                         updateLineItem(index, 'circle', it.dynamicData?.circle || poLineItem?.circle || '');
                                         updateLineItem(index, 'orderedQuantity', poLineItem ? poLineItem.quantity : 0);
+                                        updateLineItem(index, 'searchQuery', sku);
                                         setOpenTempCodeDropdownId(null);
                                       }}
                                     >
-                                      <span className="text-sm text-slate-800 font-medium">{tempCode || '--'}</span>
-                                      <span className="text-[10px] text-slate-500">{name}</span>
+                                      <span className="text-sm text-slate-800 font-medium">{name}</span>
+                                      <span className="text-[10px] text-slate-500">LOA/SKU: {sku} | Temp Code: {tempCode || '--'}</span>
                                     </div>
                                   );
                                 })}
                               {items.filter(it => {
-                                const val = (item.tempCodeSearchQuery ?? '').toLowerCase();
+                                const val = (item.tempCode ?? '').toLowerCase();
                                 const tempCode = String(it.dynamicData?.tempCode || it.tempCode || '').toLowerCase();
                                 return tempCode.includes(val);
                               }).length === 0 && (
@@ -703,7 +705,13 @@ export default function EditDIRegistrationPage() {
                       <div className="flex w-0 flex-1 items-center">
                         <FileText className="h-5 w-5 flex-shrink-0 text-slate-400" aria-hidden="true" />
                         <div className="ml-4 flex min-w-0 flex-1 gap-2">
-                          <span className="truncate font-medium text-slate-700">{file.name}</span>
+                          {file.url ? (
+                            <a href={file.url.startsWith('http') ? file.url : `${API_BASE_URL}${file.url}`} target="_blank" rel="noopener noreferrer" className="truncate font-medium text-blue-600 hover:underline">
+                              {file.name}
+                            </a>
+                          ) : (
+                            <span className="truncate font-medium text-slate-700">{file.name}</span>
+                          )}
                           <span className="flex-shrink-0 text-slate-400">Already Uploaded</span>
                         </div>
                       </div>

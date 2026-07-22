@@ -17,7 +17,7 @@ interface FieldBuilderModalProps {
   allFields?: FieldMetadata[];
 }
 
-export function FieldBuilderModal({ isOpen, onClose, onSave, initialData }: FieldBuilderModalProps) {
+export function FieldBuilderModal({ isOpen, onClose, onSave, initialData, allFields = [] }: FieldBuilderModalProps) {
   const [name, setName] = useState(initialData?.name || "");
   const [label, setLabel] = useState(initialData?.label || "");
   const [type, setType] = useState(initialData?.type || "text");
@@ -304,9 +304,9 @@ export function FieldBuilderModal({ isOpen, onClose, onSave, initialData }: Fiel
                   }
 
                   return (
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col sm:flex-row gap-4">
                       {/* Parent Options List */}
-                      <div className="flex flex-col gap-1 border-r border-slate-200 pr-4">
+                      <div className="flex flex-col gap-1 border-b sm:border-b-0 sm:border-r border-slate-200 pb-4 sm:pb-0 sm:pr-4 sm:w-1/3 shrink-0">
                         <label className="text-xs text-slate-500 mb-1">Select Parent Value:</label>
                         {parentOptions.map(pOpt => (
                           <button
@@ -323,10 +323,10 @@ export function FieldBuilderModal({ isOpen, onClose, onSave, initialData }: Fiel
                       </div>
 
                       {/* Child Options List */}
-                      <div>
+                      <div className="sm:w-2/3 flex-1">
                         {activeParentOption ? (
                           <div className="space-y-3">
-                            <label className="text-xs text-slate-500">
+                            <label className="text-xs text-slate-500 block">
                               Options when <span className="font-semibold text-slate-700">{activeParentOption}</span> is selected:
                             </label>
                             <div className="flex gap-2">
@@ -337,7 +337,7 @@ export function FieldBuilderModal({ isOpen, onClose, onSave, initialData }: Fiel
                                 placeholder="Child option"
                                 className="w-full px-2 py-1.5 border border-slate-300 rounded focus:outline-none focus:border-blue-500 text-sm"
                               />
-                              <button type="button" onClick={addOption} className="px-3 py-1 bg-white border border-slate-300 rounded text-sm hover:bg-slate-50">
+                              <button type="button" onClick={addOption} className="px-3 py-1 bg-white border border-slate-300 rounded text-sm hover:bg-slate-50 shrink-0">
                                 Add
                               </button>
                             </div>
@@ -354,8 +354,8 @@ export function FieldBuilderModal({ isOpen, onClose, onSave, initialData }: Fiel
                             </div>
                           </div>
                         ) : (
-                          <div className="h-full flex items-center justify-center text-sm text-slate-400 italic">
-                            Select a parent value on the left to map its options.
+                          <div className="h-full flex items-center justify-center text-sm text-slate-400 italic py-4">
+                            Select a parent value to map its options.
                           </div>
                         )}
                       </div>

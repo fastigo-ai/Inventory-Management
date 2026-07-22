@@ -4,9 +4,11 @@ import React, { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { getPurchaseInvoiceById, deletePurchaseInvoice } from '@/features/purchases/api/purchases.api';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, Edit, Trash2, Printer, FileText, CheckCircle2, AlertCircle, Clock, Banknote, HelpCircle } from 'lucide-react';
+import { ChevronLeft, Edit, Trash2, Printer, FileText, CheckCircle2, AlertCircle, Clock, Banknote, HelpCircle, Paperclip } from 'lucide-react';
 import Link from 'next/link';
 import { AuditTimeline } from '@/shared/components/audit/AuditTimeline';
+import { PdfPreview } from '@/shared/components/PdfPreview';
+import { API_BASE_URL } from '@/shared/api/axios';
 
 export default function PurchaseInvoiceDetailPage() {
   const router = useRouter();
@@ -310,6 +312,37 @@ export default function PurchaseInvoiceDetailPage() {
               </div>
             )}
           </div>
+
+          {/* Attachments Page (Rendered below main view) */}
+          {invoice.attachments && invoice.attachments.length > 0 && (
+            <div className="max-w-[800px] mx-auto bg-white shadow-[0_0_15px_rgba(0,0,0,0.05)] rounded-sm mt-4 mb-12 px-6 py-12 md:px-8 border border-slate-200 print:shadow-none print:border-none print:m-0 print:w-full print:max-w-full print:break-before-page">
+              <h3 className="text-lg font-bold text-slate-800 mb-6 uppercase tracking-wider border-b border-slate-200 pb-2">Attachments</h3>
+              <div className="flex flex-col gap-8">
+                {invoice.attachments.map((attachment: any, idx: number) => {
+                  const fileUrl = attachment.url.startsWith('http') ? attachment.url : `${API_BASE_URL}${attachment.url}`;
+                  const isImage = attachment.url.match(/\.(jpeg|jpg|gif|png|webp)$/i) != null;
+                  const isPdf = attachment.url.match(/\.pdf$/i) != null;
+                  return (
+                    <div key={idx} className="flex flex-col gap-4 print:break-inside-avoid print:break-before-page">
+                      <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-blue-600 hover:underline flex items-center gap-2">
+                        <Paperclip className="w-4 h-4" /> {attachment.name}
+                      </a>
+                      {isImage ? (
+                        <img src={fileUrl} alt={attachment.name} className="max-w-full max-h-[1000px] object-contain border border-slate-200 rounded p-1 print:max-h-none print:border-none" />
+                      ) : isPdf ? (
+                        <PdfPreview fileUrl={fileUrl} />
+                      ) : (
+                        <div className="w-full h-24 bg-slate-50 border border-slate-200 rounded flex flex-col items-center justify-center p-4 text-center text-slate-400">
+                          <span className="text-xs">Document Preview not available. Please click the link above to view/download.</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
             </>
           )}
         </div>

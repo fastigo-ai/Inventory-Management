@@ -858,17 +858,18 @@ export default function PurchaseOrderDetailPage() {
               <h3 className="text-lg font-bold text-slate-800 mb-6 uppercase tracking-wider border-b border-slate-200 pb-2">Attachments</h3>
               <div className="flex flex-col gap-8">
                 {order.attachments.map((attachment: any, idx: number) => {
+                  const fileUrl = attachment.url.startsWith('http') ? attachment.url : `${API_BASE_URL}${attachment.url}`;
                   const isImage = attachment.url.match(/\.(jpeg|jpg|gif|png|webp)$/i) != null;
                   const isPdf = attachment.url.match(/\.pdf$/i) != null;
                   return (
                     <div key={idx} className="flex flex-col gap-4 print:break-inside-avoid print:break-before-page">
-                      <a href={`${API_BASE_URL}${attachment.url}`} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-blue-600 hover:underline flex items-center gap-2">
+                      <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-blue-600 hover:underline flex items-center gap-2">
                         <Paperclip className="w-4 h-4" /> {attachment.name}
                       </a>
                       {isImage ? (
-                        <img src={`${API_BASE_URL}${attachment.url}`} alt={attachment.name} className="max-w-full max-h-[1000px] object-contain border border-slate-200 rounded p-1 print:max-h-none print:border-none" />
+                        <img src={fileUrl} alt={attachment.name} className="max-w-full max-h-[1000px] object-contain border border-slate-200 rounded p-1 print:max-h-none print:border-none" />
                       ) : isPdf ? (
-                        <PdfPreview fileUrl={`${API_BASE_URL}${attachment.url}`} />
+                        <PdfPreview fileUrl={fileUrl} />
                       ) : (
                         <div className="w-full h-24 bg-slate-50 border border-slate-200 rounded flex flex-col items-center justify-center p-4 text-center text-slate-400">
                           <span className="text-xs">Document Preview not available. Please click the link above to view/download.</span>

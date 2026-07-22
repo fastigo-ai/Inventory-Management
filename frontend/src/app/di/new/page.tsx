@@ -364,20 +364,156 @@ export default function NewDIRegistrationPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 item-dropdown-container">
-                    <Input 
-                      value={item.tempCode || ''} 
-                      readOnly
-                      placeholder="--"
-                      className="border-transparent bg-transparent h-8 shadow-none focus-visible:ring-0 px-0 font-medium text-sm"
-                    />
+                    {item.readOnly ? (
+                      <Input 
+                        value={item.tempCode || ''} 
+                        readOnly
+                        placeholder="--"
+                        className="border-transparent bg-transparent h-8 shadow-none focus-visible:ring-0 px-0 font-medium text-sm"
+                      />
+                    ) : (
+                      <div className="relative">
+                        <div className="relative w-full flex items-center border border-slate-200 rounded-md overflow-hidden bg-white shadow-sm h-8">
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2" />
+                          <input
+                            type="text"
+                            placeholder="Search Temp Code..."
+                            className="w-full bg-transparent pl-7 pr-7 text-[13px] text-[#334155] focus:outline-none cursor-text h-full"
+                            value={item.tempCode ?? ''}
+                            onChange={(e) => {
+                              updateLineItem(index, 'tempCode', e.target.value);
+                              if (openTempCodeDropdownId !== index) setOpenTempCodeDropdownId(index);
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (openTempCodeDropdownId !== index) setOpenTempCodeDropdownId(index);
+                              setOpenDropdownId(null);
+                              setOpenNameDropdownId(null);
+                            }}
+                          />
+                          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2 pointer-events-none" />
+                        </div>
+                        {openTempCodeDropdownId === index && (
+                          <div
+                            className="absolute left-0 top-full mt-1 w-[350px] bg-white border border-slate-200 shadow-xl rounded-md z-50 overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="max-h-60 overflow-y-auto py-1">
+                              {items
+                                .filter(it => {
+                                  const val = (item.tempCode ?? '').toLowerCase();
+                                  const tempCode = String(it.dynamicData?.tempCode || it.tempCode || '').toLowerCase();
+                                  return tempCode.includes(val);
+                                })
+                                .map(it => {
+                                  const sku = it.dynamicData?.loaSerialNo || it.dynamicData?.loaSerialNumber || it.dynamicData?.['LOA Serial No.'] || it.dynamicData?.loa || it.dynamicData?.sku || it.dynamicData?.tempCode || 'N/A';
+                                  const name = it.dynamicData?.name || it.name || 'Unnamed Item';
+                                  const tempCode = it.dynamicData?.tempCode || it.tempCode || '';
+                                  return (
+                                    <div
+                                      key={it._id}
+                                      className="px-3 py-2 hover:bg-blue-50 cursor-pointer flex flex-col transition-colors"
+                                      onClick={() => {
+                                        const po = purchaseOrders.find(p => p._id === purchaseOrderId);
+                                        const poLineItem = po?.lineItems?.find((li: any) => li.itemId === it._id);
+                                        
+                                        updateLineItem(index, 'itemId', it._id);
+                                        updateLineItem(index, 'itemName', name);
+                                        updateLineItem(index, 'sku', sku);
+                                        updateLineItem(index, 'tempCode', tempCode);
+                                        updateLineItem(index, 'package', it.dynamicData?.package || poLineItem?.package1 || '');
+                                        updateLineItem(index, 'circle', it.dynamicData?.circle || poLineItem?.circle || '');
+                                        updateLineItem(index, 'orderedQuantity', poLineItem ? (poLineItem.quantity || 0) : 0);
+                                        updateLineItem(index, 'searchQuery', sku);
+                                        setOpenTempCodeDropdownId(null);
+                                      }}
+                                    >
+                                      <span className="text-sm text-slate-800 font-medium">{name}</span>
+                                      <span className="text-[10px] text-slate-500">LOA/SKU: {sku} | Temp Code: {tempCode || '--'}</span>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-3 item-dropdown-container">
-                    <Input 
-                      value={item.itemName || ''} 
-                      readOnly
-                      placeholder="Item Name"
-                      className="border-transparent bg-transparent h-8 shadow-none focus-visible:ring-0 px-0 font-medium text-sm text-slate-600"
-                    />
+                    {item.readOnly ? (
+                      <Input 
+                        value={item.itemName || ''} 
+                        readOnly
+                        placeholder="Item Name"
+                        className="border-transparent bg-transparent h-8 shadow-none focus-visible:ring-0 px-0 font-medium text-sm text-slate-600"
+                      />
+                    ) : (
+                      <div className="relative">
+                        <div className="relative w-full flex items-center border border-slate-200 rounded-md overflow-hidden bg-white shadow-sm h-8">
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2" />
+                          <input
+                            type="text"
+                            placeholder="Search Item..."
+                            className="w-full bg-transparent pl-7 pr-7 text-[13px] text-[#334155] focus:outline-none cursor-text h-full"
+                            value={item.itemName ?? ''}
+                            onChange={(e) => {
+                              updateLineItem(index, 'itemName', e.target.value);
+                              if (openNameDropdownId !== index) setOpenNameDropdownId(index);
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (openNameDropdownId !== index) setOpenNameDropdownId(index);
+                              setOpenDropdownId(null);
+                              setOpenTempCodeDropdownId(null);
+                            }}
+                          />
+                          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2 pointer-events-none" />
+                        </div>
+                        {openNameDropdownId === index && (
+                          <div
+                            className="absolute left-0 top-full mt-1 w-[350px] bg-white border border-slate-200 shadow-xl rounded-md z-50 overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="max-h-60 overflow-y-auto py-1">
+                              {items
+                                .filter(it => {
+                                  const val = (item.itemName ?? '').toLowerCase();
+                                  const name = String(it.dynamicData?.name || it.name || '').toLowerCase();
+                                  return name.includes(val);
+                                })
+                                .map(it => {
+                                  const sku = it.dynamicData?.loaSerialNo || it.dynamicData?.loaSerialNumber || it.dynamicData?.['LOA Serial No.'] || it.dynamicData?.loa || it.dynamicData?.sku || it.dynamicData?.tempCode || 'N/A';
+                                  const name = it.dynamicData?.name || it.name || 'Unnamed Item';
+                                  const tempCode = it.dynamicData?.tempCode || it.tempCode || '';
+                                  return (
+                                    <div
+                                      key={it._id}
+                                      className="px-3 py-2 hover:bg-blue-50 cursor-pointer flex flex-col transition-colors"
+                                      onClick={() => {
+                                        const po = purchaseOrders.find(p => p._id === purchaseOrderId);
+                                        const poLineItem = po?.lineItems?.find((li: any) => li.itemId === it._id);
+                                        
+                                        updateLineItem(index, 'itemId', it._id);
+                                        updateLineItem(index, 'itemName', name);
+                                        updateLineItem(index, 'sku', sku);
+                                        updateLineItem(index, 'tempCode', tempCode);
+                                        updateLineItem(index, 'package', it.dynamicData?.package || poLineItem?.package1 || '');
+                                        updateLineItem(index, 'circle', it.dynamicData?.circle || poLineItem?.circle || '');
+                                        updateLineItem(index, 'orderedQuantity', poLineItem ? (poLineItem.quantity || 0) : 0);
+                                        updateLineItem(index, 'searchQuery', sku);
+                                        setOpenNameDropdownId(null);
+                                      }}
+                                    >
+                                      <span className="text-sm text-slate-800 font-medium">{name}</span>
+                                      <span className="text-[10px] text-slate-500">LOA/SKU: {sku} | Temp Code: {tempCode || '--'}</span>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <select

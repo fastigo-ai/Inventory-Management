@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { getPurchaseReceives } from "@/features/purchases/api/purchases.api";
 import { Button } from "@/components/ui/button";
 import { Plus, MoreHorizontal, ChevronDown, Search, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   DropdownMenu,
@@ -11,22 +12,41 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { PurchaseInvoiceImportModal } from "@/features/purchases/components/PurchaseInvoiceImportModal";
+import { Upload, Download } from "lucide-react";
+import { exportPurchaseReceivesToCsv } from "@/features/purchases/api/purchases.api";
 
 export default function PurchaseReceivesPage() {
   const [receives, setReceives] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const router = useRouter();
+
+  const handleExport = async () => {
+    try {
+      setIsExporting(true);
+      await exportPurchaseReceivesToCsv();
+    } catch (error) {
+      console.error("Export failed", error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const fetchReceives = async () => {
+    try {
+      setIsLoading(true);
+      const res = await getPurchaseReceives();
+      setReceives(res.data?.prs || []);
+    } catch (error) {
+      console.error("Failed to load Purchase Invoices", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchReceives = async () => {
-      try {
-        const res = await getPurchaseReceives();
-        setReceives(res.data?.prs || []);
-      } catch (error) {
-        console.error("Failed to load Purchase Invoices", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchReceives();
   }, []);
 
@@ -55,9 +75,21 @@ export default function PurchaseReceivesPage() {
               New
             </Button>
           </Link>
-          <Button variant="outline" size="icon" className="border-slate-300 text-slate-600 rounded">
-            <MoreHorizontal className="w-4 h-4" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger className="flex items-center justify-center text-slate-500 hover:bg-slate-100 p-2 rounded-md border border-slate-200 transition-colors">
+              <MoreHorizontal className="w-4 h-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 text-[13px]">
+              <DropdownMenuItem onClick={() => setIsImportModalOpen(true)} className="cursor-pointer">
+                <Upload className="w-4 h-4 mr-2 text-slate-500" />
+                Import Purchase Invoices
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExport} className="cursor-pointer" disabled={isExporting}>
+                {isExporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin text-slate-500" /> : <Download className="w-4 h-4 mr-2 text-slate-500" />}
+                Export Purchase Invoices
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -95,16 +127,30 @@ export default function PurchaseReceivesPage() {
                   </tr>
                 ) : (
                   receives.map((pr: any) => (
-                    <tr key={pr._id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer">
-                      <td className="px-4 py-3">
-                        <input type="checkbox" className="rounded border-slate-300 text-[#0076f2] focus:ring-[#0076f2]" onClick={(e) => e.stopPropagation()} />
+                    <tr 
+                      key={pr._id} 
+                      className="border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer"
+                      onClick={() => {
+                        if (pr.status === 'Received') {
+                          router.push(`/purchases/receives/${pr._id}`);
+                        } else {
+                          router.push(`/purchases/receives/${pr._id}/edit`);
+                        }
+                      }}
+                    >
+                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <input type="checkbox" className="rounded border-slate-300 text-[#0076f2] focus:ring-[#0076f2]" />
                       </td>
                       <td className="px-6 py-3"></td>
                       <td className="px-4 py-3 text-slate-700">
                         {new Date(pr.receiveDate).toLocaleDateString('en-GB')}
                       </td>
                       <td className="px-4 py-3 font-medium text-[#0076f2]">
-                        <Link href={`/purchases/receives/${pr._id}/edit`} className="hover:underline">
+                        <Link 
+                          href={pr.status === 'Received' ? `/purchases/receives/${pr._id}` : `/purchases/receives/${pr._id}/edit`} 
+                          className="hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {pr.purchaseReceiveNumber}
                         </Link>
                       </td>
@@ -138,6 +184,12 @@ export default function PurchaseReceivesPage() {
           </div>
         )}
       </div>
+
+      <PurchaseInvoiceImportModal 
+        isOpen={isImportModalOpen} 
+        onClose={() => setIsImportModalOpen(false)} 
+        onSuccess={fetchReceives} 
+      />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { importPurchaseInvoicesFromCsv } from "../api/purchases.api";
+import { importPurchaseReceivesFromCsv } from "../api/purchases.api";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Loader2, UploadCloud, FileText, CheckCircle, AlertCircle } from "lucide-react";
@@ -32,7 +32,7 @@ export function PurchaseInvoiceImportModal({ isOpen, onClose, onSuccess }: Purch
     setResult(null);
 
     try {
-      const res = await importPurchaseInvoicesFromCsv(file);
+      const res = await importPurchaseReceivesFromCsv(file);
       
       if (res.data.successCount > 0) {
         toast.success(`Imported successfully! ${res.data.successCount} purchase invoices added.`);
@@ -58,9 +58,9 @@ export function PurchaseInvoiceImportModal({ isOpen, onClose, onSuccess }: Purch
   };
 
   const downloadSampleCsv = () => {
-    const headers = "InvoiceNumber,VendorName,PurchaseOrderNumber,Date,DueDate,Status,ReceiptStatus,Notes,TermsConditions,DiscountPercentage,Adjustment,ItemName,Description,LoaSerialNo,HsnCode,Package,Circle,TempCode,PoQuantity,PoDate,Srt,Act,TotalInventory,Unit,Quantity,Rate,GstType,Cgst,Sgst,Igst\n";
-    const sampleRow1 = "INV-1001,Fastigo Tech,PO-10001,2026-07-21,2026-08-21,Draft,Pending Receipt,Payment on delivery,\"Net 30, Standard SLA\",0,0,Optical Fiber,10km roll of fiber,SN-1234,8544,Hardware Pack 1,Mumbai,FBR-001,10,2026-07-01,5,5,10,Roll,2,5000,Intra State,9,9,0\n";
-    const sampleRow2 = "INV-1001,Fastigo Tech,PO-10001,2026-07-21,2026-08-21,Draft,Pending Receipt,Payment on delivery,\"Net 30, Standard SLA\",0,0,Router,Enterprise Router,SN-9988,8517,Hardware Pack 1,Mumbai,RTR-900,5,2026-07-01,2,3,5,Pcs,5,12000,Inter State,0,0,18\n";
+    const headers = "PurchaseInvoiceNumber,PurchaseOrderNumber,VendorName,Date,Status,DINo,Billed,ItemName,TempCode,POQuantity,InvoiceQuantity,Rate,Amount,CGST,SGST,IGST,TotalAmount\n";
+    const sampleRow1 = "PINV-10001,PO-00001,Fastigo Tech,2026-07-21,Received,DI-001,No,Optical Fiber,FBR-001,10,10,5000,50000,9,9,0,59000\n";
+    const sampleRow2 = "PINV-10001,PO-00001,Fastigo Tech,2026-07-21,Received,DI-001,No,Router,RTR-900,5,5,12000,60000,9,9,0,70800\n";
     const csvContent = headers + sampleRow1 + sampleRow2;
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -85,7 +85,7 @@ export function PurchaseInvoiceImportModal({ isOpen, onClose, onSuccess }: Purch
         <DialogHeader>
           <DialogTitle className="text-xl">Import Purchase Invoices</DialogTitle>
           <DialogDescription>
-            Upload a CSV file containing your Purchase Invoices. Note that multiple rows with the same InvoiceNumber will be grouped into one invoice.
+            Upload a CSV file containing your Purchase Invoices. Note that multiple rows with the same PurchaseInvoiceNumber will be grouped into one invoice.
           </DialogDescription>
         </DialogHeader>
 
@@ -100,82 +100,85 @@ export function PurchaseInvoiceImportModal({ isOpen, onClose, onSuccess }: Purch
              </Button>
           </div>
 
-          {!file ? (
-            <div className="border-2 border-dashed border-slate-200 rounded-lg p-10 flex flex-col items-center justify-center text-center hover:bg-slate-50 transition-colors relative">
-              <input
-                type="file"
+          {!result && (
+            <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 flex flex-col items-center justify-center bg-slate-50 relative">
+              <input 
+                type="file" 
                 accept=".csv"
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 onChange={handleFileChange}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
-              <UploadCloud className="w-10 h-10 text-slate-400 mb-3" />
-              <p className="text-sm font-medium text-slate-700">Click or drag CSV file to upload</p>
-              <p className="text-xs text-slate-500 mt-1">Maximum file size 5MB</p>
-            </div>
-          ) : (
-            <div className="border border-slate-200 rounded-lg p-4 flex items-center justify-between bg-slate-50">
-              <div className="flex items-center gap-3 overflow-hidden">
-                <div className="bg-blue-100 p-2 rounded text-blue-600 shrink-0">
-                  <FileText className="w-5 h-5" />
+              
+              {file ? (
+                <div className="flex flex-col items-center">
+                  <FileText className="w-10 h-10 text-[#0076f2] mb-3" />
+                  <p className="text-sm font-medium text-slate-700">{file.name}</p>
+                  <p className="text-xs text-slate-500 mt-1">{(file.size / 1024).toFixed(1)} KB</p>
+                  <Button type="button" variant="link" className="text-xs text-red-500 mt-2 z-10 relative" onClick={(e) => { e.stopPropagation(); setFile(null); }}>
+                    Remove
+                  </Button>
                 </div>
-                <div className="truncate">
-                  <p className="text-sm font-medium text-slate-700 truncate">{file.name}</p>
-                  <p className="text-xs text-slate-500">{(file.size / 1024).toFixed(1)} KB</p>
+              ) : (
+                <div className="flex flex-col items-center">
+                  <UploadCloud className="w-10 h-10 text-slate-400 mb-3" />
+                  <p className="text-sm font-semibold text-slate-700">Click or drag CSV to upload</p>
                 </div>
-              </div>
-              <Button variant="ghost" size="sm" onClick={reset} className="text-slate-500 hover:text-slate-700 shrink-0">
-                Remove
-              </Button>
+              )}
             </div>
           )}
 
           {error && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-md flex gap-2 text-sm text-red-600">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <div>{error}</div>
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-600 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>{error}</span>
             </div>
           )}
 
-          {result && result.errors && result.errors.length > 0 && (
-            <div className="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-md">
-              <div className="flex items-center gap-2 text-amber-700 font-medium mb-2 text-sm">
-                <AlertCircle className="w-4 h-4" />
-                Import Issues ({result.errors.length})
-              </div>
-              <ul className="text-xs text-amber-600 list-disc list-inside space-y-1 max-h-32 overflow-y-auto">
-                {result.errors.map((err: string, i: number) => (
-                  <li key={i}>{err}</li>
-                ))}
-              </ul>
-            </div>
-          )}
+          {result && (
+            <div className="mt-4 space-y-4">
+              {result.successCount > 0 && (
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
+                  <CheckCircle className="w-6 h-6 text-green-600" />
+                  <div>
+                    <h4 className="font-medium text-green-900">Successfully Imported</h4>
+                    <p className="text-sm text-green-700">{result.successCount} purchase invoices added</p>
+                  </div>
+                </div>
+              )}
 
-          {result && result.successCount > 0 && result.errors?.length > 0 && (
-            <div className="mt-4 p-3 bg-green-50 border border-green-100 rounded-md flex items-center gap-2 text-sm text-green-700">
-              <CheckCircle className="w-4 h-4" />
-              Successfully imported {result.successCount} purchase invoices.
+              {result.errors && result.errors.length > 0 && (
+                <div className="border border-red-200 rounded-lg overflow-hidden">
+                  <div className="bg-red-50 px-4 py-2 border-b border-red-200">
+                    <h4 className="font-medium text-red-900 text-sm">Errors ({result.errors.length})</h4>
+                  </div>
+                  <div className="max-h-[150px] overflow-y-auto bg-white p-4">
+                    <ul className="space-y-2 text-xs text-red-700">
+                      {result.errors.map((err: any, i: number) => (
+                        <li key={i}>{typeof err === 'string' ? err : err.message || JSON.stringify(err)}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-slate-100">
-          <Button variant="outline" onClick={onClose} disabled={isUploading}>
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleUpload} 
-            disabled={!file || isUploading}
-            className="bg-[#0076f2] hover:bg-blue-600"
-          >
-            {isUploading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Importing...
-              </>
-            ) : (
-              'Import Invoices'
-            )}
-          </Button>
+        <div className="flex justify-end gap-3 mt-2">
+          {result ? (
+            <Button onClick={onClose} variant="outline" className="w-full">Close</Button>
+          ) : (
+            <>
+              <Button onClick={onClose} variant="outline" disabled={isUploading}>Cancel</Button>
+              <Button 
+                onClick={handleUpload} 
+                disabled={!file || isUploading}
+                className="bg-[#0076f2] hover:bg-[#0060c5] text-white"
+              >
+                {isUploading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Uploading...</> : 'Import Now'}
+              </Button>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>

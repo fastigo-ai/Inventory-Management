@@ -9,9 +9,10 @@ interface ImportModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  fields?: any[];
 }
 
-export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
+export function ImportModal({ isOpen, onClose, onSuccess, fields = [] }: ImportModalProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [result, setResult] = useState<any>(null);
@@ -66,6 +67,32 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
     setError(null);
   };
 
+  const downloadSampleCsv = () => {
+    // Generate headers from dynamic active fields
+    const activeHeaders = fields.map(f => f.label);
+    const headers = activeHeaders.length > 0 ? activeHeaders.join(',') : "Name,Description,Unit,Code";
+    
+    // Generate a dummy row based on headers
+    const sampleRow = activeHeaders.length > 0 
+      ? activeHeaders.map(label => {
+          if (label.toLowerCase().includes('quantity') || label.toLowerCase().includes('rate') || label.toLowerCase().includes('price')) return '10';
+          if (label.toLowerCase().includes('date')) return new Date().toISOString().split('T')[0];
+          return `Sample ${label}`;
+        }).join(',')
+      : "Sample Item,A sample description,pcs,ITM-001";
+      
+    const csvContent = `${headers}\n${sampleRow}\n`;
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "items_sample.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[500px] bg-white">
@@ -76,7 +103,17 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-4">
+        <div className="py-2">
+          <div className="flex justify-between items-center mb-4 bg-blue-50/50 p-3 rounded-md border border-blue-100">
+             <div className="text-sm text-slate-700">
+               <p className="font-semibold text-slate-800">Need a template?</p>
+               <p className="text-xs text-slate-500 mt-0.5">Download our sample CSV file to see the exact format required based on your active fields.</p>
+             </div>
+             <Button variant="outline" size="sm" onClick={downloadSampleCsv} className="bg-white hover:bg-slate-50 text-[#0076f2] border-[#0076f2]/20">
+               Download Sample CSV
+             </Button>
+          </div>
+
           {!result && (
             <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 flex flex-col items-center justify-center bg-slate-50 relative">
               <input 

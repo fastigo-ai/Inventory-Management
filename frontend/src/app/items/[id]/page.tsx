@@ -192,10 +192,12 @@ export default function ItemSplitViewPage({ params }: { params: Promise<{ id: st
             </h1>
           </div>
           <div className="flex items-center space-x-3">
-            <Button variant="outline" size="sm" className="h-8 border-slate-300 text-slate-600 hover:bg-slate-50">
-              <Edit2 className="w-3.5 h-3.5 mr-2" />
-              Edit
-            </Button>
+            <Link href={`/items/${itemId}/edit${searchParams.toString() ? '?' + searchParams.toString() : ''}`}>
+              <Button variant="outline" size="sm" className="h-8 border-slate-300 text-slate-600 hover:bg-slate-50">
+                <Edit2 className="w-3.5 h-3.5 mr-2" />
+                Edit
+              </Button>
+            </Link>
             
             <DropdownMenu>
               <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-slate-300 bg-white hover:bg-slate-50 h-8 px-3 text-slate-600">

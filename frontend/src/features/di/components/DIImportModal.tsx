@@ -58,9 +58,9 @@ export function DIImportModal({ isOpen, onClose, onSuccess }: DIImportModalProps
   };
 
   const downloadSampleCsv = () => {
-    const headers = "DINumber,PurchaseOrderNumber,Date,Circle,Package,Status,Notes,ItemName,TempCode,LoaSerialNo,ItemPackage,ItemCircle,Quantity\n";
-    const sampleRow1 = "DI-20001,PO-10001,2026-07-21,Mumbai,Hardware Pack 1,Active,Ready for dispatch,Optical Fiber,FBR-001,SN-1234,Hardware Pack 1,Mumbai,2\n";
-    const sampleRow2 = "DI-20001,PO-10001,2026-07-21,Mumbai,Hardware Pack 1,Active,Ready for dispatch,Router,RTR-900,SN-9988,Hardware Pack 1,Mumbai,5\n";
+    const headers = "DINumber,PurchaseOrderNumber,Date,Circle,Package,Notes,ItemName,TempCode,LoaSerialNo,Quantity\n";
+    const sampleRow1 = "DI-20001,PO-10001,2026-07-21,Mumbai,Hardware Pack 1,Ready for dispatch,Optical Fiber,FBR-001,SN-1234,2\n";
+    const sampleRow2 = "DI-20001,PO-10001,2026-07-21,Mumbai,Hardware Pack 1,Ready for dispatch,Router,RTR-900,SN-9988,5\n";
     const csvContent = headers + sampleRow1 + sampleRow2;
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { getPurchaseInvoiceById, deletePurchaseInvoice } from '@/features/purchases/api/purchases.api';
+import { getPurchaseReceiveById, deletePurchaseReceive, getPurchaseReceives } from '@/features/purchases/api/purchases.api';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, Edit, Trash2, Printer, FileText, CheckCircle2, AlertCircle, Clock, Banknote, HelpCircle, Paperclip } from 'lucide-react';
 import Link from 'next/link';
@@ -11,24 +11,64 @@ import { PdfPreview } from '@/shared/components/PdfPreview';
 import { numberToWords } from '@/shared/utils/numberToWords';
 import { API_BASE_URL } from '@/shared/api/axios';
 
-export default function PurchaseInvoiceDetailPage() {
+export default function PurchaseReceiveDetailPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
   
   const [invoice, setInvoice] = useState<any>(null);
+  const [receives, setReceives] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'details' | 'history'>('details');
   const [isPdfView, setIsPdfView] = useState(true);
 
   useEffect(() => {
+    const fetchReceives = async () => {
+      try {
+        const res = await getPurchaseReceives();
+        setReceives(res.data?.prs || []);
+      } catch (err) {
+        console.error('Failed to fetch receives list:', err);
+      }
+    };
+    fetchReceives();
+  }, []);
+
+  useEffect(() => {
     const fetchInvoice = async () => {
       try {
         setIsLoading(true);
-        const data = await getPurchaseInvoiceById(id);
+        const data = await getPurchaseReceiveById(id);
+        
+        // Ensure billingCompany is populated if it's missing but billingFrom is present
+        if (data && !data.billingCompany && data.billingFrom) {
+           const { getBillingCompanies } = await import('@/features/settings/api/billingCompanies.api');
+           const res = await getBillingCompanies();
+           const company = (res.data || []).find((c: any) => c.name === data.billingFrom);
+           if (company) {
+             data.billingCompany = company;
+           }
+        }
+        
+        // Calculate totals if missing
+        if (data) {
+          data.subTotal = data.lineItems?.reduce((acc: number, item: any) => {
+             const qty = item.totalInvoiceQuantity ?? item.invoiceQuantity ?? item.quantity ?? 0;
+             return acc + (qty * item.rate);
+          }, 0) || 0;
+          data.taxAmount = data.lineItems?.reduce((acc: number, item: any) => {
+             const qty = item.totalInvoiceQuantity ?? item.invoiceQuantity ?? item.quantity ?? 0;
+             const itemAmount = qty * (item.rate || 0);
+             const taxRate = item.gstType === 'Intra State' ? ((item.cgst || 0) + (item.sgst || 0)) : (item.igst || 0);
+             return acc + ((itemAmount * taxRate) / 100);
+          }, 0) || 0;
+          data.invoiceNumber = data.purchaseReceiveNumber;
+          data.date = data.receiveDate;
+        }
+
         setInvoice(data);
       } catch (err) {
-        console.error('Failed to fetch invoice:', err);
+        console.error('Failed to fetch receive:', err);
       } finally {
         setIsLoading(false);
       }
@@ -37,13 +77,13 @@ export default function PurchaseInvoiceDetailPage() {
   }, [id]);
 
   const handleDelete = async () => {
-    if (window.confirm('Are you sure you want to delete this invoice?')) {
+    if (window.confirm('Are you sure you want to delete this purchase receive?')) {
       try {
-        await deletePurchaseInvoice(id);
-        router.push('/purchases/invoices');
+        await deletePurchaseReceive(id);
+        router.push('/purchases/receives');
       } catch (error) {
-        console.error('Failed to delete invoice:', error);
-        alert('Failed to delete invoice');
+        console.error('Failed to delete receive:', error);
+        alert('Failed to delete receive');
       }
     }
   };
@@ -110,9 +150,48 @@ export default function PurchaseInvoiceDetailPage() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#f8f9fa] overflow-hidden print:overflow-visible print:bg-white print:h-auto">
-      {/* Header */}
-      <div className="flex-none min-h-[4rem] py-4 border-b border-slate-200 flex flex-col 2xl:flex-row 2xl:items-center justify-between px-6 bg-white shrink-0 z-10 shadow-sm gap-y-4 print:hidden">
+    <div className="flex h-[calc(100vh-64px)] bg-slate-50 border-t border-slate-200 print:block print:h-auto print:bg-white print:border-none">
+      {/* LEFT SIDEBAR (Master List) */}
+      <div className="w-80 border-r border-slate-200 bg-white flex flex-col shrink-0 print:hidden">
+        <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
+          <h3 className="font-semibold text-slate-800">In Transit</h3>
+          <Button variant="ghost" size="sm" onClick={() => router.push('/purchases/receives')} className="text-blue-600 hover:text-blue-700 h-8 text-xs hover:bg-blue-50">View All</Button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          {receives.map(pr => (
+            <Link 
+              key={pr._id} 
+              href={`/purchases/receives/${pr._id}`} 
+              className={`block p-3 rounded-md border transition-colors ${pr._id === id ? 'bg-blue-50 border-blue-200 shadow-sm' : 'border-transparent hover:bg-slate-50'}`}
+            >
+              <div className="flex justify-between items-start mb-1">
+                <span className={`font-semibold ${pr._id === id ? 'text-blue-700' : 'text-slate-800'}`}>{pr.purchaseReceiveNumber}</span>
+                <span className="text-xs text-slate-500">{new Date(pr.receiveDate).toLocaleDateString('en-GB')}</span>
+              </div>
+              <div className="text-sm text-slate-600 truncate mb-1">{pr.vendorName}</div>
+              <div className="flex justify-between items-center">
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${
+                    pr.status === 'Received' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                  }`}>
+                  {pr.status}
+                </span>
+                <span className="text-xs font-semibold text-slate-700">₹{((pr.lineItems || []).reduce((acc: number, item: any) => {
+                  const qty = item.totalInvoiceQuantity ?? item.invoiceQuantity ?? item.quantity ?? 0;
+                  return acc + (qty * (item.rate || 0));
+                }, 0)).toFixed(2)}</span>
+              </div>
+            </Link>
+          ))}
+          {receives.length === 0 && (
+            <div className="p-8 text-center text-slate-400 text-sm">No receives found.</div>
+          )}
+        </div>
+      </div>
+
+      {/* RIGHT SIDE (Detail View) */}
+      <div className="flex-1 flex flex-col min-w-0 print:block">
+      {/* Header bar */}
+      <div className="flex flex-col 2xl:flex-row 2xl:items-center justify-between px-6 py-4 bg-white border-b border-slate-200 shrink-0 gap-y-4 print:hidden">
         <div className="flex flex-wrap items-center gap-4">
           <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:bg-slate-100 rounded-full shrink-0" onClick={() => router.back()}>
             <ChevronLeft className="w-5 h-5" />
@@ -173,7 +252,11 @@ export default function PurchaseInvoiceDetailPage() {
           <Button variant="outline" className="h-9 border-slate-300 text-slate-700 hover:bg-slate-50" onClick={() => window.print()}>
             <Printer className="w-4 h-4 mr-2" /> Print
           </Button>
-          <Button variant="outline" className="h-9 border-slate-300 text-blue-600 hover:bg-blue-50 border-blue-200 hover:border-blue-300">
+          <Button 
+            variant="outline" 
+            className="h-9 border-slate-300 text-blue-600 hover:bg-blue-50 border-blue-200 hover:border-blue-300"
+            onClick={() => router.push(`/purchases/receives/${id}/edit`)}
+          >
             <Edit className="w-4 h-4 mr-2" /> Edit
           </Button>
           <Button variant="outline" className="h-9 border-slate-300 text-red-600 hover:bg-red-50 border-red-200 hover:border-red-300" onClick={handleDelete}>
@@ -182,13 +265,13 @@ export default function PurchaseInvoiceDetailPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 py-8 print:overflow-visible print:p-0 print:block">
+      <div className="flex-1 overflow-y-auto px-6 py-8 print:overflow-visible print:block print:p-0">
         <div className="max-w-[1000px] mx-auto space-y-8">
           
           {activeTab === 'history' ? (
             <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
               <h2 className="text-xl font-semibold text-slate-800 mb-8 border-b border-slate-100 pb-4">Audit History</h2>
-              <AuditTimeline entityType="PurchaseInvoice" entityId={params.id as string} />
+              <AuditTimeline entityType="PurchaseReceive" entityId={params.id as string} />
             </div>
           ) : isPdfView ? (
             <div className="flex justify-center w-full py-8 overflow-x-auto">
@@ -429,6 +512,7 @@ export default function PurchaseInvoiceDetailPage() {
                   <p className="text-slate-500 text-sm">Vendor / Supplier</p>
                 </div>
               </div>
+
               {/* Meta Info */}
               <div className="flex flex-col gap-8 border-b border-slate-200 pb-8 mb-8">
                 <div className="flex justify-between">
@@ -509,37 +593,15 @@ export default function PurchaseInvoiceDetailPage() {
                 <div className="w-80 space-y-3">
                   <div className="flex justify-between text-sm text-slate-600">
                     <span>Sub Total</span>
-                    <span>{invoice.subTotal.toFixed(2)}</span>
+                    <span>{invoice.subTotal?.toFixed(2)}</span>
                   </div>
-                  {invoice.discountAmount > 0 && (
-                    <div className="flex justify-between text-sm text-slate-600">
-                      <span>Discount ({invoice.discountPercentage}%)</span>
-                      <span className="text-red-500">-{invoice.discountAmount.toFixed(2)}</span>
-                    </div>
-                  )}
-                  {invoice.taxAmount > 0 && (
-                    <div className="flex justify-between text-sm text-slate-600">
-                      <span>Tax Amount</span>
-                      <span>{invoice.taxAmount.toFixed(2)}</span>
-                    </div>
-                  )}
-                  {invoice.adjustment !== 0 && (
-                    <div className="flex justify-between text-sm text-slate-600">
-                      <span>Adjustment</span>
-                      <span>{invoice.adjustment > 0 ? `+${invoice.adjustment.toFixed(2)}` : invoice.adjustment.toFixed(2)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between text-lg font-bold text-slate-800 pt-3 border-t border-slate-200">
+                  <div className="flex justify-between text-sm text-slate-600 pb-3 border-b border-slate-100">
+                    <span>Tax Amount</span>
+                    <span>{invoice.taxAmount?.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-lg text-slate-800 pt-2">
                     <span>Total</span>
-                    <span>₹{invoice.total.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm font-medium text-green-600 pt-1">
-                    <span>Amount Paid</span>
-                    <span>-₹{invoice.amountPaid.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-base font-bold text-red-600 pt-2 border-t border-slate-200">
-                    <span>Balance Due</span>
-                    <span>₹{invoice.balanceDue.toFixed(2)}</span>
+                    <span>₹{(invoice.subTotal + invoice.taxAmount).toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -608,6 +670,7 @@ export default function PurchaseInvoiceDetailPage() {
             </div>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

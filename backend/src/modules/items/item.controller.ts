@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import multer from 'multer';
 import { parse } from 'csv-parse';
 import { stringify } from 'csv-stringify/sync';
@@ -60,6 +61,36 @@ export const createItem = asyncHandler(async (req: Request, res: Response) => {
   });
 
   res.status(201).json(new ApiResponse(201, item, 'Item created successfully'));
+});
+
+export const updateItem = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { dynamicData } = req.body;
+
+  if (typeof id !== 'string' || !id.match(/^[0-9a-fA-F]{24}$/)) {
+    throw new ApiError(404, 'Item not found');
+  }
+
+  const metadata = await Metadata.findOne({ entityName: 'Item' });
+  if (!metadata) {
+    throw new ApiError(500, 'Item metadata configuration missing');
+  }
+
+  await validateDynamicData(dynamicData, metadata.fields, id);
+
+  const performedBy = 'system'; 
+
+  const item = await Item.findById(id);
+  if (!item) {
+    throw new ApiError(404, 'Item not found');
+  }
+
+  item.dynamicData = dynamicData;
+  item.history.push({ action: 'Updated', performedBy, date: new Date() });
+
+  await item.save();
+
+  res.status(200).json(new ApiResponse(200, item, 'Item updated successfully'));
 });
 
 export const getItems = asyncHandler(async (req: Request, res: Response) => {
@@ -152,13 +183,15 @@ export const getItemUsage = asyncHandler(async (req: Request, res: Response) => 
     throw new ApiError(404, 'Item not found');
   }
 
+  const objectId = new mongoose.Types.ObjectId(id);
+
   // Find Purchase Orders containing this item
-  const purchaseOrders = await PurchaseOrder.find({ 'lineItems.itemId': id })
+  const purchaseOrders = await PurchaseOrder.find({ 'lineItems.itemId': objectId })
     .select('_id purchaseOrderNumber date vendorName status')
     .sort({ date: -1 });
 
   // Find DI Registrations containing this item
-  const dis = await DI.find({ 'lineItems.itemId': id })
+  const dis = await DI.find({ 'lineItems.itemId': objectId })
     .select('_id diNumber date status')
     .sort({ date: -1 });
 

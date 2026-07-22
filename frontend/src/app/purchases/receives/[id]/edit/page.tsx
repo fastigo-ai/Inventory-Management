@@ -90,48 +90,56 @@ export default function EditPurchaseReceivePage() {
     });
   }, [prId]);
 
-  // When vendor changes, filter POs
-  useEffect(() => {
-    if (initialLoadDone && vendorName) {
-      if (!receiveDate) {
-        setReceiveDate(new Date().toISOString().split('T')[0]);
-      }
-      const vendorPOs = purchaseOrders.filter(po => po.vendorName === vendorName);
-      if (vendorPOs.length > 0) {
-        setPurchaseOrderInput(vendorPOs[0].purchaseOrderNumber);
-      } else {
-        setPurchaseOrderInput(""); 
-      }
+  const populateLineItemsFromPO = (poNum: string) => {
+    const po = purchaseOrders.find(p => p.purchaseOrderNumber === poNum);
+    if (po && po.lineItems) {
+      setLineItems(po.lineItems.map((item: any) => ({
+        itemId: item.itemId,
+        loaSerialNo: item.loaSerialNo || '',
+        itemName: item.itemName,
+        itemDescription: item.description || '',
+        tempCode: item.tempCode || '',
+        package: item.package || '',
+        circle: item.circle || '',
+        poQuantity: item.quantity || 0,
+        invoiceQuantity: item.quantity || 0,
+        srt: 0,
+        act: 0,
+        totalInvoiceQuantity: 0,
+        unit: item.unit || '',
+        rate: item.rate || 0,
+        amount: 0,
+        gstType: item.gstType || 'Intra State',
+        cgst: item.cgst || 0,
+        sgst: item.sgst || 0,
+        igst: item.igst || 0,
+        totalAmount: 0
+      })));
+    } else {
+      setLineItems([]);
     }
-  }, [vendorName, purchaseOrders, initialLoadDone]);
+  };
 
-  // When PO changes, populate line items
-  useEffect(() => {
-    if (initialLoadDone && purchaseOrderInput) {
-      const po = purchaseOrders.find(p => p.purchaseOrderNumber === purchaseOrderInput);
-      if (po && po.lineItems) {
-        setLineItems(po.lineItems.map((item: any) => ({
-          itemId: item.itemId,
-          loaSerialNo: item.loaSerialNo || '',
-          itemName: item.itemName,
-          itemDescription: item.description || '',
-          tempCode: item.tempCode || '',
-          package: item.package || '',
-          circle: item.circle || '',
-          poQuantity: item.quantity || 0,
-          invoiceQuantity: item.quantity || 0,
-          srt: 0,
-          act: 0,
-          totalInvoiceQuantity: 0,
-          unit: item.unit || '',
-          rate: item.rate || 0,
-          amount: 0
-        })));
-      } else {
-        setLineItems([]);
-      }
+  const handleVendorChange = (newVendor: string) => {
+    setVendorName(newVendor);
+    if (!receiveDate) {
+      setReceiveDate(new Date().toISOString().split('T')[0]);
     }
-  }, [purchaseOrderInput, purchaseOrders, initialLoadDone]);
+    const vendorPOs = purchaseOrders.filter(po => po.vendorName === newVendor);
+    if (vendorPOs.length > 0) {
+      const newPO = vendorPOs[0].purchaseOrderNumber;
+      setPurchaseOrderInput(newPO);
+      populateLineItemsFromPO(newPO);
+    } else {
+      setPurchaseOrderInput(""); 
+      setLineItems([]);
+    }
+  };
+
+  const handlePOChange = (newPO: string) => {
+    setPurchaseOrderInput(newPO);
+    populateLineItemsFromPO(newPO);
+  };
 
   // Recalculate amount when quantityToReceive or rate changes
   const updateLineItem = (index: number, field: string, value: any) => {
@@ -139,12 +147,18 @@ export default function EditPurchaseReceivePage() {
     newItems[index][field] = value;
     
     // Auto calculate amount and total quantity
-    if (field === 'srt' || field === 'act' || field === 'rate') {
+    if (field === 'srt' || field === 'act' || field === 'rate' || field === 'cgst' || field === 'sgst' || field === 'igst' || field === 'gstType') {
       const srt = Number(newItems[index].srt) || 0;
       const act = Number(newItems[index].act) || 0;
       const rate = Number(newItems[index].rate) || 0;
       newItems[index].totalInvoiceQuantity = srt + act;
       newItems[index].amount = newItems[index].totalInvoiceQuantity * rate;
+
+      const cgst = Number(newItems[index].cgst) || 0;
+      const sgst = Number(newItems[index].sgst) || 0;
+      const igst = Number(newItems[index].igst) || 0;
+      const taxRate = newItems[index].gstType === 'Intra State' ? (cgst + sgst) : igst;
+      newItems[index].totalAmount = newItems[index].amount + (newItems[index].amount * taxRate / 100);
     }
 
     setLineItems(newItems);
@@ -248,7 +262,12 @@ export default function EditPurchaseReceivePage() {
         srt: 0,
         act: 0,
         totalInvoiceQuantity: 0,
-        amount: 0
+        amount: 0,
+        gstType: 'Intra State',
+        cgst: 0,
+        sgst: 0,
+        igst: 0,
+        totalAmount: 0
       }
     ]);
   };
@@ -285,7 +304,7 @@ export default function EditPurchaseReceivePage() {
                 <select 
                   className="w-full h-10 rounded-md text-[13px] border border-slate-300 pl-9 pr-3 bg-white focus:outline-none focus:border-[#0076f2] focus:ring-1 focus:ring-[#0076f2] appearance-none"
                   value={vendorName}
-                  onChange={(e) => setVendorName(e.target.value)}
+                  onChange={(e) => handleVendorChange(e.target.value)}
                 >
                   <option value="">Select a Vendor</option>
                   {vendors.map(v => (
@@ -308,7 +327,7 @@ export default function EditPurchaseReceivePage() {
                   list="po-list"
                   className="w-full h-10 rounded-md text-[13px] border border-slate-300 px-3 bg-white focus:outline-none focus:border-[#0076f2] focus:ring-1 focus:ring-[#0076f2] disabled:bg-slate-50 disabled:text-slate-500"
                   value={purchaseOrderInput}
-                  onChange={(e) => setPurchaseOrderInput(e.target.value)}
+                  onChange={(e) => handlePOChange(e.target.value)}
                   disabled={!vendorName}
                   placeholder="Select or enter a Purchase Order"
                   autoComplete="off"
@@ -418,14 +437,20 @@ export default function EditPurchaseReceivePage() {
                       <th className="px-4 py-3 min-w-[120px] text-center">SRT</th>
                       <th className="px-4 py-3 min-w-[120px] text-center">ACT</th>
                       <th className="px-4 py-3 min-w-[120px] text-center">TOTAL INV QTY</th>
-                      <th className="px-4 py-3 w-28 text-right">AMOUNT</th>
+                      <th className="px-4 py-3 min-w-[120px] text-right">RATE</th>
+                      <th className="px-4 py-3 min-w-[120px] text-right">AMOUNT</th>
+                      <th className="px-3 py-3 min-w-[120px]">GST TYPE</th>
+                      <th className="px-3 py-3 min-w-[80px] text-right">CGST %</th>
+                      <th className="px-3 py-3 min-w-[80px] text-right">SGST %</th>
+                      <th className="px-3 py-3 min-w-[80px] text-right">IGST %</th>
+                      <th className="px-4 py-3 min-w-[120px] text-right">TOTAL AMOUNT</th>
                       <th className="px-4 py-3 w-12 text-center"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {lineItems.length === 0 ? (
                       <tr>
-                        <td colSpan={13} className="px-4 py-8 text-center text-slate-500 text-[13px]">
+                        <td colSpan={14} className="px-4 py-8 text-center text-slate-500 text-[13px]">
                           Select a Purchase Order to view items.
                         </td>
                       </tr>
@@ -496,6 +521,9 @@ export default function EditPurchaseReceivePage() {
                                               updateLineItem(index, 'package', getVal('package') || '');
                                               updateLineItem(index, 'circle', getVal('circle') || '');
                                               updateLineItem(index, 'rate', getVal('price') || getVal('costPrice') || getVal('sellingPrice') || 0);
+                                              updateLineItem(index, 'cgst', Number(getVal('cgst')) || 0);
+                                              updateLineItem(index, 'sgst', Number(getVal('sgst')) || 0);
+                                              updateLineItem(index, 'igst', Number(getVal('igst')) || 0);
                                               
                                               setOpenDropdownId(null);
                                               setDropdownSearchQueries(prev => {
@@ -570,10 +598,40 @@ export default function EditPurchaseReceivePage() {
                               {item.totalInvoiceQuantity}
                             </div>
                           </td>
+                          <td className="px-4 py-3 align-top">
+                            <Input 
+                              type="number" 
+                              className="h-8 w-full text-[13px] text-right border-slate-200 focus:border-blue-500 bg-white"
+                              value={item.rate || 0}
+                              onChange={(e) => updateLineItem(index, 'rate', e.target.value)}
+                            />
+                          </td>
                           <td className="px-4 py-3 align-top text-right">
                             <span className="text-[13px] font-medium text-slate-700 px-3">
                               ₹{(Number(item.amount) || 0).toFixed(2)}
                             </span>
+                          </td>
+                          <td className="px-2 py-2">
+                            <select 
+                              className="w-full h-8 text-[12px] border border-slate-200 rounded px-2 focus:border-blue-500 outline-none bg-transparent"
+                              value={item.gstType || 'Intra State'}
+                              onChange={(e) => updateLineItem(index, 'gstType', e.target.value)}
+                            >
+                              <option value="Intra State">Intra State</option>
+                              <option value="Inter State">Inter State</option>
+                            </select>
+                          </td>
+                          <td className="px-2 py-2">
+                            <Input type="number" placeholder="0" disabled={item.gstType === 'Inter State'} className={`h-8 text-[12px] border-slate-200 px-2 text-right ${item.gstType === 'Inter State' ? 'bg-slate-100 text-slate-400' : 'bg-transparent'}`} value={item.gstType === 'Inter State' ? '' : (item.cgst || 0)} onChange={(e) => updateLineItem(index, 'cgst', e.target.value)} />
+                          </td>
+                          <td className="px-2 py-2">
+                            <Input type="number" placeholder="0" disabled={item.gstType === 'Inter State'} className={`h-8 text-[12px] border-slate-200 px-2 text-right ${item.gstType === 'Inter State' ? 'bg-slate-100 text-slate-400' : 'bg-transparent'}`} value={item.gstType === 'Inter State' ? '' : (item.sgst || 0)} onChange={(e) => updateLineItem(index, 'sgst', e.target.value)} />
+                          </td>
+                          <td className="px-2 py-2">
+                            <Input type="number" placeholder="0" disabled={item.gstType === 'Intra State'} className={`h-8 text-[12px] border-slate-200 px-2 text-right ${item.gstType === 'Intra State' ? 'bg-slate-100 text-slate-400' : 'bg-transparent'}`} value={item.gstType === 'Intra State' ? '' : (item.igst || 0)} onChange={(e) => updateLineItem(index, 'igst', e.target.value)} />
+                          </td>
+                          <td className="px-4 py-2 text-right font-semibold text-blue-700 text-[13px]">
+                            ₹{(Number(item.totalAmount) || 0).toFixed(2)}
                           </td>
                           <td className="px-4 py-3 align-top text-center">
                             <button 

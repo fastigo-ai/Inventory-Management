@@ -46,6 +46,11 @@ export const createItem = async (dynamicData: any) => {
   return response.data.data;
 };
 
+export const updateItem = async (id: string, dynamicData: any) => {
+  const response = await api.put(`/items/${id}`, { dynamicData });
+  return response.data.data;
+};
+
 export const bulkDeleteItems = async (ids: string[]) => {
   const response = await api.post('/items/bulk-delete', { ids });
   return response.data;

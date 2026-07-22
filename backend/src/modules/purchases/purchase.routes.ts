@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { createPurchaseOrder, getPurchaseOrders, getPurchaseOrderById, exportPurchaseOrders, importPurchaseOrders, getNextPurchaseOrderNumber, updatePurchaseOrder, deletePurchaseOrder } from './purchase.controller';
-import { createPurchaseReceive, getPurchaseReceives, getPurchaseReceiveById, getNextPurchaseReceiveNumber, updatePurchaseReceive, deletePurchaseReceive } from './pr.controller';
+import { createPurchaseReceive, getPurchaseReceives, getPurchaseReceiveById, getNextPurchaseReceiveNumber, updatePurchaseReceive, deletePurchaseReceive, importPurchaseReceives, exportPurchaseReceives } from './pr.controller';
 import { createPurchaseInvoice, getPurchaseInvoices, getPurchaseInvoiceById, getNextPurchaseInvoiceNumber, updatePurchaseInvoice, deletePurchaseInvoice, updatePurchaseInvoiceReceiptStatus, importPurchaseInvoices } from './purchaseInvoice.controller';
 import { authenticate } from '../../core/middlewares/auth.middleware';
 
@@ -22,6 +22,8 @@ router.get('/orders/:id', getPurchaseOrderById);
 router.put('/orders/:id', upload.array('files', 10), updatePurchaseOrder);
 router.delete('/orders/:id', deletePurchaseOrder);
 
+router.post('/receives/import', uploadCsv.single('file'), importPurchaseReceives);
+router.get('/receives/export', exportPurchaseReceives);
 router.get('/receives/next-number', getNextPurchaseReceiveNumber);
 router.post('/receives', createPurchaseReceive);
 router.get('/receives', getPurchaseReceives);

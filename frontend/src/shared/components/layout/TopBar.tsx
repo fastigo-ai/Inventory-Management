@@ -16,11 +16,13 @@ import {
   Building,
   Check,
   FileText,
-  ShoppingCart
+  ShoppingCart,
+  Menu
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api } from '@/shared/api/axios';
+import { useUIStore } from '@/shared/store/ui.store';
 
 export function TopBar() {
   const router = useRouter();
@@ -31,6 +33,8 @@ export function TopBar() {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [searchContext, setSearchContext] = useState('Customers');
   const [currentOrg, setCurrentOrg] = useState('Fastigo AI');
+  
+  const { toggleMobileSidebar } = useUIStore();
   
   const topBarRef = useRef<HTMLDivElement>(null);
 
@@ -85,24 +89,30 @@ export function TopBar() {
   };
 
   return (
-    <header ref={topBarRef} className="h-14 bg-[#2b3040] text-white flex items-center justify-between px-4 shrink-0 shadow-sm z-50 relative">
+    <header ref={topBarRef} className="h-14 bg-slate-900 text-white flex items-center justify-between px-4 shrink-0 shadow-md z-50 relative border-b border-slate-800 transition-colors">
       {/* Left side: Logo & Search */}
-      <div className="flex items-center gap-6 flex-1">
-        <Link href="/" className="flex items-center gap-2">
+      <div className="flex items-center gap-4 flex-1">
+        <button 
+          onClick={toggleMobileSidebar}
+          className="md:hidden p-2 -ml-2 text-slate-300 hover:bg-slate-800 hover:text-white rounded-md transition-colors"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+        <Link href="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
           <Package className="w-6 h-6 text-blue-400" />
           <span className="font-bold text-lg tracking-wide">Inventory</span>
         </Link>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 hidden md:flex">
           <button 
             onClick={() => window.location.reload()}
-            className="p-1.5 hover:bg-white/10 rounded-md transition-colors"
+            className="p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white rounded-md transition-all active:scale-95"
             title="Refresh"
           >
-            <RotateCw className="w-4 h-4 text-slate-300" />
+            <RotateCw className="w-4 h-4" />
           </button>
           
-          <div className="relative flex items-center group w-96">
+          <div className="relative flex items-center group w-96 ml-4">
             <button 
               onClick={() => toggleDropdown('searchContext')}
               className="absolute left-1.5 flex items-center gap-1 text-slate-400 hover:text-white px-2 py-1 rounded hover:bg-white/10 transition-colors"

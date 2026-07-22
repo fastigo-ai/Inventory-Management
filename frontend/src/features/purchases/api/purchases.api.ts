@@ -142,6 +142,28 @@ export const getPurchaseReceives = async (params?: { page?: number; limit?: numb
   return response.data;
 };
 
+export const exportPurchaseReceivesToCsv = async () => {
+  const response = await api.get('/purchases/receives/export', { responseType: 'blob' });
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', 'purchase_invoices_export.csv');
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+};
+
+export const importPurchaseReceivesFromCsv = async (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post('/purchases/receives/import', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
 export const getPurchaseReceiveById = async (id: string) => {
   const response = await api.get(`/purchases/receives/${id}`);
   return response.data.data;

@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { Pr } from './pr.schema';
 import { PurchaseOrder } from './purchaseOrder.schema';
+import { stringify } from 'csv-stringify/sync';
+import { parse } from 'csv-parse/sync';
 
 export const createPurchaseReceive = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -175,6 +177,147 @@ export const deletePurchaseReceive = async (req: Request, res: Response): Promis
       success: false,
       message: 'Failed to delete Purchase Invoice',
       error: error.message
+    });
+  }
+};
+
+export const exportPurchaseReceives = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const receives = await Pr.find().sort({ createdAt: -1 }).lean();
+
+    const csvData = receives.flatMap(r => 
+      r.lineItems && r.lineItems.length > 0 ? r.lineItems.map(item => ({
+        PurchaseInvoiceNumber: r.purchaseReceiveNumber,
+        PurchaseOrderNumber: r.purchaseOrderNumber || '',
+        Date: r.receiveDate ? new Date(r.receiveDate).toISOString().split('T')[0] : '',
+        VendorName: r.vendorName,
+        Status: r.status,
+        DINo: r.diNo || '',
+        Billed: r.billed ? 'Yes' : 'No',
+        ItemName: item.itemName,
+        TempCode: item.tempCode || '',
+        POQuantity: item.poQuantity,
+        InvoiceQuantity: item.invoiceQuantity,
+        Rate: item.rate || 0,
+        Amount: item.amount || 0,
+        CGST: item.cgst || 0,
+        SGST: item.sgst || 0,
+        IGST: item.igst || 0,
+        TotalAmount: item.totalAmount || 0
+      })) : [{
+        PurchaseInvoiceNumber: r.purchaseReceiveNumber,
+        PurchaseOrderNumber: r.purchaseOrderNumber || '',
+        Date: r.receiveDate ? new Date(r.receiveDate).toISOString().split('T')[0] : '',
+        VendorName: r.vendorName,
+        Status: r.status,
+        DINo: r.diNo || '',
+        Billed: r.billed ? 'Yes' : 'No',
+        ItemName: '', TempCode: '', POQuantity: '', InvoiceQuantity: '', Rate: '', Amount: '', CGST: '', SGST: '', IGST: '', TotalAmount: ''
+      }]
+    );
+
+    const csvString = stringify(csvData, { header: true });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=purchase_invoices_export.csv');
+    res.status(200).send(csvString);
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to export Purchase Invoices',
+      error: error.message,
+    });
+  }
+};
+
+export const importPurchaseReceives = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ success: false, message: 'No CSV file uploaded' });
+      return;
+    }
+
+    const parser = parse(req.file.buffer, {
+      columns: true,
+      skip_empty_lines: true,
+      trim: true,
+    });
+
+    const prMap: Record<string, any> = {};
+
+    for await (const row of parser) {
+      const prNumber = row['PurchaseInvoiceNumber'] || row['PurchaseReceiveNumber'] || row['purchaseReceiveNumber'];
+      if (!prNumber) continue;
+
+      if (!prMap[prNumber]) {
+        prMap[prNumber] = {
+          purchaseReceiveNumber: prNumber,
+          purchaseOrderNumber: row['PurchaseOrderNumber'] || row['purchaseOrderNumber'] || '',
+          receiveDate: row['Date'] || row['receiveDate'] || new Date().toISOString().split('T')[0],
+          vendorName: row['VendorName'] || row['vendorName'],
+          status: row['Status'] || row['status'] || 'Draft',
+          diNo: row['DINo'] || row['diNo'] || '',
+          billed: (row['Billed'] || row['billed'] || '').toLowerCase() === 'yes',
+          lineItems: [],
+        };
+      }
+
+      const itemName = row['ItemName'] || row['itemName'];
+      if (itemName) {
+        prMap[prNumber].lineItems.push({
+          itemName,
+          tempCode: row['TempCode'] || row['tempCode'] || '',
+          poQuantity: Number(row['POQuantity'] || row['poQuantity'] || 0),
+          invoiceQuantity: Number(row['InvoiceQuantity'] || row['invoiceQuantity'] || 0),
+          rate: Number(row['Rate'] || row['rate'] || 0),
+          amount: Number(row['Amount'] || row['amount'] || 0),
+          cgst: Number(row['CGST'] || row['cgst'] || 0),
+          sgst: Number(row['SGST'] || row['sgst'] || 0),
+          igst: Number(row['IGST'] || row['igst'] || 0),
+          totalAmount: Number(row['TotalAmount'] || row['totalAmount'] || 0)
+        });
+      }
+    }
+
+    let successCount = 0;
+    const errors: any[] = [];
+    
+    for (const prNumber of Object.keys(prMap)) {
+      const prData = prMap[prNumber];
+      try {
+        const existing = await Pr.findOne({ purchaseReceiveNumber: prData.purchaseReceiveNumber });
+        if (existing) {
+          errors.push(`Purchase Invoice ${prData.purchaseReceiveNumber} already exists.`);
+          continue;
+        }
+
+        if (prData.purchaseOrderNumber) {
+          const po = await PurchaseOrder.findOne({ purchaseOrderNumber: prData.purchaseOrderNumber });
+          if (po) {
+            prData.purchaseOrderId = po._id;
+          }
+        }
+
+        await Pr.create(prData);
+        successCount++;
+      } catch (err: any) {
+        errors.push(`Failed to import Invoice ${prData.purchaseReceiveNumber}: ${err.message}`);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Import processed',
+      data: {
+        successCount,
+        errors
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to import Purchase Invoices',
+      error: error.message,
     });
   }
 };

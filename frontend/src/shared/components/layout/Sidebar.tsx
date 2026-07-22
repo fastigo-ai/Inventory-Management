@@ -128,8 +128,8 @@ export function Sidebar() {
     : navItems;
 
   return (
-    <aside className="w-64 bg-[#f8f9fc] border-r border-slate-200 flex flex-col h-screen overflow-y-auto shrink-0">
-      <div className="flex-1 py-4 px-3 space-y-1">
+    <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col h-[calc(100vh-3.5rem)] md:h-screen overflow-y-auto shrink-0 shadow-lg text-slate-300 transition-colors">
+      <div className="flex-1 py-6 px-4 space-y-2">
         {visibleNavItems.map((item) => {
           const hasChildren = !!item.children;
           const isItemExpanded = expanded[item.title];
@@ -141,8 +141,10 @@ export function Sidebar() {
                 <button
                   onClick={() => toggleExpand(item.title)}
                   className={cn(
-                    "w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors",
-                    active ? "bg-indigo-50 text-indigo-700" : "text-slate-600 hover:bg-slate-100"
+                    "w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
+                    active 
+                      ? "bg-blue-600/10 text-blue-400" 
+                      : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
                   )}
                 >
                   <div className="flex items-center gap-3">
@@ -161,17 +163,17 @@ export function Sidebar() {
                 <Link
                   href={item.href || '#'}
                   className={cn(
-                    "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
-                    active 
-                      ? (item.title === 'Home' ? "bg-[#3b82f6] text-white" : "bg-blue-50 text-blue-700") 
-                      : "text-slate-700 hover:bg-slate-100"
+                    "w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
+                    active
+                      ? "bg-blue-600/10 text-blue-400"
+                      : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
                   )}
                 >
-                  <div className={cn("w-4 flex justify-center", active && item.title === 'Home' ? "text-white" : "text-slate-500")}>
-                     {/* Empty div for alignment if needed, or we can just render icon directly */}
+                  <div className="w-4 flex justify-center text-slate-500">
+                    {/* Empty div for alignment if needed, or we can just render icon directly */}
                   </div>
-                  {React.cloneElement(item.icon as React.ReactElement<any>, { 
-                    className: cn("w-4 h-4", active && item.title === 'Home' ? "text-white" : "text-slate-500") 
+                  {item.icon && React.cloneElement(item.icon as React.ReactElement<any>, { 
+                    className: cn("w-5 h-5", active ? "text-blue-400" : "text-slate-400") 
                   })}
                   <span>{item.title}</span>
                 </Link>
@@ -179,20 +181,19 @@ export function Sidebar() {
 
               {/* Children (Dropdown) */}
               {hasChildren && isItemExpanded && (
-                <div className="mt-1 space-y-1 pb-1">
+                <div className="mt-1 space-y-1 pb-1 relative before:absolute before:inset-y-0 before:left-[21px] before:w-px before:bg-slate-800">
                   {item.children!.map((child) => (
                     <Link
                       key={child.title}
                       href={child.href || '#'}
                       className={cn(
-                        "flex items-center justify-between px-3 py-1.5 text-sm rounded-lg transition-colors ml-10 mr-3",
+                        "flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors ml-10 mr-3 relative before:absolute before:top-1/2 before:-translate-y-1/2 before:-left-[19px] before:w-[4px] before:h-[4px] before:bg-slate-700 before:rounded-full",
                         isActive(child.href)
-                          ? "bg-[#3b82f6] text-white font-medium shadow-sm"
-                          : "text-slate-600 hover:bg-slate-100"
+                          ? "bg-blue-600/10 text-blue-400 font-medium before:bg-blue-500 before:w-[6px] before:h-[6px] before:-left-[20px]"
+                          : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
                       )}
                     >
                       <span>{child.title}</span>
-                      {isActive(child.href) && <Plus className="w-4 h-4 text-white opacity-80 hover:opacity-100" />}
                     </Link>
                   ))}
                 </div>
@@ -204,8 +205,8 @@ export function Sidebar() {
       </div>
 
       {/* Footer Button */}
-      <div className="p-4 bg-[#f8f9fc]">
-        <button className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-white border border-slate-200 rounded-full shadow-sm hover:bg-slate-50 transition-colors text-xs font-semibold text-slate-700">
+      <div className="p-4 bg-slate-900 border-t border-slate-800">
+        <button className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-slate-800 border border-slate-700 rounded-full shadow-sm hover:bg-slate-700 transition-colors text-xs font-semibold text-slate-300">
           <Circle className="w-2.5 h-2.5 fill-blue-500 text-blue-500" />
           TAKE A LIVE PRODUCT TOUR
         </button>

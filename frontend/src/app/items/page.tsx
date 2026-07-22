@@ -280,9 +280,8 @@ export default function ItemsPage() {
         <ImportModal 
           isOpen={isImportModalOpen} 
           onClose={() => setIsImportModalOpen(false)} 
-          onSuccess={() => {
-            fetchItemsData();
-          }} 
+          onSuccess={fetchItemsData}
+          fields={fields}
         />
       )}
     </div>

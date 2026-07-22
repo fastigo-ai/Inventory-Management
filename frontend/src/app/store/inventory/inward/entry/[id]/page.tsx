@@ -80,14 +80,34 @@ export default function InwardRegistrationForm() {
             primaryPackQty = mainPack.quantity;
           }
 
+          const cgstRate = entry.cgst || 0;
+          const sgstRate = entry.sgst || 0;
+          const igstRate = entry.igst || 0;
+          const totalQty = entry.totalQty || entry.invoiceQty || 0;
+          const rate = entry.rate || 0;
+          const taxableAmount = totalQty * rate;
+          const cgstAmount = (taxableAmount * cgstRate) / 100;
+          const sgstAmount = (taxableAmount * sgstRate) / 100;
+          const igstAmount = (taxableAmount * igstRate) / 100;
+          const amount = taxableAmount + cgstAmount + sgstAmount + igstAmount;
+
           setFormData({
             ...entry,
-            description: entry.itemName || '',
+            description: entry.itemDescription || entry.itemName || '',
             invoiceDate: entry.invoiceDate ? entry.invoiceDate.split('T')[0] : '',
             grDate: entry.grDate ? entry.grDate.split('T')[0] : '',
             receivedDate: entry.receivedDate ? entry.receivedDate.split('T')[0] : new Date().toISOString().split('T')[0],
             packType: primaryPackType,
             packQty: primaryPackQty,
+            cgstRate,
+            sgstRate,
+            igstRate,
+            gst: (cgstRate + sgstRate + igstRate).toString(),
+            taxableAmount,
+            cgst: cgstAmount,
+            sgst: sgstAmount,
+            igst: igstAmount,
+            amount,
           });
         }
       } catch (err) {
@@ -130,9 +150,13 @@ export default function InwardRegistrationForm() {
       const payload = {
         ...formData,
         status,
+        invoiceDate: formData.invoiceDate || undefined,
+        grDate: formData.grDate || undefined,
+        receivedDate: formData.receivedDate || undefined,
+        poDate: formData.poDate || undefined,
         packingList: [{
           packType: formData.packType,
-          quantity: formData.packQty,
+          quantity: Number(formData.packQty) || 0,
           packUnit: formData.packUnit
         }]
       };
@@ -202,7 +226,7 @@ export default function InwardRegistrationForm() {
             <div>
               <label className="block text-xs font-semibold text-blue-600 mb-1">Invoice Number <span className="text-red-500">*</span></label>
               <Input 
-                value={formData.invoiceNumber} 
+                value={formData.invoiceNumber || ''} 
                 onChange={e => handleInputChange('invoiceNumber', e.target.value)} 
                 className="h-9 border-blue-200 focus:border-blue-500"
               />
@@ -211,7 +235,7 @@ export default function InwardRegistrationForm() {
               <label className="block text-xs font-semibold text-blue-600 mb-1">Invoice Date</label>
               <Input 
                 type="date"
-                value={formData.invoiceDate} 
+                value={formData.invoiceDate || ''} 
                 onChange={e => handleInputChange('invoiceDate', e.target.value)} 
                 className="h-9 border-blue-200 focus:border-blue-500"
               />
@@ -219,7 +243,7 @@ export default function InwardRegistrationForm() {
             <div>
               <label className="block text-xs font-semibold text-blue-600 mb-1">Transport Name</label>
               <Input 
-                value={formData.transportName} 
+                value={formData.transportName || ''} 
                 onChange={e => handleInputChange('transportName', e.target.value)} 
                 className="h-9 border-blue-200 focus:border-blue-500"
               />
@@ -227,7 +251,7 @@ export default function InwardRegistrationForm() {
             <div>
               <label className="block text-xs font-semibold text-blue-600 mb-1">Truck Number</label>
               <Input 
-                value={formData.truckNumber} 
+                value={formData.truckNumber || ''} 
                 onChange={e => handleInputChange('truckNumber', e.target.value)} 
                 className="h-9 border-blue-200 focus:border-blue-500"
               />
@@ -235,7 +259,7 @@ export default function InwardRegistrationForm() {
             <div>
               <label className="block text-xs font-semibold text-blue-600 mb-1">GR Number</label>
               <Input 
-                value={formData.grNumber} 
+                value={formData.grNumber || ''} 
                 onChange={e => handleInputChange('grNumber', e.target.value)} 
                 className="h-9 border-blue-200 focus:border-blue-500"
               />
@@ -244,7 +268,7 @@ export default function InwardRegistrationForm() {
               <label className="block text-xs font-semibold text-blue-600 mb-1">GR Date</label>
               <Input 
                 type="date"
-                value={formData.grDate} 
+                value={formData.grDate || ''} 
                 onChange={e => handleInputChange('grDate', e.target.value)} 
                 className="h-9 border-blue-200 focus:border-blue-500"
               />
@@ -252,7 +276,7 @@ export default function InwardRegistrationForm() {
             <div>
               <label className="block text-xs font-semibold text-blue-600 mb-1">Bilty Number</label>
               <Input 
-                value={formData.biltyNumber} 
+                value={formData.biltyNumber || ''} 
                 onChange={e => handleInputChange('biltyNumber', e.target.value)} 
                 className="h-9 border-blue-200 focus:border-blue-500"
               />
@@ -261,7 +285,7 @@ export default function InwardRegistrationForm() {
               <label className="block text-xs font-semibold text-blue-600 mb-1">Received Date</label>
               <Input 
                 type="date"
-                value={formData.receivedDate} 
+                value={formData.receivedDate || ''} 
                 onChange={e => handleInputChange('receivedDate', e.target.value)} 
                 className="h-9 border-blue-200 focus:border-blue-500"
               />
@@ -269,7 +293,7 @@ export default function InwardRegistrationForm() {
             <div>
               <label className="block text-xs font-semibold text-blue-600 mb-1">Remarks</label>
               <Input 
-                value={formData.remarks} 
+                value={formData.remarks || ''} 
                 onChange={e => handleInputChange('remarks', e.target.value)} 
                 className="h-9 border-blue-200 focus:border-blue-500"
               />
@@ -319,14 +343,14 @@ export default function InwardRegistrationForm() {
                   </td>
                   <td className="px-4 py-3 border-r border-slate-100">
                     <Input 
-                      value={formData.hsnCode} 
-                      onChange={e => handleItemChange('hsnCode', e.target.value)} 
-                      className="h-8 w-24 text-sm"
+                      value={formData.hsnCode || ''} 
+                      readOnly
+                      className="h-8 w-24 text-sm bg-slate-50 text-slate-500 cursor-not-allowed"
                     />
                   </td>
                   <td className="px-4 py-3 border-r border-slate-100">
                     <Input 
-                      value={formData.unit} 
+                      value={formData.unit || ''} 
                       onChange={e => handleItemChange('unit', e.target.value)} 
                       className="h-8 w-16 text-sm"
                     />
@@ -334,7 +358,7 @@ export default function InwardRegistrationForm() {
                   <td className="px-4 py-3 border-r border-slate-100">
                     <Input 
                       type="number"
-                      value={formData.challanQty || ''} 
+                      value={formData.challanQty ?? ''} 
                       onChange={e => handleItemChange('challanQty', e.target.value)} 
                       className="h-8 w-20 text-sm"
                     />
@@ -345,7 +369,7 @@ export default function InwardRegistrationForm() {
                   <td className="px-4 py-3 border-r border-slate-100">
                     <Input 
                       type="number"
-                      value={formData.rejectedQty || ''} 
+                      value={formData.rejectedQty ?? ''} 
                       onChange={e => handleItemChange('rejectedQty', e.target.value)} 
                       className="h-8 w-24 text-sm text-red-600 font-semibold border-red-200 focus:border-red-500 bg-red-50/30"
                     />
@@ -355,7 +379,7 @@ export default function InwardRegistrationForm() {
                   <td className="px-4 py-3 border-r border-slate-100">
                     <Input 
                       type="number"
-                      value={formData.invoiceQty || ''} 
+                      value={formData.invoiceQty ?? ''} 
                       onChange={e => handleItemChange('invoiceQty', e.target.value)} 
                       className="h-8 w-24 text-sm font-semibold text-blue-700 bg-blue-50/50"
                     />
@@ -373,7 +397,7 @@ export default function InwardRegistrationForm() {
                   </td>
                   <td className="px-4 py-3 border-r border-slate-100">
                     <Input 
-                      value={formData.packUnit} 
+                      value={formData.packUnit || ''} 
                       onChange={e => handleItemChange('packUnit', e.target.value)} 
                       className="h-8 w-16 text-sm"
                     />
@@ -381,7 +405,7 @@ export default function InwardRegistrationForm() {
                   <td className="px-4 py-3 border-r border-slate-100">
                     <Input 
                       type="number"
-                      value={formData.packQty || ''} 
+                      value={formData.packQty ?? ''} 
                       onChange={e => handleItemChange('packQty', e.target.value)} 
                       className="h-8 w-20 text-sm"
                     />
@@ -391,9 +415,9 @@ export default function InwardRegistrationForm() {
                   <td className="px-4 py-3 border-r border-slate-100">
                     <Input 
                       type="number"
-                      value={formData.rate || ''} 
-                      onChange={e => handleItemChange('rate', e.target.value)} 
-                      className="h-8 w-24 text-sm"
+                      value={formData.rate ?? ''} 
+                      readOnly
+                      className="h-8 w-24 text-sm bg-slate-50 text-slate-500 cursor-not-allowed"
                     />
                   </td>
                   <td className="px-4 py-3 border-r border-slate-100">

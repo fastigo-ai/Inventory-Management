@@ -28,6 +28,9 @@ export interface IStoreInwardEntry extends Document {
   taxableAmount?: number;
   
   tempCode?: string;
+  itemId?: mongoose.Types.ObjectId;
+  itemName?: string;
+  itemDescription?: string;
   hsnCode?: string;
   challanNumber?: string;
   transportName?: string;
@@ -91,6 +94,9 @@ const storeInwardEntrySchema = new Schema<IStoreInwardEntry>(
     taxableAmount: { type: Number },
     
     tempCode: { type: String },
+    itemId: { type: Schema.Types.ObjectId, ref: 'Item' },
+    itemName: { type: String },
+    itemDescription: { type: String },
     hsnCode: { type: String },
     challanNumber: { type: String },
     transportName: { type: String },

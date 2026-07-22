@@ -243,7 +243,7 @@ export const updateInwardEntry = asyncHandler(async (req: Request, res: Response
     throw new ApiError(404, 'Entry not found');
   }
 
-  if (entry.status !== 'DRAFT') {
+  if (entry.status !== 'DRAFT' && entry.status !== 'PENDING_RECEIPT' && entry.status !== 'APPROVED') {
     // Allow status updates for admin/verification
     if (data.status === 'VERIFIED' || data.status === 'NEEDS_CORRECTION') {
       const updated = await StoreInwardEntry.findByIdAndUpdate(id, { status: data.status }, { new: true });
@@ -384,7 +384,24 @@ async function buildStockSummaryData(circleFilter?: string, packageFilter?: stri
       contractorsReturnQty: 0,
       contractorsActualIssued: 0,
       totalBalanceQty: 0,
-      remarks: ''
+      remarks: '',
+      // Latest GRN details
+      invoiceNumber: '-',
+      invoiceDate: null,
+      poNumber: '-',
+      poDate: null,
+      vendorName: '-',
+      transportName: '-',
+      truckNumber: '-',
+      grNumber: '-',
+      grDate: null,
+      biltyNumber: '-',
+      receivedDate: null,
+      packType: '-',
+      packQty: 0,
+      rate: 0,
+      taxableAmount: 0,
+      gst: '-'
     };
   });
 
@@ -401,6 +418,28 @@ async function buildStockSummaryData(circleFilter?: string, packageFilter?: stri
       // Calculate derived fields (assuming rejectedQty is 0 for now)
       summaryMap[tc].acceptedQty = summaryMap[tc].receivedQty - summaryMap[tc].rejectedQty;
       summaryMap[tc].totalInStockAfterReceive = summaryMap[tc].acceptedQty + summaryMap[tc].receivedFromOtherStore;
+      
+      // Update with latest GRN details
+      summaryMap[tc].invoiceNumber = inward.invoiceNumber || summaryMap[tc].invoiceNumber;
+      summaryMap[tc].invoiceDate = inward.invoiceDate || summaryMap[tc].invoiceDate;
+      summaryMap[tc].poNumber = inward.poNumber || summaryMap[tc].poNumber;
+      summaryMap[tc].poDate = inward.poDate || summaryMap[tc].poDate;
+      summaryMap[tc].vendorName = inward.vendorName || summaryMap[tc].vendorName;
+      summaryMap[tc].transportName = inward.transportName || summaryMap[tc].transportName;
+      summaryMap[tc].truckNumber = inward.truckNumber || summaryMap[tc].truckNumber;
+      summaryMap[tc].grNumber = inward.grNumber || summaryMap[tc].grNumber;
+      summaryMap[tc].grDate = inward.grDate || summaryMap[tc].grDate;
+      summaryMap[tc].biltyNumber = inward.biltyNumber || summaryMap[tc].biltyNumber;
+      summaryMap[tc].receivedDate = inward.receivedDate || summaryMap[tc].receivedDate;
+      summaryMap[tc].rate = inward.rate || summaryMap[tc].rate;
+      summaryMap[tc].taxableAmount = inward.taxableAmount || summaryMap[tc].taxableAmount;
+      summaryMap[tc].gst = inward.gst || summaryMap[tc].gst;
+      summaryMap[tc].remarks = inward.remarks || summaryMap[tc].remarks;
+      
+      if (inward.packingList && inward.packingList.length > 0) {
+        summaryMap[tc].packType = inward.packingList[0].packType || summaryMap[tc].packType;
+        summaryMap[tc].packQty = inward.packingList[0].quantity || summaryMap[tc].packQty;
+      }
     }
   });
 

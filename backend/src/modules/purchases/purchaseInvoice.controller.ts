@@ -312,3 +312,129 @@ export const updatePurchaseInvoiceReceiptStatus = async (req: Request, res: Resp
     });
   }
 };
+
+export const importPurchaseInvoices = async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No CSV file uploaded' });
+    }
+
+    const parser = parse(req.file.buffer, {
+      columns: true,
+      skip_empty_lines: true,
+      trim: true,
+    });
+
+    const piMap: Record<string, any> = {};
+
+    for await (const row of parser) {
+      const invoiceNumber = row['InvoiceNumber'] || row['invoiceNumber'] || row['Invoice Number'];
+      if (!invoiceNumber) continue;
+
+      if (!piMap[invoiceNumber]) {
+        piMap[invoiceNumber] = {
+          invoiceNumber,
+          _poNumber: row['PurchaseOrderNumber'] || row['purchaseOrderNumber'] || '',
+          date: row['Date'] || row['date'] || new Date().toISOString().split('T')[0],
+          dueDate: row['DueDate'] || row['dueDate'],
+          vendorName: row['VendorName'] || row['vendorName'],
+          status: row['Status'] || row['status'] || 'Draft',
+          gstType: row['GstType'] || row['gstType'] || 'Intra State',
+          notes: row['Notes'] || row['notes'],
+          lineItems: [],
+        };
+      }
+
+      const itemName = row['ItemName'] || row['itemName'] || row['Item Name'];
+      const poQuantity = Number(row['PoQuantity'] || row['poQuantity'] || 0);
+      const quantity = Number(row['Quantity'] || row['quantity'] || 0);
+      const rate = Number(row['Rate'] || row['rate'] || 0);
+      const cgst = Number(row['Cgst'] || row['cgst'] || 0);
+      const sgst = Number(row['Sgst'] || row['sgst'] || 0);
+      const igst = Number(row['Igst'] || row['igst'] || 0);
+
+      if (itemName) {
+        piMap[invoiceNumber].lineItems.push({
+          itemName,
+          poQuantity,
+          quantity,
+          rate,
+          cgst,
+          sgst,
+          igst
+        });
+      }
+    }
+
+    let successCount = 0;
+    const errors: any[] = [];
+    
+    for (const invoiceNumber of Object.keys(piMap)) {
+      const piData = piMap[invoiceNumber];
+      try {
+        const existing = await PurchaseInvoice.findOne({ invoiceNumber: piData.invoiceNumber });
+        if (existing) {
+          errors.push(`Purchase Invoice ${piData.invoiceNumber} already exists.`);
+          continue;
+        }
+
+        if (piData._poNumber) {
+          const po = await PurchaseOrder.findOne({ purchaseOrderNumber: piData._poNumber });
+          if (po) {
+            piData.purchaseOrderId = po._id;
+          } else {
+            errors.push(`Purchase Order ${piData._poNumber} not found for Invoice ${piData.invoiceNumber}. It will be created without PO link.`);
+          }
+        }
+        delete piData._poNumber;
+
+        // Calculate financials
+        let subTotal = 0;
+        let totalTax = 0;
+
+        piData.lineItems = piData.lineItems.map((item: any) => {
+          const amount = item.quantity * item.rate;
+          let taxAmount = 0;
+          if (piData.gstType === 'Intra State') {
+            taxAmount = amount * (item.cgst + item.sgst) / 100;
+            item.igst = 0;
+          } else if (piData.gstType === 'Inter State') {
+            taxAmount = amount * item.igst / 100;
+            item.cgst = 0;
+            item.sgst = 0;
+          }
+          
+          item.amount = amount;
+          subTotal += amount;
+          totalTax += taxAmount;
+          return item;
+        });
+
+        piData.subTotal = subTotal;
+        piData.taxAmount = totalTax;
+        piData.total = subTotal + totalTax;
+        piData.balanceDue = piData.total;
+
+        await PurchaseInvoice.create(piData);
+        successCount++;
+      } catch (err: any) {
+        errors.push(`Failed to import Invoice ${piData.invoiceNumber}: ${err.message}`);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Import processed',
+      data: {
+        successCount,
+        errors
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to import Purchase Invoices',
+      error: error.message,
+    });
+  }
+};

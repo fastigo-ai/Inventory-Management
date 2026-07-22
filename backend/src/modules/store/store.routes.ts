@@ -19,7 +19,9 @@ import {
   updateStoreTransferStatus,
   dispatchStoreTransfer,
   receiveStoreTransfer,
-  importInwardRegistrations
+  importInwardRegistrations,
+  getPendingStoreReceipts,
+  approveStoreReceipt
 } from './store.controller';
 
 const router = Router();
@@ -30,6 +32,9 @@ router.use(authenticate);
 router.route('/di/pending').get(getPendingDIs);
 router.route('/di/:diId/prefill').get(getDIPrefillData);
 router.route('/pi/:invoiceId/prefill').get(getPurchaseInvoicePrefillData);
+
+router.route('/receipts/pending').get(getPendingStoreReceipts);
+router.route('/receipts/:id/approve').put(approveStoreReceipt);
 
 router.route('/inventory/inward')
   .post(createInwardEntry)

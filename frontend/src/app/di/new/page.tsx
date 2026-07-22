@@ -95,9 +95,11 @@ export default function NewDIRegistrationPage() {
   }, [purchaseOrderId, purchaseOrders, items]);
 
   const updateLineItem = (index: number, field: string, value: any) => {
-    const newItems = [...lineItems];
-    newItems[index][field] = value;
-    setLineItems(newItems);
+    setLineItems(prev => {
+      const newItems = [...prev];
+      newItems[index] = { ...newItems[index], [field]: value };
+      return newItems;
+    });
   };
 
   const removeLineItem = (index: number) => {
@@ -539,13 +541,13 @@ export default function NewDIRegistrationPage() {
                       disabled={!item.package}
                     >
                       <option value="" disabled>Select Circle</option>
-                      {item.package === "Package 1 (S/N)" && (
+                      {(item.package || '').includes("Package 1") && (
                         <>
                           <option value="Solan">Solan</option>
                           <option value="Nahan">Nahan</option>
                         </>
                       )}
-                      {item.package === "Package 2 (R/R)" && (
+                      {(item.package || '').includes("Package 2") && (
                         <>
                           <option value="Rohru">Rohru</option>
                           <option value="Rampur">Rampur</option>

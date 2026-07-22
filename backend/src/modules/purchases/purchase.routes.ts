@@ -34,7 +34,7 @@ router.delete('/receives/:id', deletePurchaseReceive);
 router.post('/invoices/import', uploadCsv.single('file'), importPurchaseInvoices);
 router.get('/invoices/next-number', getNextPurchaseInvoiceNumber);
 router.post('/invoices', upload.array('files', 10), createPurchaseInvoice);
-router.get('/invoices', getPurchaseInvoices);
+router.get('/invoices', authenticate, getPurchaseInvoices);
 router.get('/invoices/:id', getPurchaseInvoiceById);
 router.put('/invoices/:id/receipt-status', updatePurchaseInvoiceReceiptStatus);
 router.put('/invoices/:id', upload.array('files', 10), updatePurchaseInvoice);

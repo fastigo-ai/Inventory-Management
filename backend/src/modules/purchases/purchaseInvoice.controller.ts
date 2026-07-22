@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { PurchaseInvoice } from './purchaseInvoice.schema';
 import { parse } from 'csv-parse/sync';
 import { PurchaseOrder } from './purchaseOrder.schema';
+import { StoreInwardEntry } from '../store/storeInwardEntry.schema';
 
 export const createPurchaseInvoice = async (req: Request, res: Response) => {
   try {
@@ -57,6 +58,38 @@ export const createPurchaseInvoice = async (req: Request, res: Response) => {
 
     await newInvoice.save();
 
+    if (processedLineItems && processedLineItems.length > 0) {
+      const inwardEntries = processedLineItems.map((item: any) => ({
+        purchaseInvoiceId: newInvoice._id,
+        purchaseOrderId: newInvoice.purchaseOrderId,
+        poNumber: data.poNumber,
+        poDate: data.poDate,
+        billingFrom: data.billingFrom,
+        vendorName: data.vendorName,
+        invoiceNumber: newInvoice.invoiceNumber,
+        invoiceDate: newInvoice.date,
+        diRefNo: (newInvoice as any).diNumber,
+        circle: item.circle,
+        package: item.package,
+        unit: item.unit,
+        invoiceQty: item.quantity,
+        rate: item.rate,
+        amount: item.amount,
+        tempCode: item.tempCode,
+        itemId: item.itemId,
+        itemName: item.itemName,
+        hsnCode: item.hsnCode,
+        cgst: item.cgst,
+        sgst: item.sgst,
+        igst: item.igst,
+        taxableAmount: item.amount,
+        serialNumber: item.loaSerialNo,
+        status: 'PENDING_RECEIPT',
+        packingList: [{ packType: 'BOX', quantity: item.quantity }] // default packing
+      }));
+      await StoreInwardEntry.insertMany(inwardEntries);
+    }
+
     res.status(201).json({
       success: true,
       data: newInvoice,
@@ -80,7 +113,27 @@ export const createPurchaseInvoice = async (req: Request, res: Response) => {
 
 export const getPurchaseInvoices = async (req: Request, res: Response) => {
   try {
-    const invoices = await PurchaseInvoice.find().sort({ createdAt: -1 });
+    const user = (req as any).user;
+    const filter: any = {};
+
+    if (user && user.role?.name === 'Store Manager') {
+      const conditions = [];
+      if (user.assignedPackage) {
+        const normalizedPkg = user.assignedPackage.replace(/\s+/g, '');
+        const regexStr = normalizedPkg.split('').map((char: string) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*');
+        const pkgRegex = { $regex: new RegExp(`^\\s*${regexStr}\\s*$`, 'i') };
+        conditions.push({ 'lineItems.package': pkgRegex });
+      }
+      if (user.assignedCircle) {
+        const circleRegex = { $regex: new RegExp(`^\\s*${user.assignedCircle.trim()}\\s*$`, 'i') };
+        conditions.push({ 'lineItems.circle': circleRegex });
+      }
+      if (conditions.length > 0) {
+        filter.$and = conditions;
+      }
+    }
+
+    const invoices = await PurchaseInvoice.find(filter).sort({ createdAt: -1 });
     res.status(200).json({
       success: true,
       data: invoices,

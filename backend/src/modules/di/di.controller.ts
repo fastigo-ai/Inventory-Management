@@ -178,7 +178,8 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
 
     const disMap: Record<string, any> = {};
 
-    for await (const row of parser) {
+    for await (const r of parser) {
+      const row = r as Record<string, string>;
       const diNumber = row['DINumber'] || row['diNumber'] || row['DI Number'];
       if (!diNumber) continue;
 

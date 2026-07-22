@@ -78,16 +78,16 @@ export const updateItem = asyncHandler(async (req: Request, res: Response) => {
 
   await validateDynamicData(dynamicData, metadata.fields, id);
 
-  const performedBy = 'system'; 
-
   const item = await Item.findById(id);
   if (!item) {
     throw new ApiError(404, 'Item not found');
   }
 
-  item.dynamicData = dynamicData;
-  item.history.push({ action: 'Updated', performedBy, date: new Date() });
+  const performedBy = (req as any).user?._id || 'system';
 
+  item.dynamicData = { ...item.dynamicData, ...dynamicData };
+  item.history.push({ action: 'Updated', performedBy, date: new Date() });
+  item.markModified('dynamicData');
   await item.save();
 
   res.status(200).json(new ApiResponse(200, item, 'Item updated successfully'));

@@ -15,6 +15,16 @@ export const getPurchaseInvoicePrefillData = async (invoiceId: string) => {
   return response.data;
 };
 
+export const getPendingStoreReceipts = async () => {
+  const response = await api.get('/store/receipts/pending');
+  return response.data;
+};
+
+export const approveStoreReceipt = async (id: string) => {
+  const response = await api.put(`/store/receipts/${id}/approve`);
+  return response.data;
+};
+
 export const createInwardEntry = async (data: any) => {
   const response = await api.post('/store/inventory/inward', data);
   return response.data;

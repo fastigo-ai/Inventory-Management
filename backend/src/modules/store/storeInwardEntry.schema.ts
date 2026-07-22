@@ -71,8 +71,8 @@ const packingListSchema = new Schema<IStoreInwardPackingList>({
 const storeInwardEntrySchema = new Schema<IStoreInwardEntry>(
   {
     diId: { type: Schema.Types.ObjectId, ref: 'DI' },
-    purchaseOrderId: { type: Schema.Types.ObjectId, ref: 'PurchaseOrder', required: true },
-    purchaseInvoiceId: { type: Schema.Types.ObjectId, ref: 'PurchaseInvoice', required: true },
+    purchaseOrderId: { type: Schema.Types.ObjectId, ref: 'PurchaseOrder' },
+    purchaseInvoiceId: { type: Schema.Types.ObjectId, ref: 'PurchaseInvoice' },
     
     poNumber: { type: String },
     poDate: { type: Date },
@@ -113,7 +113,7 @@ const storeInwardEntrySchema = new Schema<IStoreInwardEntry>(
     
     status: { 
       type: String, 
-      enum: ['DRAFT', 'SUBMITTED', 'VERIFIED', 'NEEDS_CORRECTION'], 
+      enum: ['DRAFT', 'PENDING_RECEIPT', 'APPROVED', 'SUBMITTED', 'VERIFIED', 'NEEDS_CORRECTION'], 
       default: 'DRAFT' 
     },
     

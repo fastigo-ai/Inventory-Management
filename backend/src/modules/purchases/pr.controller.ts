@@ -3,6 +3,7 @@ import { Pr } from './pr.schema';
 import { PurchaseOrder } from './purchaseOrder.schema';
 import { stringify } from 'csv-stringify/sync';
 import { parse } from 'csv-parse/sync';
+import { StoreInwardEntry } from '../store/storeInwardEntry.schema';
 
 export const createPurchaseReceive = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -16,6 +17,39 @@ export const createPurchaseReceive = async (req: Request, res: Response): Promis
 
     const newPr = new Pr(prData);
     await newPr.save();
+
+    if (newPr.lineItems && newPr.lineItems.length > 0) {
+      const inwardEntries = newPr.lineItems.map((item: any) => ({
+        purchaseInvoiceId: newPr._id,
+        purchaseOrderId: newPr.purchaseOrderId,
+        poNumber: newPr.purchaseOrderNumber,
+        poDate: item.poDate,
+        billingFrom: newPr.billingFrom,
+        vendorName: newPr.vendorName,
+        invoiceNumber: newPr.purchaseReceiveNumber,
+        invoiceDate: newPr.receiveDate,
+        diRefNo: newPr.diNo,
+        circle: item.circle,
+        package: item.package,
+        unit: item.unit,
+        invoiceQty: item.invoiceQuantity,
+        totalQty: item.totalInvoiceQuantity,
+        rate: item.rate,
+        amount: item.amount,
+        tempCode: item.tempCode,
+        itemId: item.itemId,
+        itemName: item.itemName,
+        hsnCode: item.hsnCode,
+        cgst: item.cgst,
+        sgst: item.sgst,
+        igst: item.igst,
+        taxableAmount: item.amount,
+        serialNumber: item.loaSerialNo,
+        status: 'PENDING_RECEIPT',
+        packingList: [{ packType: 'BOX', quantity: item.invoiceQuantity || 0 }] // default packing
+      }));
+      await StoreInwardEntry.insertMany(inwardEntries);
+    }
 
     res.status(201).json({
       success: true,
@@ -38,14 +72,19 @@ export const getPurchaseReceives = async (req: Request, res: Response): Promise<
     const skip = (page - 1) * limit;
 
     const [prs, total] = await Promise.all([
-      Pr.find().sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Pr.find().sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
       Pr.countDocuments()
     ]);
+
+    const prsWithQuantity = prs.map((pr: any) => ({
+      ...pr,
+      quantity: pr.lineItems?.reduce((acc: number, item: any) => acc + (Number(item.totalInvoiceQuantity) || 0), 0) || 0
+    }));
 
     res.status(200).json({
       success: true,
       data: {
-        prs,
+        prs: prsWithQuantity,
         pagination: {
           total,
           page,

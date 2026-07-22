@@ -1,0 +1,2 @@
+InvoiceNumber,LOA Serial No,Item Name,ChallanQty,RejectedQty,AcceptedQty,ReceivedDate,ChallanNumber,TransportName,TruckNumber,GrNumber,GrDate,BiltyNumber,Remarks
+INV-001,LOA-123,Copper Wire,100,0,100,2026-07-22,CH-991,Fast Trans,HR-55-XY-1234,GR-888,2026-07-20,B-777,All ok

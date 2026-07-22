@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getDIPrefillData, createInwardEntry, queryInwardEntries, updateInwardEntry } from "@/features/store/api/store.api";
+import { getInwardEntryById, updateInwardEntry } from "@/features/store/api/store.api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Save, Send } from "lucide-react";
@@ -10,7 +10,7 @@ import { ArrowLeft, Save, Send } from "lucide-react";
 export default function InwardRegistrationForm() {
   const params = useParams();
   const router = useRouter();
-  const diId = params.id as string;
+  const entryId = params.id as string;
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -64,103 +64,41 @@ export default function InwardRegistrationForm() {
   const packOptions = ['DRUM', 'PACKAGE', 'PACKET', 'BOX', 'BAG', 'OTHER'];
 
   useEffect(() => {
-    if (diId) {
-      loadData();
-    }
-  }, [diId]);
+    async function loadData() {
+      try {
+        const res = await getInwardEntryById(entryId);
+        const entry = res.data;
+        if (entry) {
+          setExistingId(entry._id);
+          
+          let primaryPackType = 'BOX';
+          let primaryPackQty = 0;
+          
+          if (entry.packingList && entry.packingList.length > 0) {
+            const mainPack = entry.packingList.find((p:any) => p.quantity > 0) || entry.packingList[0];
+            primaryPackType = mainPack.packType;
+            primaryPackQty = mainPack.quantity;
+          }
 
-  const loadData = async () => {
-    try {
-      // 1. Check if an entry exists
-      const entriesRes = await queryInwardEntries({ diId, status: 'DRAFT' });
-      const existingDraft = entriesRes.data?.[0];
-
-      // 2. Load Prefill data
-      const prefillRes = await getDIPrefillData(diId);
-      const prefill = prefillRes.data;
-
-      if (existingDraft) {
-        setExistingId(existingDraft._id);
-        
-        let primaryPackType = 'BOX';
-        let primaryPackQty = 0;
-        
-        if (existingDraft.packingList && existingDraft.packingList.length > 0) {
-          const mainPack = existingDraft.packingList.find((p:any) => p.quantity > 0) || existingDraft.packingList[0];
-          primaryPackType = mainPack.packType;
-          primaryPackQty = mainPack.quantity;
+          setFormData({
+            ...entry,
+            description: entry.itemName || '',
+            invoiceDate: entry.invoiceDate ? entry.invoiceDate.split('T')[0] : '',
+            grDate: entry.grDate ? entry.grDate.split('T')[0] : '',
+            receivedDate: entry.receivedDate ? entry.receivedDate.split('T')[0] : new Date().toISOString().split('T')[0],
+            packType: primaryPackType,
+            packQty: primaryPackQty,
+          });
         }
-
-        setFormData({
-          ...prefill,
-          description: prefill.itemName || '',
-          invoiceNumber: existingDraft.invoiceNumber || prefill.matchedInvoiceNumber || '',
-          invoiceDate: existingDraft.invoiceDate ? existingDraft.invoiceDate.split('T')[0] : (prefill.invoiceDate ? prefill.invoiceDate.split('T')[0] : ''),
-          challanNumber: existingDraft.challanNumber || '',
-          transportName: existingDraft.transportName || '',
-          truckNumber: existingDraft.truckNumber || '',
-          grNumber: existingDraft.grNumber || '',
-          grDate: existingDraft.grDate ? existingDraft.grDate.split('T')[0] : '',
-          biltyNumber: existingDraft.biltyNumber || '',
-          receivedDate: existingDraft.receivedDate ? existingDraft.receivedDate.split('T')[0] : '',
-          remarks: existingDraft.remarks || '',
-          
-          tempCode: existingDraft.tempCode || prefill.serialNumber || '',
-          hsnCode: existingDraft.hsnCode || prefill.hsnCode || '',
-          unit: existingDraft.unit || prefill.unit || '',
-          totalQty: existingDraft.totalQty || prefill.totalQty || prefill.invoiceQty || 0,
-          challanQty: existingDraft.challanQty || 0,
-          rejectedQty: existingDraft.rejectedQty || 0,
-          invoiceQty: existingDraft.invoiceQty || prefill.invoiceQty || 0,
-          rate: existingDraft.rate || prefill.rate || 0,
-          gst: existingDraft.gst || prefill.gst || '0',
-          
-          packType: primaryPackType,
-          packUnit: existingDraft.packUnit || 'Nos',
-          packQty: primaryPackQty,
-
-          taxableAmount: existingDraft.taxableAmount || prefill.taxableAmount || 0,
-          cgstRate: existingDraft.cgstRate || prefill.cgstRate || 0,
-          sgstRate: existingDraft.sgstRate || prefill.sgstRate || 0,
-          igstRate: existingDraft.igstRate || prefill.igstRate || 0,
-          cgst: existingDraft.cgst || prefill.cgst || 0,
-          sgst: existingDraft.sgst || prefill.sgst || 0,
-          igst: existingDraft.igst || prefill.igst || 0,
-          amount: existingDraft.amount || prefill.amount || 0,
-        });
-      } else {
-        setFormData((prev: any) => ({
-          ...prev,
-          ...prefill,
-          description: prefill.itemName || '',
-          invoiceNumber: prefill.matchedInvoiceNumber || '',
-          invoiceDate: prefill.invoiceDate ? prefill.invoiceDate.split('T')[0] : '',
-          tempCode: prefill.serialNumber || '',
-          hsnCode: prefill.hsnCode || '',
-          unit: prefill.unit || '',
-          totalQty: prefill.totalQty || prefill.invoiceQty || 0,
-          challanQty: 0,
-          rejectedQty: 0,
-          invoiceQty: prefill.invoiceQty || 0,
-          rate: prefill.rate || 0,
-          gst: prefill.gst || '0',
-          taxableAmount: prefill.taxableAmount || 0,
-          cgstRate: prefill.cgstRate || 0,
-          sgstRate: prefill.sgstRate || 0,
-          igstRate: prefill.igstRate || 0,
-          cgst: prefill.cgst || 0,
-          sgst: prefill.sgst || 0,
-          igst: prefill.igst || 0,
-          amount: prefill.amount || 0,
-        }));
+      } catch (err) {
+        console.error(err);
+        alert("Failed to load prefill data");
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error(error);
-      alert("Failed to load data.");
-    } finally {
-      setLoading(false);
     }
-  };
+    loadData();
+  }, [entryId]);
 
   // Real-time calculations when Item row inputs change
   const handleItemChange = (field: string, value: any) => {
@@ -186,27 +124,30 @@ export default function InwardRegistrationForm() {
     setFormData((prev: any) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = async (status: 'DRAFT' | 'SUBMITTED') => {
+  const handleSubmit = async (status: 'DRAFT' | 'SUBMITTED' = 'SUBMITTED') => {
+    setSubmitting(true);
     try {
-      setSubmitting(true);
-      
       const payload = {
         ...formData,
-        diId,
         status,
-        packingList: [
-          { packType: formData.packType, quantity: Number(formData.packQty) }
-        ]
+        packingList: [{
+          packType: formData.packType,
+          quantity: formData.packQty,
+          packUnit: formData.packUnit
+        }]
       };
 
-      if (existingId) {
-        await updateInwardEntry(existingId, payload);
-      } else {
-        await createInwardEntry(payload);
+      if (!existingId) {
+        alert("Error: Entry ID not found");
+        return;
       }
+      
+      await updateInwardEntry(existingId, payload);
+      alert(`Entry ${status === 'DRAFT' ? 'saved as draft' : 'submitted'} successfully!`);
       router.push('/store/inventory');
-    } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to save entry');
+    } catch (err: any) {
+      console.error(err);
+      alert(err.response?.data?.message || 'Failed to save entry');
     } finally {
       setSubmitting(false);
     }

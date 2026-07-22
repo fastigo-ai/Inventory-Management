@@ -20,7 +20,7 @@ const seedMetadata = async () => {
 
       // Item Details
       { name: 'itemType', label: 'Item Type', type: 'dropdown', widget: 'radio', required: false, visible: false, editable: true, options: ['Single Item', 'Contains Variants'], defaultValue: 'Single Item', tab: 'Item Details', order: 6 },
-      { name: 'unit', label: 'Unit', type: 'dropdown', required: true, visible: true, editable: true, options: ['pcs', 'kg', 'box', 'm'], tab: 'Item Details', order: 7, colSpan: 1, systemLocked: true },
+      { name: 'unit', label: 'Unit', type: 'text', required: true, visible: true, editable: true, tab: 'Item Details', order: 7, colSpan: 1, systemLocked: true },
       { name: 'sku', label: 'SKU', type: 'text', required: true, visible: true, editable: true, unique: true, tab: 'Item Details', order: 8, colSpan: 1, systemLocked: true },
 
       // Item Description

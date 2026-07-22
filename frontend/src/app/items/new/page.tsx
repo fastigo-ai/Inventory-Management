@@ -57,8 +57,8 @@ export default function NewItemPage() {
       </div>
 
       {/* Scrollable Form Content */}
-      <div className="flex-1 overflow-y-auto px-10 py-6">
-        <div className="w-full bg-white p-6 shadow-sm border border-slate-200 rounded-lg">
+      <div className="flex-1 overflow-y-auto px-4 md:px-10 py-8">
+        <div className="w-full max-w-5xl mx-auto">
           <DynamicForm fields={fields} onSubmit={handleSubmit} />
         </div>
       </div>

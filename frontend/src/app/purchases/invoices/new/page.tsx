@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { createPurchaseInvoice, getNextPurchaseInvoiceNumber } from "@/features/purchases/api/purchases.api";
 import { getVendors } from "@/features/vendors/api/vendors.api";
 import { getItems } from "@/features/items/api/items.api";
+import { getDIs } from "@/features/di/api/di.api";
 
 export default function NewPurchaseInvoicePage() {
   const router = useRouter();
@@ -21,8 +22,11 @@ export default function NewPurchaseInvoicePage() {
   // Form State
   const [vendorName, setVendorName] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
-  const [date, setDate] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [dueDate, setDueDate] = useState("");
+  const [diNumber, setDiNumber] = useState("");
+  const [diDate, setDiDate] = useState("");
+  const [dis, setDis] = useState<any[]>([]);
   const [notes, setNotes] = useState("");
   
   const [lineItems, setLineItems] = useState<any[]>([]);
@@ -46,6 +50,7 @@ export default function NewPurchaseInvoicePage() {
     // Load vendors on mount
     getVendors({ limit: 100 }).then(res => setVendors(res.vendors || res));
     getItems({ limit: 5000 }).then(data => setItemsList(data.items || data)).catch(err => console.error(err));
+    getDIs().then(res => setDis(res.data || [])).catch(console.error);
     
     getNextPurchaseInvoiceNumber().then(res => {
       if (res.data?.fullNumber && !invoiceNumber) {
@@ -86,7 +91,6 @@ export default function NewPurchaseInvoicePage() {
         itemName: '',
         description: '',
         loaSerialNo: '',
-        hsnCode: '',
         hsnCode: '',
         poQuantity: '',
         poDate: '',
@@ -336,6 +340,8 @@ export default function NewPurchaseInvoicePage() {
         invoiceNumber,
         date,
         dueDate,
+        diNumber,
+        diDate,
         notes,
         lineItems,
         subTotal,
@@ -427,6 +433,39 @@ export default function NewPurchaseInvoicePage() {
                   className="h-10 text-[13px] rounded-lg border-slate-300 focus:border-blue-500 transition-colors"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-[13px] font-semibold text-slate-700 mb-2">DI Number</label>
+                <Input 
+                  className="h-10 text-[13px] rounded-lg border-slate-300 focus:border-blue-500 transition-colors"
+                  value={diNumber}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setDiNumber(val);
+                    const foundDi = dis.find(d => d.diNumber === val);
+                    if (foundDi && foundDi.date) {
+                      setDiDate(new Date(foundDi.date).toISOString().split('T')[0]);
+                    }
+                  }}
+                  list="di-numbers"
+                  placeholder="Select or enter DI No."
+                />
+                <datalist id="di-numbers">
+                  {dis.map(d => (
+                    <option key={d._id} value={d.diNumber} />
+                  ))}
+                </datalist>
+              </div>
+
+              <div>
+                <label className="block text-[13px] font-semibold text-slate-700 mb-2">DI Issue Date</label>
+                <Input 
+                  type="date"
+                  className="h-10 text-[13px] rounded-lg border-slate-300 focus:border-blue-500 transition-colors"
+                  value={diDate}
+                  onChange={(e) => setDiDate(e.target.value)}
                 />
               </div>
 

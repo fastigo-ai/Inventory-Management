@@ -40,6 +40,9 @@ export interface IPurchaseInvoice extends Document {
     email?: string;
     logoUrl?: string;
   };
+  
+  diNumber?: string;
+  diDate?: Date | string;
 
   lineItems: IPurchaseInvoiceLineItem[];
   
@@ -112,6 +115,9 @@ const purchaseInvoiceSchema = new Schema<IPurchaseInvoice>(
       email: { type: String },
       logoUrl: { type: String },
     },
+    
+    diNumber: { type: String },
+    diDate: { type: Date },
 
     lineItems: [purchaseInvoiceLineItemSchema],
     

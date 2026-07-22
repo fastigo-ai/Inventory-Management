@@ -5,7 +5,7 @@ import { useForm, Controller } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { UploadCloud, Globe, MessageCircle, Info } from "lucide-react";
@@ -118,6 +118,33 @@ export function DynamicForm({ fields, initialData = {}, onSubmit, isLoading, lay
            // Basic gets a special 2-column parent layout where right side is Images
            const imageField = nonToggleFields.find(f => f.widget === 'image_upload');
            const leftFields = nonToggleFields.filter(f => f.widget !== 'image_upload');
+           
+           if (layoutStyle === 'sections') {
+             return (
+               <Card key={tabName} className="mb-6 shadow-sm border-slate-200">
+                 <CardContent className="p-6">
+                   <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
+                     <div className={`grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 ${imageField ? 'md:col-span-8' : 'md:col-span-12'}`}>
+                       {leftFields.map(field => (
+                         <div key={field.name} className={field.colSpan === 2 ? 'md:col-span-2' : 'md:col-span-1'}>
+                           {renderField(field, register, errors, control, layoutStyle, setValue, getValues, watch)}
+                         </div>
+                       ))}
+                     </div>
+                     {imageField && (
+                       <div className="md:col-span-4 border-2 border-dashed border-slate-300 rounded-lg bg-slate-50 flex flex-col items-center justify-center h-48 hover:bg-slate-100 transition-colors cursor-pointer mt-1">
+                          <UploadCloud className="w-10 h-10 text-[#0076f2] mb-3" />
+                          <p className="text-sm font-semibold text-slate-700">Drag & Drop Images</p>
+                          <p className="text-xs text-slate-500 px-8 text-center mt-2">Add up to 15 images (front, rear, etc). Max 5 MB each.</p>
+                       </div>
+                     )}
+                   </div>
+                 </CardContent>
+               </Card>
+             );
+           }
+           
+           // Tabs layout
            return (
              <div key={tabName} className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start mb-8">
                 <div className={`grid grid-cols-1 gap-6 ${imageField ? 'md:col-span-7' : 'md:col-span-12'}`}>
@@ -129,29 +156,46 @@ export function DynamicForm({ fields, initialData = {}, onSubmit, isLoading, lay
                   <div className="md:col-span-5 border border-dashed border-slate-300 rounded-lg bg-slate-50 flex flex-col items-center justify-center h-48 hover:bg-slate-100 transition-colors cursor-pointer mt-1">
                      <UploadCloud className="w-10 h-10 text-[#0076f2] mb-3" />
                      <p className="text-sm font-semibold text-slate-700">Drag & Drop Images</p>
-                     <p className="text-xs text-slate-500 px-8 text-center mt-2">You can add up to 15 images including front, rear and other images, each not exceeding 5 MB.</p>
+                     <p className="text-xs text-slate-500 px-8 text-center mt-2">Add up to 15 images (front, rear, etc). Max 5 MB each.</p>
                   </div>
                 )}
              </div>
            );
         }
 
-        return (
-          <div key={tabName} className={`transition-opacity duration-200 ${!isSectionEnabled ? 'opacity-50' : ''} ${layoutStyle === 'sections' ? 'border-t border-slate-200' : ''}`}>
-            {layoutStyle === 'sections' && (
-              <div className="bg-transparent py-4 flex items-center space-x-3">
+        if (layoutStyle === 'sections') {
+          return (
+            <Card key={tabName} className={`mb-6 shadow-sm border-slate-200 transition-opacity duration-200 ${!isSectionEnabled ? 'opacity-50 grayscale-[0.2]' : ''}`}>
+              <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-4 px-6 flex flex-row items-center space-x-3 space-y-0">
                 {toggleField && (
                   <input 
                     type="checkbox" 
-                    className="h-4 w-4 rounded border-gray-300 text-[#0076f2] focus:ring-[#0076f2]"
+                    className="h-4 w-4 rounded border-gray-300 text-[#0076f2] focus:ring-[#0076f2] cursor-pointer"
                     {...register(toggleField.name)}
                   />
                 )}
-                <h3 className="text-[15px] font-medium text-slate-800">{tabName}</h3>
-              </div>
-            )}
+                <CardTitle className="text-[16px] font-semibold text-slate-800 m-0">{tabName}</CardTitle>
+              </CardHeader>
+              {isSectionEnabled && (
+                <CardContent className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                    {nonToggleFields.map(field => (
+                      <div key={field.name} className={field.colSpan === 2 ? 'md:col-span-2' : 'md:col-span-1'}>
+                        {renderField(field, register, errors, control, layoutStyle, setValue, getValues, watch)}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              )}
+            </Card>
+          );
+        }
+
+        // Tabs layout
+        return (
+          <div key={tabName} className={`transition-opacity duration-200 ${!isSectionEnabled ? 'opacity-50' : ''}`}>
             {isSectionEnabled && (
-              <div className={layoutStyle === 'sections' ? "pt-2 pb-8" : "pt-6 pb-6 w-full"}>
+              <div className="pt-6 pb-6 w-full">
                 <div className="grid grid-cols-1 gap-y-6">
                   {nonToggleFields.map(field => (
                     <div key={field.name} className={`space-y-2 ${field.colSpan === 2 ? 'md:col-span-2' : 'md:col-span-1'}`}>
@@ -197,7 +241,7 @@ export function DynamicForm({ fields, initialData = {}, onSubmit, isLoading, lay
       {remainingTabs.length > 0 && layoutStyle === 'tabs' && renderTabFields(activeTab)}
       {remainingTabs.length > 0 && layoutStyle === 'sections' && remainingTabs.map(tab => renderTabFields(tab))}
 
-      <div className="sticky bottom-0 h-16 bg-white border-t border-slate-200 flex items-center px-6 gap-3 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] -mx-6 -mb-6 mt-6 rounded-b-lg">
+      <div className={`sticky bottom-0 h-16 ${layoutStyle === 'sections' ? 'bg-slate-50/80 backdrop-blur-md border-t border-slate-200/60 rounded-b-xl shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] mx-0 mb-0 mt-6 px-6' : 'bg-white border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] -mx-6 -mb-6 mt-6 rounded-b-lg px-6'} flex items-center gap-3 z-10`}>
         <Button type="submit" size="default" disabled={isSubmitting || isLoading} className="bg-[#0076f2] hover:bg-[#0060c5] text-white px-6 font-normal">
           {isSubmitting || isLoading ? "Saving..." : (submitLabel || "Save")}
         </Button>
@@ -587,19 +631,19 @@ function renderField(field: FieldMetadata, register: any, errors: any, control: 
   }
 
   return (
-    <div className={layoutStyle === 'tabs' ? "grid grid-cols-1 sm:grid-cols-[160px_1fr] md:grid-cols-[200px_1fr] sm:items-start gap-4 sm:gap-6" : `grid ${field.tab === 'Basic' ? 'grid-cols-3' : 'grid-cols-1'} items-center gap-4`}>
-      <div className={layoutStyle === 'tabs' ? "flex sm:justify-end sm:pt-2 space-x-1" : ""}>
-        <Label htmlFor={field.name} className={layoutStyle === 'tabs' ? `text-[13px] sm:text-right ${field.labelColor === 'red' ? 'text-red-500' : 'text-slate-800'}` : `text-[13px] text-slate-600 ${field.tab === 'Basic' ? 'col-span-1' : ''}`}>
+    <div className={layoutStyle === 'tabs' ? "grid grid-cols-1 sm:grid-cols-[160px_1fr] md:grid-cols-[200px_1fr] sm:items-start gap-4 sm:gap-6" : "flex flex-col space-y-1.5"}>
+      <div className={layoutStyle === 'tabs' ? "flex sm:justify-end sm:pt-2 space-x-1" : "flex items-center space-x-1"}>
+        <Label htmlFor={field.name} className={layoutStyle === 'tabs' ? `text-[13px] sm:text-right ${field.labelColor === 'red' ? 'text-red-500' : 'text-slate-800'}` : `text-[13px] font-medium ${field.labelColor === 'red' ? 'text-red-500' : 'text-slate-700'}`}>
           {field.label} {field.required && <span className="text-red-500">*</span>}
         </Label>
-        {layoutStyle === 'tabs' && field.hasInfo && (
+        {field.hasInfo && (
           <div className="text-slate-400 hover:text-slate-600 cursor-help" title={`Information about ${field.label}`}>
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
           </div>
         )}
       </div>
       
-      <div className={layoutStyle === 'tabs' ? "" : (field.tab === 'Basic' ? 'col-span-2' : '')}>
+      <div className={layoutStyle === 'tabs' ? "" : "w-full"}>
         {fieldInput}
         
         {errors[field.name] && (

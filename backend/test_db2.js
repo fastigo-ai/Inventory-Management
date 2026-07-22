@@ -1,0 +1,15 @@
+const mongoose = require('mongoose');
+async function run() {
+  await mongoose.connect('mongodb+srv://fastigopvtltd_db_user:UpDQdSn25IPRy94R@cluster0.lgbl4nv.mongodb.net/test?appName=Cluster0');
+  
+  console.log('--- RECENT PIs ---');
+  const pis = await mongoose.connection.db.collection('purchaseinvoices').find().sort({createdAt: -1}).limit(2).toArray();
+  console.log(JSON.stringify(pis.map(p => ({ invoiceNumber: p.invoiceNumber, createdAt: p.createdAt })), null, 2));
+
+  console.log('--- RECENT INWARDS ---');
+  const inwards = await mongoose.connection.db.collection('storeinwardentries').find().sort({createdAt: -1}).limit(5).toArray();
+  console.log(JSON.stringify(inwards.map(i => ({ invoiceNumber: i.invoiceNumber, poNumber: i.poNumber, createdAt: i.createdAt, circle: i.circle, status: i.status })), null, 2));
+
+  process.exit(0);
+}
+run().catch(console.error);

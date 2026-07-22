@@ -11,3 +11,8 @@
 
 ## 3. Verification
 - Validate code using existing tests or linters before marking a task complete.
+
+## Store Receipt & Inward Registration Workflow
+- **Purchase Receives (PR)**: When modifying or interacting with `pr.controller.ts` (Purchase Invoices/Receives), always remember that creating a PR must automatically generate corresponding `StoreInwardEntry` records.
+- **Store Receipts**: These generated inward entries must be populated with `status: 'PENDING_RECEIPT'` to appear in the Store Manager's Store Receipts tab.
+- **Inward Registration**: The flow strictly follows: PR Generation -> Store Receipt (Pending) -> Store Manager Approval -> Inward Registration (Prefilled). Any modifications to item mappings or schemas must account for this end-to-end data flow to prevent broken states in the UI.

@@ -1,0 +1,2 @@
+name,type,brand,manufacturer,itemType,unit,sku,description,sellingPrice,salesAccount,salesDescription,costPrice,purchaseAccount,purchaseDescription,preferredVendor,trackInventory,binLocation,inventoryAccount,inventoryValuation,reorderPoint,returnableItem,tempCode,loaQuantity,circle
+Copper Wire 2.5mm,Goods,Generic,Unknown,Single Item,m,SKU-CW-25,High quality copper wire,150,Sales,,100,Cost of Goods Sold,,,true,No,Inventory Asset,FIFO (First In, First Out),50,Yes,TC-101,5000,Delhi

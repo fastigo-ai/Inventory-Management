@@ -248,39 +248,9 @@ export const updateInwardEntry = asyncHandler(async (req: Request, res: Response
     if (data.status === 'VERIFIED' || data.status === 'NEEDS_CORRECTION') {
       const updated = await StoreInwardEntry.findByIdAndUpdate(id, { status: data.status }, { new: true });
       
-      // Update inventory and invoice receipt status if verified
+      // Update inventory and invoice receipt status if verified (legacy)
       if (data.status === 'VERIFIED' && updated && updated.purchaseInvoiceId) {
-        try {
-          const invoice = await PurchaseInvoice.findById(updated.purchaseInvoiceId);
-          if (invoice) {
-            // Update the receipt status of the invoice
-            invoice.receiptStatus = 'Received';
-            await invoice.save();
-            
-            // Loop through the line items to update the actual inventory stock
-            if (invoice.lineItems && invoice.lineItems.length > 0) {
-              for (const lineItem of invoice.lineItems) {
-                if (lineItem.itemId) {
-                  const item = await Item.findById(lineItem.itemId);
-                  if (item) {
-                    // Update dynamicData.stock 
-                    const currentStock = Number(item.dynamicData?.stock || 0);
-                    item.dynamicData = {
-                      ...item.dynamicData,
-                      stock: currentStock + Number(lineItem.quantity || 0)
-                    };
-                    
-                    // Mark as modified so mongoose saves the mixed type field
-                    item.markModified('dynamicData');
-                    await item.save();
-                  }
-                }
-              }
-            }
-          }
-        } catch (err) {
-          console.error('Failed to update inventory stock on GRN verification:', err);
-        }
+        await processInwardStockUpdate(updated._id.toString());
       }
       
       return res.status(200).json(new ApiResponse(200, updated, `Status updated to ${data.status}`));
@@ -303,6 +273,10 @@ export const updateInwardEntry = asyncHandler(async (req: Request, res: Response
 
   data.updatedBy = (req as any).user?._id;
   const updated = await StoreInwardEntry.findByIdAndUpdate(id, data, { new: true });
+
+  if (updated && updated.status === 'SUBMITTED') {
+    await processInwardStockUpdate(updated._id.toString());
+  }
 
   res.status(200).json(
     new ApiResponse(200, updated, 'Entry updated successfully')
@@ -756,3 +730,107 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
     new ApiResponse(200, { successCount, errors }, 'Import process completed')
   );
 });
+
+export const getPendingStoreReceipts = asyncHandler(async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  
+  const filter: any = { status: { $in: ['PENDING_RECEIPT', 'APPROVED'] }, purchaseInvoiceId: { $exists: true } };
+  
+  if (user && user.role?.name === 'Store Manager') {
+    if (user.assignedPackage) {
+      const normalizedPkg = user.assignedPackage.replace(/\s+/g, '');
+      const regexStr = normalizedPkg.split('').map((char: string) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*');
+      filter.package = { $regex: new RegExp(`^\\s*${regexStr}\\s*$`, 'i') };
+    }
+    if (user.assignedCircle) {
+      filter.circle = { $regex: new RegExp(`^\\s*${user.assignedCircle.trim()}\\s*$`, 'i') };
+    }
+  }
+
+  const entries = await StoreInwardEntry.find(filter)
+    .populate('purchaseInvoiceId')
+    .sort({ createdAt: -1 });
+
+  res.status(200).json(
+    new ApiResponse(200, entries, 'Pending store receipts fetched successfully')
+  );
+});
+
+export const approveStoreReceipt = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  
+  const entry = await StoreInwardEntry.findById(id);
+  if (!entry) {
+    return res.status(404).json(new ApiResponse(404, null, 'Store Inward Entry not found'));
+  }
+  
+  if (entry.status !== 'PENDING_RECEIPT') {
+    return res.status(400).json(new ApiResponse(400, null, 'Entry is not pending receipt'));
+  }
+
+  entry.status = 'APPROVED';
+  await entry.save();
+  
+  res.status(200).json(
+    new ApiResponse(200, entry, 'Store receipt approved successfully')
+  );
+});
+
+async function processInwardStockUpdate(entryId: string) {
+  const entry = await StoreInwardEntry.findById(entryId);
+  if (!entry) return;
+  
+  if (entry.itemId && entry.invoiceQty) {
+    try {
+      const item = await Item.findById(entry.itemId);
+      if (item) {
+        const currentStock = Number(item.dynamicData?.stock || 0);
+        item.dynamicData = {
+          ...item.dynamicData,
+          stock: currentStock + Number(entry.invoiceQty || 0)
+        };
+        item.markModified('dynamicData');
+        await item.save();
+      }
+      if (entry.purchaseInvoiceId) {
+        const invoice = await PurchaseInvoice.findById(entry.purchaseInvoiceId);
+        if (invoice && invoice.receiptStatus !== 'Received') {
+          invoice.receiptStatus = 'Received';
+          await invoice.save();
+        }
+      }
+    } catch (err) {
+      console.error('Failed to update inventory stock on inward processing:', err);
+    }
+    return;
+  }
+
+  if (!entry.purchaseInvoiceId) return;
+  if (entry.status !== 'SUBMITTED' && entry.status !== 'VERIFIED') return;
+  
+  try {
+    const invoice = await PurchaseInvoice.findById(entry.purchaseInvoiceId);
+    if (invoice && invoice.receiptStatus !== 'Received') {
+      invoice.receiptStatus = 'Received';
+      await invoice.save();
+      if (invoice.lineItems && invoice.lineItems.length > 0) {
+        for (const lineItem of invoice.lineItems) {
+          if (lineItem.itemId) {
+            const item = await Item.findById(lineItem.itemId);
+            if (item) {
+              const currentStock = Number(item.dynamicData?.stock || 0);
+              item.dynamicData = {
+                ...item.dynamicData,
+                stock: currentStock + Number(lineItem.quantity || 0)
+              };
+              item.markModified('dynamicData');
+              await item.save();
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Failed to update inventory stock on inward processing:', err);
+  }
+}

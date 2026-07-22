@@ -269,10 +269,45 @@ export default function VendorSplitViewPage({ params }: { params: Promise<{ id: 
                             if (val.work) phoneParts.push((val.workCountryCode ? val.workCountryCode + ' ' : '') + val.work);
                             if (val.mobile) phoneParts.push((val.mobileCountryCode ? val.mobileCountryCode + ' ' : '') + val.mobile);
                             displayVal = phoneParts.join(', ');
-                          } else if (field.name === 'primaryContact') {
-                            displayVal = [val.salutation, val.firstName, val.lastName].filter(Boolean).join(' ');
+                          } else if (field.name === 'paymentTerms' && val) {
+                            let terms = [];
+                            if (Array.isArray(val)) {
+                              terms = val;
+                            } else if (typeof val === 'object') {
+                              if (val.stage || val.type || val.value || val.amount) terms.push(val);
+                              Object.keys(val).forEach(k => {
+                                if (!isNaN(Number(k)) && typeof val[k] === 'object' && (val[k].stage || val[k].type || val[k].value || val[k].amount)) {
+                                  terms.push(val[k]);
+                                }
+                              });
+                            }
+                            displayVal = terms.map(pt => {
+                              const amt = pt.value || pt.amount || '';
+                              const unt = pt.unit === 'Percentage' ? '%' : (pt.unit === 'Amount' ? '' : (pt.unit || ''));
+                              return [pt.stage, pt.type, amt + unt, pt.description].filter(Boolean).join(' ');
+                            }).filter(Boolean).join(', ');
+                          } else if (field.name === 'vendorAddresses' && val) {
+                            const addresses = [];
+                            const formatAddress = (addr: any) => [addr.street1, addr.street2, addr.city, addr.state, addr.zip, addr.country].filter(Boolean).join(', ');
+                            
+                            if (Array.isArray(val)) {
+                              addresses.push(...val.map(formatAddress));
+                            } else if (typeof val === 'object') {
+                              if (val.billing) addresses.push("Billing: " + formatAddress(val.billing));
+                              if (val.shipping) addresses.push("Shipping: " + formatAddress(val.shipping));
+                              if (!val.billing && !val.shipping) addresses.push(formatAddress(val));
+                            }
+                            displayVal = addresses.filter(Boolean).join(' | ');
+                          } else if (field.name === 'contactPersons' && val) {
+                            let persons = Array.isArray(val) ? val : Object.values(val);
+                            displayVal = persons.map((cp: any) => typeof cp === 'object' ? [cp.firstName, cp.lastName, cp.emailAddress].filter(Boolean).join(' ') : '').filter(Boolean).join(', ');
+                          } else if (field.name === 'bankDetails' && val) {
+                            let banks = Array.isArray(val) ? val : Object.values(val);
+                            displayVal = banks.map((bk: any) => typeof bk === 'object' ? [bk.accountName, bk.accountNumber, bk.bankName].filter(Boolean).join(' ') : '').filter(Boolean).join(', ');
+                          } else if (Array.isArray(val)) {
+                            displayVal = val.map(v => typeof v === 'object' && v !== null ? Object.values(v).filter(Boolean).join(' ') : v).join(', ');
                           } else {
-                            displayVal = Object.values(val).filter(Boolean).join(' ');
+                            displayVal = Object.values(val).filter(Boolean).map(v => typeof v === 'object' && v !== null ? JSON.stringify(v) : v).join(' ');
                           }
                         }
                         

@@ -18,6 +18,7 @@ import contractorRoutes from './modules/contractors/contractor.routes';
 import billingCompanyRoutes from './modules/billing-companies/billingCompany.routes';
 import auditRoutes from './modules/audit/audit.routes';
 import storeRoutes from './modules/store/store.routes';
+import dashboardRoutes from './modules/dashboard/dashboard.routes';
 import { errorHandler } from './core/middlewares/error.middleware';
 
 import { contextMiddleware } from './core/middlewares/context.middleware';
@@ -77,6 +78,7 @@ apiRouter.use('/contractors', contractorRoutes);
 apiRouter.use('/billing-companies', billingCompanyRoutes);
 apiRouter.use('/audit', auditRoutes);
 apiRouter.use('/store', storeRoutes);
+apiRouter.use('/dashboard', dashboardRoutes);
 
 // Mount API routes on both / and /api to handle DigitalOcean path stripping
 app.use('/', apiRouter);

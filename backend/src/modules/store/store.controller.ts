@@ -338,7 +338,7 @@ export const getAdminInwardEntries = asyncHandler(async (req: Request, res: Resp
   );
 });
 
-async function buildStockSummaryData(circleFilter?: string, packageFilter?: string) {
+export async function buildStockSummaryData(circleFilter?: string, packageFilter?: string) {
   // 1. Fetch all items
   const items = await Item.find({ isDeleted: false });
 

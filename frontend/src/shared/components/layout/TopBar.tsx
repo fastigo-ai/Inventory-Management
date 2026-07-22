@@ -23,6 +23,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api } from '@/shared/api/axios';
 import { useUIStore } from '@/shared/store/ui.store';
+import { useAuthStore } from '@/shared/store/auth.store';
 
 export function TopBar() {
   const router = useRouter();
@@ -31,10 +32,9 @@ export function TopBar() {
   
   // State for dropdowns
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-  const [searchContext, setSearchContext] = useState('Customers');
-  const [currentOrg, setCurrentOrg] = useState('Fastigo AI');
   
   const { toggleMobileSidebar } = useUIStore();
+  const { user, logout } = useAuthStore();
   
   const topBarRef = useRef<HTMLDivElement>(null);
 
@@ -72,10 +72,11 @@ export function TopBar() {
   const handleLogout = async () => {
     try {
       await api.post('/auth/logout');
+      logout();
       router.push('/login');
     } catch (err) {
       console.error('Logout failed:', err);
-      // force route anyway
+      logout();
       router.push('/login');
     }
   };
@@ -112,119 +113,16 @@ export function TopBar() {
             <RotateCw className="w-4 h-4" />
           </button>
           
-          <div className="relative flex items-center group w-96 ml-4">
-            <button 
-              onClick={() => toggleDropdown('searchContext')}
-              className="absolute left-1.5 flex items-center gap-1 text-slate-400 hover:text-white px-2 py-1 rounded hover:bg-white/10 transition-colors"
-            >
-              <Search className="w-4 h-4" />
-              <ChevronDown className="w-3 h-3" />
-            </button>
-            
-            {/* Search Context Dropdown */}
-            {activeDropdown === 'searchContext' && (
-              <div className="absolute top-10 left-0 w-48 bg-white rounded-md shadow-lg border border-slate-200 py-1 text-slate-700 z-50">
-                {['Customers', 'Items', 'Purchase Orders', 'Invoices'].map((item) => (
-                  <button
-                    key={item}
-                    onClick={() => {
-                      setSearchContext(item);
-                      setActiveDropdown(null);
-                      searchInputRef.current?.focus();
-                    }}
-                    className="w-full text-left px-4 py-2 text-sm hover:bg-blue-50 hover:text-blue-600 flex items-center justify-between"
-                  >
-                    {item}
-                    {searchContext === item && <Check className="w-4 h-4" />}
-                  </button>
-                ))}
-              </div>
-            )}
 
-            <input 
-              ref={searchInputRef}
-              type="text" 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={handleSearch}
-              placeholder={`Search in ${searchContext} ( / )`} 
-              className="w-full bg-[#1c2130] border border-white/10 rounded-md py-1.5 pl-14 pr-3 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
-            />
-          </div>
         </div>
       </div>
 
       {/* Right side: Actions */}
       <div className="flex items-center gap-4 text-sm text-slate-300">
-        <div className="flex items-center gap-3 pr-4 border-r border-white/10 h-6">
-          <span>Your premium trial pla...</span>
-          <a href="#" className="text-blue-400 font-medium hover:text-blue-300 transition-colors">Subscribe</a>
-          
-          <div className="relative ml-2">
-            <button 
-              onClick={() => toggleDropdown('org')}
-              className="flex items-center gap-1 cursor-pointer hover:text-white"
-            >
-              <span>{currentOrg}</span>
-              <ChevronDown className="w-3 h-3 text-slate-400" />
-            </button>
-            
-            {/* Org Switcher Dropdown */}
-            {activeDropdown === 'org' && (
-              <div className="absolute top-8 right-0 w-56 bg-white rounded-md shadow-lg border border-slate-200 py-1 text-slate-700 z-50">
-                <div className="px-4 py-2 text-xs font-semibold text-slate-500 uppercase">Organizations</div>
-                {['Fastigo AI', 'Demo Company'].map((org) => (
-                  <button
-                    key={org}
-                    onClick={() => {
-                      setCurrentOrg(org);
-                      setActiveDropdown(null);
-                    }}
-                    className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Building className="w-4 h-4 text-slate-400" />
-                      {org}
-                    </div>
-                    {currentOrg === org && <Check className="w-4 h-4 text-blue-500" />}
-                  </button>
-                ))}
-                <div className="border-t border-slate-100 my-1"></div>
-                <button className="w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-slate-50 font-medium">
-                  Manage Organizations
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+
         
         <div className="flex items-center gap-1.5">
-          {/* Quick Create Dropdown */}
-          <div className="relative">
-            <button 
-              onClick={() => toggleDropdown('create')}
-              className="w-8 h-8 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors ml-2 shadow-sm"
-            >
-              <Plus className="w-5 h-5" />
-            </button>
-            {activeDropdown === 'create' && (
-              <div className="absolute top-10 right-0 w-48 bg-white rounded-md shadow-lg border border-slate-200 py-1 text-slate-700 z-50">
-                <Link href="/items" onClick={() => setActiveDropdown(null)} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2">
-                  <Package className="w-4 h-4 text-slate-400" /> New Item
-                </Link>
-                <Link href="/purchases/orders" onClick={() => setActiveDropdown(null)} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2">
-                  <ShoppingCart className="w-4 h-4 text-slate-400" /> New Purchase Order
-                </Link>
-                <Link href="/sales/invoices" onClick={() => setActiveDropdown(null)} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-slate-400" /> New Invoice
-                </Link>
-              </div>
-            )}
-          </div>
 
-          <button className="w-9 h-9 flex items-center justify-center hover:bg-white/10 rounded-md transition-colors">
-            <Users className="w-5 h-5" />
-          </button>
           
           {/* Notifications */}
           <div className="relative">
@@ -265,14 +163,11 @@ export function TopBar() {
             {activeDropdown === 'profile' && (
               <div className="absolute top-10 right-0 w-56 bg-white rounded-md shadow-lg border border-slate-200 py-1 text-slate-700 z-50">
                 <div className="px-4 py-3 border-b border-slate-100">
-                  <p className="text-sm font-semibold text-slate-800">Admin User</p>
-                  <p className="text-xs text-slate-500">admin@fastigo.ai</p>
+                  <p className="text-sm font-semibold text-slate-800">{user?.role?.name || (user?.firstName ? `${user.firstName} ${user.lastName}` : 'Admin User')}</p>
+                  <p className="text-xs text-slate-500">{user?.email || 'admin@fastigo.ai'}</p>
                 </div>
                 <button className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2 mt-1">
                   <User className="w-4 h-4 text-slate-400" /> My Profile
-                </button>
-                <button className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2">
-                  <Settings className="w-4 h-4 text-slate-400" /> Preferences
                 </button>
                 <div className="border-t border-slate-100 my-1"></div>
                 <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2 text-red-600">

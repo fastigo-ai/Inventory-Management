@@ -1,27 +1,48 @@
-import React from 'react';
-import { Building } from 'lucide-react';
+"use client";
+
+import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
+import { Building, Package, Tag, Clock } from 'lucide-react';
+import { toast } from 'sonner';
+import { getDashboardSummary } from '@/features/dashboard/api/dashboard.api';
 
 import { TopStockedItems } from '@/features/dashboard/components/TopStockedItems';
-import { SalesByChannel } from '@/features/dashboard/components/SalesByChannel';
+import { RecentActivity } from '@/features/dashboard/components/RecentActivity';
 import { PendingActions } from '@/features/dashboard/components/PendingActions';
 
 export default function Home() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await getDashboardSummary();
+        if (res.success) {
+          setData(res.data);
+        }
+      } catch (err) {
+        toast.error('Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
   return (
     <div className="flex flex-col min-h-full">
       {/* Header Section */}
       <div className="bg-white border-b border-slate-200 shrink-0">
         <div className="flex items-center justify-between px-8 py-6">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-white border border-slate-200 shadow-sm rounded-xl flex items-center justify-center">
-              <Building className="w-7 h-7 text-slate-400" />
-            </div>
+            <Image src="/logoholistic.png" alt="Holistic Logo" width={120} height={48} className="object-contain" />
             <div>
               <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Holistic TechnoEngineer Pvt Ltd</h1>
-              <p className="text-sm text-slate-500 mt-0.5">Fastigo AI</p>
+              <p className="text-sm text-slate-500 mt-0.5">Developed by Fastigo AI</p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-sm text-slate-800">Zoho Inventory India Helpline: <span className="font-bold">18005726671</span></p>
+            <p className="text-sm text-slate-800">Fastigo Inventory helpline :<span className="font-bold">9599094941</span></p>
             <p className="text-[11px] font-medium text-slate-500 mt-1 uppercase tracking-wider">Mon - Fri • 9:00 AM - 7:00 PM • Toll Free</p>
           </div>
         </div>
@@ -29,8 +50,6 @@ export default function Home() {
         {/* Tabs */}
         <div className="px-8 flex gap-8">
           <button className="pb-3 text-sm font-semibold text-blue-600 border-b-[3px] border-blue-600">Dashboard</button>
-          <button className="pb-3 text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors">Getting Started</button>
-          <button className="pb-3 text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors">Recent Updates</button>
         </div>
       </div>
 
@@ -41,17 +60,17 @@ export default function Home() {
 
           <div className="flex gap-6">
             <div className="flex-1 min-w-0">
-              <TopStockedItems />
+              <TopStockedItems items={data?.topStockedItems || []} />
             </div>
             <div className="flex-1 min-w-0">
-              <SalesByChannel />
+              <RecentActivity activities={data?.recentActivities || []} />
             </div>
           </div>
         </div>
         
         {/* Right Column (Sidebar of dashboard) */}
         <div className="w-[340px] shrink-0">
-          <PendingActions />
+          <PendingActions summary={data?.summary || {}} />
         </div>
       </div>
     </div>

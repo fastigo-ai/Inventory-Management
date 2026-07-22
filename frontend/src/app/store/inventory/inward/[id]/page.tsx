@@ -118,6 +118,9 @@ export default function InwardRegistrationForm() {
           packQty: primaryPackQty,
 
           taxableAmount: existingDraft.taxableAmount || prefill.taxableAmount || 0,
+          cgstRate: existingDraft.cgstRate || prefill.cgstRate || 0,
+          sgstRate: existingDraft.sgstRate || prefill.sgstRate || 0,
+          igstRate: existingDraft.igstRate || prefill.igstRate || 0,
           cgst: existingDraft.cgst || prefill.cgst || 0,
           sgst: existingDraft.sgst || prefill.sgst || 0,
           igst: existingDraft.igst || prefill.igst || 0,
@@ -138,6 +141,9 @@ export default function InwardRegistrationForm() {
           rate: prefill.rate || 0,
           gst: prefill.gst || '0',
           taxableAmount: prefill.taxableAmount || 0,
+          cgstRate: prefill.cgstRate || 0,
+          sgstRate: prefill.sgstRate || 0,
+          igstRate: prefill.igstRate || 0,
           cgst: prefill.cgst || 0,
           sgst: prefill.sgst || 0,
           igst: prefill.igst || 0,
@@ -159,19 +165,14 @@ export default function InwardRegistrationForm() {
       
       const qty = Number(updated.invoiceQty) || 0;
       const rate = Number(updated.rate) || 0;
-      const gstPercent = parseFloat(updated.gst) || 0;
       
       const taxableAmount = qty * rate;
-      const totalGst = (taxableAmount * gstPercent) / 100;
       
-      // Split GST implicitly assuming intra-state if no IGST logic is strictly enforced.
-      // We will just do half and half for CGST/SGST if IGST is not specifically chosen, 
-      // but to keep it simple we'll put it in CGST/SGST by default.
       updated.taxableAmount = taxableAmount;
-      updated.cgst = totalGst / 2;
-      updated.sgst = totalGst / 2;
-      updated.igst = 0; 
-      updated.amount = taxableAmount + totalGst;
+      updated.cgst = (taxableAmount * (updated.cgstRate || 0)) / 100;
+      updated.sgst = (taxableAmount * (updated.sgstRate || 0)) / 100;
+      updated.igst = (taxableAmount * (updated.igstRate || 0)) / 100; 
+      updated.amount = taxableAmount + updated.cgst + updated.sgst + updated.igst;
 
       return updated;
     });
@@ -358,6 +359,7 @@ export default function InwardRegistrationForm() {
                   <th className="px-4 py-3 border-r bg-slate-50 text-slate-500">Taxable Amt (₹)</th>
                   <th className="px-4 py-3 border-r bg-slate-50 text-slate-500">CGST (₹)</th>
                   <th className="px-4 py-3 border-r bg-slate-50 text-slate-500">SGST (₹)</th>
+                  <th className="px-4 py-3 border-r bg-slate-50 text-slate-500">IGST (₹)</th>
                   <th className="px-4 py-3 bg-slate-50 text-slate-500 font-bold">Total (₹)</th>
                 </tr>
               </thead>
@@ -431,25 +433,28 @@ export default function InwardRegistrationForm() {
                   </td>
                   <td className="px-4 py-3 border-r border-slate-100">
                     <Input 
-                      type="number"
+                      type="text"
                       value={formData.gst || ''} 
-                      onChange={e => handleItemChange('gst', e.target.value)} 
-                      className="h-8 w-16 text-sm"
+                      readOnly
+                      className="h-8 w-16 text-sm bg-slate-50 text-slate-500 cursor-not-allowed"
                     />
                   </td>
 
                   {/* Read Only Calcs */}
                   <td className="px-4 py-3 border-r border-slate-100 bg-slate-50/50 font-medium text-slate-600 text-right">
-                    {formData.taxableAmount.toFixed(2)}
+                    {(formData.taxableAmount || 0).toFixed(2)}
                   </td>
                   <td className="px-4 py-3 border-r border-slate-100 bg-slate-50/50 text-slate-500 text-right">
-                    {formData.cgst.toFixed(2)}
+                    {(formData.cgst || 0).toFixed(2)}
                   </td>
                   <td className="px-4 py-3 border-r border-slate-100 bg-slate-50/50 text-slate-500 text-right">
-                    {formData.sgst.toFixed(2)}
+                    {(formData.sgst || 0).toFixed(2)}
+                  </td>
+                  <td className="px-4 py-3 border-r border-slate-100 bg-slate-50/50 text-slate-500 text-right">
+                    {(formData.igst || 0).toFixed(2)}
                   </td>
                   <td className="px-4 py-3 bg-slate-50/80 font-bold text-slate-800 text-right">
-                    {formData.amount.toFixed(2)}
+                    {(formData.amount || 0).toFixed(2)}
                   </td>
                 </tr>
               </tbody>

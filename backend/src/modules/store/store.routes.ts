@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { authenticate } from '../../core/middlewares/auth.middleware';
+import multer from 'multer';
+const upload = multer({ storage: multer.memoryStorage() });
 import {
   getPendingDIs,
   getDIPrefillData,
@@ -16,7 +18,8 @@ import {
   getStoreTransferById,
   updateStoreTransferStatus,
   dispatchStoreTransfer,
-  receiveStoreTransfer
+  receiveStoreTransfer,
+  importInwardRegistrations
 } from './store.controller';
 
 const router = Router();
@@ -31,6 +34,8 @@ router.route('/pi/:invoiceId/prefill').get(getPurchaseInvoicePrefillData);
 router.route('/inventory/inward')
   .post(createInwardEntry)
   .get(queryInwardEntries);
+
+router.post('/inventory/inward/import', upload.single('file'), importInwardRegistrations);
 
 router.route('/inventory/stock-summary').get(getStockSummary);
 

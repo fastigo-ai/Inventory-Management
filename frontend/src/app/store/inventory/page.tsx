@@ -3,14 +3,17 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getPendingDIs, getStockSummary } from "@/features/store/api/store.api";
-import { FileText, Package, ListChecks } from "lucide-react";
+import { FileText, Package, ListChecks, Upload, MoreHorizontal } from "lucide-react";
 import { StockSummaryTable } from "@/features/store/components/StockSummaryTable";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { InwardImportModal } from "@/features/store/components/InwardImportModal";
 
 export default function StoreInventoryPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'pending' | 'summary'>('pending');
   const [dis, setDis] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   
   const [summaryData, setSummaryData] = useState<any[]>([]);
   const [summaryLoading, setSummaryLoading] = useState(false);
@@ -52,7 +55,21 @@ export default function StoreInventoryPage() {
   return (
     <div className="flex-1 bg-white min-h-screen p-6">
       <div className="max-w-[1200px] mx-auto">
-        <h1 className="text-2xl font-bold text-slate-800 mb-6">Inventory Management</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-slate-800">Inventory Management</h1>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger className="flex items-center justify-center text-slate-500 hover:bg-slate-100 p-2 rounded-md border border-slate-200 transition-colors">
+              <MoreHorizontal className="w-5 h-5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 text-[13px]">
+              <DropdownMenuItem onClick={() => setIsImportModalOpen(true)} className="cursor-pointer">
+                <Upload className="w-4 h-4 mr-2 text-slate-500" />
+                Import Bulk GRNs
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
 
         <div className="flex space-x-1 border-b border-slate-200 mb-6">
           <button
@@ -144,6 +161,17 @@ export default function StoreInventoryPage() {
         )}
 
       </div>
+      
+      {isImportModalOpen && (
+        <InwardImportModal
+          isOpen={isImportModalOpen}
+          onClose={() => setIsImportModalOpen(false)}
+          onSuccess={() => {
+            if (activeTab === 'pending') fetchDIs();
+            else fetchStockSummary();
+          }}
+        />
+      )}
     </div>
   );
 }

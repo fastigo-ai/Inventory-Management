@@ -80,3 +80,12 @@ export const dispatchStoreTransfer = async (id: string, data: any) => {
   const response = await api.put(`/store/transfers/${id}/dispatch`, data);
   return response.data;
 };
+
+export const importInwardRegistrations = async (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post('/inventory/inward/import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { asyncHandler } from '../../core/utils/asyncHandler';
 import { ApiResponse } from '../../core/utils/ApiResponse';
 import { ApiError } from '../../core/utils/ApiError';
+import { parse } from 'csv-parse';
 import { StoreInwardEntry } from './storeInwardEntry.schema';
 import { DI } from '../di/di.schema';
 import { PurchaseOrder } from '../purchases/purchaseOrder.schema';
@@ -597,3 +598,161 @@ export const receiveStoreTransfer = asyncHandler(async (req: Request, res: Respo
   res.status(200).json(new ApiResponse(200, transfer, 'Transfer received successfully'));
 });
 
+
+export const importInwardRegistrations = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.file) {
+    throw new ApiError(400, 'Please upload a CSV file');
+  }
+
+  const parser = parse(req.file.buffer, {
+    columns: true,
+    skip_empty_lines: true,
+    trim: true,
+  });
+
+  const inwardEntries: any[] = [];
+  const errors: string[] = [];
+  let successCount = 0;
+
+  for await (const row of parser) {
+    try {
+      const invoiceNumber = row['InvoiceNumber'] || row['Invoice Number'] || row['invoiceNumber'];
+      if (!invoiceNumber) {
+        errors.push(`Row missing Invoice Number`);
+        continue;
+      }
+
+      const invoice = await PurchaseInvoice.findOne({ invoiceNumber });
+      if (!invoice) {
+        errors.push(`Invoice not found: ${invoiceNumber}`);
+        continue;
+      }
+      
+      if (invoice.status !== 'Pending Receipt' && invoice.status !== 'Partially Received') {
+        errors.push(`Invoice ${invoiceNumber} is not pending receipt.`);
+        continue;
+      }
+
+      let po = null;
+      if (invoice.purchaseOrderId) {
+        po = await PurchaseOrder.findById(invoice.purchaseOrderId);
+      }
+
+      const loaSerialNo = row['LoaSerialNo'] || row['loaSerialNo'] || row['LOA Serial No'];
+      const itemName = row['ItemName'] || row['itemName'] || row['Item Name'];
+
+      let invoiceItem = null;
+      if (loaSerialNo) {
+        // Try to match by loaSerialNo on PI items? PI items don't have loaSerialNo natively stored unless joined
+        // Let's just find an item that matches the name if loa isn't perfect, or just use the first item if 1
+        invoiceItem = invoice.lineItems.find((li: any) => li.itemName === itemName);
+      }
+      
+      if (!invoiceItem && invoice.lineItems.length === 1) {
+        invoiceItem = invoice.lineItems[0];
+      }
+
+      if (!invoiceItem && itemName) {
+         invoiceItem = invoice.lineItems.find((li: any) => li.itemName?.toLowerCase().includes(itemName.toLowerCase()));
+      }
+
+      if (!invoiceItem) {
+        errors.push(`Item '${itemName}' not found in Invoice ${invoiceNumber}`);
+        continue;
+      }
+
+      const poItem = po ? po.lineItems.find((li: any) => li.itemId?.toString() === invoiceItem?.itemId?.toString()) : null;
+
+      let itemUnit = poItem?.unit || 'Nos';
+      if (invoiceItem.itemId) {
+        const itemData = await Item.findById(invoiceItem.itemId);
+        if (itemData && itemData.unit) {
+          itemUnit = itemData.unit;
+        }
+      }
+      
+      const challanQty = Number(row['ChallanQty'] || row['challanQty'] || 0);
+      const rejectedQty = Number(row['RejectedQty'] || row['rejectedQty'] || 0);
+      const acceptedQty = Number(row['AcceptedQty'] || row['acceptedQty'] || row['ReceivedQty'] || 0);
+      
+      if (acceptedQty <= 0) {
+        errors.push(`Accepted Qty must be > 0 for Invoice ${invoiceNumber}`);
+        continue;
+      }
+
+      const rate = invoiceItem.rate || 0;
+      const taxableAmount = acceptedQty * rate;
+      
+      const cgstRate = invoice.cgstPercentage || 0;
+      const sgstRate = invoice.sgstPercentage || 0;
+      const igstRate = invoice.igstPercentage || 0;
+      
+      const cgst = (taxableAmount * cgstRate) / 100;
+      const sgst = (taxableAmount * sgstRate) / 100;
+      const igst = (taxableAmount * igstRate) / 100;
+      const amount = taxableAmount + cgst + sgst + igst;
+
+      const payload = {
+        purchaseInvoiceId: invoice._id,
+        purchaseOrderId: po?._id,
+        poNumber: po?.purchaseOrderNumber || '',
+        poDate: po?.date,
+        billingFrom: invoice.billingCompany?.name || po?.billingCompany?.name || '',
+        vendorName: invoice.vendorName || po?.vendorName,
+        invoiceNumber: invoice.invoiceNumber,
+        invoiceDate: invoice.date,
+        receivedDate: row['ReceivedDate'] ? new Date(row['ReceivedDate']) : new Date(),
+        unit: itemUnit,
+        invoiceQty: acceptedQty,
+        totalQty: poItem ? poItem.quantity : invoiceItem.quantity,
+        challanQty: challanQty,
+        rejectedQty: rejectedQty,
+        rate: rate,
+        amount: amount,
+        taxableAmount: taxableAmount,
+        tempCode: invoiceItem.itemId ? undefined : undefined, 
+        hsnCode: invoiceItem.hsnCode || poItem?.hsnCode || '',
+        challanNumber: row['ChallanNumber'] || '',
+        transportName: row['TransportName'] || '',
+        truckNumber: row['TruckNumber'] || '',
+        grNumber: row['GrNumber'] || '',
+        grDate: row['GrDate'] ? new Date(row['GrDate']) : undefined,
+        biltyNumber: row['BiltyNumber'] || '',
+        gst: invoice.cgstPercentage ? `${(invoice.cgstPercentage * 2)}%` : invoice.igstPercentage ? `${invoice.igstPercentage}%` : '',
+        cgst: cgst,
+        sgst: sgst,
+        igst: igst,
+        diRefNo: '',
+        remarks: row['Remarks'] || '',
+        circle: poItem?.circle || '',
+        package: poItem?.package || '',
+        serialNumber: loaSerialNo || poItem?.loaSerialNo || invoiceItem.itemName,
+        status: 'DRAFT',
+        packingList: [],
+        createdBy: (req as any).user?._id
+      };
+      
+      // If DRAFT exists for this PI and serialNumber, update it, else create
+      const draftFilter: any = { 
+        status: 'DRAFT',
+        purchaseInvoiceId: invoice._id,
+        serialNumber: payload.serialNumber
+      };
+      
+      let entry = await StoreInwardEntry.findOne(draftFilter);
+      if (entry) {
+        await StoreInwardEntry.findByIdAndUpdate(entry._id, payload);
+      } else {
+        await StoreInwardEntry.create(payload);
+      }
+      
+      successCount++;
+    } catch (err: any) {
+      errors.push(`Row error: ${err.message}`);
+    }
+  }
+
+  res.status(200).json(
+    new ApiResponse(200, { successCount, errors }, 'Import process completed')
+  );
+});

@@ -109,6 +109,8 @@ export default function InwardRegistrationForm() {
           hsnCode: existingDraft.hsnCode || prefill.hsnCode || '',
           unit: existingDraft.unit || prefill.unit || '',
           totalQty: existingDraft.totalQty || prefill.totalQty || prefill.invoiceQty || 0,
+          challanQty: existingDraft.challanQty || 0,
+          rejectedQty: existingDraft.rejectedQty || 0,
           invoiceQty: existingDraft.invoiceQty || prefill.invoiceQty || 0,
           rate: existingDraft.rate || prefill.rate || 0,
           gst: existingDraft.gst || prefill.gst || '0',
@@ -137,6 +139,8 @@ export default function InwardRegistrationForm() {
           hsnCode: prefill.hsnCode || '',
           unit: prefill.unit || '',
           totalQty: prefill.totalQty || prefill.invoiceQty || 0,
+          challanQty: 0,
+          rejectedQty: 0,
           invoiceQty: prefill.invoiceQty || 0,
           rate: prefill.rate || 0,
           gst: prefill.gst || '0',
@@ -272,14 +276,6 @@ export default function InwardRegistrationForm() {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-blue-600 mb-1">Challan No.</label>
-              <Input 
-                value={formData.challanNumber} 
-                onChange={e => handleInputChange('challanNumber', e.target.value)} 
-                className="h-9 border-blue-200 focus:border-blue-500"
-              />
-            </div>
-            <div>
               <label className="block text-xs font-semibold text-blue-600 mb-1">Transport Name</label>
               <Input 
                 value={formData.transportName} 
@@ -354,11 +350,13 @@ export default function InwardRegistrationForm() {
                   <th className="px-4 py-3 border-r">Temp Code</th>
                   <th className="px-4 py-3 border-r">HSN Code</th>
                   <th className="px-4 py-3 border-r">Unit</th>
-                  <th className="px-4 py-3 border-r">Total Qty (Req)</th>
+                  <th className="px-4 py-3 border-r">Challan Qty</th>
+                  <th className="px-4 py-3 border-r">Received Qty</th>
+                  <th className="px-4 py-3 border-r text-red-600 bg-red-50/50">Rejected Qty</th>
+                  <th className="px-4 py-3 border-r bg-blue-50">Accepted Qty</th>
                   <th className="px-4 py-3 border-r bg-blue-50">Pack Type</th>
                   <th className="px-4 py-3 border-r bg-blue-50">Pack Unit</th>
                   <th className="px-4 py-3 border-r bg-blue-50">Pack Qty</th>
-                  <th className="px-4 py-3 border-r bg-blue-50">Received Qty</th>
                   <th className="px-4 py-3 border-r bg-blue-50">Rate (₹)</th>
                   <th className="px-4 py-3 border-r bg-blue-50">GST %</th>
                   <th className="px-4 py-3 border-r bg-slate-50 text-slate-500">Taxable Amt (₹)</th>
@@ -392,8 +390,34 @@ export default function InwardRegistrationForm() {
                       className="h-8 w-16 text-sm"
                     />
                   </td>
+                  <td className="px-4 py-3 border-r border-slate-100">
+                    <Input 
+                      type="number"
+                      value={formData.challanQty || ''} 
+                      onChange={e => handleItemChange('challanQty', e.target.value)} 
+                      className="h-8 w-20 text-sm"
+                    />
+                  </td>
                   <td className="px-4 py-3 border-r border-slate-100 text-center text-slate-600 font-medium">
                     {formData.totalQty}
+                  </td>
+                  <td className="px-4 py-3 border-r border-slate-100">
+                    <Input 
+                      type="number"
+                      value={formData.rejectedQty || ''} 
+                      onChange={e => handleItemChange('rejectedQty', e.target.value)} 
+                      className="h-8 w-24 text-sm text-red-600 font-semibold border-red-200 focus:border-red-500 bg-red-50/30"
+                    />
+                  </td>
+                  
+                  {/* Accepted Qty (was invoiceQty) */}
+                  <td className="px-4 py-3 border-r border-slate-100">
+                    <Input 
+                      type="number"
+                      value={formData.invoiceQty || ''} 
+                      onChange={e => handleItemChange('invoiceQty', e.target.value)} 
+                      className="h-8 w-24 text-sm font-semibold text-blue-700 bg-blue-50/50"
+                    />
                   </td>
                   
                   {/* Pack Details */}
@@ -422,15 +446,7 @@ export default function InwardRegistrationForm() {
                     />
                   </td>
 
-                  {/* Quantity & Rate */}
-                  <td className="px-4 py-3 border-r border-slate-100">
-                    <Input 
-                      type="number"
-                      value={formData.invoiceQty || ''} 
-                      onChange={e => handleItemChange('invoiceQty', e.target.value)} 
-                      className="h-8 w-24 text-sm font-semibold text-blue-700 bg-blue-50/50"
-                    />
-                  </td>
+                  {/* Rate */}
                   <td className="px-4 py-3 border-r border-slate-100">
                     <Input 
                       type="number"

@@ -21,6 +21,8 @@ export interface IStoreInwardEntry extends Document {
   unit?: string;
   invoiceQty?: number;
   totalQty?: number;
+  challanQty?: number;
+  rejectedQty?: number;
   rate?: number;
   amount?: number;
   taxableAmount?: number;
@@ -82,6 +84,8 @@ const storeInwardEntrySchema = new Schema<IStoreInwardEntry>(
     unit: { type: String },
     invoiceQty: { type: Number },
     totalQty: { type: Number },
+    challanQty: { type: Number },
+    rejectedQty: { type: Number },
     rate: { type: Number },
     amount: { type: Number },
     taxableAmount: { type: Number },

@@ -57,6 +57,14 @@ export const getPurchaseInvoicePrefillData = asyncHandler(async (req: Request, r
   const invoiceItem = invoice.lineItems && invoice.lineItems.length > 0 ? invoice.lineItems[0] : null;
   const poItem = po ? po.lineItems.find((li: any) => li.itemId?.toString() === invoiceItem?.itemId?.toString()) : null;
 
+  let itemUnit = poItem?.unit || 'Nos';
+  if (invoiceItem?.itemId) {
+    const itemData = await Item.findById(invoiceItem.itemId);
+    if (itemData && itemData.unit) {
+      itemUnit = itemData.unit;
+    }
+  }
+
   const prefillData = {
     purchaseInvoiceId: invoice._id,
     purchaseOrderId: po?._id,
@@ -65,7 +73,7 @@ export const getPurchaseInvoicePrefillData = asyncHandler(async (req: Request, r
     billingFrom: invoice.billingCompany?.name || po?.billingCompany?.name || '',
     vendorName: invoice.vendorName || po?.vendorName,
     itemName: invoiceItem?.itemName || poItem?.itemName || '',
-    unit: poItem?.unit || 'Nos',
+    unit: itemUnit,
     invoiceQty: invoiceItem ? invoiceItem.quantity : 0,
     totalQty: poItem ? poItem.quantity : (invoiceItem ? invoiceItem.quantity : 0),
     rate: invoiceItem ? invoiceItem.rate : 0,

@@ -17,6 +17,17 @@ export const createPurchaseOrder = async (req: Request, res: Response) => {
       }
     }
 
+    // Parse deliveryAddresses if it comes as string
+    let parsedDeliveryAddresses = data.deliveryAddresses || [];
+    if (typeof parsedDeliveryAddresses === 'string') {
+      try {
+        parsedDeliveryAddresses = JSON.parse(parsedDeliveryAddresses);
+      } catch (e) {
+        parsedDeliveryAddresses = [];
+      }
+    }
+
+
     // Parse billingCompany if it comes as string from multipart/form-data
     let parsedBillingCompany = data.billingCompany;
     if (typeof parsedBillingCompany === 'string') {
@@ -79,6 +90,7 @@ export const createPurchaseOrder = async (req: Request, res: Response) => {
       sgstPercentage: sgstPercentageVal,
       igstPercentage: igstPercentageVal,
       lineItems: processedLineItems,
+      deliveryAddresses: parsedDeliveryAddresses,
       subTotal: calculatedSubTotal,
       discountAmount,
       taxAmount,
@@ -166,6 +178,16 @@ export const updatePurchaseOrder = async (req: Request, res: Response) => {
       }
     }
 
+    // Parse deliveryAddresses if it comes as string
+    let parsedDeliveryAddresses = data.deliveryAddresses || [];
+    if (typeof parsedDeliveryAddresses === 'string') {
+      try {
+        parsedDeliveryAddresses = JSON.parse(parsedDeliveryAddresses);
+      } catch (e) {
+        parsedDeliveryAddresses = [];
+      }
+    }
+
     // Process attachments
     const files = req.files as Express.Multer.File[];
     let newAttachments: any[] = [];
@@ -237,6 +259,7 @@ export const updatePurchaseOrder = async (req: Request, res: Response) => {
       sgstPercentage: sgstPercentageVal,
       igstPercentage: igstPercentageVal,
       lineItems: processedLineItems,
+      deliveryAddresses: parsedDeliveryAddresses,
       subTotal: calculatedSubTotal,
       discountAmount,
       taxAmount,

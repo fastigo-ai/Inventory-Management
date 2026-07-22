@@ -4,10 +4,25 @@ export interface IPurchaseInvoiceLineItem {
   itemId?: mongoose.Types.ObjectId;
   itemName: string;
   description?: string;
+  loaSerialNo?: string;
   hsnCode?: string;
+  package?: string;
+  circle?: string;
+  tempCode?: string;
+  poQuantity?: number;
+  srt?: number;
+  act?: number;
+  totalInventory?: number;
+  unit?: string;
+  cgst?: number;
+  sgst?: number;
+  igst?: number;
   quantity: number;
   rate: number;
   amount: number;
+  poDate?: Date | string;
+  totalAmount?: number;
+  gstType?: 'Intra State' | 'Inter State';
 }
 
 export interface IPurchaseInvoice extends Document {
@@ -60,10 +75,25 @@ const purchaseInvoiceLineItemSchema = new Schema<IPurchaseInvoiceLineItem>({
   itemId: { type: Schema.Types.ObjectId, ref: 'Item' },
   itemName: { type: String, required: true },
   description: { type: String },
+  loaSerialNo: { type: String },
   hsnCode: { type: String },
+  package: { type: String },
+  circle: { type: String },
+  tempCode: { type: String },
+  poQuantity: { type: Number },
+  srt: { type: Number },
+  act: { type: Number },
+  totalInventory: { type: Number },
+  unit: { type: String },
+  cgst: { type: Number },
+  sgst: { type: Number },
+  igst: { type: Number },
   quantity: { type: Number, required: true, default: 1 },
   rate: { type: Number, required: true, default: 0 },
   amount: { type: Number, required: true, default: 0 },
+  poDate: { type: Date },
+  totalAmount: { type: Number, default: 0 },
+  gstType: { type: String, enum: ['Intra State', 'Inter State'], default: 'Intra State' }
 });
 
 const purchaseInvoiceSchema = new Schema<IPurchaseInvoice>(

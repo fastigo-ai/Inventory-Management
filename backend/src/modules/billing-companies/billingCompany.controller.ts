@@ -5,7 +5,7 @@ import streamifier from 'streamifier';
 
 export const createBillingCompany = async (req: Request, res: Response) => {
   try {
-    const { name, address, phone, email } = req.body;
+    const { name, address, phone, email, gstNo, companyNumber } = req.body;
     
     let logoUrl = '';
 
@@ -32,6 +32,8 @@ export const createBillingCompany = async (req: Request, res: Response) => {
       address,
       phone,
       email,
+      gstNo,
+      companyNumber,
       logoUrl
     });
 
@@ -57,7 +59,7 @@ export const getBillingCompanies = async (req: Request, res: Response) => {
 export const updateBillingCompany = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, address, phone, email } = req.body;
+    const { name, address, phone, email, gstNo, companyNumber } = req.body;
 
     const billingCompany = await BillingCompany.findById(id);
     if (!billingCompany) {
@@ -88,6 +90,8 @@ export const updateBillingCompany = async (req: Request, res: Response) => {
     billingCompany.address = address || billingCompany.address;
     billingCompany.phone = phone !== undefined ? phone : billingCompany.phone;
     billingCompany.email = email !== undefined ? email : billingCompany.email;
+    billingCompany.gstNo = gstNo !== undefined ? gstNo : billingCompany.gstNo;
+    billingCompany.companyNumber = companyNumber !== undefined ? companyNumber : billingCompany.companyNumber;
     billingCompany.logoUrl = logoUrl;
 
     await billingCompany.save();

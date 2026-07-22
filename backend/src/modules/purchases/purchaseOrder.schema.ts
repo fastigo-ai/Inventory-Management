@@ -22,6 +22,7 @@ export interface IPurchaseOrder extends Document {
   location?: string;
   deliveryAddressType?: 'Locations' | 'Customer';
   deliveryAddressId?: string;
+  deliveryAddresses?: string[];
   purchaseOrderNumber: string;
   reference?: string;
   billingCompany?: {
@@ -106,6 +107,7 @@ const purchaseOrderSchema = new Schema<IPurchaseOrder>(
     location: { type: String },
     deliveryAddressType: { type: String, enum: ['Locations', 'Customer'] },
     deliveryAddressId: { type: String },
+    deliveryAddresses: [{ type: String }],
     purchaseOrderNumber: { type: String, required: true, unique: true },
     reference: { type: String },
     billingCompany: {

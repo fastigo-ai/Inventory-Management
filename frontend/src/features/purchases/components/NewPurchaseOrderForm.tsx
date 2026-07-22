@@ -27,6 +27,7 @@ interface PurchaseOrderForm {
   billingCompanyId: string;
   deliveryAddressType: string;
   deliveryAddressId: string;
+  deliveryAddresses: string[];
   purchaseOrderNumber: string;
   reference: string;
   date: string;
@@ -171,6 +172,7 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
       location: 'Head Office',
       deliveryAddressType: 'Locations',
       deliveryAddressId: 'Head Office',
+      deliveryAddresses: ['Head Office'],
       purchaseOrderNumber: '', // Will be fetched from backend
       reference: '',
       date: new Date().toISOString().split('T')[0],
@@ -256,6 +258,7 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
 
   const currentLocation = useWatch({ control, name: 'location' });
   const deliveryAddressId = useWatch({ control, name: 'deliveryAddressId' });
+  const deliveryAddresses = useWatch({ control, name: 'deliveryAddresses' }) || [];
   const deliveryAddressType = useWatch({ control, name: 'deliveryAddressType' });
 
   const currentVendorName = useWatch({ control, name: 'vendorName' });
@@ -281,6 +284,7 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
   useEffect(() => {
     if (deliveryAddressType === 'Locations') {
       setValue('deliveryAddressId', currentLocation);
+      setValue('deliveryAddresses', [currentLocation]);
     }
   }, [currentLocation, deliveryAddressType, setValue]);
 
@@ -394,6 +398,13 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
       if (response.success) {
         setLocationsList([response.data, ...locationsList]);
         setValue('deliveryAddressId', response.data.name);
+        
+        // Add to the multiple delivery addresses
+        const currentAddresses = deliveryAddresses;
+        if (!currentAddresses.includes(response.data.name)) {
+          setValue('deliveryAddresses', [...currentAddresses, response.data.name]);
+        }
+        
         setIsNewAddressModalOpen(false);
         setIsDeliveryDropdownOpen(false);
         setNewAddress({ attention: '', street1: '', street2: '', city: '', state: '', zip: '', country: '', phone: '' });
@@ -444,6 +455,8 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
         Object.keys(data).forEach(key => {
           if (key === 'lineItems') {
             formData.append('lineItems', JSON.stringify(processedLineItems));
+          } else if (key === 'deliveryAddresses') {
+            formData.append('deliveryAddresses', JSON.stringify(data.deliveryAddresses || []));
           } else if (key === 'cgstPercentage') {
             formData.append('cgstPercentage', String(submitCgst));
           } else if (key === 'sgstPercentage') {
@@ -872,100 +885,88 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                     </label>
                   </div>
 
-                  <select
-                    value={deliveryAddressId}
-                    onChange={(e) => setValue('deliveryAddressId', e.target.value)}
-                    className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white mb-4"
-                  >
-                    <option value="">Select Delivery Location</option>
-                    {locationsList.filter(loc => loc.type !== 'Other').map((loc) => (
-                      <option key={loc._id} value={loc.name}>{loc.name}</option>
-                    ))}
-                  </select>
+                  {deliveryAddresses.map((addressName, index) => {
+                    const selectedLoc = locationsList.find(loc => loc.name === addressName);
+                    return (
+                      <div key={index} className="mb-4 relative group">
+                        <div className="flex items-center gap-2 mb-2">
+                          <select
+                            value={addressName}
+                            onChange={(e) => {
+                              const newAddresses = [...deliveryAddresses];
+                              newAddresses[index] = e.target.value;
+                              setValue('deliveryAddresses', newAddresses);
+                              // Sync first one for legacy support
+                              if (index === 0) setValue('deliveryAddressId', e.target.value);
+                            }}
+                            className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white"
+                          >
+                            <option value="">Select Delivery Location</option>
+                            {locationsList.filter(loc => loc.type !== 'Other').map((loc) => (
+                              <option key={loc._id} value={loc.name}>{loc.name}</option>
+                            ))}
+                          </select>
+                          
+                          {deliveryAddresses.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newAddresses = [...deliveryAddresses];
+                                newAddresses.splice(index, 1);
+                                setValue('deliveryAddresses', newAddresses);
+                                if (index === 0 && newAddresses.length > 0) {
+                                  setValue('deliveryAddressId', newAddresses[0]);
+                                }
+                              }}
+                              className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                              title="Remove this address"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
 
-                  {deliveryAddressType === 'Locations' && selectedDeliveryLocation ? (
-                    <div className="mb-4">
-                      <div className="border border-blue-400 rounded-md p-3 mb-3 bg-white shadow-sm">
-                        <p className="font-bold text-slate-800">{deliveryAddressId || 'Select Location'}</p>
+                        {deliveryAddressType === 'Locations' && selectedLoc ? (
+                          <div className="border border-blue-200 rounded-md p-3 bg-blue-50/30 shadow-sm ml-1 border-l-4 border-l-blue-400">
+                            <p className="font-semibold text-slate-800 text-sm mb-1">{addressName || 'Select Location'}</p>
+                            <div className="text-[13px] text-slate-600 leading-relaxed">
+                              {selectedLoc.address ? (
+                                <p className="whitespace-pre-wrap">{selectedLoc.address}</p>
+                              ) : (
+                                <p className="italic text-slate-400">No address provided</p>
+                              )}
+                              {selectedLoc.phone && <p className="mt-1">{selectedLoc.phone}</p>}
+                            </div>
+                          </div>
+                        ) : deliveryAddressType === 'Locations' && !selectedLoc ? (
+                          <div className="bg-slate-50 border border-slate-100 rounded-md p-3 text-[13px] text-slate-500 flex items-center justify-center">
+                            <p className="italic">Please select a delivery location</p>
+                          </div>
+                        ) : null}
                       </div>
-                      <div className="text-sm text-slate-600 leading-relaxed px-1">
-                        {selectedDeliveryLocation.address ? (
-                          <p className="whitespace-pre-wrap">{selectedDeliveryLocation.address}</p>
-                        ) : (
-                          <p className="italic text-slate-400">No address provided</p>
-                        )}
-                        {selectedDeliveryLocation.phone && <p className="mt-1">{selectedDeliveryLocation.phone}</p>}
-                      </div>
-                    </div>
-                  ) : deliveryAddressType === 'Locations' && !selectedDeliveryLocation ? (
-                    <div className="bg-slate-50 border border-slate-100 rounded-md p-4 text-sm text-slate-600 flex items-center justify-center mb-4">
-                      <p className="text-slate-500 italic">Please select a delivery location</p>
-                    </div>
-                  ) : null}
-
-                  <div className="relative" ref={deliveryDropdownRef}>
+                    );
+                  })}
+                  
+                  <div className="flex items-center gap-3 mt-4 pt-2 border-t border-slate-100">
                     <button
                       type="button"
-                      onClick={() => setIsDeliveryDropdownOpen(!isDeliveryDropdownOpen)}
-                      className="text-sm text-blue-600 hover:underline font-medium"
+                      onClick={() => {
+                        setValue('deliveryAddresses', [...deliveryAddresses, '']);
+                      }}
+                      className="flex items-center text-[#0076f2] text-sm font-medium hover:underline py-1"
                     >
-                      Change destination to deliver
+                      <Plus className="w-4 h-4 mr-1" /> Add Another Location
                     </button>
-
-                    {isDeliveryDropdownOpen && (
-                      <div className="absolute top-full left-0 mt-2 w-80 bg-white border border-slate-200 shadow-xl rounded-md z-50 flex flex-col max-h-[400px]">
-                        <div className="p-2 border-b border-slate-100">
-                          <input
-                            type="text"
-                            placeholder="Search"
-                            value={deliverySearchQuery}
-                            onChange={(e) => setDeliverySearchQuery(e.target.value)}
-                            className="w-full border border-blue-400 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          />
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-2 space-y-2 max-h-[250px]">
-                          {locationsList
-                            .filter(loc => (loc.address || '').toLowerCase().includes(deliverySearchQuery.toLowerCase()))
-                            .map((loc) => (
-                              <div
-                                key={loc._id}
-                                className={`p-3 rounded-md cursor-pointer border ${deliveryAddressId === loc.name ? 'bg-blue-500 text-white border-blue-500' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'}`}
-                                onClick={() => {
-                                  setValue('deliveryAddressId', loc.name);
-                                  setIsDeliveryDropdownOpen(false);
-                                }}
-                              >
-                                {loc.address ? (
-                                  <div className={`text-sm whitespace-pre-wrap ${deliveryAddressId === loc.name ? 'text-white' : 'text-slate-700'}`}>
-                                    {loc.address}
-                                  </div>
-                                ) : (
-                                  <div className={`text-sm italic ${deliveryAddressId === loc.name ? 'text-blue-100' : 'text-slate-400'}`}>
-                                    No address provided
-                                  </div>
-                                )}
-                                {loc.phone && (
-                                  <div className={`text-xs mt-1 ${deliveryAddressId === loc.name ? 'text-blue-100' : 'text-slate-500'}`}>
-                                    {loc.phone}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                        </div>
-                        <div className="p-2 border-t border-slate-100">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsNewAddressModalOpen(true);
-                              setIsDeliveryDropdownOpen(false);
-                            }}
-                            className="flex items-center text-blue-600 text-sm font-medium hover:underline w-full p-2"
-                          >
-                            <Plus className="w-4 h-4 mr-1" /> New Address
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                    
+                    <span className="text-slate-300">|</span>
+                    
+                    <button
+                      type="button"
+                      onClick={() => setIsNewAddressModalOpen(true)}
+                      className="flex items-center text-slate-500 text-sm font-medium hover:text-[#0076f2] hover:underline py-1"
+                    >
+                      <Plus className="w-4 h-4 mr-1" /> Create Custom Address
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1019,6 +1020,7 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                   <option value="">Choose the shipment preference</option>
                   <option value="Air">Air</option>
                   <option value="Sea">Sea</option>
+                  <option value="Road">Road</option>
                 </select>
               </div>
 

@@ -150,7 +150,7 @@ export default function EditDIRegistrationPage() {
       formData.append('diNumber', diNumber);
       formData.append('purchaseOrderId', purchaseOrderId);
       formData.append('date', date);
-      formData.append('status', status === 'Draft' ? 'Draft' : 'Pending Receipt');
+      formData.append('status', status === 'Draft' ? 'Draft' : 'Active');
       if (notes) formData.append('notes', notes);
       if (diPackage) formData.append('package', diPackage);
       if (diCircle) formData.append('circle', diCircle);

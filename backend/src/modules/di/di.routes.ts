@@ -1,21 +1,30 @@
 import { Router } from 'express';
 import { authenticate } from '../../core/middlewares/auth.middleware';
-import { createDI, getDIs, getDIById, updateDIStatus, receiveDI, updateDI } from './di.controller';
+import { createDI, getDIs, getDIById, updateDIStatus, receiveDI, updateDI, importDIs } from './di.controller';
 
 import multer from 'multer';
 
 const router = Router();
 const upload = multer({ dest: 'uploads/dis/' });
+const uploadCsv = multer({ storage: multer.memoryStorage() });
 
 router.use(authenticate);
 
+router.post('/import', uploadCsv.single('file'), importDIs);
+
 router.route('/')
-  .post(upload.array('files', 10), createDI)
+  .post(upload.fields([
+    { name: 'diLetterCopyUrl', maxCount: 1 },
+    { name: 'inspectionReportCopyUrl', maxCount: 1 }
+  ]), createDI)
   .get(getDIs);
 
 router.route('/:id')
   .get(getDIById)
-  .put(upload.array('files', 10), updateDI);
+  .put(upload.fields([
+    { name: 'diLetterCopyUrl', maxCount: 1 },
+    { name: 'inspectionReportCopyUrl', maxCount: 1 }
+  ]), updateDI);
 
 router.route('/:id/status')
   .patch(updateDIStatus);

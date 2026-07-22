@@ -17,6 +17,8 @@ export default function BillingCompaniesPage() {
     address: '',
     phone: '',
     email: '',
+    gstNo: '',
+    companyNumber: '',
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -42,7 +44,7 @@ export default function BillingCompaniesPage() {
 
   const openNewModal = () => {
     setEditingId(null);
-    setFormData({ name: '', address: '', phone: '', email: '' });
+    setFormData({ name: '', address: '', phone: '', email: '', gstNo: '', companyNumber: '' });
     setLogoFile(null);
     setLogoPreview(null);
     setIsModalOpen(true);
@@ -55,6 +57,8 @@ export default function BillingCompaniesPage() {
       address: company.address,
       phone: company.phone || '',
       email: company.email || '',
+      gstNo: company.gstNo || '',
+      companyNumber: company.companyNumber || '',
     });
     setLogoFile(null);
     setLogoPreview(company.logoUrl || null);
@@ -81,6 +85,8 @@ export default function BillingCompaniesPage() {
       submitData.append('address', formData.address);
       if (formData.phone) submitData.append('phone', formData.phone);
       if (formData.email) submitData.append('email', formData.email);
+      if (formData.gstNo) submitData.append('gstNo', formData.gstNo);
+      if (formData.companyNumber) submitData.append('companyNumber', formData.companyNumber);
       if (logoFile) {
         submitData.append('logo', logoFile);
       }
@@ -154,6 +160,8 @@ export default function BillingCompaniesPage() {
                 <div className="mt-4 pt-4 border-t border-slate-100 w-full text-xs text-slate-500 space-y-1 text-left">
                   {company.phone && <p><strong>Phone:</strong> {company.phone}</p>}
                   {company.email && <p><strong>Email:</strong> {company.email}</p>}
+                  {company.gstNo && <p><strong>GST NO:</strong> {company.gstNo}</p>}
+                  {company.companyNumber && <p><strong>Company No:</strong> {company.companyNumber}</p>}
                 </div>
               </div>
             </div>
@@ -224,6 +232,26 @@ export default function BillingCompaniesPage() {
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">GST NO</label>
+                <input
+                  type="text"
+                  value={formData.gstNo}
+                  onChange={(e) => setFormData({ ...formData, gstNo: e.target.value })}
+                  className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Company Number</label>
+                <input
+                  type="text"
+                  value={formData.companyNumber}
+                  onChange={(e) => setFormData({ ...formData, companyNumber: e.target.value })}
                   className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
                 />
               </div>

@@ -89,21 +89,29 @@ export default function NewPurchaseReceivePage() {
         setLineItems(po.lineItems
           .filter((item: any) => !item.isCanceled)
           .map((item: any) => ({
+          isManual: false,
           itemId: item.itemId,
-          loaSerialNo: item.loaSerialNo || '',
-          itemName: item.itemName,
-          itemDescription: item.description || '',
-          tempCode: item.tempCode || '',
           package: item.package || '',
           circle: item.circle || '',
+          tempCode: item.tempCode || '',
+          itemName: item.itemName,
+          itemDescription: item.description || item.itemDescription || '',
+          loaSerialNo: item.loaSerialNo || '',
+          hsnCode: item.hsnCode || '',
           poQuantity: item.quantity || 0,
-          invoiceQuantity: item.quantity || 0,
+          poDate: item.poDate || '',
           srt: 0,
           act: 0,
           totalInvoiceQuantity: 0,
           unit: item.unit || '',
+          gstType: item.gstType || 'Intra State',
+          cgst: item.cgst || 0,
+          sgst: item.sgst || 0,
+          igst: item.igst || 0,
+          invoiceQuantity: item.quantity || 0,
           rate: item.rate || 0,
-          amount: 0
+          amount: 0,
+          totalAmount: 0
         })));
       } else {
         setLineItems([]);
@@ -119,12 +127,18 @@ export default function NewPurchaseReceivePage() {
     newItems[index][field] = value;
     
     // Auto calculate amount and total quantity
-    if (field === 'srt' || field === 'act' || field === 'rate') {
+    if (field === 'srt' || field === 'act' || field === 'rate' || field === 'cgst' || field === 'sgst' || field === 'igst' || field === 'gstType') {
       const srt = Number(newItems[index].srt) || 0;
       const act = Number(newItems[index].act) || 0;
       const rate = Number(newItems[index].rate) || 0;
       newItems[index].totalInvoiceQuantity = srt + act;
       newItems[index].amount = newItems[index].totalInvoiceQuantity * rate;
+      
+      const cgst = Number(newItems[index].cgst) || 0;
+      const sgst = Number(newItems[index].sgst) || 0;
+      const igst = Number(newItems[index].igst) || 0;
+      const taxRate = newItems[index].gstType === 'Intra State' ? (cgst + sgst) : igst;
+      newItems[index].totalAmount = newItems[index].amount + (newItems[index].amount * taxRate / 100);
     }
 
     setLineItems(newItems);
@@ -198,17 +212,27 @@ export default function NewPurchaseReceivePage() {
       {
         isManual: true,
         itemId: '',
-        loaSerialNo: '',
-        itemName: '',
-        itemDescription: '',
         package: '',
         circle: '',
+        tempCode: '',
+        itemName: '',
+        itemDescription: '',
+        loaSerialNo: '',
+        hsnCode: '',
         poQuantity: 0,
-        invoiceQuantity: 0,
+        poDate: '',
         srt: 0,
         act: 0,
         totalInvoiceQuantity: 0,
-        amount: 0
+        unit: '',
+        gstType: 'Intra State',
+        cgst: 0,
+        sgst: 0,
+        igst: 0,
+        invoiceQuantity: 0,
+        rate: 0,
+        amount: 0,
+        totalAmount: 0
       }
     ]);
   };
@@ -363,193 +387,219 @@ export default function NewPurchaseReceivePage() {
                   <Plus className="w-4 h-4 mr-1" /> Add Item
                 </Button>
               </div>
-              <div className="border border-slate-200 rounded-lg overflow-x-auto shadow-sm">
-                <table className="w-full text-sm text-left whitespace-nowrap min-w-[1000px]">
-                  <thead className="bg-[#f8f9fa] border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+              <div className="border border-slate-200 rounded-lg overflow-x-auto shadow-sm pb-4">
+                <table className="w-full text-sm text-left whitespace-nowrap min-w-[2200px]">
+                  <thead className="bg-[#f8f9fa] border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider sticky top-0 z-10">
                     <tr>
                       <th className="px-4 py-3 w-12 text-center">#</th>
-                      <th className="px-4 py-3 min-w-[120px]">LOA SERIAL NO</th>
-                      <th className="px-4 py-3 min-w-[300px]">ITEM DESCRIPTION</th>
-                      <th className="px-4 py-3 min-w-[150px]">ITEM NAME</th>
-                      <th className="px-4 py-3 w-32">PACKAGE</th>
-                      <th className="px-4 py-3 min-w-[140px]">CIRCLE</th>
-                      <th className="px-4 py-3 min-w-[120px] text-center">PO QTY</th>
-                      <th className="px-4 py-3 min-w-[120px] text-center">INV. QTY</th>
-                      <th className="px-4 py-3 min-w-[120px] text-center">SRT</th>
-                      <th className="px-4 py-3 min-w-[120px] text-center">ACT</th>
-                      <th className="px-4 py-3 min-w-[120px] text-center">TOTAL INV QTY</th>
-                      <th className="px-4 py-3 w-28 text-right">AMOUNT</th>
+                      <th className="px-3 py-3 min-w-[120px]">Package</th>
+                      <th className="px-3 py-3 min-w-[120px]">Circle</th>
+                      <th className="px-3 py-3 min-w-[140px]">Temp Code</th>
+                      <th className="px-3 py-3 min-w-[180px]">Item Name</th>
+                      <th className="px-3 py-3 min-w-[200px]">Description</th>
+                      <th className="px-3 py-3 min-w-[120px]">LOA Serial No</th>
+                      <th className="px-3 py-3 min-w-[100px]">HSN Code</th>
+                      <th className="px-3 py-3 min-w-[100px] text-right">PO Qty</th>
+                      <th className="px-3 py-3 min-w-[120px]">PO Date</th>
+                      <th className="px-3 py-3 min-w-[100px] text-center">Inv Qty</th>
+                      <th className="px-3 py-3 min-w-[80px]">Unit</th>
+                      <th className="px-3 py-3 min-w-[80px] text-right">SRT</th>
+                      <th className="px-3 py-3 min-w-[80px] text-right">ACT</th>
+                      <th className="px-3 py-3 min-w-[100px] text-right">Tot Inv Qty</th>
+                      <th className="px-3 py-3 min-w-[120px] text-right">Rate</th>
+                      <th className="px-4 py-3 min-w-[120px] text-right">Amount</th>
+                      <th className="px-3 py-3 min-w-[120px]">GST Type</th>
+                      <th className="px-3 py-3 min-w-[80px] text-right">CGST %</th>
+                      <th className="px-3 py-3 min-w-[80px] text-right">SGST %</th>
+                      <th className="px-3 py-3 min-w-[80px] text-right">IGST %</th>
+                      <th className="px-4 py-3 min-w-[120px] text-right">Total Amount</th>
                       <th className="px-4 py-3 w-12 text-center"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {lineItems.length === 0 ? (
                       <tr>
-                        <td colSpan={13} className="px-4 py-8 text-center text-slate-500 text-[13px]">
-                          Select a Purchase Order to view items.
+                        <td colSpan={20} className="px-4 py-8 text-center text-slate-500 text-[13px]">
+                          Select a Purchase Order or click 'Add Item' to begin.
                         </td>
                       </tr>
                     ) : (
-                      lineItems.map((item, index) => (
-                        <tr key={index} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                          <td className="px-4 py-3 text-center text-[13px] text-slate-500 align-top">
-                            {index + 1}
-                          </td>
-                          <td className="px-4 py-3 text-[13px] text-slate-700 align-top">
-                            {item.loaSerialNo || '-'}
-                          </td>
-                          <td className="px-4 py-3 text-[13px] text-slate-700 whitespace-normal break-words min-w-[300px] align-top">
-                            {item.itemDescription || '-'}
-                          </td>
-                          <td className="px-4 py-3 text-[13px] text-slate-700 align-top relative item-dropdown-container">
-                            {item.isManual ? (
-                              <>
-                                <div className="relative w-full flex items-center border-b border-dashed border-slate-400 pb-1">
-                                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-0" />
-                                  <input
-                                    type="text"
-                                    placeholder="Search by name or code..."
-                                    className="w-full bg-transparent pl-5 text-[13px] text-[#334155] focus:outline-none cursor-text"
-                                    value={dropdownSearchQueries[index] !== undefined ? dropdownSearchQueries[index] : (item.itemName || '')}
-                                    onChange={(e) => {
-                                      setDropdownSearchQueries(prev => ({ ...prev, [index]: e.target.value }));
-                                      if (openDropdownId !== index) setOpenDropdownId(index);
-                                    }}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (openDropdownId !== index) setOpenDropdownId(index);
-                                    }}
-                                  />
-                                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-0 pointer-events-none" />
-                                </div>
-                                {openDropdownId === index && (
-                                  <div
-                                    className="absolute left-0 top-full mt-1 w-[300px] bg-white border border-slate-200 shadow-xl rounded-md z-50 overflow-hidden"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <div className="max-h-60 overflow-y-auto py-1">
-                                      {itemsList
-                                        .filter(dbItem => {
-                                          const inputValue = dropdownSearchQueries[index] !== undefined ? dropdownSearchQueries[index] : (item.itemName || '');
-                                          const sq = String(inputValue).toLowerCase();
-                                          const nameStr = String(dbItem.dynamicData?.name || dbItem.dynamicData?.itemDescription || '').toLowerCase();
-                                          const codeStr = String(dbItem.dynamicData?.tempCode || dbItem.dynamicData?.sku || '').toLowerCase();
-                                          return nameStr.includes(sq) || codeStr.includes(sq);
-                                        })
-                                        .map(dbItem => (
-                                          <div
-                                            key={dbItem._id}
-                                            className="px-3 py-2 hover:bg-blue-50 cursor-pointer flex flex-col transition-colors border-b border-slate-100 last:border-0"
-                                            onClick={() => {
-                                              const d = dbItem.dynamicData || {};
-                                              const getVal = (key: string) => {
-                                                if (d[key] !== undefined) return d[key];
-                                                const lowerKey = key.toLowerCase();
-                                                const foundKey = Object.keys(d).find(k => k.toLowerCase() === lowerKey);
-                                                return foundKey ? d[foundKey] : '';
-                                              };
+                      lineItems.map((item, index) => {
+                        const allPackages = Array.from(new Set(itemsList.map(i => i.dynamicData?.package).filter(Boolean)));
+                        const circles = Array.from(new Set(itemsList.filter(i => !item.package || i.dynamicData?.package === item.package).map(i => i.dynamicData?.circle).filter(Boolean)));
+                        const tempCodes = Array.from(new Set(itemsList.filter(i => (!item.package || i.dynamicData?.package === item.package) && (!item.circle || i.dynamicData?.circle === item.circle)).map(i => i.dynamicData?.tempCode || i.dynamicData?.sku || i.dynamicData?.itemCode).filter(Boolean)));
+                        const itemNames = Array.from(new Set(itemsList.filter(i => 
+                          (!item.package || i.dynamicData?.package === item.package) && 
+                          (!item.circle || i.dynamicData?.circle === item.circle) &&
+                          (!item.tempCode || (i.dynamicData?.tempCode || i.dynamicData?.sku || i.dynamicData?.itemCode) === item.tempCode)
+                        ).map(i => i.dynamicData?.name || i.dynamicData?.itemDescription || i._id)));
 
-                                              updateLineItem(index, 'itemId', dbItem._id);
-                                              updateLineItem(index, 'itemName', getVal('name') || getVal('itemDescription') || 'Item');
-                                              updateLineItem(index, 'itemDescription', getVal('description') || getVal('itemDescription') || '');
-                                              updateLineItem(index, 'loaSerialNo', getVal('loaSerialNo') || getVal('loaSerialNumber') || getVal('LOA Serial No.') || getVal('loa') || getVal('sku') || '');
-                                              updateLineItem(index, 'package', getVal('package') || '');
-                                              updateLineItem(index, 'circle', getVal('circle') || '');
-                                              updateLineItem(index, 'rate', getVal('price') || getVal('costPrice') || getVal('sellingPrice') || 0);
-                                              
-                                              setOpenDropdownId(null);
-                                              setDropdownSearchQueries(prev => {
-                                                const newQueries = { ...prev };
-                                                delete newQueries[index];
-                                                return newQueries;
-                                              });
-                                            }}
-                                          >
-                                            <span className="text-[13px] text-slate-800 font-medium">{dbItem.dynamicData?.name || dbItem.dynamicData?.itemDescription || 'Unnamed Item'}</span>
-                                            <span className="text-[11px] text-slate-500">Code: {dbItem.dynamicData?.tempCode || dbItem.dynamicData?.sku || '--'}</span>
-                                          </div>
-                                        ))}
-                                    </div>
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              item.itemName || '-'
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-[13px] text-slate-700 align-top">
-                            {item.package || '-'}
-                          </td>
-                          <td className="px-4 py-3 align-top">
-                            <select 
-                              className="w-full h-8 rounded text-[13px] border border-slate-200 px-2 bg-white focus:outline-none focus:border-[#0076f2] focus:ring-1 focus:ring-[#0076f2] transition-colors"
-                              value={item.circle}
-                              onChange={(e) => updateLineItem(index, 'circle', e.target.value)}
-                            >
-                              <option value="">Select</option>
-                              <option value="Solan">Solan</option>
-                              <option value="Nahan">Nahan</option>
-                              <option value="Rampur">Rampur</option>
-                              <option value="Rohru">Rohru</option>
-                            </select>
-                          </td>
-                          <td className="px-4 py-3 align-top text-center">
-                            <Input 
-                              type="number" 
-                              className="h-8 w-full text-[13px] text-center border-slate-200 focus:border-blue-500 bg-white"
-                              value={item.poQuantity || 0}
-                              onChange={(e) => updateLineItem(index, 'poQuantity', e.target.value)}
-                            />
-                          </td>
-                          <td className="px-4 py-3 align-top">
-                            <Input 
-                              type="number" 
-                              className="h-8 w-full text-[13px] text-center border-slate-200 focus:border-blue-500 bg-white"
-                              value={item.invoiceQuantity}
-                              onChange={(e) => updateLineItem(index, 'invoiceQuantity', e.target.value)}
-                            />
-                          </td>
-                          <td className="px-4 py-3 align-top">
-                            <Input 
-                              type="number" 
-                              className="h-8 w-full text-[13px] text-center border-slate-200 focus:border-blue-500 bg-white"
-                              value={item.srt}
-                              onChange={(e) => updateLineItem(index, 'srt', e.target.value)}
-                            />
-                          </td>
-                          <td className="px-4 py-3 align-top">
-                            <Input 
-                              type="number" 
-                              className="h-8 w-full text-[13px] text-center border-slate-200 focus:border-blue-500 bg-white"
-                              value={item.act}
-                              onChange={(e) => updateLineItem(index, 'act', e.target.value)}
-                            />
-                          </td>
-                          <td className="px-4 py-3 align-top text-center">
-                            <div className={`h-8 flex items-center justify-center text-[13px] border border-slate-200 rounded bg-white ${(Number(item.totalInvoiceQuantity) || 0) > (Number(item.invoiceQuantity) || 0) ? 'text-red-500 font-bold border-red-200' : 'text-slate-700'}`}>
-                              {item.totalInvoiceQuantity}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 align-top text-right">
-                            <span className="text-[13px] font-medium text-slate-700 px-3">
+                        const handleItemSelect = (selectedName: string) => {
+                          const selectedItem = itemsList.find(i => (i.dynamicData?.name || i.dynamicData?.itemDescription || i._id) === selectedName);
+                          if (selectedItem) {
+                             const d = selectedItem.dynamicData || {};
+                             const getVal = (key: string) => {
+                               if (d[key] !== undefined) return d[key];
+                               const lowerKey = key.toLowerCase();
+                               const foundKey = Object.keys(d).find(k => k.toLowerCase() === lowerKey);
+                               return foundKey ? d[foundKey] : '';
+                             };
+                             const newItems = [...lineItems];
+                             newItems[index] = {
+                               ...newItems[index],
+                               itemId: selectedItem._id,
+                               itemName: selectedName,
+                               package: getVal('package') || newItems[index].package,
+                               circle: getVal('circle') || newItems[index].circle,
+                               tempCode: getVal('tempCode') || getVal('sku') || getVal('itemCode') || newItems[index].tempCode,
+                               itemDescription: getVal('description') || getVal('itemDescription') || '',
+                               loaSerialNo: getVal('loaSerialNo') || '',
+                               hsnCode: getVal('hsnCode') || getVal('hsn') || '',
+                               unit: getVal('unit') || '',
+                               gstType: newItems[index].gstType || 'Intra State',
+                               cgst: Number(getVal('cgst')) || 0,
+                               sgst: Number(getVal('sgst')) || 0,
+                               igst: Number(getVal('igst')) || 0,
+                               rate: Number(getVal('price') || getVal('costPrice') || getVal('sellingPrice')) || newItems[index].rate
+                             };
+                             newItems[index].amount = (Number(newItems[index].totalInvoiceQuantity) || 0) * (Number(newItems[index].rate) || 0);
+                             const taxRate = newItems[index].gstType === 'Intra State' ? (newItems[index].cgst + newItems[index].sgst) : newItems[index].igst;
+                             newItems[index].totalAmount = newItems[index].amount + (newItems[index].amount * taxRate / 100);
+                             setLineItems(newItems);
+                          } else {
+                             updateLineItem(index, 'itemName', selectedName);
+                          }
+                        };
+
+                        return (
+                          <tr key={index} className="border-b border-slate-100 hover:bg-slate-50 transition-colors bg-white">
+                            <td className="px-4 py-2 text-center text-[13px] text-slate-500 font-medium">
+                              {index + 1}
+                            </td>
+                            <td className="px-2 py-2">
+                              {item.isManual ? (
+                                <select className="w-full h-8 text-[12px] border border-slate-200 rounded px-2 focus:border-blue-500 outline-none bg-transparent"
+                                  value={item.package || ''}
+                                  onChange={e => updateLineItem(index, 'package', e.target.value)}
+                                >
+                                  <option value="">Select</option>
+                                  {allPackages.map((p: any) => <option key={p} value={p}>{p}</option>)}
+                                </select>
+                              ) : (
+                                <span className="text-[12px] px-2">{item.package || '-'}</span>
+                              )}
+                            </td>
+                            <td className="px-2 py-2">
+                              {item.isManual ? (
+                                <select className="w-full h-8 text-[12px] border border-slate-200 rounded px-2 focus:border-blue-500 outline-none bg-transparent"
+                                  value={item.circle || ''}
+                                  onChange={e => updateLineItem(index, 'circle', e.target.value)}
+                                >
+                                  <option value="">Select</option>
+                                  {circles.map((c: any) => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                              ) : (
+                                <span className="text-[12px] px-2">{item.circle || '-'}</span>
+                              )}
+                            </td>
+                            <td className="px-2 py-2">
+                              {item.isManual ? (
+                                <select className="w-full h-8 text-[12px] border border-slate-200 rounded px-2 focus:border-blue-500 outline-none bg-transparent"
+                                  value={item.tempCode || ''}
+                                  onChange={e => updateLineItem(index, 'tempCode', e.target.value)}
+                                >
+                                  <option value="">Select</option>
+                                  {tempCodes.map((tc: any) => <option key={tc} value={tc}>{tc}</option>)}
+                                </select>
+                              ) : (
+                                <span className="text-[12px] px-2">{item.tempCode || '-'}</span>
+                              )}
+                            </td>
+                            <td className="px-2 py-2">
+                              {item.isManual ? (
+                                <select className="w-full h-8 text-[12px] border border-slate-200 rounded px-2 focus:border-blue-500 outline-none bg-transparent font-medium text-slate-700"
+                                  value={item.itemName || ''}
+                                  onChange={e => handleItemSelect(e.target.value)}
+                                >
+                                  <option value="">Select Item</option>
+                                  {itemNames.map((n: any) => <option key={n} value={n}>{n}</option>)}
+                                </select>
+                              ) : (
+                                <span className="text-[12px] font-medium text-slate-700 px-2">{item.itemName || '-'}</span>
+                              )}
+                            </td>
+                            <td className="px-2 py-2">
+                              <Input placeholder="Desc" className="h-8 text-[12px] border-slate-200 bg-transparent px-2" value={item.itemDescription || ''} onChange={(e) => updateLineItem(index, 'itemDescription', e.target.value)} />
+                            </td>
+                            <td className="px-2 py-2">
+                              <Input placeholder="LOA Serial" className="h-8 text-[12px] border-slate-200 bg-transparent px-2" value={item.loaSerialNo || ''} onChange={(e) => updateLineItem(index, 'loaSerialNo', e.target.value)} />
+                            </td>
+                            <td className="px-2 py-2">
+                              <Input placeholder="HSN" className="h-8 text-[12px] border-slate-200 bg-transparent px-2" value={item.hsnCode || ''} onChange={(e) => updateLineItem(index, 'hsnCode', e.target.value)} />
+                            </td>
+                            <td className="px-2 py-2">
+                              <Input type="number" placeholder="PO Qty" className="h-8 text-[12px] border-slate-200 bg-transparent px-2 text-right" value={item.poQuantity || 0} onChange={(e) => updateLineItem(index, 'poQuantity', e.target.value)} />
+                            </td>
+                            <td className="px-2 py-2">
+                              <Input type="date" className="h-8 text-[12px] border-slate-200 bg-transparent px-2" value={item.poDate ? String(item.poDate).split('T')[0] : ''} onChange={(e) => updateLineItem(index, 'poDate', e.target.value)} />
+                            </td>
+                            <td className="px-2 py-2">
+                              <Input type="number" className="h-8 text-[12px] border-slate-200 px-2 text-center bg-transparent" value={item.invoiceQuantity || 0} onChange={(e) => updateLineItem(index, 'invoiceQuantity', e.target.value)} />
+                            </td>
+                            <td className="px-2 py-2">
+                              <Input placeholder="Unit" className="h-8 text-[12px] border-slate-200 bg-transparent px-2" value={item.unit || ''} onChange={(e) => updateLineItem(index, 'unit', e.target.value)} />
+                            </td>
+                            <td className="px-2 py-2">
+                              <Input type="number" placeholder="0" className="h-8 text-[12px] border-slate-200 bg-transparent px-2 text-right" value={item.srt || 0} onChange={(e) => updateLineItem(index, 'srt', e.target.value)} />
+                            </td>
+                            <td className="px-2 py-2">
+                              <Input type="number" placeholder="0" className="h-8 text-[12px] border-slate-200 bg-transparent px-2 text-right" value={item.act || 0} onChange={(e) => updateLineItem(index, 'act', e.target.value)} />
+                            </td>
+                            <td className="px-2 py-2">
+                              <div className={`h-8 flex items-center justify-end px-2 text-[12px] border border-slate-200 rounded bg-slate-50 ${(Number(item.totalInvoiceQuantity) || 0) > (Number(item.invoiceQuantity) || 0) ? 'text-red-500 font-bold border-red-200 bg-red-50' : 'text-slate-700'}`}>
+                                {item.totalInvoiceQuantity || 0}
+                              </div>
+                            </td>
+                            <td className="px-2 py-2">
+                              <Input type="number" className="h-8 text-[12px] border-slate-200 px-2 text-right bg-transparent" value={item.rate || 0} onChange={(e) => updateLineItem(index, 'rate', e.target.value)} />
+                            </td>
+                            <td className="px-4 py-2 text-right font-medium text-slate-700 text-[13px]">
                               ₹{(Number(item.amount) || 0).toFixed(2)}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 align-top text-center">
-                            <button 
-                              className="text-red-400 hover:text-red-600 transition-colors"
-                              title="Delete Item"
-                              onClick={() => {
+                            </td>
+                            <td className="px-2 py-2">
+                              <select 
+                                className="w-full h-8 text-[12px] border border-slate-200 rounded px-2 focus:border-blue-500 outline-none bg-transparent"
+                                value={item.gstType || 'Intra State'}
+                                onChange={(e) => updateLineItem(index, 'gstType', e.target.value)}
+                              >
+                                <option value="Intra State">Intra State</option>
+                                <option value="Inter State">Inter State</option>
+                              </select>
+                            </td>
+                            <td className="px-2 py-2">
+                              <Input type="number" placeholder="0" disabled={item.gstType === 'Inter State'} className={`h-8 text-[12px] border-slate-200 px-2 text-right ${item.gstType === 'Inter State' ? 'bg-slate-100 text-slate-400' : 'bg-transparent'}`} value={item.gstType === 'Inter State' ? '' : (item.cgst || 0)} onChange={(e) => updateLineItem(index, 'cgst', e.target.value)} />
+                            </td>
+                            <td className="px-2 py-2">
+                              <Input type="number" placeholder="0" disabled={item.gstType === 'Inter State'} className={`h-8 text-[12px] border-slate-200 px-2 text-right ${item.gstType === 'Inter State' ? 'bg-slate-100 text-slate-400' : 'bg-transparent'}`} value={item.gstType === 'Inter State' ? '' : (item.sgst || 0)} onChange={(e) => updateLineItem(index, 'sgst', e.target.value)} />
+                            </td>
+                            <td className="px-2 py-2">
+                              <Input type="number" placeholder="0" disabled={item.gstType === 'Intra State'} className={`h-8 text-[12px] border-slate-200 px-2 text-right ${item.gstType === 'Intra State' ? 'bg-slate-100 text-slate-400' : 'bg-transparent'}`} value={item.gstType === 'Intra State' ? '' : (item.igst || 0)} onChange={(e) => updateLineItem(index, 'igst', e.target.value)} />
+                            </td>
+                            <td className="px-4 py-2 text-right font-semibold text-blue-700 text-[13px]">
+                              ₹{(Number(item.totalAmount) || 0).toFixed(2)}
+                            </td>
+                            <td className="px-4 py-2 text-center">
+                              <button className="text-red-400 hover:text-red-600 transition-colors p-1" onClick={() => {
                                 const newItems = [...lineItems];
                                 newItems.splice(index, 1);
                                 setLineItems(newItems);
-                              }}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))
+                              }}>
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>

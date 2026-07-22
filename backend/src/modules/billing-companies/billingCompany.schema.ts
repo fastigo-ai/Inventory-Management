@@ -5,6 +5,8 @@ export interface IBillingCompany extends Document {
   address: string;
   phone?: string;
   email?: string;
+  gstNo?: string;
+  companyNumber?: string;
   logoUrl?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -16,6 +18,8 @@ const billingCompanySchema = new Schema<IBillingCompany>(
     address: { type: String, required: true },
     phone: { type: String },
     email: { type: String },
+    gstNo: { type: String },
+    companyNumber: { type: String },
     logoUrl: { type: String },
   },
   {

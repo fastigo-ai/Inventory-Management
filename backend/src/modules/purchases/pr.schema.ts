@@ -14,8 +14,15 @@ export interface IPrLineItem {
   package?: string;
   circle?: string;
   unit?: string;
+  hsnCode?: string;
+  cgst?: number;
+  sgst?: number;
+  igst?: number;
   rate?: number;
   amount?: number;
+  poDate?: string | Date;
+  totalAmount?: number;
+  gstType?: 'Intra State' | 'Inter State';
 }
 
 export interface IPr extends Document {
@@ -59,8 +66,15 @@ const prLineItemSchema = new Schema<IPrLineItem>({
   package: { type: String },
   circle: { type: String },
   unit: { type: String },
+  hsnCode: { type: String },
+  cgst: { type: Number },
+  sgst: { type: Number },
+  igst: { type: Number },
   rate: { type: Number, default: 0 },
   amount: { type: Number, default: 0 },
+  poDate: { type: Date },
+  totalAmount: { type: Number, default: 0 },
+  gstType: { type: String, enum: ['Intra State', 'Inter State'], default: 'Intra State' }
 });
 
 const prSchema = new Schema<IPr>(

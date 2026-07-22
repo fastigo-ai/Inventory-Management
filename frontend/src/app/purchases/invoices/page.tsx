@@ -1,15 +1,17 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { ChevronDown, RefreshCw, Plus, MoreHorizontal } from 'lucide-react';
+import { ChevronDown, RefreshCw, Plus, MoreHorizontal, Upload } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getPurchaseInvoices } from '@/features/purchases/api/purchases.api';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { PurchaseInvoiceImportModal } from '@/features/purchases/components/PurchaseInvoiceImportModal';
 
 export default function PurchaseInvoicesPage() {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const router = useRouter();
 
   const fetchInvoices = async () => {
@@ -66,7 +68,11 @@ export default function PurchaseInvoicesPage() {
             <DropdownMenuTrigger className="flex items-center justify-center text-slate-500 hover:bg-slate-100 p-2 rounded-md border border-slate-200 transition-colors">
               <MoreHorizontal className="w-4 h-4" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 text-[13px]">
+            <DropdownMenuContent align="end" className="w-56 text-[13px]">
+              <DropdownMenuItem onClick={() => setIsImportModalOpen(true)} className="cursor-pointer">
+                <Upload className="w-4 h-4 mr-2 text-slate-500" />
+                Import Purchase Invoices
+              </DropdownMenuItem>
               <DropdownMenuItem className="cursor-pointer">
                 Export Invoices
               </DropdownMenuItem>
@@ -74,6 +80,15 @@ export default function PurchaseInvoicesPage() {
           </DropdownMenu>
         </div>
       </div>
+
+      <PurchaseInvoiceImportModal 
+        isOpen={isImportModalOpen} 
+        onClose={() => setIsImportModalOpen(false)} 
+        onSuccess={() => {
+          setIsImportModalOpen(false);
+          fetchInvoices();
+        }} 
+      />
 
       {/* Table Area */}
       <div className="flex-1 overflow-auto">

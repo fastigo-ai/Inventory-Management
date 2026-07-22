@@ -10,7 +10,7 @@ import Item from '../items/item.model';
 import { ContractorAssignment } from '../contractors/contractorAssignment.schema';
 export const getPendingDIs = asyncHandler(async (req: Request, res: Response) => {
   const user = (req as any).user;
-  const filter: any = { status: { $in: ['Pending Receipt', 'Received'] } };
+  const filter: any = { status: { $in: ['Active', 'Pending Receipt', 'Received'] } }; // Keeping old statuses temporarily for backward compatibility with existing DB entries
   
   if (user && user.role?.name === 'Store Manager') {
     if (user.assignedPackage) filter.package = user.assignedPackage;

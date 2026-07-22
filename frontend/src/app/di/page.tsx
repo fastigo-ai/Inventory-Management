@@ -4,19 +4,27 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, MoreHorizontal, Upload } from "lucide-react";
 import { getDIs } from "@/features/di/api/di.api";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DIImportModal } from "@/features/di/components/DIImportModal";
 
 export default function DIPage() {
   const router = useRouter();
   const [dis, setDis] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
-  useEffect(() => {
+  const fetchDIs = () => {
+    setLoading(true);
     getDIs()
       .then(res => setDis(res.data || []))
       .catch(console.error)
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchDIs();
   }, []);
 
   return (
@@ -27,13 +35,38 @@ export default function DIPage() {
             <h1 className="text-2xl font-semibold text-slate-900">DI Registrations</h1>
             <p className="text-sm text-slate-500 mt-1">Manage government inspected Dispatch Instructions</p>
           </div>
-          <Link href="/di/new">
-            <Button className="bg-[#0076f2] hover:bg-blue-600">
-              <Plus className="w-4 h-4 mr-2" />
-              New DI Registration
-            </Button>
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/di/new">
+              <Button className="bg-[#0076f2] hover:bg-blue-600">
+                <Plus className="w-4 h-4 mr-2" />
+                New DI Registration
+              </Button>
+            </Link>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="text-slate-500 hover:bg-slate-100 p-2">
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 text-[13px]">
+                <DropdownMenuItem onClick={() => setIsImportModalOpen(true)} className="cursor-pointer">
+                  <Upload className="w-4 h-4 mr-2 text-slate-500" />
+                  Import DI Registrations
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
+
+        <DIImportModal 
+          isOpen={isImportModalOpen} 
+          onClose={() => setIsImportModalOpen(false)} 
+          onSuccess={() => {
+            setIsImportModalOpen(false);
+            fetchDIs();
+          }} 
+        />
 
         <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm">
           {loading ? (
@@ -76,6 +109,7 @@ export default function DIPage() {
                     <td className="px-6 py-4">{new Date(di.date).toLocaleDateString()}</td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                        di.status === 'Active' ? 'bg-green-100 text-green-700' :
                         di.status === 'Received' ? 'bg-green-100 text-green-700' :
                         di.status === 'Draft' ? 'bg-slate-100 text-slate-700' :
                         'bg-amber-100 text-amber-700'

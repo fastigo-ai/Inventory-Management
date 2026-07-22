@@ -3,7 +3,8 @@ import { asyncHandler } from '../../core/utils/asyncHandler';
 import { ApiError } from '../../core/utils/ApiError';
 import { ApiResponse } from '../../core/utils/ApiResponse';
 import { DI } from './di.schema';
-
+import { parse } from 'csv-parse/sync';
+import { PurchaseOrder } from '../purchases/purchaseOrder.schema';
 export const createDI = asyncHandler(async (req: Request, res: Response) => {
   const data = req.body;
 
@@ -18,16 +19,15 @@ export const createDI = asyncHandler(async (req: Request, res: Response) => {
   }
 
   // Process attachments
-  const files = req.files as Express.Multer.File[];
-  const attachments = files ? files.map(file => ({
-    name: file.originalname,
-    url: `/uploads/dis/${file.filename}`
-  })) : [];
+  const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+  const diLetterCopyUrl = files?.['diLetterCopyUrl']?.[0]?.filename ? `/uploads/dis/${files['diLetterCopyUrl'][0].filename}` : undefined;
+  const inspectionReportCopyUrl = files?.['inspectionReportCopyUrl']?.[0]?.filename ? `/uploads/dis/${files['inspectionReportCopyUrl'][0].filename}` : undefined;
   
   const diData = {
     ...data,
     lineItems: parsedLineItems,
-    attachments
+    diLetterCopyUrl,
+    inspectionReportCopyUrl
   };
   
   // Basic validation
@@ -143,34 +143,119 @@ export const updateDI = asyncHandler(async (req: Request, res: Response) => {
     }
   }
 
-  // Parse existingAttachments if they come as string
-  let existingAttachments = data.existingAttachments || [];
-  if (typeof existingAttachments === 'string') {
-    try {
-      existingAttachments = JSON.parse(existingAttachments);
-    } catch (e) {
-      existingAttachments = [];
-    }
+  // Process new attachments
+  const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+  if (files?.['diLetterCopyUrl']?.[0]) {
+    existingDI.diLetterCopyUrl = `/uploads/dis/${files['diLetterCopyUrl'][0].filename}`;
+  }
+  if (files?.['inspectionReportCopyUrl']?.[0]) {
+    existingDI.inspectionReportCopyUrl = `/uploads/dis/${files['inspectionReportCopyUrl'][0].filename}`;
   }
 
-  // Process new attachments
-  const files = req.files as Express.Multer.File[];
-  const newAttachments = files ? files.map(file => ({
-    name: file.originalname,
-    url: `/uploads/dis/${file.filename}`
-  })) : [];
-  
-  const mergedAttachments = [...existingAttachments, ...newAttachments];
+  // Update other fields
+  if (data.status) existingDI.status = data.status;
+  if (data.notes !== undefined) existingDI.notes = data.notes;
+  existingDI.lineItems = parsedLineItems;
 
-  const updateData = {
-    ...data,
-    lineItems: parsedLineItems,
-    attachments: mergedAttachments
-  };
-
-  const updatedDI = await DI.findByIdAndUpdate(id, updateData, { new: true });
+  const updatedDI = await existingDI.save();
 
   res.status(200).json(
     new ApiResponse(200, updatedDI, 'DI Updated Successfully')
   );
+});
+
+export const importDIs = asyncHandler(async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No CSV file uploaded' });
+    }
+
+    const parser = parse(req.file.buffer, {
+      columns: true,
+      skip_empty_lines: true,
+      trim: true,
+    });
+
+    const disMap: Record<string, any> = {};
+
+    for await (const row of parser) {
+      const diNumber = row['DINumber'] || row['diNumber'] || row['DI Number'];
+      if (!diNumber) continue;
+
+      if (!disMap[diNumber]) {
+        disMap[diNumber] = {
+          diNumber,
+          _poNumber: row['PurchaseOrderNumber'] || row['purchaseOrderNumber'] || '',
+          date: row['Date'] || row['date'] || new Date().toISOString().split('T')[0],
+          circle: row['Circle'] || row['circle'],
+          package: row['Package'] || row['package'],
+          status: row['Status'] || row['status'] || 'Active',
+          notes: row['Notes'] || row['notes'],
+          lineItems: [],
+        };
+      }
+
+      const itemName = row['ItemName'] || row['itemName'] || row['Item Name'];
+      const quantity = Number(row['Quantity'] || row['quantity'] || 0);
+      const tempCode = row['TempCode'] || row['tempCode'];
+      const loaSerialNo = row['LoaSerialNo'] || row['loaSerialNo'];
+      const itemPackage = row['ItemPackage'] || row['itemPackage'];
+      const itemCircle = row['ItemCircle'] || row['itemCircle'];
+
+      if (itemName) {
+        disMap[diNumber].lineItems.push({
+          itemName,
+          tempCode,
+          loaSerialNo,
+          package: itemPackage,
+          circle: itemCircle,
+          quantity
+        });
+      }
+    }
+
+    let successCount = 0;
+    const errors: any[] = [];
+    
+    for (const diNumber of Object.keys(disMap)) {
+      const diData = disMap[diNumber];
+      try {
+        const existing = await DI.findOne({ diNumber: diData.diNumber });
+        if (existing) {
+          errors.push(`DI ${diData.diNumber} already exists.`);
+          continue;
+        }
+
+        if (diData._poNumber) {
+          const po = await PurchaseOrder.findOne({ purchaseOrderNumber: diData._poNumber });
+          if (po) {
+            diData.purchaseOrderId = po._id;
+          } else {
+            errors.push(`Purchase Order ${diData._poNumber} not found for DI ${diData.diNumber}. It will be created without PO link.`);
+          }
+        }
+        delete diData._poNumber;
+
+        await DI.create(diData);
+        successCount++;
+      } catch (err: any) {
+        errors.push(`Failed to import DI ${diData.diNumber}: ${err.message}`);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Import processed',
+      data: {
+        successCount,
+        errors
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to import DI Registrations',
+      error: error.message,
+    });
+  }
 });

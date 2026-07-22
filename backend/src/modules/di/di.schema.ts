@@ -2,6 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IDILineItem {
   itemId?: mongoose.Types.ObjectId;
+  loaSerialNo?: string;
   itemName: string;
   tempCode?: string;
   package?: string;
@@ -11,23 +12,22 @@ export interface IDILineItem {
 
 export interface IDI extends Document {
   diNumber: string;
-  purchaseOrderId: mongoose.Types.ObjectId;
+  purchaseOrderId?: mongoose.Types.ObjectId;
   date: Date;
   circle?: string;
   package?: string;
   lineItems: IDILineItem[];
-  status: 'Draft' | 'Pending Receipt' | 'Received' | 'Cancelled';
+  status: 'Draft' | 'Active' | 'Cancelled';
   notes?: string;
-  attachments?: {
-    name: string;
-    url: string;
-  }[];
+  diLetterCopyUrl?: string;
+  inspectionReportCopyUrl?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
 const diLineItemSchema = new Schema<IDILineItem>({
   itemId: { type: Schema.Types.ObjectId, ref: 'Item' },
+  loaSerialNo: { type: String },
   itemName: { type: String, required: true },
   tempCode: { type: String },
   package: { type: String },
@@ -38,17 +38,15 @@ const diLineItemSchema = new Schema<IDILineItem>({
 const diSchema = new Schema<IDI>(
   {
     diNumber: { type: String, required: true, unique: true },
-    purchaseOrderId: { type: Schema.Types.ObjectId, ref: 'PurchaseOrder', required: true },
+    purchaseOrderId: { type: Schema.Types.ObjectId, ref: 'PurchaseOrder' },
     date: { type: Date, required: true, default: Date.now },
     circle: { type: String },
     package: { type: String },
     lineItems: [diLineItemSchema],
-    status: { type: String, enum: ['Draft', 'Pending Receipt', 'Received', 'Cancelled'], default: 'Pending Receipt' },
+    status: { type: String, enum: ['Draft', 'Active', 'Cancelled'], default: 'Active' },
     notes: { type: String },
-    attachments: [{
-      name: { type: String },
-      url: { type: String }
-    }],
+    diLetterCopyUrl: { type: String },
+    inspectionReportCopyUrl: { type: String }
   },
   { timestamps: true }
 );

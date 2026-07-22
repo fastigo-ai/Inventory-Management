@@ -228,8 +228,20 @@ export const updatePurchaseInvoice = async (id: string, payload: any) => {
   return response.data;
 };
 
-export const updatePurchaseInvoiceReceiptStatus = async (id: string, receiptStatus: string) => {
+export const updatePurchaseInvoiceReceiptStatus = async (id: string, receiptStatus: 'Pending Receipt' | 'Received') => {
   const response = await api.put(`/purchases/invoices/${id}/receipt-status`, { receiptStatus });
+  return response.data;
+};
+
+export const importPurchaseInvoicesFromCsv = async (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const response = await api.post('/purchases/invoices/import', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    }
+  });
   return response.data;
 };
 

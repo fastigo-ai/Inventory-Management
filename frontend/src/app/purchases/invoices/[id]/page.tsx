@@ -170,7 +170,7 @@ export default function PurchaseInvoiceDetailPage() {
           {activeTab === 'history' ? (
             <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
               <h2 className="text-xl font-semibold text-slate-800 mb-8 border-b border-slate-100 pb-4">Audit History</h2>
-              <AuditTimeline entityType="PurchaseInvoice" entityId={params.id} />
+              <AuditTimeline entityType="PurchaseInvoice" entityId={params.id as string} />
             </div>
           ) : (
             <>

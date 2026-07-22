@@ -351,6 +351,7 @@ export default function InwardRegistrationForm() {
                 <tr>
                   <th className="px-4 py-3 border-r">Sr. No</th>
                   <th className="px-4 py-3 border-r min-w-[200px]">Material Description</th>
+                  <th className="px-4 py-3 border-r">Temp Code</th>
                   <th className="px-4 py-3 border-r">HSN Code</th>
                   <th className="px-4 py-3 border-r">Unit</th>
                   <th className="px-4 py-3 border-r">Total Qty (Req)</th>
@@ -371,8 +372,11 @@ export default function InwardRegistrationForm() {
                 <tr className="hover:bg-slate-50/50">
                   <td className="px-4 py-3 border-r border-slate-100 text-center font-medium">1</td>
                   <td className="px-4 py-3 border-r border-slate-100 whitespace-normal">
-                    <div className="font-medium text-slate-800">{formData.description || formData.tempCode || '-'}</div>
+                    <div className="font-medium text-slate-800">{formData.description || '-'}</div>
                     <div className="text-xs text-slate-400 mt-0.5">SN: {formData.serialNumber || '-'}</div>
+                  </td>
+                  <td className="px-4 py-3 border-r border-slate-100 font-medium text-slate-700">
+                    {formData.tempCode || '-'}
                   </td>
                   <td className="px-4 py-3 border-r border-slate-100">
                     <Input 

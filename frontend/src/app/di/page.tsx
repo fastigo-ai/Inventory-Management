@@ -44,10 +44,8 @@ export default function DIPage() {
             </Link>
 
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="text-slate-500 hover:bg-slate-100 p-2">
-                  <MoreHorizontal className="w-4 h-4" />
-                </Button>
+              <DropdownMenuTrigger className="flex items-center justify-center text-slate-500 hover:bg-slate-100 p-2 rounded-md border border-slate-200 transition-colors">
+                <MoreHorizontal className="w-4 h-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56 text-[13px]">
                 <DropdownMenuItem onClick={() => setIsImportModalOpen(true)} className="cursor-pointer">

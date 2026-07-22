@@ -145,9 +145,16 @@ export default function ActivityLogsPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center text-slate-700">
-                          <User className="w-4 h-4 mr-2 text-slate-400" />
-                          {log.performedBy ? (log.performedBy.firstName + ' ' + log.performedBy.lastName) : 'System'}
+                        <div className="flex flex-col">
+                          <div className="flex items-center text-slate-700 font-medium">
+                            <User className="w-4 h-4 mr-2 text-slate-400" />
+                            {log.performedBy ? (log.performedBy.firstName + ' ' + log.performedBy.lastName) : 'System'}
+                          </div>
+                          {log.performedBy?.role?.name && (
+                            <span className="text-[11px] text-slate-500 ml-6 font-medium bg-slate-100 px-1.5 py-0.5 rounded-md self-start mt-0.5">
+                              {log.performedBy.role.name}
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4">

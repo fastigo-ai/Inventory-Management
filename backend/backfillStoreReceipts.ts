@@ -11,6 +11,10 @@ const run = async () => {
     await mongoose.connect(mongoUri);
     console.log('Connected to MongoDB');
 
+    // First delete all StoreInwardEntries created by script (or just delete all, wait, the user didn't register inward yet, hopefully)
+    await StoreInwardEntry.deleteMany({});
+    console.log('Deleted existing StoreInwardEntry records.');
+
     const prs = await Pr.find();
     console.log(`Found ${prs.length} Purchase Receives.`);
 
@@ -18,14 +22,6 @@ const run = async () => {
 
     for (const pr of prs) {
       if (!pr.lineItems || pr.lineItems.length === 0) continue;
-
-      const existingEntries = await StoreInwardEntry.find({ purchaseInvoiceId: pr._id });
-      if (existingEntries.length > 0) {
-        console.log(`PR ${pr.purchaseReceiveNumber} already has ${existingEntries.length} store inward entries. Skipping.`);
-        continue;
-      }
-
-      console.log(`Generating store inward entries for PR ${pr.purchaseReceiveNumber}...`);
 
       const inwardEntries = pr.lineItems.map((item: any) => ({
         purchaseInvoiceId: pr._id,
@@ -43,10 +39,11 @@ const run = async () => {
         invoiceQty: item.invoiceQuantity,
         totalQty: item.totalInvoiceQuantity,
         rate: item.rate,
-        amount: item.amount,
+        amount: item.totalAmount || item.amount,
         tempCode: item.tempCode,
         itemId: item.itemId,
         itemName: item.itemName,
+        itemDescription: item.itemDescription,
         hsnCode: item.hsnCode,
         cgst: item.cgst,
         sgst: item.sgst,

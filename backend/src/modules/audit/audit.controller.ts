@@ -24,7 +24,14 @@ export const getAuditLogs = asyncHandler(async (req: Request, res: Response) => 
   
   const totalLogs = await AuditLog.countDocuments(query);
   const logs = await AuditLog.find(query)
-    .populate('performedBy', 'firstName lastName email')
+    .populate({
+      path: 'performedBy',
+      select: 'firstName lastName email role',
+      populate: {
+        path: 'role',
+        select: 'name'
+      }
+    })
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit);

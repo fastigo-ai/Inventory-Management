@@ -16,7 +16,8 @@ import {
   ChevronRight, 
   ChevronDown,
   Circle,
-  Plus
+  Plus,
+  Shield
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -91,6 +92,14 @@ const navItems: NavItem[] = [
       { title: 'Billing Companies', href: '/settings/billing-companies' },
       { title: 'Store Managers', href: '/settings/store-managers' }
     ]
+  },
+  {
+    title: 'System Admin',
+    icon: <Shield className="w-5 h-5" />,
+    children: [
+      { title: 'User Management', href: '/settings/users' },
+      { title: 'Roles & Permissions', href: '/settings/roles' }
+    ]
   }
 ];
 
@@ -121,11 +130,37 @@ export function Sidebar() {
   };
 
   const { user } = useAuthStore();
+  
+  // Super Admins have the '*' permission
+  const permissions = user?.role?.permissions || [];
+  const isSuperAdmin = permissions.includes('*') || user?.role?.name === 'Super Admin';
   const isStoreManager = user?.role?.name === 'Store Manager';
 
-  const visibleNavItems = isStoreManager 
-    ? navItems.filter(item => item.title === 'Store Portal')
-    : navItems;
+  // Determine visibility based on permissions
+  const visibleNavItems = navItems.filter(item => {
+    // Super Admins see everything
+    if (isSuperAdmin) return true;
+
+    // Backward compatibility for existing hardcoded Store Manager logic
+    if (isStoreManager) {
+      return item.title === 'Store Portal';
+    }
+
+    // Role-based filtering based on module names
+    if (permissions.includes(item.title)) {
+      return true;
+    }
+
+    // Always show Home by default
+    if (item.title === 'Home') return true;
+
+    // For System Admin block, require specific roles:manage or users:manage permission
+    if (item.title === 'System Admin') {
+      return permissions.includes('roles:manage') || permissions.includes('users:manage');
+    }
+
+    return false;
+  });
 
   return (
     <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col h-[calc(100vh-3.5rem)] md:h-screen overflow-y-auto shrink-0 shadow-lg text-slate-300 transition-colors">

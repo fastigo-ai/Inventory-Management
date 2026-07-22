@@ -191,7 +191,11 @@ export const exportDIs = asyncHandler(async (req: Request, res: Response) => {
         Circle: di.circle || '',
         Package: di.package || '',
         Status: di.status,
+        Notes: di.notes || '',
         ItemName: '',
+        TempCode: '',
+        ItemPackage: '',
+        ItemCircle: '',
         Quantity: ''
       });
     } else {
@@ -203,14 +207,18 @@ export const exportDIs = asyncHandler(async (req: Request, res: Response) => {
           Circle: di.circle || '',
           Package: di.package || '',
           Status: di.status,
+          Notes: di.notes || '',
           ItemName: item.itemName || '',
+          TempCode: item.tempCode || '',
+          ItemPackage: item.package || '',
+          ItemCircle: item.circle || '',
           Quantity: item.quantity || 0
         });
       }
     }
   }
 
-  const headers = ['DINumber', 'Date', 'PONumber', 'Circle', 'Package', 'Status', 'ItemName', 'Quantity'];
+  const headers = ['DINumber', 'Date', 'PONumber', 'Circle', 'Package', 'Status', 'Notes', 'ItemName', 'TempCode', 'ItemPackage', 'ItemCircle', 'Quantity'];
   const csv = stringify(rows, { header: true, columns: headers });
   
   res.setHeader('Content-Type', 'text/csv');
@@ -250,16 +258,23 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
         circle: row['Circle'] || row['circle'],
         package: row['Package'] || row['package'],
         status: row['Status'] || row['status'] || 'Draft',
+        notes: row['Notes'] || row['notes'],
         lineItems: [],
       };
     }
 
     const itemName = row['ItemName'] || row['itemName'] || row['Item Name'];
+    const tempCode = row['TempCode'] || row['tempCode'];
+    const itemPackage = row['ItemPackage'] || row['itemPackage'];
+    const itemCircle = row['ItemCircle'] || row['itemCircle'];
     const quantity = Number(row['Quantity'] || row['quantity'] || 0);
 
     if (itemName && quantity > 0) {
       disMap[diNumber].lineItems.push({
         itemName,
+        tempCode,
+        package: itemPackage,
+        circle: itemCircle,
         quantity
       });
     }

@@ -27,6 +27,7 @@ export default function VendorsPage() {
   const sortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') || 'asc';
   const limit = parseInt(searchParams.get('limit') || '50');
   const searchQuery = searchParams.get('search') || '';
+  const currentStatus = searchParams.get('status') || null;
 
   const [fields, setFields] = useState<FieldMetadata[]>([]);
   const [vendors, setVendors] = useState<any[]>([]);
@@ -41,7 +42,7 @@ export default function VendorsPage() {
     try {
       const [metaRes, vendorsRes] = await Promise.all([
         getEntityMetadata('Vendor'),
-        getVendors({ page, limit, sortBy: sortBy || undefined, sortOrder, search: searchQuery || undefined })
+        getVendors({ page, limit, sortBy: sortBy || undefined, sortOrder, search: searchQuery || undefined, status: currentStatus || undefined })
       ]);
       setFields(metaRes.fields);
       setVendors(vendorsRes.vendors || vendorsRes);
@@ -55,7 +56,7 @@ export default function VendorsPage() {
 
   useEffect(() => {
     fetchVendorsData();
-  }, [page, limit, sortBy, sortOrder, searchQuery]);
+  }, [page, limit, sortBy, sortOrder, searchQuery, currentStatus]);
 
   const updateUrl = (updates: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -166,8 +167,29 @@ export default function VendorsPage() {
         </div>
       </div>
 
-      <div className="flex items-center space-x-4 mb-2">
-        <form onSubmit={handleSearch} className="relative flex-1 max-w-md">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
+        <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-md w-fit">
+          <button
+            onClick={() => updateUrl({ status: null, page: '1' })}
+            className={`px-4 py-1.5 text-sm font-medium rounded-sm transition-colors ${!currentStatus ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'}`}
+          >
+            All
+          </button>
+          <button
+            onClick={() => updateUrl({ status: 'Active', page: '1' })}
+            className={`px-4 py-1.5 text-sm font-medium rounded-sm transition-colors ${currentStatus === 'Active' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'}`}
+          >
+            Active
+          </button>
+          <button
+            onClick={() => updateUrl({ status: 'Inactive', page: '1' })}
+            className={`px-4 py-1.5 text-sm font-medium rounded-sm transition-colors ${currentStatus === 'Inactive' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'}`}
+          >
+            Inactive
+          </button>
+        </div>
+
+        <form onSubmit={handleSearch} className="relative w-full max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input 
             type="text" 

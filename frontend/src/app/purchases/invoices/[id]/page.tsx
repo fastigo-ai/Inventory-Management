@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { getPurchaseInvoiceById, deletePurchaseInvoice } from '@/features/purchases/api/purchases.api';
 import { Button } from '@/components/ui/button';
+import { getBillingCompanies } from '@/features/settings/api/billingCompanies.api';
 import { ChevronLeft, Edit, Trash2, Printer, FileText, CheckCircle2, AlertCircle, Clock, Banknote, HelpCircle, Paperclip } from 'lucide-react';
 import Link from 'next/link';
 import { AuditTimeline } from '@/shared/components/audit/AuditTimeline';
@@ -17,6 +18,7 @@ export default function PurchaseInvoiceDetailPage() {
   const id = params.id as string;
   
   const [invoice, setInvoice] = useState<any>(null);
+  const [billingCompanies, setBillingCompanies] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'details' | 'history'>('details');
   const [isPdfView, setIsPdfView] = useState(true);
@@ -25,8 +27,12 @@ export default function PurchaseInvoiceDetailPage() {
     const fetchInvoice = async () => {
       try {
         setIsLoading(true);
-        const data = await getPurchaseInvoiceById(id);
+        const [data, companiesData] = await Promise.all([
+          getPurchaseInvoiceById(id),
+          getBillingCompanies()
+        ]);
         setInvoice(data);
+        setBillingCompanies(companiesData.data || []);
       } catch (err) {
         console.error('Failed to fetch invoice:', err);
       } finally {
@@ -82,6 +88,8 @@ export default function PurchaseInvoiceDetailPage() {
 
   const currentStatus = invoice.status;
   
+  const selectedBillingCompany = invoice ? (billingCompanies.find(c => c.name === invoice.billingFrom) || invoice.purchaseOrderId?.billingCompany) : null;
+
   // Status workflow nodes
   const workflowNodes = [
     { id: 'Draft', label: 'DRAFT', icon: FileText, color: 'slate' },
@@ -110,25 +118,41 @@ export default function PurchaseInvoiceDetailPage() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#f8f9fa] overflow-hidden print:overflow-visible print:bg-white print:h-auto">
-      {/* Header */}
-      <div className="flex-none min-h-[4rem] py-4 border-b border-slate-200 flex flex-col 2xl:flex-row 2xl:items-center justify-between px-6 bg-white shrink-0 z-10 shadow-sm gap-y-4 print:hidden">
-        <div className="flex flex-wrap items-center gap-4">
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:bg-slate-100 rounded-full shrink-0" onClick={() => router.back()}>
+    <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-50 relative print:bg-white print:h-auto print:block">
+      {/* Top Action Bar */}
+      <div className="flex justify-between items-center px-6 py-4 bg-white border-b border-slate-200 print:hidden z-10 shrink-0">
+        <div className="flex items-center space-x-4">
+          <Button variant="ghost" className="h-9 px-2 text-slate-500 hover:text-slate-800" onClick={() => router.push('/purchases/invoices')}>
             <ChevronLeft className="w-5 h-5" />
           </Button>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-xl font-bold text-slate-800">{invoice.invoiceNumber}</h1>
-            <span className={`text-xs font-semibold px-2.5 py-1 rounded-md border flex items-center ${getStatusColor(invoice.status)}`}>
-              {getStatusIcon(invoice.status)}
-              {invoice.status.toUpperCase()}
-            </span>
-            {invoice.receiptStatus === 'Received' && (
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-md border bg-green-100 text-green-700 border-green-300 ml-2">
-                RECEIVED
+          <div>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-xl font-bold text-slate-800 tracking-tight">Invoice {invoice.invoiceNumber || invoice.purchaseReceiveNumber}</h1>
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-md border flex items-center ${getStatusColor(invoice.status)}`}>
+                {getStatusIcon(invoice.status)}
+                {invoice.status.toUpperCase()}
               </span>
-            )}
+              {invoice.receiptStatus === 'Received' ? (
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-md border bg-green-100 text-green-700 border-green-300 flex items-center" title="The Store Manager has inwarded and accepted these items">
+                  <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> STORE MGR ACCEPTED
+                </span>
+              ) : (
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-md border bg-amber-100 text-amber-700 border-amber-300 flex items-center animate-pulse" title="Waiting for Store Manager to inward and accept these items">
+                  <Clock className="w-3.5 h-3.5 mr-1" /> PENDING STORE MGR ACCEPTANCE
+                </span>
+              )}
+            </div>
+            <div className="flex items-center text-xs text-slate-500 mt-1">
+              <span className="font-medium mr-2">{new Date(invoice.date || invoice.receiveDate).toLocaleDateString('en-GB')}</span>
+              {invoice.purchaseOrderNumber && (
+                <>
+                  <span className="w-1 h-1 rounded-full bg-slate-300 mx-2"></span>
+                  <span>Ref PO: <span className="font-medium text-blue-600">{invoice.purchaseOrderNumber}</span></span>
+                </>
+              )}
+            </div>
           </div>
+          <div className="hidden sm:block w-px h-6 bg-slate-200 mx-2"></div>
           <div className="flex space-x-1 bg-slate-100 p-1 rounded-lg shrink-0">
             <button
               onClick={() => setActiveTab('details')}
@@ -145,8 +169,8 @@ export default function PurchaseInvoiceDetailPage() {
           </div>
         </div>
         
-        <div className="flex flex-wrap items-center gap-2">
-          {(!invoice.receiptStatus || invoice.receiptStatus === 'Pending Receipt') ? (
+        <div className="flex items-center space-x-3">
+          {invoice.receiptStatus === 'Pending Receipt' ? (
             <Button onClick={handleApproveReceipt} className="h-9 bg-green-600 hover:bg-green-700 text-white">
               <CheckCircle2 className="w-4 h-4 mr-2" /> Approve Receipt
             </Button>
@@ -196,22 +220,23 @@ export default function PurchaseInvoiceDetailPage() {
                 {/* Header Section */}
                 <div className="flex justify-between items-start mb-6 border-b-2 border-teal-600 pb-4">
                   <div>
-                    <h1 className="text-3xl font-black text-indigo-900 tracking-wider mb-2 uppercase break-words pr-4">{invoice.billingCompany?.name || invoice.vendorName || "VENDOR NAME"}</h1>
+                    <h1 className="text-3xl font-black text-indigo-900 tracking-wider mb-2 uppercase break-words pr-4">{selectedBillingCompany?.name || invoice.vendorName || "VENDOR NAME"}</h1>
                     <div className="bg-teal-600 text-white font-bold py-1.5 px-4 rounded-sm inline-block mb-3 text-sm">
                       TAX INVOICE
                     </div>
-                    <p className="text-slate-800 mb-0.5 whitespace-pre-wrap">{invoice.billingCompany?.address || 'Address Details'}</p>
+                    <p className="text-slate-800 mb-0.5 whitespace-pre-wrap">{selectedBillingCompany?.address || 'Address Details'}</p>
+                    {selectedBillingCompany?.gstin && <p className="text-slate-800 font-semibold mb-0.5">GSTIN: {selectedBillingCompany.gstin}</p>}
                   </div>
                   <div className="text-right flex flex-col items-end pt-2">
-                    {invoice.billingCompany?.logoUrl ? (
-                      <img src={invoice.billingCompany.logoUrl.startsWith('http') ? invoice.billingCompany.logoUrl : `${API_BASE_URL}${invoice.billingCompany.logoUrl}`} alt="Logo" className="w-32 object-contain mb-3" />
+                    {selectedBillingCompany?.logoUrl ? (
+                      <img src={selectedBillingCompany.logoUrl.startsWith('http') ? selectedBillingCompany.logoUrl : `${API_BASE_URL}${selectedBillingCompany.logoUrl}`} alt="Logo" className="w-32 object-contain mb-3" />
                     ) : (
                       <div className="w-24 h-24 bg-slate-100 rounded-sm mb-3 flex items-center justify-center border border-slate-200">
                         <span className="text-indigo-900 font-bold text-xl">LOGO</span>
                       </div>
                     )}
-                    {invoice.billingCompany?.phone && <p className="text-slate-800 font-semibold mb-0.5">Tel : {invoice.billingCompany.phone}</p>}
-                    {invoice.billingCompany?.email && <p className="text-slate-800">Email : {invoice.billingCompany.email}</p>}
+                    {selectedBillingCompany?.phone && <p className="text-slate-800 font-semibold mb-0.5">Tel : {selectedBillingCompany.phone}</p>}
+                    {selectedBillingCompany?.email && <p className="text-slate-800">Email : {selectedBillingCompany.email}</p>}
                   </div>
                 </div>
 
@@ -585,8 +610,8 @@ export default function PurchaseInvoiceDetailPage() {
               <div className="flex flex-col gap-8">
                 {invoice.attachments.map((attachment: any, idx: number) => {
                   const fileUrl = attachment.url.startsWith('http') ? attachment.url : `${API_BASE_URL}${attachment.url}`;
-                  const isImage = attachment.url.match(/\.(jpeg|jpg|gif|png|webp)$/i) != null;
-                  const isPdf = attachment.url.match(/\.pdf$/i) != null;
+                  const isImage = (attachment.url && attachment.url.match(/\.(jpeg|jpg|gif|png|webp)(\?.*)?$/i) != null) || (attachment.name && attachment.name.match(/\.(jpeg|jpg|gif|png|webp)$/i) != null);
+                  const isPdf = (attachment.url && attachment.url.match(/\.pdf(\?.*)?$/i) != null) || (attachment.name && attachment.name.match(/\.pdf$/i) != null);
                   return (
                     <div key={idx} className="flex flex-col gap-4 print:break-inside-avoid print:break-before-page">
                       <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-blue-600 hover:underline flex items-center gap-2">

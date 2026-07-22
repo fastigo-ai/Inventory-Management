@@ -71,17 +71,31 @@ export const updateItem = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(404, 'Item not found');
   }
 
+  const item = await Item.findById(id);
+  if (!item) {
+    throw new ApiError(404, 'Item not found');
+  }
+
+  // 1. Check if item is in circulation
+  const objectId = new mongoose.Types.ObjectId(id);
+  const inUse = await PurchaseOrder.exists({ 'lineItems.itemId': objectId }) || 
+                await DI.exists({ 'lineItems.itemId': objectId });
+
+  if (inUse) {
+    const criticalFields = ['unit', 'tempCode', 'temp_code', 'sku'];
+    for (const field of criticalFields) {
+      if (dynamicData[field] !== undefined && dynamicData[field] !== item.dynamicData[field]) {
+        throw new ApiError(400, `Cannot update critical field '${field}' because this item is already in circulation (used in POs or DIs).`);
+      }
+    }
+  }
+
   const metadata = await Metadata.findOne({ entityName: 'Item' });
   if (!metadata) {
     throw new ApiError(500, 'Item metadata configuration missing');
   }
 
   await validateDynamicData(dynamicData, metadata.fields, id);
-
-  const item = await Item.findById(id);
-  if (!item) {
-    throw new ApiError(404, 'Item not found');
-  }
 
   const performedBy = (req as any).user?._id || 'system';
 

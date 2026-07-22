@@ -33,6 +33,7 @@ export default function EditPurchaseReceivePage() {
   const [billingFrom, setBillingFrom] = useState("");
   const [billingCompanies, setBillingCompanies] = useState<any[]>([]);
   const [status, setStatus] = useState<string>("Draft");
+  const [isLocked, setIsLocked] = useState(false);
   
   // Extra fields
   const [diNo, setDiNo] = useState("");
@@ -75,6 +76,7 @@ export default function EditPurchaseReceivePage() {
         setDiDate(data.diDate ? new Date(data.diDate).toISOString().split('T')[0] : "");
         setNotes(data.notes || "");
         setStatus(data.status || "Draft");
+        setIsLocked(data.isLocked || false);
         
         if (data.lineItems) {
           setLineItems(data.lineItems);
@@ -165,6 +167,11 @@ export default function EditPurchaseReceivePage() {
   };
 
   const handleSubmit = async (submitStatus: 'Draft' | 'Received') => {
+    if (isLocked) {
+      alert("This invoice is locked from editing because the Store Manager has already begun processing it.");
+      return;
+    }
+
     if (!vendorName || !purchaseReceiveNumber || !receiveDate) {
       alert("Please fill in the required fields");
       return;
@@ -292,6 +299,18 @@ export default function EditPurchaseReceivePage() {
       <div className="flex-1 overflow-y-auto px-10 py-8 bg-[#fcfcfc]">
         <div className="max-w-[1200px] mx-auto bg-white p-8 shadow-sm border border-slate-200 rounded-lg">
           
+          {isLocked && (
+            <div className="mb-8 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start text-red-700">
+              <svg className="w-5 h-5 mr-3 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div>
+                <h3 className="font-semibold text-sm">Invoice Locked</h3>
+                <p className="text-xs mt-1">This invoice is locked from editing because the Store Manager has already begun processing the inward entries. Changes to quantities or items are not permitted.</p>
+              </div>
+            </div>
+          )}
+
           {/* Top Section */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6 mb-8">
             
@@ -704,18 +723,18 @@ export default function EditPurchaseReceivePage() {
 
             {/* Bottom Actions */}
             <div className="flex items-center justify-between pt-6 border-t border-slate-200 mt-12">
-              <Button variant="outline" className="text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600 bg-red-50/50" onClick={handleDelete}>
+              <Button variant="outline" className="text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600 bg-red-50/50" onClick={handleDelete} disabled={isLocked}>
                 <Trash2 className="w-4 h-4 mr-2" /> Delete
               </Button>
               <div className="flex items-center space-x-3">
-                <Button variant="outline" className="text-slate-700 font-medium hover:bg-slate-50 border-slate-300 rounded-md" onClick={() => handleSubmit('Draft')}>
+                <Button variant="outline" className="text-slate-700 font-medium hover:bg-slate-50 border-slate-300 rounded-md" onClick={() => handleSubmit('Draft')} disabled={isLocked}>
                   Save as Draft
                 </Button>
                 <div className="flex rounded-md shadow-sm">
-                  <Button className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-medium rounded-r-none border-r border-[#1d4ed8]" onClick={() => handleSubmit('Received')}>
+                  <Button className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-medium rounded-r-none border-r border-[#1d4ed8] disabled:bg-blue-300 disabled:border-blue-300" onClick={() => handleSubmit('Received')} disabled={isLocked}>
                     Save Changes
                   </Button>
-                  <Button className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-medium rounded-l-none px-2">
+                  <Button className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-medium rounded-l-none px-2 disabled:bg-blue-300 disabled:border-blue-300" disabled={isLocked}>
                     <ChevronDown className="w-4 h-4" />
                   </Button>
                 </div>

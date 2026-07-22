@@ -65,10 +65,10 @@ export default function NewDIRegistrationPage() {
     setDate(new Date().toISOString().split('T')[0]);
   }, []);
 
-  // When PO changes, populate line items
-  useEffect(() => {
-    if (purchaseOrderId) {
-      const po = purchaseOrders.find(p => p._id === purchaseOrderId);
+  const handlePurchaseOrderChange = (poId: string) => {
+    setPurchaseOrderId(poId);
+    if (poId) {
+      const po = purchaseOrders.find(p => p._id === poId);
       if (po && po.lineItems) {
         setLineItems(po.lineItems
           .filter((item: any) => !item.isCanceled)
@@ -92,7 +92,7 @@ export default function NewDIRegistrationPage() {
     } else {
       setLineItems([]);
     }
-  }, [purchaseOrderId, purchaseOrders, items]);
+  };
 
   const updateLineItem = (index: number, field: string, value: any) => {
     setLineItems(prev => {
@@ -152,9 +152,9 @@ export default function NewDIRegistrationPage() {
     }
   };
 
-  const availableCircles = diPackage === "Package 1 (S/N)" 
+  const availableCircles = diPackage?.includes("Package 1") 
     ? ["Solan", "Nahan"] 
-    : diPackage === "Package 2 (R/R)" 
+    : diPackage?.includes("Package 2") 
       ? ["Rohru", "Rampur"] 
       : ["Solan", "Nahan", "Rohru", "Rampur"];
 
@@ -189,7 +189,7 @@ export default function NewDIRegistrationPage() {
               <div className="col-span-9">
                 <select
                   value={purchaseOrderId}
-                  onChange={(e) => setPurchaseOrderId(e.target.value)}
+                  onChange={(e) => handlePurchaseOrderChange(e.target.value)}
                   className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <option value="">Select Purchase Order</option>
@@ -549,6 +549,14 @@ export default function NewDIRegistrationPage() {
                       )}
                       {(item.package || '').includes("Package 2") && (
                         <>
+                          <option value="Rohru">Rohru</option>
+                          <option value="Rampur">Rampur</option>
+                        </>
+                      )}
+                      {!item.package?.includes("Package 1") && !item.package?.includes("Package 2") && (
+                        <>
+                          <option value="Solan">Solan</option>
+                          <option value="Nahan">Nahan</option>
                           <option value="Rohru">Rohru</option>
                           <option value="Rampur">Rampur</option>
                         </>

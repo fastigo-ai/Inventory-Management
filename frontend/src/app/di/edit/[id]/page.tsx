@@ -85,11 +85,10 @@ export default function EditDIRegistrationPage() {
     }).catch(console.error);
   }, [id]);
 
-  // When PO changes, populate line items (skip on initial load)
-  useEffect(() => {
-    if (isInitialLoad) return;
-    if (purchaseOrderId) {
-      const po = purchaseOrders.find(p => p._id === purchaseOrderId);
+  const handlePurchaseOrderChange = (poId: string) => {
+    setPurchaseOrderId(poId);
+    if (poId) {
+      const po = purchaseOrders.find(p => p._id === poId);
       if (po && po.lineItems) {
         setLineItems(po.lineItems
           .filter((item: any) => !item.isCanceled)
@@ -100,7 +99,7 @@ export default function EditDIRegistrationPage() {
               itemName: item.itemName,
               sku: item.loaSerialNo || masterItem?.dynamicData?.loaSerialNo || masterItem?.dynamicData?.loaSerialNumber || masterItem?.dynamicData?.['LOA Serial No.'] || masterItem?.dynamicData?.loa || masterItem?.dynamicData?.sku || masterItem?.dynamicData?.tempCode || '',
               tempCode: item.tempCode || '',
-              package: item.package || po.package1 || '',
+              package: item.package || po.package || '',
               circle: item.circle || po.circle || '',
               orderedQuantity: item.quantity || 0,
               quantity: item.quantity || 0, // Default to full quantity for inspection
@@ -113,7 +112,7 @@ export default function EditDIRegistrationPage() {
     } else {
       setLineItems([]);
     }
-  }, [purchaseOrderId, purchaseOrders, items]);
+  };
 
   const updateLineItem = (index: number, field: string, value: any) => {
     setLineItems(prev => {
@@ -188,14 +187,15 @@ export default function EditDIRegistrationPage() {
     }
   };
 
-  const availableCircles = diPackage === "Package 1 (S/N)" 
+  const availableCircles = diPackage?.includes("Package 1") 
     ? ["Solan", "Nahan"] 
-    : diPackage === "Package 2 (R/R)" 
+    : diPackage?.includes("Package 2") 
       ? ["Rohru", "Rampur"] 
       : ["Solan", "Nahan", "Rohru", "Rampur"];
 
   return (
-    <div className="flex-1 bg-white min-h-screen">
+    <>
+    <div className="flex-1 bg-white min-h-screen pb-20">
       {/* Top Navigation */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
         <div className="flex items-center gap-3">
@@ -224,7 +224,7 @@ export default function EditDIRegistrationPage() {
               <div className="col-span-9">
                 <select
                   value={purchaseOrderId}
-                  onChange={(e) => setPurchaseOrderId(e.target.value)}
+                  onChange={(e) => handlePurchaseOrderChange(e.target.value)}
                   className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <option value="" disabled>Select Purchase Order</option>
@@ -581,6 +581,14 @@ export default function EditDIRegistrationPage() {
                       )}
                       {(item.package || '').includes("Package 2") && (
                         <>
+                          <option value="Rohru">Rohru</option>
+                          <option value="Rampur">Rampur</option>
+                        </>
+                      )}
+                      {!item.package?.includes("Package 1") && !item.package?.includes("Package 2") && (
+                        <>
+                          <option value="Solan">Solan</option>
+                          <option value="Nahan">Nahan</option>
                           <option value="Rohru">Rohru</option>
                           <option value="Rampur">Rampur</option>
                         </>
@@ -944,5 +952,6 @@ export default function EditDIRegistrationPage() {
         </div>
       )}
     </div>
+    </>
   );
 }

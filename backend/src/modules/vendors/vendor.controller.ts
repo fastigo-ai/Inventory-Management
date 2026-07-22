@@ -4,6 +4,7 @@ import { parse } from 'csv-parse';
 import { stringify } from 'csv-stringify/sync';
 import Vendor from './vendor.model';
 import Metadata from '../metadata/metadata.model';
+import { PurchaseOrder } from '../purchases/purchaseOrder.schema';
 import { asyncHandler } from '../../core/utils/asyncHandler';
 import { ApiResponse } from '../../core/utils/ApiResponse';
 import { ApiError } from '../../core/utils/ApiError';
@@ -67,7 +68,11 @@ export const getVendors = asyncHandler(async (req: Request, res: Response) => {
     sortObject = { [`dynamicData.${sortBy}`]: sortOrder };
   }
 
-  let matchQuery: any = {};
+  let matchQuery: any = { isDeleted: { $ne: true } };
+  if (req.query.status) {
+    matchQuery.status = req.query.status;
+  }
+  
   if (search) {
     const searchRegex = new RegExp(search, 'i');
     matchQuery = {
@@ -119,7 +124,7 @@ export const getVendorById = asyncHandler(async (req: Request, res: Response) =>
 
 export const updateVendor = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { dynamicData } = req.body;
+  const { dynamicData, status } = req.body;
 
   if (typeof id !== 'string' || !id.match(/^[0-9a-fA-F]{24}$/)) {
     throw new ApiError(404, 'Vendor not found');
@@ -135,9 +140,33 @@ export const updateVendor = asyncHandler(async (req: Request, res: Response) => 
     throw new ApiError(500, 'Vendor metadata configuration missing');
   }
 
-  await validateDynamicData(dynamicData, metadata.fields, id);
+  // Check if used in Purchase Orders to prevent name changes
+  const vendorNameChecks = [
+    vendor.dynamicData?.companyName,
+    vendor.dynamicData?.displayName,
+    vendor._id.toString()
+  ].filter(Boolean);
+  
+  const inUse = await PurchaseOrder.exists({ vendorName: { $in: vendorNameChecks } });
 
-  vendor.dynamicData = dynamicData;
+  if (inUse && dynamicData) {
+    const criticalFields = ['companyName', 'displayName'];
+    for (const field of criticalFields) {
+      if (dynamicData[field] !== undefined && dynamicData[field] !== vendor.dynamicData[field]) {
+        throw new ApiError(400, `Cannot update critical field '${field}' because this vendor has active Purchase Orders.`);
+      }
+    }
+  }
+
+  if (dynamicData) {
+    await validateDynamicData(dynamicData, metadata.fields, id);
+    vendor.dynamicData = dynamicData;
+  }
+
+  if (status && ['Active', 'Inactive'].includes(status)) {
+    vendor.status = status;
+  }
+
   await vendor.save();
 
   res.status(200).json(new ApiResponse(200, vendor, 'Vendor updated successfully'));
@@ -150,10 +179,26 @@ export const deleteVendor = asyncHandler(async (req: Request, res: Response) => 
     throw new ApiError(404, 'Vendor not found');
   }
 
-  const vendor = await Vendor.findByIdAndDelete(id);
+  const vendor = await Vendor.findById(id);
   if (!vendor) {
     throw new ApiError(404, 'Vendor not found');
   }
+
+  const vendorNameChecks = [
+    vendor.dynamicData?.companyName,
+    vendor.dynamicData?.displayName,
+    vendor._id.toString()
+  ].filter(Boolean);
+
+  const inUse = await PurchaseOrder.exists({ vendorName: { $in: vendorNameChecks } });
+  
+  if (inUse) {
+    throw new ApiError(400, 'Cannot delete this vendor as it is linked to one or more Purchase Orders. Please mark it as Inactive instead.');
+  }
+
+  // If not in use, we can safely soft delete (or hard delete, but soft delete is safer)
+  vendor.isDeleted = true;
+  await vendor.save();
 
   res.status(200).json(new ApiResponse(200, {}, 'Vendor deleted successfully'));
 });

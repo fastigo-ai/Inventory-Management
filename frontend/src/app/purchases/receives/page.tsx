@@ -112,7 +112,8 @@ export default function PurchaseReceivesPage() {
                   <th className="px-4 py-3 font-semibold">Purchase Invoice#</th>
                   <th className="px-4 py-3 font-semibold">PURCHASE ORDER#</th>
                   <th className="px-4 py-3 font-semibold">VENDOR NAME</th>
-                  <th className="px-4 py-3 font-semibold">STATUS</th>
+                  <th className="px-4 py-3 font-semibold">INVOICE STATUS</th>
+                  <th className="px-4 py-3 font-semibold">STORE RECEIPT</th>
                   <th className="px-4 py-3 font-semibold">BILLED</th>
                   <th className="px-4 py-3 font-semibold text-right">QUANTITY</th>
                   <th className="px-4 py-3 font-semibold w-10"><Search className="w-4 h-4 text-slate-400" /></th>
@@ -121,7 +122,7 @@ export default function PurchaseReceivesPage() {
               <tbody>
                 {receives.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="py-20 text-center">
+                    <td colSpan={11} className="py-20 text-center">
                       <p className="text-[15px] text-slate-500">No Purchase Invoices to display!</p>
                     </td>
                   </tr>
@@ -167,6 +168,15 @@ export default function PurchaseReceivesPage() {
                           'bg-slate-100 text-slate-800'
                         }`}>
                           {pr.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium uppercase ${
+                          pr.storeStatus === 'Accepted' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
+                          pr.storeStatus === 'Pending' ? 'bg-amber-100 text-amber-800 border border-amber-200' :
+                          'bg-slate-100 text-slate-800 border border-slate-200'
+                        }`}>
+                          {pr.storeStatus || 'Draft'}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-slate-700">

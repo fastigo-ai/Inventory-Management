@@ -95,12 +95,7 @@ export default function DIPage() {
                       key={di._id} 
                       className="hover:bg-slate-50 transition-colors cursor-pointer"
                       onClick={() => {
-                        if (di.status === 'Draft') {
-                          router.push(`/di/edit/${di._id}`);
-                        } else {
-                          // A dedicated view page doesn't exist yet, so we redirect to edit mode for now
-                          router.push(`/di/edit/${di._id}`);
-                        }
+                        router.push(`/di/${di._id}`);
                       }}
                     >
                       <td className="px-6 py-4 font-medium text-blue-600 whitespace-nowrap">{di.diNumber}</td>

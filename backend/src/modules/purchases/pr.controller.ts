@@ -77,9 +77,27 @@ export const getPurchaseReceives = async (req: Request, res: Response): Promise<
       Pr.countDocuments()
     ]);
 
-    const prsWithQuantity = prs.map((pr: any) => ({
-      ...pr,
-      quantity: pr.lineItems?.reduce((acc: number, item: any) => acc + (Number(item.totalInvoiceQuantity) || 0), 0) || 0
+    const prsWithQuantity = await Promise.all(prs.map(async (pr: any) => {
+      const quantity = pr.lineItems?.reduce((acc: number, item: any) => acc + (Number(item.totalInvoiceQuantity) || 0), 0) || 0;
+      
+      let storeStatus = 'Pending';
+      const totalEntries = await StoreInwardEntry.countDocuments({ purchaseInvoiceId: pr._id });
+      if (totalEntries > 0) {
+        const pendingEntries = await StoreInwardEntry.countDocuments({
+          purchaseInvoiceId: pr._id,
+          status: { $in: ['PENDING_RECEIPT', 'DRAFT'] }
+        });
+        storeStatus = pendingEntries > 0 ? 'Pending' : 'Accepted';
+      } else {
+        // If there are no entries but status is Draft, then it hasn't reached the store yet
+        storeStatus = pr.status === 'Draft' ? 'Draft' : 'Pending';
+      }
+
+      return {
+        ...pr,
+        quantity,
+        storeStatus
+      };
     }));
 
     res.status(200).json({
@@ -107,7 +125,7 @@ export const getPurchaseReceives = async (req: Request, res: Response): Promise<
 export const getPurchaseReceiveById = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const pr = await Pr.findById(id);
+    const pr = await Pr.findById(id).lean();
 
     if (!pr) {
       res.status(404).json({
@@ -117,9 +135,18 @@ export const getPurchaseReceiveById = async (req: Request, res: Response): Promi
       return;
     }
 
+    // Check if any StoreInwardEntry is beyond PENDING_RECEIPT or DRAFT
+    const lockedEntries = await StoreInwardEntry.countDocuments({
+      purchaseInvoiceId: pr._id,
+      status: { $nin: ['PENDING_RECEIPT', 'DRAFT'] }
+    });
+
     res.status(200).json({
       success: true,
-      data: pr
+      data: {
+        ...pr,
+        isLocked: lockedEntries > 0
+      }
     });
   } catch (error: any) {
     console.error('Error fetching Purchase Invoice:', error);
@@ -168,6 +195,20 @@ export const updatePurchaseReceive = async (req: Request, res: Response): Promis
     const { id } = req.params;
     const updateData = req.body;
     
+    // 1. Check if it is locked
+    const lockedEntries = await StoreInwardEntry.countDocuments({
+      purchaseInvoiceId: id,
+      status: { $nin: ['PENDING_RECEIPT', 'DRAFT'] }
+    });
+
+    if (lockedEntries > 0) {
+      res.status(400).json({
+        success: false,
+        message: 'Cannot edit this Purchase Invoice because the Store Manager has already begun processing it.'
+      });
+      return;
+    }
+
     const updatedPr = await Pr.findByIdAndUpdate(id, updateData, { new: true });
     
     if (!updatedPr) {
@@ -176,6 +217,47 @@ export const updatePurchaseReceive = async (req: Request, res: Response): Promis
         message: 'Purchase Invoice not found'
       });
       return;
+    }
+
+    // 2. Synchronize StoreInwardEntry records
+    if (updatedPr.lineItems && updatedPr.lineItems.length > 0) {
+      // Delete existing pending entries
+      await StoreInwardEntry.deleteMany({
+        purchaseInvoiceId: updatedPr._id,
+        status: { $in: ['PENDING_RECEIPT', 'DRAFT'] }
+      });
+
+      // Recreate them with updated items
+      const inwardEntries = updatedPr.lineItems.map((item: any) => ({
+        purchaseInvoiceId: updatedPr._id,
+        purchaseOrderId: updatedPr.purchaseOrderId,
+        poNumber: updatedPr.purchaseOrderNumber,
+        poDate: item.poDate,
+        billingFrom: updatedPr.billingFrom,
+        vendorName: updatedPr.vendorName,
+        invoiceNumber: updatedPr.purchaseReceiveNumber,
+        invoiceDate: updatedPr.receiveDate,
+        diRefNo: updatedPr.diNo,
+        circle: item.circle,
+        package: item.package,
+        unit: item.unit,
+        invoiceQty: item.invoiceQuantity,
+        totalQty: item.totalInvoiceQuantity,
+        rate: item.rate,
+        amount: item.amount,
+        tempCode: item.tempCode,
+        itemId: item.itemId,
+        itemName: item.itemName,
+        hsnCode: item.hsnCode,
+        cgst: item.cgst,
+        sgst: item.sgst,
+        igst: item.igst,
+        taxableAmount: item.amount,
+        serialNumber: item.loaSerialNo,
+        status: 'PENDING_RECEIPT',
+        packingList: [{ packType: 'BOX', quantity: item.invoiceQuantity || 0 }]
+      }));
+      await StoreInwardEntry.insertMany(inwardEntries);
     }
 
     res.status(200).json({
@@ -197,6 +279,20 @@ export const deletePurchaseReceive = async (req: Request, res: Response): Promis
   try {
     const { id } = req.params;
     
+    // 1. Check if it is locked
+    const lockedEntries = await StoreInwardEntry.countDocuments({
+      purchaseInvoiceId: id,
+      status: { $nin: ['PENDING_RECEIPT', 'DRAFT'] }
+    });
+
+    if (lockedEntries > 0) {
+      res.status(400).json({
+        success: false,
+        message: 'Cannot delete this Purchase Invoice because the Store Manager has already begun processing it.'
+      });
+      return;
+    }
+
     const deletedPr = await Pr.findByIdAndDelete(id);
     
     if (!deletedPr) {
@@ -207,9 +303,15 @@ export const deletePurchaseReceive = async (req: Request, res: Response): Promis
       return;
     }
 
+    // 2. Cascade delete orphaned inward entries
+    await StoreInwardEntry.deleteMany({
+      purchaseInvoiceId: id,
+      status: { $in: ['PENDING_RECEIPT', 'DRAFT'] }
+    });
+
     res.status(200).json({
       success: true,
-      message: 'Purchase Invoice deleted successfully'
+      message: 'Purchase Invoice and pending inward entries deleted successfully'
     });
   } catch (error: any) {
     console.error('Error deleting Purchase Invoice:', error);

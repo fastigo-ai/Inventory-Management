@@ -5,6 +5,7 @@ import { ApiResponse } from '../../core/utils/ApiResponse';
 import { DI } from './di.schema';
 import { parse } from 'csv-parse/sync';
 import { PurchaseOrder } from '../purchases/purchaseOrder.schema';
+import { Pr } from '../purchases/pr.schema';
 export const createDI = asyncHandler(async (req: Request, res: Response) => {
   const data = req.body;
 
@@ -77,8 +78,14 @@ export const getDIById = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(404, 'DI not found');
   }
 
+  const diObj = di.toObject();
+  
+  // Check if linked to PR
+  const hasPr = await Pr.exists({ diNo: di.diNumber });
+  (diObj as any).isLocked = di.status === 'Received' || !!hasPr;
+
   res.status(200).json(
-    new ApiResponse(200, di, 'DI fetched successfully')
+    new ApiResponse(200, diObj, 'DI fetched successfully')
   );
 });
 
@@ -152,10 +159,20 @@ export const updateDI = asyncHandler(async (req: Request, res: Response) => {
     existingDI.inspectionReportCopyUrl = `/uploads/dis/${files['inspectionReportCopyUrl'][0].filename}`;
   }
 
-  // Update other fields
-  if (data.status) existingDI.status = data.status;
-  if (data.notes !== undefined) existingDI.notes = data.notes;
-  existingDI.lineItems = parsedLineItems;
+  // Check if locked
+  const hasPr = await Pr.exists({ diNo: existingDI.diNumber });
+  const isLocked = existingDI.status === 'Received' || !!hasPr;
+
+  if (isLocked) {
+    // If locked, we ONLY allow updating notes or attachments (already processed above)
+    if (data.notes !== undefined) existingDI.notes = data.notes;
+    // Disallow line items, status changes, etc.
+  } else {
+    // Not locked, allow full update
+    if (data.status) existingDI.status = data.status;
+    if (data.notes !== undefined) existingDI.notes = data.notes;
+    existingDI.lineItems = parsedLineItems;
+  }
 
   const updatedDI = await existingDI.save();
 
@@ -267,6 +284,11 @@ export const deleteDI = asyncHandler(async (req: Request, res: Response) => {
   const di = await DI.findById(id);
   if (!di) {
     throw new ApiError(404, 'DI not found');
+  }
+
+  const hasPr = await Pr.exists({ diNo: di.diNumber });
+  if (di.status === 'Received' || hasPr) {
+    throw new ApiError(400, 'Cannot delete this DI because it has already been Received or Invoiced.');
   }
 
   await DI.findByIdAndDelete(id);

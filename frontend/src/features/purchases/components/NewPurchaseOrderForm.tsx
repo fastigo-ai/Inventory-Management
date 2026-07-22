@@ -457,14 +457,21 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
             formData.append('lineItems', JSON.stringify(processedLineItems));
           } else if (key === 'deliveryAddresses') {
             formData.append('deliveryAddresses', JSON.stringify(data.deliveryAddresses || []));
+          } else if (key === 'paymentTerms') {
+            formData.append('paymentTerms', JSON.stringify(data.paymentTerms || []));
           } else if (key === 'cgstPercentage') {
             formData.append('cgstPercentage', String(submitCgst));
           } else if (key === 'sgstPercentage') {
             formData.append('sgstPercentage', String(submitSgst));
           } else if (key === 'igstPercentage') {
             formData.append('igstPercentage', String(submitIgst));
+          } else if (key === 'billingCompany' || key === 'attachments' || key === 'status' || key === '_id' || key === '__v' || key === 'createdAt' || key === 'updatedAt') {
+            // Skip these, they are handled separately or should not be sent
           } else {
-            formData.append(key, (data as any)[key]);
+            const value = (data as any)[key];
+            if (value !== undefined && value !== null) {
+              formData.append(key, value);
+            }
           }
         });
         if (billingCompanySnapshot) {
@@ -476,6 +483,11 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
         files.forEach(file => {
           formData.append('files', file);
         });
+
+        if (data.attachments && data.attachments.length > 0) {
+          formData.append('attachments', JSON.stringify(data.attachments));
+        }
+
         payloadToSubmit = formData;
       } else {
         const payload: any = {

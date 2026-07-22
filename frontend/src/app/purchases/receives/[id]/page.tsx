@@ -647,8 +647,8 @@ export default function PurchaseReceiveDetailPage() {
               <div className="flex flex-col gap-8">
                 {invoice.attachments.map((attachment: any, idx: number) => {
                   const fileUrl = attachment.url.startsWith('http') ? attachment.url : `${API_BASE_URL}${attachment.url}`;
-                  const isImage = attachment.url.match(/\.(jpeg|jpg|gif|png|webp)$/i) != null;
-                  const isPdf = attachment.url.match(/\.pdf$/i) != null;
+                  const isImage = (attachment.url && attachment.url.match(/\.(jpeg|jpg|gif|png|webp)(\?.*)?$/i) != null) || (attachment.name && attachment.name.match(/\.(jpeg|jpg|gif|png|webp)$/i) != null);
+                  const isPdf = (attachment.url && attachment.url.match(/\.pdf(\?.*)?$/i) != null) || (attachment.name && attachment.name.match(/\.pdf$/i) != null);
                   return (
                     <div key={idx} className="flex flex-col gap-4 print:break-inside-avoid print:break-before-page">
                       <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-blue-600 hover:underline flex items-center gap-2">

@@ -253,6 +253,11 @@ export default function PurchaseOrderDetailPage() {
   };
 
   const handleDelete = async () => {
+    if (order.isLocked) {
+      toast.error('Cannot delete: This Purchase Order already has linked Invoices or Dispatch Instructions.');
+      setIsMoreMenuOpen(false);
+      return;
+    }
     if (!confirm('Are you sure you want to delete this Purchase Order?')) return;
     try {
       await deletePurchaseOrder(id);
@@ -396,7 +401,11 @@ export default function PurchaseOrderDetailPage() {
           <div className="flex items-center gap-2">
             {order.status !== 'Cancelled' && (
               <>
-                <button onClick={() => router.push(`/purchases/orders/${order._id}/edit`)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 transition-colors rounded border border-transparent hover:border-slate-200">
+                <button 
+                  onClick={() => !order.isLocked && router.push(`/purchases/orders/${order._id}/edit`)} 
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white transition-colors rounded border ${order.isLocked ? 'text-slate-400 border-slate-200 cursor-not-allowed opacity-60' : 'text-slate-700 hover:bg-slate-50 border-transparent hover:border-slate-200'}`}
+                  title={order.isLocked ? 'Cannot edit this PO because it already has linked Invoices or Dispatch Instructions.' : ''}
+                >
                   <Edit className="w-3.5 h-3.5" /> Edit
                 </button>
                 <div className="w-px h-4 bg-slate-300 mx-1"></div>
@@ -859,8 +868,8 @@ export default function PurchaseOrderDetailPage() {
               <div className="flex flex-col gap-8">
                 {order.attachments.map((attachment: any, idx: number) => {
                   const fileUrl = attachment.url.startsWith('http') ? attachment.url : `${API_BASE_URL}${attachment.url}`;
-                  const isImage = attachment.url.match(/\.(jpeg|jpg|gif|png|webp)$/i) != null;
-                  const isPdf = attachment.url.match(/\.pdf$/i) != null;
+                  const isImage = (attachment.url && attachment.url.match(/\.(jpeg|jpg|gif|png|webp)(\?.*)?$/i) != null) || (attachment.name && attachment.name.match(/\.(jpeg|jpg|gif|png|webp)$/i) != null);
+                  const isPdf = (attachment.url && attachment.url.match(/\.pdf(\?.*)?$/i) != null) || (attachment.name && attachment.name.match(/\.pdf$/i) != null);
                   return (
                     <div key={idx} className="flex flex-col gap-4 print:break-inside-avoid print:break-before-page">
                       <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-blue-600 hover:underline flex items-center gap-2">

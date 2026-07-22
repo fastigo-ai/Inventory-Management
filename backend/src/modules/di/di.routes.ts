@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../../core/middlewares/auth.middleware';
-import { createDI, getDIs, getDIById, updateDIStatus, receiveDI, updateDI } from './di.controller';
+import { createDI, getDIs, getDIById, updateDIStatus, receiveDI, updateDI, exportDIs, importDIs } from './di.controller';
 
 import multer from 'multer';
 
@@ -12,6 +12,9 @@ router.use(authenticate);
 router.route('/')
   .post(upload.array('files', 10), createDI)
   .get(getDIs);
+
+router.get('/export', exportDIs);
+router.post('/import', upload.single('file'), importDIs);
 
 router.route('/:id')
   .get(getDIById)

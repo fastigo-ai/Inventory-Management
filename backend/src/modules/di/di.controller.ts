@@ -3,6 +3,9 @@ import { asyncHandler } from '../../core/utils/asyncHandler';
 import { ApiError } from '../../core/utils/ApiError';
 import { ApiResponse } from '../../core/utils/ApiResponse';
 import { DI } from './di.schema';
+import { PurchaseOrder } from '../purchases/purchaseOrder.schema';
+import { parse } from 'csv-parse';
+import { stringify } from 'csv-stringify/sync';
 
 export const createDI = asyncHandler(async (req: Request, res: Response) => {
   const data = req.body;
@@ -172,5 +175,115 @@ export const updateDI = asyncHandler(async (req: Request, res: Response) => {
 
   res.status(200).json(
     new ApiResponse(200, updatedDI, 'DI Updated Successfully')
+  );
+});
+
+export const exportDIs = asyncHandler(async (req: Request, res: Response) => {
+  const dis = await DI.find().populate('purchaseOrderId', 'purchaseOrderNumber').sort({ createdAt: -1 }).lean();
+  
+  const rows: any[] = [];
+  for (const di of dis) {
+    if (!di.lineItems || di.lineItems.length === 0) {
+      rows.push({
+        DINumber: di.diNumber,
+        Date: di.date,
+        PONumber: (di.purchaseOrderId as any)?.purchaseOrderNumber || '',
+        Circle: di.circle || '',
+        Package: di.package || '',
+        Status: di.status,
+        ItemName: '',
+        Quantity: ''
+      });
+    } else {
+      for (const item of di.lineItems) {
+        rows.push({
+          DINumber: di.diNumber,
+          Date: di.date,
+          PONumber: (di.purchaseOrderId as any)?.purchaseOrderNumber || '',
+          Circle: di.circle || '',
+          Package: di.package || '',
+          Status: di.status,
+          ItemName: item.itemName || '',
+          Quantity: item.quantity || 0
+        });
+      }
+    }
+  }
+
+  const headers = ['DINumber', 'Date', 'PONumber', 'Circle', 'Package', 'Status', 'ItemName', 'Quantity'];
+  const csv = stringify(rows, { header: true, columns: headers });
+  
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="dis_export.csv"');
+  res.send(csv);
+});
+
+export const importDIs = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.file) {
+    throw new ApiError(400, 'No CSV file uploaded');
+  }
+
+  const parser = parse(req.file.buffer, {
+    columns: true,
+    skip_empty_lines: true,
+    trim: true,
+  });
+
+  const disMap: Record<string, any> = {};
+
+  for await (const row of parser) {
+    const diNumber = row['DINumber'] || row['diNumber'] || row['DI Number'];
+    if (!diNumber) continue;
+
+    if (!disMap[diNumber]) {
+      let poId = null;
+      if (row['PONumber'] || row['poNumber']) {
+        const poNum = row['PONumber'] || row['poNumber'];
+        const po = await PurchaseOrder.findOne({ purchaseOrderNumber: poNum });
+        if (po) poId = po._id;
+      }
+      
+      disMap[diNumber] = {
+        diNumber: diNumber,
+        date: row['Date'] || row['date'] || new Date().toISOString().split('T')[0],
+        purchaseOrderId: poId,
+        circle: row['Circle'] || row['circle'],
+        package: row['Package'] || row['package'],
+        status: row['Status'] || row['status'] || 'Draft',
+        lineItems: [],
+      };
+    }
+
+    const itemName = row['ItemName'] || row['itemName'] || row['Item Name'];
+    const quantity = Number(row['Quantity'] || row['quantity'] || 0);
+
+    if (itemName && quantity > 0) {
+      disMap[diNumber].lineItems.push({
+        itemName,
+        quantity
+      });
+    }
+  }
+
+  const disToInsert = Object.values(disMap);
+  let successCount = 0;
+  const errors: any[] = [];
+  
+  for (const diData of disToInsert) {
+     try {
+       const existing = await DI.findOne({ diNumber: diData.diNumber });
+       if (existing) {
+         errors.push(`DI ${diData.diNumber} already exists.`);
+         continue;
+       }
+       await DI.create(diData);
+       successCount++;
+     } catch (err: any) {
+       errors.push(`Failed to import DI ${diData.diNumber}: ${err.message}`);
+     }
+  }
+
+  res.status(200).json(
+    new ApiResponse(200, { successCount, errors }, 'Import processed')
   );
 });

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getDIPrefillData, createInwardEntry, queryInwardEntries, updateInwardEntry } from "@/features/store/api/store.api";
+import { getPurchaseInvoicePrefillData, createInwardEntry, queryInwardEntries, updateInwardEntry } from "@/features/store/api/store.api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Save, Send } from "lucide-react";
@@ -10,7 +10,7 @@ import { ArrowLeft, Save, Send } from "lucide-react";
 export default function InwardRegistrationForm() {
   const params = useParams();
   const router = useRouter();
-  const diId = params.id as string;
+  const invoiceId = params.id as string;
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -64,19 +64,19 @@ export default function InwardRegistrationForm() {
   const packOptions = ['DRUM', 'PACKAGE', 'PACKET', 'BOX', 'BAG', 'OTHER'];
 
   useEffect(() => {
-    if (diId) {
+    if (invoiceId) {
       loadData();
     }
-  }, [diId]);
+  }, [invoiceId]);
 
   const loadData = async () => {
     try {
       // 1. Check if an entry exists
-      const entriesRes = await queryInwardEntries({ diId, status: 'DRAFT' });
+      const entriesRes = await queryInwardEntries({ purchaseInvoiceId: invoiceId, status: 'DRAFT' });
       const existingDraft = entriesRes.data?.[0];
 
       // 2. Load Prefill data
-      const prefillRes = await getDIPrefillData(diId);
+      const prefillRes = await getPurchaseInvoicePrefillData(invoiceId);
       const prefill = prefillRes.data;
 
       if (existingDraft) {
@@ -179,7 +179,7 @@ export default function InwardRegistrationForm() {
       
       const payload = {
         ...formData,
-        diId,
+        purchaseInvoiceId: invoiceId,
         status,
         packingList: [
           { packType: formData.packType, quantity: Number(formData.packQty) }

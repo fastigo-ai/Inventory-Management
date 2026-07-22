@@ -95,7 +95,7 @@ export default function InwardRegistrationForm() {
           ...prefill,
           description: prefill.itemName || '',
           invoiceNumber: existingDraft.invoiceNumber || prefill.matchedInvoiceNumber || '',
-          invoiceDate: existingDraft.invoiceDate ? existingDraft.invoiceDate.split('T')[0] : '',
+          invoiceDate: existingDraft.invoiceDate ? existingDraft.invoiceDate.split('T')[0] : (prefill.invoiceDate ? prefill.invoiceDate.split('T')[0] : ''),
           challanNumber: existingDraft.challanNumber || '',
           transportName: existingDraft.transportName || '',
           truckNumber: existingDraft.truckNumber || '',
@@ -105,11 +105,11 @@ export default function InwardRegistrationForm() {
           receivedDate: existingDraft.receivedDate ? existingDraft.receivedDate.split('T')[0] : '',
           remarks: existingDraft.remarks || '',
           
-          tempCode: existingDraft.tempCode || prefill.tempCode || '',
+          tempCode: existingDraft.tempCode || prefill.serialNumber || '',
           hsnCode: existingDraft.hsnCode || prefill.hsnCode || '',
           unit: existingDraft.unit || prefill.unit || '',
-          totalQty: existingDraft.totalQty || prefill.quantity || 0,
-          invoiceQty: existingDraft.invoiceQty || 0,
+          totalQty: existingDraft.totalQty || prefill.totalQty || prefill.invoiceQty || 0,
+          invoiceQty: existingDraft.invoiceQty || prefill.invoiceQty || 0,
           rate: existingDraft.rate || prefill.rate || 0,
           gst: existingDraft.gst || prefill.gst || '0',
           
@@ -117,11 +117,11 @@ export default function InwardRegistrationForm() {
           packUnit: existingDraft.packUnit || 'Nos',
           packQty: primaryPackQty,
 
-          taxableAmount: existingDraft.taxableAmount || 0,
-          cgst: existingDraft.cgst || 0,
-          sgst: existingDraft.sgst || 0,
-          igst: existingDraft.igst || 0,
-          amount: existingDraft.amount || 0,
+          taxableAmount: existingDraft.taxableAmount || prefill.taxableAmount || 0,
+          cgst: existingDraft.cgst || prefill.cgst || 0,
+          sgst: existingDraft.sgst || prefill.sgst || 0,
+          igst: existingDraft.igst || prefill.igst || 0,
+          amount: existingDraft.amount || prefill.amount || 0,
         });
       } else {
         setFormData((prev: any) => ({
@@ -129,11 +129,19 @@ export default function InwardRegistrationForm() {
           ...prefill,
           description: prefill.itemName || '',
           invoiceNumber: prefill.matchedInvoiceNumber || '',
-          tempCode: prefill.tempCode || '',
+          invoiceDate: prefill.invoiceDate ? prefill.invoiceDate.split('T')[0] : '',
+          tempCode: prefill.serialNumber || '',
           hsnCode: prefill.hsnCode || '',
           unit: prefill.unit || '',
-          totalQty: prefill.quantity || 0,
+          totalQty: prefill.totalQty || prefill.invoiceQty || 0,
+          invoiceQty: prefill.invoiceQty || 0,
           rate: prefill.rate || 0,
+          gst: prefill.gst || '0',
+          taxableAmount: prefill.taxableAmount || 0,
+          cgst: prefill.cgst || 0,
+          sgst: prefill.sgst || 0,
+          igst: prefill.igst || 0,
+          amount: prefill.amount || 0,
         }));
       }
     } catch (error) {

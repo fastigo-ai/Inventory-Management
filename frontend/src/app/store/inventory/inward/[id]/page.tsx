@@ -226,7 +226,7 @@ export default function InwardRegistrationForm() {
 
         {/* Unified Header Summary (Read-Only Context) */}
         <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div>
               <span className="block text-xs font-semibold text-slate-400 uppercase">PO Number</span>
               <span className="text-sm font-medium text-slate-800">{formData.poNumber || '-'}</span>
@@ -238,6 +238,10 @@ export default function InwardRegistrationForm() {
             <div>
               <span className="block text-xs font-semibold text-slate-400 uppercase">Vendor Name</span>
               <span className="text-sm font-medium text-slate-800">{formData.vendorName || '-'}</span>
+            </div>
+            <div>
+              <span className="block text-xs font-semibold text-slate-400 uppercase">Billing From</span>
+              <span className="text-sm font-medium text-slate-800">{formData.billingFrom || '-'}</span>
             </div>
             <div>
               <span className="block text-xs font-semibold text-slate-400 uppercase">DI Ref No</span>

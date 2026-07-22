@@ -77,6 +77,8 @@ const navItems: NavItem[] = [
     children: [
       { title: 'Store Receipts', href: '/store/receipts' },
       { title: 'Inward Registration', href: '/store/inventory' },
+      { title: 'Inter-Store Transfers', href: '/store/transfers' },
+      { title: 'Outward Register', href: '/store/outward-register' },
       { title: 'Contractor Assignments', href: '/contractors' }
     ]
   },

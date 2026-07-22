@@ -12,21 +12,37 @@ export interface IStoreInwardEntry extends Document {
   purchaseInvoiceId: mongoose.Types.ObjectId;
   
   poNumber?: string;
+  poDate?: Date;
   billingFrom?: string;
   vendorName?: string;
   invoiceNumber?: string;
+  invoiceDate?: Date;
+  receivedDate?: Date;
   unit?: string;
   invoiceQty?: number;
+  totalQty?: number;
+  challanQty?: number;
+  rejectedQty?: number;
   rate?: number;
   amount?: number;
+  taxableAmount?: number;
   
   tempCode?: string;
   hsnCode?: string;
   challanNumber?: string;
   transportName?: string;
   truckNumber?: string;
+  grNumber?: string;
+  grDate?: Date;
+  biltyNumber?: string;
+  
   gst?: string;
+  cgst?: number;
+  sgst?: number;
+  igst?: number;
+  
   diRefNo?: string;
+  remarks?: string;
   
   circle?: string;
   package?: string;
@@ -59,21 +75,37 @@ const storeInwardEntrySchema = new Schema<IStoreInwardEntry>(
     purchaseInvoiceId: { type: Schema.Types.ObjectId, ref: 'PurchaseInvoice', required: true },
     
     poNumber: { type: String },
+    poDate: { type: Date },
     billingFrom: { type: String },
     vendorName: { type: String },
     invoiceNumber: { type: String },
+    invoiceDate: { type: Date },
+    receivedDate: { type: Date },
     unit: { type: String },
     invoiceQty: { type: Number },
+    totalQty: { type: Number },
+    challanQty: { type: Number },
+    rejectedQty: { type: Number },
     rate: { type: Number },
     amount: { type: Number },
+    taxableAmount: { type: Number },
     
     tempCode: { type: String },
     hsnCode: { type: String },
     challanNumber: { type: String },
     transportName: { type: String },
     truckNumber: { type: String },
+    grNumber: { type: String },
+    grDate: { type: Date },
+    biltyNumber: { type: String },
+    
     gst: { type: String },
+    cgst: { type: Number },
+    sgst: { type: Number },
+    igst: { type: Number },
+    
     diRefNo: { type: String },
+    remarks: { type: String },
     
     circle: { type: String },
     package: { type: String },

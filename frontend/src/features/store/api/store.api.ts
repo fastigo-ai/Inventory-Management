@@ -49,3 +49,34 @@ export const getAdminStockSummary = async (params: any) => {
   const response = await api.get('/store/admin/inventory/stock-summary', { params });
   return response.data;
 };
+
+// -- Inter-Store Transfers --
+
+export const createStoreTransfer = async (data: any) => {
+  const response = await api.post('/store/transfers', data);
+  return response.data;
+};
+
+export const getStoreTransfers = async (params?: any) => {
+  const response = await api.get('/store/transfers', { params });
+  return response.data;
+};
+
+export const getStoreTransferById = async (id: string) => {
+  const response = await api.get(`/store/transfers/${id}`);
+  return response.data;
+};
+
+export const updateStoreTransferStatus = async (id: string, status: string) => {
+  const response = await api.put(`/store/transfers/${id}/status`, { status });
+  return response.data;
+};
+
+export const receiveStoreTransfer = async (id: string, data: any) => {
+  const response = await api.put(`/store/transfers/${id}/receive`, data);
+  return response.data;
+};
+export const dispatchStoreTransfer = async (id: string, data: any) => {
+  const response = await api.put(`/store/transfers/${id}/dispatch`, data);
+  return response.data;
+};

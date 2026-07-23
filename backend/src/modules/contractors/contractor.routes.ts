@@ -15,6 +15,10 @@ router.route('/')
   .get(getContractors)
   .post(createContractor);
 
+router.route('/assignments')
+  .get(getAssignments)
+  .post(createAssignment);
+
 router.route('/:id')
   .get(getContractorById)
   .put(updateContractor)
@@ -22,9 +26,5 @@ router.route('/:id')
 
 router.route('/:id/assign')
   .patch(assignContractor);
-
-router.route('/assignments')
-  .get(getAssignments)
-  .post(createAssignment);
 
 export default router;

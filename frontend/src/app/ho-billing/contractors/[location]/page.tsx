@@ -93,10 +93,12 @@ export default function LocationContractorsPage() {
               <tbody className="divide-y divide-slate-100">
                 {contractors.map(c => (
                   <tr key={c._id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-slate-900">{c.name}</td>
-                    <td className="px-6 py-4 text-slate-600">{c.phone || '-'}</td>
-                    <td className="px-6 py-4 text-slate-600">{c.email || '-'}</td>
-                    <td className="px-6 py-4 text-slate-600 max-w-xs truncate" title={c.address}>{c.address || '-'}</td>
+                    <td className="px-6 py-4 font-medium text-slate-900">{c.dynamicData?.displayName || '-'}</td>
+                    <td className="px-6 py-4 text-slate-600">{c.dynamicData?.phone?.workPhone || '-'}</td>
+                    <td className="px-6 py-4 text-slate-600">{c.dynamicData?.emailAddress || '-'}</td>
+                    <td className="px-6 py-4 text-slate-600 max-w-xs truncate" title={c.dynamicData?.vendorAddresses?.billingAddress?.city}>
+                      {c.dynamicData?.vendorAddresses?.billingAddress?.city || '-'}
+                    </td>
                     <td className="px-6 py-4 text-right">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
                         c.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'

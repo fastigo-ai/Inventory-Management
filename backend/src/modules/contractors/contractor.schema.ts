@@ -1,10 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IContractor extends Document {
-  name: string;
-  email?: string;
-  phone?: string;
-  address?: string;
+  dynamicData: Record<string, any>;
   location?: 'Solan' | 'Nahan' | 'Rampur' | 'Rohru';
   isActive: boolean;
   createdAt: Date;
@@ -13,10 +10,7 @@ export interface IContractor extends Document {
 
 const contractorSchema = new Schema<IContractor>(
   {
-    name: { type: String, required: true },
-    email: { type: String },
-    phone: { type: String },
-    address: { type: String },
+    dynamicData: { type: Schema.Types.Mixed, required: true },
     location: { type: String, enum: ['Solan', 'Nahan', 'Rampur', 'Rohru'] },
     isActive: { type: Boolean, default: true },
   },
@@ -24,3 +18,4 @@ const contractorSchema = new Schema<IContractor>(
 );
 
 export const Contractor = mongoose.models.Contractor || mongoose.model<IContractor>('Contractor', contractorSchema);
+

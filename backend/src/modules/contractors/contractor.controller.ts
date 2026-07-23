@@ -13,18 +13,22 @@ export const getContractors = asyncHandler(async (req: Request, res: Response) =
     filter.location = location;
   }
 
-  const contractors = await Contractor.find(filter).sort({ name: 1 });
+  const contractors = await Contractor.find(filter).sort({ 'dynamicData.displayName': 1 });
   res.status(200).json(new ApiResponse(200, contractors, 'Contractors fetched successfully'));
 });
 
 export const createContractor = asyncHandler(async (req: Request, res: Response) => {
-  const contractor = await Contractor.create(req.body);
+  const { location, dynamicData } = req.body;
+  if (!dynamicData) {
+    throw new ApiError(400, 'dynamicData is required');
+  }
+  const contractor = await Contractor.create({ location, dynamicData });
   res.status(201).json(new ApiResponse(201, contractor, 'Contractor created successfully'));
 });
 
 export const getAssignments = asyncHandler(async (req: Request, res: Response) => {
   const assignments = await ContractorAssignment.find()
-    .populate('contractorId', 'name')
+    .populate('contractorId', 'dynamicData.displayName')
     .sort({ createdAt: -1 });
   res.status(200).json(new ApiResponse(200, assignments, 'Assignments fetched successfully'));
 });

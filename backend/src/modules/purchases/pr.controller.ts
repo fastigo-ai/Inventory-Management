@@ -328,7 +328,7 @@ export const exportPurchaseReceives = async (req: Request, res: Response): Promi
     const receives = await Pr.find().sort({ createdAt: -1 }).lean();
 
     const csvData = receives.flatMap(r => 
-      r.lineItems && r.lineItems.length > 0 ? r.lineItems.map(item => ({
+      r.lineItems && r.lineItems.length > 0 ? r.lineItems.map((item: any) => ({
         PurchaseInvoiceNumber: r.purchaseReceiveNumber,
         PurchaseOrderNumber: r.purchaseOrderNumber || '',
         Date: r.receiveDate ? new Date(r.receiveDate).toISOString().split('T')[0] : '',
@@ -387,7 +387,8 @@ export const importPurchaseReceives = async (req: Request, res: Response): Promi
 
     const prMap: Record<string, any> = {};
 
-    for await (const row of parser) {
+    for await (const r of parser) {
+      const row = r as any;
       const prNumber = row['PurchaseInvoiceNumber'] || row['PurchaseReceiveNumber'] || row['purchaseReceiveNumber'];
       if (!prNumber) continue;
 

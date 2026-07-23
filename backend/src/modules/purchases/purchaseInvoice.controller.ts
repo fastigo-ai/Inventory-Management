@@ -380,7 +380,8 @@ export const importPurchaseInvoices = async (req: Request, res: Response) => {
 
     const piMap: Record<string, any> = {};
 
-    for await (const row of parser) {
+    for await (const r of parser) {
+      const row = r as any;
       const invoiceNumber = row['InvoiceNumber'] || row['invoiceNumber'] || row['Invoice Number'];
       if (!invoiceNumber) continue;
 

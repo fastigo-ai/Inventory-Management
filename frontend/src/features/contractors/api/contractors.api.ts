@@ -25,6 +25,15 @@ export const importContractors = async (file: File) => {
   return response.data;
 };
 
+export const importContractorAssignments = async (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post('/contractors/assignments/import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return response.data;
+};
+
 export const createContractor = async (payload: any) => {
   const response = await api.post('/contractors', payload);
   return response.data;
@@ -53,5 +62,16 @@ export const getAssignments = async (contractorId?: string) => {
 
 export const createAssignment = async (payload: any) => {
   const response = await api.post('/contractors/assignments', payload);
+  return response.data;
+};
+
+export const getContractorReturns = async (contractorId?: string) => {
+  const url = contractorId ? `/contractors/returns?contractorId=${contractorId}` : '/contractors/returns';
+  const response = await api.get(url);
+  return response.data;
+};
+
+export const createContractorReturn = async (payload: any) => {
+  const response = await api.post('/contractors/returns', payload);
   return response.data;
 };

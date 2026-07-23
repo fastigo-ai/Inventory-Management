@@ -1,17 +1,17 @@
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { importInwardRegistrations } from "@/features/store/api/store.api";
+import { importStoreTransfers } from "@/features/store/api/store.api";
 import { Loader2, UploadCloud, FileText, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
-interface InwardImportModalProps {
+interface OutwardImportModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export function InwardImportModal({ isOpen, onClose, onSuccess }: InwardImportModalProps) {
+export function OutwardImportModal({ isOpen, onClose, onSuccess }: OutwardImportModalProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [result, setResult] = useState<any>(null);
@@ -32,10 +32,10 @@ export function InwardImportModal({ isOpen, onClose, onSuccess }: InwardImportMo
     setResult(null);
 
     try {
-      const res = await importInwardRegistrations(file);
+      const res = await importStoreTransfers(file);
       
       if (res.data.successCount > 0) {
-        toast.success(`Imported successfully! ${res.data.successCount} GRNs added as Draft.`);
+        toast.success(`Imported successfully! ${res.data.successCount} Transfers created.`);
         onSuccess();
         
         if (!res.data.errors || res.data.errors.length === 0) {
@@ -58,16 +58,17 @@ export function InwardImportModal({ isOpen, onClose, onSuccess }: InwardImportMo
   };
 
   const downloadSampleCsv = () => {
-    const headers = "InvoiceNumber,ItemName,LoaSerialNo,ChallanQty,RejectedQty,AcceptedQty,TransportName,TruckNumber,GrNumber,GrDate,ReceivedDate,PoNumber,PoDate,BillingFrom,VendorName,InvoiceDate,Unit,InvoiceQty,TotalQty,Rate,Amount,TaxableAmount,TempCode,ItemDescription,HsnCode,ChallanNumber,BiltyNumber,Gst,Cgst,Sgst,Igst,DiRefNo,Circle,Package,Remarks\n";
-    const sampleRow1 = "INV-1001,Optical Fiber,SN-1234,10,0,10,Fastigo Logistics,MH-12-AB-1234,GR-991,2026-07-20,2026-07-22,PO-2001,2026-07-01,HQ,Vendor A,2026-07-15,Nos,10,100,500,5900,5000,TC-1,High Speed Fiber,8544,CH-441,BL-771,18%,450,450,0,DI-001,Circle 1,Pkg A,Delivered safely\n";
-    const sampleRow2 = "INV-1001,Router,SN-9988,5,1,4,Fastigo Logistics,MH-12-AB-1234,GR-991,2026-07-20,2026-07-22,PO-2001,2026-07-01,HQ,Vendor A,2026-07-15,Nos,5,50,2000,9440,8000,TC-2,Enterprise Router,8517,CH-441,BL-771,18%,720,720,0,DI-001,Circle 1,Pkg A,1 box damaged\n";
-    const csvContent = headers + sampleRow1 + sampleRow2;
+    const headers = "Date,Name of Vendor,Description of Material,TempCode,Unit,Transfer Qty,MIN BOOK No,MIN No,MIN Date,Challan No,Challan Date,From,To,Transport,Truck No,GR No,GR Date,Driver Name,Mobile No,Remark\n";
+    const sampleRow1 = "2026-07-24,Vendor A,Steel Pipes,TC-101,Nos,50,MB-1,MIN-100,2026-07-20,CH-201,2026-07-24,Central Store,Site A,Fast Trans,MH-12-AB-1234,GR-901,2026-07-24,John Doe,9876543210,Urgent delivery\n";
+    const sampleRow2 = "2026-07-24,Vendor A,Cement Bags,TC-102,Bags,200,MB-1,MIN-100,2026-07-20,CH-201,2026-07-24,Central Store,Site A,Fast Trans,MH-12-AB-1234,GR-901,2026-07-24,John Doe,9876543210,Handle with care\n";
+    const sampleRow3 = "2026-07-25,Vendor B,Copper Wire,TC-103,Meters,1000,MB-2,MIN-101,2026-07-21,CH-202,2026-07-25,Store B,Store C,Safe Move,DL-01-CD-5678,GR-902,2026-07-25,Jane Smith,8765432109,\n";
+    const csvContent = headers + sampleRow1 + sampleRow2 + sampleRow3;
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", "inward_registration_sample.csv");
+    link.setAttribute("download", "outward_register_sample.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -83,9 +84,9 @@ export function InwardImportModal({ isOpen, onClose, onSuccess }: InwardImportMo
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[500px] bg-white">
         <DialogHeader>
-          <DialogTitle className="text-xl">Import Bulk Inward Registrations</DialogTitle>
+          <DialogTitle className="text-xl">Import Bulk Outward Transfers</DialogTitle>
           <DialogDescription>
-            Upload a CSV file containing your GRN updates. The system will match your inputs to existing Pending Purchase Invoices and automatically calculate the Taxable Amount and GST based on your Accepted Qty.
+            Upload a CSV file containing your Outward Register data. Multiple rows with the same Challan No or MIN No will be grouped into a single Store Transfer.
           </DialogDescription>
         </DialogHeader>
 
@@ -141,7 +142,7 @@ export function InwardImportModal({ isOpen, onClose, onSuccess }: InwardImportMo
                   <CheckCircle className="w-6 h-6 text-green-600" />
                   <div>
                     <h4 className="font-medium text-green-900">Successfully Imported</h4>
-                    <p className="text-sm text-green-700">{result.successCount} GRNs created as Drafts</p>
+                    <p className="text-sm text-green-700">{result.successCount} Transfers created</p>
                   </div>
                 </div>
               )}

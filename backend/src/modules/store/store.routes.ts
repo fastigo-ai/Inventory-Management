@@ -21,7 +21,8 @@ import {
   receiveStoreTransfer,
   importInwardRegistrations,
   getPendingStoreReceipts,
-  approveStoreReceipt
+  approveStoreReceipt,
+  importStoreTransfers
 } from './store.controller';
 
 const router = Router();
@@ -64,6 +65,8 @@ router.route('/transfers/:id/dispatch')
 
 router.route('/transfers/:id/receive')
   .put(receiveStoreTransfer);
+
+router.post('/transfers/outward/import', upload.single('file'), importStoreTransfers);
 
 // Admin Routes (Note: in a real app, you might secure these with an admin role check)
 router.route('/admin/inventory/store-manager').get(getAdminInwardEntries);

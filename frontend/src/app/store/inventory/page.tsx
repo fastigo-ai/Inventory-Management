@@ -2,29 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getPendingDIs, getStockSummary } from "@/features/store/api/store.api";
-import { FileText, Package, ListChecks, Upload, MoreHorizontal } from "lucide-react";
-import { StockSummaryTable } from "@/features/store/components/StockSummaryTable";
+import { getPendingDIs } from "@/features/store/api/store.api";
+import { FileText, ListChecks, Upload, MoreHorizontal } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { InwardImportModal } from "@/features/store/components/InwardImportModal";
 
 export default function StoreInventoryPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'pending' | 'summary'>('pending');
   const [dis, setDis] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  
-  const [summaryData, setSummaryData] = useState<any[]>([]);
-  const [summaryLoading, setSummaryLoading] = useState(false);
 
   useEffect(() => {
-    if (activeTab === 'pending') {
-      fetchDIs();
-    } else {
-      fetchStockSummary();
-    }
-  }, [activeTab]);
+    fetchDIs();
+  }, []);
 
   const fetchDIs = async () => {
     try {
@@ -35,20 +26,6 @@ export default function StoreInventoryPage() {
       console.error(error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchStockSummary = async () => {
-    try {
-      setSummaryLoading(true);
-      // We pass no filters for store manager, as they see their own circle usually
-      // If we need to pass circle/package, we can get it from their profile or add dropdowns
-      const res = await getStockSummary({});
-      setSummaryData(res.data || []);
-    } catch (error) {
-      console.error("Failed to fetch stock summary:", error);
-    } finally {
-      setSummaryLoading(false);
     }
   };
 
@@ -70,34 +47,7 @@ export default function StoreInventoryPage() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-
-        <div className="flex space-x-1 border-b border-slate-200 mb-6">
-          <button
-            onClick={() => setActiveTab('pending')}
-            className={`flex items-center space-x-2 py-3 px-4 font-medium text-sm border-b-2 transition-colors ${
-              activeTab === 'pending'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <ListChecks className="w-4 h-4" />
-            <span>Pending Inward Registrations</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('summary')}
-            className={`flex items-center space-x-2 py-3 px-4 font-medium text-sm border-b-2 transition-colors ${
-              activeTab === 'summary'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <Package className="w-4 h-4" />
-            <span>Stock Summary</span>
-          </button>
-        </div>
-
-        {activeTab === 'pending' && (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
                 <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase">
@@ -149,16 +99,6 @@ export default function StoreInventoryPage() {
               </table>
             </div>
           </div>
-        )}
-
-        {activeTab === 'summary' && (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden p-6">
-             <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-slate-800">Circle Stock Summary</h2>
-             </div>
-             <StockSummaryTable data={summaryData} isLoading={summaryLoading} />
-          </div>
-        )}
 
       </div>
       
@@ -167,8 +107,7 @@ export default function StoreInventoryPage() {
           isOpen={isImportModalOpen}
           onClose={() => setIsImportModalOpen(false)}
           onSuccess={() => {
-            if (activeTab === 'pending') fetchDIs();
-            else fetchStockSummary();
+            fetchDIs();
           }}
         />
       )}

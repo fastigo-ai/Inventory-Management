@@ -9,6 +9,7 @@ import { PurchaseOrder } from '../purchases/purchaseOrder.schema';
 import { PurchaseInvoice } from '../purchases/purchaseInvoice.schema';
 import Item from '../items/item.model';
 import { ContractorAssignment } from '../contractors/contractorAssignment.schema';
+import { ContractorReturn } from '../contractors/contractorReturn.schema';
 import { StoreTransfer } from './storeTransfer.schema';
 
 export const getPendingDIs = asyncHandler(async (req: Request, res: Response) => {
@@ -339,26 +340,32 @@ export const getAdminInwardEntries = asyncHandler(async (req: Request, res: Resp
 });
 
 export async function buildStockSummaryData(circleFilter?: string, packageFilter?: string) {
-  // 1. Fetch all items
-  const items = await Item.find({ isDeleted: false });
-
-  // 2. Build filters for Inward and Assignments
+  // Build filters for Inward, Assignments, Returns
   const inwardFilter: any = { status: 'VERIFIED' };
   if (circleFilter) inwardFilter.circle = circleFilter;
   if (packageFilter) inwardFilter.package = packageFilter;
 
   const assignmentFilter: any = { status: { $ne: 'Cancelled' } };
-  // If contractor assignment schema had circle/package we would filter it here.
-  // Assuming it does not or it's implicitly mapped via item's circle/package later.
 
-  // 3. Fetch verified inwards
-  const verifiedInwards = await StoreInwardEntry.find(inwardFilter);
+  const returnsFilter: any = {};
+  if (circleFilter) returnsFilter.division = circleFilter;
 
-  // 4. Fetch assignments
-  const assignments = await ContractorAssignment.find(assignmentFilter);
-
-  // 4.5 Fetch completed transfers
-  const transfers = await StoreTransfer.find({ status: 'RECEIVED' });
+  console.log("Fetching DB collections in parallel...");
+  // Fetch all collections in parallel to massively improve performance (fixes Axios timeouts)
+  const [
+    items,
+    verifiedInwards,
+    assignments,
+    contractorReturns,
+    transfers
+  ] = await Promise.all([
+    Item.find({ isDeleted: false }),
+    StoreInwardEntry.find(inwardFilter),
+    ContractorAssignment.find(assignmentFilter),
+    ContractorReturn.find(returnsFilter),
+    StoreTransfer.find({ status: 'RECEIVED' })
+  ]);
+  console.log("Fetched all DB collections successfully!");
 
   // 5. Aggregate data per item
   const summaryMap: Record<string, any> = {};
@@ -370,6 +377,7 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
     summaryMap[tempCode] = {
       itemId: item._id,
       sr: 0,
+      tempCode: tempCode,
       hsnCode: data.hsnCode || data.hsn_code || '-',
       description: data.name || data.description || '-',
       unit: data.unit || 'Nos',
@@ -449,10 +457,23 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
       const tc = line.tempCode || '';
       if (summaryMap[tc]) {
         summaryMap[tc].contractorsIssuedQty += (line.quantity || 0);
-        // Derived fields
-        summaryMap[tc].contractorsActualIssued = summaryMap[tc].contractorsIssuedQty - summaryMap[tc].contractorsReturnQty;
       }
     });
+  });
+
+  // Calculate Contractor Returns
+  contractorReturns.forEach(ret => {
+    ret.lineItems?.forEach((line: any) => {
+      const tc = line.tempCode || '';
+      if (summaryMap[tc]) {
+        summaryMap[tc].contractorsReturnQty += (line.quantity || 0);
+      }
+    });
+  });
+
+  // Derived fields for contractors
+  Object.values(summaryMap).forEach((sm: any) => {
+    sm.contractorsActualIssued = sm.contractorsIssuedQty - sm.contractorsReturnQty;
   });
 
   // Calculate Transfers
@@ -693,53 +714,62 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
         continue;
       }
 
-      const rate = invoiceItem.rate || 0;
-      const taxableAmount = acceptedQty * rate;
+      const rate = row['Rate'] !== undefined && row['Rate'] !== '' ? Number(row['Rate']) : (invoiceItem.rate || 0);
+      
+      let taxableAmount = 0;
+      if (row['TaxableAmount'] !== undefined && row['TaxableAmount'] !== '') {
+        taxableAmount = Number(row['TaxableAmount']);
+      } else {
+        taxableAmount = acceptedQty * rate;
+      }
       
       const cgstRate = invoice.cgstPercentage || 0;
       const sgstRate = invoice.sgstPercentage || 0;
       const igstRate = invoice.igstPercentage || 0;
       
-      const cgst = (taxableAmount * cgstRate) / 100;
-      const sgst = (taxableAmount * sgstRate) / 100;
-      const igst = (taxableAmount * igstRate) / 100;
-      const amount = taxableAmount + cgst + sgst + igst;
+      const cgst = row['Cgst'] !== undefined && row['Cgst'] !== '' ? Number(row['Cgst']) : (taxableAmount * cgstRate) / 100;
+      const sgst = row['Sgst'] !== undefined && row['Sgst'] !== '' ? Number(row['Sgst']) : (taxableAmount * sgstRate) / 100;
+      const igst = row['Igst'] !== undefined && row['Igst'] !== '' ? Number(row['Igst']) : (taxableAmount * igstRate) / 100;
+      
+      const amount = row['Amount'] !== undefined && row['Amount'] !== '' ? Number(row['Amount']) : (taxableAmount + cgst + sgst + igst);
 
       const payload = {
         purchaseInvoiceId: invoice._id,
         purchaseOrderId: po?._id,
-        poNumber: po?.purchaseOrderNumber || '',
-        poDate: po?.date,
-        billingFrom: invoice.billingCompany?.name || po?.billingCompany?.name || '',
-        vendorName: invoice.vendorName || po?.vendorName,
+        poNumber: row['PoNumber'] || po?.purchaseOrderNumber || '',
+        poDate: row['PoDate'] ? new Date(row['PoDate']) : po?.date,
+        billingFrom: row['BillingFrom'] || invoice.billingCompany?.name || po?.billingCompany?.name || '',
+        vendorName: row['VendorName'] || invoice.vendorName || po?.vendorName,
         invoiceNumber: invoice.invoiceNumber,
-        invoiceDate: invoice.date,
+        invoiceDate: row['InvoiceDate'] ? new Date(row['InvoiceDate']) : invoice.date,
         receivedDate: row['ReceivedDate'] ? new Date(row['ReceivedDate']) : new Date(),
-        unit: itemUnit,
-        invoiceQty: acceptedQty,
-        totalQty: poItem ? poItem.quantity : invoiceItem.quantity,
+        unit: row['Unit'] || itemUnit,
+        invoiceQty: row['InvoiceQty'] !== undefined && row['InvoiceQty'] !== '' ? Number(row['InvoiceQty']) : acceptedQty,
+        totalQty: row['TotalQty'] !== undefined && row['TotalQty'] !== '' ? Number(row['TotalQty']) : (poItem ? poItem.quantity : invoiceItem.quantity),
         challanQty: challanQty,
         rejectedQty: rejectedQty,
         rate: rate,
         amount: amount,
         taxableAmount: taxableAmount,
-        tempCode: invoiceItem.itemId ? undefined : undefined, 
-        hsnCode: invoiceItem.hsnCode || poItem?.hsnCode || '',
+        tempCode: row['TempCode'] || (invoiceItem.itemId ? undefined : undefined), 
+        itemName: row['ItemName'] || invoiceItem.itemName || '',
+        itemDescription: row['ItemDescription'] || invoiceItem.description || poItem?.description || '',
+        hsnCode: row['HsnCode'] || invoiceItem.hsnCode || poItem?.hsnCode || '',
         challanNumber: row['ChallanNumber'] || '',
         transportName: row['TransportName'] || '',
         truckNumber: row['TruckNumber'] || '',
         grNumber: row['GrNumber'] || '',
         grDate: row['GrDate'] ? new Date(row['GrDate']) : undefined,
         biltyNumber: row['BiltyNumber'] || '',
-        gst: invoice.cgstPercentage ? `${(invoice.cgstPercentage * 2)}%` : invoice.igstPercentage ? `${invoice.igstPercentage}%` : '',
+        gst: row['Gst'] || (invoice.cgstPercentage ? `${(invoice.cgstPercentage * 2)}%` : invoice.igstPercentage ? `${invoice.igstPercentage}%` : ''),
         cgst: cgst,
         sgst: sgst,
         igst: igst,
-        diRefNo: '',
+        diRefNo: row['DiRefNo'] || '',
         remarks: row['Remarks'] || '',
-        circle: poItem?.circle || '',
-        package: poItem?.package || '',
-        serialNumber: loaSerialNo || poItem?.loaSerialNo || invoiceItem.itemName,
+        circle: row['Circle'] || poItem?.circle || '',
+        package: row['Package'] || poItem?.package || '',
+        serialNumber: row['SerialNumber'] || loaSerialNo || poItem?.loaSerialNo || invoiceItem.itemName,
         status: 'DRAFT',
         packingList: [],
         createdBy: (req as any).user?._id
@@ -929,7 +959,140 @@ async function processInwardStockUpdate(entryId: string) {
         }
       }
     }
-  } catch (err) {
+} catch (err) {
     console.error('Failed to update inventory stock on inward processing:', err);
   }
 }
+
+export const importStoreTransfers = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.file) {
+    throw new ApiError(400, 'Please upload a CSV file');
+  }
+
+  const parser = parse(req.file.buffer, {
+    columns: true,
+    skip_empty_lines: true,
+    trim: true,
+  });
+
+  const errors: string[] = [];
+  let successCount = 0;
+  
+  // Group rows by ChallanNo or MinNo to bundle them into single StoreTransfer docs
+  const transfersByDoc: Record<string, any> = {};
+  const user = (req as any).user;
+
+  for await (const row of parser) {
+    try {
+      const docKey = row['ChallanNo'] || row['Challan No'] || row['MinNo'] || row['MIN No'] || '';
+      if (!docKey) {
+        errors.push(`Row missing ChallanNo or MinNo (needed to group rows)`);
+        continue;
+      }
+
+      const itemName = row['ItemName'] || row['Description of Material'] || '';
+      const tempCode = row['TempCode'] || row['Temp Code'] || '';
+      
+      if (!itemName && !tempCode) {
+        errors.push(`Row missing ItemName/TempCode for Transfer ${docKey}`);
+        continue;
+      }
+
+      // Find Item
+      let item = null;
+      if (tempCode) {
+        item = await Item.findOne({ itemCode: tempCode });
+      }
+      if (!item && itemName) {
+        item = await Item.findOne({ description: { $regex: new RegExp(`^${itemName}$`, 'i') } });
+      }
+
+      if (!item) {
+         errors.push(`Item '${itemName || tempCode}' not found for Transfer ${docKey}`);
+         continue;
+      }
+
+      const requestedQty = Number(row['RequestedQty'] || row['Transfer Qty'] || row['TransferQty'] || 0);
+      const dispatchedQty = Number(row['DispatchedQty'] || row['Transfer Qty'] || row['TransferQty'] || requestedQty);
+      const receivedQty = Number(row['ReceivedQty'] || dispatchedQty);
+
+      if (dispatchedQty <= 0) {
+        errors.push(`Row has zero Transfer Qty for Transfer ${docKey}`);
+        continue;
+      }
+
+      const unit = row['Unit'] || item?.unit || 'Nos';
+
+      const lineItem = {
+        itemId: item._id,
+        tempCode: item.itemCode || tempCode || '',
+        description: item.description || itemName || '',
+        unit,
+        requestedQty,
+        dispatchedQty,
+        receivedQty
+      };
+
+      if (!transfersByDoc[docKey]) {
+        transfersByDoc[docKey] = {
+          requestDate: row['Date'] ? new Date(row['Date']) : new Date(),
+          status: 'IN_TRANSIT',
+          fromStore: row['From'] || row['FromStore'] || 'Unknown Store',
+          toStore: row['To'] || row['ToStore'] || 'Unknown Store',
+          requestedBy: user ? user._id : null,
+          vendorName: row['Name of Vendor'] || row['VendorName'] || '',
+          
+          minBookNo: row['MIN BOOK No'] || row['MinBookNo'] || '',
+          minNo: row['MIN No'] || row['MinNo'] || '',
+          minDate: row['MIN Date'] ? new Date(row['MIN Date']) : undefined,
+          
+          challanNo: row['Challan No'] || row['ChallanNo'] || '',
+          challanDate: row['Challan Date'] ? new Date(row['Challan Date']) : undefined,
+          
+          transportName: row['Transport'] || row['TransportName'] || '',
+          truckNumber: row['Truck No'] || row['TruckNumber'] || '',
+          grNumber: row['GR No'] || row['GrNumber'] || '',
+          grDate: row['GR Date'] ? new Date(row['GR Date']) : undefined,
+          driverName: row['Driver Name'] || row['DriverName'] || '',
+          driverMobile: row['Mobile No'] || row['DriverMobile'] || '',
+          remarks: row['Remark'] || row['Remarks'] || '',
+          
+          items: []
+        };
+      }
+
+      transfersByDoc[docKey].items.push(lineItem);
+    } catch (err: any) {
+      errors.push(`Row error: ${err.message}`);
+    }
+  }
+
+  // Save transfers
+  for (const docKey of Object.keys(transfersByDoc)) {
+    const payload = transfersByDoc[docKey];
+    
+    // Check if transfer already exists based on ChallanNo or MinNo
+    const existing = await StoreTransfer.findOne({ 
+       $or: [
+         { challanNo: payload.challanNo, challanNo: { $ne: '' } },
+         { minNo: payload.minNo, minNo: { $ne: '' } }
+       ]
+    });
+    
+    if (existing) {
+      errors.push(`Transfer ${payload.challanNo || payload.minNo} already exists. Skipping.`);
+      continue;
+    }
+
+    try {
+      await StoreTransfer.create(payload);
+      successCount++;
+    } catch (err: any) {
+      errors.push(`Error saving Transfer ${docKey}: ${err.message}`);
+    }
+  }
+
+  res.status(200).json(
+    new ApiResponse(200, { successCount, errors }, 'Import process completed')
+  );
+});

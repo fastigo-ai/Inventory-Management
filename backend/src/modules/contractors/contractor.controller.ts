@@ -6,7 +6,14 @@ import { Contractor } from './contractor.schema';
 import { ContractorAssignment } from './contractorAssignment.schema';
 
 export const getContractors = asyncHandler(async (req: Request, res: Response) => {
-  const contractors = await Contractor.find({ isActive: true }).sort({ name: 1 });
+  const { location } = req.query;
+  const filter: any = { isActive: true };
+  
+  if (location) {
+    filter.location = location;
+  }
+
+  const contractors = await Contractor.find(filter).sort({ name: 1 });
   res.status(200).json(new ApiResponse(200, contractors, 'Contractors fetched successfully'));
 });
 

@@ -5,6 +5,7 @@ export interface IContractor extends Document {
   email?: string;
   phone?: string;
   address?: string;
+  location?: 'Solan' | 'Nahan' | 'Rampur' | 'Rohru';
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -16,6 +17,7 @@ const contractorSchema = new Schema<IContractor>(
     email: { type: String },
     phone: { type: String },
     address: { type: String },
+    location: { type: String, enum: ['Solan', 'Nahan', 'Rampur', 'Rohru'] },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }

@@ -1,16 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { getStoreTransfers, updateStoreTransferStatus } from "@/features/store/api/store.api";
 import { ArrowRightLeft, Send, Download, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function StoreTransfersPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<'incoming' | 'outgoing'>('incoming');
   const [transfers, setTransfers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'outgoing') setActiveTab('outgoing');
+    else if (tab === 'incoming') setActiveTab('incoming');
+  }, [searchParams]);
 
   // In a real app we'd get this from auth context, assuming 'Circle A' for now to filter mock-wise if needed
   // The backend currently fetches everything if no circle is provided.

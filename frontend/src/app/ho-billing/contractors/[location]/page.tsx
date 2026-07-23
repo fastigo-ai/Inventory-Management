@@ -61,7 +61,7 @@ export default function LocationContractorsPage() {
           </div>
           <Button 
             className="bg-[#0076f2] hover:bg-blue-600"
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => router.push(`/ho-billing/contractors/${encodeURIComponent(location)}/new`)}
           >
             <Plus className="w-4 h-4 mr-2" />
             New Contractor
@@ -75,7 +75,7 @@ export default function LocationContractorsPage() {
             <div className="p-12 text-center">
               <h3 className="text-lg font-medium text-slate-900 mb-2">No contractors found</h3>
               <p className="text-slate-500 mb-6">Create a new contractor for {location} to get started.</p>
-              <Button variant="outline" onClick={() => setIsModalOpen(true)}>
+              <Button variant="outline" onClick={() => router.push(`/ho-billing/contractors/${encodeURIComponent(location)}/new`)}>
                 Add First Contractor
               </Button>
             </div>
@@ -111,17 +111,6 @@ export default function LocationContractorsPage() {
           )}
         </div>
       </div>
-
-      {isModalOpen && (
-        <CreateContractorModal 
-          location={location}
-          onClose={() => setIsModalOpen(false)}
-          onSuccess={() => {
-            setIsModalOpen(false);
-            fetchContractors();
-          }}
-        />
-      )}
     </div>
   );
 }

@@ -1290,10 +1290,38 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                         )}
                       </td>
                       <td className="px-4 py-4 text-[#5e7790] text-[13px]">
-                        <input type="text" defaultValue={field.package} {...register(`lineItems.${index}.package`)} className="w-full bg-transparent border-none focus:outline-none text-[#5e7790] pointer-events-none" placeholder="--" />
+                        <select 
+                          {...register(`lineItems.${index}.package`)}
+                          className="w-full bg-transparent border-b border-dashed border-slate-300 focus:outline-none text-[#334155]" 
+                          onChange={(e) => {
+                             register(`lineItems.${index}.package`).onChange(e);
+                             setValue(`lineItems.${index}.circle`, '');
+                          }}
+                        >
+                           <option value="">--</option>
+                           <option value="Package 1 (S/N)">Package 1 (S/N)</option>
+                           <option value="Package 2 (R/R)">Package 2 (R/R)</option>
+                        </select>
                       </td>
                       <td className="px-4 py-4 text-[#5e7790] text-[13px]">
-                        <input type="text" defaultValue={field.circle} {...register(`lineItems.${index}.circle`)} className="w-full bg-transparent border-none focus:outline-none text-[#5e7790] pointer-events-none" placeholder="--" />
+                        <select 
+                          {...register(`lineItems.${index}.circle`)}
+                          className="w-full bg-transparent border-b border-dashed border-slate-300 focus:outline-none text-[#334155]" 
+                        >
+                           <option value="">--</option>
+                           {lineItems[index]?.package === 'Package 1 (S/N)' && (
+                             <>
+                               <option value="Solan">Solan</option>
+                               <option value="Nahan">Nahan</option>
+                             </>
+                           )}
+                           {lineItems[index]?.package === 'Package 2 (R/R)' && (
+                             <>
+                               <option value="Rampur">Rampur</option>
+                               <option value="Rohru">Rohru</option>
+                             </>
+                           )}
+                        </select>
                       </td>
                       <td className="px-4 py-4">
                         <input

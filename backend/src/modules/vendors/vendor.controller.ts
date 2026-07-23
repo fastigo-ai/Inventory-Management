@@ -455,9 +455,23 @@ export const importVendors = asyncHandler(async (req: Request, res: Response) =>
         };
       }
       
+      const normalizeSalutation = (val: string): string => {
+        if (!val) return '';
+        const cleaned = val.trim().toLowerCase().replace(/\.$/, '');
+        switch (cleaned) {
+          case 'mr': return 'Mr.';
+          case 'mrs': return 'Mrs.';
+          case 'ms': return 'Ms.';
+          case 'miss': return 'Miss.';
+          case 'dr': return 'Dr.';
+          default:
+            return val.trim() ? val.trim().charAt(0).toUpperCase() + val.trim().slice(1).toLowerCase() : '';
+        }
+      };
+
       if (row['Contact Salutation'] !== undefined || row['Contact First Name'] !== undefined) {
         dynamicData.contactPersons = [{
-          salutation: row['Contact Salutation'] || '',
+          salutation: normalizeSalutation(row['Contact Salutation'] || ''),
           firstName: row['Contact First Name'] || '',
           lastName: row['Contact Last Name'] || '',
           email: row['Contact Email'] || '',
@@ -477,7 +491,7 @@ export const importVendors = asyncHandler(async (req: Request, res: Response) =>
 
       if (row['Primary Contact First Name'] !== undefined) {
         dynamicData.primaryContact = {
-          salutation: row['Primary Contact Salutation'] || '',
+          salutation: normalizeSalutation(row['Primary Contact Salutation'] || ''),
           firstName: row['Primary Contact First Name'] || '',
           lastName: row['Primary Contact Last Name'] || ''
         };

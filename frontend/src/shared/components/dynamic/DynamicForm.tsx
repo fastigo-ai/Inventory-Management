@@ -366,6 +366,22 @@ function renderField(field: FieldMetadata, register: any, errors: any, control: 
           </div>
           <div className="space-y-4">
              <div className="grid grid-cols-[130px_1fr] items-start gap-4">
+                <Label className="text-[13px] text-slate-600 pt-2">Division</Label>
+                <Input className="h-9 text-[13px] bg-white" {...register(`${prefix}.division`)} />
+             </div>
+             {watch(`${prefix}.division`) && (
+               <div className="grid grid-cols-[130px_1fr] items-start gap-4">
+                  <Label className="text-[13px] text-slate-600 pt-2">Subdivision</Label>
+                  <Input className="h-9 text-[13px] bg-white" {...register(`${prefix}.subdivision`)} />
+               </div>
+             )}
+             {watch(`${prefix}.subdivision`) && (
+               <div className="grid grid-cols-[130px_1fr] items-start gap-4">
+                  <Label className="text-[13px] text-slate-600 pt-2">Location</Label>
+                  <Input className="h-9 text-[13px] bg-white" {...register(`${prefix}.locationField`)} />
+               </div>
+             )}
+             <div className="grid grid-cols-[130px_1fr] items-start gap-4">
                 <Label className="text-[13px] text-slate-600 pt-2">Attention</Label>
                 <Input className="h-9 text-[13px] bg-white" {...register(`${prefix}.attention`)} />
              </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { getEntityMetadata } from "@/features/vendors/api/vendors.api";
 import { createContractor } from "@/features/contractors/api/contractors.api";
 import { DynamicForm, FieldMetadata } from "@/shared/components/dynamic/DynamicForm";
@@ -13,10 +13,6 @@ export default function NewContractorPage() {
   const [fields, setFields] = useState<FieldMetadata[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const params = useParams();
-
-  const locationParam = Array.isArray(params.location) ? params.location[0] : params.location;
-  const location = locationParam ? decodeURIComponent(locationParam) : "";
 
   useEffect(() => {
     const fetchMetadata = async () => {
@@ -35,10 +31,12 @@ export default function NewContractorPage() {
   const handleSubmit = async (data: any) => {
     try {
       await createContractor({
-        location,
+        // Extract location from the dynamic form if available, or just leave it empty.
+        // It's technically now inside dynamicData.contractorAddress.billing.locationField
+        location: data.contractorAddress?.billing?.locationField || "Unknown",
         dynamicData: data
       });
-      router.push(`/ho-billing/contractors/${encodeURIComponent(location)}`);
+      router.push(`/ho-billing/contractors`);
     } catch (error) {
       console.error("Failed to create contractor", error);
     }
@@ -57,7 +55,7 @@ export default function NewContractorPage() {
       {/* Header */}
       <div className="flex-none h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0">
         <h1 className="text-xl text-slate-800 font-normal">New Contractor</h1>
-        <Link href={`/ho-billing/contractors/${encodeURIComponent(location)}`}>
+        <Link href={`/ho-billing/contractors`}>
           <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:bg-slate-100 rounded-full">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
           </Button>
@@ -67,9 +65,6 @@ export default function NewContractorPage() {
       {/* Scrollable Form Content */}
       <div className="flex-1 overflow-y-auto px-10 py-6">
         <div className="w-full bg-white p-6 shadow-sm border border-slate-200 rounded-lg">
-          <div className="mb-6 bg-slate-50 p-4 rounded text-sm text-slate-600 border border-slate-200">
-            <strong>Location:</strong> {location}
-          </div>
           <DynamicForm 
             fields={fields} 
             onSubmit={handleSubmit} 

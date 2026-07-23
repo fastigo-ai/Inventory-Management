@@ -54,3 +54,24 @@ export const createAssignment = asyncHandler(async (req: Request, res: Response)
     new ApiResponse(201, newAssignment, 'Contractor Assignment Created Successfully')
   );
 });
+
+export const assignContractor = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { locations } = req.body;
+
+  if (!Array.isArray(locations)) {
+    throw new ApiError(400, 'Locations must be an array of strings');
+  }
+
+  const contractor = await Contractor.findByIdAndUpdate(
+    id,
+    { assignedLocations: locations },
+    { new: true, runValidators: true }
+  );
+
+  if (!contractor) {
+    throw new ApiError(404, 'Contractor not found');
+  }
+
+  res.status(200).json(new ApiResponse(200, contractor, 'Contractor locations assigned successfully'));
+});

@@ -3,14 +3,19 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, MapPin } from "lucide-react";
 import { getContractors } from "@/features/contractors/api/contractors.api";
+import { AssignContractorModal } from "@/features/contractors/components/AssignContractorModal";
 
 export default function ContractorsPage() {
   const router = useRouter();
   
   const [contractors, setContractors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Modal State
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [selectedContractor, setSelectedContractor] = useState<any | null>(null);
 
   const fetchContractors = () => {
     setLoading(true);
@@ -23,6 +28,11 @@ export default function ContractorsPage() {
   useEffect(() => {
     fetchContractors();
   }, []);
+
+  const openAssignModal = (contractor: any) => {
+    setSelectedContractor(contractor);
+    setAssignModalOpen(true);
+  };
 
   return (
     <div className="flex-1 bg-slate-50 min-h-screen">
@@ -60,7 +70,8 @@ export default function ContractorsPage() {
                   <th className="px-6 py-3">PHONE</th>
                   <th className="px-6 py-3">EMAIL</th>
                   <th className="px-6 py-3">ADDRESS</th>
-                  <th className="px-6 py-3 text-right">STATUS</th>
+                  <th className="px-6 py-3">ASSIGNED CIRCLES</th>
+                  <th className="px-6 py-3 text-right">ACTIONS</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -72,12 +83,29 @@ export default function ContractorsPage() {
                     <td className="px-6 py-4 text-slate-600 max-w-xs truncate" title={c.dynamicData?.contractorAddress?.billing?.city}>
                       {c.dynamicData?.contractorAddress?.billing?.city || '-'}
                     </td>
+                    <td className="px-6 py-4">
+                      {c.assignedLocations?.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {c.assignedLocations.map((loc: string) => (
+                            <span key={loc} className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[11px] border border-slate-200">
+                              {loc}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 text-xs italic">None</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 text-right">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                        c.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                      }`}>
-                        {c.isActive ? 'Active' : 'Inactive'}
-                      </span>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-8 text-xs bg-white"
+                        onClick={() => openAssignModal(c)}
+                      >
+                        <MapPin className="w-3.5 h-3.5 mr-1.5" />
+                        Assign Circles
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -86,6 +114,15 @@ export default function ContractorsPage() {
           )}
         </div>
       </div>
+
+      <AssignContractorModal 
+        isOpen={assignModalOpen}
+        onClose={() => setAssignModalOpen(false)}
+        contractor={selectedContractor}
+        onSuccess={() => {
+          fetchContractors(); // Refresh the list
+        }}
+      />
     </div>
   );
 }

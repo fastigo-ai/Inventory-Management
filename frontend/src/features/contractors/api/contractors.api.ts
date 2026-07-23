@@ -20,3 +20,8 @@ export const createAssignment = async (payload: any) => {
   const response = await api.post('/contractors/assignments', payload);
   return response.data;
 };
+
+export const assignContractorLocations = async (id: string, locations: string[]) => {
+  const response = await api.patch(`/contractors/${id}/assign`, { locations });
+  return response.data;
+};

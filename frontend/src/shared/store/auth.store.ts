@@ -6,6 +6,7 @@ export interface User {
   firstName: string;
   lastName: string;
   role: any;
+  assignedCircle?: string;
 }
 
 interface AuthState {

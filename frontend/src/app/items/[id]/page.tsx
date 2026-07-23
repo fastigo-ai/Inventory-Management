@@ -45,7 +45,11 @@ export default function ItemSplitViewPage({ params }: { params: Promise<{ id: st
           getItem(itemId)
         ]);
         setFields(metaRes.fields);
-        setItems(itemsRes.items || itemsRes);
+        let fetchedItems = itemsRes.items || itemsRes;
+        if (itemRes && !fetchedItems.some((i: any) => i._id === itemRes._id)) {
+           fetchedItems = [itemRes, ...fetchedItems];
+        }
+        setItems(fetchedItems);
         setPagination(itemsRes.pagination || null);
         setSelectedItem(itemRes);
       } catch (error) {
@@ -184,6 +188,13 @@ export default function ItemSplitViewPage({ params }: { params: Promise<{ id: st
           <div className="flex items-center space-x-4">
             <h1 className="text-xl font-semibold text-slate-900 flex items-center space-x-3">
               <span>{selectedItem.dynamicData[nameField] || 'Unnamed Item'}</span>
+              
+              {selectedItem.dynamicData.stock !== undefined && (
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  Total Qty: {selectedItem.dynamicData.stock}
+                </span>
+              )}
+
               {selectedItem.isDeleted && (
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-200">
                   Deleted
@@ -239,6 +250,12 @@ export default function ItemSplitViewPage({ params }: { params: Promise<{ id: st
             >
               History
             </button>
+            <button 
+              onClick={() => setActiveTab('Purchase History')}
+              className={`py-3 text-sm font-medium border-b-2 ${activeTab === 'Purchase History' ? 'border-[#0076f2] text-[#0076f2]' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            >
+              Purchase History
+            </button>
           </div>
         </div>
 
@@ -268,6 +285,33 @@ export default function ItemSplitViewPage({ params }: { params: Promise<{ id: st
                   </div>
                 );
               })}
+
+              {/* Stock Breakdown */}
+              {selectedItem.dynamicData.stockLocations && selectedItem.dynamicData.stockLocations.length > 0 && (
+                <div className="mt-12 mb-8">
+                  <h3 className="text-[15px] font-semibold text-slate-800 mb-4 border-b pb-2">Stock Locations (Circle / Package)</h3>
+                  <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200">
+                        <tr>
+                          <th className="px-4 py-3">Circle</th>
+                          <th className="px-4 py-3">Package</th>
+                          <th className="px-4 py-3 text-right">Quantity</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {selectedItem.dynamicData.stockLocations.map((loc: any, idx: number) => (
+                          <tr key={idx} className="hover:bg-slate-50">
+                            <td className="px-4 py-3 text-slate-800 font-medium">{loc.circle}</td>
+                            <td className="px-4 py-3 text-slate-600">{loc.package}</td>
+                            <td className="px-4 py-3 text-right text-slate-800">{loc.quantity}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -279,6 +323,42 @@ export default function ItemSplitViewPage({ params }: { params: Promise<{ id: st
 
           {activeTab === 'Transactions' && (
             <ItemUsageTab itemId={itemId} />
+          )}
+
+          {activeTab === 'Purchase History' && (
+            <div className="max-w-4xl">
+              <h3 className="text-lg font-semibold text-slate-800 mb-6">Purchase Ledger</h3>
+              {(!selectedItem.dynamicData.purchaseHistory || selectedItem.dynamicData.purchaseHistory.length === 0) ? (
+                <div className="text-center p-8 bg-slate-50 rounded-lg border border-slate-200 text-slate-500">
+                  No purchase history found for this item.
+                </div>
+              ) : (
+                <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200">
+                      <tr>
+                        <th className="px-6 py-4">Date</th>
+                        <th className="px-6 py-4">Vendor</th>
+                        <th className="px-6 py-4">PO Number</th>
+                        <th className="px-6 py-4 text-right">Quantity</th>
+                        <th className="px-6 py-4 text-right">Rate</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {selectedItem.dynamicData.purchaseHistory.sort((a:any, b:any) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((hist: any, idx: number) => (
+                        <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-6 py-4 text-slate-600 whitespace-nowrap">{new Date(hist.date).toLocaleDateString()}</td>
+                          <td className="px-6 py-4 font-medium text-slate-800">{hist.vendorName}</td>
+                          <td className="px-6 py-4 text-blue-600 font-medium">{hist.poNumber}</td>
+                          <td className="px-6 py-4 text-right font-semibold text-slate-800">{hist.quantity}</td>
+                          <td className="px-6 py-4 text-right text-slate-600">₹{Number(hist.rate || 0).toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>

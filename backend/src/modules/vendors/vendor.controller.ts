@@ -222,7 +222,7 @@ export const exportVendors = asyncHandler(async (req: Request, res: Response) =>
     } else if (field.widget === 'vendor_contact_persons') {
       headers.push('Contact Salutation', 'Contact First Name', 'Contact Last Name', 'Contact Email', 'Contact Work Phone', 'Contact Mobile');
     } else if (field.widget === 'vendor_bank_details') {
-      headers.push('Bank Account Holder', 'Bank Name', 'Bank Account Number');
+      headers.push('Bank Account Holder', 'Bank Name', 'Bank Account Number', 'Bank IFSC Code');
     } else if (field.widget === 'vendor_primary_contact') {
       headers.push('Primary Contact Salutation', 'Primary Contact First Name', 'Primary Contact Last Name');
     } else if (field.widget === 'vendor_phone') {
@@ -268,6 +268,7 @@ export const exportVendors = asyncHandler(async (req: Request, res: Response) =>
         row['Bank Account Holder'] = bk.accountHolderName || '';
         row['Bank Name'] = bk.bankName || '';
         row['Bank Account Number'] = bk.accountNumber || '';
+        row['Bank IFSC Code'] = bk.ifsc || '';
       } else if (field.widget === 'vendor_primary_contact') {
         row['Primary Contact Salutation'] = val?.salutation || '';
         row['Primary Contact First Name'] = val?.firstName || '';
@@ -308,7 +309,7 @@ export const exportVendorTemplate = asyncHandler(async (req: Request, res: Respo
     } else if (field.widget === 'vendor_contact_persons') {
       headers.push('Contact Salutation', 'Contact First Name', 'Contact Last Name', 'Contact Email', 'Contact Work Phone', 'Contact Mobile');
     } else if (field.widget === 'vendor_bank_details') {
-      headers.push('Bank Account Holder', 'Bank Name', 'Bank Account Number');
+      headers.push('Bank Account Holder', 'Bank Name', 'Bank Account Number', 'Bank IFSC Code');
     } else if (field.widget === 'vendor_primary_contact') {
       headers.push('Primary Contact Salutation', 'Primary Contact First Name', 'Primary Contact Last Name');
     } else if (field.widget === 'vendor_phone') {
@@ -465,11 +466,12 @@ export const importVendors = asyncHandler(async (req: Request, res: Response) =>
         }];
       }
 
-      if (row['Bank Account Holder'] !== undefined || row['Bank Account Number'] !== undefined) {
+      if (row['Bank Account Holder'] !== undefined || row['Bank Account Number'] !== undefined || row['Bank IFSC Code'] !== undefined) {
         dynamicData.bankDetails = [{
           accountHolderName: row['Bank Account Holder'] || '',
           bankName: row['Bank Name'] || '',
-          accountNumber: row['Bank Account Number'] || ''
+          accountNumber: row['Bank Account Number'] || '',
+          ifsc: row['Bank IFSC Code'] || ''
         }];
       }
 

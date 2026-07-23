@@ -4,6 +4,8 @@ import { PurchaseOrder } from './purchaseOrder.schema';
 import { stringify } from 'csv-stringify/sync';
 import { parse } from 'csv-parse/sync';
 import { StoreInwardEntry } from '../store/storeInwardEntry.schema';
+import mongoose from 'mongoose';
+import { SummaryService } from '../reports/summary/summary.service';
 
 export const createPurchaseReceive = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -72,9 +74,14 @@ export const getPurchaseReceives = async (req: Request, res: Response): Promise<
     const limit = parseInt(req.query.limit as string) || 50;
     const skip = (page - 1) * limit;
 
+    const filter: any = {};
+    if (req.query.vendorName) {
+      filter.vendorName = req.query.vendorName;
+    }
+
     const [prs, total] = await Promise.all([
-      Pr.find().sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
-      Pr.countDocuments()
+      Pr.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      Pr.countDocuments(filter)
     ]);
 
     const prsWithQuantity = await Promise.all(prs.map(async (pr: any) => {
@@ -405,19 +412,30 @@ export const importPurchaseReceives = async (req: Request, res: Response): Promi
         };
       }
 
-      const itemName = row['ItemName'] || row['itemName'];
+      const itemName = row['Item Name'] || row['ItemName'] || row['itemName'];
       if (itemName) {
         prMap[prNumber].lineItems.push({
           itemName,
-          tempCode: row['TempCode'] || row['tempCode'] || '',
-          poQuantity: Number(row['POQuantity'] || row['poQuantity'] || 0),
-          invoiceQuantity: Number(row['InvoiceQuantity'] || row['invoiceQuantity'] || 0),
+          itemDescription: row['Description'] || row['description'] || '',
+          loaSerialNo: row['LOA Serial No'] || row['LOASerialNo'] || row['loaSerialNo'] || '',
+          tempCode: row['Temp Code'] || row['TempCode'] || row['tempCode'] || '',
+          package: row['Package'] || row['package'] || '',
+          circle: row['Circle'] || row['circle'] || '',
+          hsnCode: row['HSN Code'] || row['HSNCode'] || row['hsnCode'] || '',
+          unit: row['Unit'] || row['unit'] || '',
+          poDate: row['PO Date'] || row['PODate'] || row['poDate'] || undefined,
+          poQuantity: Number(row['PO Qty'] || row['POQuantity'] || row['poQuantity'] || 0),
+          invoiceQuantity: Number(row['Inv Qty'] || row['InvoiceQuantity'] || row['invoiceQuantity'] || 0),
+          srt: Number(row['SRT'] || row['srt'] || 0),
+          act: Number(row['ACT'] || row['act'] || 0),
+          totalInvoiceQuantity: Number(row['Tot Inv Qty'] || row['TotInvQty'] || row['totalInvoiceQuantity'] || 0),
           rate: Number(row['Rate'] || row['rate'] || 0),
           amount: Number(row['Amount'] || row['amount'] || 0),
-          cgst: Number(row['CGST'] || row['cgst'] || 0),
-          sgst: Number(row['SGST'] || row['sgst'] || 0),
-          igst: Number(row['IGST'] || row['igst'] || 0),
-          totalAmount: Number(row['TotalAmount'] || row['totalAmount'] || 0)
+          gstType: row['GST Type'] || row['GSTType'] || row['gstType'] || 'Intra State',
+          cgst: Number(row['CGST %'] || row['CGST'] || row['cgst'] || 0),
+          sgst: Number(row['SGST %'] || row['SGST'] || row['sgst'] || 0),
+          igst: Number(row['IGST %'] || row['IGST'] || row['igst'] || 0),
+          totalAmount: Number(row['Total Amount'] || row['TotalAmount'] || row['totalAmount'] || 0)
         });
       }
     }

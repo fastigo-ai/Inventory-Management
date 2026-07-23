@@ -274,7 +274,7 @@ export default function NewDIRegistrationPage() {
             <h2 className="text-sm font-semibold text-slate-800">Approved DI Items</h2>
           </div>
           
-          <div className="overflow-x-auto">
+          <div className="overflow-visible">
             <table className="w-full min-w-[1000px]">
               <thead className="bg-[#f8f9fc] border-b border-slate-200">
                 <tr>

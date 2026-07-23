@@ -823,10 +823,40 @@ async function processInwardStockUpdate(entryId: string) {
     try {
       const item = await Item.findById(entry.itemId);
       if (item) {
+        const qtyToAdd = Number(entry.invoiceQty || 0);
         const currentStock = Number(item.dynamicData?.stock || 0);
+        
+        let locations = item.dynamicData?.stockLocations || [];
+        const circle = entry.circle || 'Default';
+        const pkg = entry.package || 'Default';
+        let locIndex = locations.findIndex((l: any) => l.circle === circle && l.package === pkg);
+        if (locIndex >= 0) {
+          locations[locIndex].quantity = Number(locations[locIndex].quantity || 0) + qtyToAdd;
+        } else {
+          locations.push({ circle, package: pkg, quantity: qtyToAdd });
+        }
+
+        let history = item.dynamicData?.purchaseHistory || [];
+        history.push({
+          date: entry.receivedDate || entry.createdAt || new Date(),
+          vendorName: entry.vendorName || 'Unknown Vendor',
+          poNumber: entry.poNumber || '-',
+          quantity: qtyToAdd,
+          rate: entry.rate || 0,
+        });
+
+        const circleKey = circle && circle !== 'Default' ? `${circle.toLowerCase().replace(/\s+/g, '')}LoaQuantity` : null;
+
         item.dynamicData = {
           ...item.dynamicData,
-          stock: currentStock + Number(entry.invoiceQty || 0)
+          stock: currentStock + qtyToAdd,
+          stockLocations: locations,
+          purchaseHistory: history,
+          ...(entry.tempCode && { tempCode: entry.tempCode }),
+          ...(entry.serialNumber && { loaSerialNo: entry.serialNumber }),
+          ...(entry.hsnCode && { hsnCode: entry.hsnCode }),
+          ...(entry.itemDescription && { description: entry.itemDescription }),
+          ...(circleKey && { [circleKey]: Number(item.dynamicData?.[circleKey] || 0) + qtyToAdd })
         };
         item.markModified('dynamicData');
         await item.save();
@@ -857,10 +887,40 @@ async function processInwardStockUpdate(entryId: string) {
           if (lineItem.itemId) {
             const item = await Item.findById(lineItem.itemId);
             if (item) {
+              const qtyToAdd = Number(lineItem.quantity || 0);
               const currentStock = Number(item.dynamicData?.stock || 0);
+              
+              let locations = item.dynamicData?.stockLocations || [];
+              const circle = entry.circle || invoice.circle || 'Default';
+              const pkg = entry.package || invoice.package || 'Default';
+              let locIndex = locations.findIndex((l: any) => l.circle === circle && l.package === pkg);
+              if (locIndex >= 0) {
+                locations[locIndex].quantity = Number(locations[locIndex].quantity || 0) + qtyToAdd;
+              } else {
+                locations.push({ circle, package: pkg, quantity: qtyToAdd });
+              }
+
+              let history = item.dynamicData?.purchaseHistory || [];
+              history.push({
+                date: entry.receivedDate || entry.createdAt || new Date(),
+                vendorName: entry.vendorName || invoice.vendorName || 'Unknown Vendor',
+                poNumber: entry.poNumber || invoice.poNumber || '-',
+                quantity: qtyToAdd,
+                rate: lineItem.rate || 0,
+              });
+
+              const circleKey = circle && circle !== 'Default' ? `${circle.toLowerCase().replace(/\s+/g, '')}LoaQuantity` : null;
+
               item.dynamicData = {
                 ...item.dynamicData,
-                stock: currentStock + Number(lineItem.quantity || 0)
+                stock: currentStock + qtyToAdd,
+                stockLocations: locations,
+                purchaseHistory: history,
+                ...(lineItem.tempCode && { tempCode: lineItem.tempCode }),
+                ...(lineItem.loaSerialNo && { loaSerialNo: lineItem.loaSerialNo }),
+                ...(lineItem.hsnCode && { hsnCode: lineItem.hsnCode }),
+                ...(lineItem.itemDescription && { description: lineItem.itemDescription }),
+                ...(circleKey && { [circleKey]: Number(item.dynamicData?.[circleKey] || 0) + qtyToAdd })
               };
               item.markModified('dynamicData');
               await item.save();

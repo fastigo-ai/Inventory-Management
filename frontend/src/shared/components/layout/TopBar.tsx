@@ -104,6 +104,12 @@ export function TopBar() {
           <span className="font-bold text-lg tracking-wide">Inventory</span>
         </Link>
         
+        {user?.role?.name === 'Store Manager' && user?.assignedCircle && (
+          <div className="hidden md:flex items-center ml-2 px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[11px] font-semibold tracking-wider uppercase shadow-sm">
+            {user.assignedCircle} Store
+          </div>
+        )}
+        
         <div className="flex items-center gap-2 hidden md:flex">
           <button 
             onClick={() => window.location.reload()}

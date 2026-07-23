@@ -2,6 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import { getEntityMetadata, getVendors, getVendor, updateVendor, deleteVendor } from "@/features/vendors/api/vendors.api";
+import { getPurchaseOrders, getPurchaseReceives } from "@/features/purchases/api/purchases.api";
 import { FieldMetadata } from "@/shared/components/dynamic/DynamicForm";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
@@ -32,6 +33,10 @@ export default function VendorSplitViewPage({ params }: { params: Promise<{ id: 
   const [pagination, setPagination] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('Overview');
+  
+  const [vendorPos, setVendorPos] = useState<any[]>([]);
+  const [vendorPis, setVendorPis] = useState<any[]>([]);
+  const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -54,6 +59,30 @@ export default function VendorSplitViewPage({ params }: { params: Promise<{ id: 
     };
     fetchData();
   }, [vendorId, page, limit, sortBy, sortOrder]);
+
+  useEffect(() => {
+    if (activeTab === 'Transactions' && selectedVendor) {
+      const fetchTransactions = async () => {
+        setIsLoadingTransactions(true);
+        try {
+          const vendorName = selectedVendor.dynamicData[nameField];
+          if (vendorName) {
+            const [posData, pisData] = await Promise.all([
+              getPurchaseOrders({ vendorName }),
+              getPurchaseReceives({ vendorName, limit: 100 }) // Fetching up to 100 PIs
+            ]);
+            setVendorPos(posData.data || posData || []);
+            setVendorPis(pisData.data?.prs || pisData.data || []);
+          }
+        } catch (error) {
+          console.error("Failed to load transactions", error);
+        } finally {
+          setIsLoadingTransactions(false);
+        }
+      };
+      fetchTransactions();
+    }
+  }, [activeTab, selectedVendor]);
 
   const handleBackToTable = () => {
     const queryString = searchParams.toString();
@@ -369,8 +398,96 @@ export default function VendorSplitViewPage({ params }: { params: Promise<{ id: 
           )}
 
           {activeTab === 'Transactions' && (
-            <div className="text-center py-10 text-slate-500">
-              No transactions found for this vendor.
+            <div className="max-w-5xl space-y-8">
+              {isLoadingTransactions ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-800 mb-4 border-b pb-2">Purchase Orders</h3>
+                    {vendorPos.length > 0 ? (
+                      <div className="border border-slate-200 rounded-lg overflow-hidden">
+                        <table className="w-full text-sm text-left">
+                          <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
+                            <tr>
+                              <th className="px-6 py-3 font-medium">Date</th>
+                              <th className="px-6 py-3 font-medium">PO Number</th>
+                              <th className="px-6 py-3 font-medium">Status</th>
+                              <th className="px-6 py-3 font-medium text-right">Total Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {vendorPos.map((po: any) => (
+                              <tr key={po._id} className="border-b border-slate-100 hover:bg-slate-50">
+                                <td className="px-6 py-3 text-slate-600 whitespace-nowrap">
+                                  {new Date(po.date || po.createdAt).toLocaleDateString('en-IN')}
+                                </td>
+                                <td className="px-6 py-3 font-medium text-blue-600 hover:underline cursor-pointer">
+                                  <Link href={`/purchases/orders/${po._id}`}>
+                                    {po.purchaseOrderNumber}
+                                  </Link>
+                                </td>
+                                <td className="px-6 py-3">
+                                  <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${po.status === 'Sent' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'}`}>
+                                    {po.status}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-3 text-right text-slate-900 font-medium">
+                                  ₹{(po.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-500 py-4 text-center border rounded-lg bg-slate-50 border-dashed">No Purchase Orders found.</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-800 mb-4 border-b pb-2">Purchase Invoices (Receives)</h3>
+                    {vendorPis.length > 0 ? (
+                      <div className="border border-slate-200 rounded-lg overflow-hidden">
+                        <table className="w-full text-sm text-left">
+                          <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
+                            <tr>
+                              <th className="px-6 py-3 font-medium">Date</th>
+                              <th className="px-6 py-3 font-medium">Invoice Number</th>
+                              <th className="px-6 py-3 font-medium">PO Number</th>
+                              <th className="px-6 py-3 font-medium text-right">Total Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {vendorPis.map((pi: any) => (
+                              <tr key={pi._id} className="border-b border-slate-100 hover:bg-slate-50">
+                                <td className="px-6 py-3 text-slate-600 whitespace-nowrap">
+                                  {new Date(pi.receiveDate || pi.createdAt).toLocaleDateString('en-IN')}
+                                </td>
+                                <td className="px-6 py-3 font-medium text-blue-600 hover:underline cursor-pointer">
+                                  <Link href={`/purchases/receives/${pi._id}`}>
+                                    {pi.purchaseReceiveNumber}
+                                  </Link>
+                                </td>
+                                <td className="px-6 py-3 text-slate-600">
+                                  {pi.purchaseOrderNumber || '-'}
+                                </td>
+                                <td className="px-6 py-3 text-right text-slate-900 font-medium">
+                                  ₹{(pi.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-500 py-4 text-center border rounded-lg bg-slate-50 border-dashed">No Purchase Invoices found.</p>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

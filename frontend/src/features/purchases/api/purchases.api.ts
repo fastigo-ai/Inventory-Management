@@ -49,8 +49,12 @@ export const updatePurchaseOrder = async (id: string, payload: CreatePurchaseOrd
   return response.data;
 };
 
-export const getPurchaseOrders = async () => {
-  const response = await api.get('/purchases/orders');
+export const getPurchaseOrders = async (params: { vendorName?: string } = {}) => {
+  const query = new URLSearchParams();
+  if (params.vendorName) query.append('vendorName', params.vendorName);
+  const queryString = query.toString();
+  const url = queryString ? `/purchases/orders?${queryString}` : '/purchases/orders';
+  const response = await api.get(url);
   return response.data;
 };
 
@@ -130,10 +134,11 @@ export const createPurchaseReceive = async (payload: CreatePurchaseReceiveDto | 
   return response.data;
 };
 
-export const getPurchaseReceives = async (params?: { page?: number; limit?: number }) => {
+export const getPurchaseReceives = async (params?: { page?: number; limit?: number; vendorName?: string }) => {
   const query = new URLSearchParams();
   if (params?.page) query.append('page', params.page.toString());
   if (params?.limit) query.append('limit', params.limit.toString());
+  if (params?.vendorName) query.append('vendorName', params.vendorName);
   
   const queryString = query.toString();
   const url = queryString ? `/purchases/receives?${queryString}` : '/purchases/receives';

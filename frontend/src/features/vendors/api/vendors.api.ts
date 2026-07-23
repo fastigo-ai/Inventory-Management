@@ -2,7 +2,16 @@ import { api } from "@/shared/api/axios";
 
 export const getEntityMetadata = async (entityName: string) => {
   const response = await api.get(`/metadata/${entityName}`);
-  return response.data.data; // Returns IMetadata
+  const data = response.data.data;
+  if (entityName === 'Vendor' && data?.fields) {
+    data.fields = data.fields.map((f: any) => {
+      if (f.name.toLowerCase() === 'tds' || f.name.toLowerCase() === 'tds_tcs' || f.label.includes('TDS')) {
+        return { ...f, type: 'text', options: [] };
+      }
+      return f;
+    });
+  }
+  return data; // Returns IMetadata
 };
 
 export const updateEntityMetadata = async (entityName: string, fields: any[]) => {

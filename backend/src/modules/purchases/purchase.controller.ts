@@ -137,7 +137,11 @@ export const createPurchaseOrder = async (req: Request, res: Response) => {
 
 export const getPurchaseOrders = async (req: Request, res: Response) => {
   try {
-    const orders = await PurchaseOrder.find().sort({ createdAt: -1 });
+    const filter: any = {};
+    if (req.query.vendorName) {
+      filter.vendorName = req.query.vendorName;
+    }
+    const orders = await PurchaseOrder.find(filter).sort({ createdAt: -1 });
     res.status(200).json({
       success: true,
       data: orders,

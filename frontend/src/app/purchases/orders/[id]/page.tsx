@@ -106,7 +106,7 @@ export default function PurchaseOrderDetailPage() {
         <ul className="list-disc list-inside space-y-1 mt-1">
           {validTerms.map((pt: any, idx: number) => (
             <li key={idx} className="text-xs text-slate-700">
-              {pt.value}{pt.unit === 'Percentage' ? '%' : (pt.unit === 'Amount' ? '₹' : '')} {pt.type} on {pt.stage}
+              {pt.value}{pt.unit === 'Percentage' || pt.unit === '%' ? '%' : (pt.unit === 'Amount' ? '₹' : '')} {pt.type} on {pt.stage}
               {pt.remark && <span className="italic text-slate-500 ml-1">({pt.remark})</span>}
             </li>
           ))}
@@ -707,6 +707,7 @@ export default function PurchaseOrderDetailPage() {
                   <tr>
                     <th className="px-3 py-2 text-center font-bold text-[#5e7790] uppercase w-10 border-r border-slate-200">SR.NO</th>
                     <th className="px-3 py-2 text-left font-bold text-[#5e7790] uppercase border-r border-slate-200">TEMP CODE</th>
+                    <th className="px-3 py-2 text-left font-bold text-[#5e7790] uppercase border-r border-slate-200">LOA SERIAL</th>
                     <th className="px-3 py-2 text-left font-bold text-[#5e7790] uppercase border-r border-slate-200">DESCRIPTION</th>
                     <th className="px-3 py-2 text-left font-bold text-[#5e7790] uppercase border-r border-slate-200">NAME</th>
                     <th className="px-3 py-2 text-left font-bold text-[#5e7790] uppercase border-r border-slate-200">PACKAGE</th>
@@ -722,6 +723,7 @@ export default function PurchaseOrderDetailPage() {
                     <tr key={idx} className={`border-b border-slate-200 last:border-b-0 ${item.isCanceled ? 'opacity-50 line-through bg-slate-50' : ''}`}>
                       <td className="px-3 py-3 text-center text-slate-600 align-top border-r border-slate-200">{idx + 1}</td>
                       <td className="px-3 py-3 text-slate-600 align-top border-r border-slate-200">{item.tempCode || '--'}</td>
+                      <td className="px-3 py-3 text-slate-600 align-top border-r border-slate-200">{item.loaSerialNo || '--'}</td>
                       <td className="px-3 py-3 text-slate-600 align-top border-r border-slate-200 whitespace-pre-wrap">{item.description || '--'}</td>
                       <td className="px-3 py-3 font-medium text-slate-800 align-top border-r border-slate-200">{item.itemName}</td>
                       <td className="px-3 py-3 text-slate-600 align-top border-r border-slate-200">{item.package || '--'}</td>
@@ -828,12 +830,6 @@ export default function PurchaseOrderDetailPage() {
                     <div className="flex">
                       <span className="w-32 text-slate-500 font-medium">Package</span>
                       <span className="font-semibold text-slate-800">: {order.package}</span>
-                    </div>
-                  )}
-                  {order.lineItems[0]?.loaSerialNo && (
-                    <div className="flex">
-                      <span className="w-32 text-slate-500 font-medium">LOA Serial No</span>
-                      <span className="font-semibold text-slate-800">: {order.lineItems[0].loaSerialNo}</span>
                     </div>
                   )}
                   {(order.paymentTerms || order.paymentTermStage || order.paymentTermType || order.paymentTermAmount) && (
@@ -979,6 +975,7 @@ export default function PurchaseOrderDetailPage() {
                         <tr>
                           <th className="px-6 py-3">#</th>
                           <th className="px-6 py-3">Item Details</th>
+                          <th className="px-6 py-3">LOA Serial</th>
                           <th className="px-6 py-3">Account</th>
                           <th className="px-6 py-3">Package</th>
                           <th className="px-6 py-3">Circle</th>
@@ -999,6 +996,7 @@ export default function PurchaseOrderDetailPage() {
                               {item.tempCode && <p className="text-xs text-slate-500 mt-0.5">Code: {item.tempCode}</p>}
                               {item.description && <p className="text-xs text-slate-500 mt-1 whitespace-pre-wrap">{item.description}</p>}
                             </td>
+                            <td className="px-6 py-4 text-slate-600">{item.loaSerialNo || '--'}</td>
                             <td className="px-6 py-4 text-slate-600">{item.account || '--'}</td>
                             <td className="px-6 py-4 text-slate-600">{item.package || '--'}</td>
                             <td className="px-6 py-4 text-slate-600">{item.circle || '--'}</td>
@@ -1071,12 +1069,6 @@ export default function PurchaseOrderDetailPage() {
                         <div>
                           <span className="block text-slate-500 text-xs mb-0.5">Package</span>
                           <span className="font-medium text-slate-800">{order.lineItems[0].package}</span>
-                        </div>
-                      )}
-                      {order.lineItems[0]?.loaSerialNo && (
-                        <div>
-                          <span className="block text-slate-500 text-xs mb-0.5">LOA Serial No</span>
-                          <span className="font-medium text-slate-800">{order.lineItems[0].loaSerialNo}</span>
                         </div>
                       )}
                       {(order.paymentTerms || order.paymentTermStage || order.paymentTermType || order.paymentTermAmount) && (

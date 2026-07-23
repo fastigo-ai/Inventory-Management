@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { getEntityMetadata, getItems, bulkDeleteItems } from "@/features/items/api/items.api";
 import { exportItemsToCsv } from "@/features/items/api/items.api";
 import { DynamicTable } from "@/shared/components/dynamic/DynamicTable";
@@ -37,6 +37,8 @@ export default function ItemsPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+  const [selectedItemsData, setSelectedItemsData] = useState<Record<string, any>>({});
+  const filterTimeoutRef = useRef<NodeJS.Timeout>();
   
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>(() => {
     const filters: Record<string, string> = {};
@@ -48,39 +50,23 @@ export default function ItemsPage() {
     return filters;
   });
 
-  const handleColumnFilterChange = (columnName: string, value: string) => {
-    setColumnFilters(prev => ({ ...prev, [columnName]: value }));
-  };
-
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      const updates: Record<string, string | null> = { page: '1' };
+const handleColumnFilterChange = (columnName: string, value: string) => {
+    setColumnFilters(prev => {
+      const next = { ...prev, [columnName]: value };
       
-      searchParams.forEach((val, key) => {
-        if (key.startsWith('filter_')) {
-          updates[key] = null;
-        }
-      });
+      if (filterTimeoutRef.current) clearTimeout(filterTimeoutRef.current);
       
-      Object.entries(columnFilters).forEach(([key, val]) => {
-        if (val) {
-          updates[`filter_${key}`] = val;
-        }
-      });
-      
-      let hasChanges = false;
-      const currentParams = new URLSearchParams(searchParams.toString());
-      Object.entries(updates).forEach(([key, val]) => {
-        if (val === null && currentParams.has(key)) hasChanges = true;
-        if (val !== null && currentParams.get(key) !== val) hasChanges = true;
-      });
-      
-      if (hasChanges) {
+      filterTimeoutRef.current = setTimeout(() => {
+        const updates: Record<string, string | null> = { page: '1' };
+        Object.entries(next).forEach(([key, val]) => {
+          updates[`filter_${key}`] = val || null;
+        });
         updateUrl(updates);
-      }
-    }, 500);
-    return () => clearTimeout(timeout);
-  }, [columnFilters, searchParams]);
+      }, 500);
+      
+      return next;
+    });
+  };
 
   const fetchItemsData = async () => {
     setIsLoading(true);
@@ -168,6 +154,23 @@ export default function ItemsPage() {
     }
   };
 
+  const handleSelectionChange = (newIds: string[]) => {
+    setSelectedIds(newIds);
+    setSelectedItemsData(prev => {
+      const next = { ...prev };
+      items.forEach(item => {
+        if (newIds.includes(item._id)) next[item._id] = item;
+      });
+      Object.keys(next).forEach(id => {
+        if (!newIds.includes(id)) delete next[id];
+      });
+      return next;
+    });
+  };
+
+  const totalSelectedQty = Object.values(selectedItemsData).reduce((sum: number, item: any) => sum + (Number(item?.dynamicData?.stock) || 0), 0);
+
+
   if (isLoading && fields.length === 0) {
     return (
       <div className="flex h-full items-center justify-center p-12">
@@ -234,14 +237,19 @@ export default function ItemsPage() {
 
       {selectedIds.length > 0 && (
         <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4 flex items-center justify-between animate-in fade-in slide-in-from-top-2">
-          <div className="text-sm text-indigo-800 font-medium">
-            {selectedIds.length} item{selectedIds.length > 1 ? 's' : ''} selected
+          <div className="flex flex-col">
+            <span className="text-sm text-indigo-800 font-medium">
+              {selectedIds.length} item{selectedIds.length > 1 ? 's' : ''} selected
+            </span>
+            <span className="text-xs text-indigo-600 mt-0.5 font-medium">
+              Total Stock Quantity: {totalSelectedQty}
+            </span>
           </div>
           <div className="flex space-x-3">
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={() => setSelectedIds([])}
+              onClick={() => { setSelectedIds([]); setSelectedItemsData({}); }}
               className="bg-white border-indigo-200 text-indigo-600 hover:bg-indigo-50"
             >
               Cancel
@@ -270,7 +278,7 @@ export default function ItemsPage() {
         sortColumn={sortBy}
         sortDirection={sortOrder}
         enableSelection={true}
-        onSelectionChange={setSelectedIds}
+        onSelectionChange={handleSelectionChange}
         selectedIds={selectedIds}
         columnFilters={columnFilters}
         onColumnFilterChange={handleColumnFilterChange}

@@ -69,7 +69,7 @@ export function ImportModal({ isOpen, onClose, onSuccess, fields = [] }: ImportM
 
   const downloadSampleCsv = () => {
     // Generate headers from dynamic active fields
-    const activeHeaders = fields.map(f => f.label);
+    const activeHeaders = fields.filter(f => f.active !== false).map(f => f.label);
     const headers = activeHeaders.length > 0 ? activeHeaders.join(',') : "Name,Description,Unit,Code";
     
     // Generate a dummy row based on headers

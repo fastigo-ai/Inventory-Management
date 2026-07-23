@@ -49,6 +49,23 @@ export default function PurchaseReceiveDetailPage() {
              data.billingCompany = company;
            }
         }
+
+        // Fetch vendor details to display address, phone, and GST
+        if (data && data.vendorName) {
+           const { getVendors } = await import('@/features/vendors/api/vendors.api');
+           try {
+             const vendorsRes = await getVendors({ limit: 5000 });
+             const vendorsList = vendorsRes.vendors || vendorsRes.items || vendorsRes.data || [];
+             const vendor = vendorsList.find((v: any) => (v.dynamicData?.companyName || v.dynamicData?.displayName || v.name || v._id) === data.vendorName);
+             if (vendor) {
+               data.vendorAddress = vendor.dynamicData?.address || vendor.dynamicData?.billingAddress || vendor.dynamicData?.['billing.street1'] || '-';
+               data.vendorPhone = vendor.dynamicData?.phone || vendor.dynamicData?.mobile || vendor.dynamicData?.['phone.work'] || vendor.dynamicData?.['phone.mobile'] || '-';
+               data.vendorGst = vendor.dynamicData?.gstNumber || vendor.dynamicData?.gstin || vendor.dynamicData?.taxId || '-';
+             }
+           } catch (e) {
+             console.error("Failed to fetch vendors", e);
+           }
+        }
         
         // Calculate totals if missing
         if (data) {
@@ -317,11 +334,15 @@ export default function PurchaseReceiveDetailPage() {
                           </tr>
                           <tr>
                             <td className="font-bold align-top py-1">Address</td>
-                            <td className="align-top py-1">{invoice.vendorAddress || '-'}</td>
+                            <td className="align-top py-1 whitespace-pre-wrap">{invoice.vendorAddress || '-'}</td>
                           </tr>
                           <tr>
                             <td className="font-bold align-top py-1">Phone</td>
                             <td className="align-top py-1">{invoice.vendorPhone || '-'}</td>
+                          </tr>
+                          <tr>
+                            <td className="font-bold align-top py-1">GSTIN</td>
+                            <td className="align-top py-1">{invoice.vendorGst || '-'}</td>
                           </tr>
                         </tbody>
                       </table>
@@ -350,7 +371,7 @@ export default function PurchaseReceiveDetailPage() {
                         <th className="border border-black p-2 w-8 text-[11px]">Sr. No.</th>
                         <th className="border border-black p-2 text-[11px] text-left">Item Name</th>
                         <th className="border border-black p-2 w-16 text-[11px]">HSN / SAC</th>
-                        <th className="border border-black p-2 w-12 text-[11px]">Qty</th>
+                        <th className="border border-black p-2 w-16 text-[11px]">Tot Inv Qty</th>
                         <th className="border border-black p-2 w-10 text-[11px]">SRT</th>
                         <th className="border border-black p-2 w-10 text-[11px]">ACT</th>
                         <th className="border border-black p-2 w-16 text-[11px]">Rate</th>
@@ -407,8 +428,8 @@ export default function PurchaseReceiveDetailPage() {
                       ))}
                       {/* Totals Row */}
                       <tr className="border-t border-black font-bold bg-slate-100">
-                        <td className="border border-black p-2" colSpan={3}>Total</td>
-                        <td className="border border-black p-2 text-center">{invoice.lineItems?.reduce((acc: number, item: any) => acc + ((item.totalInvoiceQuantity ?? item.invoiceQuantity ?? item.quantity) || 0), 0)} NOS</td>
+                        <td className="border border-black p-2 text-right" colSpan={3}>Total :</td>
+                        <td className="border border-black p-2 text-center">{invoice.lineItems?.reduce((acc: number, item: any) => acc + ((item.totalInvoiceQuantity ?? item.invoiceQuantity ?? item.quantity) || 0), 0)}</td>
                         <td className="border border-black p-2 text-center">{invoice.lineItems?.reduce((acc: number, item: any) => acc + (item.srt || 0), 0)}</td>
                         <td className="border border-black p-2 text-center">{invoice.lineItems?.reduce((acc: number, item: any) => acc + (item.act || 0), 0)}</td>
                         <td className="border border-black p-2 bg-white"></td>

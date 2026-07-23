@@ -1,4 +1,5 @@
 "use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { getEntityMetadata, updateEntityMetadata } from "@/features/vendors/api/vendors.api";
@@ -6,6 +7,7 @@ import { FieldMetadata } from "@/shared/components/dynamic/DynamicForm";
 import { Button } from "@/components/ui/button";
 import { Loader2, Plus, GripVertical, Search, Lock, Settings } from "lucide-react";
 import { FieldBuilderModal } from "@/features/items/components/FieldBuilderModal";
+import { ChangeOrderModal } from "@/shared/components/dynamic/ChangeOrderModal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,6 +23,7 @@ export default function VendorPreferencesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("Fields");
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
 
   useEffect(() => {
     loadFields();
@@ -102,6 +105,19 @@ export default function VendorPreferencesPage() {
     }
   };
 
+  const handleSaveOrder = async (reorderedFields: FieldMetadata[]) => {
+    try {
+      setIsLoading(true);
+      await updateEntityMetadata('Vendor', reorderedFields);
+      setFields(reorderedFields);
+      setIsOrderModalOpen(false);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const getDataTypeLabel = (type: string) => {
     switch(type) {
       case 'text': return 'Text Box (Single Line)';
@@ -155,7 +171,7 @@ export default function VendorPreferencesPage() {
         
         <div className="flex items-center space-x-4">
           <span className="text-sm text-slate-500">Custom Fields Usage: {fields.filter(f => !f.visible).length || 3}/59</span>
-          <Button variant="outline" className="text-sm h-9 px-4 border-slate-300 text-slate-700 font-normal">
+          <Button variant="outline" onClick={() => setIsOrderModalOpen(true)} className="text-sm h-9 px-4 border-slate-300 text-slate-700 font-normal">
             <GripVertical className="w-4 h-4 mr-1 opacity-50" />
             Change Order
           </Button>
@@ -304,6 +320,13 @@ export default function VendorPreferencesPage() {
           allFields={fields}
         />
       )}
+
+      <ChangeOrderModal 
+        isOpen={isOrderModalOpen} 
+        onClose={() => setIsOrderModalOpen(false)} 
+        fields={fields} 
+        onSave={handleSaveOrder} 
+      />
     </div>
   );
 }

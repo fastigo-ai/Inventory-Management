@@ -72,11 +72,15 @@ export function DynamicTable({
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!onSelectionChange) return;
     if (e.target.checked) {
-      // Select all on current page
-      const newSelectedIds = data.map(row => row._id);
+      // Select all on current page while keeping existing selections
+      const currentPageIds = data.map(row => row._id);
+      const newSelectedIds = Array.from(new Set([...selectedIds, ...currentPageIds]));
       onSelectionChange(newSelectedIds);
     } else {
-      onSelectionChange([]);
+      // Unselect all on current page only
+      const currentPageIds = data.map(row => row._id);
+      const newSelectedIds = selectedIds.filter(id => !currentPageIds.includes(id));
+      onSelectionChange(newSelectedIds);
     }
   };
 
@@ -294,7 +298,7 @@ export function DynamicTable({
 
                     return (
                       <TableCell key={col.name} className="text-slate-600">
-                        {renderValue(row.dynamicData?.[col.name])}
+                        {renderValue(row.dynamicData?.[col.name] ?? row[col.name])}
                       </TableCell>
                     );
                   })}

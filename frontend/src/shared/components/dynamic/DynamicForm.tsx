@@ -586,7 +586,7 @@ function renderField(field: FieldMetadata, register: any, errors: any, control: 
         <Input 
           id={field.name}
           type={field.type === 'email' ? 'email' : field.type === 'url' ? 'url' : field.type === 'phone' ? 'tel' : field.type === 'number' || field.type === 'decimal' || field.type === 'amount' ? 'number' : 'text'}
-          step={field.type === 'decimal' || field.type === 'amount' ? '0.01' : undefined}
+          step={field.type === 'decimal' || field.type === 'amount' || field.type === 'number' ? 'any' : undefined}
           disabled={!field.editable}
           placeholder={field.placeholder}
           {...register(field.name, { 

@@ -64,7 +64,8 @@ const navItems: NavItem[] = [
     icon: <BarChart2 className="w-5 h-5" />,
     children: [
       { title: 'Dashboard', href: '/reports' },
-      { title: 'Activity Logs', href: '/reports/activity' }
+      { title: 'Activity Logs', href: '/reports/activity' },
+      { title: 'Item Summary', href: '/reports/item-summary' }
     ]
   },
   {

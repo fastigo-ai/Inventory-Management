@@ -6,6 +6,8 @@ import { DI } from './di.schema';
 import { parse } from 'csv-parse/sync';
 import { PurchaseOrder } from '../purchases/purchaseOrder.schema';
 import { Pr } from '../purchases/pr.schema';
+import mongoose from 'mongoose';
+import { SummaryService } from '../reports/summary/summary.service';
 export const createDI = asyncHandler(async (req: Request, res: Response) => {
   const data = req.body;
 
@@ -42,11 +44,35 @@ export const createDI = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(400, 'DI Number already exists');
   }
 
-  const newDI = await DI.create(diData);
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  res.status(201).json(
-    new ApiResponse(201, newDI, 'DI Registered Successfully')
-  );
+  try {
+    const [newDI] = await DI.create([diData], { session });
+
+    // Update Item Summary (diQty)
+    for (const item of newDI.lineItems) {
+      if (!item.itemId) continue;
+      await SummaryService.updateSummary({
+        itemId: item.itemId.toString(),
+        circle: item.circle || newDI.circle,
+        package: item.package || newDI.package,
+        increments: { diQty: item.quantity },
+        session
+      });
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(201).json(
+      new ApiResponse(201, newDI, 'DI Registered Successfully')
+    );
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
 });
 
 export const getDIs = asyncHandler(async (req: Request, res: Response) => {

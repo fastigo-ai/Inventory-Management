@@ -59,8 +59,7 @@ export default function ContractorsPage() {
                   <th className="px-6 py-3">NAME</th>
                   <th className="px-6 py-3">PHONE</th>
                   <th className="px-6 py-3">EMAIL</th>
-                  <th className="px-6 py-3">DIVISION</th>
-                  <th className="px-6 py-3">LOCATION</th>
+                  <th className="px-6 py-3">ADDRESS</th>
                   <th className="px-6 py-3 text-right">STATUS</th>
                 </tr>
               </thead>
@@ -70,8 +69,9 @@ export default function ContractorsPage() {
                     <td className="px-6 py-4 font-medium text-slate-900">{c.dynamicData?.displayName || '-'}</td>
                     <td className="px-6 py-4 text-slate-600">{c.dynamicData?.phone?.workPhone || '-'}</td>
                     <td className="px-6 py-4 text-slate-600">{c.dynamicData?.emailAddress || '-'}</td>
-                    <td className="px-6 py-4 text-slate-600">{c.dynamicData?.contractorAddress?.billing?.division || '-'}</td>
-                    <td className="px-6 py-4 text-slate-600">{c.dynamicData?.contractorAddress?.billing?.locationField || '-'}</td>
+                    <td className="px-6 py-4 text-slate-600 max-w-xs truncate" title={c.dynamicData?.contractorAddress?.billing?.city}>
+                      {c.dynamicData?.contractorAddress?.billing?.city || '-'}
+                    </td>
                     <td className="px-6 py-4 text-right">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
                         c.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'

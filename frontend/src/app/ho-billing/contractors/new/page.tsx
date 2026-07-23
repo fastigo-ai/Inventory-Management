@@ -31,9 +31,7 @@ export default function NewContractorPage() {
   const handleSubmit = async (data: any) => {
     try {
       await createContractor({
-        // Extract location from the dynamic form if available, or just leave it empty.
-        // It's technically now inside dynamicData.contractorAddress.billing.locationField
-        location: data.contractorAddress?.billing?.locationField || "Unknown",
+        location: undefined,
         dynamicData: data
       });
       router.push(`/ho-billing/contractors`);

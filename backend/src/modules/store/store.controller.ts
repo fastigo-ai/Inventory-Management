@@ -1074,8 +1074,8 @@ export const importStoreTransfers = asyncHandler(async (req: Request, res: Respo
     // Check if transfer already exists based on ChallanNo or MinNo
     const existing = await StoreTransfer.findOne({ 
        $or: [
-         { challanNo: payload.challanNo, challanNo: { $ne: '' } },
-         { minNo: payload.minNo, minNo: { $ne: '' } }
+         { challanNo: { $eq: payload.challanNo, $ne: '' } },
+         { minNo: { $eq: payload.minNo, $ne: '' } }
        ]
     });
     

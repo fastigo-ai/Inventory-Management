@@ -8,7 +8,7 @@ import { Contractor } from './contractor.schema';
 import { ContractorAssignment } from './contractorAssignment.schema';
 import { ContractorReturn } from './contractorReturn.schema';
 import Metadata from '../metadata/metadata.model';
-import { Item } from '../items/item.model';
+import Item from '../items/item.model';
 
 export const getContractors = asyncHandler(async (req: Request, res: Response) => {
   const { location } = req.query;

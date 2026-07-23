@@ -16,6 +16,7 @@ interface GetVendorsParams {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   search?: string;
+  status?: string;
 }
 
 export const getVendors = async (params?: GetVendorsParams) => {
@@ -25,6 +26,7 @@ export const getVendors = async (params?: GetVendorsParams) => {
   if (params?.sortBy) query.append('sortBy', params.sortBy);
   if (params?.sortOrder) query.append('sortOrder', params.sortOrder);
   if (params?.search) query.append('search', params.search);
+  if (params?.status) query.append('status', params.status);
   
   const queryString = query.toString();
   const url = queryString ? `/vendors?${queryString}` : '/vendors';

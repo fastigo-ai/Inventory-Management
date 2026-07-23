@@ -70,6 +70,7 @@ interface PurchaseOrderForm {
   sgstPercentage: number;
   igstPercentage: number;
   gstTreatment: string;
+  attachments?: any[];
 }
 
 interface NewPurchaseOrderFormProps {

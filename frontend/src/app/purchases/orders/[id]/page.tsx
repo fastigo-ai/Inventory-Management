@@ -675,10 +675,11 @@ export default function PurchaseOrderDetailPage() {
                 )}
                 {order.billingCompany?.phone ? <p>{order.billingCompany.phone}</p> : (!order.billingCompany && <p>95655954341</p>)}
                 {order.billingCompany?.email ? <p className="text-blue-600">{order.billingCompany.email}</p> : (!order.billingCompany && <p className="text-blue-600">info@holistic.co</p>)}
+                {<p className="font-semibold text-slate-700 mt-1 pt-1">GSTIN: {order.billingCompany?.gstin || order.billingCompany?.gstNumber || order.billingCompany?.gst || '09AAFCH8563J1Z8'}</p>}
               </div>
 
-              {/* Vendor and Deliver To */}
-              <div className="grid grid-cols-2 gap-12 mb-10">
+              {/* Vendor Address */}
+              <div className="mb-10 w-1/2">
                 <div className="text-[11px] text-slate-600 space-y-0.5">
                   <p className="font-bold text-slate-400 mb-1.5 uppercase tracking-wider text-[10px]">Vendor Address</p>
                   <p className="font-bold text-blue-600 text-xs">{order.vendorName}</p>
@@ -688,17 +689,7 @@ export default function PurchaseOrderDetailPage() {
                     <p className="italic text-slate-400">No address provided</p>
                   )}
                   {renderPhone(selectedVendor?.dynamicData?.phone)}
-                </div>
-                
-                <div className="text-[11px] text-slate-600 space-y-0.5">
-                  <p className="font-bold text-slate-400 mb-1.5 uppercase tracking-wider text-[10px]">Deliver To</p>
-                  <p className="font-bold text-slate-800 text-xs">{order.deliveryAddressId || 'Head Office'}</p>
-                  {deliveryAddressStr ? (
-                    <div className="whitespace-pre-wrap leading-relaxed">{deliveryAddressStr}</div>
-                  ) : (
-                    <p className="italic text-slate-400">No address provided</p>
-                  )}
-                  {renderPhone(selectedDeliveryLocation?.phone)}
+                  {selectedVendor?.dynamicData?.gstin && <p className="font-semibold text-slate-700 mt-1 pt-1">GSTIN: {selectedVendor.dynamicData.gstin}</p>}
                 </div>
               </div>
 
@@ -745,7 +736,20 @@ export default function PurchaseOrderDetailPage() {
               </table>
 
               {/* Totals */}
-              <div className="flex justify-end mb-10">
+              {/* Footer Block */}
+              <div className="flex justify-between items-start mb-10">
+                {/* Deliver To */}
+                <div className="text-[11px] text-slate-600 space-y-0.5 w-1/2 pt-2">
+                  <p className="font-bold text-slate-400 mb-1.5 uppercase tracking-wider text-[10px]">Deliver To</p>
+                  <p className="font-bold text-slate-800 text-xs">{order.deliveryAddressId || 'Head Office'}</p>
+                  {deliveryAddressStr ? (
+                    <div className="whitespace-pre-wrap leading-relaxed">{deliveryAddressStr}</div>
+                  ) : (
+                    <p className="italic text-slate-400">No address provided</p>
+                  )}
+                  {renderPhone(selectedDeliveryLocation?.phone)}
+                </div>
+
                 <div className="w-80 space-y-3 text-[11px]">
                   <div className="flex justify-between text-slate-600 px-2">
                     <span>Sub Total</span>
@@ -802,16 +806,14 @@ export default function PurchaseOrderDetailPage() {
                 </div>
 
                 {/* Authorized Signature */}
-                <div className="text-[11px] text-slate-600 text-center w-64 pt-8">
+                <div className="text-[11px] text-slate-600 text-center w-64 pt-4">
+                  <div className="mb-2 italic text-slate-500 text-[10px]">This is computer generated</div>
                   <div className="border-b border-slate-800 w-full mb-1"></div>
                   <span className="font-semibold text-slate-500">Authorized Signature</span>
                 </div>
               </div>
 
-              <div className="text-center mt-16 text-[10px] text-slate-400">
-                PDF Template : "Standard Template" <span className="text-blue-500 cursor-pointer hover:underline ml-1">Change</span>
-              </div>
-              
+
               {/* Custom Fields */}
               <div className="mt-8 pt-6 border-t border-slate-200">
                 <h3 className="text-[10px] font-bold text-slate-800 mb-4 uppercase tracking-wider">Custom Fields</h3>

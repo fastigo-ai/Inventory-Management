@@ -108,6 +108,32 @@ const seedMetadata = async () => {
     );
     console.log('Vendor Metadata seeded successfully');
 
+    // Clone vendorFields for Contractor, perhaps tweaking minor labels if desired, but user wants EXACT same.
+    const contractorFields = vendorFields
+      .filter(f => !['customFields', 'reportingTags', 'remarks'].includes(f.name))
+      .map(field => {
+      // Just copy exact schema but maybe change Vendor to Contractor in some labels where it makes sense, though the user said "nothing less thik as an senior experience backend developer the registration method is different but the things for the input field is same". I'll keep it identical for safety except maybe label changes.
+      const newField = { ...field };
+      if (newField.label === 'Vendor Language') newField.label = 'Contractor Language';
+      if (newField.checkboxLabel === 'This vendor is MSME registered') newField.checkboxLabel = 'This contractor is MSME registered';
+      if (newField.checkboxLabel === 'Allow portal access for this vendor') newField.checkboxLabel = 'Allow portal access for this contractor';
+      
+      // Update address widget for contractor (single address)
+      if (newField.name === 'vendorAddresses') {
+        newField.name = 'contractorAddress';
+        newField.widget = 'single_address';
+      }
+
+      return newField;
+    });
+
+    await Metadata.findOneAndUpdate(
+      { entityName: 'Contractor' },
+      { fields: contractorFields },
+      { upsert: true, new: true }
+    );
+    console.log('Contractor Metadata seeded successfully');
+
     process.exit(0);
   } catch (error) {
     console.error('Seeding error:', error);

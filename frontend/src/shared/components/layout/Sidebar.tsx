@@ -101,6 +101,13 @@ const navItems: NavItem[] = [
       { title: 'User Management', href: '/settings/users' },
       { title: 'Roles & Permissions', href: '/settings/roles' }
     ]
+  },
+  {
+    title: 'HO Billing Portal',
+    icon: <ShoppingBag className="w-5 h-5" />,
+    children: [
+      { title: 'Contractors', href: '/ho-billing/contractors' }
+    ]
   }
 ];
 

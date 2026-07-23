@@ -33,8 +33,8 @@ const PaymentTermRow = ({ control, register, baseName, index }: { control: any, 
           <option value="">Select Type</option>
           <option value="Advance">Advance</option>
           <option value="Adhoc">Adhoc</option>
-          <option value="Before Advance">Before Advance</option>
-          <option value="After Advance">After Advance</option>
+          <option value="After JMC">After JMC</option>
+          <option value="Before JMC">Before JMC</option>
         </select>
       )}
 

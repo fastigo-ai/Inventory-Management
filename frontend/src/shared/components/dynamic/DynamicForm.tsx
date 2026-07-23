@@ -356,6 +356,82 @@ function renderField(field: FieldMetadata, register: any, errors: any, control: 
     );
   }
 
+  if (field.widget === 'single_address') {
+    const renderAddressSide = (type: 'billing', title: string) => {
+      const prefix = `${field.name}.${type}`;
+      return (
+        <div className="flex-1 min-w-0 max-w-2xl">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-semibold text-slate-800 text-[15px]">{title}</h3>
+          </div>
+          <div className="space-y-4">
+             <div className="grid grid-cols-[130px_1fr] items-start gap-4">
+                <Label className="text-[13px] text-slate-600 pt-2">Attention</Label>
+                <Input className="h-9 text-[13px] bg-white" {...register(`${prefix}.attention`)} />
+             </div>
+             <div className="grid grid-cols-[130px_1fr] items-start gap-4">
+                <Label className="text-[13px] text-slate-600 pt-2">Country/Region</Label>
+                <select className="h-9 rounded-md border border-slate-300 bg-white px-3 text-[13px]" {...register(`${prefix}.country`)}>
+                  <option value="">Select</option>
+                  <option value="India">India</option>
+                  <option value="USA">USA</option>
+                </select>
+             </div>
+             <div className="grid grid-cols-[130px_1fr] items-start gap-4">
+                <Label className="text-[13px] text-slate-600 pt-2">Address</Label>
+                <div className="space-y-2">
+                  <Textarea className="text-[13px] min-h-[60px] bg-white" placeholder="Street 1" {...register(`${prefix}.street1`)} />
+                  <Textarea className="text-[13px] min-h-[60px] bg-white" placeholder="Street 2" {...register(`${prefix}.street2`)} />
+                </div>
+             </div>
+             <div className="grid grid-cols-[130px_1fr] items-start gap-4">
+                <Label className="text-[13px] text-slate-600 pt-2">City</Label>
+                <Input className="h-9 text-[13px] bg-white" {...register(`${prefix}.city`)} />
+             </div>
+             <div className="grid grid-cols-[130px_1fr] items-start gap-4">
+                <Label className="text-[13px] text-slate-600 pt-2">State</Label>
+                <select className="h-9 rounded-md border border-slate-300 bg-white px-3 text-[13px]" {...register(`${prefix}.state`)}>
+                  <option value="">Select or type to add</option>
+                  <option value="Delhi">Delhi</option>
+                  <option value="Maharashtra">Maharashtra</option>
+                  <option value="Karnataka">Karnataka</option>
+                  <option value="Tamil Nadu">Tamil Nadu</option>
+                  <option value="Telangana">Telangana</option>
+                  <option value="Gujarat">Gujarat</option>
+                </select>
+             </div>
+             <div className="grid grid-cols-[130px_1fr] items-start gap-4">
+                <Label className="text-[13px] text-slate-600 pt-2">Pin Code</Label>
+                <Input className="h-9 text-[13px] bg-white" {...register(`${prefix}.zip`)} />
+             </div>
+             <div className="grid grid-cols-[130px_1fr] items-start gap-4">
+                <Label className="text-[13px] text-slate-600 pt-2">Phone</Label>
+                <div className="flex items-center space-x-2 w-full">
+                  <select className="h-9 w-[70px] rounded-md border border-slate-300 bg-white px-1 text-[13px]" {...register(`${prefix}.phoneCode`)}>
+                    <option value="+91">+91</option>
+                    <option value="+1">+1</option>
+                  </select>
+                  <Input className="h-9 text-[13px] flex-1 bg-white" {...register(`${prefix}.phone`)} />
+                </div>
+             </div>
+             <div className="grid grid-cols-[130px_1fr] items-start gap-4">
+                <Label className="text-[13px] text-slate-600 pt-2">Fax Number</Label>
+                <Input className="h-9 text-[13px] bg-white" {...register(`${prefix}.fax`)} />
+             </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="col-span-full pt-2 -ml-2 pb-6">
+         <div className="mb-8">
+            {renderAddressSide('billing', 'Contractor Address')}
+         </div>
+      </div>
+    );
+  }
+
   if (field.type === 'text_multi' || field.widget === 'textarea') {
     fieldInput = (
       <Textarea 

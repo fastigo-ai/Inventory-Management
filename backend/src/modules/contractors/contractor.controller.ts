@@ -6,18 +6,29 @@ import { Contractor } from './contractor.schema';
 import { ContractorAssignment } from './contractorAssignment.schema';
 
 export const getContractors = asyncHandler(async (req: Request, res: Response) => {
-  const contractors = await Contractor.find({ isActive: true }).sort({ name: 1 });
+  const { location } = req.query;
+  const filter: any = { isActive: true };
+  
+  if (location) {
+    filter.location = location;
+  }
+
+  const contractors = await Contractor.find(filter).sort({ 'dynamicData.displayName': 1 });
   res.status(200).json(new ApiResponse(200, contractors, 'Contractors fetched successfully'));
 });
 
 export const createContractor = asyncHandler(async (req: Request, res: Response) => {
-  const contractor = await Contractor.create(req.body);
+  const { location, dynamicData } = req.body;
+  if (!dynamicData) {
+    throw new ApiError(400, 'dynamicData is required');
+  }
+  const contractor = await Contractor.create({ location, dynamicData });
   res.status(201).json(new ApiResponse(201, contractor, 'Contractor created successfully'));
 });
 
 export const getAssignments = asyncHandler(async (req: Request, res: Response) => {
   const assignments = await ContractorAssignment.find()
-    .populate('contractorId', 'name')
+    .populate('contractorId', 'dynamicData.displayName')
     .sort({ createdAt: -1 });
   res.status(200).json(new ApiResponse(200, assignments, 'Assignments fetched successfully'));
 });
@@ -42,4 +53,25 @@ export const createAssignment = asyncHandler(async (req: Request, res: Response)
   res.status(201).json(
     new ApiResponse(201, newAssignment, 'Contractor Assignment Created Successfully')
   );
+});
+
+export const assignContractor = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { locations } = req.body;
+
+  if (!Array.isArray(locations)) {
+    throw new ApiError(400, 'Locations must be an array of strings');
+  }
+
+  const contractor = await Contractor.findByIdAndUpdate(
+    id,
+    { assignedLocations: locations },
+    { new: true, runValidators: true }
+  );
+
+  if (!contractor) {
+    throw new ApiError(404, 'Contractor not found');
+  }
+
+  res.status(200).json(new ApiResponse(200, contractor, 'Contractor locations assigned successfully'));
 });

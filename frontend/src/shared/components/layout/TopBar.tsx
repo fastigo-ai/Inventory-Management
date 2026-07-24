@@ -101,7 +101,9 @@ export function TopBar() {
         </button>
         <Link href="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
           <Package className="w-6 h-6 text-blue-400" />
-          <span className="font-bold text-lg tracking-wide">Inventory</span>
+          <span className="font-bold text-lg tracking-wide whitespace-nowrap">
+            {user?.role?.name === 'Store Manager' ? 'Store Manager Portal' : 'Inventory'}
+          </span>
         </Link>
         
         {user?.role?.name === 'Store Manager' && user?.assignedCircle && (

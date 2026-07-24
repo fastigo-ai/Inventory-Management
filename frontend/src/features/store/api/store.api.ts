@@ -94,7 +94,16 @@ export const dispatchStoreTransfer = async (id: string, data: any) => {
 export const importInwardRegistrations = async (file: File) => {
   const formData = new FormData();
   formData.append('file', file);
-  const response = await api.post('/inventory/inward/import', formData, {
+  const response = await api.post('/store/inventory/inward/import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};
+
+export const importStoreTransfers = async (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post('/store/transfers/outward/import', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
   return response.data;

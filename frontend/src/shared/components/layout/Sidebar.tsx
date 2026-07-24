@@ -80,15 +80,15 @@ const navItems: NavItem[] = [
       { title: 'Store Receipts', href: '/store/receipts' },
       { title: 'Inward Registration', href: '/store/inventory' },
       { title: 'Contractor Return', href: '/store/contractor-return' },
-      { title: 'Inter Store Transfer (IN)', href: '/store/transfers?tab=incoming' }
+      { title: 'Inward Register (Transfers)', href: '/store/inward-register-transfers' },
+      { title: 'Inter Store Transfer (Requests)', href: '/store/transfers?tab=incoming' }
     ]
   },
   {
     title: 'Stock Outward',
     icon: <Archive className="w-5 h-5" />,
     children: [
-      { title: 'Contractor Issue', href: '/contractors' },
-      { title: 'Inter Store Transfer (Out)', href: '/store/transfers?tab=outgoing' },
+      { title: 'Contractor Issue', href: '/store/contractor-issue' },
       { title: 'Outward Register', href: '/store/outward-register' }
     ]
   },
@@ -159,7 +159,7 @@ export function Sidebar() {
 
     // Backward compatibility for existing hardcoded Store Manager logic
     if (isStoreManager) {
-      return item.title === 'Stock Inward' || item.title === 'Stock Outward';
+      return item.title === 'Home' || item.title === 'Stock Inward' || item.title === 'Stock Outward';
     }
 
     // Role-based filtering based on module names

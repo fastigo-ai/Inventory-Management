@@ -1,17 +1,17 @@
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { importInwardRegistrations } from "@/features/store/api/store.api";
+import { importContractorAssignments } from "@/features/contractors/api/contractors.api";
 import { Loader2, UploadCloud, FileText, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
-interface InwardImportModalProps {
+interface ContractorIssueImportModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export function InwardImportModal({ isOpen, onClose, onSuccess }: InwardImportModalProps) {
+export function ContractorIssueImportModal({ isOpen, onClose, onSuccess }: ContractorIssueImportModalProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [result, setResult] = useState<any>(null);
@@ -32,10 +32,10 @@ export function InwardImportModal({ isOpen, onClose, onSuccess }: InwardImportMo
     setResult(null);
 
     try {
-      const res = await importInwardRegistrations(file);
+      const res = await importContractorAssignments(file);
       
       if (res.data.successCount > 0) {
-        toast.success(`Imported successfully! ${res.data.successCount} GRNs added as Draft.`);
+        toast.success(`Imported successfully! ${res.data.successCount} Issues created.`);
         onSuccess();
         
         if (!res.data.errors || res.data.errors.length === 0) {
@@ -58,16 +58,17 @@ export function InwardImportModal({ isOpen, onClose, onSuccess }: InwardImportMo
   };
 
   const downloadSampleCsv = () => {
-    const headers = "InvoiceNumber,ItemName,LoaSerialNo,ChallanQty,RejectedQty,AcceptedQty,TransportName,TruckNumber,GrNumber,GrDate,ReceivedDate,PoNumber,PoDate,BillingFrom,VendorName,InvoiceDate,Unit,InvoiceQty,TotalQty,Rate,Amount,TaxableAmount,TempCode,ItemDescription,HsnCode,ChallanNumber,BiltyNumber,Gst,Cgst,Sgst,Igst,DiRefNo,Circle,Package,Remarks\n";
-    const sampleRow1 = "INV-1001,Optical Fiber,SN-1234,10,0,10,Fastigo Logistics,MH-12-AB-1234,GR-991,2026-07-20,2026-07-22,PO-2001,2026-07-01,HQ,Vendor A,2026-07-15,Nos,10,100,500,5900,5000,TC-1,High Speed Fiber,8544,CH-441,BL-771,18%,450,450,0,DI-001,Circle 1,Pkg A,Delivered safely\n";
-    const sampleRow2 = "INV-1001,Router,SN-9988,5,1,4,Fastigo Logistics,MH-12-AB-1234,GR-991,2026-07-20,2026-07-22,PO-2001,2026-07-01,HQ,Vendor A,2026-07-15,Nos,5,50,2000,9440,8000,TC-2,Enterprise Router,8517,CH-441,BL-771,18%,720,720,0,DI-001,Circle 1,Pkg A,1 box damaged\n";
-    const csvContent = headers + sampleRow1 + sampleRow2;
+    const headers = "MinNo,Date,ContractorName,DemandNo,DemandBookNo,DemandDate,ContractorFarmName,SupervisorEngineer,Division,SubDivision,SubStation,Feeder,VehicleNo,MinBookNo,MinDate,IssuedTfsSrNo,Remarks,ItemName,TempCode,Unit,HsnCode,DemandQty,IssuedQty,Rate,Amount\n";
+    const sampleRow1 = "MIN-5001,2026-07-24,Contractor X,DMD-101,DB-1,2026-07-20,Farm A,Engr Smith,Div 1,Sub Div 1,Station Alpha,Feeder 1,MH-01-XX-1111,MB-1,2026-07-24,,Urgent issue,Optical Fiber,TC-1,Nos,8544,20,20,500,10000\n";
+    const sampleRow2 = "MIN-5001,2026-07-24,Contractor X,DMD-101,DB-1,2026-07-20,Farm A,Engr Smith,Div 1,Sub Div 1,Station Alpha,Feeder 1,MH-01-XX-1111,MB-1,2026-07-24,,Urgent issue,Router,TC-2,Nos,8517,5,5,2000,10000\n";
+    const sampleRow3 = "MIN-5002,2026-07-25,Contractor Y,DMD-102,DB-1,2026-07-21,Farm B,Engr Jones,Div 2,Sub Div 2,Station Beta,Feeder 2,MH-02-YY-2222,MB-1,2026-07-25,TFS-999,,Switch,TC-3,Nos,8517,2,2,1500,3000\n";
+    const csvContent = headers + sampleRow1 + sampleRow2 + sampleRow3;
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", "inward_registration_sample.csv");
+    link.setAttribute("download", "contractor_issue_sample.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -83,9 +84,9 @@ export function InwardImportModal({ isOpen, onClose, onSuccess }: InwardImportMo
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[500px] bg-white">
         <DialogHeader>
-          <DialogTitle className="text-xl">Import Bulk Inward Registrations</DialogTitle>
+          <DialogTitle className="text-xl">Import Bulk Contractor Issues</DialogTitle>
           <DialogDescription>
-            Upload a CSV file containing your GRN updates. The system will match your inputs to existing Pending Purchase Invoices and automatically calculate the Taxable Amount and GST based on your Accepted Qty.
+            Upload a CSV file containing your Material Issue Notes (MIN). Multiple rows with the same MIN No will be grouped into a single Issue.
           </DialogDescription>
         </DialogHeader>
 
@@ -141,7 +142,7 @@ export function InwardImportModal({ isOpen, onClose, onSuccess }: InwardImportMo
                   <CheckCircle className="w-6 h-6 text-green-600" />
                   <div>
                     <h4 className="font-medium text-green-900">Successfully Imported</h4>
-                    <p className="text-sm text-green-700">{result.successCount} GRNs created as Drafts</p>
+                    <p className="text-sm text-green-700">{result.successCount} Issues created</p>
                   </div>
                 </div>
               )}

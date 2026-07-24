@@ -54,21 +54,102 @@ export default function ItemSummaryReportPage() {
   }, [data]);
 
   const fields = [
-    { name: 'itemName', label: 'Item Name', type: 'text', order: 1, active: true, visible: true, required: false, editable: false },
-    { name: 'circle', label: 'Circle', type: 'text', order: 2, active: true, visible: true, required: false, editable: false },
-    { name: 'package', label: 'Package', type: 'text', order: 3, active: true, visible: true, required: false, editable: false },
-    { name: 'loaQty', label: 'LOA Qty', type: 'number', order: 4, active: true, visible: true, required: false, editable: false },
-    { name: 'bomQty', label: 'BOM Qty', type: 'number', order: 5, active: true, visible: true, required: false, editable: false },
-    { name: 'diQty', label: 'DI Qty', type: 'number', order: 6, active: true, visible: true, required: false, editable: false },
-    { name: 'invQty', label: 'INVQ', type: 'number', order: 7, active: true, visible: true, required: false, editable: false },
-    { name: 'actQty', label: 'ACT Qty', type: 'number', order: 8, active: true, visible: true, required: false, editable: false },
-    { name: 'srtQty', label: 'SRT Qty', type: 'number', order: 9, active: true, visible: true, required: false, editable: false },
-    { name: 'billedQty', label: 'Billed Qty', type: 'number', order: 10, active: true, visible: true, required: false, editable: false },
-    { name: 'remainingLoa', label: 'Rem. LOA', type: 'number', order: 11, active: true, visible: true, required: false, editable: false },
-    { name: 'remainingBom', label: 'Rem. BOM', type: 'number', order: 12, active: true, visible: true, required: false, editable: false },
-    { name: 'variance', label: 'Variance', type: 'number', order: 13, active: true, visible: true, required: false, editable: false },
-    { name: 'pendingInvoice', label: 'Pending Inv.', type: 'number', order: 14, active: true, visible: true, required: false, editable: false },
-    { name: 'completionPercent', label: 'Comp. %', type: 'number', order: 15, active: true, visible: true, required: false, editable: false },
+    { name: 'itemName', label: 'Item Name', type: 'text', order: 1, active: true, required: false, editable: false, visible: true },
+    { 
+      name: 'poNumber', 
+      label: 'PO No', 
+      type: 'text', 
+      order: 2, 
+      active: true, 
+      required: false,
+      editable: false,
+      visible: true 
+    },
+    { 
+      name: 'vendorName', 
+      label: 'Supplier', 
+      type: 'text', 
+      order: 3, 
+      active: true, 
+      required: false,
+      editable: false,
+      visible: true 
+    },
+    { 
+      name: 'receivedDate', 
+      label: 'Receipt Date', 
+      type: 'date', 
+      order: 4, 
+      active: true, 
+      required: false,
+      editable: false,
+      visible: true 
+    },
+    { 
+      name: 'challanQty', 
+      label: 'Challan Qty', 
+      type: 'number', 
+      order: 5, 
+      active: true, 
+      required: false,
+      editable: false,
+      visible: true 
+    },
+    { 
+      name: 'receivedQty', 
+      label: 'Received Qty', 
+      type: 'number', 
+      order: 6, 
+      active: true, 
+      required: false,
+      editable: false,
+      visible: true 
+    },
+    { 
+      name: 'acceptedQty', 
+      label: 'Accepted Qty', 
+      type: 'number', 
+      order: 7, 
+      active: true, 
+      required: false,
+      editable: false,
+      visible: true 
+    },
+    { 
+      name: 'rejectedQty', 
+      label: 'Rejected Qty', 
+      type: 'number', 
+      order: 8, 
+      active: true, 
+      required: false,
+      editable: false,
+      visible: true 
+    },
+    { 
+      name: 'contractorsIssuedQty', 
+      label: 'Issued Qty', 
+      type: 'number', 
+      order: 9, 
+      active: true, 
+      required: false,
+      editable: false,
+      visible: true 
+    },
+    { 
+      name: 'totalBalanceQty', 
+      label: 'Balance Qty', 
+      type: 'number', 
+      order: 10, 
+      active: true, 
+      required: false,
+      editable: false,
+      visible: true 
+    },
+    { name: 'remainingLoa', label: 'Rem. LOA', type: 'number', order: 11, active: true, visible: true },
+    { name: 'remainingBom', label: 'Rem. BOM', type: 'number', order: 12, active: true, visible: true },
+    { name: 'variance', label: 'Variance', type: 'number', order: 13, active: true, visible: true },
+    { name: 'pendingInvoice', label: 'Pending Inv.', type: 'number', order: 14, active: true, visible: true },
+    { name: 'completionPercent', label: 'Comp. %', type: 'number', order: 15, active: true, visible: true },
   ];
 
   const handleExport = () => {
@@ -157,7 +238,7 @@ export default function ItemSummaryReportPage() {
           <DynamicTable
 
           
-            fields={fields}
+            fields={fields as any}
             data={data}
             pagination={{
               totalItems,

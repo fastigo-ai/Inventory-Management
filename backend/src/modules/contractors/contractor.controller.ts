@@ -6,7 +6,9 @@ import { ApiError } from '../../core/utils/ApiError';
 import { ApiResponse } from '../../core/utils/ApiResponse';
 import { Contractor } from './contractor.schema';
 import { ContractorAssignment } from './contractorAssignment.schema';
+import { ContractorReturn } from './contractorReturn.schema';
 import Metadata from '../metadata/metadata.model';
+import Item from '../items/item.model';
 
 export const getContractors = asyncHandler(async (req: Request, res: Response) => {
   const { location } = req.query;
@@ -372,4 +374,180 @@ export const importContractors = asyncHandler(async (req: Request, res: Response
   await Contractor.insertMany(validContractors);
 
   res.status(200).json(new ApiResponse(200, { successCount: validContractors.length }, 'Import processed successfully'));
+});
+
+export const getContractorReturns = asyncHandler(async (req: Request, res: Response) => {
+  const returns = await ContractorReturn.find()
+    .populate('contractorId', 'name farmName company')
+    .sort({ createdAt: -1 });
+
+  res.status(200).json(
+    new ApiResponse(200, returns, 'Contractor returns fetched successfully')
+  );
+});
+
+export const createContractorReturn = asyncHandler(async (req: Request, res: Response) => {
+  const data = req.body;
+  
+  if (!data.returnChallanNo || !data.contractorId) {
+    throw new ApiError(400, 'Return Challan No and Contractor are required');
+  }
+
+  const existing = await ContractorReturn.findOne({ returnChallanNo: data.returnChallanNo });
+  if (existing) {
+    throw new ApiError(400, 'A return with this Challan No already exists');
+  }
+
+  data.createdBy = (req as any).user?._id;
+
+  const newReturn = await ContractorReturn.create(data);
+
+  res.status(201).json(
+    new ApiResponse(201, newReturn, 'Contractor return created successfully')
+  );
+});
+
+export const importContractorAssignments = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.file) {
+    throw new ApiError(400, 'Please upload a CSV file');
+  }
+
+  const parser = parse(req.file.buffer, {
+    columns: true,
+    skip_empty_lines: true,
+    trim: true,
+  });
+
+  const errors: string[] = [];
+  let successCount = 0;
+  
+  // Group rows by MinNo or AssignmentNumber
+  const assignmentsByMin: Record<string, any> = {};
+
+  for await (const row of parser) {
+    try {
+      const minNo = row['MinNo'] || row['MIN No'] || row['minNo'] || row['AssignmentNumber'] || '';
+      if (!minNo) {
+        errors.push(`Row missing MinNo/AssignmentNumber`);
+        continue;
+      }
+
+      const contractorName = row['ContractorName'] || row['Contractor'] || '';
+      if (!contractorName) {
+        errors.push(`Row missing ContractorName for MIN ${minNo}`);
+        continue;
+      }
+
+      // Find Contractor
+      const contractor = await Contractor.findOne({ 
+        $or: [
+          { name: { $regex: new RegExp(`^${contractorName}$`, 'i') } },
+          { 'dynamicData.displayName': { $regex: new RegExp(`^${contractorName}$`, 'i') } }
+        ]
+      });
+
+      if (!contractor) {
+        errors.push(`Contractor '${contractorName}' not found for MIN ${minNo}`);
+        continue;
+      }
+
+      const itemName = row['ItemName'] || row['Description of Material'] || '';
+      const tempCode = row['TempCode'] || row['Temp Code'] || '';
+      
+      if (!itemName && !tempCode) {
+        errors.push(`Row missing ItemName/TempCode for MIN ${minNo}`);
+        continue;
+      }
+
+      // Find Item
+      let item = null;
+      if (tempCode) {
+        item = await Item.findOne({ itemCode: tempCode });
+      }
+      if (!item && itemName) {
+        item = await Item.findOne({ description: { $regex: new RegExp(`^${itemName}$`, 'i') } });
+      }
+
+      const demandQty = Number(row['DemandQty'] || row['Demand Qty'] || 0);
+      const quantity = Number(row['Quantity'] || row['IssuedQty'] || row['Issued Qty'] || 0);
+      if (quantity <= 0) {
+        errors.push(`Row has zero IssuedQty for MIN ${minNo}`);
+        continue;
+      }
+
+      const rate = Number(row['Rate'] || 0);
+      const amount = Number(row['Amount'] || (quantity * rate));
+      const unit = row['Unit'] || item?.unit || 'Nos';
+      const hsnCode = row['HsnCode'] || item?.hsnCode || '';
+
+      const lineItem = {
+        itemId: item?._id,
+        itemName: itemName || item?.description || 'Unknown Item',
+        tempCode: tempCode || item?.itemCode || '',
+        unit,
+        hsnCode,
+        demandQty,
+        quantity,
+        rate,
+        amount
+      };
+
+      if (!assignmentsByMin[minNo]) {
+        assignmentsByMin[minNo] = {
+          contractorId: contractor._id,
+          location: 'Store',
+          assignmentNumber: minNo,
+          date: row['Date'] ? new Date(row['Date']) : new Date(),
+          demandNo: row['DemandNo'] || '',
+          demandBookNo: row['DemandBookNo'] || '',
+          demandDate: row['DemandDate'] ? new Date(row['DemandDate']) : undefined,
+          contractorFarmName: row['ContractorFarmName'] || '',
+          supervisorEngineer: row['SupervisorEngineer'] || '',
+          division: row['Division'] || '',
+          subDivision: row['SubDivision'] || '',
+          subStation: row['SubStation'] || '',
+          feeder: row['Feeder'] || '',
+          vehicleNo: row['VehicleNo'] || '',
+          minNo: minNo,
+          minBookNo: row['MinBookNo'] || '',
+          minDate: row['MinDate'] ? new Date(row['MinDate']) : new Date(),
+          issuedTfsSrNo: row['IssuedTfsSrNo'] || '',
+          remarks: row['Remarks'] || '',
+          subTotal: 0,
+          total: 0,
+          status: 'Sent',
+          lineItems: []
+        };
+      }
+
+      assignmentsByMin[minNo].lineItems.push(lineItem);
+      assignmentsByMin[minNo].subTotal += amount;
+      assignmentsByMin[minNo].total += amount;
+
+    } catch (err: any) {
+      errors.push(`Row error: ${err.message}`);
+    }
+  }
+
+  // Save assignments
+  for (const minNo of Object.keys(assignmentsByMin)) {
+    const payload = assignmentsByMin[minNo];
+    
+    const existing = await ContractorAssignment.findOne({ assignmentNumber: payload.assignmentNumber });
+    if (existing) {
+      errors.push(`Assignment/MIN ${payload.assignmentNumber} already exists. Skipping.`);
+      continue;
+    }
+
+    try {
+      await ContractorAssignment.create(payload);
+      successCount++;
+    } catch (err: any) {
+      errors.push(`Error saving MIN ${minNo}: ${err.message}`);
+    }
+  }
+
+  res.status(200).json(
+    new ApiResponse(200, { successCount, errors }, 'Import process completed')
+  );
 });

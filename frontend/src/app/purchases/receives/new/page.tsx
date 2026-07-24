@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { X, Settings, UploadCloud, ChevronDown, User, Table as TableIcon, Trash2, Paperclip, FileText, Plus, Loader2, Search } from "lucide-react";
 import Link from "next/link";
+import Select from "react-select";
 import { createPurchaseReceive, getNextPurchaseReceiveNumber } from "@/features/purchases/api/purchases.api";
 import { getVendors } from "@/features/vendors/api/vendors.api";
 import { getPurchaseOrders } from "@/features/purchases/api/purchases.api";
@@ -36,8 +37,8 @@ export default function NewPurchaseReceivePage() {
   
   const [lineItems, setLineItems] = useState<any[]>([]);
   const [itemsList, setItemsList] = useState<any[]>([]);
-  const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
-  const [dropdownSearchQueries, setDropdownSearchQueries] = useState<{[key: number]: string}>({});
+  const [openDropdown, setOpenDropdown] = useState<{ type: string, index: number } | null>(null);
+  const [searchQueries, setSearchQueries] = useState<Record<string, string>>({});
   
   const [uploadedDocs, setUploadedDocs] = useState<any[]>([]);
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
@@ -45,8 +46,11 @@ export default function NewPurchaseReceivePage() {
 
   useEffect(() => {
     // Close dropdowns when clicking outside
-    const handleClickOutside = () => {
-      setOpenDropdownId(null);
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.item-dropdown-container')) {
+        setOpenDropdown(null);
+      }
     };
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
@@ -153,6 +157,12 @@ export default function NewPurchaseReceivePage() {
     const hasInvalidQuantity = lineItems.some(item => (Number(item.totalInvoiceQuantity) || 0) > (Number(item.invoiceQuantity) || 0));
     if (hasInvalidQuantity) {
       alert("Total Invoice Quantity cannot be greater than Invoice Quantity");
+      return;
+    }
+
+    const hasMissingMandatory = lineItems.some(item => !item.package || !item.circle);
+    if (hasMissingMandatory) {
+      alert("Package and Circle are mandatory for all items");
       return;
     }
 
@@ -392,8 +402,8 @@ export default function NewPurchaseReceivePage() {
                   <thead className="bg-[#f8f9fa] border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider sticky top-0 z-10">
                     <tr>
                       <th className="px-4 py-3 w-12 text-center">#</th>
-                      <th className="px-3 py-3 min-w-[120px]">Package</th>
-                      <th className="px-3 py-3 min-w-[120px]">Circle</th>
+                      <th className="px-2 py-3 font-bold text-slate-500 whitespace-nowrap text-left"><span className="bg-blue-600 text-white px-1.5 py-0.5 rounded">PACKAGE</span> <span className="text-red-500">*</span></th>
+                      <th className="px-2 py-3 font-bold text-slate-500 whitespace-nowrap text-left"><span className="bg-blue-600 text-white px-1.5 py-0.5 rounded">CIRCLE</span> <span className="text-red-500">*</span></th>
                       <th className="px-3 py-3 min-w-[140px]">Temp Code</th>
                       <th className="px-3 py-3 min-w-[180px]">Item Name</th>
                       <th className="px-3 py-3 min-w-[200px]">Description</th>
@@ -426,34 +436,66 @@ export default function NewPurchaseReceivePage() {
                     ) : (
                       lineItems.map((item, index) => {
                         const allPackages = Array.from(new Set(itemsList.map(i => i.dynamicData?.package).filter(Boolean)));
-                        const circles = Array.from(new Set(itemsList.filter(i => !item.package || i.dynamicData?.package === item.package).map(i => i.dynamicData?.circle).filter(Boolean)));
-                        const tempCodes = Array.from(new Set(itemsList.filter(i => (!item.package || i.dynamicData?.package === item.package) && (!item.circle || i.dynamicData?.circle === item.circle)).map(i => i.dynamicData?.tempCode || i.dynamicData?.sku || i.dynamicData?.itemCode).filter(Boolean)));
-                        const itemNames = Array.from(new Set(itemsList.filter(i => 
-                          (!item.package || i.dynamicData?.package === item.package) && 
-                          (!item.circle || i.dynamicData?.circle === item.circle) &&
-                          (!item.tempCode || (i.dynamicData?.tempCode || i.dynamicData?.sku || i.dynamicData?.itemCode) === item.tempCode)
-                        ).map(i => i.dynamicData?.name || i.dynamicData?.itemDescription || i._id)));
+                        const circles = Array.from(new Set(itemsList.map(i => i.dynamicData?.circle).filter(Boolean)));
+                        const tempCodes = Array.from(new Set(itemsList.map(i => i.dynamicData?.tempCode || i.dynamicData?.sku || i.dynamicData?.itemCode).filter(Boolean)));
+                        const itemNames = Array.from(new Set(itemsList.map(i => i.dynamicData?.name || i.dynamicData?.itemDescription || i._id)));
+                        const loaSerialNos = Array.from(new Set(itemsList.map(i => {
+                          const d = i.dynamicData || {};
+                          const loaKey = Object.keys(d).find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === 'loaserialno' || k.toLowerCase().replace(/[^a-z0-9]/g, '') === 'loaserial' || k.toLowerCase() === 'sku');
+                          return loaKey ? d[loaKey] : null;
+                        }).filter(Boolean)));
 
-                        const handleItemSelect = (selectedName: string) => {
-                          const selectedItem = itemsList.find(i => (i.dynamicData?.name || i.dynamicData?.itemDescription || i._id) === selectedName);
+                        const handleItemSelection = (identifier: string, type: 'name' | 'tempCode' | 'description' | 'loaSerialNo') => {
+                          const selectedItem = itemsList.find(i => {
+                            if (type === 'name') return (i.dynamicData?.name || i.dynamicData?.itemDescription || i._id) === identifier;
+                            if (type === 'tempCode') return (i.dynamicData?.tempCode || i.dynamicData?.sku || i.dynamicData?.itemCode) === identifier;
+                            if (type === 'description') return (i.dynamicData?.description || i.dynamicData?.itemDescription) === identifier;
+                            if (type === 'loaSerialNo') {
+                              const d = i.dynamicData || {};
+                              const loaKey = Object.keys(d).find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === 'loaserialno' || k.toLowerCase().replace(/[^a-z0-9]/g, '') === 'loaserial' || k.toLowerCase() === 'sku');
+                              return (loaKey ? String(d[loaKey]) : '') === String(identifier);
+                            }
+                            return false;
+                          });
                           if (selectedItem) {
                              const d = selectedItem.dynamicData || {};
                              const getVal = (key: string) => {
                                if (d[key] !== undefined) return d[key];
                                const lowerKey = key.toLowerCase();
-                               const foundKey = Object.keys(d).find(k => k.toLowerCase() === lowerKey);
-                               return foundKey ? d[foundKey] : '';
+                               let foundKey = Object.keys(d).find(k => k.toLowerCase() === lowerKey);
+                               if (foundKey) return d[foundKey];
+                               const alphaNumKey = lowerKey.replace(/[^a-z0-9]/g, '');
+                               foundKey = Object.keys(d).find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === alphaNumKey);
+                               if (foundKey) return d[foundKey];
+                               if (key === 'loaSerialNo' && d['sku']) return d['sku'];
+                               return '';
                              };
+                             
+                             let pkg = getVal('package');
+                             if (pkg) {
+                               const p = String(pkg).toLowerCase();
+                               if (p.includes('1') || p.includes('s/n') || p.includes('solan') || p.includes('nahan')) pkg = 'Package 1 (S/N)';
+                               else if (p.includes('2') || p.includes('r/r') || p.includes('rampur') || p.includes('rohru')) pkg = 'Package 2 (R/R)';
+                             }
+                             
+                             let circ = getVal('circle');
+                             if (circ) {
+                               const c = String(circ).toLowerCase();
+                               if (c.includes('solan')) circ = 'Solan';
+                               else if (c.includes('nahan')) circ = 'Nahan';
+                               else if (c.includes('rampur')) circ = 'Rampur';
+                               else if (c.includes('rohru')) circ = 'Rohru';
+                             }
                              const newItems = [...lineItems];
                              newItems[index] = {
                                ...newItems[index],
                                itemId: selectedItem._id,
-                               itemName: selectedName,
-                               package: getVal('package') || newItems[index].package,
-                               circle: getVal('circle') || newItems[index].circle,
+                               itemName: getVal('name') || getVal('itemDescription') || selectedItem._id || newItems[index].itemName,
+                               package: pkg || newItems[index].package,
+                               circle: circ || newItems[index].circle,
                                tempCode: getVal('tempCode') || getVal('sku') || getVal('itemCode') || newItems[index].tempCode,
-                               itemDescription: getVal('description') || getVal('itemDescription') || '',
-                               loaSerialNo: getVal('loaSerialNo') || '',
+                               itemDescription: getVal('description') || getVal('itemDescription') || newItems[index].itemDescription,
+                               loaSerialNo: getVal('loaSerialNo') || getVal('loaSerial') || getVal('sku') || '',
                                hsnCode: getVal('hsnCode') || getVal('hsn') || '',
                                unit: getVal('unit') || '',
                                gstType: newItems[index].gstType || 'Intra State',
@@ -467,7 +509,7 @@ export default function NewPurchaseReceivePage() {
                              newItems[index].totalAmount = newItems[index].amount + (newItems[index].amount * taxRate / 100);
                              setLineItems(newItems);
                           } else {
-                             updateLineItem(index, 'itemName', selectedName);
+                             updateLineItem(index, type === 'name' ? 'itemName' : type === 'tempCode' ? 'tempCode' : type === 'loaSerialNo' ? 'loaSerialNo' : 'itemDescription', identifier);
                           }
                         };
 
@@ -480,10 +522,14 @@ export default function NewPurchaseReceivePage() {
                               {item.isManual ? (
                                 <select className="w-full h-8 text-[12px] border border-slate-200 rounded px-2 focus:border-blue-500 outline-none bg-transparent"
                                   value={item.package || ''}
-                                  onChange={e => updateLineItem(index, 'package', e.target.value)}
+                                  onChange={e => {
+                                    updateLineItem(index, 'package', e.target.value);
+                                    updateLineItem(index, 'circle', '');
+                                  }}
                                 >
                                   <option value="">Select</option>
-                                  {allPackages.map((p: any) => <option key={p} value={p}>{p}</option>)}
+                                  <option value="Package 1 (S/N)">Package 1 (S/N)</option>
+                                  <option value="Package 2 (R/R)">Package 2 (R/R)</option>
                                 </select>
                               ) : (
                                 <span className="text-[12px] px-2">{item.package || '-'}</span>
@@ -496,7 +542,11 @@ export default function NewPurchaseReceivePage() {
                                   onChange={e => updateLineItem(index, 'circle', e.target.value)}
                                 >
                                   <option value="">Select</option>
-                                  {circles.map((c: any) => <option key={c} value={c}>{c}</option>)}
+                                  
+                                      <option value="Solan">Solan</option>
+                                      <option value="Nahan">Nahan</option>
+                                      <option value="Rampur">Rampur</option>
+                                      <option value="Rohru">Rohru</option>
                                 </select>
                               ) : (
                                 <span className="text-[12px] px-2">{item.circle || '-'}</span>
@@ -504,35 +554,111 @@ export default function NewPurchaseReceivePage() {
                             </td>
                             <td className="px-2 py-2">
                               {item.isManual ? (
-                                <select className="w-full h-8 text-[12px] border border-slate-200 rounded px-2 focus:border-blue-500 outline-none bg-transparent"
-                                  value={item.tempCode || ''}
-                                  onChange={e => updateLineItem(index, 'tempCode', e.target.value)}
-                                >
-                                  <option value="">Select</option>
-                                  {tempCodes.map((tc: any) => <option key={tc} value={tc}>{tc}</option>)}
-                                </select>
+                                <Select
+                                  options={tempCodes.map(tc => ({ value: tc, label: tc }))}
+                                  value={item.tempCode ? { value: item.tempCode, label: item.tempCode } : null}
+                                  onChange={(selected: any) => {
+                                    if (selected) handleItemSelection(selected.value as string, 'tempCode');
+                                    else updateLineItem(index, 'tempCode', '');
+                                  }}
+                                  onInputChange={(inputValue, { action }) => {
+                                    if (action === 'input-change') updateLineItem(index, 'tempCode', inputValue);
+                                  }}
+                                  placeholder="Select"
+                                  isClearable
+                                  menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                                  styles={{
+                                    control: (base) => ({ ...base, minHeight: '32px', height: '32px', fontSize: '12px', backgroundColor: 'transparent', border: '1px solid #e2e8f0', boxShadow: 'none' }),
+                                    valueContainer: (base) => ({ ...base, padding: '0 8px' }),
+                                    input: (base) => ({ ...base, margin: 0, padding: 0 }),
+                                    indicatorsContainer: (base) => ({ ...base, height: '32px' }),
+                                    menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+                                    menu: (base) => ({ ...base, fontSize: '12px', minWidth: '200px' }),
+                                    option: (base) => ({ ...base, padding: '8px 12px' })
+                                  }}
+                                />
                               ) : (
                                 <span className="text-[12px] px-2">{item.tempCode || '-'}</span>
                               )}
                             </td>
                             <td className="px-2 py-2">
                               {item.isManual ? (
-                                <select className="w-full h-8 text-[12px] border border-slate-200 rounded px-2 focus:border-blue-500 outline-none bg-transparent font-medium text-slate-700"
-                                  value={item.itemName || ''}
-                                  onChange={e => handleItemSelect(e.target.value)}
-                                >
-                                  <option value="">Select Item</option>
-                                  {itemNames.map((n: any) => <option key={n} value={n}>{n}</option>)}
-                                </select>
+                                <Select
+                                  options={itemNames.map(n => ({ value: n, label: n }))}
+                                  value={item.itemName ? { value: item.itemName, label: item.itemName } : null}
+                                  onChange={(selected: any) => {
+                                    if (selected) handleItemSelection(selected.value as string, 'name');
+                                    else updateLineItem(index, 'itemName', '');
+                                  }}
+                                  onInputChange={(inputValue, { action }) => {
+                                    if (action === 'input-change') updateLineItem(index, 'itemName', inputValue);
+                                  }}
+                                  placeholder="Select Item"
+                                  isClearable
+                                  menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                                  styles={{
+                                    control: (base) => ({ ...base, minHeight: '32px', height: '32px', fontSize: '12px', backgroundColor: 'transparent', border: '1px solid #e2e8f0', boxShadow: 'none' }),
+                                    valueContainer: (base) => ({ ...base, padding: '0 8px' }),
+                                    input: (base) => ({ ...base, margin: 0, padding: 0 }),
+                                    indicatorsContainer: (base) => ({ ...base, height: '32px' }),
+                                    menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+                                    menu: (base) => ({ ...base, fontSize: '12px', minWidth: '300px' }),
+                                    option: (base) => ({ ...base, padding: '8px 12px' })
+                                  }}
+                                />
                               ) : (
                                 <span className="text-[12px] font-medium text-slate-700 px-2">{item.itemName || '-'}</span>
                               )}
                             </td>
                             <td className="px-2 py-2">
-                              <Input placeholder="Desc" className="h-8 text-[12px] border-slate-200 bg-transparent px-2" value={item.itemDescription || ''} onChange={(e) => updateLineItem(index, 'itemDescription', e.target.value)} />
+                              <Select
+                                options={Array.from(new Set(itemsList.map(i => i.dynamicData?.description || i.dynamicData?.itemDescription).filter(Boolean))).map(d => ({ value: d, label: String(d) }))}
+                                value={item.itemDescription ? { value: item.itemDescription, label: item.itemDescription } : null}
+                                onChange={(selected: any) => {
+                                  if (selected) handleItemSelection(selected.value as string, 'description');
+                                  else updateLineItem(index, 'itemDescription', '');
+                                }}
+                                onInputChange={(inputValue, { action }) => {
+                                  if (action === 'input-change') updateLineItem(index, 'itemDescription', inputValue);
+                                }}
+                                placeholder="Desc"
+                                isClearable
+                                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                                styles={{
+                                  control: (base) => ({ ...base, minHeight: '32px', height: '32px', fontSize: '12px', backgroundColor: 'transparent', border: '1px solid #e2e8f0', boxShadow: 'none' }),
+                                  valueContainer: (base) => ({ ...base, padding: '0 8px' }),
+                                  input: (base) => ({ ...base, margin: 0, padding: 0 }),
+                                  indicatorsContainer: (base) => ({ ...base, height: '32px' }),
+                                  menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+                                  menu: (base) => ({ ...base, fontSize: '12px', minWidth: '300px' }),
+                                  option: (base) => ({ ...base, padding: '8px 12px' })
+                                }}
+                              />
                             </td>
                             <td className="px-2 py-2">
-                              <Input placeholder="LOA Serial" className="h-8 text-[12px] border-slate-200 bg-transparent px-2" value={item.loaSerialNo || ''} onChange={(e) => updateLineItem(index, 'loaSerialNo', e.target.value)} />
+                              <Select
+                                options={loaSerialNos.map(loa => ({ value: String(loa), label: String(loa) }))}
+                                value={item.loaSerialNo ? { value: String(item.loaSerialNo), label: String(item.loaSerialNo) } : null}
+                                onChange={(selected: any) => {
+                                  if (selected) handleItemSelection(selected.value as string, 'loaSerialNo');
+                                  else updateLineItem(index, 'loaSerialNo', '');
+                                }}
+                                onInputChange={(inputValue, { action }) => {
+                                  if (action === 'input-change') updateLineItem(index, 'loaSerialNo', inputValue);
+                                }}
+                                placeholder="LOA Serial"
+                                isClearable
+                                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                                styles={{
+                                  control: (base) => ({ ...base, minHeight: '32px', height: '32px', fontSize: '12px', backgroundColor: 'transparent', border: '1px solid #e2e8f0', boxShadow: 'none' }),
+                                  valueContainer: (base) => ({ ...base, padding: '0 8px' }),
+                                  input: (base) => ({ ...base, margin: 0, padding: 0 }),
+                                  indicatorsContainer: (base) => ({ ...base, height: '32px' }),
+                                  menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+                                  menu: (base) => ({ ...base, fontSize: '12px', minWidth: '200px' }),
+                                  option: (base) => ({ ...base, padding: '8px 12px' })
+                                }}
+                              />
                             </td>
                             <td className="px-2 py-2">
                               <Input placeholder="HSN" className="h-8 text-[12px] border-slate-200 bg-transparent px-2" value={item.hsnCode || ''} onChange={(e) => updateLineItem(index, 'hsnCode', e.target.value)} />

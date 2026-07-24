@@ -54,21 +54,21 @@ export default function ItemSummaryReportPage() {
   }, [data]);
 
   const fields = [
-    { name: 'itemName', label: 'Item Name', type: 'text', order: 1, active: true, visible: true },
-    { name: 'circle', label: 'Circle', type: 'text', order: 2, active: true, visible: true },
-    { name: 'package', label: 'Package', type: 'text', order: 3, active: true, visible: true },
-    { name: 'loaQty', label: 'LOA Qty', type: 'number', order: 4, active: true, visible: true },
-    { name: 'bomQty', label: 'BOM Qty', type: 'number', order: 5, active: true, visible: true },
-    { name: 'diQty', label: 'DI Qty', type: 'number', order: 6, active: true, visible: true },
-    { name: 'invQty', label: 'INVQ', type: 'number', order: 7, active: true, visible: true },
-    { name: 'actQty', label: 'ACT Qty', type: 'number', order: 8, active: true, visible: true },
-    { name: 'srtQty', label: 'SRT Qty', type: 'number', order: 9, active: true, visible: true },
-    { name: 'billedQty', label: 'Billed Qty', type: 'number', order: 10, active: true, visible: true },
-    { name: 'remainingLoa', label: 'Rem. LOA', type: 'number', order: 11, active: true, visible: true },
-    { name: 'remainingBom', label: 'Rem. BOM', type: 'number', order: 12, active: true, visible: true },
-    { name: 'variance', label: 'Variance', type: 'number', order: 13, active: true, visible: true },
-    { name: 'pendingInvoice', label: 'Pending Inv.', type: 'number', order: 14, active: true, visible: true },
-    { name: 'completionPercent', label: 'Comp. %', type: 'number', order: 15, active: true, visible: true },
+    { name: 'itemName', label: 'Item Name', type: 'text', order: 1, active: true, visible: true, required: false, editable: false },
+    { name: 'circle', label: 'Circle', type: 'text', order: 2, active: true, visible: true, required: false, editable: false },
+    { name: 'package', label: 'Package', type: 'text', order: 3, active: true, visible: true, required: false, editable: false },
+    { name: 'loaQty', label: 'LOA Qty', type: 'number', order: 4, active: true, visible: true, required: false, editable: false },
+    { name: 'bomQty', label: 'BOM Qty', type: 'number', order: 5, active: true, visible: true, required: false, editable: false },
+    { name: 'diQty', label: 'DI Qty', type: 'number', order: 6, active: true, visible: true, required: false, editable: false },
+    { name: 'invQty', label: 'INVQ', type: 'number', order: 7, active: true, visible: true, required: false, editable: false },
+    { name: 'actQty', label: 'ACT Qty', type: 'number', order: 8, active: true, visible: true, required: false, editable: false },
+    { name: 'srtQty', label: 'SRT Qty', type: 'number', order: 9, active: true, visible: true, required: false, editable: false },
+    { name: 'billedQty', label: 'Billed Qty', type: 'number', order: 10, active: true, visible: true, required: false, editable: false },
+    { name: 'remainingLoa', label: 'Rem. LOA', type: 'number', order: 11, active: true, visible: true, required: false, editable: false },
+    { name: 'remainingBom', label: 'Rem. BOM', type: 'number', order: 12, active: true, visible: true, required: false, editable: false },
+    { name: 'variance', label: 'Variance', type: 'number', order: 13, active: true, visible: true, required: false, editable: false },
+    { name: 'pendingInvoice', label: 'Pending Inv.', type: 'number', order: 14, active: true, visible: true, required: false, editable: false },
+    { name: 'completionPercent', label: 'Comp. %', type: 'number', order: 15, active: true, visible: true, required: false, editable: false },
   ];
 
   const handleExport = () => {

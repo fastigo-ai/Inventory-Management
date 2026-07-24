@@ -59,7 +59,16 @@ export default function PurchaseReceiveDetailPage() {
              const vendor = vendorsList.find((v: any) => (v.dynamicData?.companyName || v.dynamicData?.displayName || v.name || v._id) === data.vendorName);
              if (vendor) {
                data.vendorAddress = vendor.dynamicData?.address || vendor.dynamicData?.billingAddress || vendor.dynamicData?.['billing.street1'] || '-';
-               data.vendorPhone = vendor.dynamicData?.phone || vendor.dynamicData?.mobile || vendor.dynamicData?.['phone.work'] || vendor.dynamicData?.['phone.mobile'] || '-';
+               const phoneObj = vendor.dynamicData?.phone || vendor.dynamicData?.mobile;
+               let phoneStr = '-';
+               if (typeof phoneObj === 'string') {
+                 phoneStr = phoneObj;
+               } else if (typeof phoneObj === 'object' && phoneObj !== null) {
+                 phoneStr = phoneObj.work || phoneObj.mobile || '-';
+               } else {
+                 phoneStr = vendor.dynamicData?.['phone.work'] || vendor.dynamicData?.['phone.mobile'] || '-';
+               }
+               data.vendorPhone = phoneStr;
                data.vendorGst = vendor.dynamicData?.gstNumber || vendor.dynamicData?.gstin || vendor.dynamicData?.taxId || '-';
              }
            } catch (e) {

@@ -38,7 +38,7 @@ export default function ItemsPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [selectedItemsData, setSelectedItemsData] = useState<Record<string, any>>({});
-  const filterTimeoutRef = useRef<NodeJS.Timeout>();
+  const filterTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>(() => {
     const filters: Record<string, string> = {};

@@ -155,8 +155,7 @@ export default function EditDIRegistrationPage() {
       formData.append('date', date);
       formData.append('status', status === 'Draft' ? 'Draft' : 'Active');
       if (notes) formData.append('notes', notes);
-      if (diPackage) formData.append('package', diPackage);
-      if (diCircle) formData.append('circle', diCircle);
+
       formData.append('lineItems', JSON.stringify(itemsToSave));
 
       if (existingAttachments.length > 0) {
@@ -265,41 +264,6 @@ export default function EditDIRegistrationPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-12 gap-4 items-center">
-              <div className="col-span-3">
-                <label className="text-[13px] font-medium text-slate-700">Package</label>
-              </div>
-              <div className="col-span-9">
-                <select
-                  value={diPackage}
-                  onChange={(e) => setDiPackage(e.target.value)}
-                  className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <option value="" disabled>Select Package</option>
-                  {PACKAGES.map((pkg, i) => (
-                    <option key={i} value={pkg}>{pkg}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-12 gap-4 items-center">
-              <div className="col-span-3">
-                <label className="text-[13px] font-medium text-slate-700">Circle</label>
-              </div>
-              <div className="col-span-9">
-                <select
-                  value={diCircle}
-                  onChange={(e) => setDiCircle(e.target.value)}
-                  className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <option value="" disabled>Select Circle</option>
-                  {availableCircles.map((c, i) => (
-                    <option key={i} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -928,8 +892,8 @@ export default function EditDIRegistrationPage() {
                         tempCode: item.dynamicData?.tempCode || '',
                         sku: sku,
                         searchQuery: sku,
-                        package: diPackage,
-                        circle: diCircle,
+                        package: item.dynamicData?.package || poLineItem?.package1 || '',
+                        circle: item.dynamicData?.circle || poLineItem?.circle || '',
                         orderedQuantity: poLineItem ? (poLineItem.quantity || 0) : 0,
                         quantity: 0,
                         readOnly: false

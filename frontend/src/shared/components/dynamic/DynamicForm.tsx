@@ -14,6 +14,15 @@ import { FileUploadWidget } from "./FileUploadWidget";
 import { BankDetailsWidget } from "./BankDetailsWidget";
 import { ContactPersonsWidget } from "./ContactPersonsWidget";
 
+const INDIAN_STATES = [
+  "Andaman and Nicobar Islands", "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", 
+  "Chandigarh", "Chhattisgarh", "Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Goa", 
+  "Gujarat", "Haryana", "Himachal Pradesh", "Jammu and Kashmir", "Jharkhand", "Karnataka", 
+  "Kerala", "Ladakh", "Lakshadweep", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", 
+  "Mizoram", "Nagaland", "Odisha", "Puducherry", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", 
+  "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal"
+];
+
 export interface FieldMetadata {
   name: string;
   label: string;
@@ -308,12 +317,9 @@ function renderField(field: FieldMetadata, register: any, errors: any, control: 
                 <Label className="text-[13px] text-slate-600 pt-2">State</Label>
                 <select className="h-9 rounded-md border border-slate-300 bg-white px-3 text-[13px]" {...register(`${prefix}.state`)}>
                   <option value="">Select or type to add</option>
-                  <option value="Delhi">Delhi</option>
-                  <option value="Maharashtra">Maharashtra</option>
-                  <option value="Karnataka">Karnataka</option>
-                  <option value="Tamil Nadu">Tamil Nadu</option>
-                  <option value="Telangana">Telangana</option>
-                  <option value="Gujarat">Gujarat</option>
+                  {INDIAN_STATES.map((state) => (
+                    <option key={state} value={state}>{state}</option>
+                  ))}
                 </select>
              </div>
              <div className="grid grid-cols-[130px_1fr] items-start gap-4">
@@ -392,12 +398,9 @@ function renderField(field: FieldMetadata, register: any, errors: any, control: 
                 <Label className="text-[13px] text-slate-600 pt-2">State</Label>
                 <select className="h-9 rounded-md border border-slate-300 bg-white px-3 text-[13px]" {...register(`${prefix}.state`)}>
                   <option value="">Select or type to add</option>
-                  <option value="Delhi">Delhi</option>
-                  <option value="Maharashtra">Maharashtra</option>
-                  <option value="Karnataka">Karnataka</option>
-                  <option value="Tamil Nadu">Tamil Nadu</option>
-                  <option value="Telangana">Telangana</option>
-                  <option value="Gujarat">Gujarat</option>
+                  {INDIAN_STATES.map((state) => (
+                    <option key={state} value={state}>{state}</option>
+                  ))}
                 </select>
              </div>
              <div className="grid grid-cols-[130px_1fr] items-start gap-4">

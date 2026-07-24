@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import multer from 'multer';
+import { parseAndSanitizeCsv } from '../../utils/csv.util';
 import { parse } from 'csv-parse';
 import { stringify } from 'csv-stringify/sync';
 import Item from './item.model';
@@ -274,11 +275,7 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
   const errors: any[] = [];
   const validItems: any[] = [];
 
-  const parser = parse(req.file.buffer, {
-    columns: true,
-    skip_empty_lines: true,
-    trim: true,
-  });
+  const parser = parseAndSanitizeCsv(req.file.buffer);
 
   // Create a map of Label -> Internal Field Name with normalized keys
   const labelToNameMap: Record<string, string> = {};

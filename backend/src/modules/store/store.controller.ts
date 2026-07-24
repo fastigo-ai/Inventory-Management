@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { asyncHandler } from '../../core/utils/asyncHandler';
 import { ApiResponse } from '../../core/utils/ApiResponse';
 import { ApiError } from '../../core/utils/ApiError';
+import { parseAndSanitizeCsv } from '../../utils/csv.util';
 import { parse } from 'csv-parse';
 import { StoreInwardEntry } from './storeInwardEntry.schema';
 import { DI } from '../di/di.schema';
@@ -638,11 +639,7 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
     throw new ApiError(400, 'Please upload a CSV file');
   }
 
-  const parser = parse(req.file.buffer, {
-    columns: true,
-    skip_empty_lines: true,
-    trim: true,
-  });
+  const parser = parseAndSanitizeCsv(req.file.buffer);
 
   const inwardEntries: any[] = [];
   const errors: string[] = [];
@@ -969,11 +966,7 @@ export const importStoreTransfers = asyncHandler(async (req: Request, res: Respo
     throw new ApiError(400, 'Please upload a CSV file');
   }
 
-  const parser = parse(req.file.buffer, {
-    columns: true,
-    skip_empty_lines: true,
-    trim: true,
-  });
+  const parser = parseAndSanitizeCsv(req.file.buffer);
 
   const errors: string[] = [];
   let successCount = 0;

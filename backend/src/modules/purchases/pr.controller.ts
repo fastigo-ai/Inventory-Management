@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { Pr } from './pr.schema';
 import { PurchaseOrder } from './purchaseOrder.schema';
 import { stringify } from 'csv-stringify/sync';
+import { parseAndSanitizeCsv } from '../../utils/csv.util';
 import { parse } from 'csv-parse/sync';
 import { StoreInwardEntry } from '../store/storeInwardEntry.schema';
 import mongoose from 'mongoose';
@@ -386,11 +387,7 @@ export const importPurchaseReceives = async (req: Request, res: Response): Promi
       return;
     }
 
-    const parser = parse(req.file.buffer, {
-      columns: true,
-      skip_empty_lines: true,
-      trim: true,
-    });
+    const parser = parseAndSanitizeCsv(req.file.buffer);
 
     const prMap: Record<string, any> = {};
 

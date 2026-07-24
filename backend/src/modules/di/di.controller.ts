@@ -3,6 +3,7 @@ import { asyncHandler } from '../../core/utils/asyncHandler';
 import { ApiError } from '../../core/utils/ApiError';
 import { ApiResponse } from '../../core/utils/ApiResponse';
 import { DI } from './di.schema';
+import { parseAndSanitizeCsv } from '../../utils/csv.util';
 import { parse } from 'csv-parse/sync';
 import { PurchaseOrder } from '../purchases/purchaseOrder.schema';
 import { Pr } from '../purchases/pr.schema';
@@ -213,11 +214,7 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'No CSV file uploaded' });
     }
 
-    const parser = parse(req.file.buffer, {
-      columns: true,
-      skip_empty_lines: true,
-      trim: true,
-    });
+    const parser = parseAndSanitizeCsv(req.file.buffer);
 
     const disMap: Record<string, any> = {};
 

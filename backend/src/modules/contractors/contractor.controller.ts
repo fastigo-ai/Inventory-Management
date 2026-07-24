@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { parseAndSanitizeCsv } from '../../utils/csv.util';
 import { parse } from 'csv-parse';
 import { stringify } from 'csv-stringify/sync';
 import { asyncHandler } from '../../core/utils/asyncHandler';
@@ -412,11 +413,7 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
     throw new ApiError(400, 'Please upload a CSV file');
   }
 
-  const parser = parse(req.file.buffer, {
-    columns: true,
-    skip_empty_lines: true,
-    trim: true,
-  });
+  const parser = parseAndSanitizeCsv(req.file.buffer);
 
   const errors: string[] = [];
   let successCount = 0;

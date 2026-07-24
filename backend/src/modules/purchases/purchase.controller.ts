@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { PurchaseOrder } from './purchaseOrder.schema';
 import { Pr } from './pr.schema';
 import { DI } from '../di/di.schema';
+import { parseAndSanitizeCsv } from '../../utils/csv.util';
 import { parse } from 'csv-parse';
 import { stringify } from 'csv-stringify/sync';
 
@@ -517,11 +518,7 @@ export const importPurchaseOrders = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'No CSV file uploaded' });
     }
 
-    const parser = parse(req.file.buffer, {
-      columns: true,
-      skip_empty_lines: true,
-      trim: true,
-    });
+    const parser = parseAndSanitizeCsv(req.file.buffer);
 
     const ordersMap: Record<string, any> = {};
 

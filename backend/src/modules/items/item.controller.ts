@@ -271,7 +271,6 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(500, 'Item metadata configuration missing');
   }
 
-  const results: any[] = [];
   const errors: any[] = [];
   const validItems: any[] = [];
 
@@ -279,16 +278,12 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
 
   // Create a map of Label -> Internal Field Name with normalized keys
   const labelToNameMap: Record<string, string> = {};
-  const uniqueFields: string[] = [];
+  const uniqueFields: string[] = ['sku']; // Enforce SKU (LOA Serial No) as the only unique identifier for imports
   
   for (const field of metadata.fields) {
     const normalized = field.label.toLowerCase().replace(/[^a-z0-9]/g, '');
     labelToNameMap[normalized] = field.name;
     labelToNameMap[field.label.toLowerCase()] = field.name;
-    
-    if (field.unique) {
-      uniqueFields.push(field.name);
-    }
   }
 
   // Common aliases for import
@@ -388,7 +383,9 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
     return res.status(400).json(new ApiResponse(400, { errors }, 'Import failed due to validation errors. No items were imported.'));
   }
 
-  // Batch Uniqueness Check against Database
+  // Batch Upsert Logic (Update if exists by unique field, else Insert)
+  const bulkOps: any[] = [];
+  
   if (uniqueFields.length > 0 && validItems.length > 0) {
     const orConditions = [];
     for (const uField of uniqueFields) {
@@ -398,35 +395,66 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
       }
     }
     
+    const existingItemsMap = new Map();
     if (orConditions.length > 0) {
-      const existingDuplicates = await Item.find({ $or: orConditions }).select('dynamicData').lean();
-      
-      if (existingDuplicates.length > 0) {
-        const duplicateDetails = new Set<string>();
-        for (const existing of existingDuplicates) {
-          for (const uField of uniqueFields) {
-            const val = (existing as any).dynamicData?.[uField];
-            if (val && validItems.some(item => item.dynamicData[uField] === val)) {
-              duplicateDetails.add(`The value '${val}' for field '${uField}' already exists in the database.`);
-            }
+      const existingItems = await Item.find({ $or: orConditions }).lean();
+      for (const existing of existingItems) {
+        for (const uField of uniqueFields) {
+          const val = (existing as any).dynamicData?.[uField];
+          if (val) {
+            existingItemsMap.set(`${uField}:${val}`, existing);
           }
-        }
-        
-        if (duplicateDetails.size > 0) {
-          return res.status(400).json(new ApiResponse(400, { 
-            errors: [{ 
-              row: 'Database Check', 
-              message: 'Uniqueness validation failed', 
-              details: Array.from(duplicateDetails) 
-            }] 
-          }, 'Import failed due to database uniqueness constraints.'));
         }
       }
     }
+
+    for (const item of validItems) {
+      let matchedExisting: any = null;
+      // Prefer matching by SKU (LOA Serial No) first
+      if (item.dynamicData.sku && existingItemsMap.has(`sku:${item.dynamicData.sku}`)) {
+         matchedExisting = existingItemsMap.get(`sku:${item.dynamicData.sku}`);
+      } else {
+         for (const uField of uniqueFields) {
+           const val = item.dynamicData[uField];
+           if (val && existingItemsMap.has(`${uField}:${val}`)) {
+             matchedExisting = existingItemsMap.get(`${uField}:${val}`);
+             break;
+           }
+         }
+      }
+
+      if (matchedExisting) {
+         bulkOps.push({
+            updateOne: {
+               filter: { _id: matchedExisting._id },
+               update: {
+                  $set: {
+                     dynamicData: { ...matchedExisting.dynamicData, ...item.dynamicData }
+                  },
+                  $push: {
+                     history: { action: 'Updated via Import', performedBy: 'system', date: new Date() }
+                  }
+               }
+            }
+         });
+      } else {
+         bulkOps.push({
+            insertOne: {
+               document: item
+            }
+         });
+      }
+    }
+  } else {
+    // No unique fields, just insert all
+    for (const item of validItems) {
+      bulkOps.push({ insertOne: { document: item } });
+    }
   }
 
-  // Atomic bulk insert
-  await Item.insertMany(validItems);
+  if (bulkOps.length > 0) {
+    await Item.bulkWrite(bulkOps);
+  }
 
-  res.status(200).json(new ApiResponse(200, { successCount: validItems.length }, 'Import processed successfully'));
+  res.status(200).json(new ApiResponse(200, { successCount: validItems.length }, 'Import processed successfully (updated or added items).'));
 });

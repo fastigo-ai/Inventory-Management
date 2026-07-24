@@ -192,7 +192,11 @@ export default function ContractorSplitViewPage({ params }: { params: Promise<{ 
           <div className="flex items-center space-x-3">
             
             <DropdownMenu>
-              <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-slate-300 bg-white hover:bg-slate-50 h-8 px-3 text-slate-600">
+              <button onClick={() => router.push(`/ho-billing/contractors/${selectedContractor._id}/edit`)} className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-slate-300 bg-white hover:bg-slate-50 h-8 px-3 text-slate-600 mr-2">
+                <svg className="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                Edit
+            </button>
+            <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-slate-300 bg-white hover:bg-slate-50 h-8 px-3 text-slate-600">
                 More <svg className="w-3.5 h-3.5 ml-2 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48 text-[13px]">
@@ -259,7 +263,43 @@ export default function ContractorSplitViewPage({ params }: { params: Promise<{ 
                             displayVal = addresses.filter(Boolean).join(' | ');
                           } else if (field.name === 'bankDetails' && val) {
                             let banks = Array.isArray(val) ? val : Object.values(val);
-                            displayVal = banks.map((bk: any) => typeof bk === 'object' ? [bk.accountName, bk.accountNumber, bk.bankName].filter(Boolean).join(' ') : '').filter(Boolean).join(', ');
+                            displayVal = (
+                              <div className="flex flex-col gap-2">
+                                {banks.map((bk: any, idx: number) => {
+                                  if (typeof bk !== 'object' || !bk) return null;
+                                  return (
+                                    <div key={idx} className="text-sm bg-slate-50 p-3 rounded-md border border-slate-200">
+                                      {bk.bankName && <div className="font-semibold text-slate-800">{bk.bankName}</div>}
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 mt-2">
+                                        {bk.accountName && <div><span className="text-slate-400 text-xs uppercase tracking-wider font-medium">Account Name:</span><br/><span className="text-slate-700">{bk.accountName}</span></div>}
+                                        {bk.accountNumber && <div><span className="text-slate-400 text-xs uppercase tracking-wider font-medium">A/C No:</span><br/><span className="text-slate-700">{bk.accountNumber}</span></div>}
+                                        {bk.ifscCode && <div><span className="text-slate-400 text-xs uppercase tracking-wider font-medium">IFSC:</span><br/><span className="text-slate-700">{bk.ifscCode}</span></div>}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          } else if (field.name === 'contactPersons' && Array.isArray(val)) {
+                            displayVal = (
+                              <div className="flex flex-col gap-3">
+                                {val.map((person: any, idx: number) => {
+                                  if (typeof person !== 'object' || !person) return null;
+                                  const name = [person.salutation, person.firstName, person.lastName].filter(Boolean).join(' ');
+                                  const email = person.email;
+                                  const cleanPhone = (p: string) => p && p.trim() !== '+91' ? p : null;
+                                  const phones = [cleanPhone(person.phone), cleanPhone(person.mobile)].filter(Boolean).join(', ');
+                                  
+                                  return (
+                                    <div key={idx} className="text-sm">
+                                      {name && <div className="font-medium text-slate-800">{name}</div>}
+                                      {email && <div className="text-slate-500">{email}</div>}
+                                      {phones && <div className="text-slate-500">{phones}</div>}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
                           } else if (Array.isArray(val)) {
                             displayVal = val.map(v => typeof v === 'object' && v !== null ? Object.values(v).filter(Boolean).join(' ') : v).join(', ');
                           } else {
@@ -270,7 +310,16 @@ export default function ContractorSplitViewPage({ params }: { params: Promise<{ 
                         return (
                           <div key={field.name} className="flex">
                             <span className="w-40 text-sm text-slate-500 shrink-0">{field.label}</span>
-                            <span className="text-sm text-slate-900 font-medium break-words">{displayVal}</span>
+                            <span className="text-sm text-slate-900 font-medium break-words flex-1 min-w-0">
+                              {typeof displayVal === 'string' && displayVal.startsWith('http') ? (
+                                <a href={displayVal} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline break-all inline-flex items-center gap-1">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                                  View Document
+                                </a>
+                              ) : (
+                                <span className="break-words">{displayVal}</span>
+                              )}
+                            </span>
                           </div>
                         );
                       })}

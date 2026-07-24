@@ -556,7 +556,7 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
   };
 
   const exportSelectedToCsv = () => {
-    const headers = ['Item ID', 'Temp Code', 'Item Name', 'Description', 'HSN Code', 'Package', 'Circle', 'Quantity', 'Rate', 'Amount'];
+    const headers = ['Item ID', 'Temp Code', 'Item Name', 'Description', 'HSN Code', 'Package', 'Circle', 'LOA Serial No', 'Quantity', 'Rate', 'Amount'];
     
     const escapeCsv = (str: any) => {
       if (str === null || str === undefined) return '""';
@@ -580,6 +580,7 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
         const qty = 1;
         const rate = getVal('price') || getVal('costPrice') || getVal('sellingPrice') || 0;
         const amount = qty * rate;
+        const loaSerialNo = getVal('loaSerialNo') || getVal('loaSerialNumber') || getVal('LOA Serial No.') || getVal('loa') || '';
 
         rows.push([
           escapeCsv(selectedItem._id),
@@ -589,6 +590,7 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
           escapeCsv(getVal('hsnCode') || getVal('hsn')),
           escapeCsv(getVal('package')),
           escapeCsv(getVal('circle')),
+          escapeCsv(loaSerialNo),
           escapeCsv(qty),
           escapeCsv(rate),
           escapeCsv(amount)
@@ -650,33 +652,61 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
         return;
       }
       
+      const headers = rows[0].map(h => h.trim().toLowerCase());
+      const idxId = headers.findIndex(h => h === 'item id');
+      const idxTempCode = headers.findIndex(h => h === 'temp code');
+      const idxName = headers.findIndex(h => h === 'item name');
+      const idxDesc = headers.findIndex(h => h === 'description');
+      const idxHsn = headers.findIndex(h => h === 'hsn code');
+      const idxPackage = headers.findIndex(h => h === 'package');
+      const idxCircle = headers.findIndex(h => h === 'circle');
+      const idxLoa = headers.findIndex(h => h.includes('loa') && h.includes('serial'));
+      const idxQty = headers.findIndex(h => h === 'quantity');
+      const idxRate = headers.findIndex(h => h === 'rate');
+
       const dataRows = rows.slice(1);
       let added = 0;
+      let updated = 0;
+      const currentItems = getValues('items') || [];
+      
       dataRows.forEach(row => {
-        if (row.length >= 9) {
-          const itemId = row[0];
+        if (row.length >= 2) {
+          const itemId = idxId >= 0 ? row[idxId] : row[0];
+          const loaSerialNo = idxLoa >= 0 ? row[idxLoa] : (row.length > 9 ? row[7] : '');
+          
           if (itemId) {
-             append({
+             const existingIndex = currentItems.findIndex((item: any) => item.loaSerialNo === loaSerialNo && loaSerialNo !== '');
+             
+             const newItemData = {
                 itemId: itemId,
-                tempCode: row[1] || '',
-                itemName: row[2] || 'Item',
-                description: row[3] || '',
-                hsnCode: row[4] || '',
-                package: row[5] || '',
-                circle: row[6] || '',
+                tempCode: (idxTempCode >= 0 ? row[idxTempCode] : row[1]) || '',
+                itemName: (idxName >= 0 ? row[idxName] : row[2]) || 'Item',
+                description: (idxDesc >= 0 ? row[idxDesc] : row[3]) || '',
+                hsnCode: (idxHsn >= 0 ? row[idxHsn] : row[4]) || '',
+                package: (idxPackage >= 0 ? row[idxPackage] : row[5]) || '',
+                circle: (idxCircle >= 0 ? row[idxCircle] : row[6]) || '',
                 unit: '',
-                loaSerialNo: '',
+                loaSerialNo: loaSerialNo || '',
                 account: '',
-                quantity: Number(row[7]) || 1,
-                rate: Number(row[8]) || 0,
-             });
-             added++;
+                quantity: Number(idxQty >= 0 ? row[idxQty] : (row.length > 9 ? row[8] : row[7])) || 1,
+                rate: Number(idxRate >= 0 ? row[idxRate] : (row.length > 9 ? row[9] : row[8])) || 0,
+             };
+
+             if (existingIndex >= 0) {
+                 update(existingIndex, { ...currentItems[existingIndex], ...newItemData });
+                 currentItems[existingIndex] = { ...currentItems[existingIndex], ...newItemData };
+                 updated++;
+             } else {
+                 append(newItemData);
+                 currentItems.push(newItemData);
+                 added++;
+             }
           }
         }
       });
       
-      if (added > 0) {
-         toast.success(`Imported ${added} items successfully!`);
+      if (added > 0 || updated > 0) {
+         toast.success(`Import successful: ${added} added, ${updated} updated.`);
          setIsBulkModalOpen(false);
          setSelectedBulkItems([]);
       } else {
@@ -735,15 +765,10 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                 <ShoppingBag className="w-4 h-4" /> Vendor & Delivery
               </h2>
               {/* Vendor Name */}
-              <div className="grid grid-cols-[160px_24px_1fr] items-start gap-4 pt-1">
-                <label className="text-sm font-semibold text-red-500 mt-2">
-                  Vendor Name*
+              <div className="flex flex-col gap-1.5 pt-1">
+                <label className="text-[13px] font-semibold text-slate-800">
+                  Vendor Name <span className="text-red-500">*</span>
                 </label>
-                <div className="flex items-center justify-center mt-2">
-                  <span className="w-4 h-4 rounded-full bg-blue-100 flex items-center justify-center border-2 border-white shadow-sm ring-1 ring-blue-300">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  </span>
-                </div>
                 <div className="flex flex-col gap-3">
                   <div className="flex">
                     <select {...register('vendorName', { required: true })} className="flex-1 border border-blue-400 rounded-l-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white appearance-none">
@@ -854,9 +879,8 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                 </div>
               </div>
 
-              <div className="grid grid-cols-[160px_24px_1fr] items-center gap-4">
-                <label className="text-sm font-semibold text-slate-800">Billing From</label>
-                <div className="col-span-1"></div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-semibold text-slate-800">Billing From</label>
                 <select {...register('billingCompanyId')} className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white">
                   <option value="">Select Billing Company</option>
                   {billingCompaniesList.map(c => (
@@ -868,9 +892,8 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                 </select>
               </div>
 
-              <div className="grid grid-cols-[160px_24px_1fr] items-center gap-4">
-                <label className="text-sm font-semibold text-slate-800">Location</label>
-                <div className="col-span-1"></div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-semibold text-slate-800">Location</label>
                 <select {...register('location')} className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white">
                   <option value="">Select Location</option>
                   {initialData?.location && !locationsList.find(loc => loc.name === initialData.location && loc.type === 'Head Office') && (
@@ -883,9 +906,10 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
               </div>
 
               {/* Delivery Address */}
-              <div className="grid grid-cols-[160px_24px_1fr] items-start gap-4 pt-2">
-                <label className="text-sm font-semibold text-red-500 mt-1">Delivery Address*</label>
-                <div className="col-span-1"></div>
+              <div className="flex flex-col gap-1.5 pt-2">
+                <label className="text-[13px] font-semibold text-slate-800">
+                  Delivery Address <span className="text-red-500">*</span>
+                </label>
                 <div className="space-y-4">
                   <div className="flex items-center gap-6">
                     <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
@@ -991,8 +1015,10 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                 <Settings className="w-4 h-4" /> Purchase Information
               </h2>
               {/* Purchase Order Number */}
-              <div className="grid grid-cols-[150px_1fr] items-center gap-4">
-                <label className="text-sm font-semibold text-red-500">Purchase Order#*</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-semibold text-slate-800">
+                  Purchase Order# <span className="text-red-500">*</span>
+                </label>
                 <div className="relative">
                   <input
                     type="text"
@@ -1007,28 +1033,28 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
               </div>
 
               {/* Reference */}
-              <div className="grid grid-cols-[150px_1fr] items-center gap-4">
-                <label className="text-sm font-semibold text-slate-800">Reference#</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-semibold text-slate-800">Reference#</label>
                 <input type="text" {...register('reference')} className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500" />
               </div>
 
               {/* Date */}
-              <div className="grid grid-cols-[150px_1fr] items-center gap-4">
-                <label className="text-sm font-semibold text-slate-800">Date</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-semibold text-slate-800">Date</label>
                 <input type="date" {...register('date')} className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white" />
               </div>
 
               {/* Delivery Date */}
-              <div className="grid grid-cols-[150px_1fr] items-center gap-4">
-                <label className="text-sm font-semibold text-slate-800">Delivery Date</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-semibold text-slate-800">Delivery Date</label>
                 <input type="date" {...register('deliveryDate')} className="w-full sm:w-[50%] border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-500 bg-white" />
               </div>
 
              
 
               {/* Shipment Preference */}
-              <div className="grid grid-cols-[150px_1fr] items-center gap-4">
-                <label className="text-sm font-semibold text-slate-800">Shipment Preference</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-semibold text-slate-800">Shipment Preference</label>
                 <select {...register('shipmentPreference')} className="w-full sm:w-[50%] border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-500 focus:outline-none focus:border-blue-500 bg-white">
                   <option value="">Choose the shipment preference</option>
                   <option value="Air">Air</option>
@@ -1038,8 +1064,8 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
               </div>
 
               {/* Package */}
-              <div className="grid grid-cols-[150px_1fr] items-center gap-4">
-                <label className="text-sm font-semibold text-slate-800">Package</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-semibold text-slate-800">Package</label>
                 <select {...register('package')} className="w-full sm:w-[50%] border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-500 focus:outline-none focus:border-blue-500 bg-white">
                   <option value="">Select Package</option>
                   <option value="Package 1 (S/N)">Package 1 (S/N)</option>
@@ -1048,8 +1074,8 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
               </div>
 
               {/* Circle */}
-              <div className="grid grid-cols-[150px_1fr] items-center gap-4">
-                <label className="text-sm font-semibold text-slate-800">Circle</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-semibold text-slate-800">Circle</label>
                 <select {...register('circle')} className="w-full sm:w-[50%] border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-500 focus:outline-none focus:border-blue-500 bg-white" disabled={!selectedPackage}>
                   <option value="">Select Circle</option>
                   {selectedPackage === 'Package 1 (S/N)' && (

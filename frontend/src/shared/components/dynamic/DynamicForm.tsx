@@ -156,9 +156,9 @@ export function DynamicForm({ fields, initialData = {}, onSubmit, isLoading, lay
            // Tabs layout
            return (
              <div key={tabName} className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start mb-8">
-                <div className={`grid grid-cols-1 gap-6 ${imageField ? 'md:col-span-7' : 'md:col-span-12'}`}>
+                <div className={`grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 ${imageField ? 'md:col-span-7' : 'md:col-span-12'}`}>
                   {leftFields.map(field => (
-                    <div key={field.name}>{renderField(field, register, errors, control, layoutStyle, setValue, getValues, watch)}</div>
+                    <div key={field.name} className={field.colSpan === 2 ? 'md:col-span-2' : 'md:col-span-1'}>{renderField(field, register, errors, control, 'sections', setValue, getValues, watch)}</div>
                   ))}
                 </div>
                 {imageField && (
@@ -205,10 +205,10 @@ export function DynamicForm({ fields, initialData = {}, onSubmit, isLoading, lay
           <div key={tabName} className={`transition-opacity duration-200 ${!isSectionEnabled ? 'opacity-50' : ''}`}>
             {isSectionEnabled && (
               <div className="pt-6 pb-6 w-full">
-                <div className="grid grid-cols-1 gap-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                   {nonToggleFields.map(field => (
-                    <div key={field.name} className={`space-y-2 ${field.colSpan === 2 ? 'md:col-span-2' : 'md:col-span-1'}`}>
-                      {renderField(field, register, errors, control, layoutStyle, setValue, getValues, watch)}
+                    <div key={field.name} className={field.colSpan === 2 ? 'md:col-span-2' : 'md:col-span-1'}>
+                      {renderField(field, register, errors, control, 'sections', setValue, getValues, watch)}
                     </div>
                   ))}
                 </div>

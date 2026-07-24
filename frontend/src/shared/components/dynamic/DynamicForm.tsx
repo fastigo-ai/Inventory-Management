@@ -83,6 +83,31 @@ export function DynamicForm({ fields, initialData = {}, onSubmit, isLoading, lay
   
   useEffect(() => {
     const subscription = watch((value, { name, type }) => {
+      if (name) {
+        // GST & PAN Auto-formatting logic
+        const lowerName = name.toLowerCase();
+        const val = value[name as keyof typeof value];
+        if (typeof val === 'string' && (lowerName.includes('gst') || lowerName.includes('pan'))) {
+          // Auto-capitalize
+          if (val !== val.toUpperCase()) {
+             setValue(name, val.toUpperCase(), { shouldValidate: true, shouldDirty: true });
+          }
+          
+          // If GSTIN is entered, auto-extract PAN (Characters 3 to 12)
+          if (lowerName.includes('gst') && val.length >= 15) {
+             const panMatch = val.substring(2, 12).toUpperCase();
+             // Find the PAN field name in the form
+             const panFieldName = Object.keys(value).find(k => k.toLowerCase() === 'pan');
+             if (panFieldName) {
+                const currentPan = value[panFieldName as keyof typeof value];
+                if (currentPan !== panMatch) {
+                   setValue(panFieldName, panMatch, { shouldValidate: true, shouldDirty: true });
+                }
+             }
+          }
+        }
+      }
+
       // Find if the changed field is a parent of any dependent field
       const dependents = dependentFields.filter(df => df.dependsOn === name);
       if (dependents.length > 0) {
@@ -95,7 +120,7 @@ export function DynamicForm({ fields, initialData = {}, onSubmit, isLoading, lay
               : [];
             
             // If current value is not in the new valid options, reset it
-            if (!validOptions.includes(currentVal)) {
+            if (!validOptions.includes(currentVal as string)) {
               setValue(df.name, "");
             }
           }

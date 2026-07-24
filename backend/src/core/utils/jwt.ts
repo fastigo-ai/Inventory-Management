@@ -8,7 +8,7 @@ export const generateAccessToken = (user: IUser) => {
   return jwt.sign(
     { id: user._id, email: user.email, sessionVersion: user.sessionVersion },
     JWT_ACCESS_SECRET,
-    { expiresIn: '15m' } // Short-lived access token
+    { expiresIn: '1d' } // Extended to 1 day
   );
 };
 

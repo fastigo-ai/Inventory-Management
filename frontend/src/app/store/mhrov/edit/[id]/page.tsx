@@ -63,8 +63,9 @@ export default function EditMhrovPage() {
     } catch (error) {
       console.error(error);
       toast.error("Failed to load Inward Registrations");
-      // Optional: keep loading false if the other fetch isn't running
-      // setLoading(false);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const toggleSelection = (id: string) => {

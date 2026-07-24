@@ -87,23 +87,59 @@ export function DynamicForm({ fields, initialData = {}, onSubmit, isLoading, lay
         // GST & PAN Auto-formatting logic
         const lowerName = name.toLowerCase();
         const val = value[name as keyof typeof value];
-        if (typeof val === 'string' && (lowerName.includes('gst') || lowerName.includes('pan'))) {
-          // Auto-capitalize
-          if (val !== val.toUpperCase()) {
-             setValue(name, val.toUpperCase(), { shouldValidate: true, shouldDirty: true });
-          }
+        if (typeof val === 'string') {
+          const isGst = lowerName.includes('gst');
+          const isPan = lowerName.includes('pan');
           
-          // If GSTIN is entered, auto-extract PAN (Characters 3 to 12)
-          if (lowerName.includes('gst')) {
-             const panMatch = val.substring(2, 12).toUpperCase();
-             // Find the PAN field name in the form
-             const panFieldName = Object.keys(value).find(k => k.toLowerCase() === 'pan');
-             if (panFieldName) {
-                const currentPan = value[panFieldName as keyof typeof value] || '';
-                if (currentPan !== panMatch) {
-                   setValue(panFieldName, panMatch, { shouldValidate: true, shouldDirty: true });
-                }
-             }
+          if (isGst || isPan) {
+            let formatted = val.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            let masked = '';
+            
+            if (isGst) {
+              for (let i = 0; i < formatted.length; i++) {
+                if (i > 14) break;
+                const char = formatted[i];
+                const isNum = /[0-9]/.test(char);
+                const isAlpha = /[A-Z]/.test(char);
+                
+                if (i <= 1) { if (isNum) masked += char; }
+                else if (i >= 2 && i <= 6) { if (isAlpha) masked += char; }
+                else if (i >= 7 && i <= 10) { if (isNum) masked += char; }
+                else if (i === 11) { if (isAlpha) masked += char; }
+                else if (i === 12) { if (isNum || isAlpha) masked += char; }
+                else if (i === 13) { if (isAlpha) masked += char; } // usually 'Z'
+                else if (i === 14) { if (isNum || isAlpha) masked += char; }
+              }
+              
+              if (val !== masked) {
+                 setValue(name, masked, { shouldValidate: true, shouldDirty: true });
+              }
+              
+              // PAN Extraction
+              const panMatch = masked.substring(2, 12);
+              const panFieldName = Object.keys(value).find(k => k.toLowerCase() === 'pan');
+              if (panFieldName) {
+                 const currentPan = value[panFieldName as keyof typeof value] || '';
+                 if (currentPan !== panMatch) {
+                    setValue(panFieldName, panMatch, { shouldValidate: true, shouldDirty: true });
+                 }
+              }
+            } else if (isPan) {
+              for (let i = 0; i < formatted.length; i++) {
+                if (i > 9) break;
+                const char = formatted[i];
+                const isNum = /[0-9]/.test(char);
+                const isAlpha = /[A-Z]/.test(char);
+                
+                if (i <= 4) { if (isAlpha) masked += char; }
+                else if (i >= 5 && i <= 8) { if (isNum) masked += char; }
+                else if (i === 9) { if (isAlpha) masked += char; }
+              }
+              
+              if (val !== masked) {
+                 setValue(name, masked, { shouldValidate: true, shouldDirty: true });
+              }
+            }
           }
         }
       }

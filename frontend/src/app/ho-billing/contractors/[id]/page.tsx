@@ -7,7 +7,7 @@ import { FieldMetadata } from "@/shared/components/dynamic/DynamicForm";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Loader2, Plus, MoreHorizontal, X, Edit2, MapPin } from "lucide-react";
+import { Loader2, Plus, MoreHorizontal, X, Edit2, MapPin, Search } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +27,7 @@ export default function ContractorSplitViewPage({ params }: { params: Promise<{ 
   const [selectedContractor, setSelectedContractor] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('Overview');
+  const [searchQuery, setSearchQuery] = useState('');
   
   const [assignments, setAssignments] = useState<any[]>([]);
   const [isLoadingAssignments, setIsLoadingAssignments] = useState(false);
@@ -144,9 +145,26 @@ export default function ContractorSplitViewPage({ params }: { params: Promise<{ 
             </Link>
           </div>
         </div>
+        <div className="p-3 border-b border-slate-200 bg-white">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search contractors..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-md text-sm focus:outline-none focus:border-[#0076f2] focus:bg-white transition-colors"
+            />
+          </div>
+        </div>
 
         <div className="flex-1 overflow-y-auto">
-          {contractors.map((contractor) => {
+          {contractors.filter(c => 
+            (c.dynamicData?.[nameField]?.toLowerCase() || '').includes(searchQuery.toLowerCase()) || 
+            (c.dynamicData?.primaryContact?.firstName?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+            (c.dynamicData?.primaryContact?.lastName?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+            (c.dynamicData?.phone?.mobile?.toLowerCase() || '').includes(searchQuery.toLowerCase())
+          ).map((contractor) => {
             const isSelected = contractor._id === contractorId;
             return (
               <div 

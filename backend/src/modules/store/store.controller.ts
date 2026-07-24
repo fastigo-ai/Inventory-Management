@@ -1151,6 +1151,40 @@ export const getMhrovs = asyncHandler(async (req: Request, res: Response) => {
   res.status(200).json(new ApiResponse(200, mhrovs, 'MHROVs fetched successfully'));
 });
 
+export const updateMhrov = asyncHandler(async (req: Request, res: Response) => {
+  const { mhrovNumber, mhrovDate, status, inwardEntries } = req.body;
+  const mhrovId = req.params.id;
+
+  const mhrov = await Mhrov.findById(mhrovId);
+  if (!mhrov) {
+    res.status(404);
+    throw new Error('MHROV not found');
+  }
+  
+  if (mhrov.status === 'done') {
+    res.status(400);
+    throw new Error('Cannot edit a completed MHROV');
+  }
+
+  const parsedInwardEntries = inwardEntries ? (typeof inwardEntries === 'string' ? JSON.parse(inwardEntries) : inwardEntries) : mhrov.inwardEntries;
+
+  let documentUrl = mhrov.documentUrl;
+  if (req.file) {
+    const result = await uploadToCloudinary(req.file.buffer, 'mhrov-documents');
+    documentUrl = result.secure_url;
+  }
+
+  mhrov.mhrovNumber = mhrovNumber || mhrov.mhrovNumber;
+  mhrov.mhrovDate = mhrovDate || mhrov.mhrovDate;
+  mhrov.status = status || mhrov.status;
+  mhrov.documentUrl = documentUrl;
+  mhrov.inwardEntries = parsedInwardEntries;
+
+  await mhrov.save();
+
+  res.status(200).json(new ApiResponse(200, mhrov, 'MHROV updated successfully'));
+});
+
 export const getMhrovById = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const mhrov = await Mhrov.findById(id).populate({

@@ -118,6 +118,13 @@ export const createMhrov = async (formData: FormData) => {
   return response.data;
 };
 
+export const updateMhrov = async (id: string, formData: FormData) => {
+  const response = await api.put(`/store/mhrov/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return response.data;
+};
+
 export const getMhrovs = async () => {
   const response = await api.get('/store/mhrov');
   return response.data;

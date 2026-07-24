@@ -4,6 +4,7 @@ import multer from 'multer';
 const upload = multer({ storage: multer.memoryStorage() });
 import {
   createMhrov,
+  updateMhrov,
   getMhrovs,
   getMhrovById,
   getMhrovDashboardData,
@@ -81,6 +82,6 @@ router.route('/admin/inventory/stock-summary').get(getAdminStockSummary);
 router.post('/mhrov', upload.single('document'), createMhrov);
 router.get('/mhrov', getMhrovs);
 router.get('/mhrov/dashboard/data', getMhrovDashboardData);
-router.get('/mhrov/:id', getMhrovById);
+router.route('/mhrov/:id').get(getMhrovById).put(upload.single('document'), updateMhrov);
 
 export default router;

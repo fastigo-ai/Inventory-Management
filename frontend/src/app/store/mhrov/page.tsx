@@ -329,7 +329,20 @@ export default function MhrovPage() {
                       <td className="px-6 py-3">
                         {mhrov.inwardEntries?.length || 0} Items
                       </td>
-                      <td className="px-6 py-3 text-right">
+                      <td className="px-6 py-3 text-right flex justify-end gap-2">
+                        {mhrov.status?.toLowerCase() === 'pending' || mhrov.status?.toLowerCase() === 'draft' ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 text-slate-500 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/store/mhrov/edit/${mhrov._id}`);
+                            }}
+                          >
+                            Edit
+                          </Button>
+                        ) : null}
                         <Button
                           variant="ghost"
                           size="sm"

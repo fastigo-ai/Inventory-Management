@@ -108,3 +108,27 @@ export const importStoreTransfers = async (file: File) => {
   });
   return response.data;
 };
+
+// ==================== MHROV API ====================
+
+export const createMhrov = async (formData: FormData) => {
+  const response = await api.post('/store/mhrov', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return response.data;
+};
+
+export const getMhrovs = async () => {
+  const response = await api.get('/store/mhrov');
+  return response.data;
+};
+
+export const getMhrovById = async (id: string) => {
+  const response = await api.get(`/store/mhrov/${id}`);
+  return response.data;
+};
+
+export const getMhrovDashboardData = async () => {
+  const response = await api.get('/store/mhrov/dashboard/data');
+  return response.data;
+};

@@ -12,6 +12,8 @@ import Item from '../items/item.model';
 import { ContractorAssignment } from '../contractors/contractorAssignment.schema';
 import { ContractorReturn } from '../contractors/contractorReturn.schema';
 import { StoreTransfer } from './storeTransfer.schema';
+import { Mhrov } from './mhrov.schema';
+import cloudinary from '../../core/utils/cloudinary';
 
 export const getPendingDIs = asyncHandler(async (req: Request, res: Response) => {
   const user = (req as any).user;
@@ -1088,4 +1090,151 @@ export const importStoreTransfers = asyncHandler(async (req: Request, res: Respo
   res.status(200).json(
     new ApiResponse(200, { successCount, errors }, 'Import process completed')
   );
+});
+
+// ==================== MHROV CONTROLLERS ====================
+
+const uploadToCloudinary = (buffer: Buffer, folder: string): Promise<any> => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      { folder: folder, resource_type: 'auto' },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      }
+    );
+    uploadStream.end(buffer);
+  });
+};
+
+export const createMhrov = asyncHandler(async (req: Request, res: Response) => {
+  const { mhrovNumber, mhrovDate, status, inwardEntries } = req.body;
+  const user = (req as any).user;
+  
+  const parsedInwardEntries = inwardEntries ? (typeof inwardEntries === 'string' ? JSON.parse(inwardEntries) : inwardEntries) : [];
+
+  let documentUrl = undefined;
+  if (req.file) {
+    const result = await uploadToCloudinary(req.file.buffer, 'mhrov-documents');
+    documentUrl = result.secure_url;
+  }
+
+  const mhrov = new Mhrov({
+    mhrovNumber,
+    mhrovDate,
+    status,
+    documentUrl,
+    inwardEntries: parsedInwardEntries,
+    package: user?.assignedPackage,
+    circle: user?.assignedCircle,
+    createdBy: user?._id
+  });
+
+  await mhrov.save();
+
+  res.status(201).json(new ApiResponse(201, mhrov, 'MHROV created successfully'));
+});
+
+export const getMhrovs = asyncHandler(async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  const filter: any = {};
+  
+  if (user && user.role?.name === 'Store Manager') {
+    if (user.assignedPackage) filter.package = user.assignedPackage;
+    if (user.assignedCircle) filter.circle = user.assignedCircle;
+  }
+
+  const mhrovs = await Mhrov.find(filter).populate("inwardEntries", "invoiceNumber").sort({ createdAt: -1 });
+
+  res.status(200).json(new ApiResponse(200, mhrovs, 'MHROVs fetched successfully'));
+});
+
+export const getMhrovById = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const mhrov = await Mhrov.findById(id).populate({
+    path: 'inwardEntries',
+    populate: { path: 'diId' }
+  });
+
+  if (!mhrov) {
+    throw new ApiError(404, 'MHROV not found');
+  }
+
+  res.status(200).json(new ApiResponse(200, mhrov, 'MHROV fetched successfully'));
+});
+
+
+export const getMhrovDashboardData = asyncHandler(async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  const filter: any = { status: 'VERIFIED' };
+  const mhrovFilter: any = {};
+  
+  if (user && user.role?.name === 'Store Manager') {
+    if (user.assignedPackage) {
+      filter.package = user.assignedPackage;
+      mhrovFilter.package = user.assignedPackage;
+    }
+    if (user.assignedCircle) {
+      filter.circle = user.assignedCircle;
+      mhrovFilter.circle = user.assignedCircle;
+    }
+  }
+
+  // 1. Fetch all VERIFIED Inward Entries
+  const inwardEntries = await StoreInwardEntry.find(filter)
+    .populate('diId', 'diNumber')
+    .sort({ createdAt: -1 })
+    .lean();
+
+  // 2. Fetch all MHROVs to cross-reference
+  const mhrovs = await Mhrov.find(mhrovFilter).lean();
+
+  // 3. Create a map of inwardEntryId -> mhrov details
+  const inwardToMhrovMap = new Map<string, any>();
+  mhrovs.forEach(mhrov => {
+    if (mhrov.inwardEntries && Array.isArray(mhrov.inwardEntries)) {
+      mhrov.inwardEntries.forEach(entryId => {
+        inwardToMhrovMap.set(entryId.toString(), {
+          mhrovId: mhrov._id,
+          mhrovNumber: mhrov.mhrovNumber,
+          mhrovDate: mhrov.mhrovDate,
+          status: mhrov.status
+        });
+      });
+    }
+  });
+
+  // 4. Merge data and calculate metrics
+  let totalItems = 0;
+  let doneCount = 0;
+  let pendingCount = 0;
+  let doneNotSignedCount = 0;
+  let notStartedCount = 0;
+
+  const mergedItems = inwardEntries.map(entry => {
+    totalItems++;
+    const mhrovData = inwardToMhrovMap.get(entry._id.toString());
+    
+    if (mhrovData) {
+      if (mhrovData.status === 'done') doneCount++;
+      else if (mhrovData.status === 'pending') pendingCount++;
+      else if (mhrovData.status === 'MHROV done but not signed') doneNotSignedCount++;
+      else pendingCount++; // Fallback
+      
+      return { ...entry, mhrovData };
+    } else {
+      notStartedCount++;
+      return { ...entry, mhrovData: { status: 'NOT STARTED' } };
+    }
+  });
+
+  const metrics = {
+    totalItems,
+    doneCount,
+    pendingCount,
+    doneNotSignedCount,
+    notStartedCount
+  };
+
+  res.status(200).json(new ApiResponse(200, { metrics, items: mergedItems }, 'Dashboard data fetched successfully'));
 });

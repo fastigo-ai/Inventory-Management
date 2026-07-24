@@ -3,6 +3,10 @@ import { authenticate } from '../../core/middlewares/auth.middleware';
 import multer from 'multer';
 const upload = multer({ storage: multer.memoryStorage() });
 import {
+  createMhrov,
+  getMhrovs,
+  getMhrovById,
+  getMhrovDashboardData,
   getPendingDIs,
   getDIPrefillData,
   getPurchaseInvoicePrefillData,
@@ -71,5 +75,12 @@ router.post('/transfers/outward/import', upload.single('file'), importStoreTrans
 // Admin Routes (Note: in a real app, you might secure these with an admin role check)
 router.route('/admin/inventory/store-manager').get(getAdminInwardEntries);
 router.route('/admin/inventory/stock-summary').get(getAdminStockSummary);
+
+
+// MHROV Routes
+router.post('/mhrov', upload.single('document'), createMhrov);
+router.get('/mhrov', getMhrovs);
+router.get('/mhrov/dashboard/data', getMhrovDashboardData);
+router.get('/mhrov/:id', getMhrovById);
 
 export default router;

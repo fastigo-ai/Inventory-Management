@@ -70,7 +70,7 @@ const BankDetailsForm = ({ control, register, baseName, index, remove }: { contr
           type="text" 
           className="h-9 w-full max-w-md text-[13px] bg-white focus:border-blue-400 focus:ring-[2px] focus:ring-blue-100 transition-all border-slate-200 uppercase" 
           {...register(`${name}.ifsc`, {
-            onChange: (e) => {
+            onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
               e.target.value = e.target.value.toUpperCase();
             }
           })} 

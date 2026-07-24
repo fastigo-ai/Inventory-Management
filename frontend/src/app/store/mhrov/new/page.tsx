@@ -35,8 +35,8 @@ export default function NewMhrovPage() {
   const fetchInwardEntries = async () => {
     try {
       setLoading(true);
-      // Fetch verified inward registrations for the store manager
-      const res = await queryInwardEntries({ limit: 1000, status: "VERIFIED" });
+      // Fetch inward registrations (removed status: "VERIFIED" filter to ensure data shows up)
+      const res = await queryInwardEntries({ limit: 1000 });
       setInwardEntries(Array.isArray(res.data) ? res.data : (res.data?.entries || []));
     } catch (error) {
       console.error(error);

@@ -311,7 +311,9 @@ export const queryInwardEntries = asyncHandler(async (req: Request, res: Respons
   if (diId) filter.diId = diId;
   if (status) filter.status = status;
   
-  const entries = await StoreInwardEntry.find(filter).sort({ createdAt: -1 });
+  const entries = await StoreInwardEntry.find(filter)
+    .populate('diId', 'diNumber')
+    .sort({ createdAt: -1 });
 
   res.status(200).json(
     new ApiResponse(200, entries, 'Entries fetched successfully')

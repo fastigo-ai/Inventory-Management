@@ -94,12 +94,12 @@ export function DynamicForm({ fields, initialData = {}, onSubmit, isLoading, lay
           }
           
           // If GSTIN is entered, auto-extract PAN (Characters 3 to 12)
-          if (lowerName.includes('gst') && val.length >= 15) {
+          if (lowerName.includes('gst')) {
              const panMatch = val.substring(2, 12).toUpperCase();
              // Find the PAN field name in the form
              const panFieldName = Object.keys(value).find(k => k.toLowerCase() === 'pan');
              if (panFieldName) {
-                const currentPan = value[panFieldName as keyof typeof value];
+                const currentPan = value[panFieldName as keyof typeof value] || '';
                 if (currentPan !== panMatch) {
                    setValue(panFieldName, panMatch, { shouldValidate: true, shouldDirty: true });
                 }

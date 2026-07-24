@@ -167,7 +167,7 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const { register, control, handleSubmit, setValue, reset, formState: { errors } } = useForm<PurchaseOrderForm>({
+  const { register, control, handleSubmit, setValue, getValues, reset, formState: { errors } } = useForm<PurchaseOrderForm>({
     defaultValues: initialData || {
       vendorName: '',
       location: 'Head Office',

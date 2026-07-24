@@ -667,7 +667,7 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
       const dataRows = rows.slice(1);
       let added = 0;
       let updated = 0;
-      const currentItems = getValues('items') || [];
+      const currentItems = getValues('lineItems') || [];
       
       dataRows.forEach(row => {
         if (row.length >= 2) {

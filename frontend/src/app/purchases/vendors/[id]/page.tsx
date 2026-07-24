@@ -286,7 +286,7 @@ export default function VendorSplitViewPage({ params }: { params: Promise<{ id: 
                 return (
                   <div key={tab} className="mb-10">
                     <h3 className="text-[15px] font-semibold text-slate-800 mb-4 border-b pb-2">{tab === 'Basic' ? 'Primary Details' : tab}</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-12">
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-y-6 gap-x-8">
                       {tabFields.map(field => {
                         let val = selectedVendor.dynamicData[field.name];
                         let displayVal: any = val ?? '-';
@@ -341,9 +341,9 @@ export default function VendorSplitViewPage({ params }: { params: Promise<{ id: 
                         }
                         
                         return (
-                          <div key={field.name} className="flex">
-                            <span className="w-40 text-sm text-slate-500 shrink-0">{field.label}</span>
-                            <span className="text-sm text-slate-900 font-medium break-words">{displayVal}</span>
+                          <div key={field.name} className="flex flex-col sm:flex-row gap-1 sm:gap-4 items-start">
+                            <span className="sm:w-36 text-sm text-slate-500 shrink-0">{field.label}</span>
+                            <span className="text-sm text-slate-900 font-medium break-words flex-1 min-w-0">{displayVal}</span>
                           </div>
                         );
                       })}

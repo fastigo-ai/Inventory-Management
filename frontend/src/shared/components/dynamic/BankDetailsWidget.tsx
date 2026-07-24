@@ -66,7 +66,15 @@ const BankDetailsForm = ({ control, register, baseName, index, remove }: { contr
 
       <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-center gap-6">
         <label className="text-sm font-semibold text-slate-700">IFSC</label>
-        <Input type="text" className="h-9 w-full max-w-md text-[13px] bg-white focus:border-blue-400 focus:ring-[2px] focus:ring-blue-100 transition-all border-slate-200" {...register(`${name}.ifsc`)} />
+        <Input 
+          type="text" 
+          className="h-9 w-full max-w-md text-[13px] bg-white focus:border-blue-400 focus:ring-[2px] focus:ring-blue-100 transition-all border-slate-200 uppercase" 
+          {...register(`${name}.ifsc`, {
+            onChange: (e) => {
+              e.target.value = e.target.value.toUpperCase();
+            }
+          })} 
+        />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] items-start gap-6 mt-4">

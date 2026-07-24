@@ -88,8 +88,8 @@ export function DynamicForm({ fields, initialData = {}, onSubmit, isLoading, lay
         const lowerName = name.toLowerCase();
         const val = value[name as keyof typeof value];
         if (typeof val === 'string') {
-          const isGst = lowerName.includes('gst');
-          const isPan = lowerName.includes('pan');
+          const isGst = lowerName === 'gstin' || lowerName === 'gst';
+          const isPan = lowerName === 'pan';
           
           if (isGst || isPan) {
             let formatted = val.toUpperCase().replace(/[^A-Z0-9]/g, '');

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/auth.store';
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'production' ? 'https://seashell-app-r36uj.ondigitalocean.app' : 'http://localhost:5000');
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'production' ? 'https://whale-app-muqf3.ondigitalocean.app' : 'http://localhost:5000');
 
 export const api = axios.create({
   baseURL: `${API_BASE_URL}/api`,

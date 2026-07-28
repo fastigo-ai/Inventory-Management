@@ -13,6 +13,8 @@ export interface IDILineItem {
 export interface IDI extends Document {
   diNumber: string;
   purchaseOrderId?: mongoose.Types.ObjectId;
+  poNumber?: string;
+  vendorName?: string;
   date: Date;
   circle?: string;
   package?: string;
@@ -39,6 +41,8 @@ const diSchema = new Schema<IDI>(
   {
     diNumber: { type: String, required: true, unique: true },
     purchaseOrderId: { type: Schema.Types.ObjectId, ref: 'PurchaseOrder' },
+    poNumber: { type: String },
+    vendorName: { type: String },
     date: { type: Date, required: true, default: Date.now },
     circle: { type: String },
     package: { type: String },

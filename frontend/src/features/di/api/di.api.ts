@@ -2,7 +2,9 @@ import { api } from "@/shared/api/axios";
 
 export interface CreateDIDto {
   diNumber: string;
-  purchaseOrderId: string;
+  purchaseOrderId?: string;
+  poNumber?: string;
+  vendorName?: string;
   date: Date | string;
   circle?: string;
   package?: string;

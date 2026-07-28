@@ -120,7 +120,7 @@ export default function DIDetailPage() {
     }
   };
 
-  const poNumber = di.purchaseOrderId?.purchaseOrderNumber || di.purchaseOrderNumber || '--';
+  const poNumber = di.poNumber || di.purchaseOrderId?.purchaseOrderNumber || di.purchaseOrderNumber || '--';
 
   return (
     <div className="flex h-screen bg-slate-50 print:bg-white print:h-auto print:block">
@@ -315,7 +315,7 @@ export default function DIDetailPage() {
                           <tbody>
                             <tr>
                               <td className="w-24 font-bold align-top py-1">Vendor</td>
-                              <td className="align-top py-1 font-semibold">{di.purchaseOrderId?.vendorName || '-'}</td>
+                              <td className="align-top py-1 font-semibold">{di.vendorName || di.purchaseOrderId?.vendorName || '-'}</td>
                             </tr>
                             <tr>
                               <td className="font-bold align-top py-1">Reference PO</td>

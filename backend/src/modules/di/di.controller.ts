@@ -35,14 +35,23 @@ export const createDI = asyncHandler(async (req: Request, res: Response) => {
   };
   
   // Basic validation
-  if (!diData.diNumber || !diData.purchaseOrderId || !diData.lineItems || diData.lineItems.length === 0) {
-    throw new ApiError(400, 'DI Number, Purchase Order, and Line Items are required');
+  if (!diData.diNumber || !diData.lineItems || diData.lineItems.length === 0) {
+    throw new ApiError(400, 'DI Number and Line Items are required');
   }
 
   // Check if DI number already exists
   const existingDI = await DI.findOne({ diNumber: diData.diNumber });
   if (existingDI) {
     throw new ApiError(400, 'DI Number already exists');
+  }
+
+  // If purchaseOrderId is provided, look it up to populate missing fields
+  if (diData.purchaseOrderId) {
+    const po = await PurchaseOrder.findById(diData.purchaseOrderId);
+    if (po) {
+      if (!diData.vendorName) diData.vendorName = po.vendorName;
+      if (!diData.poNumber) diData.poNumber = po.purchaseOrderNumber;
+    }
   }
 
   const session = await mongoose.startSession();
@@ -194,10 +203,12 @@ export const updateDI = asyncHandler(async (req: Request, res: Response) => {
     // If locked, we ONLY allow updating notes or attachments (already processed above)
     if (data.notes !== undefined) existingDI.notes = data.notes;
     // Disallow line items, status changes, etc.
-  } else {
     // Not locked, allow full update
     if (data.status) existingDI.status = data.status;
     if (data.notes !== undefined) existingDI.notes = data.notes;
+    if (data.vendorName !== undefined) existingDI.vendorName = data.vendorName;
+    if (data.poNumber !== undefined) existingDI.poNumber = data.poNumber;
+    if (data.purchaseOrderId !== undefined) existingDI.purchaseOrderId = data.purchaseOrderId || undefined;
     existingDI.lineItems = parsedLineItems;
   }
 
@@ -227,6 +238,7 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
         disMap[diNumber] = {
           diNumber,
           _poNumber: row['PurchaseOrderNumber'] || row['purchaseOrderNumber'] || '',
+          vendorName: row['VendorName'] || row['vendorName'] || row['Vendor Name'] || '',
           date: row['Date'] || row['date'] || new Date().toISOString().split('T')[0],
           circle: row['Circle'] || row['circle'],
           package: row['Package'] || row['package'],
@@ -271,6 +283,9 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
           const po = await PurchaseOrder.findOne({ purchaseOrderNumber: diData._poNumber });
           if (po) {
             diData.purchaseOrderId = po._id;
+            if (!diData.vendorName) {
+              diData.vendorName = po.vendorName;
+            }
           } else {
             errors.push(`Purchase Order ${diData._poNumber} not found for DI ${diData.diNumber}. It will be created without PO link.`);
           }

@@ -10,6 +10,7 @@ import Link from "next/link";
 import { getDIById, updateDI, deleteDI } from "@/features/di/api/di.api";
 import { getPurchaseOrders } from "@/features/purchases/api/purchases.api";
 import { getItems } from "@/features/items/api/items.api";
+import { getVendors } from "@/features/vendors/api/vendors.api";
 import { API_BASE_URL } from "@/shared/api/axios";
 import { AuditTimeline } from "@/shared/components/audit/AuditTimeline";
 import { toast } from "sonner";
@@ -22,9 +23,12 @@ export default function EditDIRegistrationPage() {
   // Data State
   const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
+  const [vendors, setVendors] = useState<any[]>([]);
   
   // Form State
   const [purchaseOrderId, setPurchaseOrderId] = useState("");
+  const [poNumber, setPoNumber] = useState("");
+  const [vendorName, setVendorName] = useState("");
   const [diNumber, setDiNumber] = useState("");
   const [date, setDate] = useState("");
   const [notes, setNotes] = useState("");
@@ -65,14 +69,18 @@ export default function EditDIRegistrationPage() {
     Promise.all([
       getPurchaseOrders(),
       getItems({ limit: 1000 }),
+      getVendors({ limit: 5000 }),
       getDIById(id as string)
-    ]).then(([posRes, itemsRes, diRes]) => {
+    ]).then(([posRes, itemsRes, vendorsRes, diRes]) => {
       setPurchaseOrders(Array.isArray(posRes.data) ? posRes.data : (posRes.data?.pos || posRes.data || []));
       setItems(Array.isArray(itemsRes) ? itemsRes : (itemsRes?.items || []));
+      setVendors(Array.isArray(vendorsRes) ? vendorsRes : (vendorsRes?.vendors || vendorsRes || []));
       
       // Hydrate DI
       if (diRes) {
-        setPurchaseOrderId(diRes.purchaseOrderId || "");
+        setPurchaseOrderId(diRes.purchaseOrderId?._id || diRes.purchaseOrderId || "");
+        setPoNumber(diRes.poNumber || diRes.purchaseOrderId?.purchaseOrderNumber || "");
+        setVendorName(diRes.vendorName || diRes.purchaseOrderId?.vendorName || "");
         setDiNumber(diRes.diNumber || "");
         setDate(diRes.date ? new Date(diRes.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
         setNotes(diRes.notes || "");
@@ -89,27 +97,35 @@ export default function EditDIRegistrationPage() {
     setPurchaseOrderId(poId);
     if (poId) {
       const po = purchaseOrders.find(p => p._id === poId);
-      if (po && po.lineItems) {
-        setLineItems(po.lineItems
-          .filter((item: any) => !item.isCanceled)
-          .map((item: any) => {
-            const masterItem = items.find(it => it._id === item.itemId);
-            return {
-              itemId: item.itemId,
-              itemName: item.itemName,
-              sku: item.loaSerialNo || masterItem?.dynamicData?.loaSerialNo || masterItem?.dynamicData?.loaSerialNumber || masterItem?.dynamicData?.['LOA Serial No.'] || masterItem?.dynamicData?.loa || masterItem?.dynamicData?.sku || masterItem?.dynamicData?.tempCode || '',
-              tempCode: item.tempCode || '',
-              package: item.package || po.package || '',
-              circle: item.circle || po.circle || '',
-              orderedQuantity: item.quantity || 0,
-              quantity: item.quantity || 0, // Default to full quantity for inspection
-              readOnly: true
-            };
-        }));
+      if (po) {
+        setPoNumber(po.purchaseOrderNumber || "");
+        setVendorName(po.vendorName || "");
+        if (po.lineItems) {
+          setLineItems(po.lineItems
+            .filter((item: any) => !item.isCanceled)
+            .map((item: any) => {
+              const masterItem = items.find(it => it._id === item.itemId);
+              return {
+                itemId: item.itemId,
+                itemName: item.itemName,
+                sku: item.loaSerialNo || masterItem?.dynamicData?.loaSerialNo || masterItem?.dynamicData?.loaSerialNumber || masterItem?.dynamicData?.['LOA Serial No.'] || masterItem?.dynamicData?.loa || masterItem?.dynamicData?.sku || masterItem?.dynamicData?.tempCode || '',
+                tempCode: item.tempCode || '',
+                package: item.package || po.package || '',
+                circle: item.circle || po.circle || '',
+                orderedQuantity: item.quantity || 0,
+                quantity: item.quantity || 0, // Default to full quantity for inspection
+                readOnly: true
+              };
+          }));
+        } else {
+          setLineItems([]);
+        }
       } else {
+        setVendorName("");
         setLineItems([]);
       }
     } else {
+      setVendorName("");
       setLineItems([]);
     }
   };
@@ -151,7 +167,9 @@ export default function EditDIRegistrationPage() {
       
       const formData = new FormData();
       formData.append('diNumber', diNumber);
-      formData.append('purchaseOrderId', purchaseOrderId);
+      if (purchaseOrderId) formData.append('purchaseOrderId', purchaseOrderId);
+      if (poNumber) formData.append('poNumber', poNumber);
+      if (vendorName) formData.append('vendorName', vendorName);
       formData.append('date', date);
       formData.append('status', status === 'Draft' ? 'Draft' : 'Active');
       if (notes) formData.append('notes', notes);
@@ -218,21 +236,63 @@ export default function EditDIRegistrationPage() {
             <h3 className="text-sm font-semibold text-slate-800 border-b border-slate-100 pb-3 mb-4">DI Details</h3>
             <div className="grid grid-cols-12 gap-4 items-center">
               <div className="col-span-3">
-                <label className="text-[13px] font-medium text-red-500">Purchase Order*</label>
+                <label className="text-[13px] font-medium text-slate-700">Purchase Order</label>
               </div>
               <div className="col-span-9">
-                <select
-                  value={purchaseOrderId}
-                  onChange={(e) => handlePurchaseOrderChange(e.target.value)}
-                  className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <option value="" disabled>Select Purchase Order</option>
+                <input
+                  list="po-options"
+                  value={poNumber}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setPoNumber(val);
+                    const matchingPo = purchaseOrders.find(p => p.purchaseOrderNumber === val);
+                    if (matchingPo) {
+                      handlePurchaseOrderChange(matchingPo._id);
+                    } else {
+                      setPurchaseOrderId("");
+                    }
+                  }}
+                  placeholder="Select or type purchase order number"
+                  className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <datalist id="po-options">
                   {purchaseOrders.map((po, index) => (
-                    <option key={po._id || index} value={po._id}>
+                    <option key={po._id || index} value={po.purchaseOrderNumber}>
                       {po.purchaseOrderNumber} - {po.vendorName}
                     </option>
                   ))}
-                </select>
+                </datalist>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-12 gap-4 items-center">
+              <div className="col-span-3">
+                <label className="text-[13px] font-medium text-slate-700">Vendor</label>
+              </div>
+              <div className="col-span-9">
+                {purchaseOrderId ? (
+                  <Input 
+                    value={vendorName}
+                    readOnly
+                    className="h-10 bg-slate-50 text-slate-700 transition-shadow focus-visible:ring-blue-500 cursor-not-allowed"
+                  />
+                ) : (
+                  <select
+                    value={vendorName}
+                    onChange={(e) => setVendorName(e.target.value)}
+                    className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select Vendor</option>
+                    {vendors.map((v, index) => {
+                      const name = v.dynamicData?.['Vendor Name'] || v.dynamicData?.['vendorName'] || v.dynamicData?.['companyName'] || v.dynamicData?.['CompanyName'] || 'Unnamed Vendor';
+                      return (
+                        <option key={v._id || index} value={name}>
+                          {name}
+                        </option>
+                      );
+                    })}
+                  </select>
+                )}
               </div>
             </div>
 

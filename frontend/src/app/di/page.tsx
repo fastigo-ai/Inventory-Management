@@ -84,6 +84,7 @@ export default function DIPage() {
                   <tr>
                     <th className="px-6 py-3 whitespace-nowrap">DI NUMBER</th>
                     <th className="px-6 py-3 whitespace-nowrap">PO NUMBER</th>
+                    <th className="px-6 py-3 whitespace-nowrap">VENDOR</th>
                     <th className="px-6 py-3 whitespace-nowrap">DATE</th>
                     <th className="px-6 py-3 whitespace-nowrap">STATUS</th>
                     <th className="px-6 py-3 whitespace-nowrap text-right">ITEMS</th>
@@ -99,7 +100,8 @@ export default function DIPage() {
                       }}
                     >
                       <td className="px-6 py-4 font-medium text-blue-600 whitespace-nowrap">{di.diNumber}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{di.purchaseOrderId?.purchaseOrderNumber || '-'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">{di.poNumber || di.purchaseOrderId?.purchaseOrderNumber || '-'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">{di.vendorName || di.purchaseOrderId?.vendorName || '-'}</td>
                       <td className="px-6 py-4 whitespace-nowrap">{new Date(di.date).toLocaleDateString()}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${

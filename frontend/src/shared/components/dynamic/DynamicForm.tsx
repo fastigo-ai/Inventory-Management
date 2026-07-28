@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,8 +11,11 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { UploadCloud, Globe, MessageCircle, Info } from "lucide-react";
 import { PaymentTermsWidget } from "./PaymentTermsWidget";
 import { FileUploadWidget } from "./FileUploadWidget";
+import { VendorAddressWidget } from "./VendorAddressWidget";
 import { BankDetailsWidget } from "./BankDetailsWidget";
 import { ContactPersonsWidget } from "./ContactPersonsWidget";
+import { IntegrationsAPI } from "@/shared/api/integrations.api";
+import { toast } from "sonner";
 
 const INDIAN_STATES = [
   "Andaman and Nicobar Islands", "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", 
@@ -81,6 +84,8 @@ export function DynamicForm({ fields, initialData = {}, onSubmit, isLoading, lay
   // Handle dependent fields reset when parent changes
   const dependentFields = fields.filter(f => f.dependsOn);
   
+  const lastFetchedGstin = useRef<string | null>(null);
+
   useEffect(() => {
     const subscription = watch((value, { name, type }) => {
       if (name) {
@@ -721,20 +726,97 @@ function renderField(field: FieldMetadata, register: any, errors: any, control: 
       </div>
     );
   } else {
+    const isGstField = field.name.toLowerCase() === 'gstin' || field.name.toLowerCase() === 'gst';
+
     fieldInput = (
       <div>
-        <Input 
-          id={field.name}
-          type={field.type === 'email' ? 'email' : field.type === 'url' ? 'url' : field.type === 'phone' ? 'tel' : field.type === 'number' || field.type === 'decimal' || field.type === 'amount' ? 'number' : 'text'}
-          step={field.type === 'decimal' || field.type === 'amount' || field.type === 'number' ? 'any' : undefined}
-          disabled={!field.editable}
-          placeholder={field.placeholder}
-          {...register(field.name, { 
-            required: field.required ? `${field.label} is required` : false,
-            valueAsNumber: field.type === 'number' || field.type === 'decimal' || field.type === 'amount'
-          })} 
-          className="bg-white"
-        />
+        <div className={isGstField ? "flex space-x-2 items-center" : ""}>
+          <Input 
+            id={field.name}
+            type={field.type === 'email' ? 'email' : field.type === 'url' ? 'url' : field.type === 'phone' ? 'tel' : field.type === 'number' || field.type === 'decimal' || field.type === 'amount' ? 'number' : 'text'}
+            step={field.type === 'decimal' || field.type === 'amount' || field.type === 'number' ? 'any' : undefined}
+            disabled={!field.editable}
+            placeholder={field.placeholder}
+            {...register(field.name, { 
+              required: field.required ? `${field.label} is required` : false,
+              valueAsNumber: field.type === 'number' || field.type === 'decimal' || field.type === 'amount'
+            })} 
+            className={`bg-white ${isGstField ? "flex-1" : ""}`}
+          />
+          {isGstField && (
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="shrink-0 text-[13px] h-9"
+              onClick={() => {
+                if (getValues && setValue) {
+                  const val = getValues(field.name);
+                  if (val && val.length === 15) {
+                    toast.promise(IntegrationsAPI.fetchGstDetails(val), {
+                      loading: 'Fetching GST details...',
+                      success: (res) => {
+                        if (res?.data) {
+                          const valueObj = getValues();
+                          
+                          // Auto-extract PAN from GSTIN
+                          const panMatch = val.substring(2, 12);
+                          const panFieldName = Object.keys(valueObj).find(k => k.toLowerCase() === 'pan');
+                          if (panFieldName) {
+                             setValue(panFieldName, panMatch, { shouldValidate: true, shouldDirty: true });
+                          }
+                          
+                          const companyFieldName = Object.keys(valueObj).find(k => k === 'companyName' || k === 'legalName' || k === 'tradeName');
+                          if (companyFieldName) {
+                             setValue(companyFieldName, res.data.tradeName || res.data.legalName, { shouldValidate: true, shouldDirty: true });
+                          }
+                          
+                          const addrFieldName = Object.keys(valueObj).find(k => k === 'contractorAddress' || k === 'vendorAddresses');
+                          if (addrFieldName && res.data.principalAddress?.address) {
+                             const addrData = res.data.principalAddress.address;
+                             const rawState = addrData.state || '';
+                             const matchedState = INDIAN_STATES.find(s => s.toLowerCase() === rawState.toLowerCase()) || rawState;
+                             
+                             const formattedAddr = {
+                               street1: [addrData.buildingName, addrData.street].filter(Boolean).join(', '),
+                               street2: addrData.location || '',
+                               city: addrData.city || '',
+                               state: matchedState,
+                               zip: addrData.pincode || '',
+                               country: 'India'
+                             };
+                             
+                             // Clear email if it got corrupted in a previous bad fetch session
+                             const emailField = Object.keys(valueObj).find(k => k === 'emailAddress' || k === 'email');
+                             if (emailField && typeof valueObj[emailField] === 'object') {
+                                setValue(emailField, '', { shouldValidate: true, shouldDirty: true });
+                             }
+                             
+                             const currentVal = valueObj[addrFieldName as keyof typeof valueObj];
+                             if (addrFieldName === 'vendorAddresses') {
+                                const newAddrs = Array.isArray(currentVal) ? [...currentVal] : [];
+                                if (newAddrs.length === 0) newAddrs.push({ billing: formattedAddr });
+                                else newAddrs[0] = { ...newAddrs[0], billing: formattedAddr };
+                                setValue(addrFieldName, newAddrs, { shouldValidate: true, shouldDirty: true });
+                             } else {
+                                // contractorAddress
+                                setValue(addrFieldName, { billing: formattedAddr }, { shouldValidate: true, shouldDirty: true });
+                             }
+                          }
+                        }
+                        return 'GST details auto-filled successfully';
+                      },
+                      error: (err) => err?.message || 'Failed to fetch GST details'
+                    });
+                  } else {
+                    toast.error("Please enter a valid 15-character GSTIN first");
+                  }
+                }
+              }}
+            >
+              Fetch Details
+            </Button>
+          )}
+        </div>
         {field.helperText && (
           <p className="text-xs text-slate-500 mt-1">{field.helperText}</p>
         )}

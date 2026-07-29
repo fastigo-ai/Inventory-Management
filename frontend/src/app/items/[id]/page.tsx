@@ -8,7 +8,7 @@ import { ItemUsageTab } from "@/features/items/components/ItemUsageTab";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Loader2, Plus, Settings, MoreHorizontal, X, Edit2 } from "lucide-react";
+import { Loader2, Plus, Settings, MoreHorizontal, X, Edit2, Search } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +34,7 @@ export default function ItemSplitViewPage({ params }: { params: Promise<{ id: st
   const [pagination, setPagination] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('Overview');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -99,6 +100,14 @@ export default function ItemSplitViewPage({ params }: { params: Promise<{ id: st
   const uniqueFieldLabel = uniqueFieldMeta?.label || 'SKU';
   const priceField = fields.find(f => f.name.toLowerCase().includes('price') || f.name.toLowerCase().includes('rate'))?.name || 'sellingPrice';
 
+  const filteredItems = items.filter(item => {
+    if (!searchQuery) return true;
+    const name = (item.dynamicData[nameField] || '').toLowerCase();
+    const sku = (item.dynamicData[uniqueField] || '').toLowerCase();
+    const q = searchQuery.toLowerCase();
+    return name.includes(q) || sku.includes(q);
+  });
+
   return (
     <div className="flex h-[calc(100vh-64px)] overflow-hidden">
       
@@ -121,8 +130,21 @@ export default function ItemSplitViewPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
 
+          <div className="p-3 border-b border-slate-200 bg-white shrink-0">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search items..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full h-9 pl-9 pr-3 text-sm rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-[#0076f2] focus:border-[#0076f2] bg-slate-50 focus:bg-white transition-colors"
+              />
+            </div>
+          </div>
+
         <div className="flex-1 overflow-y-auto">
-          {items.map((item) => {
+          {filteredItems.map((item) => {
             const isSelected = item._id === itemId;
             return (
               <div 

@@ -5,6 +5,8 @@ export interface IItemSummary extends Document {
   itemName: string;
   circle?: string;
   package?: string;
+  loaSerialNo?: string;
+  tempCode?: string;
   companyId?: string;
   warehouseId?: string;
   
@@ -26,6 +28,8 @@ const itemSummarySchema = new Schema<IItemSummary>(
     itemName: { type: String, required: true },
     circle: { type: String },
     package: { type: String },
+    loaSerialNo: { type: String },
+    tempCode: { type: String },
     companyId: { type: String },
     warehouseId: { type: String },
     

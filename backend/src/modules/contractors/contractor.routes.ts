@@ -1,7 +1,22 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { authenticate } from '../../core/middlewares/auth.middleware';
-import { getContractors, createContractor, getAssignments, createAssignment, assignContractor, getContractorById, updateContractor, deleteContractor, exportTemplate, importContractors, getContractorReturns, createContractorReturn, importContractorAssignments } from './contractor.controller';
+import { 
+  getContractors, 
+  createContractor, 
+  getAssignments, 
+  createAssignment, 
+  assignContractor, 
+  getContractorById, 
+  updateContractor, 
+  deleteContractor, 
+  exportTemplate, 
+  importContractors, 
+  getContractorReturns, 
+  createContractorReturn, 
+  importContractorAssignments,
+  getContractorTransactions
+} from './contractor.controller';
 
 const router = Router();
 const uploadCsv = multer({ storage: multer.memoryStorage() });
@@ -32,5 +47,7 @@ router.route('/:id')
 
 router.route('/:id/assign')
   .patch(assignContractor);
+
+router.get('/:id/transactions', getContractorTransactions);
 
 export default router;

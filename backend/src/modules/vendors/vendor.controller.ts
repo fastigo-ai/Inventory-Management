@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { Request, Response } from 'express';
 import multer from 'multer';
 import { parseAndSanitizeCsv } from '../../utils/csv.util';
 import { parse } from 'csv-parse';
@@ -6,6 +7,9 @@ import { stringify } from 'csv-stringify/sync';
 import Vendor from './vendor.model';
 import Metadata from '../metadata/metadata.model';
 import { PurchaseOrder } from '../purchases/purchaseOrder.schema';
+import { PurchaseInvoice } from '../purchases/purchaseInvoice.schema';
+import { Pr } from '../purchases/pr.schema';
+import { DI } from '../di/di.schema';
 import { asyncHandler } from '../../core/utils/asyncHandler';
 import { ApiResponse } from '../../core/utils/ApiResponse';
 import { ApiError } from '../../core/utils/ApiError';
@@ -601,4 +605,36 @@ export const importVendors = asyncHandler(async (req: Request, res: Response) =>
   await Vendor.insertMany(validVendors);
 
   res.status(200).json(new ApiResponse(200, { successCount: validVendors.length }, 'Import processed successfully'));
+});
+
+export const getVendorTransactions = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  
+  const vendor = await Vendor.findById(id);
+  if (!vendor) {
+    throw new ApiError(404, 'Vendor not found');
+  }
+
+  // Get nameField to determine vendorName (assuming 'name' or 'Vendor Name' or 'companyName')
+  const metadata = await Metadata.findOne({ entityName: 'Vendor' });
+  const nameField = metadata?.fields.find((f: any) => f.isPrimaryName)?.name || 'name';
+  const vendorName = vendor.dynamicData[nameField];
+
+  if (!vendorName) {
+    return res.status(200).json(new ApiResponse(200, { purchaseOrders: [], purchaseInvoices: [], purchaseReceives: [], dis: [] }, 'No vendor name found to track transactions'));
+  }
+
+  const [purchaseOrders, purchaseInvoices, purchaseReceives, dis] = await Promise.all([
+    PurchaseOrder.find({ vendorName }).select('_id purchaseOrderNumber date status total').sort({ date: -1 }).lean(),
+    PurchaseInvoice.find({ vendorName }).select('_id invoiceNumber date status total rate quantity amount').sort({ date: -1 }).lean(),
+    Pr.find({ vendorName }).select('_id purchaseReceiveNumber receiveDate status invoiceQuantity act').sort({ receiveDate: -1 }).lean(),
+    DI.find({ vendorName }).select('_id diNumber date status quantity').sort({ date: -1 }).lean()
+  ]);
+
+  res.status(200).json(new ApiResponse(200, {
+    purchaseOrders,
+    purchaseInvoices,
+    purchaseReceives,
+    dis
+  }, 'Vendor transactions fetched successfully'));
 });

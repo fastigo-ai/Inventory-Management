@@ -7,7 +7,7 @@ import { FieldMetadata } from "@/shared/components/dynamic/DynamicForm";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Loader2, Plus, MoreHorizontal, X, Edit2, MapPin, Search } from "lucide-react";
+import { Loader2, Plus, MoreHorizontal, X, Edit2, MapPin, Search, ArrowUpRight, ArrowDownLeft } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,6 +30,7 @@ export default function ContractorSplitViewPage({ params }: { params: Promise<{ 
   const [searchQuery, setSearchQuery] = useState('');
   
   const [assignments, setAssignments] = useState<any[]>([]);
+  const [returns, setReturns] = useState<any[]>([]);
   const [isLoadingAssignments, setIsLoadingAssignments] = useState(false);
 
   useEffect(() => {
@@ -54,21 +55,23 @@ export default function ContractorSplitViewPage({ params }: { params: Promise<{ 
   }, [contractorId]);
 
   useEffect(() => {
-    if (activeTab === 'Transactions' && selectedContractor) {
+    if (activeTab === 'Transactions' && contractorId) {
       const fetchTransactions = async () => {
         setIsLoadingAssignments(true);
         try {
-          const assignmentsData = await getAssignments(contractorId);
-          setAssignments(assignmentsData.data || []);
+          const { getContractorTransactions } = await import("@/features/contractors/api/contractors.api");
+          const data = await getContractorTransactions(contractorId);
+          setAssignments(data.assignments || []);
+          setReturns(data.returns || []);
         } catch (error) {
-          console.error("Failed to load assignments", error);
+          console.error("Failed to load transactions", error);
         } finally {
           setIsLoadingAssignments(false);
         }
       };
       fetchTransactions();
     }
-  }, [activeTab, selectedContractor, contractorId]);
+  }, [activeTab, contractorId]);
 
   const handleBackToTable = () => {
     router.push('/ho-billing/contractors');
@@ -355,7 +358,7 @@ export default function ContractorSplitViewPage({ params }: { params: Promise<{ 
           )}
 
           {activeTab === 'Transactions' && (
-            <div className="max-w-5xl space-y-8">
+            <div className="max-w-5xl space-y-8 pb-12">
               {isLoadingAssignments ? (
                 <div className="flex justify-center py-12">
                   <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
@@ -363,16 +366,18 @@ export default function ContractorSplitViewPage({ params }: { params: Promise<{ 
               ) : (
                 <>
                   <div>
-                    <h3 className="text-sm font-semibold text-slate-800 mb-4 border-b pb-2">Contractor Assignments</h3>
+                    <h3 className="text-sm font-semibold text-slate-800 mb-4 border-b pb-2 flex items-center">
+                      <ArrowUpRight className="w-4 h-4 mr-2 text-indigo-500" /> Store Issues (MIN)
+                    </h3>
                     {assignments.length > 0 ? (
                       <div className="border border-slate-200 rounded-lg overflow-hidden">
                         <table className="w-full text-sm text-left">
                           <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
                             <tr>
                               <th className="px-6 py-3 font-medium">Date</th>
-                              <th className="px-6 py-3 font-medium">Assignment #</th>
-                              <th className="px-6 py-3 font-medium">Circle/Package</th>
-                              <th className="px-6 py-3 font-medium text-right">Items Assigned</th>
+                              <th className="px-6 py-3 font-medium">MIN #</th>
+                              <th className="px-6 py-3 font-medium text-right">Items Issued</th>
+                              <th className="px-6 py-3 font-medium text-right">Total Amount</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -382,13 +387,13 @@ export default function ContractorSplitViewPage({ params }: { params: Promise<{ 
                                   {new Date(assignment.date || assignment.createdAt).toLocaleDateString('en-IN')}
                                 </td>
                                 <td className="px-6 py-3 font-medium text-slate-900">
-                                  {assignment.assignmentNumber}
+                                  {assignment.minNo || assignment.assignmentNumber}
                                 </td>
-                                <td className="px-6 py-3 text-slate-600">
-                                  {assignment.circle} / {assignment.package}
+                                <td className="px-6 py-3 text-right text-slate-600 font-medium">
+                                  {assignment.lineItems?.length || 0} items
                                 </td>
                                 <td className="px-6 py-3 text-right text-slate-900 font-medium">
-                                  {assignment.lineItems?.length || 0} items
+                                  ₹{(assignment.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                 </td>
                               </tr>
                             ))}
@@ -396,7 +401,47 @@ export default function ContractorSplitViewPage({ params }: { params: Promise<{ 
                         </table>
                       </div>
                     ) : (
-                      <p className="text-sm text-slate-500 py-4 text-center border rounded-lg bg-slate-50 border-dashed">No Assignments found for this contractor.</p>
+                      <p className="text-sm text-slate-500 py-4 text-center border rounded-lg bg-slate-50 border-dashed">No assignments found for this contractor.</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-800 mb-4 border-b pb-2 flex items-center">
+                      <ArrowDownLeft className="w-4 h-4 mr-2 text-orange-500" /> Store Returns (MRV)
+                    </h3>
+                    {returns.length > 0 ? (
+                      <div className="border border-slate-200 rounded-lg overflow-hidden">
+                        <table className="w-full text-sm text-left">
+                          <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
+                            <tr>
+                              <th className="px-6 py-3 font-medium">Date</th>
+                              <th className="px-6 py-3 font-medium">MRV #</th>
+                              <th className="px-6 py-3 font-medium text-right">Items Returned</th>
+                              <th className="px-6 py-3 font-medium text-right">Total Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {returns.map((ret: any) => (
+                              <tr key={ret._id} className="border-b border-slate-100 hover:bg-slate-50">
+                                <td className="px-6 py-3 text-slate-600 whitespace-nowrap">
+                                  {new Date(ret.date || ret.createdAt).toLocaleDateString('en-IN')}
+                                </td>
+                                <td className="px-6 py-3 font-medium text-slate-900">
+                                  {ret.mrvNo || ret.returnNumber}
+                                </td>
+                                <td className="px-6 py-3 text-right text-slate-600 font-medium">
+                                  {ret.lineItems?.length || 0} items
+                                </td>
+                                <td className="px-6 py-3 text-right text-slate-900 font-medium">
+                                  ₹{(ret.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-500 py-4 text-center border rounded-lg bg-slate-50 border-dashed">No returns found for this contractor.</p>
                     )}
                   </div>
                 </>

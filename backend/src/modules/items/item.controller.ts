@@ -9,6 +9,9 @@ import Metadata from '../metadata/metadata.model';
 import { SummaryService } from '../reports/summary/summary.service';
 import { PurchaseOrder } from '../purchases/purchaseOrder.schema';
 import { DI } from '../di/di.schema';
+import { PurchaseInvoice } from '../purchases/purchaseInvoice.schema';
+import { Pr } from '../purchases/pr.schema';
+import { ContractorAssignment } from '../contractors/contractorAssignment.schema';
 import { asyncHandler } from '../../core/utils/asyncHandler';
 import { ApiResponse } from '../../core/utils/ApiResponse';
 import { ApiError } from '../../core/utils/ApiError';
@@ -205,19 +208,116 @@ export const getItemUsage = asyncHandler(async (req: Request, res: Response) => 
 
   const objectId = new mongoose.Types.ObjectId(id);
 
-  // Find Purchase Orders containing this item
-  const purchaseOrders = await PurchaseOrder.find({ 'lineItems.itemId': objectId })
-    .select('_id purchaseOrderNumber date vendorName status')
-    .sort({ date: -1 });
+  // 1. Purchase Orders
+  const poDocs = await PurchaseOrder.find({ 'lineItems.itemId': objectId })
+    .select('_id purchaseOrderNumber date vendorName status lineItems')
+    .sort({ date: -1 })
+    .lean();
+    
+  const purchaseOrders = poDocs.map(po => {
+    const matchingLines = po.lineItems.filter((li: any) => li.itemId && li.itemId.toString() === objectId.toString());
+    const totalQty = matchingLines.reduce((sum: number, li: any) => sum + (li.quantity || 0), 0);
+    const rate = matchingLines.length > 0 ? matchingLines[0].rate : 0;
+    
+    return {
+      _id: po._id,
+      purchaseOrderNumber: po.purchaseOrderNumber,
+      date: po.date,
+      vendorName: po.vendorName,
+      status: po.status,
+      quantity: totalQty,
+      rate
+    };
+  });
 
-  // Find DI Registrations containing this item
-  const dis = await DI.find({ 'lineItems.itemId': objectId })
-    .select('_id diNumber date status')
-    .sort({ date: -1 });
+  // 2. DI Registrations
+  const diDocs = await DI.find({ 'lineItems.itemId': objectId })
+    .select('_id diNumber date status vendorName lineItems')
+    .sort({ date: -1 })
+    .lean();
+
+  const dis = diDocs.map(di => {
+    const matchingLines = di.lineItems.filter((li: any) => li.itemId && li.itemId.toString() === objectId.toString());
+    const totalQty = matchingLines.reduce((sum: number, li: any) => sum + (li.quantity || 0), 0);
+    return {
+      _id: di._id,
+      diNumber: di.diNumber,
+      date: di.date,
+      vendorName: di.vendorName,
+      status: di.status,
+      quantity: totalQty
+    };
+  });
+
+  // 3. Purchase Invoices
+  const piDocs = await PurchaseInvoice.find({ 'lineItems.itemId': objectId })
+    .select('_id invoiceNumber date vendorName status lineItems')
+    .sort({ date: -1 })
+    .lean();
+    
+  const purchaseInvoices = piDocs.map(pi => {
+    const matchingLines = pi.lineItems.filter((li: any) => li.itemId && li.itemId.toString() === objectId.toString());
+    const totalQty = matchingLines.reduce((sum: number, li: any) => sum + (li.quantity || 0), 0);
+    const rate = matchingLines.length > 0 ? matchingLines[0].rate : 0;
+    return {
+      _id: pi._id,
+      invoiceNumber: pi.invoiceNumber,
+      date: pi.date,
+      vendorName: pi.vendorName,
+      status: pi.status,
+      quantity: totalQty,
+      rate
+    };
+  });
+
+  // 4. Purchase Receives (Store Inwards)
+  const prDocs = await Pr.find({ 'lineItems.itemId': objectId })
+    .select('_id purchaseReceiveNumber receiveDate vendorName status lineItems')
+    .sort({ receiveDate: -1 })
+    .lean();
+    
+  const purchaseReceives = prDocs.map(pr => {
+    const matchingLines = pr.lineItems.filter((li: any) => li.itemId && li.itemId.toString() === objectId.toString());
+    const invoiceQty = matchingLines.reduce((sum: number, li: any) => sum + (li.invoiceQuantity || 0), 0);
+    const actQty = matchingLines.reduce((sum: number, li: any) => sum + (li.act || 0), 0);
+    return {
+      _id: pr._id,
+      purchaseReceiveNumber: pr.purchaseReceiveNumber,
+      date: pr.receiveDate,
+      vendorName: pr.vendorName,
+      status: pr.status,
+      invoiceQuantity: invoiceQty,
+      acceptedQuantity: actQty
+    };
+  });
+
+  // 5. Contractor Assignments (Issues)
+  const assignmentDocs = await ContractorAssignment.find({ 'lineItems.itemId': objectId })
+    .populate('contractorId', 'name companyName')
+    .select('_id assignmentNumber minNo date status lineItems contractorId')
+    .sort({ date: -1 })
+    .lean();
+    
+  const contractorAssignments = assignmentDocs.map((ca: any) => {
+    const matchingLines = ca.lineItems.filter((li: any) => li.itemId && li.itemId.toString() === objectId.toString());
+    const totalQty = matchingLines.reduce((sum: number, li: any) => sum + (li.quantity || 0), 0);
+    const contractorName = ca.contractorId ? (ca.contractorId.companyName || ca.contractorId.name) : 'Unknown Contractor';
+    return {
+      _id: ca._id,
+      assignmentNumber: ca.minNo || ca.assignmentNumber,
+      date: ca.date,
+      contractorName,
+      status: ca.status,
+      quantity: totalQty
+    };
+  });
 
   res.status(200).json(new ApiResponse(200, {
     purchaseOrders,
-    dis
+    dis,
+    purchaseInvoices,
+    purchaseReceives,
+    contractorAssignments
   }, 'Item usage fetched successfully'));
 });
 

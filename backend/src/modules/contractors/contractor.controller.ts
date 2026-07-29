@@ -548,3 +548,28 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
     new ApiResponse(200, { successCount, errors }, 'Import process completed')
   );
 });
+
+export const getContractorTransactions = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  
+  const contractor = await Contractor.findById(id);
+  if (!contractor) {
+    throw new ApiError(404, 'Contractor not found');
+  }
+
+  const [assignments, returns] = await Promise.all([
+    ContractorAssignment.find({ contractorId: id })
+      .select('_id assignmentNumber minNo date status total lineItems')
+      .sort({ date: -1 })
+      .lean(),
+    ContractorReturn.find({ contractorId: id })
+      .select('_id returnNumber mrvNo date status total lineItems')
+      .sort({ date: -1 })
+      .lean()
+  ]);
+
+  res.status(200).json(new ApiResponse(200, {
+    assignments,
+    returns
+  }, 'Contractor transactions fetched successfully'));
+});

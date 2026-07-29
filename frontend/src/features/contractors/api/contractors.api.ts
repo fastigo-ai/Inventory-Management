@@ -49,6 +49,11 @@ export const deleteContractor = async (id: string) => {
   return response.data;
 };
 
+export const getContractorTransactions = async (id: string) => {
+  const response = await api.get(`/contractors/${id}/transactions`);
+  return response.data.data;
+};
+
 export const assignContractorLocations = async (id: string, locations: string[]) => {
   const response = await api.patch(`/contractors/${id}/assign`, { locations });
   return response.data;

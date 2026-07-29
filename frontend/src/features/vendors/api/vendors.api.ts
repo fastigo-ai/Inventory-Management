@@ -49,6 +49,11 @@ export const getVendor = async (id: string) => {
   return response.data.data;
 };
 
+export const getVendorTransactions = async (id: string) => {
+  const response = await api.get(`/vendors/${id}/transactions`);
+  return response.data.data;
+};
+
 export const createVendor = async (dynamicData: any) => {
   const response = await api.post('/vendors', { dynamicData });
   return response.data.data;

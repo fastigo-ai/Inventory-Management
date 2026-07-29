@@ -563,22 +563,6 @@ export default function PurchaseOrderDetailPage() {
             </>
           )}
 
-          {order.status === 'Sent' && (
-            <div className="max-w-[850px] mx-auto mt-6 px-4 print:hidden">
-              <div className="bg-blue-50/80 border border-blue-100 rounded-lg p-3 flex items-center justify-between shadow-sm">
-                <div className="flex items-center gap-3">
-                  <span className="text-xl">💡</span>
-                  <span className="text-sm text-slate-700">
-                    <strong className="text-blue-900 font-bold">WHAT'S NEXT?</strong> Convert it to a bill or create a receive to complete your purchase.
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  <button className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded shadow-sm transition-colors">Convert to Bill</button>
-                  <button className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold px-4 py-2 rounded shadow-sm transition-colors">Receive</button>
-                </div>
-              </div>
-            </div>
-          )}
 
           <div className="max-w-[850px] mx-auto mt-6 px-4 flex items-center justify-between print:hidden">
               {order.status !== 'Draft' ? (

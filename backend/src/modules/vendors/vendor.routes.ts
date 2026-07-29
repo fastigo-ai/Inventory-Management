@@ -9,7 +9,8 @@ import {
   exportVendors,
   exportVendorTemplate,
   updateVendor,
-  deleteVendor
+  deleteVendor,
+  getVendorTransactions
 } from './vendor.controller';
 
 const router = Router();
@@ -23,6 +24,7 @@ router.get('/template', exportVendorTemplate);
 router.post('/', createVendor);
 router.get('/', getVendors);
 router.get('/:id', getVendorById);
+router.get('/:id/transactions', getVendorTransactions);
 router.put('/:id', updateVendor);
 router.delete('/:id', deleteVendor);
 

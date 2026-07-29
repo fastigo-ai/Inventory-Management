@@ -47,12 +47,16 @@ export class SummaryService {
     // Instead of querying Item every time, we can use $setOnInsert in the update.
     // But we need the item name for $setOnInsert.
     let itemName = 'Unknown Item';
+    let loaSerialNo = '';
+    let tempCode = '';
     
     // It's usually safe and cheap enough to just fetch the item name if we expect to cache it or we do it rarely.
     // Given the event-driven nature, fetching item is an acceptable cost to keep summary pure.
     const item = await Item.findById(itemId).select('dynamicData').session(session || null);
-    if (item && item.dynamicData && item.dynamicData.name) {
-      itemName = item.dynamicData.name;
+    if (item && item.dynamicData) {
+      if (item.dynamicData.name) itemName = item.dynamicData.name;
+      if (item.dynamicData.sku) loaSerialNo = item.dynamicData.sku;
+      if (item.dynamicData.tempCode) tempCode = item.dynamicData.tempCode;
     }
 
     const filter: Record<string, any> = {
@@ -69,6 +73,8 @@ export class SummaryService {
       $inc: incObj,
       $setOnInsert: {
         itemName,
+        loaSerialNo,
+        tempCode
       }
     };
 

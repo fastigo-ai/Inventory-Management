@@ -20,15 +20,51 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
   const limitNum = parseInt(limit as string);
   const skip = (pageNum - 1) * limitNum;
 
-  const totalItems = await ItemSummary.countDocuments(filter);
-  const summaries = await ItemSummary.find(filter)
-    .sort({ itemName: 1, circle: 1, package: 1 })
-    .skip(skip)
-    .limit(limitNum);
+  const totalAggregation = await ItemSummary.aggregate([
+    { $match: filter },
+    { $group: { _id: { itemName: "$itemName", circle: "$circle", package: "$package" } } },
+    { $count: "total" }
+  ]);
+  const totalItems = totalAggregation.length > 0 ? totalAggregation[0].total : 0;
+
+  const summaries = await ItemSummary.aggregate([
+    { $match: filter },
+    { $group: {
+        _id: { itemName: "$itemName", circle: "$circle", package: "$package" },
+        loaSerialNo: { $first: "$loaSerialNo" },
+        tempCode: { $first: "$tempCode" },
+        loaQty: { $sum: "$loaQty" },
+        bomQty: { $sum: "$bomQty" },
+        diQty: { $sum: "$diQty" },
+        invQty: { $sum: "$invQty" },
+        actQty: { $sum: "$actQty" },
+        srtQty: { $sum: "$srtQty" },
+        billedQty: { $sum: "$billedQty" }
+      }
+    },
+    { $project: {
+        _id: 0,
+        itemName: "$_id.itemName",
+        circle: "$_id.circle",
+        package: "$_id.package",
+        loaSerialNo: 1,
+        tempCode: 1,
+        loaQty: 1,
+        bomQty: 1,
+        diQty: 1,
+        invQty: 1,
+        actQty: 1,
+        srtQty: 1,
+        billedQty: 1
+      }
+    },
+    { $sort: { itemName: 1, circle: 1, package: 1 } },
+    { $skip: skip },
+    { $limit: limitNum }
+  ]);
 
   // Add calculated fields dynamically
-  const enrichedSummaries = summaries.map(s => {
-    const doc = s.toObject();
+  const enrichedSummaries = summaries.map(doc => {
     
     // Derived values matching handwritten report columns 1 to 12
     const balLoaBilled = (doc.loaQty || 0) - (doc.billedQty || 0);               // Column 5: LOA - Billed (1 - 4 = 5)

@@ -157,7 +157,7 @@ export default function ItemSummaryReportPage() {
               <Tooltip 
                 contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
                 cursor={{fill: '#f9fafb'}}
-                formatter={(value: number) => [value, 'Volume']}
+                formatter={(value: any) => [value, 'Volume']}
               />
               <Bar dataKey="value" fill="#4f46e5" radius={[4, 4, 0, 0]} barSize={40} />
             </BarChart>

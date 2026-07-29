@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { DynamicTable } from '@/shared/components/dynamic/DynamicTable';
 import { getItemSummaries } from '@/features/reports/api/reports.api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function ItemSummaryReportPage() {
+  const router = useRouter();
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -245,6 +247,11 @@ export default function ItemSummaryReportPage() {
           
             fields={fields as any}
             data={data}
+            onRowClick={(row) => {
+              if (row.itemId) {
+                router.push(`/items/${row.itemId}`);
+              }
+            }}
             pagination={{
               totalItems,
               currentPage: page,

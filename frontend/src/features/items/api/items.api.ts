@@ -10,13 +10,14 @@ export const updateEntityMetadata = async (entityName: string, fields: any[]) =>
   return response.data.data;
 };
 
-export const getItems = async (params: { page?: number, limit?: number, sortBy?: string, sortOrder?: string, isDeleted?: boolean, filters?: Record<string, string> } = {}) => {
+export const getItems = async (params: { page?: number, limit?: number, sortBy?: string, sortOrder?: string, isDeleted?: boolean, filters?: Record<string, string>, search?: string } = {}) => {
   const query = new URLSearchParams();
   if (params?.page) query.append('page', params.page.toString());
   if (params?.limit) query.append('limit', params.limit.toString());
   if (params?.sortBy) query.append('sortBy', params.sortBy);
   if (params?.sortOrder) query.append('sortOrder', params.sortOrder);
   if (params?.isDeleted !== undefined) query.append('isDeleted', params.isDeleted.toString());
+  if (params?.search) query.append('search', params.search);
   
   if (params?.filters) {
     Object.entries(params.filters).forEach(([key, value]) => {

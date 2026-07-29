@@ -122,6 +122,7 @@ export const getItems = asyncHandler(async (req: Request, res: Response) => {
   const sortBy = req.query.sortBy as string;
   const sortOrder = (req.query.sortOrder as string) === 'desc' ? -1 : 1;
   const isDeleted = req.query.isDeleted === 'true';
+  const search = req.query.search as string;
 
   let sortObject: any = { createdAt: -1 };
   if (sortBy) {
@@ -134,6 +135,29 @@ export const getItems = asyncHandler(async (req: Request, res: Response) => {
   
   let hasFilterSort = false;
   const exprFilters: any[] = [];
+
+  if (search) {
+    exprFilters.push({
+      $gt: [
+        {
+          $size: {
+            $filter: {
+              input: { $objectToArray: "$dynamicData" },
+              as: "field",
+              cond: {
+                $regexMatch: {
+                  input: { $toString: "$$field.v" },
+                  regex: search,
+                  options: "i"
+                }
+              }
+            }
+          }
+        },
+        0
+      ]
+    });
+  }
 
   // Apply column filters
   for (const [key, value] of Object.entries(req.query)) {

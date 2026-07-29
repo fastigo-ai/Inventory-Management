@@ -35,6 +35,14 @@ export default function ItemSplitViewPage({ params }: { params: Promise<{ id: st
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('Overview');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -42,7 +50,7 @@ export default function ItemSplitViewPage({ params }: { params: Promise<{ id: st
       try {
         const [metaRes, itemsRes, itemRes] = await Promise.all([
           getEntityMetadata('Item'),
-          getItems({ page, limit, sortBy: sortBy || undefined, sortOrder }),
+          getItems({ page, limit, sortBy: sortBy || undefined, sortOrder, search: debouncedSearch }),
           getItem(itemId)
         ]);
         setFields(metaRes.fields);
@@ -60,7 +68,7 @@ export default function ItemSplitViewPage({ params }: { params: Promise<{ id: st
       }
     };
     fetchData();
-  }, [itemId, page, limit, sortBy, sortOrder]);
+  }, [itemId, page, limit, sortBy, sortOrder, debouncedSearch]);
 
   const handleBackToTable = () => {
     const queryString = searchParams.toString();
@@ -100,13 +108,7 @@ export default function ItemSplitViewPage({ params }: { params: Promise<{ id: st
   const uniqueFieldLabel = uniqueFieldMeta?.label || 'SKU';
   const priceField = fields.find(f => f.name.toLowerCase().includes('price') || f.name.toLowerCase().includes('rate'))?.name || 'sellingPrice';
 
-  const filteredItems = items.filter(item => {
-    if (!searchQuery) return true;
-    const name = (item.dynamicData[nameField] || '').toLowerCase();
-    const sku = (item.dynamicData[uniqueField] || '').toLowerCase();
-    const q = searchQuery.toLowerCase();
-    return name.includes(q) || sku.includes(q);
-  });
+
 
   return (
     <div className="flex h-[calc(100vh-64px)] overflow-hidden">
@@ -143,8 +145,13 @@ export default function ItemSplitViewPage({ params }: { params: Promise<{ id: st
             </div>
           </div>
 
-        <div className="flex-1 overflow-y-auto">
-          {filteredItems.map((item) => {
+        <div className="flex-1 overflow-y-auto relative">
+          {isLoading && (
+            <div className="absolute inset-0 bg-white/50 flex justify-center pt-10 z-10">
+              <Loader2 className="h-6 w-6 animate-spin text-[#0076f2]" />
+            </div>
+          )}
+          {items.map((item) => {
             const isSelected = item._id === itemId;
             return (
               <div 

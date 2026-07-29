@@ -247,11 +247,10 @@ export function DynamicTable({
                 <TableRow 
                   key={row._id || i}
                   onClick={(e) => {
-                    // Prevent row click if clicking on the checkbox or its cell
                     const target = e.target as HTMLElement;
-                    if (target.tagName !== 'INPUT' && target.closest('td:first-child') === null) {
-                      onRowClick && onRowClick(row);
-                    }
+                    if (target.tagName === 'INPUT') return;
+                    if (enableSelection && target.closest('td:first-child')) return;
+                    onRowClick && onRowClick(row);
                   }}
                   className={onRowClick ? "cursor-pointer hover:bg-slate-50 transition-colors" : ""}
                 >

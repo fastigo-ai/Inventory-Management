@@ -26,14 +26,14 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
     const doc = s.toObject();
     
     // Derived values matching handwritten report columns 1 to 12
-    const balLoaBilled = (doc.loaQty || 0) - (doc.billedQty || 0);               // Column 5: LOA - Billed
-    const balBomBilled = (doc.bomQty || 0) - (doc.billedQty || 0);               // Column 6: BOM - Billed
-    const goodDispatch = doc.actQty || 0;                                        // Column 7: Good Dispatch (actQty)
-    const balDispatchVsDi = (doc.diQty || 0) - (doc.actQty || 0);                 // Column 8: DI - Good Dispatch
-    const diBalAsPerLoa = (doc.loaQty || 0) - (doc.diQty || 0);                   // Column 9: LOA - DI
-    const diBalAsPerBom = (doc.bomQty || 0) - (doc.diQty || 0);                   // Column 10: BOM - DI
-    const balDiIssuedAsPerLoa = (doc.loaQty || 0) - (doc.actQty || 0);             // Column 11: LOA - Good Dispatch
-    const balDiIssuedAsPerBom = (doc.bomQty || 0) - (doc.actQty || 0);             // Column 12: BOM - Good Dispatch
+    const balLoaBilled = (doc.loaQty || 0) - (doc.billedQty || 0);               // Column 5: LOA - Billed (1 - 4 = 5)
+    const balBomBilled = (doc.bomQty || 0) - (doc.billedQty || 0);               // Column 6: BOM - Billed (2 - 4 = 6)
+    const goodDispatch = doc.actQty || 0;                                        // Column 7: Good Dispatch
+    const balDispatchVsDi = (doc.diQty || 0) - (doc.actQty || 0);                 // Column 8: DI - Good Dispatch (3 - 7 = 8)
+    const diBalAsPerLoa = (doc.loaQty || 0) - (doc.bomQty || 0);                  // Column 9: DI Bal. Qty (as per LOA) (1 - 2 = 9)
+    const diBalAsPerBom = (doc.bomQty || 0) - (doc.diQty || 0);                   // Column 10: DI Bal. Qty (as per BOM) (2 - 3 = 10)
+    const balDiIssuedAsPerLoa = (doc.loaQty || 0) - (doc.diQty || 0);             // Column 11: Bal. for DI Issued (as per LOA) (1 - 3 = 11)
+    const balDiIssuedAsPerBom = (doc.bomQty || 0) - (doc.diQty || 0);             // Column 12: Bal. for DI Issued (as per BOM) (2 - 3 = 12)
 
     // Keep legacy calculations for compatibility if used elsewhere
     const remainingLoa = balLoaBilled;

@@ -61,14 +61,14 @@ export default function ItemSummaryReportPage() {
     { name: 'bomQty', label: '2. BOM Qty', type: 'number', order: 5, active: true, visible: true },
     { name: 'diQty', label: '3. DI Qty', type: 'number', order: 6, active: true, visible: true },
     { name: 'billedQty', label: '4. Billed Qty', type: 'number', order: 7, active: true, visible: true },
-    { name: 'balLoaBilled', label: '5. Bal. LOA - Billed', type: 'number', order: 8, active: true, visible: true },
-    { name: 'balBomBilled', label: '6. Bal. BOM - Billed', type: 'number', order: 9, active: true, visible: true },
-    { name: 'goodDispatch', label: '7. Good Dispatch', type: 'number', order: 10, active: true, visible: true },
-    { name: 'balDispatchVsDi', label: '8. Bal. Dispatch vs DI', type: 'number', order: 11, active: true, visible: true },
-    { name: 'diBalAsPerLoa', label: '9. DI Bal. Qty as per LOA', type: 'number', order: 12, active: true, visible: true },
-    { name: 'diBalAsPerBom', label: '10. DI Bal. Qty as per BOM', type: 'number', order: 13, active: true, visible: true },
-    { name: 'balDiIssuedAsPerLoa', label: '11. Bal. for DI Issued as per LOA', type: 'number', order: 14, active: true, visible: true },
-    { name: 'balDiIssuedAsPerBom', label: '12. Bal. for DI Issued as per BOM', type: 'number', order: 15, active: true, visible: true }
+    { name: 'balLoaBilled', label: '5. Bal. (LOA - Billed)', type: 'number', order: 8, active: true, visible: true },
+    { name: 'balBomBilled', label: '6. Bal. (BOM - Billed)', type: 'number', order: 9, active: true, visible: true },
+    { name: 'goodDispatch', label: '7. Dispatch', type: 'number', order: 10, active: true, visible: true },
+    { name: 'balDispatchVsDi', label: '8. Bal. Dispatch (DI - Dispatch)', type: 'number', order: 11, active: true, visible: true },
+    { name: 'diBalAsPerLoa', label: '9. DI Bal. Qty (as per LOA)', type: 'number', order: 12, active: true, visible: true },
+    { name: 'diBalAsPerBom', label: '10. DI Bal. Qty (as per BOM)', type: 'number', order: 13, active: true, visible: true },
+    { name: 'balDiIssuedAsPerLoa', label: '11. Bal. for DI Issued (as per LOA)', type: 'number', order: 14, active: true, visible: true },
+    { name: 'balDiIssuedAsPerBom', label: '12. Bal. for DI Issued (as per BOM)', type: 'number', order: 15, active: true, visible: true }
   ];
 
   const handleExport = () => {

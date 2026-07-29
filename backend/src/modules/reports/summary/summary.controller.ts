@@ -31,6 +31,7 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
     { $match: filter },
     { $group: {
         _id: { itemName: "$itemName", circle: "$circle", package: "$package" },
+        itemId: { $first: "$itemId" },
         loaSerialNo: { $first: "$loaSerialNo" },
         tempCode: { $first: "$tempCode" },
         loaQty: { $sum: "$loaQty" },
@@ -44,6 +45,7 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
     },
     { $project: {
         _id: 0,
+        itemId: 1,
         itemName: "$_id.itemName",
         circle: "$_id.circle",
         package: "$_id.package",

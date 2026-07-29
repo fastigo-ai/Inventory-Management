@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { DynamicTable } from '@/shared/components/dynamic/DynamicTable';
 import { getItemSummaries } from '@/features/reports/api/reports.api';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function ItemSummaryReportPage() {
   const [data, setData] = useState<any[]>([]);
@@ -10,6 +11,10 @@ export default function ItemSummaryReportPage() {
   
   const [circleFilter, setCircleFilter] = useState('');
   const [packageFilter, setPackageFilter] = useState('');
+  const [itemNameFilter, setItemNameFilter] = useState('');
+  const [descriptionFilter, setDescriptionFilter] = useState('');
+  const [loaSerialNoFilter, setLoaSerialNoFilter] = useState('');
+  const [tempCodeFilter, setTempCodeFilter] = useState('');
   
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(50);
@@ -21,6 +26,10 @@ export default function ItemSummaryReportPage() {
       const res = await getItemSummaries({
         circle: circleFilter || undefined,
         package: packageFilter || undefined,
+        itemName: itemNameFilter || undefined,
+        description: descriptionFilter || undefined,
+        loaSerialNo: loaSerialNoFilter || undefined,
+        tempCode: tempCodeFilter || undefined,
         page,
         limit
       });
@@ -37,7 +46,7 @@ export default function ItemSummaryReportPage() {
 
   useEffect(() => {
     fetchReport();
-  }, [circleFilter, packageFilter, page, limit]);
+  }, [circleFilter, packageFilter, itemNameFilter, descriptionFilter, loaSerialNoFilter, tempCodeFilter, page, limit]);
 
   // Derived Dashboard Metrics from current page data (for demo purposes)
   // In a real app, these might be computed on the backend across the entire dataset
@@ -52,6 +61,17 @@ export default function ItemSummaryReportPage() {
       return acc;
     }, { totalLoa: 0, totalBom: 0, totalDi: 0, totalInv: 0, totalAct: 0, totalBilled: 0 });
   }, [data]);
+
+  const chartData = useMemo(() => {
+    return [
+      { name: 'LOA', value: metrics.totalLoa },
+      { name: 'BOM', value: metrics.totalBom },
+      { name: 'DI', value: metrics.totalDi },
+      { name: 'INVQ', value: metrics.totalInv },
+      { name: 'ACT', value: metrics.totalAct },
+      { name: 'Billed', value: metrics.totalBilled },
+    ];
+  }, [metrics]);
 
   const fields = [
     { name: 'itemName', label: 'Item Name', type: 'text', order: 1, active: true, visible: true },
@@ -126,8 +146,39 @@ export default function ItemSummaryReportPage() {
         </div>
       </div>
 
+      <div className="bg-white p-6 rounded-lg shadow border border-gray-100 mb-6 mt-6">
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Volume Overview</h2>
+        <div className="h-64 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+              <XAxis dataKey="name" tick={{fill: '#6b7280'}} axisLine={false} tickLine={false} />
+              <YAxis tick={{fill: '#6b7280'}} axisLine={false} tickLine={false} />
+              <Tooltip 
+                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
+                cursor={{fill: '#f9fafb'}}
+                formatter={(value: number) => [value, 'Volume']}
+              />
+              <Bar dataKey="value" fill="#4f46e5" radius={[4, 4, 0, 0]} barSize={40} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
       <div className="p-4 bg-white rounded-lg shadow border border-gray-100">
-        <div className="flex gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-4">
+          <div className="flex flex-col">
+            <label className="text-sm font-medium text-gray-700">Package</label>
+            <select 
+              value={packageFilter}
+              onChange={e => setPackageFilter(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border bg-white"
+            >
+              <option value="">All Packages</option>
+              <option value="Package 1(S/N)">Package 1(S/N)</option>
+              <option value="Package 2(R/R)">Package 2(R/R)</option>
+            </select>
+          </div>
           <div className="flex flex-col">
             <label className="text-sm font-medium text-gray-700">Circle</label>
             <select 
@@ -143,17 +194,44 @@ export default function ItemSummaryReportPage() {
             </select>
           </div>
           <div className="flex flex-col">
-            <label className="text-sm font-medium text-gray-700">Package</label>
-            <select 
-              value={packageFilter}
-              onChange={e => setPackageFilter(e.target.value)}
+            <label className="text-sm font-medium text-gray-700">Item Name</label>
+            <input 
+              type="text"
+              placeholder="Search..."
+              value={itemNameFilter}
+              onChange={e => setItemNameFilter(e.target.value)}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border bg-white"
-            >
-              <option value="">All Packages</option>
-              <option value="Package 1(S/N)">Package 1(S/N)</option>
-              <option value="Package 2(R/R)">Package 2(R/R)</option>
-             
-            </select>
+            />
+          </div>
+          <div className="flex flex-col">
+            <label className="text-sm font-medium text-gray-700">Description</label>
+            <input 
+              type="text"
+              placeholder="Search..."
+              value={descriptionFilter}
+              onChange={e => setDescriptionFilter(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border bg-white"
+            />
+          </div>
+          <div className="flex flex-col">
+            <label className="text-sm font-medium text-gray-700">LOA Serial No</label>
+            <input 
+              type="text"
+              placeholder="Search..."
+              value={loaSerialNoFilter}
+              onChange={e => setLoaSerialNoFilter(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border bg-white"
+            />
+          </div>
+          <div className="flex flex-col">
+            <label className="text-sm font-medium text-gray-700">Temp Code</label>
+            <input 
+              type="text"
+              placeholder="Search..."
+              value={tempCodeFilter}
+              onChange={e => setTempCodeFilter(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border bg-white"
+            />
           </div>
         </div>
 

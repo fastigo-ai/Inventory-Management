@@ -4,12 +4,17 @@ import { asyncHandler } from '../../../core/utils/asyncHandler';
 import { ApiResponse } from '../../../core/utils/ApiResponse';
 
 export const getSummaries = asyncHandler(async (req: Request, res: Response) => {
-  const { circle, package: pkg, page = '1', limit = '50', companyId } = req.query;
+  const { circle, package: pkg, itemName, description, loaSerialNo, tempCode, page = '1', limit = '50', companyId } = req.query;
 
   const filter: any = {};
   if (circle) filter.circle = circle;
   if (pkg) filter.package = pkg;
   if (companyId) filter.companyId = companyId;
+  
+  if (itemName) filter.itemName = { $regex: itemName, $options: 'i' };
+  if (description) filter.description = { $regex: description, $options: 'i' };
+  if (loaSerialNo) filter.loaSerialNo = { $regex: loaSerialNo, $options: 'i' };
+  if (tempCode) filter.tempCode = { $regex: tempCode, $options: 'i' };
 
   const pageNum = parseInt(page as string);
   const limitNum = parseInt(limit as string);

@@ -3,6 +3,10 @@ import { api } from '@/shared/api/axios';
 export interface ItemSummaryFilter {
   circle?: string;
   package?: string;
+  itemName?: string;
+  description?: string;
+  loaSerialNo?: string;
+  tempCode?: string;
   companyId?: string;
   page?: number;
   limit?: number;

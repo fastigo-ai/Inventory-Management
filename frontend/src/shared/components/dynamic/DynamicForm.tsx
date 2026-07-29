@@ -11,7 +11,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { UploadCloud, Globe, MessageCircle, Info } from "lucide-react";
 import { PaymentTermsWidget } from "./PaymentTermsWidget";
 import { FileUploadWidget } from "./FileUploadWidget";
-import { VendorAddressWidget } from "./VendorAddressWidget";
 import { BankDetailsWidget } from "./BankDetailsWidget";
 import { ContactPersonsWidget } from "./ContactPersonsWidget";
 import { IntegrationsAPI } from "@/shared/api/integrations.api";

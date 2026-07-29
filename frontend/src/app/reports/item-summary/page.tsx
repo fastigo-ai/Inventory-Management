@@ -54,109 +54,34 @@ export default function ItemSummaryReportPage() {
   }, [data]);
 
   const fields = [
-    { name: 'itemName', label: 'Item Name', type: 'text', order: 1, active: true, required: false, editable: false, visible: true },
-    { 
-      name: 'poNumber', 
-      label: 'PO No', 
-      type: 'text', 
-      order: 2, 
-      active: true, 
-      required: false,
-      editable: false,
-      visible: true 
-    },
-    { 
-      name: 'vendorName', 
-      label: 'Supplier', 
-      type: 'text', 
-      order: 3, 
-      active: true, 
-      required: false,
-      editable: false,
-      visible: true 
-    },
-    { 
-      name: 'receivedDate', 
-      label: 'Receipt Date', 
-      type: 'date', 
-      order: 4, 
-      active: true, 
-      required: false,
-      editable: false,
-      visible: true 
-    },
-    { 
-      name: 'challanQty', 
-      label: 'Challan Qty', 
-      type: 'number', 
-      order: 5, 
-      active: true, 
-      required: false,
-      editable: false,
-      visible: true 
-    },
-    { 
-      name: 'receivedQty', 
-      label: 'Received Qty', 
-      type: 'number', 
-      order: 6, 
-      active: true, 
-      required: false,
-      editable: false,
-      visible: true 
-    },
-    { 
-      name: 'acceptedQty', 
-      label: 'Accepted Qty', 
-      type: 'number', 
-      order: 7, 
-      active: true, 
-      required: false,
-      editable: false,
-      visible: true 
-    },
-    { 
-      name: 'rejectedQty', 
-      label: 'Rejected Qty', 
-      type: 'number', 
-      order: 8, 
-      active: true, 
-      required: false,
-      editable: false,
-      visible: true 
-    },
-    { 
-      name: 'contractorsIssuedQty', 
-      label: 'Issued Qty', 
-      type: 'number', 
-      order: 9, 
-      active: true, 
-      required: false,
-      editable: false,
-      visible: true 
-    },
-    { 
-      name: 'totalBalanceQty', 
-      label: 'Balance Qty', 
-      type: 'number', 
-      order: 10, 
-      active: true, 
-      required: false,
-      editable: false,
-      visible: true 
-    },
-    { name: 'remainingLoa', label: 'Rem. LOA', type: 'number', order: 11, active: true, visible: true },
-    { name: 'remainingBom', label: 'Rem. BOM', type: 'number', order: 12, active: true, visible: true },
-    { name: 'variance', label: 'Variance', type: 'number', order: 13, active: true, visible: true },
-    { name: 'pendingInvoice', label: 'Pending Inv.', type: 'number', order: 14, active: true, visible: true },
-    { name: 'completionPercent', label: 'Comp. %', type: 'number', order: 15, active: true, visible: true },
+    { name: 'itemName', label: 'Item Name', type: 'text', order: 1, active: true, visible: true },
+    { name: 'circle', label: 'Circle', type: 'text', order: 2, active: true, visible: true },
+    { name: 'package', label: 'Package', type: 'text', order: 3, active: true, visible: true },
+    { name: 'loaQty', label: '1. LOA Qty', type: 'number', order: 4, active: true, visible: true },
+    { name: 'bomQty', label: '2. BOM Qty', type: 'number', order: 5, active: true, visible: true },
+    { name: 'diQty', label: '3. DI Qty', type: 'number', order: 6, active: true, visible: true },
+    { name: 'billedQty', label: '4. Billed Qty', type: 'number', order: 7, active: true, visible: true },
+    { name: 'balLoaBilled', label: '5. Bal. LOA - Billed', type: 'number', order: 8, active: true, visible: true },
+    { name: 'balBomBilled', label: '6. Bal. BOM - Billed', type: 'number', order: 9, active: true, visible: true },
+    { name: 'goodDispatch', label: '7. Good Dispatch', type: 'number', order: 10, active: true, visible: true },
+    { name: 'balDispatchVsDi', label: '8. Bal. Dispatch vs DI', type: 'number', order: 11, active: true, visible: true },
+    { name: 'diBalAsPerLoa', label: '9. DI Bal. Qty as per LOA', type: 'number', order: 12, active: true, visible: true },
+    { name: 'diBalAsPerBom', label: '10. DI Bal. Qty as per BOM', type: 'number', order: 13, active: true, visible: true },
+    { name: 'balDiIssuedAsPerLoa', label: '11. Bal. for DI Issued as per LOA', type: 'number', order: 14, active: true, visible: true },
+    { name: 'balDiIssuedAsPerBom', label: '12. Bal. for DI Issued as per BOM', type: 'number', order: 15, active: true, visible: true }
   ];
 
   const handleExport = () => {
     // Simple CSV export for current data
     if (data.length === 0) return;
     const headers = fields.map(c => c.label).join(',');
-    const rows = data.map(row => fields.map(c => row[c.name] || 0).join(','));
+    const rows = data.map(row => fields.map(c => {
+      const val = row[c.name];
+      if (val === undefined || val === null) {
+        return c.type === 'number' ? 0 : '';
+      }
+      return typeof val === 'string' && val.includes(',') ? `"${val}"` : val;
+    }).join(','));
     const csvContent = [headers, ...rows].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');

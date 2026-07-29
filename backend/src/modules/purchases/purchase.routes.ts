@@ -2,7 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { createPurchaseOrder, getPurchaseOrders, getPurchaseOrderById, exportPurchaseOrders, importPurchaseOrders, getNextPurchaseOrderNumber, updatePurchaseOrder, deletePurchaseOrder } from './purchase.controller';
 import { createPurchaseReceive, getPurchaseReceives, getPurchaseReceiveById, getNextPurchaseReceiveNumber, updatePurchaseReceive, deletePurchaseReceive, importPurchaseReceives, exportPurchaseReceives } from './pr.controller';
-import { createPurchaseInvoice, getPurchaseInvoices, getPurchaseInvoiceById, getNextPurchaseInvoiceNumber, updatePurchaseInvoice, deletePurchaseInvoice, updatePurchaseInvoiceReceiptStatus, importPurchaseInvoices } from './purchaseInvoice.controller';
+import { createPurchaseInvoice, getPurchaseInvoices, getPurchaseInvoiceById, getNextPurchaseInvoiceNumber, updatePurchaseInvoice, deletePurchaseInvoice, updatePurchaseInvoiceReceiptStatus, importPurchaseInvoices, exportPurchaseInvoices } from './purchaseInvoice.controller';
 import { authenticate } from '../../core/middlewares/auth.middleware';
 
 const router = Router();
@@ -32,6 +32,7 @@ router.put('/receives/:id', updatePurchaseReceive);
 router.delete('/receives/:id', deletePurchaseReceive);
 
 router.post('/invoices/import', uploadCsv.single('file'), importPurchaseInvoices);
+router.get('/invoices/export', exportPurchaseInvoices);
 router.get('/invoices/next-number', getNextPurchaseInvoiceNumber);
 router.post('/invoices', upload.array('files', 10), createPurchaseInvoice);
 router.get('/invoices', authenticate, getPurchaseInvoices);

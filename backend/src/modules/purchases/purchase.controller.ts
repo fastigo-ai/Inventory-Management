@@ -470,6 +470,7 @@ export const exportPurchaseOrders = async (req: Request, res: Response) => {
     
     const rows: any[] = [];
     for (const order of orders) {
+      const billedFrom = order.billingCompany?.name || '';
       if (!order.lineItems || order.lineItems.length === 0) {
         rows.push({
           PurchaseOrderNumber: order.purchaseOrderNumber,
@@ -479,7 +480,8 @@ export const exportPurchaseOrders = async (req: Request, res: Response) => {
           ItemName: '',
           Quantity: '',
           Rate: '',
-          Status: order.status
+          Status: order.status,
+          BilledFrom: billedFrom
         });
       } else {
         for (const item of order.lineItems) {
@@ -491,13 +493,14 @@ export const exportPurchaseOrders = async (req: Request, res: Response) => {
             ItemName: item.itemName || '',
             Quantity: item.quantity || 0,
             Rate: item.rate || 0,
-            Status: order.status
+            Status: order.status,
+            BilledFrom: billedFrom
           });
         }
       }
     }
 
-    const headers = ['PurchaseOrderNumber', 'VendorName', 'Date', 'Location', 'ItemName', 'Quantity', 'Rate', 'Status'];
+    const headers = ['PurchaseOrderNumber', 'VendorName', 'Date', 'Location', 'ItemName', 'Quantity', 'Rate', 'Status', 'BilledFrom'];
     const csv = stringify(rows, { header: true, columns: headers });
     
     res.setHeader('Content-Type', 'text/csv');

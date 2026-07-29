@@ -353,7 +353,8 @@ export const exportPurchaseReceives = async (req: Request, res: Response): Promi
         CGST: item.cgst || 0,
         SGST: item.sgst || 0,
         IGST: item.igst || 0,
-        TotalAmount: item.totalAmount || 0
+        TotalAmount: item.totalAmount || 0,
+        BillingFrom: r.billingFrom || ''
       })) : [{
         PurchaseInvoiceNumber: r.purchaseReceiveNumber,
         PurchaseOrderNumber: r.purchaseOrderNumber || '',
@@ -362,7 +363,8 @@ export const exportPurchaseReceives = async (req: Request, res: Response): Promi
         Status: r.status,
         DINo: r.diNo || '',
         Billed: r.billed ? 'Yes' : 'No',
-        ItemName: '', TempCode: '', POQuantity: '', InvoiceQuantity: '', Rate: '', Amount: '', CGST: '', SGST: '', IGST: '', TotalAmount: ''
+        ItemName: '', TempCode: '', POQuantity: '', InvoiceQuantity: '', Rate: '', Amount: '', CGST: '', SGST: '', IGST: '', TotalAmount: '',
+        BillingFrom: r.billingFrom || ''
       }]
     );
 

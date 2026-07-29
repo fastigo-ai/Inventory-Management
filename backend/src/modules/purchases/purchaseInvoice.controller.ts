@@ -2,11 +2,10 @@ import { Request, Response } from 'express';
 import { PurchaseInvoice } from './purchaseInvoice.schema';
 import { parseAndSanitizeCsv } from '../../utils/csv.util';
 import { parse } from 'csv-parse/sync';
+import { stringify } from 'csv-stringify/sync';
 import { PurchaseOrder } from './purchaseOrder.schema';
 import { StoreInwardEntry } from '../store/storeInwardEntry.schema';
 import mongoose from 'mongoose';
-import { SummaryService } from '../reports/summary/summary.service';
-
 export const createPurchaseInvoice = async (req: Request, res: Response) => {
   try {
     const data = req.body;
@@ -487,6 +486,53 @@ export const importPurchaseInvoices = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: 'Failed to import Purchase Invoices',
+      error: error.message,
+    });
+  }
+};
+
+export const exportPurchaseInvoices = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const invoices = await PurchaseInvoice.find().sort({ createdAt: -1 }).lean();
+
+    const csvData = invoices.flatMap(inv => 
+      inv.lineItems && inv.lineItems.length > 0 ? inv.lineItems.map((item: any) => ({
+        InvoiceNumber: inv.invoiceNumber,
+        PurchaseOrderNumber: inv.purchaseOrderNumber || '',
+        Date: inv.date ? new Date(inv.date).toISOString().split('T')[0] : '',
+        DueDate: inv.dueDate ? new Date(inv.dueDate).toISOString().split('T')[0] : '',
+        VendorName: inv.vendorName,
+        Status: inv.status,
+        BillingFrom: inv.billingCompany?.name || '',
+        ItemName: item.itemName,
+        Description: item.description || '',
+        HSNCode: item.hsnCode || '',
+        Quantity: item.quantity || 0,
+        Rate: item.rate || 0,
+        Amount: item.amount || 0,
+        Total: inv.total || 0,
+        BalanceDue: inv.balanceDue || 0
+      })) : [{
+        InvoiceNumber: inv.invoiceNumber,
+        PurchaseOrderNumber: inv.purchaseOrderNumber || '',
+        Date: inv.date ? new Date(inv.date).toISOString().split('T')[0] : '',
+        DueDate: inv.dueDate ? new Date(inv.dueDate).toISOString().split('T')[0] : '',
+        VendorName: inv.vendorName,
+        Status: inv.status,
+        BillingFrom: inv.billingCompany?.name || '',
+        ItemName: '', Description: '', HSNCode: '', Quantity: '', Rate: '', Amount: '', Total: '', BalanceDue: ''
+      }]
+    );
+
+    const csvString = stringify(csvData, { header: true });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=purchase_invoices_export.csv');
+    res.status(200).send(csvString);
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to export Purchase Invoices',
       error: error.message,
     });
   }

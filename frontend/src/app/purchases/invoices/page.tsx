@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { ChevronDown, RefreshCw, Plus, MoreHorizontal, Upload } from 'lucide-react';
+import { ChevronDown, RefreshCw, Plus, MoreHorizontal, Upload, Download, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { getPurchaseInvoices } from '@/features/purchases/api/purchases.api';
+import { getPurchaseInvoices, exportPurchaseInvoicesToCsv } from '@/features/purchases/api/purchases.api';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PurchaseInvoiceImportModal } from '@/features/purchases/components/PurchaseInvoiceImportModal';
 
@@ -12,7 +12,19 @@ export default function PurchaseInvoicesPage() {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const router = useRouter();
+
+  const handleExport = async () => {
+    try {
+      setIsExporting(true);
+      await exportPurchaseInvoicesToCsv();
+    } catch (error) {
+      console.error("Export failed", error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const fetchInvoices = async () => {
     try {
@@ -73,7 +85,8 @@ export default function PurchaseInvoicesPage() {
                 <Upload className="w-4 h-4 mr-2 text-slate-500" />
                 Import Purchase Invoices
               </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer">
+              <DropdownMenuItem onClick={handleExport} className="cursor-pointer" disabled={isExporting}>
+                {isExporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin text-slate-500" /> : <Download className="w-4 h-4 mr-2 text-slate-500" />}
                 Export Invoices
               </DropdownMenuItem>
             </DropdownMenuContent>

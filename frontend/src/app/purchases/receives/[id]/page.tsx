@@ -398,7 +398,16 @@ export default function PurchaseReceiveDetailPage() {
                         return (
                           <tr key={idx} className="h-10">
                             <td className="border-x border-black p-2 text-center align-top">{idx + 1}</td>
-                            <td className="border-x border-black p-2 text-left font-semibold align-top">{item.itemName}</td>
+                            <td className="border-x border-black p-2 text-left font-semibold align-top">
+                              <div>{item.itemName}</div>
+                              {(item.package || item.circle) && (
+                                <div className="text-[10px] font-normal text-slate-600 mt-1">
+                                  {item.circle && <span>Circle: {item.circle}</span>}
+                                  {item.circle && item.package && <span> | </span>}
+                                  {item.package && <span>Package: {item.package}</span>}
+                                </div>
+                              )}
+                            </td>
                             <td className="border-x border-black p-2 text-center align-top">{item.hsnCode || '-'}</td>
                             <td className="border-x border-black p-2 text-center align-top">{qty} {item.unit || 'NOS'}</td>
                             <td className="border-x border-black p-2 text-center align-top">{item.srt || 0}</td>

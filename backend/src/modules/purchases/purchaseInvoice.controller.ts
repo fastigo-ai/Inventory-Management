@@ -6,6 +6,8 @@ import { stringify } from 'csv-stringify/sync';
 import { PurchaseOrder } from './purchaseOrder.schema';
 import { StoreInwardEntry } from '../store/storeInwardEntry.schema';
 import mongoose from 'mongoose';
+import { SummaryService } from '../reports/summary/summary.service';
+
 export const createPurchaseInvoice = async (req: Request, res: Response) => {
   try {
     const data = req.body;
@@ -90,6 +92,12 @@ export const createPurchaseInvoice = async (req: Request, res: Response) => {
         packingList: [{ packType: 'BOX', quantity: item.quantity }] // default packing
       }));
       await StoreInwardEntry.insertMany(inwardEntries);
+    }
+
+    if (newInvoice.lineItems && newInvoice.lineItems.length > 0) {
+      for (const item of newInvoice.lineItems) {
+        if (item.itemId) SummaryService.rebuildForItem(item.itemId.toString()).catch(console.error);
+      }
     }
 
     res.status(201).json({
@@ -261,6 +269,14 @@ export const updatePurchaseInvoice = async (req: Request, res: Response) => {
         await updatedInvoice.save();
     }
 
+    const oldItemIds = existingInvoice.lineItems?.map((li: any) => li.itemId?.toString()).filter(Boolean) || [];
+    const newItemIds = updatedInvoice?.lineItems?.map((li: any) => li.itemId?.toString()).filter(Boolean) || [];
+    const allAffectedItemIds = Array.from(new Set([...oldItemIds, ...newItemIds]));
+    
+    for (const itemId of allAffectedItemIds) {
+      if (itemId) SummaryService.rebuildForItem(itemId).catch(console.error);
+    }
+
     res.status(200).json({
       success: true,
       data: updatedInvoice,
@@ -289,6 +305,12 @@ export const deletePurchaseInvoice = async (req: Request, res: Response) => {
     
     if (!deletedInvoice) {
       return res.status(404).json({ success: false, message: 'Purchase Invoice not found' });
+    }
+
+    if (deletedInvoice.lineItems && deletedInvoice.lineItems.length > 0) {
+      for (const item of deletedInvoice.lineItems) {
+        if (item.itemId) SummaryService.rebuildForItem(item.itemId.toString()).catch(console.error);
+      }
     }
 
     res.status(200).json({
@@ -467,8 +489,14 @@ export const importPurchaseInvoices = async (req: Request, res: Response) => {
         piData.total = subTotal + totalTax;
         piData.balanceDue = piData.total;
 
-        await PurchaseInvoice.create(piData);
+        const createdInvoice = await PurchaseInvoice.create(piData);
         successCount++;
+
+        if (createdInvoice.lineItems && createdInvoice.lineItems.length > 0) {
+          for (const item of createdInvoice.lineItems) {
+            if (item.itemId) SummaryService.rebuildForItem(item.itemId.toString()).catch(console.error);
+          }
+        }
       } catch (err: any) {
         errors.push(`Failed to import Invoice ${piData.invoiceNumber}: ${err.message}`);
       }

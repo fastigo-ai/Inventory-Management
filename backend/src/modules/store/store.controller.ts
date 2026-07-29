@@ -14,6 +14,7 @@ import { ContractorReturn } from '../contractors/contractorReturn.schema';
 import { StoreTransfer } from './storeTransfer.schema';
 import { Mhrov } from './mhrov.schema';
 import cloudinary from '../../core/utils/cloudinary';
+import { SummaryService } from '../reports/summary/summary.service';
 
 export const getPendingDIs = asyncHandler(async (req: Request, res: Response) => {
   const user = (req as any).user;
@@ -891,6 +892,9 @@ async function processInwardStockUpdate(entryId: string) {
         };
         item.markModified('dynamicData');
         await item.save();
+        
+        // Rebuild ItemSummary as item quantity was updated
+        SummaryService.rebuildForItem(item._id.toString()).catch(console.error);
       }
       if (entry.purchaseInvoiceId) {
         const invoice = await PurchaseInvoice.findById(entry.purchaseInvoiceId);
@@ -955,6 +959,9 @@ async function processInwardStockUpdate(entryId: string) {
               };
               item.markModified('dynamicData');
               await item.save();
+              
+              // Rebuild ItemSummary as item quantity was updated
+              SummaryService.rebuildForItem(item._id.toString()).catch(console.error);
             }
           }
         }

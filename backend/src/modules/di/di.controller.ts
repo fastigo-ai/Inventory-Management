@@ -199,10 +199,16 @@ export const updateDI = asyncHandler(async (req: Request, res: Response) => {
   const hasPr = await Pr.exists({ diNo: existingDI.diNumber });
   const isLocked = existingDI.status === 'Received' || !!hasPr;
 
+  // Get unique item ids from before and after update
+  const oldItemIds = existingDI.lineItems.map((li: any) => li.itemId?.toString()).filter(Boolean);
+  const newItemIds = parsedLineItems.map((li: any) => li.itemId?.toString()).filter(Boolean);
+  const allAffectedItemIds = Array.from(new Set([...oldItemIds, ...newItemIds]));
+
   if (isLocked) {
     // If locked, we ONLY allow updating notes or attachments (already processed above)
     if (data.notes !== undefined) existingDI.notes = data.notes;
     // Disallow line items, status changes, etc.
+  } else {
     // Not locked, allow full update
     if (data.status) existingDI.status = data.status;
     if (data.notes !== undefined) existingDI.notes = data.notes;
@@ -213,6 +219,10 @@ export const updateDI = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const updatedDI = await existingDI.save();
+
+  for (const id of allAffectedItemIds) {
+    SummaryService.rebuildForItem(id).catch(console.error);
+  }
 
   res.status(200).json(
     new ApiResponse(200, updatedDI, 'DI Updated Successfully')
@@ -292,8 +302,12 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
         }
         delete diData._poNumber;
 
-        await DI.create(diData);
+        const createdDI = await DI.create(diData);
         successCount++;
+        
+        for (const line of createdDI.lineItems) {
+          if (line.itemId) SummaryService.rebuildForItem(line.itemId.toString()).catch(console.error);
+        }
       } catch (err: any) {
         errors.push(`Failed to import DI ${diData.diNumber}: ${err.message}`);
       }
@@ -329,7 +343,12 @@ export const deleteDI = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(400, 'Cannot delete this DI because it has already been Received or Invoiced.');
   }
 
+  const itemIds = di.lineItems.map((li: any) => li.itemId?.toString()).filter(Boolean);
   await DI.findByIdAndDelete(id);
+
+  for (const itemId of itemIds) {
+    if (itemId) SummaryService.rebuildForItem(itemId).catch(console.error);
+  }
 
   res.status(200).json(
     new ApiResponse(200, null, 'DI deleted successfully')

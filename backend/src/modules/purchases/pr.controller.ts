@@ -53,6 +53,11 @@ export const createPurchaseReceive = async (req: Request, res: Response): Promis
         packingList: [{ packType: 'BOX', quantity: item.invoiceQuantity || 0 }] // default packing
       }));
       await StoreInwardEntry.insertMany(inwardEntries);
+
+      // Rebuild summary for all items
+      for (const item of newPr.lineItems) {
+        if (item.itemId) SummaryService.rebuildForItem(item.itemId.toString()).catch(console.error);
+      }
     }
 
     res.status(201).json({
@@ -268,6 +273,15 @@ export const updatePurchaseReceive = async (req: Request, res: Response): Promis
       await StoreInwardEntry.insertMany(inwardEntries);
     }
 
+    // Rebuild summary for old and new items
+    const oldItemIds = updatedPr?.lineItems?.map((li: any) => li.itemId?.toString()).filter(Boolean) || [];
+    const newItemIds = updateData.lineItems?.map((li: any) => li.itemId?.toString()).filter(Boolean) || [];
+    const allAffectedItemIds = Array.from(new Set([...oldItemIds, ...newItemIds]));
+    
+    for (const itemId of allAffectedItemIds) {
+      if (itemId) SummaryService.rebuildForItem(itemId).catch(console.error);
+    }
+
     res.status(200).json({
       success: true,
       message: 'Purchase Invoice updated successfully',
@@ -316,6 +330,13 @@ export const deletePurchaseReceive = async (req: Request, res: Response): Promis
       purchaseInvoiceId: id,
       status: { $in: ['PENDING_RECEIPT', 'DRAFT'] }
     });
+
+    // Rebuild summary for deleted items
+    if (deletedPr.lineItems && deletedPr.lineItems.length > 0) {
+      for (const item of deletedPr.lineItems) {
+        if (item.itemId) SummaryService.rebuildForItem(item.itemId.toString()).catch(console.error);
+      }
+    }
 
     res.status(200).json({
       success: true,
@@ -458,8 +479,15 @@ export const importPurchaseReceives = async (req: Request, res: Response): Promi
           }
         }
 
-        await Pr.create(prData);
+        const createdPr = await Pr.create(prData);
         successCount++;
+
+        // Rebuild summary for imported items
+        if (createdPr.lineItems && createdPr.lineItems.length > 0) {
+          for (const item of createdPr.lineItems) {
+            if (item.itemId) SummaryService.rebuildForItem(item.itemId.toString()).catch(console.error);
+          }
+        }
       } catch (err: any) {
         errors.push(`Failed to import Invoice ${prData.purchaseReceiveNumber}: ${err.message}`);
       }

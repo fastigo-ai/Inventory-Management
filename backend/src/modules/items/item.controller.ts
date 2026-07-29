@@ -6,6 +6,7 @@ import { parse } from 'csv-parse';
 import { stringify } from 'csv-stringify/sync';
 import Item from './item.model';
 import Metadata from '../metadata/metadata.model';
+import { SummaryService } from '../reports/summary/summary.service';
 import { PurchaseOrder } from '../purchases/purchaseOrder.schema';
 import { DI } from '../di/di.schema';
 import { asyncHandler } from '../../core/utils/asyncHandler';
@@ -61,6 +62,8 @@ export const createItem = asyncHandler(async (req: Request, res: Response) => {
     history: [{ action: 'Created', performedBy }]
   });
 
+  SummaryService.rebuildForItem(item._id.toString()).catch(console.error);
+
   res.status(201).json(new ApiResponse(201, item, 'Item created successfully'));
 });
 
@@ -104,6 +107,8 @@ export const updateItem = asyncHandler(async (req: Request, res: Response) => {
   item.history.push({ action: 'Updated', performedBy, date: new Date() });
   item.markModified('dynamicData');
   await item.save();
+
+  SummaryService.rebuildForItem(item._id.toString()).catch(console.error);
 
   res.status(200).json(new ApiResponse(200, item, 'Item updated successfully'));
 });
@@ -231,6 +236,10 @@ export const bulkDeleteItems = asyncHandler(async (req: Request, res: Response) 
     }
   );
   
+  for (const id of ids) {
+    SummaryService.rebuildForItem(id.toString()).catch(console.error);
+  }
+
   res.status(200).json(new ApiResponse(200, { deletedCount: result.modifiedCount }, 'Items deleted successfully'));
 });
 
@@ -454,6 +463,20 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
 
   if (bulkOps.length > 0) {
     await Item.bulkWrite(bulkOps);
+
+    // After bulk write, rebuild summary for all affected items by their SKUs
+    if (uniqueFields.length > 0 && validItems.length > 0) {
+      const skus = validItems.map(item => item.dynamicData.sku).filter(Boolean);
+      if (skus.length > 0) {
+        const affectedItems = await Item.find({ 'dynamicData.sku': { $in: skus } }).select('_id').lean();
+        for (const affected of affectedItems) {
+          SummaryService.rebuildForItem(affected._id.toString()).catch(console.error);
+        }
+      }
+    } else {
+      // If no unique fields, it's harder to track. We could fetch recently created items.
+      // But typically SKU is unique. We'll skip for now if no unique fields.
+    }
   }
 
   res.status(200).json(new ApiResponse(200, { successCount: validItems.length }, 'Import processed successfully (updated or added items).'));

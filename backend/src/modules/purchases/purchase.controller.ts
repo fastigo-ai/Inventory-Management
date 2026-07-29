@@ -6,6 +6,8 @@ import { parseAndSanitizeCsv } from '../../utils/csv.util';
 import { parse } from 'csv-parse';
 import { stringify } from 'csv-stringify/sync';
 
+import { SummaryService } from '../reports/summary/summary.service';
+
 export const createPurchaseOrder = async (req: Request, res: Response) => {
   try {
     const data = req.body;
@@ -114,6 +116,12 @@ export const createPurchaseOrder = async (req: Request, res: Response) => {
     });
 
     await newPurchaseOrder.save();
+
+    if (newPurchaseOrder.lineItems && newPurchaseOrder.lineItems.length > 0) {
+      for (const item of newPurchaseOrder.lineItems) {
+        if (item.itemId) SummaryService.rebuildForItem(item.itemId.toString()).catch(console.error);
+      }
+    }
 
     res.status(201).json({
       success: true,
@@ -371,6 +379,15 @@ export const updatePurchaseOrder = async (req: Request, res: Response) => {
     
     try {
       const updatedOrder = await PurchaseOrder.findByIdAndUpdate(id, updatedData, { new: true });
+      
+      const oldItemIds = existingOrder.lineItems?.map((li: any) => li.itemId?.toString()).filter(Boolean) || [];
+      const newItemIds = updatedOrder?.lineItems?.map((li: any) => li.itemId?.toString()).filter(Boolean) || [];
+      const allAffectedItemIds = Array.from(new Set([...oldItemIds, ...newItemIds]));
+      
+      for (const itemId of allAffectedItemIds) {
+        if (itemId) SummaryService.rebuildForItem(itemId).catch(console.error);
+      }
+
       return res.status(200).json({ success: true, message: 'Purchase Order updated successfully', data: updatedOrder });
     } catch (dbError: any) {
       console.error('Database Error in updatePurchaseOrder:', dbError);
@@ -418,6 +435,12 @@ export const deletePurchaseOrder = async (req: Request, res: Response) => {
     
     if (!deletedOrder) {
       return res.status(404).json({ success: false, message: 'Purchase Order not found' });
+    }
+
+    if (deletedOrder.lineItems && deletedOrder.lineItems.length > 0) {
+      for (const item of deletedOrder.lineItems) {
+        if (item.itemId) SummaryService.rebuildForItem(item.itemId.toString()).catch(console.error);
+      }
     }
 
     res.status(200).json({
@@ -624,8 +647,14 @@ export const importPurchaseOrders = async (req: Request, res: Response) => {
            errors.push(`PO ${orderData.purchaseOrderNumber} already exists.`);
            continue;
          }
-         await PurchaseOrder.create(orderData);
+         const createdOrder = await PurchaseOrder.create(orderData);
          successCount++;
+         
+         if (createdOrder.lineItems && createdOrder.lineItems.length > 0) {
+           for (const item of createdOrder.lineItems) {
+             if (item.itemId) SummaryService.rebuildForItem(item.itemId.toString()).catch(console.error);
+           }
+         }
        } catch (err: any) {
          errors.push(`Failed to import PO ${orderData.purchaseOrderNumber}: ${err.message}`);
        }

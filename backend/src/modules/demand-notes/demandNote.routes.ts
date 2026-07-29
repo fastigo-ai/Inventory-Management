@@ -7,19 +7,18 @@ import {
   deleteDemandNote,
   getContextData
 } from './demandNote.controller';
-import { requireAuth } from '../../core/middlewares/requireAuth';
-import { requirePermission } from '../../core/middlewares/requirePermission';
+import { authenticate, authorize } from '../../core/middlewares/auth.middleware';
 
 const router = express.Router();
 
-router.use(requireAuth);
+router.use(authenticate);
 
-router.get('/context', requirePermission('Site Portal'), getContextData);
+router.get('/context', authorize(['Site Portal']), getContextData);
 
-router.post('/', requirePermission('Site Portal'), createDemandNote);
-router.get('/', requirePermission('Site Portal'), getDemandNotes);
-router.get('/:id', requirePermission('Site Portal'), getDemandNoteById);
-router.put('/:id', requirePermission('Site Portal'), updateDemandNote);
-router.delete('/:id', requirePermission('Site Portal'), deleteDemandNote);
+router.post('/', authorize(['Site Portal']), createDemandNote);
+router.get('/', authorize(['Site Portal']), getDemandNotes);
+router.get('/:id', authorize(['Site Portal']), getDemandNoteById);
+router.put('/:id', authorize(['Site Portal']), updateDemandNote);
+router.delete('/:id', authorize(['Site Portal']), deleteDemandNote);
 
 export default router;

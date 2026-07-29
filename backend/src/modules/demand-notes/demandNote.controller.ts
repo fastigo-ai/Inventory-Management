@@ -1,7 +1,7 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
+import { AuthRequest } from '../../core/middlewares/auth.middleware';
 import DemandNote from './demandNote.schema';
-import Item from '../items/item.schema';
-import StoreInwardEntry from '../store/store.schema'; // To get stock bal or issued qty if needed
+import Item from '../items/item.model';
 import { asyncHandler } from '../../core/utils/asyncHandler';
 import { ApiError } from '../../core/utils/ApiError';
 import { ApiResponse } from '../../core/utils/ApiResponse';
@@ -28,7 +28,7 @@ const generateNextDemandNoteNumber = async () => {
   return `${prefix}${sequence.toString().padStart(4, '0')}`;
 };
 
-export const createDemandNote = asyncHandler(async (req: Request, res: Response) => {
+export const createDemandNote = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = req.user as any;
   if (!user.assignedPackage || !user.assignedCircle) {
     throw new ApiError(400, 'User is not assigned to a specific Package and Circle.');
@@ -48,7 +48,7 @@ export const createDemandNote = asyncHandler(async (req: Request, res: Response)
 });
 
 // Endpoint to fetch real-time constraints for a specific item in the context of the user's package and circle
-export const getContextData = asyncHandler(async (req: Request, res: Response) => {
+export const getContextData = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = req.user as any;
   const { itemId } = req.query;
 
@@ -96,7 +96,7 @@ export const getContextData = asyncHandler(async (req: Request, res: Response) =
   }, 'Context data fetched'));
 });
 
-export const getDemandNotes = asyncHandler(async (req: Request, res: Response) => {
+export const getDemandNotes = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = req.user as any;
   const filter: any = {};
 
@@ -113,7 +113,7 @@ export const getDemandNotes = asyncHandler(async (req: Request, res: Response) =
   res.status(200).json(new ApiResponse(200, { demandNotes }, 'Demand Notes fetched'));
 });
 
-export const getDemandNoteById = asyncHandler(async (req: Request, res: Response) => {
+export const getDemandNoteById = asyncHandler(async (req: AuthRequest, res: Response) => {
   const demandNote = await DemandNote.findById(req.params.id)
     .populate('createdBy', 'firstName lastName email');
     
@@ -123,7 +123,7 @@ export const getDemandNoteById = asyncHandler(async (req: Request, res: Response
   res.status(200).json(new ApiResponse(200, { demandNote }, 'Demand Note fetched'));
 });
 
-export const updateDemandNote = asyncHandler(async (req: Request, res: Response) => {
+export const updateDemandNote = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = req.user as any;
   
   // Site managers can only edit if Draft or Pending Approval
@@ -145,7 +145,7 @@ export const updateDemandNote = asyncHandler(async (req: Request, res: Response)
   res.status(200).json(new ApiResponse(200, { demandNote }, 'Demand Note updated successfully'));
 });
 
-export const deleteDemandNote = asyncHandler(async (req: Request, res: Response) => {
+export const deleteDemandNote = asyncHandler(async (req: AuthRequest, res: Response) => {
   const existing = await DemandNote.findById(req.params.id);
   if (!existing) throw new ApiError(404, 'Demand Note not found');
 

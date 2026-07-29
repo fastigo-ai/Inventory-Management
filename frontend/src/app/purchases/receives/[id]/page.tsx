@@ -165,9 +165,9 @@ export default function PurchaseReceiveDetailPage() {
   const handleApproveReceipt = async () => {
     if (window.confirm('Are you sure you want to approve this Invoice and receive items into inventory?')) {
       try {
-        const { updatePurchaseInvoiceReceiptStatus } = await import('@/features/purchases/api/purchases.api');
-        await updatePurchaseInvoiceReceiptStatus(id, 'Received');
-        setInvoice({ ...invoice, receiptStatus: 'Received' });
+        const { updatePurchaseReceive } = await import('@/features/purchases/api/purchases.api');
+        await updatePurchaseReceive(id, { status: 'Received' });
+        setInvoice({ ...invoice, status: 'Received' });
       } catch (error) {
         console.error('Failed to update receipt status:', error);
         alert('Failed to update receipt status');
@@ -228,11 +228,7 @@ export default function PurchaseReceiveDetailPage() {
               {getStatusIcon(invoice.status)}
               {invoice.status.toUpperCase()}
             </span>
-            {invoice.receiptStatus === 'Received' && (
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-md border bg-green-100 text-green-700 border-green-300 ml-2">
-                RECEIVED
-              </span>
-            )}
+
           </div>
           <div className="flex space-x-1 bg-slate-100 p-1 rounded-lg shrink-0">
             <button
@@ -251,7 +247,7 @@ export default function PurchaseReceiveDetailPage() {
         </div>
         
         <div className="flex flex-wrap items-center gap-2">
-          {(!invoice.receiptStatus || invoice.receiptStatus === 'Pending Receipt') ? (
+          {(!invoice.status || invoice.status !== 'Received') ? (
             <Button onClick={handleApproveReceipt} className="h-9 bg-green-600 hover:bg-green-700 text-white">
               <CheckCircle2 className="w-4 h-4 mr-2" /> Approve Receipt
             </Button>

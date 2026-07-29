@@ -25,7 +25,9 @@ export default function UsersPage() {
     lastName: '',
     email: '',
     password: '',
-    roleId: ''
+    roleId: '',
+    assignedPackage: '',
+    assignedCircle: ''
   });
 
   useEffect(() => {
@@ -48,7 +50,7 @@ export default function UsersPage() {
   };
 
   const openCreateModal = () => {
-    setFormData({ firstName: '', lastName: '', email: '', password: '', roleId: roles[0]?._id || '' });
+    setFormData({ firstName: '', lastName: '', email: '', password: '', roleId: roles[0]?._id || '', assignedPackage: '', assignedCircle: '' });
     setIsCreateModalOpen(true);
   };
 
@@ -129,6 +131,7 @@ export default function UsersPage() {
                 <th className="px-6 py-4">Name</th>
                 <th className="px-6 py-4">Email</th>
                 <th className="px-6 py-4">Role</th>
+                <th className="px-6 py-4">Location/Package</th>
                 <th className="px-6 py-4">Created At</th>
                 <th className="px-6 py-4 text-center">Action</th>
               </tr>
@@ -147,6 +150,10 @@ export default function UsersPage() {
                       <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
                         {user.role?.name || 'No Role'}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 text-slate-500 text-xs">
+                      {user.assignedCircle ? `${user.assignedCircle} / ` : ''}
+                      {user.assignedPackage || '-'}
                     </td>
                     <td className="px-6 py-4 text-slate-500">{new Date(user.createdAt).toLocaleDateString()}</td>
                     <td className="px-6 py-4 text-center">
@@ -217,6 +224,24 @@ export default function UsersPage() {
                   <option key={role._id} value={role._id}>{role.name}</option>
                 ))}
               </select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1">Package (Optional)</label>
+                <Input
+                  value={formData.assignedPackage}
+                  placeholder="e.g. Package 1 (S/N)"
+                  onChange={e => setFormData({ ...formData, assignedPackage: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1">Circle (Optional)</label>
+                <Input
+                  value={formData.assignedCircle}
+                  placeholder="e.g. Nahan"
+                  onChange={e => setFormData({ ...formData, assignedCircle: e.target.value })}
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>

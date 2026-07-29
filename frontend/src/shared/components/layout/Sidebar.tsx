@@ -117,6 +117,13 @@ const navItems: NavItem[] = [
     children: [
       { title: 'Contractors', href: '/ho-billing/contractors' }
     ]
+  },
+  {
+    title: 'Site Portal',
+    icon: <Layers className="w-5 h-5" />,
+    children: [
+      { title: 'Demand Notes', href: '/site-portal/demand-notes' }
+    ]
   }
 ];
 

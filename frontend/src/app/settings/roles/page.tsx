@@ -15,6 +15,8 @@ const MODULES = [
   'Documents',
   'Store Portal',
   'HO Billing Portal',
+  'Site Portal',
+  'Site Management',
   'Settings',
   'roles:manage',
   'users:manage'

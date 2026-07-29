@@ -21,6 +21,7 @@ import storeRoutes from './modules/store/store.routes';
 import dashboardRoutes from './modules/dashboard/dashboard.routes';
 import reportRoutes from './modules/reports/summary/summary.routes';
 import integrationRoutes from './modules/integrations/integrations.routes';
+import demandNoteRoutes from './modules/demand-notes/demandNote.routes';
 import { errorHandler } from './core/middlewares/error.middleware';
 
 import { contextMiddleware } from './core/middlewares/context.middleware';
@@ -83,6 +84,7 @@ apiRouter.use('/store', storeRoutes);
 apiRouter.use('/dashboard', dashboardRoutes);
 apiRouter.use('/reports', reportRoutes);
 apiRouter.use('/integrations', integrationRoutes);
+apiRouter.use('/demand-notes', demandNoteRoutes);
 
 // Mount API routes on both / and /api to handle DigitalOcean path stripping
 app.use('/', apiRouter);

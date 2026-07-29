@@ -184,25 +184,25 @@ export default function ItemSplitViewPage({ params }: { params: Promise<{ id: st
       {/* Right Content - Detail View */}
       <div className="flex-1 bg-white flex flex-col overflow-hidden">
         {/* Detail Header */}
-        <div className="h-14 border-b border-slate-200 flex items-center justify-between px-6 shrink-0">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-semibold text-slate-900 flex items-center space-x-3">
-              <span>{selectedItem.dynamicData[nameField] || 'Unnamed Item'}</span>
+        <div className="h-14 border-b border-slate-200 flex items-center justify-between px-6 shrink-0 gap-4">
+          <div className="flex items-center min-w-0 flex-1">
+            <h1 className="text-xl font-semibold text-slate-900 flex items-center space-x-3 min-w-0">
+              <span className="truncate" title={selectedItem.dynamicData[nameField]}>{selectedItem.dynamicData[nameField] || 'Unnamed Item'}</span>
               
               {selectedItem.dynamicData.stock !== undefined && (
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
                   Total Qty: {selectedItem.dynamicData.stock}
                 </span>
               )}
 
               {selectedItem.isDeleted && (
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-200">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-200 shrink-0">
                   Deleted
                 </span>
               )}
             </h1>
           </div>
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 shrink-0">
             <Link href={`/items/${itemId}/edit${searchParams.toString() ? '?' + searchParams.toString() : ''}`}>
               <Button variant="outline" size="sm" className="h-8 border-slate-300 text-slate-600 hover:bg-slate-50">
                 <Edit2 className="w-3.5 h-3.5 mr-2" />

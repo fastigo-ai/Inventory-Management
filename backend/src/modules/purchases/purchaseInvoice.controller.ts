@@ -508,6 +508,7 @@ export const importPurchaseInvoices = async (req: Request, res: Response) => {
 
     let successCount = 0;
     const errors: any[] = [];
+    const globalAffectedItemIds = new Set<string>();
     
     for (const invoiceNumber of invoiceNumbers) {
       const piData = piMap[invoiceNumber];
@@ -582,7 +583,7 @@ export const importPurchaseInvoices = async (req: Request, res: Response) => {
           ]));
 
           for (const itemId of allAffectedItemIds) {
-            SummaryService.rebuildForItem(itemId).catch(console.error);
+            globalAffectedItemIds.add(itemId);
           }
         } else {
           const createdInvoice = await PurchaseInvoice.create(piData);
@@ -590,7 +591,7 @@ export const importPurchaseInvoices = async (req: Request, res: Response) => {
 
           if (createdInvoice.lineItems && createdInvoice.lineItems.length > 0) {
             for (const item of createdInvoice.lineItems) {
-              if (item.itemId) SummaryService.rebuildForItem(item.itemId.toString()).catch(console.error);
+              if (item.itemId) globalAffectedItemIds.add(item.itemId.toString());
             }
           }
         }

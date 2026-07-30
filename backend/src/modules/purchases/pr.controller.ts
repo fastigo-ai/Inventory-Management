@@ -412,10 +412,59 @@ export const importPurchaseReceives = async (req: Request, res: Response): Promi
 
     const parser = parseAndSanitizeCsv(req.file.buffer);
 
-    const prMap: Record<string, any> = {};
+    const rows: any[] = [];
+    const tempCodes = new Set<string>();
+    const loaSerialNos = new Set<string>();
+    const itemNames = new Set<string>();
 
     for await (const r of parser) {
       const row = r as any;
+      rows.push(row);
+      
+      const tempCode = row['Temp Code'] || row['TempCode'] || row['tempCode'];
+      const loaSerialNo = row['LOA Serial No'] || row['LOASerialNo'] || row['loaSerialNo'];
+      const itemName = row['Item Name'] || row['ItemName'] || row['itemName'];
+      
+      if (tempCode) tempCodes.add(tempCode);
+      if (loaSerialNo) loaSerialNos.add(loaSerialNo);
+      if (itemName) itemNames.add(itemName);
+    }
+
+    const orConditions: any[] = [];
+    if (tempCodes.size > 0) orConditions.push({ 'dynamicData.tempCode': { $in: Array.from(tempCodes) } });
+    if (loaSerialNos.size > 0) {
+      const serials = Array.from(loaSerialNos);
+      orConditions.push({ 'dynamicData.loaSerialNo': { $in: serials } });
+      orConditions.push({ 'dynamicData.loaSerialNumber': { $in: serials } });
+      orConditions.push({ 'dynamicData.sku': { $in: serials } });
+    }
+    if (itemNames.size > 0) orConditions.push({ 'dynamicData.name': { $in: Array.from(itemNames) } });
+
+    const existingItems = orConditions.length > 0 ? await Item.find({ $or: orConditions }) : [];
+
+    const findItemInMemory = (tCode?: string, lSerial?: string, name?: string) => {
+      if (tCode) {
+        const found = existingItems.find(i => i.dynamicData?.tempCode === tCode);
+        if (found) return found;
+      }
+      if (lSerial) {
+        const found = existingItems.find(i => 
+          i.dynamicData?.loaSerialNo === lSerial || 
+          i.dynamicData?.loaSerialNumber === lSerial || 
+          i.dynamicData?.sku === lSerial
+        );
+        if (found) return found;
+      }
+      if (name) {
+        const found = existingItems.find(i => i.dynamicData?.name === name);
+        if (found) return found;
+      }
+      return null;
+    };
+
+    const prMap: Record<string, any> = {};
+
+    for (const row of rows) {
       const prNumber = row['PurchaseInvoiceNumber'] || row['PurchaseReceiveNumber'] || row['purchaseReceiveNumber'];
       if (!prNumber) continue;
 
@@ -433,12 +482,19 @@ export const importPurchaseReceives = async (req: Request, res: Response): Promi
       }
 
       const itemName = row['Item Name'] || row['ItemName'] || row['itemName'];
+      const tempCode = row['Temp Code'] || row['TempCode'] || row['tempCode'] || '';
+      const loaSerialNo = row['LOA Serial No'] || row['LOASerialNo'] || row['loaSerialNo'] || '';
+
       if (itemName) {
+        const item = findItemInMemory(tempCode, loaSerialNo, itemName);
+        const itemId = item ? item._id : null;
+
         prMap[prNumber].lineItems.push({
+          itemId,
           itemName,
           itemDescription: row['Description'] || row['description'] || '',
-          loaSerialNo: row['LOA Serial No'] || row['LOASerialNo'] || row['loaSerialNo'] || '',
-          tempCode: row['Temp Code'] || row['TempCode'] || row['tempCode'] || '',
+          loaSerialNo,
+          tempCode,
           package: row['Package'] || row['package'] || '',
           circle: row['Circle'] || row['circle'] || '',
           hsnCode: row['HSN Code'] || row['HSNCode'] || row['hsnCode'] || '',
@@ -460,20 +516,29 @@ export const importPurchaseReceives = async (req: Request, res: Response): Promi
       }
     }
 
+    const prNumbers = Object.keys(prMap);
+    const poNumbers = Array.from(new Set(prNumbers.map(n => prMap[n].purchaseOrderNumber).filter(Boolean)));
+
+    const [existingPRs, existingPOs] = await Promise.all([
+      Pr.find({ purchaseReceiveNumber: { $in: prNumbers } }),
+      poNumbers.length > 0 ? PurchaseOrder.find({ purchaseOrderNumber: { $in: poNumbers } }) : []
+    ]);
+
     let successCount = 0;
     const errors: any[] = [];
+    const globalAffectedItemIds = new Set<string>();
     
-    for (const prNumber of Object.keys(prMap)) {
+    for (const prNumber of prNumbers) {
       const prData = prMap[prNumber];
       try {
-        const existing = await Pr.findOne({ purchaseReceiveNumber: prData.purchaseReceiveNumber });
+        const existing = existingPRs.find(p => p.purchaseReceiveNumber === prData.purchaseReceiveNumber);
         if (existing) {
           errors.push(`Purchase Invoice ${prData.purchaseReceiveNumber} already exists.`);
           continue;
         }
 
         if (prData.purchaseOrderNumber) {
-          const po = await PurchaseOrder.findOne({ purchaseOrderNumber: prData.purchaseOrderNumber });
+          const po = existingPOs.find(p => p.purchaseOrderNumber === prData.purchaseOrderNumber);
           if (po) {
             prData.purchaseOrderId = po._id;
           }
@@ -482,10 +547,10 @@ export const importPurchaseReceives = async (req: Request, res: Response): Promi
         const createdPr = await Pr.create(prData);
         successCount++;
 
-        // Rebuild summary for imported items
+        // Queue rebuild summary for imported items
         if (createdPr.lineItems && createdPr.lineItems.length > 0) {
           for (const item of createdPr.lineItems) {
-            if (item.itemId) SummaryService.rebuildForItem(item.itemId.toString()).catch(console.error);
+            if (item.itemId) globalAffectedItemIds.add(item.itemId.toString());
           }
         }
       } catch (err: any) {
@@ -501,6 +566,17 @@ export const importPurchaseReceives = async (req: Request, res: Response): Promi
         errors
       }
     });
+
+    const uniqueItemIds = Array.from(globalAffectedItemIds);
+    setTimeout(() => {
+      (async () => {
+        for (let i = 0; i < uniqueItemIds.length; i += 10) {
+          const chunk = uniqueItemIds.slice(i, i + 10);
+          await Promise.all(chunk.map(id => SummaryService.rebuildForItem(id).catch(console.error)));
+        }
+      })();
+    }, 500);
+
   } catch (error: any) {
     res.status(500).json({
       success: false,

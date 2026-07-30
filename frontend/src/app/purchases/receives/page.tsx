@@ -57,7 +57,7 @@ export default function PurchaseReceivesPage() {
         <div className="flex items-center">
           <DropdownMenu>
             <DropdownMenuTrigger className="flex items-center space-x-2 text-xl font-semibold text-slate-800 hover:text-slate-600 outline-none cursor-pointer">
-              <span>In Transit</span>
+              <span>Purchase Invoices</span>
               <ChevronDown className="w-5 h-5 text-[#0076f2]" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-48">

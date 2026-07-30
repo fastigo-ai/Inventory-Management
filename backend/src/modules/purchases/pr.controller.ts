@@ -466,7 +466,7 @@ export const importPurchaseReceives = async (req: Request, res: Response): Promi
     const prMap: Record<string, any> = {};
 
     for (const row of rows) {
-      const prNumber = row['PurchaseInvoiceNumber'] || row['PurchaseReceiveNumber'] || row['purchaseReceiveNumber'];
+      const prNumber = row['PurchaseReceiveNumber'] || row['purchaseReceiveNumber'] || row['StoreInwardNumber'] || row['storeInwardNumber'] || row['PrNumber'] || row['prNumber'];
       if (!prNumber) continue;
 
       if (!prMap[prNumber]) {

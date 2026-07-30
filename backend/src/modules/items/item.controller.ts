@@ -231,15 +231,46 @@ export const getItemUsage = asyncHandler(async (req: Request, res: Response) => 
   }
 
   const objectId = new mongoose.Types.ObjectId(id);
+  const item = await Item.findById(objectId);
+  
+  if (!item) {
+    throw new ApiError(404, 'Item not found');
+  }
+
+  const loaSerialNos = [
+    item.dynamicData?.loaSerialNo,
+    item.dynamicData?.loaSerialNumber,
+    item.dynamicData?.sku
+  ].filter(Boolean);
+  
+  const tempCode = item.dynamicData?.tempCode;
+
+  const orConditions: any[] = [
+    { 'lineItems.itemId': objectId }
+  ];
+
+  if (loaSerialNos.length > 0) {
+    orConditions.push({ 'lineItems.loaSerialNo': { $in: loaSerialNos } });
+  }
+  if (tempCode) {
+    orConditions.push({ 'lineItems.tempCode': tempCode });
+  }
+
+  const isMatchingLine = (li: any) => {
+    if (li.itemId && li.itemId.toString() === objectId.toString()) return true;
+    if (li.loaSerialNo && loaSerialNos.includes(li.loaSerialNo)) return true;
+    if (li.tempCode && li.tempCode === tempCode) return true;
+    return false;
+  };
 
   // 1. Purchase Orders
-  const poDocs = await PurchaseOrder.find({ 'lineItems.itemId': objectId })
+  const poDocs = await PurchaseOrder.find({ $or: orConditions })
     .select('_id purchaseOrderNumber date vendorName status lineItems')
     .sort({ date: -1 })
     .lean();
     
   const purchaseOrders = poDocs.map(po => {
-    const matchingLines = po.lineItems.filter((li: any) => li.itemId && li.itemId.toString() === objectId.toString());
+    const matchingLines = po.lineItems.filter(isMatchingLine);
     const totalQty = matchingLines.reduce((sum: number, li: any) => sum + (li.quantity || 0), 0);
     const rate = matchingLines.length > 0 ? matchingLines[0].rate : 0;
     
@@ -255,13 +286,13 @@ export const getItemUsage = asyncHandler(async (req: Request, res: Response) => 
   });
 
   // 2. DI Registrations
-  const diDocs = await DI.find({ 'lineItems.itemId': objectId })
+  const diDocs = await DI.find({ $or: orConditions })
     .select('_id diNumber date status vendorName lineItems')
     .sort({ date: -1 })
     .lean();
 
   const dis = diDocs.map(di => {
-    const matchingLines = di.lineItems.filter((li: any) => li.itemId && li.itemId.toString() === objectId.toString());
+    const matchingLines = di.lineItems.filter(isMatchingLine);
     const totalQty = matchingLines.reduce((sum: number, li: any) => sum + (li.quantity || 0), 0);
     return {
       _id: di._id,
@@ -274,13 +305,13 @@ export const getItemUsage = asyncHandler(async (req: Request, res: Response) => 
   });
 
   // 3. Purchase Invoices
-  const piDocs = await PurchaseInvoice.find({ 'lineItems.itemId': objectId })
+  const piDocs = await PurchaseInvoice.find({ $or: orConditions })
     .select('_id invoiceNumber date vendorName status lineItems')
     .sort({ date: -1 })
     .lean();
     
   const purchaseInvoices = piDocs.map(pi => {
-    const matchingLines = pi.lineItems.filter((li: any) => li.itemId && li.itemId.toString() === objectId.toString());
+    const matchingLines = pi.lineItems.filter(isMatchingLine);
     const totalQty = matchingLines.reduce((sum: number, li: any) => sum + (li.quantity || 0), 0);
     const rate = matchingLines.length > 0 ? matchingLines[0].rate : 0;
     return {
@@ -295,13 +326,13 @@ export const getItemUsage = asyncHandler(async (req: Request, res: Response) => 
   });
 
   // 4. Purchase Receives (Store Inwards)
-  const prDocs = await Pr.find({ 'lineItems.itemId': objectId })
+  const prDocs = await Pr.find({ $or: orConditions })
     .select('_id purchaseReceiveNumber receiveDate vendorName status lineItems')
     .sort({ receiveDate: -1 })
     .lean();
     
   const purchaseReceives = prDocs.map(pr => {
-    const matchingLines = pr.lineItems.filter((li: any) => li.itemId && li.itemId.toString() === objectId.toString());
+    const matchingLines = pr.lineItems.filter(isMatchingLine);
     const invoiceQty = matchingLines.reduce((sum: number, li: any) => sum + (li.invoiceQuantity || 0), 0);
     const actQty = matchingLines.reduce((sum: number, li: any) => sum + (li.act || 0), 0);
     return {
@@ -316,14 +347,14 @@ export const getItemUsage = asyncHandler(async (req: Request, res: Response) => 
   });
 
   // 5. Contractor Assignments (Issues)
-  const assignmentDocs = await ContractorAssignment.find({ 'lineItems.itemId': objectId })
+  const assignmentDocs = await ContractorAssignment.find({ $or: orConditions })
     .populate('contractorId', 'name companyName')
     .select('_id assignmentNumber minNo date status lineItems contractorId')
     .sort({ date: -1 })
     .lean();
     
   const contractorAssignments = assignmentDocs.map((ca: any) => {
-    const matchingLines = ca.lineItems.filter((li: any) => li.itemId && li.itemId.toString() === objectId.toString());
+    const matchingLines = ca.lineItems.filter(isMatchingLine);
     const totalQty = matchingLines.reduce((sum: number, li: any) => sum + (li.quantity || 0), 0);
     const contractorName = ca.contractorId ? (ca.contractorId.companyName || ca.contractorId.name) : 'Unknown Contractor';
     return {

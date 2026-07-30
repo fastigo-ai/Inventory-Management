@@ -62,7 +62,7 @@ const seedMetadata = async () => {
     await Metadata.findOneAndUpdate(
       { entityName: 'Item' },
       { fields: itemFields },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
     console.log('Item Metadata seeded successfully');
 
@@ -104,7 +104,7 @@ const seedMetadata = async () => {
     await Metadata.findOneAndUpdate(
       { entityName: 'Vendor' },
       { fields: vendorFields },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
     console.log('Vendor Metadata seeded successfully');
 
@@ -130,7 +130,7 @@ const seedMetadata = async () => {
     await Metadata.findOneAndUpdate(
       { entityName: 'Contractor' },
       { fields: contractorFields },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
     console.log('Contractor Metadata seeded successfully');
 

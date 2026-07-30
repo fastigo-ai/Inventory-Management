@@ -23,7 +23,7 @@ export const updateMetadata = asyncHandler(async (req: Request, res: Response) =
   const metadata = await Metadata.findOneAndUpdate(
     { entityName },
     { fields },
-    { new: true, upsert: true, runValidators: true }
+    { returnDocument: 'after', upsert: true, runValidators: true }
   );
 
   res.status(200).json(new ApiResponse(200, metadata, 'Metadata updated successfully'));

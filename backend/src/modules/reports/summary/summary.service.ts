@@ -80,7 +80,7 @@ export class SummaryService {
 
     await ItemSummary.findOneAndUpdate(filter, update, {
       upsert: true,
-      new: true,
+      returnDocument: 'after',
       session
     });
   }

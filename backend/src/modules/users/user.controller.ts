@@ -62,3 +62,64 @@ export const updateUserRole = asyncHandler(async (req: Request, res: Response) =
 
   res.status(200).json(new ApiResponse(200, { user }, 'User role updated'));
 });
+
+export const updateUser = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { firstName, lastName, email, password, roleId, assignedPackage, assignedCircle } = req.body;
+
+  const user = await User.findById(id);
+  if (!user) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  if (email && email !== user.email) {
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      throw new ApiError(400, 'User with this email already exists');
+    }
+    user.email = email;
+  }
+
+  if (roleId) {
+    const role = await Role.findById(roleId);
+    if (!role) {
+      throw new ApiError(400, 'Invalid role ID provided');
+    }
+    user.role = role._id;
+  }
+
+  if (firstName) user.firstName = firstName;
+  if (lastName) user.lastName = lastName;
+  
+  // Allow setting package/circle to empty string/null/undefined
+  user.assignedPackage = assignedPackage;
+  user.assignedCircle = assignedCircle;
+
+  if (password) {
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(password, salt);
+    user.sessionVersion = (user.sessionVersion || 0) + 1;
+  }
+
+  await user.save();
+
+  const updatedUser = await User.findById(id).populate('role').select('-password');
+  res.status(200).json(new ApiResponse(200, { user: updatedUser }, 'User updated successfully'));
+});
+
+export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  
+  const authReq = req as any;
+  if (authReq.user && authReq.user._id.toString() === id) {
+    throw new ApiError(400, 'You cannot delete your own account');
+  }
+
+  const user = await User.findByIdAndDelete(id);
+  if (!user) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  res.status(200).json(new ApiResponse(200, null, 'User deleted successfully'));
+});
+

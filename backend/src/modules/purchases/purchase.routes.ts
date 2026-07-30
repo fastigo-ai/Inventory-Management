@@ -11,7 +11,7 @@ const upload = multer({ dest: 'uploads/purchases/' });
 const uploadCsv = multer({ storage: multer.memoryStorage() });
 
 // Apply auth middleware to all purchase routes
-// router.use(authenticate);
+router.use(authenticate);
 
 router.post('/orders/import', uploadCsv.single('file'), importPurchaseOrders);
 router.get('/orders/export', exportPurchaseOrders);
@@ -35,7 +35,7 @@ router.post('/invoices/import', uploadCsv.single('file'), importPurchaseInvoices
 router.get('/invoices/export', exportPurchaseInvoices);
 router.get('/invoices/next-number', getNextPurchaseInvoiceNumber);
 router.post('/invoices', upload.array('files', 10), createPurchaseInvoice);
-router.get('/invoices', authenticate, getPurchaseInvoices);
+router.get('/invoices', getPurchaseInvoices);
 router.get('/invoices/:id', getPurchaseInvoiceById);
 router.put('/invoices/:id/receipt-status', updatePurchaseInvoiceReceiptStatus);
 router.put('/invoices/:id', upload.array('files', 10), updatePurchaseInvoice);

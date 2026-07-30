@@ -614,21 +614,56 @@ export const getVendorTransactions = asyncHandler(async (req: Request, res: Resp
     throw new ApiError(404, 'Vendor not found');
   }
 
-  // Get nameField to determine vendorName (assuming 'name' or 'Vendor Name' or 'companyName')
   const metadata = await Metadata.findOne({ entityName: 'Vendor' });
   const nameField = metadata?.fields.find((f: any) => f.isPrimaryName)?.name || 'name';
-  const vendorName = vendor.dynamicData[nameField];
+  const rawVendorName = vendor.dynamicData[nameField] || 
+                        vendor.dynamicData['Vendor Name'] || 
+                        vendor.dynamicData['Display Name'] || 
+                        vendor.dynamicData.vendorName || 
+                        vendor.dynamicData.name || 
+                        vendor.dynamicData.companyName;
 
-  if (!vendorName) {
+  if (!rawVendorName) {
     return res.status(200).json(new ApiResponse(200, { purchaseOrders: [], purchaseInvoices: [], purchaseReceives: [], dis: [] }, 'No vendor name found to track transactions'));
   }
 
-  const [purchaseOrders, purchaseInvoices, purchaseReceives, dis] = await Promise.all([
-    PurchaseOrder.find({ vendorName }).select('_id purchaseOrderNumber date status total').sort({ date: -1 }).lean(),
-    PurchaseInvoice.find({ vendorName }).select('_id invoiceNumber date status total rate quantity amount').sort({ date: -1 }).lean(),
-    Pr.find({ vendorName }).select('_id purchaseReceiveNumber receiveDate status invoiceQuantity act').sort({ receiveDate: -1 }).lean(),
-    DI.find({ vendorName }).select('_id diNumber date status quantity').sort({ date: -1 }).lean()
+  // Escape special regex characters
+  const escapeRegex = (text: string) => text.replace(/[-[\]{}()*+?.,\\^$|#]/g, '\\$&');
+
+  // Use the first two words to do a case-insensitive "starts with" search
+  // This helps match variations like "Vikram Power" vs "VIKRAM POWER TECHNOLOGIES PVT. LTD."
+  const words = rawVendorName.trim().split(/\s+/);
+  const searchPrefix = words.slice(0, Math.max(1, Math.min(2, words.length))).join(' ');
+  const vendorNameRegex = new RegExp(`^${escapeRegex(searchPrefix)}`, 'i');
+
+  const [purchaseOrders, purchaseInvoices, rawPurchaseReceives, rawDis] = await Promise.all([
+    PurchaseOrder.find({ vendorName: vendorNameRegex }).select('_id purchaseOrderNumber date status total').sort({ date: -1 }).lean(),
+    PurchaseInvoice.find({ vendorName: vendorNameRegex }).select('_id invoiceNumber date status total rate quantity amount').sort({ date: -1 }).lean(),
+    Pr.find({ vendorName: vendorNameRegex }).select('_id purchaseReceiveNumber receiveDate status lineItems').sort({ receiveDate: -1 }).lean(),
+    DI.find({ vendorName: vendorNameRegex }).select('_id diNumber date status lineItems').sort({ date: -1 }).lean()
   ]);
+
+  const purchaseReceives = rawPurchaseReceives.map(pr => {
+    const act = (pr.lineItems || []).reduce((sum: number, item: any) => sum + (item.act || 0), 0);
+    return {
+      _id: pr._id,
+      purchaseReceiveNumber: pr.purchaseReceiveNumber,
+      receiveDate: pr.receiveDate,
+      status: pr.status,
+      act
+    };
+  });
+
+  const dis = rawDis.map(di => {
+    const quantity = (di.lineItems || []).reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
+    return {
+      _id: di._id,
+      diNumber: di.diNumber,
+      date: di.date,
+      status: di.status,
+      quantity
+    };
+  });
 
   res.status(200).json(new ApiResponse(200, {
     purchaseOrders,

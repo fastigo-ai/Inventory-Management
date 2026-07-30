@@ -40,6 +40,13 @@ export default function NewDIRegistrationPage() {
   // Bulk Add Modal & Custom Dropdown States
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [bulkSearchQuery, setBulkSearchQuery] = useState('');
+  const [bulkFilters, setBulkFilters] = useState({
+    sku: '',
+    tempCode: '',
+    name: '',
+    package: '',
+    circle: ''
+  });
   const [selectedBulkItems, setSelectedBulkItems] = useState<string[]>([]);
   const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
   const [openNameDropdownId, setOpenNameDropdownId] = useState<number | null>(null);
@@ -827,11 +834,41 @@ export default function NewDIRegistrationPage() {
                         checked={selectedBulkItems.length === items.length && items.length > 0}
                       />
                     </th>
-                    <th className="px-4 py-2 font-bold text-slate-500">LOA Serial No / SKU</th>
-                    <th className="px-4 py-2 font-bold text-slate-500">Temp Code</th>
-                    <th className="px-4 py-2 font-bold text-slate-500">Item Name</th>
-                    <th className="px-4 py-2 font-bold text-slate-500">Package</th>
-                    <th className="px-4 py-2 font-bold text-slate-500">Circle</th>
+                    <th className="px-2 py-2">
+                      <div className="font-bold text-slate-500 mb-1">LOA Serial No / SKU</div>
+                      <select className="w-full border border-slate-200 rounded text-xs py-1 px-1 bg-white text-slate-700 font-normal outline-none focus:border-blue-500 max-w-[120px]" value={bulkFilters.sku} onChange={e => setBulkFilters({...bulkFilters, sku: e.target.value})}>
+                        <option value="">All</option>
+                        {Array.from(new Set(items.map(item => String(item.dynamicData?.loaSerialNo || item.dynamicData?.loaSerialNumber || item.dynamicData?.['LOA Serial No.'] || item.dynamicData?.loa || item.dynamicData?.sku || item.dynamicData?.tempCode || '')).filter(Boolean))).map(val => <option key={val} value={val}>{val}</option>)}
+                      </select>
+                    </th>
+                    <th className="px-2 py-2">
+                      <div className="font-bold text-slate-500 mb-1">Temp Code</div>
+                      <select className="w-full border border-slate-200 rounded text-xs py-1 px-1 bg-white text-slate-700 font-normal outline-none focus:border-blue-500 max-w-[100px]" value={bulkFilters.tempCode} onChange={e => setBulkFilters({...bulkFilters, tempCode: e.target.value})}>
+                        <option value="">All</option>
+                        {Array.from(new Set(items.map(item => String(item.dynamicData?.tempCode || item.tempCode || '')).filter(Boolean))).map(val => <option key={val} value={val}>{val}</option>)}
+                      </select>
+                    </th>
+                    <th className="px-2 py-2">
+                      <div className="font-bold text-slate-500 mb-1">Item Name</div>
+                      <select className="w-full border border-slate-200 rounded text-xs py-1 px-1 bg-white text-slate-700 font-normal outline-none focus:border-blue-500 max-w-[150px]" value={bulkFilters.name} onChange={e => setBulkFilters({...bulkFilters, name: e.target.value})}>
+                        <option value="">All</option>
+                        {Array.from(new Set(items.map(item => String(item.dynamicData?.name || item.dynamicData?.itemDescription || item.name || '')).filter(Boolean))).map(val => <option key={val} value={val} className="truncate" title={val}>{val}</option>)}
+                      </select>
+                    </th>
+                    <th className="px-2 py-2">
+                      <div className="font-bold text-slate-500 mb-1">Package</div>
+                      <select className="w-full border border-slate-200 rounded text-xs py-1 px-1 bg-white text-slate-700 font-normal outline-none focus:border-blue-500 max-w-[100px]" value={bulkFilters.package} onChange={e => setBulkFilters({...bulkFilters, package: e.target.value})}>
+                        <option value="">All</option>
+                        {Array.from(new Set(items.map(item => String(item.dynamicData?.package || item.package || '')).filter(Boolean))).map(val => <option key={val} value={val}>{val}</option>)}
+                      </select>
+                    </th>
+                    <th className="px-2 py-2">
+                      <div className="font-bold text-slate-500 mb-1">Circle</div>
+                      <select className="w-full border border-slate-200 rounded text-xs py-1 px-1 bg-white text-slate-700 font-normal outline-none focus:border-blue-500 max-w-[100px]" value={bulkFilters.circle} onChange={e => setBulkFilters({...bulkFilters, circle: e.target.value})}>
+                        <option value="">All</option>
+                        {Array.from(new Set(items.map(item => String(item.dynamicData?.circle || item.circle || '')).filter(Boolean))).map(val => <option key={val} value={val}>{val}</option>)}
+                      </select>
+                    </th>
                     <th className="px-4 py-2 font-bold text-slate-500 text-right">Quantity</th>
                     <th className="px-4 py-2 font-bold text-slate-500 text-right">Stock In Hand</th>
                   </tr>
@@ -840,10 +877,26 @@ export default function NewDIRegistrationPage() {
                   {items
                     .filter(item => {
                       const query = (bulkSearchQuery || '').toLowerCase();
-                      const searchSku = String(item.dynamicData?.loaSerialNo || item.dynamicData?.loaSerialNumber || item.dynamicData?.['LOA Serial No.'] || item.dynamicData?.loa || item.dynamicData?.sku || item.dynamicData?.tempCode || '').toLowerCase();
-                      const searchName = String(item.dynamicData?.name || item.dynamicData?.itemDescription || item.name || '').toLowerCase();
-                      const searchCode = String(item.dynamicData?.tempCode || item.tempCode || '').toLowerCase();
-                      return searchSku.includes(query) || searchName.includes(query) || searchCode.includes(query);
+                      
+                      const skuRaw = String(item.dynamicData?.loaSerialNo || item.dynamicData?.loaSerialNumber || item.dynamicData?.['LOA Serial No.'] || item.dynamicData?.loa || item.dynamicData?.sku || item.dynamicData?.tempCode || '');
+                      const nameRaw = String(item.dynamicData?.name || item.dynamicData?.itemDescription || item.name || '');
+                      const codeRaw = String(item.dynamicData?.tempCode || item.tempCode || '');
+                      const pkgRaw = String(item.dynamicData?.package || item.package || '');
+                      const circleRaw = String(item.dynamicData?.circle || item.circle || '');
+
+                      const searchSku = skuRaw.toLowerCase();
+                      const searchName = nameRaw.toLowerCase();
+                      const searchCode = codeRaw.toLowerCase();
+                      
+                      const matchesGlobal = !query || searchSku.includes(query) || searchName.includes(query) || searchCode.includes(query);
+                      
+                      const matchesSku = !bulkFilters.sku || skuRaw === bulkFilters.sku;
+                      const matchesTempCode = !bulkFilters.tempCode || codeRaw === bulkFilters.tempCode;
+                      const matchesName = !bulkFilters.name || nameRaw === bulkFilters.name;
+                      const matchesPackage = !bulkFilters.package || pkgRaw === bulkFilters.package;
+                      const matchesCircle = !bulkFilters.circle || circleRaw === bulkFilters.circle;
+                      
+                      return matchesGlobal && matchesSku && matchesTempCode && matchesName && matchesPackage && matchesCircle;
                     })
                     .map(item => {
                       const sku = item.dynamicData?.loaSerialNo || item.dynamicData?.loaSerialNumber || item.dynamicData?.['LOA Serial No.'] || item.dynamicData?.loa || item.dynamicData?.sku || item.dynamicData?.tempCode || 'N/A';

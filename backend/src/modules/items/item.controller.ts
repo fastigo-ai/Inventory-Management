@@ -411,7 +411,7 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
 
   // Create a map of Label -> Internal Field Name with normalized keys
   const labelToNameMap: Record<string, string> = {};
-  const uniqueFields: string[] = ['sku']; // Enforce SKU (LOA Serial No) as the only unique identifier for imports
+  const uniqueFields: string[] = ['sku', 'tempCode', 'name']; // Enforce SKU, TEMP CODE, or Name as unique identifiers for imports
   
   for (const field of metadata.fields) {
     const normalized = field.label.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -546,6 +546,10 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
       // Prefer matching by SKU (LOA Serial No) first
       if (item.dynamicData.sku && existingItemsMap.has(`sku:${item.dynamicData.sku}`)) {
          matchedExisting = existingItemsMap.get(`sku:${item.dynamicData.sku}`);
+      } else if (item.dynamicData.tempCode && existingItemsMap.has(`tempCode:${item.dynamicData.tempCode}`)) {
+         matchedExisting = existingItemsMap.get(`tempCode:${item.dynamicData.tempCode}`);
+      } else if (item.dynamicData.name && existingItemsMap.has(`name:${item.dynamicData.name}`)) {
+         matchedExisting = existingItemsMap.get(`name:${item.dynamicData.name}`);
       } else {
          for (const uField of uniqueFields) {
            const val = item.dynamicData[uField];

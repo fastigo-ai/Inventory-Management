@@ -239,9 +239,15 @@ export function DynamicTable({
                               <option key={opt} value={opt}>{opt}</option>
                             ))
                           ) : col.dependsOnOptions ? (
-                            Array.from(new Set(Object.values(col.dependsOnOptions).flat())).map((opt: any) => (
-                              <option key={opt} value={opt}>{opt}</option>
-                            ))
+                            (col.dependsOn && columnFilters?.[col.dependsOn] && col.dependsOnOptions[columnFilters[col.dependsOn]]) ? (
+                              col.dependsOnOptions[columnFilters[col.dependsOn]].map((opt: any) => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))
+                            ) : (
+                              Array.from(new Set(Object.values(col.dependsOnOptions).flat())).map((opt: any) => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))
+                            )
                           ) : null}
                         </select>
                       ) : (

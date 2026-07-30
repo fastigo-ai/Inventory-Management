@@ -147,7 +147,7 @@ export const getItems = asyncHandler(async (req: Request, res: Response) => {
               cond: {
                 $regexMatch: {
                   input: { $toString: "$$field.v" },
-                  regex: search,
+                  regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
                   options: "i"
                 }
               }
@@ -164,10 +164,11 @@ export const getItems = asyncHandler(async (req: Request, res: Response) => {
     if (key.startsWith('filter_') && value) {
       const fieldName = key.replace('filter_', '');
       
+      const escapedValue = String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       exprFilters.push({
         $regexMatch: {
           input: { $toString: `$dynamicData.${fieldName}` },
-          regex: String(value),
+          regex: escapedValue,
           options: "i"
         }
       });

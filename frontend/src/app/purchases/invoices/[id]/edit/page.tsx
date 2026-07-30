@@ -1,22 +1,25 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { X, Settings, UploadCloud, ChevronDown, User, Table as TableIcon, Trash2, Paperclip, FileText, Plus, Loader2, Search } from "lucide-react";
 import Link from "next/link";
-import Select from "react-select";
-import { createPurchaseReceive, getNextPurchaseReceiveNumber } from "@/features/purchases/api/purchases.api";
+import { getPurchaseInvoiceById, updatePurchaseInvoice, deletePurchaseInvoice } from "@/features/purchases/api/purchases.api";
 import { getVendors } from "@/features/vendors/api/vendors.api";
 import { getPurchaseOrders } from "@/features/purchases/api/purchases.api";
 import { getItems } from "@/features/items/api/items.api";
 import { uploadDocument } from "@/features/documents/api/documents.api";
 import { getBillingCompanies } from "@/features/settings/api/billingCompanies.api";
+import { AuditTimeline } from "@/shared/components/audit/AuditTimeline";
+import { toast } from "sonner";
 
-export default function NewPurchaseReceivePage() {
+export default function EditPurchaseInvoicePage() {
   const router = useRouter();
+  const params = useParams();
+  const prId = params.id as string;
   
   // Data State
   const [vendors, setVendors] = useState<any[]>([]);
@@ -25,10 +28,12 @@ export default function NewPurchaseReceivePage() {
   // Form State
   const [vendorName, setVendorName] = useState("");
   const [purchaseOrderInput, setPurchaseOrderInput] = useState("");
-  const [purchaseReceiveNumber, setPurchaseReceiveNumber] = useState("");
+  const [PurchaseInvoiceNumber, setPurchaseInvoiceNumber] = useState("");
   const [receiveDate, setReceiveDate] = useState("");
   const [billingFrom, setBillingFrom] = useState("");
   const [billingCompanies, setBillingCompanies] = useState<any[]>([]);
+  const [status, setStatus] = useState<string>("Draft");
+  const [isLocked, setIsLocked] = useState(false);
   
   // Extra fields
   const [diNo, setDiNo] = useState("");
@@ -37,93 +42,106 @@ export default function NewPurchaseReceivePage() {
   
   const [lineItems, setLineItems] = useState<any[]>([]);
   const [itemsList, setItemsList] = useState<any[]>([]);
-  const [openDropdown, setOpenDropdown] = useState<{ type: string, index: number } | null>(null);
-  const [searchQueries, setSearchQueries] = useState<Record<string, string>>({});
-  
+  const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
+  const [dropdownSearchQueries, setDropdownSearchQueries] = useState<{[key: number]: string}>({});
+
   const [uploadedDocs, setUploadedDocs] = useState<any[]>([]);
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     // Close dropdowns when clicking outside
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Element;
-      if (!target.closest('.item-dropdown-container')) {
-        setOpenDropdown(null);
-      }
+    const handleClickOutside = () => {
+      setOpenDropdownId(null);
     };
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
   useEffect(() => {
-    // Load vendors on mount
-    getVendors({ limit: 100 }).then(res => setVendors(res.vendors || res));
-    getPurchaseOrders().then(res => setPurchaseOrders(Array.isArray(res.data) ? res.data : (res.data?.pos || res.data || [])));
-    getItems({ limit: 1000 }).then(res => setItemsList(res.items || res.data || res));
-    getBillingCompanies().then(res => setBillingCompanies(res.data || []));
-    getNextPurchaseReceiveNumber().then(res => {
-      if (res.data?.fullNumber && !purchaseReceiveNumber) {
-        setPurchaseReceiveNumber(res.data.fullNumber);
-      }
+    Promise.all([
+      getVendors({ limit: 100 }).then(res => setVendors(res.vendors || res)),
+      getPurchaseOrders().then(res => setPurchaseOrders(Array.isArray(res.data) ? res.data : (res.data?.pos || res.data || []))),
+      getItems({ limit: 1000 }).then(res => setItemsList(res.items || res.data || res)),
+      getBillingCompanies().then(res => setBillingCompanies(res.data || [])),
+      getPurchaseInvoiceById(prId).then(data => {
+        setVendorName(data.vendorName || "");
+        setPurchaseOrderInput(data.purchaseOrderNumber || "");
+        setPurchaseInvoiceNumber(data.PurchaseInvoiceNumber || "");
+        setReceiveDate(data.receiveDate ? new Date(data.receiveDate).toISOString().split('T')[0] : "");
+        setBillingFrom(data.billingFrom || "");
+        setDiNo(data.diNo || "");
+        setDiDate(data.diDate ? new Date(data.diDate).toISOString().split('T')[0] : "");
+        setNotes(data.notes || "");
+        setStatus(data.status || "Draft");
+        setIsLocked(data.isLocked || false);
+        
+        if (data.lineItems) {
+          setLineItems(data.lineItems);
+        }
+        if (data.attachments) {
+          setUploadedDocs(data.attachments.map((a: any) => ({ _id: a._id || Math.random().toString(), fileName: a.name, url: a.url })));
+        }
+      })
+    ]).finally(() => {
+      setIsLoading(false);
+      // Allow the PO auto-fetching logic to run only after initial data is set
+      setTimeout(() => setInitialLoadDone(true), 500);
     });
-  }, []);
+  }, [prId]);
 
-  // When vendor changes, set dates and filter POs
-  useEffect(() => {
-    if (vendorName) {
-      if (!receiveDate) {
-        setReceiveDate(new Date().toISOString().split('T')[0]);
-      }
-      
-      const vendorPOs = purchaseOrders.filter(po => po.vendorName === vendorName);
-      if (vendorPOs.length > 0) {
-        setPurchaseOrderInput(vendorPOs[0].purchaseOrderNumber);
-      } else {
-        setPurchaseOrderInput(""); // Reset PO when vendor changes and no POs exist
-      }
-    }
-  }, [vendorName, purchaseOrders]);
-
-  // When PO changes, populate line items
-  useEffect(() => {
-    if (purchaseOrderInput) {
-      const po = purchaseOrders.find(p => p.purchaseOrderNumber === purchaseOrderInput);
-      if (po && po.lineItems) {
-        setLineItems(po.lineItems
-          .filter((item: any) => !item.isCanceled)
-          .map((item: any) => ({
-          isManual: false,
-          itemId: item.itemId,
-          package: item.package || '',
-          circle: item.circle || '',
-          tempCode: item.tempCode || '',
-          itemName: item.itemName,
-          itemDescription: item.description || item.itemDescription || '',
-          loaSerialNo: item.loaSerialNo || '',
-          hsnCode: item.hsnCode || '',
-          poQuantity: item.quantity || 0,
-          poDate: item.poDate || '',
-          srt: 0,
-          act: 0,
-          totalInvoiceQuantity: 0,
-          unit: item.unit || '',
-          gstType: item.gstType || 'Intra State',
-          cgst: item.cgst || 0,
-          sgst: item.sgst || 0,
-          igst: item.igst || 0,
-          invoiceQuantity: item.quantity || 0,
-          rate: item.rate || 0,
-          amount: 0,
-          totalAmount: 0
-        })));
-      } else {
-        setLineItems([]);
-      }
+  const populateLineItemsFromPO = (poNum: string) => {
+    const po = purchaseOrders.find(p => p.purchaseOrderNumber === poNum);
+    if (po && po.lineItems) {
+      setLineItems(po.lineItems.map((item: any) => ({
+        itemId: item.itemId,
+        loaSerialNo: item.loaSerialNo || '',
+        itemName: item.itemName,
+        itemDescription: item.description || '',
+        tempCode: item.tempCode || '',
+        package: item.package || '',
+        circle: item.circle || '',
+        poQuantity: item.quantity || 0,
+        invoiceQuantity: item.quantity || 0,
+        srt: 0,
+        act: 0,
+        totalInvoiceQuantity: 0,
+        unit: item.unit || '',
+        rate: item.rate || 0,
+        amount: 0,
+        gstType: item.gstType || 'Intra State',
+        cgst: item.cgst || 0,
+        sgst: item.sgst || 0,
+        igst: item.igst || 0,
+        totalAmount: 0
+      })));
     } else {
       setLineItems([]);
     }
-  }, [purchaseOrderInput, purchaseOrders]);
+  };
+
+  const handleVendorChange = (newVendor: string) => {
+    setVendorName(newVendor);
+    if (!receiveDate) {
+      setReceiveDate(new Date().toISOString().split('T')[0]);
+    }
+    const vendorPOs = purchaseOrders.filter(po => po.vendorName === newVendor);
+    if (vendorPOs.length > 0) {
+      const newPO = vendorPOs[0].purchaseOrderNumber;
+      setPurchaseOrderInput(newPO);
+      populateLineItemsFromPO(newPO);
+    } else {
+      setPurchaseOrderInput(""); 
+      setLineItems([]);
+    }
+  };
+
+  const handlePOChange = (newPO: string) => {
+    setPurchaseOrderInput(newPO);
+    populateLineItemsFromPO(newPO);
+  };
 
   // Recalculate amount when quantityToReceive or rate changes
   const updateLineItem = (index: number, field: string, value: any) => {
@@ -137,7 +155,7 @@ export default function NewPurchaseReceivePage() {
       const rate = Number(newItems[index].rate) || 0;
       newItems[index].totalInvoiceQuantity = srt + act;
       newItems[index].amount = newItems[index].totalInvoiceQuantity * rate;
-      
+
       const cgst = Number(newItems[index].cgst) || 0;
       const sgst = Number(newItems[index].sgst) || 0;
       const igst = Number(newItems[index].igst) || 0;
@@ -148,8 +166,13 @@ export default function NewPurchaseReceivePage() {
     setLineItems(newItems);
   };
 
-  const handleSubmit = async (status: 'Draft' | 'Received') => {
-    if (!vendorName || !purchaseReceiveNumber || !receiveDate) {
+  const handleSubmit = async (submitStatus: 'Draft' | 'Received') => {
+    if (isLocked) {
+      alert("This invoice is locked from editing because the Store Manager has already begun processing it.");
+      return;
+    }
+
+    if (!vendorName || !PurchaseInvoiceNumber || !receiveDate) {
       alert("Please fill in the required fields");
       return;
     }
@@ -160,33 +183,39 @@ export default function NewPurchaseReceivePage() {
       return;
     }
 
-    const hasMissingMandatory = lineItems.some(item => !item.package || !item.circle);
-    if (hasMissingMandatory) {
-      alert("Package and Circle are mandatory for all items");
-      return;
-    }
-
     try {
       const matchedPo = purchaseOrders.find(p => p.purchaseOrderNumber === purchaseOrderInput);
       const payload = {
         vendorName,
         purchaseOrderId: matchedPo ? matchedPo._id : undefined,
         purchaseOrderNumber: purchaseOrderInput || undefined,
-        purchaseReceiveNumber,
+        PurchaseInvoiceNumber,
         receiveDate,
         billingFrom,
         diNo, diDate, 
         notes,
         lineItems,
-        status,
+        status: submitStatus,
         attachments: uploadedDocs.map(doc => ({ name: doc.fileName, url: doc.url }))
       };
 
-      await createPurchaseReceive(payload);
-      router.push('/purchases/receives');
+      await updatePurchaseInvoice(prId, payload);
+      router.push('/purchases/invoices');
     } catch (error) {
-      console.error("Failed to create PR", error);
-      alert("Failed to save Purchase Invoice");
+      console.error("Failed to update PR", error);
+      alert("Failed to update Purchase Invoice");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm("Are you sure you want to delete this Purchase Receive?")) return;
+    try {
+      await deletePurchaseInvoice(prId);
+      toast.success("Purchase Receive deleted successfully");
+      router.push('/purchases/invoices');
+    } catch (error) {
+      console.error("Failed to delete PR", error);
+      toast.error("Failed to delete Purchase Receive");
     }
   };
 
@@ -199,7 +228,7 @@ export default function NewPurchaseReceivePage() {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("sourceType", "Purchase Invoice");
-      formData.append("sourceId", purchaseReceiveNumber); // Use PR number as sourceId reference
+      formData.append("sourceId", PurchaseInvoiceNumber); // Use PR number as sourceId reference
 
       const res = await uploadDocument(formData);
       if (res.data) {
@@ -216,32 +245,35 @@ export default function NewPurchaseReceivePage() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full bg-[#fcfcfc]">
+        <Loader2 className="w-8 h-8 animate-spin text-[#4285f4]" />
+      </div>
+    );
+  }
+
   const handleAddItem = () => {
     setLineItems([
       ...lineItems,
       {
         isManual: true,
         itemId: '',
-        package: '',
-        circle: '',
-        tempCode: '',
+        loaSerialNo: '',
         itemName: '',
         itemDescription: '',
-        loaSerialNo: '',
-        hsnCode: '',
+        package: '',
+        circle: '',
         poQuantity: 0,
-        poDate: '',
+        invoiceQuantity: 0,
         srt: 0,
         act: 0,
         totalInvoiceQuantity: 0,
-        unit: '',
+        amount: 0,
         gstType: 'Intra State',
         cgst: 0,
         sgst: 0,
         igst: 0,
-        invoiceQuantity: 0,
-        rate: 0,
-        amount: 0,
         totalAmount: 0
       }
     ]);
@@ -255,9 +287,9 @@ export default function NewPurchaseReceivePage() {
       <div className="flex-none h-16 border-b border-slate-200 flex items-center justify-between px-6 shrink-0 bg-[#f8f9fa]">
         <div className="flex items-center space-x-2">
           <svg className="w-5 h-5 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-          <h1 className="text-xl text-slate-800 font-semibold tracking-tight">New Purchase Invoice</h1>
+          <h1 className="text-xl text-slate-800 font-semibold tracking-tight">Edit Purchase Invoice</h1>
         </div>
-        <Link href="/purchases/receives">
+        <Link href="/purchases/invoices">
           <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:bg-slate-200 rounded-full">
             <X className="w-5 h-5" />
           </Button>
@@ -267,6 +299,18 @@ export default function NewPurchaseReceivePage() {
       <div className="flex-1 overflow-y-auto px-10 py-8 bg-[#fcfcfc]">
         <div className="max-w-[1200px] mx-auto bg-white p-8 shadow-sm border border-slate-200 rounded-lg">
           
+          {isLocked && (
+            <div className="mb-8 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start text-red-700">
+              <svg className="w-5 h-5 mr-3 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div>
+                <h3 className="font-semibold text-sm">Invoice Locked</h3>
+                <p className="text-xs mt-1">This invoice is locked from editing because the Store Manager has already begun processing the inward entries. Changes to quantities or items are not permitted.</p>
+              </div>
+            </div>
+          )}
+
           {/* Top Section */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6 mb-8">
             
@@ -279,7 +323,7 @@ export default function NewPurchaseReceivePage() {
                 <select 
                   className="w-full h-10 rounded-md text-[13px] border border-slate-300 pl-9 pr-3 bg-white focus:outline-none focus:border-[#0076f2] focus:ring-1 focus:ring-[#0076f2] appearance-none"
                   value={vendorName}
-                  onChange={(e) => setVendorName(e.target.value)}
+                  onChange={(e) => handleVendorChange(e.target.value)}
                 >
                   <option value="">Select a Vendor</option>
                   {vendors.map(v => (
@@ -302,7 +346,7 @@ export default function NewPurchaseReceivePage() {
                   list="po-list"
                   className="w-full h-10 rounded-md text-[13px] border border-slate-300 px-3 bg-white focus:outline-none focus:border-[#0076f2] focus:ring-1 focus:ring-[#0076f2] disabled:bg-slate-50 disabled:text-slate-500"
                   value={purchaseOrderInput}
-                  onChange={(e) => setPurchaseOrderInput(e.target.value)}
+                  onChange={(e) => handlePOChange(e.target.value)}
                   disabled={!vendorName}
                   placeholder="Select or enter a Purchase Order"
                   autoComplete="off"
@@ -357,9 +401,9 @@ export default function NewPurchaseReceivePage() {
                 <div className="relative">
                   <Input 
                     className="h-10 text-[13px] pr-8 rounded-md border-slate-300 bg-slate-50"
-                    value={purchaseReceiveNumber}
-                    onChange={(e) => setPurchaseReceiveNumber(e.target.value)}
-                    placeholder="PR-00001"
+                    value={PurchaseInvoiceNumber}
+                    onChange={(e) => setPurchaseInvoiceNumber(e.target.value)}
+                    disabled // PR number is usually not editable once created
                   />
                   <Settings className="w-4 h-4 text-slate-400 absolute right-3 top-3" />
                 </div>
@@ -397,13 +441,13 @@ export default function NewPurchaseReceivePage() {
                   <Plus className="w-4 h-4 mr-1" /> Add Item
                 </Button>
               </div>
-              <div className="border border-slate-200 rounded-lg overflow-x-auto shadow-sm pb-4">
+              <div className="border border-slate-200 rounded-lg overflow-x-auto shadow-sm">
                 <table className="w-full text-sm text-left whitespace-nowrap min-w-[2200px]">
                   <thead className="bg-[#f8f9fa] border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider sticky top-0 z-10">
                     <tr>
                       <th className="px-4 py-3 w-12 text-center">#</th>
-                      <th className="px-2 py-3 font-bold text-slate-500 whitespace-nowrap text-left"><span className="bg-blue-600 text-white px-1.5 py-0.5 rounded">PACKAGE</span> <span className="text-red-500">*</span></th>
-                      <th className="px-2 py-3 font-bold text-slate-500 whitespace-nowrap text-left"><span className="bg-blue-600 text-white px-1.5 py-0.5 rounded">CIRCLE</span> <span className="text-red-500">*</span></th>
+                      <th className="px-3 py-3 min-w-[120px]">Package</th>
+                      <th className="px-3 py-3 min-w-[120px]">Circle</th>
                       <th className="px-3 py-3 min-w-[140px]">Temp Code</th>
                       <th className="px-3 py-3 min-w-[180px]">Item Name</th>
                       <th className="px-3 py-3 min-w-[200px]">Description</th>
@@ -436,66 +480,34 @@ export default function NewPurchaseReceivePage() {
                     ) : (
                       lineItems.map((item, index) => {
                         const allPackages = Array.from(new Set(itemsList.map(i => i.dynamicData?.package).filter(Boolean)));
-                        const circles = Array.from(new Set(itemsList.map(i => i.dynamicData?.circle).filter(Boolean)));
-                        const tempCodes = Array.from(new Set(itemsList.map(i => i.dynamicData?.tempCode || i.dynamicData?.sku || i.dynamicData?.itemCode).filter(Boolean)));
-                        const itemNames = Array.from(new Set(itemsList.map(i => i.dynamicData?.name || i.dynamicData?.itemDescription || i._id)));
-                        const loaSerialNos = Array.from(new Set(itemsList.map(i => {
-                          const d = i.dynamicData || {};
-                          const loaKey = Object.keys(d).find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === 'loaserialno' || k.toLowerCase().replace(/[^a-z0-9]/g, '') === 'loaserial' || k.toLowerCase() === 'sku');
-                          return loaKey ? d[loaKey] : null;
-                        }).filter(Boolean)));
+                        const circles = Array.from(new Set(itemsList.filter(i => !item.package || i.dynamicData?.package === item.package).map(i => i.dynamicData?.circle).filter(Boolean)));
+                        const tempCodes = Array.from(new Set(itemsList.filter(i => (!item.package || i.dynamicData?.package === item.package) && (!item.circle || i.dynamicData?.circle === item.circle)).map(i => i.dynamicData?.tempCode || i.dynamicData?.sku || i.dynamicData?.itemCode).filter(Boolean)));
+                        const itemNames = Array.from(new Set(itemsList.filter(i => 
+                          (!item.package || i.dynamicData?.package === item.package) && 
+                          (!item.circle || i.dynamicData?.circle === item.circle) &&
+                          (!item.tempCode || (i.dynamicData?.tempCode || i.dynamicData?.sku || i.dynamicData?.itemCode) === item.tempCode)
+                        ).map(i => i.dynamicData?.name || i.dynamicData?.itemDescription || i._id)));
 
-                        const handleItemSelection = (identifier: string, type: 'name' | 'tempCode' | 'description' | 'loaSerialNo') => {
-                          const selectedItem = itemsList.find(i => {
-                            if (type === 'name') return (i.dynamicData?.name || i.dynamicData?.itemDescription || i._id) === identifier;
-                            if (type === 'tempCode') return (i.dynamicData?.tempCode || i.dynamicData?.sku || i.dynamicData?.itemCode) === identifier;
-                            if (type === 'description') return (i.dynamicData?.description || i.dynamicData?.itemDescription) === identifier;
-                            if (type === 'loaSerialNo') {
-                              const d = i.dynamicData || {};
-                              const loaKey = Object.keys(d).find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === 'loaserialno' || k.toLowerCase().replace(/[^a-z0-9]/g, '') === 'loaserial' || k.toLowerCase() === 'sku');
-                              return (loaKey ? String(d[loaKey]) : '') === String(identifier);
-                            }
-                            return false;
-                          });
+                        const handleItemSelect = (selectedName: string) => {
+                          const selectedItem = itemsList.find(i => (i.dynamicData?.name || i.dynamicData?.itemDescription || i._id) === selectedName);
                           if (selectedItem) {
                              const d = selectedItem.dynamicData || {};
                              const getVal = (key: string) => {
                                if (d[key] !== undefined) return d[key];
                                const lowerKey = key.toLowerCase();
-                               let foundKey = Object.keys(d).find(k => k.toLowerCase() === lowerKey);
-                               if (foundKey) return d[foundKey];
-                               const alphaNumKey = lowerKey.replace(/[^a-z0-9]/g, '');
-                               foundKey = Object.keys(d).find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === alphaNumKey);
-                               if (foundKey) return d[foundKey];
-                               if (key === 'loaSerialNo' && d['sku']) return d['sku'];
-                               return '';
+                               const foundKey = Object.keys(d).find(k => k.toLowerCase() === lowerKey);
+                               return foundKey ? d[foundKey] : '';
                              };
-                             
-                             let pkg = getVal('package');
-                             if (pkg) {
-                               const p = String(pkg).toLowerCase();
-                               if (p.includes('1') || p.includes('s/n') || p.includes('solan') || p.includes('nahan')) pkg = 'Package 1 (S/N)';
-                               else if (p.includes('2') || p.includes('r/r') || p.includes('rampur') || p.includes('rohru')) pkg = 'Package 2 (R/R)';
-                             }
-                             
-                             let circ = getVal('circle');
-                             if (circ) {
-                               const c = String(circ).toLowerCase();
-                               if (c.includes('solan')) circ = 'Solan';
-                               else if (c.includes('nahan')) circ = 'Nahan';
-                               else if (c.includes('rampur')) circ = 'Rampur';
-                               else if (c.includes('rohru')) circ = 'Rohru';
-                             }
                              const newItems = [...lineItems];
                              newItems[index] = {
                                ...newItems[index],
                                itemId: selectedItem._id,
-                               itemName: getVal('name') || getVal('itemDescription') || selectedItem._id || newItems[index].itemName,
-                               package: pkg || newItems[index].package,
-                               circle: circ || newItems[index].circle,
+                               itemName: selectedName,
+                               package: getVal('package') || newItems[index].package,
+                               circle: getVal('circle') || newItems[index].circle,
                                tempCode: getVal('tempCode') || getVal('sku') || getVal('itemCode') || newItems[index].tempCode,
-                               itemDescription: getVal('description') || getVal('itemDescription') || newItems[index].itemDescription,
-                               loaSerialNo: getVal('loaSerialNo') || getVal('loaSerial') || getVal('sku') || '',
+                               itemDescription: getVal('description') || getVal('itemDescription') || '',
+                               loaSerialNo: getVal('loaSerialNo') || '',
                                hsnCode: getVal('hsnCode') || getVal('hsn') || '',
                                unit: getVal('unit') || '',
                                gstType: newItems[index].gstType || 'Intra State',
@@ -509,7 +521,7 @@ export default function NewPurchaseReceivePage() {
                              newItems[index].totalAmount = newItems[index].amount + (newItems[index].amount * taxRate / 100);
                              setLineItems(newItems);
                           } else {
-                             updateLineItem(index, type === 'name' ? 'itemName' : type === 'tempCode' ? 'tempCode' : type === 'loaSerialNo' ? 'loaSerialNo' : 'itemDescription', identifier);
+                             updateLineItem(index, 'itemName', selectedName);
                           }
                         };
 
@@ -522,14 +534,10 @@ export default function NewPurchaseReceivePage() {
                               {item.isManual ? (
                                 <select className="w-full h-8 text-[12px] border border-slate-200 rounded px-2 focus:border-blue-500 outline-none bg-transparent"
                                   value={item.package || ''}
-                                  onChange={e => {
-                                    updateLineItem(index, 'package', e.target.value);
-                                    updateLineItem(index, 'circle', '');
-                                  }}
+                                  onChange={e => updateLineItem(index, 'package', e.target.value)}
                                 >
                                   <option value="">Select</option>
-                                  <option value="Package 1 (S/N)">Package 1 (S/N)</option>
-                                  <option value="Package 2 (R/R)">Package 2 (R/R)</option>
+                                  {allPackages.map((p: any) => <option key={p} value={p}>{p}</option>)}
                                 </select>
                               ) : (
                                 <span className="text-[12px] px-2">{item.package || '-'}</span>
@@ -542,11 +550,7 @@ export default function NewPurchaseReceivePage() {
                                   onChange={e => updateLineItem(index, 'circle', e.target.value)}
                                 >
                                   <option value="">Select</option>
-                                  
-                                      <option value="Solan">Solan</option>
-                                      <option value="Nahan">Nahan</option>
-                                      <option value="Rampur">Rampur</option>
-                                      <option value="Rohru">Rohru</option>
+                                  {circles.map((c: any) => <option key={c} value={c}>{c}</option>)}
                                 </select>
                               ) : (
                                 <span className="text-[12px] px-2">{item.circle || '-'}</span>
@@ -554,111 +558,35 @@ export default function NewPurchaseReceivePage() {
                             </td>
                             <td className="px-2 py-2">
                               {item.isManual ? (
-                                <Select
-                                  options={tempCodes.map(tc => ({ value: tc, label: tc }))}
-                                  value={item.tempCode ? { value: item.tempCode, label: item.tempCode } : null}
-                                  onChange={(selected: any) => {
-                                    if (selected) handleItemSelection(selected.value as string, 'tempCode');
-                                    else updateLineItem(index, 'tempCode', '');
-                                  }}
-                                  onInputChange={(inputValue, { action }) => {
-                                    if (action === 'input-change') updateLineItem(index, 'tempCode', inputValue);
-                                  }}
-                                  placeholder="Select"
-                                  isClearable
-                                  menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                                  styles={{
-                                    control: (base) => ({ ...base, minHeight: '32px', height: '32px', fontSize: '12px', backgroundColor: 'transparent', border: '1px solid #e2e8f0', boxShadow: 'none' }),
-                                    valueContainer: (base) => ({ ...base, padding: '0 8px' }),
-                                    input: (base) => ({ ...base, margin: 0, padding: 0 }),
-                                    indicatorsContainer: (base) => ({ ...base, height: '32px' }),
-                                    menuPortal: (base) => ({ ...base, zIndex: 9999 }),
-                                    menu: (base) => ({ ...base, fontSize: '12px', minWidth: '200px' }),
-                                    option: (base) => ({ ...base, padding: '8px 12px' })
-                                  }}
-                                />
+                                <select className="w-full h-8 text-[12px] border border-slate-200 rounded px-2 focus:border-blue-500 outline-none bg-transparent"
+                                  value={item.tempCode || ''}
+                                  onChange={e => updateLineItem(index, 'tempCode', e.target.value)}
+                                >
+                                  <option value="">Select</option>
+                                  {tempCodes.map((tc: any) => <option key={tc} value={tc}>{tc}</option>)}
+                                </select>
                               ) : (
                                 <span className="text-[12px] px-2">{item.tempCode || '-'}</span>
                               )}
                             </td>
                             <td className="px-2 py-2">
                               {item.isManual ? (
-                                <Select
-                                  options={itemNames.map(n => ({ value: n, label: n }))}
-                                  value={item.itemName ? { value: item.itemName, label: item.itemName } : null}
-                                  onChange={(selected: any) => {
-                                    if (selected) handleItemSelection(selected.value as string, 'name');
-                                    else updateLineItem(index, 'itemName', '');
-                                  }}
-                                  onInputChange={(inputValue, { action }) => {
-                                    if (action === 'input-change') updateLineItem(index, 'itemName', inputValue);
-                                  }}
-                                  placeholder="Select Item"
-                                  isClearable
-                                  menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                                  styles={{
-                                    control: (base) => ({ ...base, minHeight: '32px', height: '32px', fontSize: '12px', backgroundColor: 'transparent', border: '1px solid #e2e8f0', boxShadow: 'none' }),
-                                    valueContainer: (base) => ({ ...base, padding: '0 8px' }),
-                                    input: (base) => ({ ...base, margin: 0, padding: 0 }),
-                                    indicatorsContainer: (base) => ({ ...base, height: '32px' }),
-                                    menuPortal: (base) => ({ ...base, zIndex: 9999 }),
-                                    menu: (base) => ({ ...base, fontSize: '12px', minWidth: '300px' }),
-                                    option: (base) => ({ ...base, padding: '8px 12px' })
-                                  }}
-                                />
+                                <select className="w-full h-8 text-[12px] border border-slate-200 rounded px-2 focus:border-blue-500 outline-none bg-transparent font-medium text-slate-700"
+                                  value={item.itemName || ''}
+                                  onChange={e => handleItemSelect(e.target.value)}
+                                >
+                                  <option value="">Select Item</option>
+                                  {itemNames.map((n: any) => <option key={n} value={n}>{n}</option>)}
+                                </select>
                               ) : (
                                 <span className="text-[12px] font-medium text-slate-700 px-2">{item.itemName || '-'}</span>
                               )}
                             </td>
                             <td className="px-2 py-2">
-                              <Select
-                                options={Array.from(new Set(itemsList.map(i => i.dynamicData?.description || i.dynamicData?.itemDescription).filter(Boolean))).map(d => ({ value: d, label: String(d) }))}
-                                value={item.itemDescription ? { value: item.itemDescription, label: item.itemDescription } : null}
-                                onChange={(selected: any) => {
-                                  if (selected) handleItemSelection(selected.value as string, 'description');
-                                  else updateLineItem(index, 'itemDescription', '');
-                                }}
-                                onInputChange={(inputValue, { action }) => {
-                                  if (action === 'input-change') updateLineItem(index, 'itemDescription', inputValue);
-                                }}
-                                placeholder="Desc"
-                                isClearable
-                                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                                styles={{
-                                  control: (base) => ({ ...base, minHeight: '32px', height: '32px', fontSize: '12px', backgroundColor: 'transparent', border: '1px solid #e2e8f0', boxShadow: 'none' }),
-                                  valueContainer: (base) => ({ ...base, padding: '0 8px' }),
-                                  input: (base) => ({ ...base, margin: 0, padding: 0 }),
-                                  indicatorsContainer: (base) => ({ ...base, height: '32px' }),
-                                  menuPortal: (base) => ({ ...base, zIndex: 9999 }),
-                                  menu: (base) => ({ ...base, fontSize: '12px', minWidth: '300px' }),
-                                  option: (base) => ({ ...base, padding: '8px 12px' })
-                                }}
-                              />
+                              <Input placeholder="Desc" className="h-8 text-[12px] border-slate-200 bg-transparent px-2" value={item.itemDescription || ''} onChange={(e) => updateLineItem(index, 'itemDescription', e.target.value)} />
                             </td>
                             <td className="px-2 py-2">
-                              <Select
-                                options={loaSerialNos.map(loa => ({ value: String(loa), label: String(loa) }))}
-                                value={item.loaSerialNo ? { value: String(item.loaSerialNo), label: String(item.loaSerialNo) } : null}
-                                onChange={(selected: any) => {
-                                  if (selected) handleItemSelection(selected.value as string, 'loaSerialNo');
-                                  else updateLineItem(index, 'loaSerialNo', '');
-                                }}
-                                onInputChange={(inputValue, { action }) => {
-                                  if (action === 'input-change') updateLineItem(index, 'loaSerialNo', inputValue);
-                                }}
-                                placeholder="LOA Serial"
-                                isClearable
-                                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                                styles={{
-                                  control: (base) => ({ ...base, minHeight: '32px', height: '32px', fontSize: '12px', backgroundColor: 'transparent', border: '1px solid #e2e8f0', boxShadow: 'none' }),
-                                  valueContainer: (base) => ({ ...base, padding: '0 8px' }),
-                                  input: (base) => ({ ...base, margin: 0, padding: 0 }),
-                                  indicatorsContainer: (base) => ({ ...base, height: '32px' }),
-                                  menuPortal: (base) => ({ ...base, zIndex: 9999 }),
-                                  menu: (base) => ({ ...base, fontSize: '12px', minWidth: '200px' }),
-                                  option: (base) => ({ ...base, padding: '8px 12px' })
-                                }}
-                              />
+                              <Input placeholder="LOA Serial" className="h-8 text-[12px] border-slate-200 bg-transparent px-2" value={item.loaSerialNo || ''} onChange={(e) => updateLineItem(index, 'loaSerialNo', e.target.value)} />
                             </td>
                             <td className="px-2 py-2">
                               <Input placeholder="HSN" className="h-8 text-[12px] border-slate-200 bg-transparent px-2" value={item.hsnCode || ''} onChange={(e) => updateLineItem(index, 'hsnCode', e.target.value)} />
@@ -786,20 +714,27 @@ export default function NewPurchaseReceivePage() {
               </div>
             </div>
 
+            {prId && (
+              <div className="mt-12 mb-8 bg-white p-8 rounded-xl shadow-sm border border-slate-200">
+                <h2 className="text-xl font-semibold text-slate-800 mb-8 border-b border-slate-100 pb-4">Audit History</h2>
+                <AuditTimeline entityType="PurchaseInvoice" entityId={prId} />
+              </div>
+            )}
+
             {/* Bottom Actions */}
             <div className="flex items-center justify-between pt-6 border-t border-slate-200 mt-12">
-              <Button variant="outline" className="text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600 bg-red-50/50">
+              <Button variant="outline" className="text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600 bg-red-50/50" onClick={handleDelete} disabled={isLocked}>
                 <Trash2 className="w-4 h-4 mr-2" /> Delete
               </Button>
               <div className="flex items-center space-x-3">
-                <Button variant="outline" className="text-slate-700 font-medium hover:bg-slate-50 border-slate-300 rounded-md" onClick={() => handleSubmit('Draft')}>
+                <Button variant="outline" className="text-slate-700 font-medium hover:bg-slate-50 border-slate-300 rounded-md" onClick={() => handleSubmit('Draft')} disabled={isLocked}>
                   Save as Draft
                 </Button>
                 <div className="flex rounded-md shadow-sm">
-                  <Button className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-medium rounded-r-none border-r border-[#1d4ed8]" onClick={() => handleSubmit('Received')}>
+                  <Button className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-medium rounded-r-none border-r border-[#1d4ed8] disabled:bg-blue-300 disabled:border-blue-300" onClick={() => handleSubmit('Received')} disabled={isLocked}>
                     Save Changes
                   </Button>
-                  <Button className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-medium rounded-l-none px-2">
+                  <Button className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-medium rounded-l-none px-2 disabled:bg-blue-300 disabled:border-blue-300" disabled={isLocked}>
                     <ChevronDown className="w-4 h-4" />
                   </Button>
                 </div>

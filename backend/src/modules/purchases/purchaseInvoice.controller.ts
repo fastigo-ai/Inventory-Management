@@ -1,83 +1,295 @@
 import { Request, Response } from 'express';
 import { PurchaseInvoice } from './purchaseInvoice.schema';
+import { PurchaseOrder } from './purchaseOrder.schema';
+import { stringify } from 'csv-stringify/sync';
 import { parseAndSanitizeCsv } from '../../utils/csv.util';
 import { parse } from 'csv-parse/sync';
-import { stringify } from 'csv-stringify/sync';
-import { PurchaseOrder } from './purchaseOrder.schema';
 import { StoreInwardEntry } from '../store/storeInwardEntry.schema';
-import Item from '../items/item.model';
 import mongoose from 'mongoose';
 import { SummaryService } from '../reports/summary/summary.service';
+import Item from '../items/item.model';
 
-export const createPurchaseInvoice = async (req: Request, res: Response) => {
+export const createPurchaseInvoice = async (req: Request, res: Response): Promise<void> => {
   try {
-    const data = req.body;
+    const prData = req.body;
+    // Map PR fields to PI fields
+    if (!prData.invoiceNumber && !prData.purchaseReceiveNumber) {
+      const count = await PurchaseInvoice.countDocuments();
+      prData.invoiceNumber = `INV-${String(count + 1).padStart(5, '0')}`;
+    } else {
+      prData.invoiceNumber = prData.invoiceNumber || prData.purchaseReceiveNumber;
+    }
+    prData.date = prData.date || prData.receiveDate || new Date();
     
-    // Parse lineItems if they come as string from multipart/form-data
-    let parsedLineItems = data.lineItems || [];
-    if (typeof parsedLineItems === 'string') {
-      try {
-        parsedLineItems = JSON.parse(parsedLineItems);
-      } catch (e) {
-        parsedLineItems = [];
-      }
+    if (prData.lineItems) {
+      prData.lineItems = prData.lineItems.map((item: any) => ({
+        ...item,
+        quantity: item.quantity || item.invoiceQuantity || item.act || 0,
+        rate: item.rate || 0,
+        amount: item.amount || item.totalAmount || 0,
+        description: item.description || item.itemDescription
+      }));
     }
 
-    // Process attachments
-    const files = req.files as Express.Multer.File[];
-    const attachments = files ? files.map(file => ({
-      name: file.originalname,
-      url: `/uploads/purchases/invoices/${file.filename}`
-    })) : [];
+    const newPr = new PurchaseInvoice(prData);
+    await newPr.save();
 
-    // Recalculate financials to prevent tampering
-    let calculatedSubTotal = 0;
-    const processedLineItems = parsedLineItems.map((item: any) => {
-      const amount = (item.quantity || 0) * (item.rate || 0);
-      calculatedSubTotal += amount;
-      return {
-        ...item,
-        amount
-      };
-    });
-
-    const discountAmount = (calculatedSubTotal * (data.discountPercentage || 0)) / 100;
-    const taxableAmount = calculatedSubTotal - discountAmount;
-    
-    const cgstAmountVal = (taxableAmount * (Number(data.cgstPercentage) || 0)) / 100;
-    const sgstAmountVal = (taxableAmount * (Number(data.sgstPercentage) || 0)) / 100;
-    const igstAmountVal = (taxableAmount * (Number(data.igstPercentage) || 0)) / 100;
-
-    const adjustment = Number(data.adjustment) || 0;
-    const calculatedTotal = taxableAmount + cgstAmountVal + sgstAmountVal + igstAmountVal + adjustment;
-
-    const newInvoice = new PurchaseInvoice({
-      ...data,
-      lineItems: processedLineItems,
-      subTotal: calculatedSubTotal,
-      discountAmount,
-      total: calculatedTotal,
-      status: data.status || 'Draft',
-      attachments
-    });
-
-    await newInvoice.save();
-
-    if (processedLineItems && processedLineItems.length > 0) {
-      const inwardEntries = processedLineItems.map((item: any) => ({
-        purchaseInvoiceId: newInvoice._id,
-        purchaseOrderId: newInvoice.purchaseOrderId,
-        poNumber: data.poNumber,
-        poDate: data.poDate,
-        billingFrom: data.billingFrom,
-        vendorName: data.vendorName,
-        invoiceNumber: newInvoice.invoiceNumber,
-        invoiceDate: newInvoice.date,
-        diRefNo: (newInvoice as any).diNumber,
+    if (newPr.lineItems && newPr.lineItems.length > 0) {
+      const inwardEntries = newPr.lineItems.map((item: any) => ({
+        purchaseInvoiceId: newPr._id,
+        purchaseOrderId: newPr.purchaseOrderId,
+        poNumber: newPr.purchaseOrderNumber,
+        poDate: item.poDate,
+        billingFrom: newPr.billingFrom,
+        vendorName: newPr.vendorName,
+        invoiceNumber: newPr.invoiceNumber,
+        invoiceDate: newPr.date,
+        diRefNo: newPr.diNumber || (newPr as any).diNo,
         circle: item.circle,
         package: item.package,
         unit: item.unit,
-        invoiceQty: item.quantity,
+        invoiceQty: item.invoiceQuantity,
+        totalQty: item.totalInvoiceQuantity,
+        rate: item.rate,
+        amount: item.totalAmount || item.amount,
+        tempCode: item.tempCode,
+        itemId: item.itemId,
+        itemName: item.itemName,
+        itemDescription: item.itemDescription,
+        hsnCode: item.hsnCode,
+        cgst: item.cgst,
+        sgst: item.sgst,
+        igst: item.igst,
+        taxableAmount: item.amount,
+        serialNumber: item.loaSerialNo,
+        status: 'PENDING_RECEIPT',
+        packingList: [{ packType: 'BOX', quantity: item.invoiceQuantity || 0 }] // default packing
+      }));
+      await StoreInwardEntry.insertMany(inwardEntries);
+
+      // Rebuild summary for all items
+      for (const item of newPr.lineItems) {
+        if (item.itemId) SummaryService.rebuildForItem(item.itemId.toString()).catch(console.error);
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      data: newPr
+    });
+  } catch (error: any) {
+    console.error('Error creating Purchase Invoice:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create Purchase Invoice',
+      error: error.message
+    });
+  }
+};
+
+export const getPurchaseInvoices = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 50;
+    const skip = (page - 1) * limit;
+
+    const filter: any = {};
+    if (req.query.vendorName) {
+      filter.vendorName = req.query.vendorName;
+    }
+
+    const [prs, total] = await Promise.all([
+      PurchaseInvoice.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      PurchaseInvoice.countDocuments(filter)
+    ]);
+
+    const prsWithQuantity = await Promise.all(prs.map(async (pr: any) => {
+      // Map it back for the frontend which expects PR fields
+      pr.purchaseReceiveNumber = pr.invoiceNumber;
+      pr.receiveDate = pr.date;
+      
+      const quantity = pr.lineItems?.reduce((acc: number, item: any) => acc + (Number(item.quantity) || Number(item.totalInvoiceQuantity) || 0), 0) || 0;
+      
+      let storeStatus = 'Pending';
+      const totalEntries = await StoreInwardEntry.countDocuments({ purchaseInvoiceId: pr._id });
+      if (totalEntries > 0) {
+        const pendingEntries = await StoreInwardEntry.countDocuments({
+          purchaseInvoiceId: pr._id,
+          status: { $in: ['PENDING_RECEIPT', 'DRAFT'] }
+        });
+        storeStatus = pendingEntries > 0 ? 'Pending' : 'Accepted';
+      } else {
+        // If there are no entries but status is Draft, then it hasn't reached the store yet
+        storeStatus = pr.status === 'Draft' ? 'Draft' : 'Pending';
+      }
+
+      return {
+        ...pr,
+        quantity,
+        storeStatus
+      };
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: {
+        prs: prsWithQuantity,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit)
+        }
+      }
+    });
+  } catch (error: any) {
+    console.error('Error fetching Purchase Invoices:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch Purchase Invoices',
+      error: error.message
+    });
+  }
+};
+
+export const getPurchaseInvoiceById = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const pr: any = await PurchaseInvoice.findById(id).lean();
+
+    if (!pr) {
+      res.status(404).json({
+        success: false,
+        message: 'Purchase Invoice not found'
+      });
+      return;
+    }
+
+    // Check if any StoreInwardEntry is beyond PENDING_RECEIPT or DRAFT
+    const lockedEntries = await StoreInwardEntry.countDocuments({
+      purchaseInvoiceId: pr._id,
+      status: { $nin: ['PENDING_RECEIPT', 'DRAFT'] }
+    });
+
+    // Map fields for frontend
+    pr.purchaseReceiveNumber = pr.invoiceNumber;
+    pr.receiveDate = pr.date;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        ...pr,
+        isLocked: lockedEntries > 0
+      }
+    });
+  } catch (error: any) {
+    console.error('Error fetching Purchase Invoice:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch Purchase Invoice',
+      error: error.message
+    });
+  }
+};
+
+export const getNextPurchaseInvoiceNumber = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const lastPr = await PurchaseInvoice.findOne({ invoiceNumber: { $regex: /^INV-/i } })
+      .sort({ createdAt: -1 })
+      .lean();
+      
+    let nextNumber = 1;
+    if (lastPr && lastPr.invoiceNumber) {
+      const match = lastPr.invoiceNumber.match(/^INV-(\d+)$/i);
+      if (match) {
+        nextNumber = parseInt(match[1], 10) + 1;
+      }
+    }
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        prefix: 'INV-',
+        nextNumber: String(nextNumber).padStart(5, '0'),
+        fullNumber: `INV-${String(nextNumber).padStart(5, '0')}`
+      }
+    });
+  } catch (error: any) {
+    console.error('Error fetching next PR number:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch next PR number',
+      error: error.message
+    });
+  }
+};
+
+export const updatePurchaseInvoice = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+    
+    // 1. Check if it is locked
+    const lockedEntries = await StoreInwardEntry.countDocuments({
+      purchaseInvoiceId: id,
+      status: { $nin: ['PENDING_RECEIPT', 'DRAFT'] }
+    });
+
+    if (lockedEntries > 0) {
+      res.status(400).json({
+        success: false,
+        message: 'Cannot edit this Purchase Invoice because the Store Manager has already begun processing it.'
+      });
+      return;
+    }
+
+    if (updateData.purchaseReceiveNumber) updateData.invoiceNumber = updateData.purchaseReceiveNumber;
+    if (updateData.receiveDate) updateData.date = updateData.receiveDate;
+    
+    if (updateData.lineItems) {
+      updateData.lineItems = updateData.lineItems.map((item: any) => ({
+        ...item,
+        quantity: item.quantity || item.invoiceQuantity || item.act || 0,
+        rate: item.rate || 0,
+        amount: item.amount || item.totalAmount || 0,
+        description: item.description || item.itemDescription
+      }));
+    }
+
+    const updatedPr: any = await PurchaseInvoice.findByIdAndUpdate(id, updateData, { new: true }).lean();
+    
+    if (!updatedPr) {
+      res.status(404).json({
+        success: false,
+        message: 'Purchase Invoice not found'
+      });
+      return;
+    }
+
+    // 2. Synchronize StoreInwardEntry records
+    if (updatedPr.lineItems && updatedPr.lineItems.length > 0) {
+      // Delete existing pending entries
+      await StoreInwardEntry.deleteMany({
+        purchaseInvoiceId: updatedPr._id,
+        status: { $in: ['PENDING_RECEIPT', 'DRAFT'] }
+      });
+
+      // Recreate them with updated items
+      const inwardEntries = updatedPr.lineItems.map((item: any) => ({
+        purchaseInvoiceId: updatedPr._id,
+        purchaseOrderId: updatedPr.purchaseOrderId,
+        poNumber: updatedPr.purchaseOrderNumber,
+        poDate: item.poDate,
+        billingFrom: updatedPr.billingFrom,
+        vendorName: updatedPr.vendorName,
+        invoiceNumber: updatedPr.invoiceNumber,
+        invoiceDate: updatedPr.date,
+        diRefNo: updatedPr.diNumber || updatedPr.diNo,
+        circle: item.circle,
+        package: item.package,
+        unit: item.unit,
+        invoiceQty: item.invoiceQuantity,
+        totalQty: item.totalInvoiceQuantity,
         rate: item.rate,
         amount: item.amount,
         tempCode: item.tempCode,
@@ -90,188 +302,14 @@ export const createPurchaseInvoice = async (req: Request, res: Response) => {
         taxableAmount: item.amount,
         serialNumber: item.loaSerialNo,
         status: 'PENDING_RECEIPT',
-        packingList: [{ packType: 'BOX', quantity: item.quantity }] // default packing
+        packingList: [{ packType: 'BOX', quantity: item.invoiceQuantity || 0 }]
       }));
       await StoreInwardEntry.insertMany(inwardEntries);
     }
 
-    if (newInvoice.lineItems && newInvoice.lineItems.length > 0) {
-      for (const item of newInvoice.lineItems) {
-        if (item.itemId) SummaryService.rebuildForItem(item.itemId.toString()).catch(console.error);
-      }
-    }
-
-    res.status(201).json({
-      success: true,
-      data: newInvoice,
-      message: 'Purchase Invoice created successfully',
-    });
-  } catch (error: any) {
-    if (error.code === 11000) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invoice Number already exists',
-      });
-    }
-    console.error('Error creating Purchase Invoice:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create Purchase Invoice',
-      error: error.message,
-    });
-  }
-};
-
-export const getPurchaseInvoices = async (req: Request, res: Response) => {
-  try {
-    const user = (req as any).user;
-    const filter: any = {};
-
-    if (user && user.role?.name === 'Store Manager') {
-      const conditions = [];
-      if (user.assignedPackage) {
-        const normalizedPkg = user.assignedPackage.replace(/\s+/g, '');
-        const regexStr = normalizedPkg.split('').map((char: string) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*');
-        const pkgRegex = { $regex: new RegExp(`^\\s*${regexStr}\\s*$`, 'i') };
-        conditions.push({ 'lineItems.package': pkgRegex });
-      }
-      if (user.assignedCircle) {
-        const circleRegex = { $regex: new RegExp(`^\\s*${user.assignedCircle.trim()}\\s*$`, 'i') };
-        conditions.push({ 'lineItems.circle': circleRegex });
-      }
-      if (conditions.length > 0) {
-        filter.$and = conditions;
-      }
-    }
-
-    const invoices = await PurchaseInvoice.find(filter).sort({ createdAt: -1 });
-    res.status(200).json({
-      success: true,
-      data: invoices,
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch Purchase Invoices',
-      error: error.message,
-    });
-  }
-};
-
-export const getPurchaseInvoiceById = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const invoice = await PurchaseInvoice.findById(id).populate('purchaseOrderId');
-    
-    if (!invoice) {
-      return res.status(404).json({
-        success: false,
-        message: 'Purchase Invoice not found',
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: invoice,
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch Purchase Invoice details',
-      error: error.message,
-    });
-  }
-};
-
-export const updatePurchaseInvoice = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const data = req.body;
-    
-    // Parse lineItems if they come as string from multipart/form-data
-    let parsedLineItems = data.lineItems;
-    if (typeof parsedLineItems === 'string') {
-      try {
-        parsedLineItems = JSON.parse(parsedLineItems);
-      } catch (e) {
-        parsedLineItems = undefined;
-      }
-    }
-
-    // Process attachments
-    const files = req.files as Express.Multer.File[];
-    let newAttachments: any[] = [];
-    if (files && files.length > 0) {
-      newAttachments = files.map(file => ({
-        name: file.originalname,
-        url: `/uploads/purchases/invoices/${file.filename}`
-      }));
-    }
-
-    const existingInvoice = await PurchaseInvoice.findById(id);
-    if (!existingInvoice) {
-      return res.status(404).json({ success: false, message: 'Purchase Invoice not found' });
-    }
-
-    let calculatedTotal = existingInvoice.total;
-    let calculatedSubTotal = existingInvoice.subTotal;
-    let discountAmount = existingInvoice.discountAmount;
-    let processedLineItems = existingInvoice.lineItems;
-
-    if (parsedLineItems) {
-      calculatedSubTotal = 0;
-      processedLineItems = parsedLineItems.map((item: any) => {
-        const amount = (item.quantity || 0) * (item.rate || 0);
-        calculatedSubTotal += amount;
-        return {
-          ...item,
-          amount
-        };
-      });
-
-      discountAmount = (calculatedSubTotal * (data.discountPercentage ?? existingInvoice.discountPercentage ?? 0)) / 100;
-      const taxableAmount = calculatedSubTotal - discountAmount;
-      
-      const cgstPercentage = data.cgstPercentage ?? existingInvoice.cgstPercentage ?? 0;
-      const sgstPercentage = data.sgstPercentage ?? existingInvoice.sgstPercentage ?? 0;
-      const igstPercentage = data.igstPercentage ?? existingInvoice.igstPercentage ?? 0;
-
-      const cgstAmountVal = (taxableAmount * cgstPercentage) / 100;
-      const sgstAmountVal = (taxableAmount * sgstPercentage) / 100;
-      const igstAmountVal = (taxableAmount * igstPercentage) / 100;
-
-      const adjustment = Number(data.adjustment ?? existingInvoice.adjustment ?? 0);
-      calculatedTotal = taxableAmount + cgstAmountVal + sgstAmountVal + igstAmountVal + adjustment;
-    }
-
-    const updatedData: any = {
-      ...data,
-    };
-
-    if (parsedLineItems) {
-      updatedData.lineItems = processedLineItems;
-      updatedData.subTotal = calculatedSubTotal;
-      updatedData.discountAmount = discountAmount;
-      updatedData.total = calculatedTotal;
-    }
-
-    if (newAttachments.length > 0) {
-       updatedData.attachments = [...(existingInvoice.attachments || []), ...newAttachments];
-    }
-
-    const updatedInvoice = await PurchaseInvoice.findByIdAndUpdate(
-      id,
-      updatedData,
-      { new: true, runValidators: true }
-    );
-    
-    // trigger save to run pre-save hooks for balance calculation
-    if (updatedInvoice) {
-        await updatedInvoice.save();
-    }
-
-    const oldItemIds = existingInvoice.lineItems?.map((li: any) => li.itemId?.toString()).filter(Boolean) || [];
-    const newItemIds = updatedInvoice?.lineItems?.map((li: any) => li.itemId?.toString()).filter(Boolean) || [];
+    // Rebuild summary for old and new items
+    const oldItemIds = updatedPr?.lineItems?.map((li: any) => li.itemId?.toString()).filter(Boolean) || [];
+    const newItemIds = updateData.lineItems?.map((li: any) => li.itemId?.toString()).filter(Boolean) || [];
     const allAffectedItemIds = Array.from(new Set([...oldItemIds, ...newItemIds]));
     
     for (const itemId of allAffectedItemIds) {
@@ -280,124 +318,134 @@ export const updatePurchaseInvoice = async (req: Request, res: Response) => {
 
     res.status(200).json({
       success: true,
-      data: updatedInvoice,
       message: 'Purchase Invoice updated successfully',
+      data: updatedPr
     });
   } catch (error: any) {
-    if (error.code === 11000) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invoice Number already exists',
-      });
-    }
     console.error('Error updating Purchase Invoice:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to update Purchase Invoice',
-      error: error.message,
+      error: error.message
     });
   }
 };
 
-export const deletePurchaseInvoice = async (req: Request, res: Response) => {
+export const deletePurchaseInvoice = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const deletedInvoice = await PurchaseInvoice.findByIdAndDelete(id);
     
-    if (!deletedInvoice) {
-      return res.status(404).json({ success: false, message: 'Purchase Invoice not found' });
+    // 1. Check if it is locked
+    const lockedEntries = await StoreInwardEntry.countDocuments({
+      purchaseInvoiceId: id,
+      status: { $nin: ['PENDING_RECEIPT', 'DRAFT'] }
+    });
+
+    if (lockedEntries > 0) {
+      res.status(400).json({
+        success: false,
+        message: 'Cannot delete this Purchase Invoice because the Store Manager has already begun processing it.'
+      });
+      return;
     }
 
-    if (deletedInvoice.lineItems && deletedInvoice.lineItems.length > 0) {
-      for (const item of deletedInvoice.lineItems) {
+    const deletedPr = await PurchaseInvoice.findByIdAndDelete(id);
+    
+    if (!deletedPr) {
+      res.status(404).json({
+        success: false,
+        message: 'Purchase Invoice not found'
+      });
+      return;
+    }
+
+    // 2. Cascade delete orphaned inward entries
+    await StoreInwardEntry.deleteMany({
+      purchaseInvoiceId: id,
+      status: { $in: ['PENDING_RECEIPT', 'DRAFT'] }
+    });
+
+    // Rebuild summary for deleted items
+    if (deletedPr.lineItems && deletedPr.lineItems.length > 0) {
+      for (const item of deletedPr.lineItems) {
         if (item.itemId) SummaryService.rebuildForItem(item.itemId.toString()).catch(console.error);
       }
     }
 
     res.status(200).json({
       success: true,
-      message: 'Purchase Invoice deleted successfully',
+      message: 'Purchase Invoice and pending inward entries deleted successfully'
     });
   } catch (error: any) {
     console.error('Error deleting Purchase Invoice:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to delete Purchase Invoice',
-      error: error.message,
-    });
-  }
-};
-
-export const getNextPurchaseInvoiceNumber = async (req: Request, res: Response) => {
-  try {
-    const lastInvoice = await PurchaseInvoice.findOne({ invoiceNumber: { $regex: /^INV-/i } })
-      .sort({ createdAt: -1 })
-      .lean();
-      
-    let nextNumber = 1;
-    if (lastInvoice && lastInvoice.invoiceNumber) {
-      const match = lastInvoice.invoiceNumber.match(/^INV-(\d+)$/i);
-      if (match) {
-        nextNumber = parseInt(match[1], 10) + 1;
-      }
-    }
-    
-    res.status(200).json({
-      success: true,
-      data: {
-        prefix: 'INV-',
-        nextNumber: nextNumber.toString().padStart(5, '0')
-      }
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      message: 'Failed to generate next Invoice number',
-      error: error.message,
-    });
-  }
-};
-
-export const updatePurchaseInvoiceReceiptStatus = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { receiptStatus } = req.body;
-    
-    if (!['Pending Receipt', 'Received'].includes(receiptStatus)) {
-      return res.status(400).json({ success: false, message: 'Invalid receipt status' });
-    }
-
-    const invoice = await PurchaseInvoice.findByIdAndUpdate(
-      id,
-      { receiptStatus },
-      { new: true }
-    );
-
-    if (!invoice) {
-      return res.status(404).json({ success: false, message: 'Purchase Invoice not found' });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: invoice,
-      message: 'Receipt status updated successfully'
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update receipt status',
       error: error.message
     });
   }
 };
 
-export const importPurchaseInvoices = async (req: Request, res: Response) => {
+export const exportPurchaseInvoices = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const receives = await PurchaseInvoice.find().sort({ createdAt: -1 }).lean();
+
+    const csvData = receives.flatMap(r => 
+      r.lineItems && r.lineItems.length > 0 ? r.lineItems.map((item: any) => ({
+        PurchaseInvoiceNumber: r.invoiceNumber,
+        PurchaseOrderNumber: r.purchaseOrderNumber || '',
+        Date: r.date ? new Date(r.date).toISOString().split('T')[0] : '',
+        VendorName: r.vendorName,
+        Status: r.status,
+        DINo: r.diNumber || (r as any).diNo || '',
+        Billed: (r as any).billed ? 'Yes' : 'No',
+        ItemName: item.itemName,
+        TempCode: item.tempCode || '',
+        POQuantity: item.poQuantity,
+        InvoiceQuantity: item.invoiceQuantity,
+        Rate: item.rate || 0,
+        Amount: item.amount || 0,
+        CGST: item.cgst || 0,
+        SGST: item.sgst || 0,
+        IGST: item.igst || 0,
+        TotalAmount: item.totalAmount || 0,
+        BillingFrom: r.billingFrom || ''
+      })) : [{
+        PurchaseInvoiceNumber: r.invoiceNumber,
+        PurchaseOrderNumber: r.purchaseOrderNumber || '',
+        Date: r.date ? new Date(r.date).toISOString().split('T')[0] : '',
+        VendorName: r.vendorName,
+        Status: r.status,
+        DINo: r.diNumber || (r as any).diNo || '',
+        Billed: (r as any).billed ? 'Yes' : 'No',
+        ItemName: '', TempCode: '', POQuantity: '', InvoiceQuantity: '', Rate: '', Amount: '', CGST: '', SGST: '', IGST: '', TotalAmount: '',
+        BillingFrom: (r as any).billingFrom || ''
+      }]
+    );
+
+    const csvString = stringify(csvData, { header: true });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=purchase_invoices_export.csv');
+    res.status(200).send(csvString);
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to export Purchase Invoices',
+      error: error.message,
+    });
+  }
+};
+
+export const importPurchaseInvoices = async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.file) {
-      return res.status(400).json({ success: false, message: 'No CSV file uploaded' });
+      res.status(400).json({ success: false, message: 'No CSV file uploaded' });
+      return;
     }
 
     const parser = parseAndSanitizeCsv(req.file.buffer);
+
     const rows: any[] = [];
     const tempCodes = new Set<string>();
     const loaSerialNos = new Set<string>();
@@ -406,17 +454,16 @@ export const importPurchaseInvoices = async (req: Request, res: Response) => {
     for await (const r of parser) {
       const row = r as any;
       rows.push(row);
-
-      const tempCode = row['TempCode'] || row['tempCode'];
-      const loaSerialNo = row['LoaSerialNo'] || row['loaSerialNo'];
-      const itemName = row['ItemName'] || row['itemName'] || row['Item Name'];
-
+      
+      const tempCode = row['Temp Code'] || row['TempCode'] || row['tempCode'];
+      const loaSerialNo = row['LOA Serial No'] || row['LOASerialNo'] || row['loaSerialNo'];
+      const itemName = row['Item Name'] || row['ItemName'] || row['itemName'];
+      
       if (tempCode) tempCodes.add(tempCode);
       if (loaSerialNo) loaSerialNos.add(loaSerialNo);
       if (itemName) itemNames.add(itemName);
     }
 
-    // 1. Bulk pre-fetch matching items
     const orConditions: any[] = [];
     if (tempCodes.size > 0) orConditions.push({ 'dynamicData.tempCode': { $in: Array.from(tempCodes) } });
     if (loaSerialNos.size > 0) {
@@ -431,11 +478,11 @@ export const importPurchaseInvoices = async (req: Request, res: Response) => {
 
     const findItemInMemory = (tCode?: string, lSerial?: string, name?: string) => {
       if (tCode) {
-        const found = existingItems.find(i => i.dynamicData?.tempCode === tCode);
+        const found = existingItems.find((i: any) => i.dynamicData?.tempCode === tCode);
         if (found) return found;
       }
       if (lSerial) {
-        const found = existingItems.find(i => 
+        const found = existingItems.find((i: any) => 
           i.dynamicData?.loaSerialNo === lSerial || 
           i.dynamicData?.loaSerialNumber === lSerial || 
           i.dynamicData?.sku === lSerial
@@ -443,66 +490,71 @@ export const importPurchaseInvoices = async (req: Request, res: Response) => {
         if (found) return found;
       }
       if (name) {
-        const found = existingItems.find(i => i.dynamicData?.name === name);
+        const found = existingItems.find((i: any) => i.dynamicData?.name === name);
         if (found) return found;
       }
       return null;
     };
 
-    // 2. Build piMap in-memory
-    const piMap: Record<string, any> = {};
+    const prMap: Record<string, any> = {};
 
     for (const row of rows) {
-      const invoiceNumber = row['InvoiceNumber'] || row['invoiceNumber'] || row['Invoice Number'];
-      if (!invoiceNumber) continue;
+      const prNumber = row['PurchaseReceiveNumber'] || row['purchaseReceiveNumber'] || row['StoreInwardNumber'] || row['storeInwardNumber'] || row['PrNumber'] || row['prNumber'];
+      if (!prNumber) continue;
 
-      if (!piMap[invoiceNumber]) {
-        piMap[invoiceNumber] = {
-          invoiceNumber,
-          _poNumber: row['PurchaseOrderNumber'] || row['purchaseOrderNumber'] || '',
-          date: row['Date'] || row['date'] || new Date().toISOString().split('T')[0],
-          dueDate: row['DueDate'] || row['dueDate'],
+      if (!prMap[prNumber]) {
+        prMap[prNumber] = {
+          invoiceNumber: prNumber,
+          purchaseOrderNumber: row['PurchaseOrderNumber'] || row['purchaseOrderNumber'] || '',
+          date: row['Date'] || row['receiveDate'] || new Date().toISOString().split('T')[0],
           vendorName: row['VendorName'] || row['vendorName'],
           status: row['Status'] || row['status'] || 'Draft',
-          gstType: row['GstType'] || row['gstType'] || 'Intra State',
-          notes: row['Notes'] || row['notes'],
+          diNumber: row['DINo'] || row['diNo'] || '',
+          billed: (row['Billed'] || row['billed'] || '').toLowerCase() === 'yes',
           lineItems: [],
         };
       }
 
-      const itemName = row['ItemName'] || row['itemName'] || row['Item Name'];
-      const poQuantity = Number(row['PoQuantity'] || row['poQuantity'] || 0);
-      const quantity = Number(row['Quantity'] || row['quantity'] || 0);
-      const rate = Number(row['Rate'] || row['rate'] || 0);
-      const cgst = Number(row['Cgst'] || row['cgst'] || 0);
-      const sgst = Number(row['Sgst'] || row['sgst'] || 0);
-      const igst = Number(row['Igst'] || row['igst'] || 0);
-      const tempCode = row['TempCode'] || row['tempCode'];
-      const loaSerialNo = row['LoaSerialNo'] || row['loaSerialNo'];
+      const itemName = row['Item Name'] || row['ItemName'] || row['itemName'];
+      const tempCode = row['Temp Code'] || row['TempCode'] || row['tempCode'] || '';
+      const loaSerialNo = row['LOA Serial No'] || row['LOASerialNo'] || row['loaSerialNo'] || '';
 
       if (itemName) {
         const item = findItemInMemory(tempCode, loaSerialNo, itemName);
         const itemId = item ? item._id : null;
 
-        piMap[invoiceNumber].lineItems.push({
+        prMap[prNumber].lineItems.push({
           itemId,
           itemName,
-          poQuantity,
-          quantity,
-          rate,
-          cgst,
-          sgst,
-          igst
+          itemDescription: row['Description'] || row['description'] || '',
+          loaSerialNo,
+          tempCode,
+          package: row['Package'] || row['package'] || '',
+          circle: row['Circle'] || row['circle'] || '',
+          hsnCode: row['HSN Code'] || row['HSNCode'] || row['hsnCode'] || '',
+          unit: row['Unit'] || row['unit'] || '',
+          poDate: row['PO Date'] || row['PODate'] || row['poDate'] || undefined,
+          poQuantity: Number(row['PO Qty'] || row['POQuantity'] || row['poQuantity'] || 0),
+          quantity: Number(row['Inv Qty'] || row['InvoiceQuantity'] || row['invoiceQuantity'] || row['ACT'] || row['act'] || 0),
+          srt: Number(row['SRT'] || row['srt'] || 0),
+          act: Number(row['ACT'] || row['act'] || 0),
+          totalInventory: Number(row['Tot Inv Qty'] || row['TotInvQty'] || row['totalInvoiceQuantity'] || 0),
+          rate: Number(row['Rate'] || row['rate'] || 0),
+          amount: Number(row['Amount'] || row['amount'] || 0),
+          gstType: row['GST Type'] || row['GSTType'] || row['gstType'] || 'Intra State',
+          cgst: Number(row['CGST %'] || row['CGST'] || row['cgst'] || 0),
+          sgst: Number(row['SGST %'] || row['SGST'] || row['sgst'] || 0),
+          igst: Number(row['IGST %'] || row['IGST'] || row['igst'] || 0),
+          totalAmount: Number(row['Total Amount'] || row['TotalAmount'] || row['totalAmount'] || 0)
         });
       }
     }
 
-    // 4. Pre-fetch existing PIs and POs
-    const invoiceNumbers = Object.keys(piMap);
-    const poNumbers = Array.from(new Set(invoiceNumbers.map(n => piMap[n]._poNumber).filter(Boolean)));
+    const prNumbers = Object.keys(prMap);
+    const poNumbers = Array.from(new Set(prNumbers.map(n => prMap[n].purchaseOrderNumber).filter(Boolean)));
 
-    const [existingPIs, existingPOs] = await Promise.all([
-      PurchaseInvoice.find({ invoiceNumber: { $in: invoiceNumbers } }),
+    const [existingPRs, existingPOs] = await Promise.all([
+      PurchaseInvoice.find({ invoiceNumber: { $in: prNumbers } }),
       poNumbers.length > 0 ? PurchaseOrder.find({ purchaseOrderNumber: { $in: poNumbers } }) : []
     ]);
 
@@ -510,93 +562,33 @@ export const importPurchaseInvoices = async (req: Request, res: Response) => {
     const errors: any[] = [];
     const globalAffectedItemIds = new Set<string>();
     
-    for (const invoiceNumber of invoiceNumbers) {
-      const piData = piMap[invoiceNumber];
+    for (const prNumber of prNumbers) {
+      const prData = prMap[prNumber];
       try {
-        const existing = existingPIs.find(p => p.invoiceNumber === piData.invoiceNumber);
+        const existing = existingPRs.find(p => p.invoiceNumber === prData.invoiceNumber);
+        if (existing) {
+          errors.push(`Purchase Invoice ${prData.invoiceNumber} already exists.`);
+          continue;
+        }
 
-        if (piData._poNumber) {
-          const po = existingPOs.find(p => p.purchaseOrderNumber === piData._poNumber);
+        if (prData.purchaseOrderNumber) {
+          const po = existingPOs.find(p => p.purchaseOrderNumber === prData.purchaseOrderNumber);
           if (po) {
-            piData.purchaseOrderId = po._id;
-          } else {
-            errors.push(`Purchase Order ${piData._poNumber} not found for Invoice ${piData.invoiceNumber}. It will be created without PO link.`);
+            prData.purchaseOrderId = po._id;
           }
         }
-        delete piData._poNumber;
 
-        // Calculate financials
-        let subTotal = 0;
-        let totalTax = 0;
+        const createdPr = await PurchaseInvoice.create(prData);
+        successCount++;
 
-        piData.lineItems = piData.lineItems.map((item: any) => {
-          const amount = item.quantity * item.rate;
-          let taxAmount = 0;
-          if (piData.gstType === 'Intra State') {
-            taxAmount = amount * (item.cgst + item.sgst) / 100;
-            item.igst = 0;
-          } else if (piData.gstType === 'Inter State') {
-            taxAmount = amount * item.igst / 100;
-            item.cgst = 0;
-            item.sgst = 0;
-          }
-          
-          item.amount = amount;
-          subTotal += amount;
-          totalTax += taxAmount;
-          return item;
-        });
-
-        piData.subTotal = subTotal;
-        piData.taxAmount = totalTax;
-        piData.total = subTotal + totalTax;
-        piData.balanceDue = piData.total;
-
-        if (existing) {
-          const isLocked = existing.status === 'Paid';
-          if (isLocked) {
-            errors.push(`Invoice ${piData.invoiceNumber} already exists and is locked (status is Paid). Cannot update.`);
-            continue;
-          }
-
-          const oldItemIds = existing.lineItems.map((li: any) => li.itemId?.toString()).filter(Boolean);
-
-          existing.date = piData.date;
-          existing.dueDate = piData.dueDate;
-          existing.vendorName = piData.vendorName;
-          existing.status = piData.status;
-          existing.gstType = piData.gstType;
-          existing.notes = piData.notes;
-          existing.subTotal = piData.subTotal;
-          existing.taxAmount = piData.taxAmount;
-          existing.total = piData.total;
-          existing.balanceDue = piData.balanceDue;
-          existing.lineItems = piData.lineItems;
-          if (piData.purchaseOrderId) existing.purchaseOrderId = piData.purchaseOrderId;
-
-          const updated = await existing.save();
-          successCount++;
-
-          const allAffectedItemIds = Array.from(new Set([
-            ...oldItemIds,
-            ...updated.lineItems.map((li: any) => li.itemId?.toString()).filter(Boolean)
-          ]));
-
-          for (const itemId of allAffectedItemIds) {
-            globalAffectedItemIds.add(itemId);
-          }
-        } else {
-          const createdInvoice = await PurchaseInvoice.create(piData);
-          successCount++;
-
-          if (createdInvoice.lineItems && createdInvoice.lineItems.length > 0) {
-            for (const item of createdInvoice.lineItems) {
-              if (item.itemId) globalAffectedItemIds.add(item.itemId.toString());
-            }
+        // Queue rebuild summary for imported items
+        if (createdPr.lineItems && createdPr.lineItems.length > 0) {
+          for (const item of createdPr.lineItems) {
+            if (item.itemId) globalAffectedItemIds.add(item.itemId.toString());
           }
         }
       } catch (err: any) {
-        errors.push(`Failed to import Invoice ${piData.invoiceNumber}: ${err.message}`);
+        errors.push(`Failed to import Invoice ${prData.purchaseReceiveNumber}: ${err.message}`);
       }
     }
 
@@ -608,57 +600,21 @@ export const importPurchaseInvoices = async (req: Request, res: Response) => {
         errors
       }
     });
+
+    const uniqueItemIds = Array.from(globalAffectedItemIds);
+    setTimeout(() => {
+      (async () => {
+        for (let i = 0; i < uniqueItemIds.length; i += 10) {
+          const chunk = uniqueItemIds.slice(i, i + 10);
+          await Promise.all(chunk.map(id => SummaryService.rebuildForItem(id).catch(console.error)));
+        }
+      })();
+    }, 500);
+
   } catch (error: any) {
     res.status(500).json({
       success: false,
       message: 'Failed to import Purchase Invoices',
-      error: error.message,
-    });
-  }
-};
-
-export const exportPurchaseInvoices = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const invoices = await PurchaseInvoice.find().sort({ createdAt: -1 }).lean();
-
-    const csvData = invoices.flatMap(inv => 
-      inv.lineItems && inv.lineItems.length > 0 ? inv.lineItems.map((item: any) => ({
-        InvoiceNumber: inv.invoiceNumber,
-        PurchaseOrderNumber: inv.purchaseOrderNumber || '',
-        Date: inv.date ? new Date(inv.date).toISOString().split('T')[0] : '',
-        DueDate: inv.dueDate ? new Date(inv.dueDate).toISOString().split('T')[0] : '',
-        VendorName: inv.vendorName,
-        Status: inv.status,
-        BillingFrom: inv.billingCompany?.name || '',
-        ItemName: item.itemName,
-        Description: item.description || '',
-        HSNCode: item.hsnCode || '',
-        Quantity: item.quantity || 0,
-        Rate: item.rate || 0,
-        Amount: item.amount || 0,
-        Total: inv.total || 0,
-        BalanceDue: inv.balanceDue || 0
-      })) : [{
-        InvoiceNumber: inv.invoiceNumber,
-        PurchaseOrderNumber: inv.purchaseOrderNumber || '',
-        Date: inv.date ? new Date(inv.date).toISOString().split('T')[0] : '',
-        DueDate: inv.dueDate ? new Date(inv.dueDate).toISOString().split('T')[0] : '',
-        VendorName: inv.vendorName,
-        Status: inv.status,
-        BillingFrom: inv.billingCompany?.name || '',
-        ItemName: '', Description: '', HSNCode: '', Quantity: '', Rate: '', Amount: '', Total: '', BalanceDue: ''
-      }]
-    );
-
-    const csvString = stringify(csvData, { header: true });
-
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename=purchase_invoices_export.csv');
-    res.status(200).send(csvString);
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      message: 'Failed to export Purchase Invoices',
       error: error.message,
     });
   }

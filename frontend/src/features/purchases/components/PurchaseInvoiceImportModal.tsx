@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { importPurchaseReceivesFromCsv } from "../api/purchases.api";
+import { importPurchaseInvoicesFromCsv } from "../api/purchases.api";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Loader2, UploadCloud, FileText, CheckCircle, AlertCircle } from "lucide-react";
@@ -32,7 +32,7 @@ export function PurchaseInvoiceImportModal({ isOpen, onClose, onSuccess }: Purch
     setResult(null);
 
     try {
-      const res = await importPurchaseReceivesFromCsv(file);
+      const res = await importPurchaseInvoicesFromCsv(file);
       
       if (res.data.successCount > 0) {
         toast.success(`Imported successfully! ${res.data.successCount} purchase invoices added.`);

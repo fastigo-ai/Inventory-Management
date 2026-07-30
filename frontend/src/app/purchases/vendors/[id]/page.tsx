@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import { getEntityMetadata, getVendors, getVendor, updateVendor, deleteVendor } from "@/features/vendors/api/vendors.api";
-import { getPurchaseOrders, getPurchaseReceives } from "@/features/purchases/api/purchases.api";
+import { getPurchaseOrders, getPurchaseInvoices } from "@/features/purchases/api/purchases.api";
 import { FieldMetadata } from "@/shared/components/dynamic/DynamicForm";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
@@ -39,7 +39,6 @@ export default function VendorSplitViewPage({ params }: { params: Promise<{ id: 
   
   const [vendorPos, setVendorPos] = useState<any[]>([]);
   const [vendorPis, setVendorPis] = useState<any[]>([]);
-  const [vendorPrs, setVendorPrs] = useState<any[]>([]);
   const [vendorDis, setVendorDis] = useState<any[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
 
@@ -74,7 +73,6 @@ export default function VendorSplitViewPage({ params }: { params: Promise<{ id: 
           const data = await getVendorTransactions(vendorId);
           setVendorPos(data.purchaseOrders || []);
           setVendorPis(data.purchaseInvoices || []);
-          setVendorPrs(data.purchaseReceives || []);
           setVendorDis(data.dis || []);
         } catch (error) {
           console.error("Failed to load transactions", error);
@@ -608,52 +606,6 @@ export default function VendorSplitViewPage({ params }: { params: Promise<{ id: 
                       </div>
                     ) : (
                       <p className="text-sm text-slate-500 py-4 text-center border rounded-lg bg-slate-50 border-dashed">No Purchase Invoices found.</p>
-                    )}
-                  </div>
-
-                  {/* PRs */}
-                  <div>
-                    <h3 className="text-sm font-semibold text-slate-800 mb-4 border-b pb-2 flex items-center">
-                      <svg className="w-4 h-4 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg> 
-                      Store Inwards (PRs)
-                    </h3>
-                    {vendorPrs.length > 0 ? (
-                      <div className="border border-slate-200 rounded-lg overflow-hidden">
-                        <table className="w-full text-sm text-left">
-                          <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
-                            <tr>
-                              <th className="px-6 py-3 font-medium">Date</th>
-                              <th className="px-6 py-3 font-medium">Inward Number</th>
-                              <th className="px-6 py-3 font-medium">Status</th>
-                              <th className="px-6 py-3 font-medium text-right">Received Qty</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {vendorPrs.map((pr: any) => (
-                              <tr key={pr._id} className="border-b border-slate-100 hover:bg-slate-50">
-                                <td className="px-6 py-3 text-slate-600 whitespace-nowrap">
-                                  {new Date(pr.receiveDate || pr.createdAt).toLocaleDateString('en-IN')}
-                                </td>
-                                <td className="px-6 py-3 font-medium text-blue-600 hover:underline cursor-pointer">
-                                  <Link href={`/purchases/receives/${pr._id}`}>
-                                    {pr.purchaseReceiveNumber}
-                                  </Link>
-                                </td>
-                                <td className="px-6 py-3">
-                                  <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${pr.status === 'Received' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'}`}>
-                                    {pr.status || 'Pending'}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-3 text-right text-slate-900 font-medium">
-                                  {pr.act || 0}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-slate-500 py-4 text-center border rounded-lg bg-slate-50 border-dashed">No Store Inwards found.</p>
                     )}
                   </div>
 

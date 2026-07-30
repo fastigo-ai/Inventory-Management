@@ -636,23 +636,12 @@ export const getVendorTransactions = asyncHandler(async (req: Request, res: Resp
   const searchPrefix = words.slice(0, Math.max(1, Math.min(2, words.length))).join(' ');
   const vendorNameRegex = new RegExp(`^${escapeRegex(searchPrefix)}`, 'i');
 
-  const [purchaseOrders, purchaseInvoices, rawPurchaseReceives, rawDis] = await Promise.all([
+  const [purchaseOrders, purchaseInvoices, rawDis] = await Promise.all([
     PurchaseOrder.find({ vendorName: vendorNameRegex }).select('_id purchaseOrderNumber date status total').sort({ date: -1 }).lean(),
     PurchaseInvoice.find({ vendorName: vendorNameRegex }).select('_id invoiceNumber date status total rate quantity amount').sort({ date: -1 }).lean(),
-    Pr.find({ vendorName: vendorNameRegex }).select('_id purchaseReceiveNumber receiveDate status lineItems').sort({ receiveDate: -1 }).lean(),
     DI.find({ vendorName: vendorNameRegex }).select('_id diNumber date status lineItems').sort({ date: -1 }).lean()
   ]);
 
-  const purchaseReceives = rawPurchaseReceives.map(pr => {
-    const act = (pr.lineItems || []).reduce((sum: number, item: any) => sum + (item.act || 0), 0);
-    return {
-      _id: pr._id,
-      purchaseReceiveNumber: pr.purchaseReceiveNumber,
-      receiveDate: pr.receiveDate,
-      status: pr.status,
-      act
-    };
-  });
 
   const dis = rawDis.map(di => {
     const quantity = (di.lineItems || []).reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
@@ -668,7 +657,6 @@ export const getVendorTransactions = asyncHandler(async (req: Request, res: Resp
   res.status(200).json(new ApiResponse(200, {
     purchaseOrders,
     purchaseInvoices,
-    purchaseReceives,
     dis
   }, 'Vendor transactions fetched successfully'));
 });

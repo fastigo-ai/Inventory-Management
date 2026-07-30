@@ -192,17 +192,18 @@ export function NewPurchaseReceiveForm() {
                <table className="w-full text-sm text-left">
                   <thead className="bg-transparent border-b border-slate-100 text-[11px] font-bold text-slate-300 uppercase tracking-wider">
                     <tr>
-                      <th className="px-4 py-4 w-[40%]">ITEMS & DESCRIPTION</th>
+                      <th className="px-4 py-4 w-[30%]">ITEMS & DESCRIPTION</th>
                       <th className="px-4 py-4">TEMP CODE</th>
                       <th className="px-4 py-4">ORDERED</th>
                       <th className="px-4 py-4">RECEIVED</th>
-                      <th className="px-4 py-4">IN TRANSIT</th>
-                      <th className="px-4 py-4">QUANTITY TO RECEIVE</th>
+                      <th className="px-4 py-4">RATE</th>
+                      <th className="px-4 py-4">TAX</th>
+                      <th className="px-4 py-4">AMOUNT</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr>
-                      <td colSpan={6} className="px-4 py-12 text-center text-slate-300 font-medium">
+                      <td colSpan={7} className="px-4 py-12 text-center text-slate-300 font-medium">
                         Item Table
                       </td>
                     </tr>

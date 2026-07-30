@@ -126,70 +126,6 @@ export interface CreatePurchaseReceiveDto {
   billed?: boolean;
 }
 
-export const createPurchaseReceive = async (payload: CreatePurchaseReceiveDto | FormData) => {
-  const isFormData = payload instanceof FormData;
-  const response = await api.post('/purchases/receives', payload, {
-    headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : undefined,
-  });
-  return response.data;
-};
-
-export const getPurchaseReceives = async (params?: { page?: number; limit?: number; vendorName?: string }) => {
-  const query = new URLSearchParams();
-  if (params?.page) query.append('page', params.page.toString());
-  if (params?.limit) query.append('limit', params.limit.toString());
-  if (params?.vendorName) query.append('vendorName', params.vendorName);
-  
-  const queryString = query.toString();
-  const url = queryString ? `/purchases/receives?${queryString}` : '/purchases/receives';
-  
-  const response = await api.get(url);
-  return response.data;
-};
-
-export const exportPurchaseReceivesToCsv = async () => {
-  const response = await api.get('/purchases/receives/export', { responseType: 'blob' });
-  const url = window.URL.createObjectURL(new Blob([response.data]));
-  const link = document.createElement('a');
-  link.href = url;
-  link.setAttribute('download', 'purchase_invoices_export.csv');
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-};
-
-export const importPurchaseReceivesFromCsv = async (file: File) => {
-  const formData = new FormData();
-  formData.append('file', file);
-  const response = await api.post('/purchases/receives/import', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
-  return response.data;
-};
-
-export const getPurchaseReceiveById = async (id: string) => {
-  const response = await api.get(`/purchases/receives/${id}`);
-  return response.data.data;
-};
-
-export const updatePurchaseReceive = async (id: string, data: any) => {
-  const response = await api.put(`/purchases/receives/${id}`, data);
-  return response.data;
-};
-
-export const deletePurchaseReceive = async (id: string) => {
-  const response = await api.delete(`/purchases/receives/${id}`);
-  return response.data;
-};
-
-export const getNextPurchaseReceiveNumber = async () => {
-  const response = await api.get('/purchases/receives/next-number');
-  return response.data;
-};
-
-// Purchase Invoices
 export interface CreatePurchaseInvoiceDto {
   invoiceNumber: string;
   vendorName: string;
@@ -222,7 +158,7 @@ export interface CreatePurchaseInvoiceDto {
   status: 'Draft' | 'Sent' | 'Unpaid' | 'Overdue' | 'Partially Paid' | 'Paid';
 }
 
-export const createPurchaseInvoice = async (payload: CreatePurchaseInvoiceDto | FormData) => {
+export const createPurchaseInvoice = async (payload: any) => {
   const isFormData = payload instanceof FormData;
   const response = await api.post('/purchases/invoices', payload, {
     headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : undefined,
@@ -230,8 +166,11 @@ export const createPurchaseInvoice = async (payload: CreatePurchaseInvoiceDto | 
   return response.data;
 };
 
-export const getPurchaseInvoices = async (params?: { page?: number; limit?: number }) => {
+export const getPurchaseInvoices = async (params?: { vendorName?: string; status?: string; storeStatus?: string; page?: number; limit?: number }) => {
   const query = new URLSearchParams();
+  if (params?.vendorName) query.append('vendorName', params.vendorName);
+  if (params?.status) query.append('status', params.status);
+  if (params?.storeStatus) query.append('storeStatus', params.storeStatus);
   if (params?.page) query.append('page', params.page.toString());
   if (params?.limit) query.append('limit', params.limit.toString());
   
@@ -239,6 +178,28 @@ export const getPurchaseInvoices = async (params?: { page?: number; limit?: numb
   const url = queryString ? `/purchases/invoices?${queryString}` : '/purchases/invoices';
   
   const response = await api.get(url);
+  return response.data;
+};
+
+export const exportPurchaseInvoicesToCsv = async () => {
+  const response = await api.get('/purchases/invoices/export', { responseType: 'blob' });
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', 'purchase_invoices_export.csv');
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+};
+
+export const importPurchaseInvoicesFromCsv = async (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post('/purchases/invoices/import', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
   return response.data;
 };
 
@@ -260,17 +221,7 @@ export const updatePurchaseInvoiceReceiptStatus = async (id: string, receiptStat
   return response.data;
 };
 
-export const importPurchaseInvoicesFromCsv = async (file: File) => {
-  const formData = new FormData();
-  formData.append('file', file);
-  
-  const response = await api.post('/purchases/invoices/import', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    }
-  });
-  return response.data;
-};
+
 
 export const deletePurchaseInvoice = async (id: string) => {
   const response = await api.delete(`/purchases/invoices/${id}`);
@@ -282,13 +233,3 @@ export const getNextPurchaseInvoiceNumber = async () => {
   return response.data;
 };
 
-export const exportPurchaseInvoicesToCsv = async () => {
-  const response = await api.get('/purchases/invoices/export', { responseType: 'blob' });
-  const url = window.URL.createObjectURL(new Blob([response.data]));
-  const link = document.createElement('a');
-  link.href = url;
-  link.setAttribute('download', 'purchase_invoices_export.csv');
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-};

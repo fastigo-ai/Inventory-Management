@@ -428,8 +428,7 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
   };
 
   let rowIndex = 1;
-  const seenUniqueValues: Record<string, Set<any>> = {};
-  uniqueFields.forEach(f => seenUniqueValues[f] = new Set());
+  const seenUniqueValues = new Set<string>();
 
   for await (const row of parser) {
     rowIndex++;
@@ -468,17 +467,26 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
       if (!dynamicData.sellingPrice && dynamicData.sellingPrice !== 0) dynamicData.sellingPrice = 0;
       if (!dynamicData.unit) dynamicData.unit = 'pcs';
 
-      // Check uniqueness within the CSV file itself
       const rowErrors: string[] = [];
-      for (const uField of uniqueFields) {
-        const val = dynamicData[uField];
-        if (val) {
-          if (seenUniqueValues[uField].has(val)) {
-            rowErrors.push(`Duplicate value '${val}' found within the CSV for field '${uField}'.`);
-          } else {
-            seenUniqueValues[uField].add(val);
-          }
+      const packageVal = dynamicData['package'] || '';
+      const circleVal = dynamicData['circle'] || '';
+      const skuVal = dynamicData['sku'] || '';
+      
+      // Check uniqueness within the CSV file itself using Composite Key
+      if (skuVal) {
+        const compositeKey = `${packageVal}|${circleVal}|${skuVal}`;
+        if (seenUniqueValues.has(compositeKey)) {
+          rowErrors.push(`Duplicate item combination found within the CSV for Package: '${packageVal}', Circle: '${circleVal}', SKU: '${skuVal}'.`);
+        } else {
+          seenUniqueValues.add(compositeKey);
         }
+      }
+
+      // Package and Circle Validation
+      if (packageVal === 'Package 1(S/N)' && !['Solan', 'Nahan'].includes(circleVal)) {
+        rowErrors.push(`Invalid Circle '${circleVal}' for Package 1(S/N). Must be Solan or Nahan.`);
+      } else if (packageVal === 'Package 2(R/R)' && !['Rampur', 'Rohru'].includes(circleVal)) {
+        rowErrors.push(`Invalid Circle '${circleVal}' for Package 2(R/R). Must be Rampur or Rohru.`);
       }
 
       if (rowErrors.length > 0) {
@@ -516,49 +524,29 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
     return res.status(400).json(new ApiResponse(400, { errors }, 'Import failed due to validation errors. No items were imported.'));
   }
 
-  // Batch Upsert Logic (Update if exists by unique field, else Insert)
+  // Batch Upsert Logic (Update if exists by unique composite key, else Insert)
   const bulkOps: any[] = [];
   
-  if (uniqueFields.length > 0 && validItems.length > 0) {
-    const orConditions = [];
-    for (const uField of uniqueFields) {
-      const values = validItems.map(item => item.dynamicData[uField]).filter(Boolean);
-      if (values.length > 0) {
-        orConditions.push({ [`dynamicData.${uField}`]: { $in: values } });
-      }
-    }
+  if (validItems.length > 0) {
+    const orConditions = validItems.map(item => ({
+      'dynamicData.sku': item.dynamicData.sku,
+      'dynamicData.package': item.dynamicData.package,
+      'dynamicData.circle': item.dynamicData.circle
+    })).filter(c => c['dynamicData.sku']);
     
     const existingItemsMap = new Map();
     if (orConditions.length > 0) {
       const existingItems = await Item.find({ $or: orConditions }).lean();
       for (const existing of existingItems) {
-        for (const uField of uniqueFields) {
-          const val = (existing as any).dynamicData?.[uField];
-          if (val) {
-            existingItemsMap.set(`${uField}:${val}`, existing);
-          }
-        }
+        const ext = existing as any;
+        const key = `${ext.dynamicData?.package || ''}|${ext.dynamicData?.circle || ''}|${ext.dynamicData?.sku || ''}`;
+        existingItemsMap.set(key, existing);
       }
     }
 
     for (const item of validItems) {
-      let matchedExisting: any = null;
-      // Prefer matching by SKU (LOA Serial No) first
-      if (item.dynamicData.sku && existingItemsMap.has(`sku:${item.dynamicData.sku}`)) {
-         matchedExisting = existingItemsMap.get(`sku:${item.dynamicData.sku}`);
-      } else if (item.dynamicData.tempCode && existingItemsMap.has(`tempCode:${item.dynamicData.tempCode}`)) {
-         matchedExisting = existingItemsMap.get(`tempCode:${item.dynamicData.tempCode}`);
-      } else if (item.dynamicData.name && existingItemsMap.has(`name:${item.dynamicData.name}`)) {
-         matchedExisting = existingItemsMap.get(`name:${item.dynamicData.name}`);
-      } else {
-         for (const uField of uniqueFields) {
-           const val = item.dynamicData[uField];
-           if (val && existingItemsMap.has(`${uField}:${val}`)) {
-             matchedExisting = existingItemsMap.get(`${uField}:${val}`);
-             break;
-           }
-         }
-      }
+      const key = `${item.dynamicData.package || ''}|${item.dynamicData.circle || ''}|${item.dynamicData.sku || ''}`;
+      const matchedExisting = existingItemsMap.get(key);
 
       if (matchedExisting) {
          bulkOps.push({
@@ -582,18 +570,13 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
          });
       }
     }
-  } else {
-    // No unique fields, just insert all
-    for (const item of validItems) {
-      bulkOps.push({ insertOne: { document: item } });
-    }
   }
 
   if (bulkOps.length > 0) {
     await Item.bulkWrite(bulkOps);
 
     // After bulk write, rebuild summary for all affected items by their SKUs
-    if (uniqueFields.length > 0 && validItems.length > 0) {
+    if (validItems.length > 0) {
       const skus = validItems.map(item => item.dynamicData.sku).filter(Boolean);
       if (skus.length > 0) {
         const affectedItems = await Item.find({ 'dynamicData.sku': { $in: skus } }).select('_id').lean();
@@ -601,9 +584,6 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
           SummaryService.rebuildForItem(affected._id.toString()).catch(console.error);
         }
       }
-    } else {
-      // If no unique fields, it's harder to track. We could fetch recently created items.
-      // But typically SKU is unique. We'll skip for now if no unique fields.
     }
   }
 

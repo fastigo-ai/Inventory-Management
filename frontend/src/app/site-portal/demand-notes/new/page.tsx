@@ -14,6 +14,7 @@ export default function CreateDemandNotePage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [itemsList, setItemsList] = useState<any[]>([]);
+  const [file, setFile] = useState<File | null>(null);
   
   const [formData, setFormData] = useState({
     contractorName: '',
@@ -131,15 +132,24 @@ export default function CreateDemandNotePage() {
 
     setIsSubmitting(true);
     try {
-      const payload = {
-        ...formData,
-        items: items.map(i => {
-          const { isLoadingContext, ...rest } = i;
-          return rest;
-        })
-      };
+      const itemsToSave = items.map(i => {
+        const { isLoadingContext, ...rest } = i;
+        return rest;
+      });
 
-      await createDemandNote(payload);
+      const data = new FormData();
+      data.append('contractorName', formData.contractorName);
+      data.append('division', formData.division);
+      data.append('subDivision', formData.subDivision);
+      data.append('location', formData.location);
+      data.append('remarks', formData.remarks);
+      data.append('status', formData.status);
+      data.append('items', JSON.stringify(itemsToSave));
+      if (file) {
+        data.append('file', file);
+      }
+
+      await createDemandNote(data);
       toast.success('Demand Note submitted for approval!');
       router.push('/site-portal/demand-notes');
     } catch (error: any) {
@@ -186,9 +196,20 @@ export default function CreateDemandNotePage() {
             <label className="text-sm font-medium text-slate-700 block mb-1">Location</label>
             <Input value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} />
           </div>
-          <div className="md:col-span-2">
+          <div>
             <label className="text-sm font-medium text-slate-700 block mb-1">Remarks</label>
             <Input value={formData.remarks} onChange={e => setFormData({...formData, remarks: e.target.value})} />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-slate-700 block mb-1">Location Drawing / Document</label>
+            <Input 
+              type="file" 
+              onChange={e => {
+                if (e.target.files && e.target.files.length > 0) {
+                  setFile(e.target.files[0]);
+                }
+              }} 
+            />
           </div>
         </div>
       </div>

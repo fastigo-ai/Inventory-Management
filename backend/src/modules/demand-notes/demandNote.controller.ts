@@ -5,7 +5,23 @@ import Item from '../items/item.model';
 import { asyncHandler } from '../../core/utils/asyncHandler';
 import { ApiError } from '../../core/utils/ApiError';
 import { ApiResponse } from '../../core/utils/ApiResponse';
+import cloudinary from '../../core/utils/cloudinary';
 
+const uploadToCloudinary = (buffer: Buffer, folder: string): Promise<any> => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      { folder: folder },
+      (error: any, result: any) => {
+        if (result) {
+          resolve(result);
+        } else {
+          reject(error);
+        }
+      }
+    );
+    uploadStream.end(buffer);
+  });
+};
 // Utility to generate next demand note number
 const generateNextDemandNoteNumber = async () => {
   const date = new Date();
@@ -35,12 +51,30 @@ export const createDemandNote = asyncHandler(async (req: AuthRequest, res: Respo
   }
 
   const demandNoteNumber = await generateNextDemandNoteNumber();
+  let locationDrawingUrl = '';
+  if (req.file) {
+    const result = await uploadToCloudinary(req.file.buffer, 'demand_notes_drawings');
+    locationDrawingUrl = result.secure_url;
+  }
+
+  // Parse items since they might be sent as a stringified JSON if FormData is used
+  let items = req.body.items;
+  if (typeof items === 'string') {
+    try {
+      items = JSON.parse(items);
+    } catch (err) {
+      items = [];
+    }
+  }
+
   const payload = {
     ...req.body,
+    items,
     demandNoteNumber,
     createdBy: user._id,
     package: user.assignedPackage,
-    circle: user.assignedCircle
+    circle: user.assignedCircle,
+    ...(locationDrawingUrl && { locationDrawingUrl })
   };
 
   const demandNote = await DemandNote.create(payload);

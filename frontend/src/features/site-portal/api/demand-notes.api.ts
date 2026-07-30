@@ -11,7 +11,10 @@ export const getDemandNoteById = async (id: string) => {
 };
 
 export const createDemandNote = async (data: any) => {
-  const response = await api.post('/demand-notes', data);
+  const isFormData = data instanceof FormData;
+  const response = await api.post('/demand-notes', data, {
+    headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : undefined,
+  });
   return response.data;
 };
 

@@ -449,46 +449,7 @@ export const importPurchaseInvoices = async (req: Request, res: Response) => {
       return null;
     };
 
-    // 2. Identify missing items and batch insert them
-    const missingItemsToCreate: any[] = [];
-    const missingItemsMap = new Map<string, any>();
-
-    for (const row of rows) {
-      const itemName = row['ItemName'] || row['itemName'] || row['Item Name'];
-      if (!itemName) continue;
-
-      const tempCode = row['TempCode'] || row['tempCode'];
-      const loaSerialNo = row['LoaSerialNo'] || row['loaSerialNo'];
-      const unit = row['Unit'] || row['unit'];
-
-      const existingItem = findItemInMemory(tempCode, loaSerialNo, itemName);
-      if (!existingItem) {
-        const cacheKey = `${itemName}:${tempCode || ''}:${loaSerialNo || ''}`;
-        if (!missingItemsMap.has(cacheKey)) {
-          const newItemDoc = {
-            dynamicData: {
-              name: itemName,
-              tempCode: tempCode || '',
-              sku: loaSerialNo || '',
-              loaSerialNo: loaSerialNo || '',
-              unit: unit || 'Nos',
-              stock: 0,
-              stockLocations: []
-            },
-            history: [{ action: 'Created via PI Import', performedBy: 'system', timestamp: new Date() }]
-          };
-          missingItemsMap.set(cacheKey, newItemDoc);
-          missingItemsToCreate.push(newItemDoc);
-        }
-      }
-    }
-
-    if (missingItemsToCreate.length > 0) {
-      const createdItems = await Item.insertMany(missingItemsToCreate);
-      existingItems.push(...createdItems);
-    }
-
-    // 3. Build piMap in-memory
+    // 2. Build piMap in-memory
     const piMap: Record<string, any> = {};
 
     for (const row of rows) {

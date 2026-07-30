@@ -7,7 +7,7 @@ import { FieldMetadata } from "@/shared/components/dynamic/DynamicForm";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Loader2, Plus, Settings, MoreHorizontal, X, Edit2, TrendingUp, Package, FileText, CheckCircle2 } from "lucide-react";
+import { Loader2, Plus, Settings, MoreHorizontal, X, Edit2, TrendingUp, Package, FileText, CheckCircle2, Search } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import {
   DropdownMenu,
@@ -27,6 +27,7 @@ export default function VendorSplitViewPage({ params }: { params: Promise<{ id: 
   const sortBy = searchParams.get('sortBy') || null;
   const sortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') || 'asc';
   const limit = parseInt(searchParams.get('limit') || '50');
+  const search = searchParams.get('search') || '';
 
   const [fields, setFields] = useState<FieldMetadata[]>([]);
   const [vendors, setVendors] = useState<any[]>([]);
@@ -34,6 +35,7 @@ export default function VendorSplitViewPage({ params }: { params: Promise<{ id: 
   const [pagination, setPagination] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('Overview');
+  const [searchTerm, setSearchTerm] = useState(search);
   
   const [vendorPos, setVendorPos] = useState<any[]>([]);
   const [vendorPis, setVendorPis] = useState<any[]>([]);
@@ -47,7 +49,7 @@ export default function VendorSplitViewPage({ params }: { params: Promise<{ id: 
       try {
         const [metaRes, vendorsRes, vendorRes] = await Promise.all([
           getEntityMetadata('Vendor'),
-          getVendors({ page, limit, sortBy: sortBy || undefined, sortOrder }),
+          getVendors({ page, limit, sortBy: sortBy || undefined, sortOrder, search: search || undefined }),
           getVendor(vendorId)
         ]);
         setFields(metaRes.fields);
@@ -61,7 +63,7 @@ export default function VendorSplitViewPage({ params }: { params: Promise<{ id: 
       }
     };
     fetchData();
-  }, [vendorId, page, limit, sortBy, sortOrder]);
+  }, [vendorId, page, limit, sortBy, sortOrder, search]);
 
   useEffect(() => {
     if (activeTab === 'Transactions' && vendorId) {
@@ -108,6 +110,25 @@ export default function VendorSplitViewPage({ params }: { params: Promise<{ id: 
       setVendors(vendors.map(v => v._id === vendorId ? { ...v, dynamicData: { ...v.dynamicData, status: newStatus } } : v));
     } catch (err) {
       console.error("Failed to update status", err);
+    }
+  };
+
+  const handlePageChange = (newPage: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', newPage.toString());
+    router.push(`/purchases/vendors/${vendorId}?${params.toString()}`);
+  };
+
+  const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      const params = new URLSearchParams(searchParams.toString());
+      if (searchTerm) {
+        params.set('search', searchTerm);
+      } else {
+        params.delete('search');
+      }
+      params.set('page', '1');
+      router.push(`/purchases/vendors/${vendorId}?${params.toString()}`);
     }
   };
 
@@ -172,6 +193,20 @@ export default function VendorSplitViewPage({ params }: { params: Promise<{ id: 
           </div>
         </div>
 
+        <div className="p-3 border-b border-slate-200">
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input 
+              type="text" 
+              placeholder="Search vendors... (Press Enter)" 
+              className="w-full pl-9 pr-3 py-1.5 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0076f2] focus:border-transparent transition-all"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={handleSearch}
+            />
+          </div>
+        </div>
+
         <div className="flex-1 overflow-y-auto">
           {vendors.map((vendor) => {
             const isSelected = vendor._id === vendorId;
@@ -204,8 +239,26 @@ export default function VendorSplitViewPage({ params }: { params: Promise<{ id: 
         
         {/* Simple pagination indicator for sidebar */}
         {pagination && pagination.totalPages > 1 && (
-          <div className="h-10 border-t border-slate-200 flex items-center justify-center bg-white text-xs text-slate-500">
-            Page {pagination.currentPage} of {pagination.totalPages}
+          <div className="h-10 border-t border-slate-200 flex items-center justify-between px-4 bg-white text-xs text-slate-500">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-7 px-2 hover:bg-slate-100" 
+              disabled={page <= 1}
+              onClick={() => handlePageChange(page - 1)}
+            >
+              Prev
+            </Button>
+            <span>Page {pagination.currentPage} of {pagination.totalPages}</span>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-7 px-2 hover:bg-slate-100" 
+              disabled={page >= pagination.totalPages}
+              onClick={() => handlePageChange(page + 1)}
+            >
+              Next
+            </Button>
           </div>
         )}
       </div>

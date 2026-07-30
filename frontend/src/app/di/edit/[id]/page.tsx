@@ -637,20 +637,14 @@ export default function EditDIRegistrationPage() {
                     </select>
                   </td>
                   <td className="px-4 py-3">
-                    <select
-                      value={item.unit || 'Nos'}
+                    <input
+                      type="text"
+                      list="unit-options-list"
+                      value={item.unit || ''}
                       onChange={(e) => updateLineItem(index, 'unit', e.target.value)}
+                      placeholder="e.g. Nos"
                       className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-slate-950"
-                    >
-                      <option value="Nos">Nos</option>
-                      <option value="Mtr">Mtr</option>
-                      <option value="Kg">Kg</option>
-                      <option value="Set">Set</option>
-                      <option value="Km">Km</option>
-                      <option value="Box">Box</option>
-                      <option value="Pc">Pc</option>
-                      <option value="Ltr">Ltr</option>
-                    </select>
+                    />
                   </td>
                   <td className="px-4 py-3 text-right">
                     <span className="text-sm text-slate-500">{item.orderedQuantity}</span>
@@ -996,6 +990,17 @@ export default function EditDIRegistrationPage() {
           </div>
         </div>
       )}
+      {/* Unit Options Datalist */}
+      <datalist id="unit-options-list">
+        <option value="Nos">Nos</option>
+        <option value="Mtr">Mtr</option>
+        <option value="Kg">Kg</option>
+        <option value="Set">Set</option>
+        <option value="Km">Km</option>
+        <option value="Box">Box</option>
+        <option value="Pc">Pc</option>
+        <option value="Ltr">Ltr</option>
+      </datalist>
     </div>
     </>
   );

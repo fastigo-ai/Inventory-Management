@@ -86,7 +86,11 @@ export default function EditDIRegistrationPage() {
         setNotes(diRes.notes || "");
         setDiPackage(diRes.package || "");
         setDiCircle(diRes.circle || "");
-        setLineItems(diRes.lineItems || []);
+        setLineItems((diRes.lineItems || []).map((li: any) => ({
+          ...li,
+          sku: li.loaSerialNo || li.sku || "",
+          searchQuery: li.loaSerialNo || li.sku || ""
+        })));
         setExistingAttachments(diRes.attachments || []);
       }
       setTimeout(() => setIsInitialLoad(false), 100);
@@ -159,6 +163,7 @@ export default function EditDIRegistrationPage() {
     try {
       const itemsToSave = lineItems.map(item => ({
         itemId: item.itemId,
+        loaSerialNo: item.sku || item.loaSerialNo || item.searchQuery || "",
         itemName: item.itemName,
         tempCode: item.tempCode,
         package: item.package,

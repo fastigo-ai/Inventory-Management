@@ -17,7 +17,7 @@ export default function DIPage() {
 
   // Pagination states
   const [page, setPage] = useState(1);
-  const [limit] = useState(10);
+  const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
 
@@ -223,28 +223,74 @@ export default function DIPage() {
               </div>
 
               {/* Pagination Controls */}
-              {totalPages > 1 && (
-                <div className="bg-white border-t border-slate-200 p-4 flex items-center justify-between">
-                  <div className="text-sm text-slate-500">
-                    Showing {(page - 1) * limit + 1} to {Math.min(page * limit, totalItems)} of {totalItems} entries (Page {page} of {totalPages})
+              {totalItems > 0 && (
+                <div className="bg-white border-t border-slate-200 p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                  <div className="text-[13px] text-slate-500 font-medium">
+                    Showing {Math.min(limit, totalItems - (page - 1) * limit)} out of {totalItems}
                   </div>
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => setPage(p => Math.max(1, p - 1))}
-                      disabled={page === 1}
+                  
+                  <div className="flex items-center gap-1">
+                    <button 
+                      onClick={() => setPage(p => Math.max(1, p - 1))} 
+                      disabled={page === 1} 
+                      className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 disabled:opacity-30 transition-colors"
                     >
-                      Previous
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                      disabled={page === totalPages}
+                      <svg width="6" height="10" viewBox="0 0 6 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 1L1 5L5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </button>
+                    
+                    {(() => {
+                      const pages = [];
+                      if (totalPages <= 7) {
+                        for (let i = 1; i <= totalPages; i++) pages.push(i);
+                      } else {
+                        if (page <= 4) {
+                          pages.push(1, 2, 3, 4, 5, '...', totalPages);
+                        } else if (page >= totalPages - 3) {
+                          pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+                        } else {
+                          pages.push(1, '...', page - 1, page, page + 1, '...', totalPages);
+                        }
+                      }
+                      
+                      return pages.map((p, i) => (
+                        <button 
+                          key={i} 
+                          onClick={() => typeof p === 'number' && setPage(p)}
+                          disabled={p === '...'}
+                          className={`w-8 h-8 flex items-center justify-center rounded text-[13px] font-medium transition-colors ${
+                            p === page 
+                              ? 'border border-[#009b9f] text-[#009b9f] bg-white' 
+                              : p === '...' 
+                                ? 'text-slate-400 cursor-default' 
+                                : 'text-slate-600 hover:bg-slate-100'
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      ));
+                    })()}
+                    
+                    <button 
+                      onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
+                      disabled={page === totalPages} 
+                      className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 disabled:opacity-30 transition-colors"
                     >
-                      Next
-                    </Button>
+                      <svg width="6" height="10" viewBox="0 0 6 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 9L5 5L1 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-[13px] text-slate-500 font-medium">
+                    <span>Rows per page</span>
+                    <select 
+                      value={limit} 
+                      onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }} 
+                      className="border border-slate-200 rounded px-2 py-1 text-slate-700 bg-white focus:outline-none focus:ring-1 focus:ring-[#009b9f] cursor-pointer"
+                    >
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
                   </div>
                 </div>
               )}

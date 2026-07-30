@@ -21,6 +21,13 @@ api.interceptors.request.use((config) => {
       config.headers.Authorization = `Bearer ${token}`;
     }
   }
+  
+  // CRITICAL FIX: If Content-Type is manually set to 'multipart/form-data', Axios will NOT append the boundary.
+  // We must delete it so Axios can automatically generate the correct boundary for FormData.
+  if (config.headers && config.headers['Content-Type'] === 'multipart/form-data') {
+    delete config.headers['Content-Type'];
+  }
+  
   return config;
 });
 

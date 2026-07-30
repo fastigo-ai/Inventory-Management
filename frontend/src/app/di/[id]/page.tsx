@@ -23,10 +23,14 @@ export default function DIDetailPage() {
   // UI States
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isPdfView, setIsPdfView] = useState(true);
+  const [sidebarSearch, setSidebarSearch] = useState('');
 
   useEffect(() => {
-    fetchDIsList();
-  }, []);
+    const handler = setTimeout(() => {
+      fetchDIsList(sidebarSearch);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [sidebarSearch]);
 
   useEffect(() => {
     if (id) {
@@ -34,9 +38,9 @@ export default function DIDetailPage() {
     }
   }, [id]);
 
-  const fetchDIsList = async () => {
+  const fetchDIsList = async (searchQuery = '') => {
     try {
-      const res = await getDIs();
+      const res = await getDIs({ search: searchQuery });
       if (res.success || Array.isArray(res.data)) {
         setDis(res.data || []);
       }
@@ -123,18 +127,27 @@ export default function DIDetailPage() {
   const poNumber = di.poNumber || di.purchaseOrderId?.purchaseOrderNumber || di.purchaseOrderNumber || '--';
 
   return (
-    <div className="flex h-screen bg-slate-50 print:bg-white print:h-auto print:block">
+    <div className="flex flex-col md:flex-row h-screen bg-slate-50 print:bg-white print:h-auto print:block">
       {/* Left Sidebar List */}
-      <div className="w-[340px] shrink-0 border-r border-slate-200 bg-white flex flex-col hidden md:flex h-screen sticky top-0 print:hidden">
+      <div className="w-full md:w-[340px] shrink-0 border-b md:border-b-0 md:border-r border-slate-200 bg-white flex flex-col h-[40vh] md:h-screen sticky top-0 print:hidden z-10">
         <div className="p-3 border-b border-slate-200 flex justify-between items-center shrink-0">
           <h2 className="font-semibold text-slate-800 text-sm flex items-center gap-1 cursor-pointer">
-            All DI Registrations <span className="text-[10px] text-slate-400 ml-1">▼</span>
+            All DI Registrations
           </h2>
           <div className="flex gap-2">
             <button onClick={() => router.push('/di/new')} className="bg-blue-500 text-white rounded p-1.5 hover:bg-blue-600 transition shadow-sm">
               <Plus className="w-4 h-4" />
             </button>
           </div>
+        </div>
+        <div className="p-2 border-b border-slate-100 bg-slate-50/50 shrink-0">
+          <input 
+            type="text" 
+            placeholder="Search DI, PO, Vendor..." 
+            value={sidebarSearch}
+            onChange={(e) => setSidebarSearch(e.target.value)}
+            className="w-full text-xs px-3 py-2 border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-sm"
+          />
         </div>
         
         <div className="flex-1 overflow-y-auto">
@@ -300,18 +313,7 @@ export default function DIDetailPage() {
                               <td className="font-bold align-top py-1">Reference PO</td>
                               <td className="align-top py-1 font-bold text-blue-600">{poNumber}</td>
                             </tr>
-                            {di.package && (
-                              <tr>
-                                <td className="font-bold align-top py-1">Package</td>
-                                <td className="align-top py-1">{di.package}</td>
-                              </tr>
-                            )}
-                            {di.circle && (
-                              <tr>
-                                <td className="font-bold align-top py-1">Circle</td>
-                                <td className="align-top py-1">{di.circle}</td>
-                              </tr>
-                            )}
+
                           </tbody>
                         </table>
                       </div>
@@ -384,8 +386,7 @@ export default function DIDetailPage() {
                       <div>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">PO Reference</p>
                         <p className="text-sm font-semibold text-blue-600">{poNumber}</p>
-                        {di.package && <p className="text-xs text-slate-600 mt-1">Package: {di.package}</p>}
-                        {di.circle && <p className="text-xs text-slate-600">Circle: {di.circle}</p>}
+
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-x-12 gap-y-6 flex-1">

@@ -352,12 +352,27 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
       const diNumber = row['DINumber'] || row['diNumber'] || row['DI Number'];
       if (!diNumber) continue;
 
+      const parseCsvDate = (dStr?: string) => {
+        if (!dStr) return new Date().toISOString().split('T')[0];
+        let cleaned = dStr.replace(/\.+/g, '.').trim(); // fix double dots
+        const parts = cleaned.split(/[.\-\/]/);
+        if (parts.length === 3) {
+          // If DD.MM.YYYY
+          if (parts[0].length <= 2 && parts[1].length <= 2 && parts[2].length === 4) {
+            return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          }
+        }
+        const p = new Date(dStr);
+        if (!isNaN(p.getTime())) return p.toISOString().split('T')[0];
+        return new Date().toISOString().split('T')[0];
+      };
+
       if (!disMap[diNumber]) {
         disMap[diNumber] = {
           diNumber,
           _poNumber: row['PurchaseOrderNumber'] || row['purchaseOrderNumber'] || '',
           vendorName: row['VendorName'] || row['vendorName'] || row['Vendor Name'] || '',
-          date: row['Date'] || row['date'] || new Date().toISOString().split('T')[0],
+          date: parseCsvDate(row['Date'] || row['date']),
           circle: row['Circle'] || row['circle'],
           package: row['Package'] || row['package'],
           status: row['Status'] || row['status'] || 'Active',
@@ -370,8 +385,8 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
       const quantity = Number(row['Quantity'] || row['quantity'] || 0);
       const tempCode = row['TempCode'] || row['tempCode'];
       const loaSerialNo = row['LoaSerialNo'] || row['loaSerialNo'];
-      const itemPackage = row['ItemPackage'] || row['itemPackage'];
-      const itemCircle = row['ItemCircle'] || row['itemCircle'];
+      const itemPackage = row['ItemPackage'] || row['itemPackage'] || row['Package'] || row['package'];
+      const itemCircle = row['ItemCircle'] || row['itemCircle'] || row['Circle'] || row['circle'];
       const unit = row['Unit'] || row['unit'] || row['Unit Name'];
 
       if (itemName) {
@@ -391,7 +406,7 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
       }
     }
 
-    // 4. Pre-fetch existing DIs and POs
+    // 4. Pre-fetch existing DIs, POs, and PRs to avoid sequential DB lookups in the loop
     const diNumbers = Object.keys(disMap);
     const poNumbers = Array.from(new Set(diNumbers.map(n => disMap[n]._poNumber).filter(Boolean)));
 
@@ -400,8 +415,14 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
       poNumbers.length > 0 ? PurchaseOrder.find({ purchaseOrderNumber: { $in: poNumbers } }) : []
     ]);
 
+    // Use Pr dynamically imported model since it might not be strictly typed at the top
+    const { Pr } = await import('../purchases/pr.schema');
+    const existingPrs = await Pr.find({ diNo: { $in: existingDIs.map(d => d.diNumber) } }, { diNo: 1 });
+    const prDiNumbers = new Set(existingPrs.map((pr: any) => pr.diNo));
+
     let successCount = 0;
     const errors: any[] = [];
+    const globalAffectedItemIds = new Set<string>();
     
     for (const diNumber of diNumbers) {
       const diData = disMap[diNumber];
@@ -422,8 +443,8 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
         delete diData._poNumber;
 
         if (existing) {
-          const hasPr = await Pr.exists({ diNo: existing.diNumber });
-          const isLocked = existing.status === 'Received' || !!hasPr;
+          const hasPr = prDiNumbers.has(existing.diNumber);
+          const isLocked = existing.status === 'Received' || hasPr;
           if (isLocked) {
             errors.push(`DI ${diData.diNumber} already exists and is locked (Received or Invoiced). Cannot update.`);
             continue;
@@ -438,7 +459,24 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
           if (diData.notes !== undefined) existing.notes = diData.notes;
           if (diData.vendorName) existing.vendorName = diData.vendorName;
           if (diData.purchaseOrderId) existing.purchaseOrderId = diData.purchaseOrderId;
-          existing.lineItems = diData.lineItems;
+          const mergedItems = [...existing.lineItems];
+          for (const newItem of diData.lineItems) {
+            const matchIdx = mergedItems.findIndex((li: any) => 
+              ((newItem.itemId && li.itemId && newItem.itemId.toString() === li.itemId.toString()) ||
+               (li.itemName === newItem.itemName && li.loaSerialNo === newItem.loaSerialNo)) &&
+              (li.circle === newItem.circle) &&
+              (li.package === newItem.package)
+            );
+
+            if (matchIdx > -1) {
+              mergedItems[matchIdx].quantity = newItem.quantity;
+              if (newItem.tempCode) mergedItems[matchIdx].tempCode = newItem.tempCode;
+              if (newItem.unit) mergedItems[matchIdx].unit = newItem.unit;
+            } else {
+              mergedItems.push(newItem);
+            }
+          }
+          existing.lineItems = mergedItems;
 
           const updated = await existing.save();
           successCount++;
@@ -447,22 +485,32 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
             ...oldItemIds,
             ...updated.lineItems.map((li: any) => li.itemId?.toString()).filter(Boolean)
           ]));
+          allAffectedItemIds.forEach(id => globalAffectedItemIds.add(id));
 
-          for (const itemId of allAffectedItemIds) {
-            SummaryService.rebuildForItem(itemId).catch(console.error);
-          }
         } else {
           const createdDI = await DI.create(diData);
           successCount++;
           
           for (const line of createdDI.lineItems) {
-            if (line.itemId) SummaryService.rebuildForItem(line.itemId.toString()).catch(console.error);
+            if (line.itemId) globalAffectedItemIds.add(line.itemId.toString());
           }
         }
       } catch (err: any) {
         errors.push(`Failed to import DI ${diData.diNumber}: ${err.message}`);
       }
     }
+
+    // Process all rebuilds at the end to prevent Node/MongoDB connection pool starvation
+    // Wrapped in setTimeout to ensure the HTTP response flushes before massive aggregation queries start
+    const uniqueItemIds = Array.from(globalAffectedItemIds);
+    setTimeout(() => {
+      (async () => {
+        for (let i = 0; i < uniqueItemIds.length; i += 10) {
+          const chunk = uniqueItemIds.slice(i, i + 10);
+          await Promise.all(chunk.map(id => SummaryService.rebuildForItem(id).catch(console.error)));
+        }
+      })();
+    }, 1000);
 
     res.status(200).json({
       success: true,

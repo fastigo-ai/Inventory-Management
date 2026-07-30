@@ -1081,6 +1081,8 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                   {selectedPackage === 'Package 1 (S/N)' && (
                     <>
                       <option value="Solan">Solan</option>
+                      <option value="Kumarhatti">-- Kumarhatti</option>
+                      <option value="Nalagarh">-- Nalagarh</option>
                       <option value="Nahan">Nahan</option>
                     </>
                   )}
@@ -1338,6 +1340,8 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                            {lineItems[index]?.package === 'Package 1 (S/N)' && (
                              <>
                                <option value="Solan">Solan</option>
+                               <option value="Kumarhatti">-- Kumarhatti</option>
+                               <option value="Nalagarh">-- Nalagarh</option>
                                <option value="Nahan">Nahan</option>
                              </>
                            )}

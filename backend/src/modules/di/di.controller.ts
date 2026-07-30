@@ -9,6 +9,7 @@ import { PurchaseOrder } from '../purchases/purchaseOrder.schema';
 import { Pr } from '../purchases/pr.schema';
 import mongoose from 'mongoose';
 import { SummaryService } from '../reports/summary/summary.service';
+import Item from '../items/item.model';
 export const createDI = asyncHandler(async (req: Request, res: Response) => {
   const data = req.body;
 
@@ -324,7 +325,46 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
       const unit = row['Unit'] || row['unit'] || row['Unit Name'];
 
       if (itemName) {
+        // Find or create the item in Item master
+        let itemId: any = undefined;
+        if (tempCode) {
+          const found = await Item.findOne({ 'dynamicData.tempCode': tempCode });
+          if (found) itemId = found._id;
+        }
+        if (!itemId && loaSerialNo) {
+          const found = await Item.findOne({ 
+            $or: [
+              { 'dynamicData.loaSerialNo': loaSerialNo },
+              { 'dynamicData.loaSerialNumber': loaSerialNo },
+              { 'dynamicData.sku': loaSerialNo }
+            ]
+          });
+          if (found) itemId = found._id;
+        }
+        if (!itemId && itemName) {
+          const found = await Item.findOne({ 'dynamicData.name': itemName });
+          if (found) itemId = found._id;
+        }
+
+        // If item doesn't exist, create it
+        if (!itemId) {
+          const newItem = await Item.create({
+            dynamicData: {
+              name: itemName,
+              tempCode: tempCode || '',
+              sku: loaSerialNo || '',
+              loaSerialNo: loaSerialNo || '',
+              unit: unit || 'Nos',
+              stock: 0,
+              stockLocations: []
+            },
+            history: [{ action: 'Created via DI Import', performedBy: 'system', timestamp: new Date() }]
+          });
+          itemId = newItem._id;
+        }
+
         disMap[diNumber].lineItems.push({
+          itemId,
           itemName,
           tempCode,
           loaSerialNo,
@@ -343,10 +383,6 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
       const diData = disMap[diNumber];
       try {
         const existing = await DI.findOne({ diNumber: diData.diNumber });
-        if (existing) {
-          errors.push(`DI ${diData.diNumber} already exists.`);
-          continue;
-        }
 
         if (diData._poNumber) {
           const po = await PurchaseOrder.findOne({ purchaseOrderNumber: diData._poNumber });
@@ -361,11 +397,46 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
         }
         delete diData._poNumber;
 
-        const createdDI = await DI.create(diData);
-        successCount++;
-        
-        for (const line of createdDI.lineItems) {
-          if (line.itemId) SummaryService.rebuildForItem(line.itemId.toString()).catch(console.error);
+        if (existing) {
+          // If DI already exists, check if it's locked (has associated PR or status is Received)
+          const hasPr = await Pr.exists({ diNo: existing.diNumber });
+          const isLocked = existing.status === 'Received' || !!hasPr;
+          if (isLocked) {
+            errors.push(`DI ${diData.diNumber} already exists and is locked (Received or Invoiced). Cannot update.`);
+            continue;
+          }
+
+          // Not locked, allow update
+          const oldItemIds = existing.lineItems.map((li: any) => li.itemId?.toString()).filter(Boolean);
+
+          existing.date = diData.date;
+          if (diData.circle) existing.circle = diData.circle;
+          if (diData.package) existing.package = diData.package;
+          if (diData.status) existing.status = diData.status;
+          if (diData.notes !== undefined) existing.notes = diData.notes;
+          if (diData.vendorName) existing.vendorName = diData.vendorName;
+          if (diData.purchaseOrderId) existing.purchaseOrderId = diData.purchaseOrderId;
+          existing.lineItems = diData.lineItems;
+
+          const updated = await existing.save();
+          successCount++;
+
+          const allAffectedItemIds = Array.from(new Set([
+            ...oldItemIds,
+            ...updated.lineItems.map((li: any) => li.itemId?.toString()).filter(Boolean)
+          ]));
+
+          for (const itemId of allAffectedItemIds) {
+            SummaryService.rebuildForItem(itemId).catch(console.error);
+          }
+        } else {
+          // Create new DI
+          const createdDI = await DI.create(diData);
+          successCount++;
+          
+          for (const line of createdDI.lineItems) {
+            if (line.itemId) SummaryService.rebuildForItem(line.itemId.toString()).catch(console.error);
+          }
         }
       } catch (err: any) {
         errors.push(`Failed to import DI ${diData.diNumber}: ${err.message}`);

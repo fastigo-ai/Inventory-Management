@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { PurchaseOrder } from './purchaseOrder.schema';
 import { Pr } from './pr.schema';
 import { DI } from '../di/di.schema';
+import Item from '../items/item.model';
 import { parseAndSanitizeCsv } from '../../utils/csv.util';
 import { parse } from 'csv-parse';
 import { stringify } from 'csv-stringify/sync';
@@ -594,7 +595,46 @@ export const importPurchaseOrders = async (req: Request, res: Response) => {
       const unit = row['Unit'] || row['unit'];
 
       if (itemName) {
+        // Find or create Item
+        let itemId: any = undefined;
+        if (tempCode) {
+          const found = await Item.findOne({ 'dynamicData.tempCode': tempCode });
+          if (found) itemId = found._id;
+        }
+        if (!itemId && loaSerialNo) {
+          const found = await Item.findOne({ 
+            $or: [
+              { 'dynamicData.loaSerialNo': loaSerialNo },
+              { 'dynamicData.loaSerialNumber': loaSerialNo },
+              { 'dynamicData.sku': loaSerialNo }
+            ]
+          });
+          if (found) itemId = found._id;
+        }
+        if (!itemId && itemName) {
+          const found = await Item.findOne({ 'dynamicData.name': itemName });
+          if (found) itemId = found._id;
+        }
+
+        // Auto-create item if it doesn't exist
+        if (!itemId) {
+          const newItem = await Item.create({
+            dynamicData: {
+              name: itemName,
+              tempCode: tempCode || '',
+              sku: loaSerialNo || '',
+              loaSerialNo: loaSerialNo || '',
+              unit: unit || 'Nos',
+              stock: 0,
+              stockLocations: []
+            },
+            history: [{ action: 'Created via PO Import', performedBy: 'system', timestamp: new Date() }]
+          });
+          itemId = newItem._id;
+        }
+
         ordersMap[poNumber].lineItems.push({
+          itemId,
           itemName,
           tempCode,
           account,
@@ -644,15 +684,62 @@ export const importPurchaseOrders = async (req: Request, res: Response) => {
        try {
          const existing = await PurchaseOrder.findOne({ purchaseOrderNumber: orderData.purchaseOrderNumber });
          if (existing) {
-           errors.push(`PO ${orderData.purchaseOrderNumber} already exists.`);
-           continue;
-         }
-         const createdOrder = await PurchaseOrder.create(orderData);
-         successCount++;
-         
-         if (createdOrder.lineItems && createdOrder.lineItems.length > 0) {
-           for (const item of createdOrder.lineItems) {
-             if (item.itemId) SummaryService.rebuildForItem(item.itemId.toString()).catch(console.error);
+           // Check if PO is locked (has linked Invoices or DIs)
+           const prCount = await Pr.countDocuments({ purchaseOrderId: existing._id });
+           const diCount = await DI.countDocuments({ purchaseOrderId: existing._id });
+           const isLocked = prCount > 0 || diCount > 0;
+           if (isLocked) {
+             errors.push(`PO ${orderData.purchaseOrderNumber} already exists and is locked (has associated Invoices or DIs). Cannot update.`);
+             continue;
+           }
+
+           // Not locked, update PO
+           const oldItemIds = existing.lineItems.map((li: any) => li.itemId?.toString()).filter(Boolean);
+
+           existing.vendorName = orderData.vendorName;
+           existing.date = orderData.date;
+           existing.deliveryDate = orderData.deliveryDate;
+           existing.location = orderData.location;
+           existing.status = orderData.status;
+           existing.reference = orderData.reference;
+           existing.deliveryAddressType = orderData.deliveryAddressType;
+           existing.deliveryAddressId = orderData.deliveryAddressId;
+           existing.paymentTerms = orderData.paymentTerms;
+           existing.circle = orderData.circle;
+           existing.package = orderData.package;
+           existing.shipmentPreference = orderData.shipmentPreference;
+           existing.warehouseLocation = orderData.warehouseLocation;
+           existing.notes = orderData.notes;
+           existing.termsConditions = orderData.termsConditions;
+           existing.cgstPercentage = orderData.cgstPercentage;
+           existing.sgstPercentage = orderData.sgstPercentage;
+           existing.igstPercentage = orderData.igstPercentage;
+           existing.subTotal = orderData.subTotal;
+           existing.discountAmount = orderData.discountAmount;
+           existing.taxAmount = orderData.taxAmount;
+           existing.total = orderData.total;
+           existing.lineItems = orderData.lineItems;
+
+           const updated = await existing.save();
+           successCount++;
+
+           const allAffectedItemIds = Array.from(new Set([
+             ...oldItemIds,
+             ...updated.lineItems.map((li: any) => li.itemId?.toString()).filter(Boolean)
+           ]));
+
+           for (const itemId of allAffectedItemIds) {
+             SummaryService.rebuildForItem(itemId).catch(console.error);
+           }
+         } else {
+           // Create new PO
+           const createdOrder = await PurchaseOrder.create(orderData);
+           successCount++;
+           
+           if (createdOrder.lineItems && createdOrder.lineItems.length > 0) {
+             for (const item of createdOrder.lineItems) {
+               if (item.itemId) SummaryService.rebuildForItem(item.itemId.toString()).catch(console.error);
+             }
            }
          }
        } catch (err: any) {

@@ -5,6 +5,7 @@ import { parse } from 'csv-parse/sync';
 import { stringify } from 'csv-stringify/sync';
 import { PurchaseOrder } from './purchaseOrder.schema';
 import { StoreInwardEntry } from '../store/storeInwardEntry.schema';
+import Item from '../items/item.model';
 import mongoose from 'mongoose';
 import { SummaryService } from '../reports/summary/summary.service';
 
@@ -426,9 +427,51 @@ export const importPurchaseInvoices = async (req: Request, res: Response) => {
       const cgst = Number(row['Cgst'] || row['cgst'] || 0);
       const sgst = Number(row['Sgst'] || row['sgst'] || 0);
       const igst = Number(row['Igst'] || row['igst'] || 0);
+      const tempCode = row['TempCode'] || row['tempCode'];
+      const loaSerialNo = row['LoaSerialNo'] || row['loaSerialNo'];
+      const unit = row['Unit'] || row['unit'];
 
       if (itemName) {
+        // Find or create Item
+        let itemId: any = undefined;
+        if (tempCode) {
+          const found = await Item.findOne({ 'dynamicData.tempCode': tempCode });
+          if (found) itemId = found._id;
+        }
+        if (!itemId && loaSerialNo) {
+          const found = await Item.findOne({ 
+            $or: [
+              { 'dynamicData.loaSerialNo': loaSerialNo },
+              { 'dynamicData.loaSerialNumber': loaSerialNo },
+              { 'dynamicData.sku': loaSerialNo }
+            ]
+          });
+          if (found) itemId = found._id;
+        }
+        if (!itemId && itemName) {
+          const found = await Item.findOne({ 'dynamicData.name': itemName });
+          if (found) itemId = found._id;
+        }
+
+        // Auto-create item if it doesn't exist
+        if (!itemId) {
+          const newItem = await Item.create({
+            dynamicData: {
+              name: itemName,
+              tempCode: tempCode || '',
+              sku: loaSerialNo || '',
+              loaSerialNo: loaSerialNo || '',
+              unit: unit || 'Nos',
+              stock: 0,
+              stockLocations: []
+            },
+            history: [{ action: 'Created via PI Import', performedBy: 'system', timestamp: new Date() }]
+          });
+          itemId = newItem._id;
+        }
+
         piMap[invoiceNumber].lineItems.push({
+          itemId,
           itemName,
           poQuantity,
           quantity,
@@ -447,10 +490,6 @@ export const importPurchaseInvoices = async (req: Request, res: Response) => {
       const piData = piMap[invoiceNumber];
       try {
         const existing = await PurchaseInvoice.findOne({ invoiceNumber: piData.invoiceNumber });
-        if (existing) {
-          errors.push(`Purchase Invoice ${piData.invoiceNumber} already exists.`);
-          continue;
-        }
 
         if (piData._poNumber) {
           const po = await PurchaseOrder.findOne({ purchaseOrderNumber: piData._poNumber });
@@ -489,12 +528,50 @@ export const importPurchaseInvoices = async (req: Request, res: Response) => {
         piData.total = subTotal + totalTax;
         piData.balanceDue = piData.total;
 
-        const createdInvoice = await PurchaseInvoice.create(piData);
-        successCount++;
+        if (existing) {
+          // Check if PI is locked (Paid status)
+          const isLocked = existing.status === 'Paid';
+          if (isLocked) {
+            errors.push(`Invoice ${piData.invoiceNumber} already exists and is locked (status is Paid). Cannot update.`);
+            continue;
+          }
 
-        if (createdInvoice.lineItems && createdInvoice.lineItems.length > 0) {
-          for (const item of createdInvoice.lineItems) {
-            if (item.itemId) SummaryService.rebuildForItem(item.itemId.toString()).catch(console.error);
+          // Not locked, update PI
+          const oldItemIds = existing.lineItems.map((li: any) => li.itemId?.toString()).filter(Boolean);
+
+          existing.date = piData.date;
+          existing.dueDate = piData.dueDate;
+          existing.vendorName = piData.vendorName;
+          existing.status = piData.status;
+          existing.gstType = piData.gstType;
+          existing.notes = piData.notes;
+          existing.subTotal = piData.subTotal;
+          existing.taxAmount = piData.taxAmount;
+          existing.total = piData.total;
+          existing.balanceDue = piData.balanceDue;
+          existing.lineItems = piData.lineItems;
+          if (piData.purchaseOrderId) existing.purchaseOrderId = piData.purchaseOrderId;
+
+          const updated = await existing.save();
+          successCount++;
+
+          const allAffectedItemIds = Array.from(new Set([
+            ...oldItemIds,
+            ...updated.lineItems.map((li: any) => li.itemId?.toString()).filter(Boolean)
+          ]));
+
+          for (const itemId of allAffectedItemIds) {
+            SummaryService.rebuildForItem(itemId).catch(console.error);
+          }
+        } else {
+          // Create new PI
+          const createdInvoice = await PurchaseInvoice.create(piData);
+          successCount++;
+
+          if (createdInvoice.lineItems && createdInvoice.lineItems.length > 0) {
+            for (const item of createdInvoice.lineItems) {
+              if (item.itemId) SummaryService.rebuildForItem(item.itemId.toString()).catch(console.error);
+            }
           }
         }
       } catch (err: any) {

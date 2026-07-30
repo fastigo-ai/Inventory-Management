@@ -1859,8 +1859,13 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                         checked={selectedBulkItems.length === itemsList.length && itemsList.length > 0}
                       />
                     </th>
-                    <th className="px-4 py-2 font-bold text-slate-500">Item Name</th>
+                    <th className="px-4 py-2 font-bold text-slate-500">LOA Serial No / SKU</th>
                     <th className="px-4 py-2 font-bold text-slate-500">Temp Code</th>
+                    <th className="px-4 py-2 font-bold text-slate-500">Item Name</th>
+                    <th className="px-4 py-2 font-bold text-slate-500">Package</th>
+                    <th className="px-4 py-2 font-bold text-slate-500">Circle</th>
+                    <th className="px-4 py-2 font-bold text-slate-500 text-right">Quantity</th>
+                    <th className="px-4 py-2 font-bold text-slate-500 text-right">Stock In Hand</th>
                     <th className="px-4 py-2 font-bold text-slate-500 text-right">Price</th>
                   </tr>
                 </thead>
@@ -1890,8 +1895,13 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                             }}
                           />
                         </td>
-                        <td className="px-4 py-3 text-slate-700">{item.dynamicData?.name || item.dynamicData?.itemDescription || 'Unnamed Item'}</td>
+                        <td className="px-4 py-3 text-slate-700 font-medium">{item.dynamicData?.loaSerialNo || item.dynamicData?.loaSerialNumber || item.dynamicData?.['LOA Serial No.'] || item.dynamicData?.loa || item.dynamicData?.sku || item.dynamicData?.tempCode || 'N/A'}</td>
                         <td className="px-4 py-3 text-slate-500">{item.dynamicData?.tempCode || '--'}</td>
+                        <td className="px-4 py-3 text-slate-700">{item.dynamicData?.name || item.dynamicData?.itemDescription || 'Unnamed Item'}</td>
+                        <td className="px-4 py-3 text-slate-500">{item.dynamicData?.package || item.package || '--'}</td>
+                        <td className="px-4 py-3 text-slate-500">{item.dynamicData?.circle || item.circle || '--'}</td>
+                        <td className="px-4 py-3 text-slate-500 text-right">{item.dynamicData?.totalQuantity || item.totalQuantity || item.quantity || item.dynamicData?.quantity || '--'}</td>
+                        <td className="px-4 py-3 text-slate-500 text-right font-medium">{item.stockInHand ?? item.dynamicData?.stockInHand ?? '--'}</td>
                         <td className="px-4 py-3 text-slate-700 text-right">{(item.dynamicData?.price || item.dynamicData?.costPrice || 0).toFixed(2)}</td>
                       </tr>
                     ))}

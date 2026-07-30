@@ -457,6 +457,14 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
     'itemdesc': 'description',
     'itemdescription': 'description',
     'loaserialno': 'sku',
+    'totalloarampur': 'rampurloaqty',
+    'totalbomrampur': 'rampurbomqty',
+    'totalloanahan': 'nahanloaqty',
+    'totalbomnahan': 'nahanbomqty',
+    'totalloasolan': 'solanloaqty',
+    'totalbomsolan': 'solanbomqty',
+    'totalloarohru': 'rohruloaqty',
+    'totalbomrohru': 'rohrubomqty',
   };
 
   let rowIndex = 1;

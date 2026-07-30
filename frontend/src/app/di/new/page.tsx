@@ -828,8 +828,12 @@ export default function NewDIRegistrationPage() {
                       />
                     </th>
                     <th className="px-4 py-2 font-bold text-slate-500">LOA Serial No / SKU</th>
-                    <th className="px-4 py-2 font-bold text-slate-500">Item Name</th>
                     <th className="px-4 py-2 font-bold text-slate-500">Temp Code</th>
+                    <th className="px-4 py-2 font-bold text-slate-500">Item Name</th>
+                    <th className="px-4 py-2 font-bold text-slate-500">Package</th>
+                    <th className="px-4 py-2 font-bold text-slate-500">Circle</th>
+                    <th className="px-4 py-2 font-bold text-slate-500 text-right">Quantity</th>
+                    <th className="px-4 py-2 font-bold text-slate-500 text-right">Stock In Hand</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -862,8 +866,12 @@ export default function NewDIRegistrationPage() {
                             />
                           </td>
                           <td className="px-4 py-3 text-slate-700 font-medium">{sku}</td>
-                          <td className="px-4 py-3 text-slate-600">{item.dynamicData?.name || item.dynamicData?.itemDescription || 'Unnamed Item'}</td>
                           <td className="px-4 py-3 text-slate-500">{item.dynamicData?.tempCode || '--'}</td>
+                          <td className="px-4 py-3 text-slate-600">{item.dynamicData?.name || item.dynamicData?.itemDescription || 'Unnamed Item'}</td>
+                          <td className="px-4 py-3 text-slate-500">{item.dynamicData?.package || item.package || '--'}</td>
+                          <td className="px-4 py-3 text-slate-500">{item.dynamicData?.circle || item.circle || '--'}</td>
+                          <td className="px-4 py-3 text-slate-500 text-right">{item.dynamicData?.totalQuantity || item.totalQuantity || item.quantity || item.dynamicData?.quantity || '--'}</td>
+                          <td className="px-4 py-3 text-slate-500 text-right font-medium">{item.stockInHand ?? item.dynamicData?.stockInHand ?? '--'}</td>
                         </tr>
                       );
                     })}

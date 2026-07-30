@@ -13,8 +13,43 @@ import { getPurchaseOrders } from "@/features/purchases/api/purchases.api";
 import { getItems } from "@/features/items/api/items.api";
 import { uploadDocument } from "@/features/documents/api/documents.api";
 import { getBillingCompanies } from "@/features/settings/api/billingCompanies.api";
+import { getDIs } from "@/features/di/api/di.api";
 import { AuditTimeline } from "@/shared/components/audit/AuditTimeline";
 import { toast } from "sonner";
+import Select from "react-select";
+
+const customSelectStyles = {
+  control: (base: any, state: any) => ({
+    ...base,
+    minHeight: '40px',
+    height: '40px',
+    borderRadius: '0.375rem',
+    borderColor: state.isFocused ? '#0076f2' : '#cbd5e1',
+    boxShadow: state.isFocused ? '0 0 0 1px #0076f2' : 'none',
+    '&:hover': { borderColor: state.isFocused ? '#0076f2' : '#94a3b8' },
+    fontSize: '13px',
+    backgroundColor: state.isDisabled ? '#f8fafc' : 'white',
+  }),
+  valueContainer: (base: any) => ({ ...base, padding: '0 12px' }),
+  input: (base: any) => ({ ...base, margin: 0, padding: 0 }),
+  dropdownIndicator: (base: any) => ({ ...base, padding: '4px 8px' }),
+  menuPortal: (base: any) => ({ ...base, zIndex: 9999 }),
+  menu: (base: any) => ({
+    ...base,
+    boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+    borderRadius: '0.5rem',
+    overflow: 'hidden',
+    zIndex: 9999
+  }),
+  option: (base: any, state: any) => ({
+    ...base,
+    fontSize: '13px',
+    backgroundColor: state.isSelected ? '#eff6ff' : state.isFocused ? '#f8fafc' : 'white',
+    color: state.isSelected ? '#1d4ed8' : '#334155',
+    cursor: 'pointer',
+    '&:active': { backgroundColor: '#e2e8f0' }
+  })
+};
 
 export default function EditPurchaseInvoicePage() {
   const router = useRouter();
@@ -24,6 +59,7 @@ export default function EditPurchaseInvoicePage() {
   // Data State
   const [vendors, setVendors] = useState<any[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
+  const [dis, setDis] = useState<any[]>([]);
   
   // Form State
   const [vendorName, setVendorName] = useState("");
@@ -65,6 +101,7 @@ export default function EditPurchaseInvoicePage() {
       getVendors({ limit: 100 }).then(res => setVendors(res.vendors || res)),
       getPurchaseOrders().then(res => setPurchaseOrders(Array.isArray(res.data) ? res.data : (res.data?.pos || res.data || []))),
       getItems({ limit: 1000 }).then(res => setItemsList(res.items || res.data || res)),
+      getDIs({ limit: 1000 }).then(res => setDis(res.dis || res.data || res)),
       getBillingCompanies().then(res => setBillingCompanies(res.data || [])),
       getPurchaseInvoiceById(prId).then(data => {
         setVendorName(data.vendorName || "");
@@ -141,6 +178,49 @@ export default function EditPurchaseInvoicePage() {
   const handlePOChange = (newPO: string) => {
     setPurchaseOrderInput(newPO);
     populateLineItemsFromPO(newPO);
+  };
+
+  const handleDIChange = (newDi: string) => {
+    setDiNo(newDi);
+    const di = dis.find(d => d.diNumber === newDi);
+    if (di) {
+      if (di.vendorName && di.vendorName !== vendorName) {
+         setVendorName(di.vendorName);
+      }
+      if (di.poNumber) {
+         setPurchaseOrderInput(di.poNumber);
+      }
+      if (di.date) {
+         setDiDate(new Date(di.date).toISOString().split('T')[0]);
+      }
+      
+      if (di.lineItems && di.lineItems.length > 0) {
+        setLineItems(di.lineItems.map((item: any) => ({
+          itemId: item.itemId,
+          package: item.package || '',
+          circle: item.circle || '',
+          tempCode: item.tempCode || '',
+          itemName: item.itemName,
+          itemDescription: item.description || item.itemName || '',
+          loaSerialNo: item.loaSerialNo || '',
+          hsnCode: item.hsnCode || '',
+          poQuantity: item.quantity || 0,
+          poDate: item.poDate || '',
+          srt: 0,
+          act: 0,
+          totalInvoiceQuantity: 0,
+          unit: item.unit || '',
+          gstType: item.gstType || 'Intra State',
+          cgst: item.cgst || 0,
+          sgst: item.sgst || 0,
+          igst: item.igst || 0,
+          invoiceQuantity: item.quantity || 0,
+          rate: item.rate || 0,
+          amount: 0,
+          totalAmount: 0
+        })));
+      }
+    }
   };
 
   // Recalculate amount when quantityToReceive or rate changes
@@ -316,49 +396,36 @@ export default function EditPurchaseInvoicePage() {
             
             <div className="col-span-1">
               <label className="block text-[13px] font-medium text-slate-700 mb-2">Vendor Name <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-4 w-4 text-slate-400" />
-                </div>
-                <select 
-                  className="w-full h-10 rounded-md text-[13px] border border-slate-300 pl-9 pr-3 bg-white focus:outline-none focus:border-[#0076f2] focus:ring-1 focus:ring-[#0076f2] appearance-none"
-                  value={vendorName}
-                  onChange={(e) => handleVendorChange(e.target.value)}
-                >
-                  <option value="">Select a Vendor</option>
-                  {vendors.map(v => (
-                    <option key={v._id} value={v.dynamicData?.companyName || v.dynamicData?.displayName || v._id}>
-                      {v.dynamicData?.companyName || v.dynamicData?.displayName || v._id}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                  <ChevronDown className="h-4 w-4 text-slate-400" />
-                </div>
-              </div>
+              <Select
+                options={vendors.map(v => {
+                  const label = v.dynamicData?.companyName || v.dynamicData?.displayName || v._id;
+                  return { label, value: label };
+                })}
+                value={vendorName ? { label: vendorName, value: vendorName } : null}
+                onChange={(selected: any) => handleVendorChange(selected ? selected.value : '')}
+                placeholder="Select a Vendor"
+                styles={customSelectStyles}
+                isClearable
+                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                isDisabled={isLocked}
+              />
             </div>
             <div className="col-span-2"></div>
 
             <div className="col-span-1">
               <label className="block text-[13px] font-medium text-slate-700 mb-2">Purchase Order# <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <input 
-                  list="po-list"
-                  className="w-full h-10 rounded-md text-[13px] border border-slate-300 px-3 bg-white focus:outline-none focus:border-[#0076f2] focus:ring-1 focus:ring-[#0076f2] disabled:bg-slate-50 disabled:text-slate-500"
-                  value={purchaseOrderInput}
-                  onChange={(e) => handlePOChange(e.target.value)}
-                  disabled={!vendorName}
-                  placeholder="Select or enter a Purchase Order"
-                  autoComplete="off"
-                />
-                <datalist id="po-list">
-                  {purchaseOrders
-                    .filter(po => !vendorName || po.vendorName === vendorName)
-                    .map(po => (
-                    <option key={po._id} value={po.purchaseOrderNumber} />
-                  ))}
-                </datalist>
-              </div>
+              <Select
+                options={purchaseOrders
+                  .filter(po => !vendorName || po.vendorName === vendorName)
+                  .map(po => ({ label: po.purchaseOrderNumber, value: po.purchaseOrderNumber }))}
+                value={purchaseOrderInput ? { label: purchaseOrderInput, value: purchaseOrderInput } : null}
+                onChange={(selected: any) => handlePOChange(selected ? selected.value : '')}
+                isDisabled={!vendorName || isLocked}
+                placeholder="Select a Purchase Order"
+                styles={customSelectStyles}
+                isClearable
+                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+              />
             </div>
 
             <div className="col-span-1">
@@ -411,11 +478,15 @@ export default function EditPurchaseInvoicePage() {
 
               <div className="col-span-1">
                 <label className="block text-[13px] font-medium text-slate-700 mb-2">DI No</label>
-                <Input 
-                  className="h-10 text-[13px] rounded-md border-slate-300" 
-                  value={diNo} 
-                  onChange={e => setDiNo(e.target.value)} 
-                  placeholder="Enter DI No"
+                <Select
+                  options={dis.map(di => ({ label: di.diNumber, value: di.diNumber }))}
+                  value={diNo ? { label: diNo, value: diNo } : null}
+                  onChange={(selected: any) => handleDIChange(selected ? selected.value : '')}
+                  placeholder="Select DI No"
+                  styles={customSelectStyles}
+                  isClearable
+                  menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                  isDisabled={isLocked}
                 />
               </div>
               

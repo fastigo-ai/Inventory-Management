@@ -277,28 +277,7 @@ export default function DIDetailPage() {
                 </div>
 
                 <div className="px-6 py-12 md:px-8">
-                  {/* Header Section */}
-                  <div className="flex justify-between items-start mb-6 border-b-2 border-teal-600 pb-4">
-                    <div>
-                      <h1 className="text-3xl font-black text-indigo-900 tracking-wider mb-2 uppercase break-words pr-4">{di.purchaseOrderId?.billingCompany?.name || "FASTIGO TECHNOLOGY PVT LTD"}</h1>
-                      <div className="bg-teal-600 text-white font-bold py-1.5 px-4 rounded-sm inline-block mb-3 text-sm">
-                        DI REGISTRATION
-                      </div>
-                      <p className="text-slate-800 mb-0.5 whitespace-pre-wrap">{di.purchaseOrderId?.billingCompany?.address || 'Address Details'}</p>
-                      {di.purchaseOrderId?.billingCompany?.gstin && <p className="text-slate-800 font-semibold mb-0.5">GSTIN: {di.purchaseOrderId.billingCompany.gstin}</p>}
-                    </div>
-                    <div className="text-right flex flex-col items-end pt-2">
-                      {di.purchaseOrderId?.billingCompany?.logoUrl ? (
-                        <img src={di.purchaseOrderId.billingCompany.logoUrl.startsWith('http') ? di.purchaseOrderId.billingCompany.logoUrl : `${API_BASE_URL}${di.purchaseOrderId.billingCompany.logoUrl}`} alt="Logo" className="w-32 object-contain mb-3" />
-                      ) : (
-                        <div className="w-24 h-24 bg-slate-100 rounded-sm mb-3 flex items-center justify-center border border-slate-200">
-                          <span className="text-indigo-900 font-bold text-xl">LOGO</span>
-                        </div>
-                      )}
-                      {di.purchaseOrderId?.billingCompany?.phone && <p className="text-slate-800 font-semibold mb-0.5">Tel : {di.purchaseOrderId.billingCompany.phone}</p>}
-                      {di.purchaseOrderId?.billingCompany?.email && <p className="text-slate-800">Email : {di.purchaseOrderId.billingCompany.email}</p>}
-                    </div>
-                  </div>
+
 
                   {/* Title & Meta */}
                   <div className="flex items-center justify-center border border-black p-1 bg-slate-50 mb-4 font-bold">

@@ -86,7 +86,11 @@ export const createDI = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getDIs = asyncHandler(async (req: Request, res: Response) => {
-  const { purchaseOrderId, status } = req.query;
+  const { purchaseOrderId, status, diNumber, startDate, endDate, search } = req.query;
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 50;
+  const skip = (page - 1) * limit;
+
   const user = (req as any).user;
   const filter: any = {};
   
@@ -98,13 +102,66 @@ export const getDIs = asyncHandler(async (req: Request, res: Response) => {
     if (user.assignedCircle) filter.circle = user.assignedCircle;
   }
 
-  const dis = await DI.find(filter)
-    .populate('purchaseOrderId', 'purchaseOrderNumber vendorName')
-    .sort({ createdAt: -1 });
+  // Exact or regex match for diNumber
+  if (diNumber) {
+    filter.diNumber = { $regex: diNumber as string, $options: 'i' };
+  }
 
-  res.status(200).json(
-    new ApiResponse(200, dis, 'DIs fetched successfully')
-  );
+  // Date range filter
+  if (startDate || endDate) {
+    filter.date = {};
+    if (startDate) {
+      filter.date.$gte = new Date(startDate as string);
+    }
+    if (endDate) {
+      const end = new Date(endDate as string);
+      end.setHours(23, 59, 59, 999);
+      filter.date.$lte = end;
+    }
+  }
+
+  // Search matches diNumber, poNumber, or vendorName
+  if (search) {
+    const searchRegex = { $regex: search as string, $options: 'i' };
+    filter.$or = [
+      { diNumber: searchRegex },
+      { poNumber: searchRegex },
+      { vendorName: searchRegex }
+    ];
+  }
+
+  const isPaginated = req.query.page !== undefined;
+
+  if (isPaginated) {
+    const [dis, total] = await Promise.all([
+      DI.find(filter)
+        .populate('purchaseOrderId', 'purchaseOrderNumber vendorName')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      DI.countDocuments(filter)
+    ]);
+
+    res.status(200).json(
+      new ApiResponse(200, {
+        dis,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit)
+        }
+      }, 'DIs fetched successfully')
+    );
+  } else {
+    const dis = await DI.find(filter)
+      .populate('purchaseOrderId', 'purchaseOrderNumber vendorName')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(
+      new ApiResponse(200, dis, 'DIs fetched successfully')
+    );
+  }
 });
 
 export const getDIById = asyncHandler(async (req: Request, res: Response) => {

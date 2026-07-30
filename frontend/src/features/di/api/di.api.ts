@@ -29,8 +29,15 @@ export const updateDI = async (id: string, payload: CreateDIDto | FormData) => {
   return response.data;
 };
 
-export const getDIs = async () => {
-  const response = await api.get('/di');
+export const getDIs = async (params?: { 
+  page?: number; 
+  limit?: number;
+  diNumber?: string;
+  startDate?: string;
+  endDate?: string;
+  search?: string;
+}) => {
+  const response = await api.get('/di', { params });
   return response.data;
 };
 

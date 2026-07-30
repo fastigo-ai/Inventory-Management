@@ -1,4 +1,4 @@
-import api from '@/core/api';
+import { api } from "@/shared/api/axios";
 
 export const getDemandNotes = async () => {
   const response = await api.get('/demand-notes');

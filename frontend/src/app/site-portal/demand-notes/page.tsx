@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { Plus, FileText, ChevronRight } from 'lucide-react';
 import { getDemandNotes } from '@/features/site-portal/api/demand-notes.api';
 import { toast } from 'sonner';
-import { Badge } from '@/components/ui/badge';
 
 export default function DemandNotesList() {
   const [demandNotes, setDemandNotes] = useState<any[]>([]);
@@ -29,13 +28,14 @@ export default function DemandNotesList() {
   };
 
   const getStatusBadge = (status: string) => {
+    const baseStyle = "px-2.5 py-0.5 text-xs font-semibold rounded-full border";
     switch (status) {
-      case 'Draft': return <Badge variant="outline" className="bg-slate-100 text-slate-700">{status}</Badge>;
-      case 'Pending Approval': return <Badge variant="outline" className="bg-amber-100 text-amber-700">{status}</Badge>;
-      case 'Approved': return <Badge variant="outline" className="bg-emerald-100 text-emerald-700">{status}</Badge>;
-      case 'Rejected': return <Badge variant="outline" className="bg-red-100 text-red-700">{status}</Badge>;
-      case 'Fulfilled': return <Badge variant="outline" className="bg-blue-100 text-blue-700">{status}</Badge>;
-      default: return <Badge variant="outline">{status}</Badge>;
+      case 'Draft': return <span className={`${baseStyle} bg-slate-100 text-slate-700 border-slate-200`}>{status}</span>;
+      case 'Pending Approval': return <span className={`${baseStyle} bg-amber-100 text-amber-700 border-amber-200`}>{status}</span>;
+      case 'Approved': return <span className={`${baseStyle} bg-emerald-100 text-emerald-700 border-emerald-200`}>{status}</span>;
+      case 'Rejected': return <span className={`${baseStyle} bg-red-100 text-red-700 border-red-200`}>{status}</span>;
+      case 'Fulfilled': return <span className={`${baseStyle} bg-blue-100 text-blue-700 border-blue-200`}>{status}</span>;
+      default: return <span className={`${baseStyle} bg-slate-100 text-slate-700 border-slate-200`}>{status}</span>;
     }
   };
 

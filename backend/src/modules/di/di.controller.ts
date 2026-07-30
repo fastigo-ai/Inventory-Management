@@ -294,11 +294,61 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
     }
 
     const parser = parseAndSanitizeCsv(req.file.buffer);
-
-    const disMap: Record<string, any> = {};
+    const rows: Record<string, string>[] = [];
+    const tempCodes = new Set<string>();
+    const loaSerialNos = new Set<string>();
+    const itemNames = new Set<string>();
 
     for await (const r of parser) {
       const row = r as Record<string, string>;
+      rows.push(row);
+
+      const tempCode = row['TempCode'] || row['tempCode'];
+      const loaSerialNo = row['LoaSerialNo'] || row['loaSerialNo'];
+      const itemName = row['ItemName'] || row['itemName'] || row['Item Name'];
+
+      if (tempCode) tempCodes.add(tempCode);
+      if (loaSerialNo) loaSerialNos.add(loaSerialNo);
+      if (itemName) itemNames.add(itemName);
+    }
+
+    // 1. Bulk pre-fetch matching items
+    const orConditions: any[] = [];
+    if (tempCodes.size > 0) orConditions.push({ 'dynamicData.tempCode': { $in: Array.from(tempCodes) } });
+    if (loaSerialNos.size > 0) {
+      const serials = Array.from(loaSerialNos);
+      orConditions.push({ 'dynamicData.loaSerialNo': { $in: serials } });
+      orConditions.push({ 'dynamicData.loaSerialNumber': { $in: serials } });
+      orConditions.push({ 'dynamicData.sku': { $in: serials } });
+    }
+    if (itemNames.size > 0) orConditions.push({ 'dynamicData.name': { $in: Array.from(itemNames) } });
+
+    const existingItems = orConditions.length > 0 ? await Item.find({ $or: orConditions }) : [];
+
+    const findItemInMemory = (tCode?: string, lSerial?: string, name?: string) => {
+      if (tCode) {
+        const found = existingItems.find(i => i.dynamicData?.tempCode === tCode);
+        if (found) return found;
+      }
+      if (lSerial) {
+        const found = existingItems.find(i => 
+          i.dynamicData?.loaSerialNo === lSerial || 
+          i.dynamicData?.loaSerialNumber === lSerial || 
+          i.dynamicData?.sku === lSerial
+        );
+        if (found) return found;
+      }
+      if (name) {
+        const found = existingItems.find(i => i.dynamicData?.name === name);
+        if (found) return found;
+      }
+      return null;
+    };
+
+    // 2. Build disMap in-memory
+    const disMap: Record<string, any> = {};
+
+    for (const row of rows) {
       const diNumber = row['DINumber'] || row['diNumber'] || row['DI Number'];
       if (!diNumber) continue;
 
@@ -325,43 +375,8 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
       const unit = row['Unit'] || row['unit'] || row['Unit Name'];
 
       if (itemName) {
-        // Find or create the item in Item master
-        let itemId: any = undefined;
-        if (tempCode) {
-          const found = await Item.findOne({ 'dynamicData.tempCode': tempCode });
-          if (found) itemId = found._id;
-        }
-        if (!itemId && loaSerialNo) {
-          const found = await Item.findOne({ 
-            $or: [
-              { 'dynamicData.loaSerialNo': loaSerialNo },
-              { 'dynamicData.loaSerialNumber': loaSerialNo },
-              { 'dynamicData.sku': loaSerialNo }
-            ]
-          });
-          if (found) itemId = found._id;
-        }
-        if (!itemId && itemName) {
-          const found = await Item.findOne({ 'dynamicData.name': itemName });
-          if (found) itemId = found._id;
-        }
-
-        // If item doesn't exist, create it
-        if (!itemId) {
-          const newItem = await Item.create({
-            dynamicData: {
-              name: itemName,
-              tempCode: tempCode || '',
-              sku: loaSerialNo || '',
-              loaSerialNo: loaSerialNo || '',
-              unit: unit || 'Nos',
-              stock: 0,
-              stockLocations: []
-            },
-            history: [{ action: 'Created via DI Import', performedBy: 'system', timestamp: new Date() }]
-          });
-          itemId = newItem._id;
-        }
+        const item = findItemInMemory(tempCode, loaSerialNo, itemName);
+        const itemId = item ? item._id : null;
 
         disMap[diNumber].lineItems.push({
           itemId,
@@ -376,16 +391,25 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
       }
     }
 
+    // 4. Pre-fetch existing DIs and POs
+    const diNumbers = Object.keys(disMap);
+    const poNumbers = Array.from(new Set(diNumbers.map(n => disMap[n]._poNumber).filter(Boolean)));
+
+    const [existingDIs, existingPOs] = await Promise.all([
+      DI.find({ diNumber: { $in: diNumbers } }),
+      poNumbers.length > 0 ? PurchaseOrder.find({ purchaseOrderNumber: { $in: poNumbers } }) : []
+    ]);
+
     let successCount = 0;
     const errors: any[] = [];
     
-    for (const diNumber of Object.keys(disMap)) {
+    for (const diNumber of diNumbers) {
       const diData = disMap[diNumber];
       try {
-        const existing = await DI.findOne({ diNumber: diData.diNumber });
+        const existing = existingDIs.find(d => d.diNumber === diData.diNumber);
 
         if (diData._poNumber) {
-          const po = await PurchaseOrder.findOne({ purchaseOrderNumber: diData._poNumber });
+          const po = existingPOs.find(p => p.purchaseOrderNumber === diData._poNumber);
           if (po) {
             diData.purchaseOrderId = po._id;
             if (!diData.vendorName) {
@@ -398,7 +422,6 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
         delete diData._poNumber;
 
         if (existing) {
-          // If DI already exists, check if it's locked (has associated PR or status is Received)
           const hasPr = await Pr.exists({ diNo: existing.diNumber });
           const isLocked = existing.status === 'Received' || !!hasPr;
           if (isLocked) {
@@ -406,7 +429,6 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
             continue;
           }
 
-          // Not locked, allow update
           const oldItemIds = existing.lineItems.map((li: any) => li.itemId?.toString()).filter(Boolean);
 
           existing.date = diData.date;
@@ -430,7 +452,6 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
             SummaryService.rebuildForItem(itemId).catch(console.error);
           }
         } else {
-          // Create new DI
           const createdDI = await DI.create(diData);
           successCount++;
           

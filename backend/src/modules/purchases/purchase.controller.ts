@@ -546,10 +546,100 @@ export const importPurchaseOrders = async (req: Request, res: Response) => {
     }
 
     const parser = parseAndSanitizeCsv(req.file.buffer);
+    const rows: Record<string, string>[] = [];
+    const tempCodes = new Set<string>();
+    const loaSerialNos = new Set<string>();
+    const itemNames = new Set<string>();
 
+    for await (const r of parser) {
+      const row = r as Record<string, string>;
+      rows.push(row);
+
+      const tempCode = row['TempCode'] || row['tempCode'];
+      const loaSerialNo = row['LoaSerialNo'] || row['loaSerialNo'];
+      const itemName = row['ItemName'] || row['itemName'] || row['Item Name'];
+
+      if (tempCode) tempCodes.add(tempCode);
+      if (loaSerialNo) loaSerialNos.add(loaSerialNo);
+      if (itemName) itemNames.add(itemName);
+    }
+
+    // 1. Bulk pre-fetch matching items
+    const orConditions: any[] = [];
+    if (tempCodes.size > 0) orConditions.push({ 'dynamicData.tempCode': { $in: Array.from(tempCodes) } });
+    if (loaSerialNos.size > 0) {
+      const serials = Array.from(loaSerialNos);
+      orConditions.push({ 'dynamicData.loaSerialNo': { $in: serials } });
+      orConditions.push({ 'dynamicData.loaSerialNumber': { $in: serials } });
+      orConditions.push({ 'dynamicData.sku': { $in: serials } });
+    }
+    if (itemNames.size > 0) orConditions.push({ 'dynamicData.name': { $in: Array.from(itemNames) } });
+
+    const existingItems = orConditions.length > 0 ? await Item.find({ $or: orConditions }) : [];
+
+    const findItemInMemory = (tCode?: string, lSerial?: string, name?: string) => {
+      if (tCode) {
+        const found = existingItems.find(i => i.dynamicData?.tempCode === tCode);
+        if (found) return found;
+      }
+      if (lSerial) {
+        const found = existingItems.find(i => 
+          i.dynamicData?.loaSerialNo === lSerial || 
+          i.dynamicData?.loaSerialNumber === lSerial || 
+          i.dynamicData?.sku === lSerial
+        );
+        if (found) return found;
+      }
+      if (name) {
+        const found = existingItems.find(i => i.dynamicData?.name === name);
+        if (found) return found;
+      }
+      return null;
+    };
+
+    // 2. Identify missing items and batch insert them
+    const missingItemsToCreate: any[] = [];
+    const missingItemsMap = new Map<string, any>();
+
+    for (const row of rows) {
+      const itemName = row['ItemName'] || row['itemName'] || row['Item Name'];
+      if (!itemName) continue;
+
+      const tempCode = row['TempCode'] || row['tempCode'];
+      const loaSerialNo = row['LoaSerialNo'] || row['loaSerialNo'];
+      const unit = row['Unit'] || row['unit'];
+
+      const existingItem = findItemInMemory(tempCode, loaSerialNo, itemName);
+      if (!existingItem) {
+        const cacheKey = `${itemName}:${tempCode || ''}:${loaSerialNo || ''}`;
+        if (!missingItemsMap.has(cacheKey)) {
+          const newItemDoc = {
+            dynamicData: {
+              name: itemName,
+              tempCode: tempCode || '',
+              sku: loaSerialNo || '',
+              loaSerialNo: loaSerialNo || '',
+              unit: unit || 'Nos',
+              stock: 0,
+              stockLocations: []
+            },
+            history: [{ action: 'Created via PO Import', performedBy: 'system', timestamp: new Date() }]
+          };
+          missingItemsMap.set(cacheKey, newItemDoc);
+          missingItemsToCreate.push(newItemDoc);
+        }
+      }
+    }
+
+    if (missingItemsToCreate.length > 0) {
+      const createdItems = await Item.insertMany(missingItemsToCreate);
+      existingItems.push(...createdItems);
+    }
+
+    // 3. Build ordersMap in-memory
     const ordersMap: Record<string, any> = {};
 
-    for await (const row of parser) {
+    for (const row of rows) {
       const poNumber = row['PurchaseOrderNumber'] || row['purchaseOrderNumber'] || row['Purchase Order Number'];
       if (!poNumber) continue;
 
@@ -595,43 +685,8 @@ export const importPurchaseOrders = async (req: Request, res: Response) => {
       const unit = row['Unit'] || row['unit'];
 
       if (itemName) {
-        // Find or create Item
-        let itemId: any = undefined;
-        if (tempCode) {
-          const found = await Item.findOne({ 'dynamicData.tempCode': tempCode });
-          if (found) itemId = found._id;
-        }
-        if (!itemId && loaSerialNo) {
-          const found = await Item.findOne({ 
-            $or: [
-              { 'dynamicData.loaSerialNo': loaSerialNo },
-              { 'dynamicData.loaSerialNumber': loaSerialNo },
-              { 'dynamicData.sku': loaSerialNo }
-            ]
-          });
-          if (found) itemId = found._id;
-        }
-        if (!itemId && itemName) {
-          const found = await Item.findOne({ 'dynamicData.name': itemName });
-          if (found) itemId = found._id;
-        }
-
-        // Auto-create item if it doesn't exist
-        if (!itemId) {
-          const newItem = await Item.create({
-            dynamicData: {
-              name: itemName,
-              tempCode: tempCode || '',
-              sku: loaSerialNo || '',
-              loaSerialNo: loaSerialNo || '',
-              unit: unit || 'Nos',
-              stock: 0,
-              stockLocations: []
-            },
-            history: [{ action: 'Created via PO Import', performedBy: 'system', timestamp: new Date() }]
-          });
-          itemId = newItem._id;
-        }
+        const item = findItemInMemory(tempCode, loaSerialNo, itemName);
+        const itemId = item ? item._id : null;
 
         ordersMap[poNumber].lineItems.push({
           itemId,
@@ -676,15 +731,18 @@ export const importPurchaseOrders = async (req: Request, res: Response) => {
       
       ordersToInsert.push(order);
     }
+
+    // 4. Pre-fetch existing POs
+    const poNumbers = ordersToInsert.map(o => o.purchaseOrderNumber);
+    const existingPOs = await PurchaseOrder.find({ purchaseOrderNumber: { $in: poNumbers } });
     
     let successCount = 0;
     const errors: any[] = [];
     
     for (const orderData of ordersToInsert) {
        try {
-         const existing = await PurchaseOrder.findOne({ purchaseOrderNumber: orderData.purchaseOrderNumber });
+         const existing = existingPOs.find(p => p.purchaseOrderNumber === orderData.purchaseOrderNumber);
          if (existing) {
-           // Check if PO is locked (has linked Invoices or DIs)
            const prCount = await Pr.countDocuments({ purchaseOrderId: existing._id });
            const diCount = await DI.countDocuments({ purchaseOrderId: existing._id });
            const isLocked = prCount > 0 || diCount > 0;
@@ -693,7 +751,6 @@ export const importPurchaseOrders = async (req: Request, res: Response) => {
              continue;
            }
 
-           // Not locked, update PO
            const oldItemIds = existing.lineItems.map((li: any) => li.itemId?.toString()).filter(Boolean);
 
            existing.vendorName = orderData.vendorName;
@@ -732,7 +789,6 @@ export const importPurchaseOrders = async (req: Request, res: Response) => {
              SummaryService.rebuildForItem(itemId).catch(console.error);
            }
          } else {
-           // Create new PO
            const createdOrder = await PurchaseOrder.create(orderData);
            successCount++;
            

@@ -398,11 +398,100 @@ export const importPurchaseInvoices = async (req: Request, res: Response) => {
     }
 
     const parser = parseAndSanitizeCsv(req.file.buffer);
-
-    const piMap: Record<string, any> = {};
+    const rows: any[] = [];
+    const tempCodes = new Set<string>();
+    const loaSerialNos = new Set<string>();
+    const itemNames = new Set<string>();
 
     for await (const r of parser) {
       const row = r as any;
+      rows.push(row);
+
+      const tempCode = row['TempCode'] || row['tempCode'];
+      const loaSerialNo = row['LoaSerialNo'] || row['loaSerialNo'];
+      const itemName = row['ItemName'] || row['itemName'] || row['Item Name'];
+
+      if (tempCode) tempCodes.add(tempCode);
+      if (loaSerialNo) loaSerialNos.add(loaSerialNo);
+      if (itemName) itemNames.add(itemName);
+    }
+
+    // 1. Bulk pre-fetch matching items
+    const orConditions: any[] = [];
+    if (tempCodes.size > 0) orConditions.push({ 'dynamicData.tempCode': { $in: Array.from(tempCodes) } });
+    if (loaSerialNos.size > 0) {
+      const serials = Array.from(loaSerialNos);
+      orConditions.push({ 'dynamicData.loaSerialNo': { $in: serials } });
+      orConditions.push({ 'dynamicData.loaSerialNumber': { $in: serials } });
+      orConditions.push({ 'dynamicData.sku': { $in: serials } });
+    }
+    if (itemNames.size > 0) orConditions.push({ 'dynamicData.name': { $in: Array.from(itemNames) } });
+
+    const existingItems = orConditions.length > 0 ? await Item.find({ $or: orConditions }) : [];
+
+    const findItemInMemory = (tCode?: string, lSerial?: string, name?: string) => {
+      if (tCode) {
+        const found = existingItems.find(i => i.dynamicData?.tempCode === tCode);
+        if (found) return found;
+      }
+      if (lSerial) {
+        const found = existingItems.find(i => 
+          i.dynamicData?.loaSerialNo === lSerial || 
+          i.dynamicData?.loaSerialNumber === lSerial || 
+          i.dynamicData?.sku === lSerial
+        );
+        if (found) return found;
+      }
+      if (name) {
+        const found = existingItems.find(i => i.dynamicData?.name === name);
+        if (found) return found;
+      }
+      return null;
+    };
+
+    // 2. Identify missing items and batch insert them
+    const missingItemsToCreate: any[] = [];
+    const missingItemsMap = new Map<string, any>();
+
+    for (const row of rows) {
+      const itemName = row['ItemName'] || row['itemName'] || row['Item Name'];
+      if (!itemName) continue;
+
+      const tempCode = row['TempCode'] || row['tempCode'];
+      const loaSerialNo = row['LoaSerialNo'] || row['loaSerialNo'];
+      const unit = row['Unit'] || row['unit'];
+
+      const existingItem = findItemInMemory(tempCode, loaSerialNo, itemName);
+      if (!existingItem) {
+        const cacheKey = `${itemName}:${tempCode || ''}:${loaSerialNo || ''}`;
+        if (!missingItemsMap.has(cacheKey)) {
+          const newItemDoc = {
+            dynamicData: {
+              name: itemName,
+              tempCode: tempCode || '',
+              sku: loaSerialNo || '',
+              loaSerialNo: loaSerialNo || '',
+              unit: unit || 'Nos',
+              stock: 0,
+              stockLocations: []
+            },
+            history: [{ action: 'Created via PI Import', performedBy: 'system', timestamp: new Date() }]
+          };
+          missingItemsMap.set(cacheKey, newItemDoc);
+          missingItemsToCreate.push(newItemDoc);
+        }
+      }
+    }
+
+    if (missingItemsToCreate.length > 0) {
+      const createdItems = await Item.insertMany(missingItemsToCreate);
+      existingItems.push(...createdItems);
+    }
+
+    // 3. Build piMap in-memory
+    const piMap: Record<string, any> = {};
+
+    for (const row of rows) {
       const invoiceNumber = row['InvoiceNumber'] || row['invoiceNumber'] || row['Invoice Number'];
       if (!invoiceNumber) continue;
 
@@ -429,46 +518,10 @@ export const importPurchaseInvoices = async (req: Request, res: Response) => {
       const igst = Number(row['Igst'] || row['igst'] || 0);
       const tempCode = row['TempCode'] || row['tempCode'];
       const loaSerialNo = row['LoaSerialNo'] || row['loaSerialNo'];
-      const unit = row['Unit'] || row['unit'];
 
       if (itemName) {
-        // Find or create Item
-        let itemId: any = undefined;
-        if (tempCode) {
-          const found = await Item.findOne({ 'dynamicData.tempCode': tempCode });
-          if (found) itemId = found._id;
-        }
-        if (!itemId && loaSerialNo) {
-          const found = await Item.findOne({ 
-            $or: [
-              { 'dynamicData.loaSerialNo': loaSerialNo },
-              { 'dynamicData.loaSerialNumber': loaSerialNo },
-              { 'dynamicData.sku': loaSerialNo }
-            ]
-          });
-          if (found) itemId = found._id;
-        }
-        if (!itemId && itemName) {
-          const found = await Item.findOne({ 'dynamicData.name': itemName });
-          if (found) itemId = found._id;
-        }
-
-        // Auto-create item if it doesn't exist
-        if (!itemId) {
-          const newItem = await Item.create({
-            dynamicData: {
-              name: itemName,
-              tempCode: tempCode || '',
-              sku: loaSerialNo || '',
-              loaSerialNo: loaSerialNo || '',
-              unit: unit || 'Nos',
-              stock: 0,
-              stockLocations: []
-            },
-            history: [{ action: 'Created via PI Import', performedBy: 'system', timestamp: new Date() }]
-          });
-          itemId = newItem._id;
-        }
+        const item = findItemInMemory(tempCode, loaSerialNo, itemName);
+        const itemId = item ? item._id : null;
 
         piMap[invoiceNumber].lineItems.push({
           itemId,
@@ -483,16 +536,25 @@ export const importPurchaseInvoices = async (req: Request, res: Response) => {
       }
     }
 
+    // 4. Pre-fetch existing PIs and POs
+    const invoiceNumbers = Object.keys(piMap);
+    const poNumbers = Array.from(new Set(invoiceNumbers.map(n => piMap[n]._poNumber).filter(Boolean)));
+
+    const [existingPIs, existingPOs] = await Promise.all([
+      PurchaseInvoice.find({ invoiceNumber: { $in: invoiceNumbers } }),
+      poNumbers.length > 0 ? PurchaseOrder.find({ purchaseOrderNumber: { $in: poNumbers } }) : []
+    ]);
+
     let successCount = 0;
     const errors: any[] = [];
     
-    for (const invoiceNumber of Object.keys(piMap)) {
+    for (const invoiceNumber of invoiceNumbers) {
       const piData = piMap[invoiceNumber];
       try {
-        const existing = await PurchaseInvoice.findOne({ invoiceNumber: piData.invoiceNumber });
+        const existing = existingPIs.find(p => p.invoiceNumber === piData.invoiceNumber);
 
         if (piData._poNumber) {
-          const po = await PurchaseOrder.findOne({ purchaseOrderNumber: piData._poNumber });
+          const po = existingPOs.find(p => p.purchaseOrderNumber === piData._poNumber);
           if (po) {
             piData.purchaseOrderId = po._id;
           } else {
@@ -529,14 +591,12 @@ export const importPurchaseInvoices = async (req: Request, res: Response) => {
         piData.balanceDue = piData.total;
 
         if (existing) {
-          // Check if PI is locked (Paid status)
           const isLocked = existing.status === 'Paid';
           if (isLocked) {
             errors.push(`Invoice ${piData.invoiceNumber} already exists and is locked (status is Paid). Cannot update.`);
             continue;
           }
 
-          // Not locked, update PI
           const oldItemIds = existing.lineItems.map((li: any) => li.itemId?.toString()).filter(Boolean);
 
           existing.date = piData.date;
@@ -564,7 +624,6 @@ export const importPurchaseInvoices = async (req: Request, res: Response) => {
             SummaryService.rebuildForItem(itemId).catch(console.error);
           }
         } else {
-          // Create new PI
           const createdInvoice = await PurchaseInvoice.create(piData);
           successCount++;
 

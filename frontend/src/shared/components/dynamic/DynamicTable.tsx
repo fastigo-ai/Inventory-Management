@@ -226,14 +226,34 @@ export function DynamicTable({
                   <TableHead></TableHead>
                   {columns.map(col => (
                     <TableHead key={col.name} className="py-2 px-2">
-                      <input
-                        type="text"
-                        placeholder={`Search...`}
-                        value={columnFilters?.[col.name] || ''}
-                        onChange={(e) => onColumnFilterChange(col.name, e.target.value)}
-                        className="w-full h-8 px-2 text-xs border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
-                        onClick={(e) => e.stopPropagation()}
-                      />
+                      {col.type === 'dropdown' || col.type === 'select' ? (
+                        <select
+                          value={columnFilters?.[col.name] || ''}
+                          onChange={(e) => onColumnFilterChange(col.name, e.target.value)}
+                          className="w-full h-8 px-2 text-xs border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <option value="">All</option>
+                          {col.options && col.options.length > 0 ? (
+                            col.options.map((opt: string) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))
+                          ) : col.dependsOnOptions ? (
+                            Array.from(new Set(Object.values(col.dependsOnOptions).flat())).map((opt: any) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))
+                          ) : null}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          placeholder={`Search...`}
+                          value={columnFilters?.[col.name] || ''}
+                          onChange={(e) => onColumnFilterChange(col.name, e.target.value)}
+                          className="w-full h-8 px-2 text-xs border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      )}
                     </TableHead>
                   ))}
                   {(onEdit || onDelete) && <TableHead></TableHead>}

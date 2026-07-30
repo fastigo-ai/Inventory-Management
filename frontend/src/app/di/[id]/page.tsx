@@ -367,6 +367,7 @@ export default function DIDetailPage() {
                         <th className="px-3 py-2 text-left font-bold text-[#5e7790] uppercase border-r border-slate-200">ITEM NAME</th>
                         <th className="px-3 py-2 text-left font-bold text-[#5e7790] uppercase border-r border-slate-200">PACKAGE</th>
                         <th className="px-3 py-2 text-left font-bold text-[#5e7790] uppercase border-r border-slate-200">CIRCLE</th>
+                        <th className="px-3 py-2 text-left font-bold text-[#5e7790] uppercase border-r border-slate-200 w-16">UNIT</th>
                         <th className="px-3 py-2 text-right font-bold text-[#5e7790] uppercase w-20">QTY</th>
                       </tr>
                     </thead>
@@ -378,6 +379,7 @@ export default function DIDetailPage() {
                           <td className="px-3 py-3 font-medium text-slate-800 align-top border-r border-slate-200">{item.itemName}</td>
                           <td className="px-3 py-3 text-slate-600 align-top border-r border-slate-200">{item.package || '--'}</td>
                           <td className="px-3 py-3 text-slate-600 align-top border-r border-slate-200">{item.circle || '--'}</td>
+                          <td className="px-3 py-3 text-slate-600 align-top border-r border-slate-200">{item.unit || '--'}</td>
                           <td className="px-3 py-3 text-right text-slate-800 align-top">{item.quantity}</td>
                         </tr>
                       ))}
@@ -432,6 +434,7 @@ export default function DIDetailPage() {
                             <th className="px-6 py-3 whitespace-nowrap">Item Details</th>
                             <th className="px-6 py-3 whitespace-nowrap">Package</th>
                             <th className="px-6 py-3 whitespace-nowrap">Circle</th>
+                            <th className="px-6 py-3 whitespace-nowrap">Unit</th>
                             <th className="px-6 py-3 text-right whitespace-nowrap">Quantity</th>
                           </tr>
                         </thead>
@@ -444,6 +447,7 @@ export default function DIDetailPage() {
                               </td>
                               <td className="px-6 py-4 text-slate-600">{item.package || '--'}</td>
                               <td className="px-6 py-4 text-slate-600">{item.circle || '--'}</td>
+                              <td className="px-6 py-4 text-slate-600">{item.unit || '--'}</td>
                               <td className="px-6 py-4 text-right font-medium text-slate-800">{item.quantity}</td>
                             </tr>
                           ))}

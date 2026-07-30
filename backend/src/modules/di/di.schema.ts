@@ -7,6 +7,7 @@ export interface IDILineItem {
   tempCode?: string;
   package?: string;
   circle?: string;
+  unit?: string;
   quantity: number;
 }
 
@@ -34,6 +35,7 @@ const diLineItemSchema = new Schema<IDILineItem>({
   tempCode: { type: String },
   package: { type: String },
   circle: { type: String },
+  unit: { type: String },
   quantity: { type: Number, required: true, default: 0 },
 });
 

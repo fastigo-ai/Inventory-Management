@@ -89,6 +89,7 @@ export default function NewDIRegistrationPage() {
                 tempCode: item.tempCode || '',
                 package: item.package || po.package1 || '',
                 circle: item.circle || po.circle || '',
+                unit: item.unit || masterItem?.dynamicData?.unit || masterItem?.unit || 'Nos',
                 orderedQuantity: item.quantity || 0,
                 quantity: item.quantity || 0, // Default to full quantity for inspection
                 readOnly: true
@@ -135,6 +136,7 @@ export default function NewDIRegistrationPage() {
         tempCode: item.tempCode,
         package: item.package,
         circle: item.circle,
+        unit: item.unit || 'Nos',
         quantity: Number(item.quantity) || 0
       })).filter(i => i.quantity > 0);
       
@@ -298,12 +300,13 @@ export default function NewDIRegistrationPage() {
             <table className="w-full min-w-[1000px]">
               <thead className="bg-[#f8f9fc] border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-[20%] whitespace-nowrap">LOA SERIAL NO</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-[18%] whitespace-nowrap">LOA SERIAL NO</th>
                   <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">TEMP CODE</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-[25%] whitespace-nowrap">ITEM NAME</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-[22%] whitespace-nowrap">ITEM NAME</th>
                   <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">PACKAGE</th>
                   <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">CIRCLE</th>
-                  <th className="px-4 py-2 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider w-[15%] whitespace-nowrap">DI QUANTITY</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-[10%] whitespace-nowrap">UNIT</th>
+                  <th className="px-4 py-2 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider w-[12%] whitespace-nowrap">DI QUANTITY</th>
                   <th className="px-4 py-2 w-12"></th>
                 </tr>
               </thead>
@@ -584,6 +587,22 @@ export default function NewDIRegistrationPage() {
                     </select>
                   </td>
                   <td className="px-4 py-3">
+                    <select
+                      value={item.unit || 'Nos'}
+                      onChange={(e) => updateLineItem(index, 'unit', e.target.value)}
+                      className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-slate-950"
+                    >
+                      <option value="Nos">Nos</option>
+                      <option value="Mtr">Mtr</option>
+                      <option value="Kg">Kg</option>
+                      <option value="Set">Set</option>
+                      <option value="Km">Km</option>
+                      <option value="Box">Box</option>
+                      <option value="Pc">Pc</option>
+                      <option value="Ltr">Ltr</option>
+                    </select>
+                  </td>
+                  <td className="px-4 py-3">
                     <Input 
                       type="number" 
                       value={item.quantity}
@@ -624,6 +643,7 @@ export default function NewDIRegistrationPage() {
                   searchQuery: '',
                   package: diPackage,
                   circle: diCircle,
+                  unit: 'Nos',
                   orderedQuantity: 0,
                   quantity: 0,
                   readOnly: false
@@ -881,6 +901,7 @@ export default function NewDIRegistrationPage() {
                         searchQuery: sku,
                         package: item.dynamicData?.package || poLineItem?.package1 || '',
                         circle: item.dynamicData?.circle || poLineItem?.circle || '',
+                        unit: item.dynamicData?.unit || item.unit || poLineItem?.unit || 'Nos',
                         orderedQuantity: poLineItem ? (poLineItem.quantity || 0) : 0,
                         quantity: 0,
                         readOnly: false

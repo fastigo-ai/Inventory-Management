@@ -264,6 +264,7 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
       const loaSerialNo = row['LoaSerialNo'] || row['loaSerialNo'];
       const itemPackage = row['ItemPackage'] || row['itemPackage'];
       const itemCircle = row['ItemCircle'] || row['itemCircle'];
+      const unit = row['Unit'] || row['unit'] || row['Unit Name'];
 
       if (itemName) {
         disMap[diNumber].lineItems.push({
@@ -272,6 +273,7 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
           loaSerialNo,
           package: itemPackage,
           circle: itemCircle,
+          unit,
           quantity
         });
       }

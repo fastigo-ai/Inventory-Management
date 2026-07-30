@@ -7,6 +7,7 @@ import { parse } from 'csv-parse/sync';
 import { StoreInwardEntry } from '../store/storeInwardEntry.schema';
 import mongoose from 'mongoose';
 import { SummaryService } from '../reports/summary/summary.service';
+import Item from '../items/item.model';
 
 export const createPurchaseReceive = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -444,11 +445,11 @@ export const importPurchaseReceives = async (req: Request, res: Response): Promi
 
     const findItemInMemory = (tCode?: string, lSerial?: string, name?: string) => {
       if (tCode) {
-        const found = existingItems.find(i => i.dynamicData?.tempCode === tCode);
+        const found = existingItems.find((i: any) => i.dynamicData?.tempCode === tCode);
         if (found) return found;
       }
       if (lSerial) {
-        const found = existingItems.find(i => 
+        const found = existingItems.find((i: any) => 
           i.dynamicData?.loaSerialNo === lSerial || 
           i.dynamicData?.loaSerialNumber === lSerial || 
           i.dynamicData?.sku === lSerial
@@ -456,7 +457,7 @@ export const importPurchaseReceives = async (req: Request, res: Response): Promi
         if (found) return found;
       }
       if (name) {
-        const found = existingItems.find(i => i.dynamicData?.name === name);
+        const found = existingItems.find((i: any) => i.dynamicData?.name === name);
         if (found) return found;
       }
       return null;

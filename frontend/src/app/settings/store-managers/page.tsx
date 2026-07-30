@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Plus } from "lucide-react";
 
 const PACKAGES = ["Package 1 (S/N)", "Package 2 (R/R)"];
-const CIRCLES = ["Solan", "Nahan", "Rohru", "Rampur"];
+const CIRCLES = ["Solan", "Nahan", "Rohru", "Rampur", "Kumarhatti", "Nalagarh"];
 
 export default function StoreManagersPage() {
   const [users, setUsers] = useState<any[]>([]);

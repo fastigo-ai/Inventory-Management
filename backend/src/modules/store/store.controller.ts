@@ -20,9 +20,19 @@ export const getPendingDIs = asyncHandler(async (req: Request, res: Response) =>
   const user = (req as any).user;
   const filter: any = { status: { $in: ['Active', 'Pending Receipt', 'Received'] } }; // Keeping old statuses temporarily for backward compatibility with existing DB entries
   
+  const SUB_STORE_MAP: Record<string, string[]> = {
+    'Solan': ['Solan', 'Kumarhatti', 'Nalagarh'],
+    'Nahan': ['Nahan'],
+    'Rohru': ['Rohru'],
+    'Rampur': ['Rampur'],
+  };
+
   if (user && user.role?.name === 'Store Manager') {
     if (user.assignedPackage) filter.package = user.assignedPackage;
-    if (user.assignedCircle) filter.circle = user.assignedCircle;
+    if (user.assignedCircle) {
+      const allowedCircles = SUB_STORE_MAP[user.assignedCircle] || [user.assignedCircle];
+      filter.circle = { $in: allowedCircles };
+    }
   }
 
   // Get all DIs matching the filter

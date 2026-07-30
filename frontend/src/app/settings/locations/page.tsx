@@ -104,16 +104,22 @@ export default function LocationsSettingsPage() {
     }
   };
 
-  // Group locations hierarchically
+  // Group locations hierarchically (up to 3 levels)
   const buildHierarchy = () => {
     const filteredLocations = locations.filter(loc => loc.type !== 'Other');
-    const parentLocations = filteredLocations.filter(loc => !loc.parentLocation);
-    const childLocations = filteredLocations.filter(loc => loc.parentLocation);
-    
-    return parentLocations.map(parent => {
-      const children = childLocations.filter(child => child.parentLocation._id === parent._id);
+    const topLevel = filteredLocations.filter(loc => !loc.parentLocation);
+
+    const addChildren = (parent: any): any => {
+      const children = filteredLocations
+        .filter(loc => {
+          const pid = typeof loc.parentLocation === 'object' ? loc.parentLocation?._id : loc.parentLocation;
+          return pid === parent._id;
+        })
+        .map(addChildren);
       return { ...parent, children };
-    });
+    };
+
+    return topLevel.map(addChildren);
   };
 
   const hierarchicalLocations = buildHierarchy();
@@ -178,33 +184,68 @@ export default function LocationsSettingsPage() {
                   </div>
                 </div>
                 
-                {/* Children Rows */}
+                {/* Children Rows (Level 2) */}
                 {parent.children.length > 0 && (
                   <div className="divide-y divide-slate-100">
                     {parent.children.map((child: any) => (
-                      <div key={child._id} className="px-6 py-3 pl-16 flex items-center justify-between hover:bg-slate-50 transition-colors group">
-                        <div className="flex items-center gap-3">
-                          <MapPin className="w-4 h-4 text-slate-400" />
-                          <div>
-                            <p className="text-sm font-semibold text-slate-700">{child.name}</p>
-                            <p className="text-xs text-slate-500">{child.type}</p>
+                      <div key={child._id}>
+                        <div className="px-6 py-3 pl-16 flex items-center justify-between hover:bg-slate-50 transition-colors group">
+                          <div className="flex items-center gap-3">
+                            <MapPin className="w-4 h-4 text-slate-400" />
+                            <div>
+                              <p className="text-sm font-semibold text-slate-700">{child.name}</p>
+                              <p className="text-xs text-slate-500">{child.type}</p>
+                            </div>
                           </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-4">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${child.status === 'Active' ? 'bg-green-50 text-green-600' : 'bg-slate-100 text-slate-500'}`}>
-                            {child.status}
-                          </span>
                           
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => openEditModal(child)} className="p-1.5 text-slate-400 hover:text-blue-600">
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => handleDelete(child._id)} className="p-1.5 text-slate-400 hover:text-red-600">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                          <div className="flex items-center gap-4">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${child.status === 'Active' ? 'bg-green-50 text-green-600' : 'bg-slate-100 text-slate-500'}`}>
+                              {child.status}
+                            </span>
+                            
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onClick={() => openEditModal(child)} className="p-1.5 text-slate-400 hover:text-blue-600">
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button onClick={() => handleDelete(child._id)} className="p-1.5 text-slate-400 hover:text-red-600">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </div>
                         </div>
+
+                        {/* Grandchildren Rows (Level 3) */}
+                        {child.children?.length > 0 && (
+                          <div className="divide-y divide-slate-100 bg-slate-50/50">
+                            {child.children.map((grandchild: any) => (
+                              <div key={grandchild._id} className="px-6 py-2.5 pl-24 flex items-center justify-between hover:bg-slate-100/60 transition-colors group">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-1 h-4 bg-slate-300 rounded-full" />
+                                  <MapPin className="w-3.5 h-3.5 text-slate-300" />
+                                  <div>
+                                    <p className="text-sm font-medium text-slate-600">{grandchild.name}</p>
+                                    <p className="text-xs text-slate-400">{grandchild.type}</p>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex items-center gap-4">
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${grandchild.status === 'Active' ? 'bg-green-50 text-green-600' : 'bg-slate-100 text-slate-500'}`}>
+                                    {grandchild.status}
+                                  </span>
+                                  
+                                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => openEditModal(grandchild)} className="p-1.5 text-slate-400 hover:text-blue-600">
+                                      <Edit className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button onClick={() => handleDelete(grandchild._id)} className="p-1.5 text-slate-400 hover:text-red-600">
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -255,8 +296,10 @@ export default function LocationsSettingsPage() {
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Parent Location (Optional)</label>
                   <select value={formData.parentLocation} onChange={e => setFormData({...formData, parentLocation: e.target.value})} className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white">
                     <option value="">None (Top-level Location)</option>
-                    {locations.filter(l => l._id !== editingLocationId && !l.parentLocation).map(loc => (
-                      <option key={loc._id} value={loc._id}>{loc.name}</option>
+                    {locations.filter(l => l._id !== editingLocationId).map(loc => (
+                      <option key={loc._id} value={loc._id}>
+                        {loc.parentLocation ? `↳ ${loc.parentLocation.name} › ${loc.name}` : loc.name}
+                      </option>
                     ))}
                   </select>
                   <p className="text-xs text-slate-500 mt-1">Select a parent location to nest this location under it.</p>

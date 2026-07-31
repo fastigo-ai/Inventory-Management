@@ -615,6 +615,33 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
   if (bulkOps.length > 0) {
     await Item.bulkWrite(bulkOps);
 
+    // Update Metadata Activity Options if new activities are imported
+    if (validItems.length > 0) {
+      const importedActivities = validItems.map(item => item.dynamicData.activity).filter(a => a && typeof a === 'string');
+      if (importedActivities.length > 0) {
+        const uniqueImported = Array.from(new Set(importedActivities));
+        const meta = await Metadata.findOne({ entityName: 'Item' });
+        if (meta) {
+          const fields = (meta as any).fields;
+          const activityField = fields.find((f: any) => f.name === 'activity');
+          if (activityField) {
+            const currentOptions = new Set(activityField.options || []);
+            let added = false;
+            for (const act of uniqueImported) {
+              if (!currentOptions.has(act)) {
+                currentOptions.add(act);
+                added = true;
+              }
+            }
+            if (added) {
+              activityField.options = Array.from(currentOptions);
+              await Metadata.updateOne({ entityName: 'Item' }, { $set: { fields } });
+            }
+          }
+        }
+      }
+    }
+
     // After bulk write, rebuild summary for all affected items by their SKUs
     if (validItems.length > 0) {
       const skus = validItems.map(item => item.dynamicData.sku).filter(Boolean);

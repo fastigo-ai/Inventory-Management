@@ -8,12 +8,15 @@ import { Plus, MoreHorizontal, Upload } from "lucide-react";
 import { getDIs } from "@/features/di/api/di.api";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DIImportModal } from "@/features/di/components/DIImportModal";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { Filter, PieChart as PieChartIcon, Activity, CheckCircle, Clock } from "lucide-react";
 
 export default function DIPage() {
   const router = useRouter();
   const [dis, setDis] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [showInsights, setShowInsights] = useState(true);
 
   // Pagination states
   const [page, setPage] = useState(1);
@@ -26,6 +29,12 @@ export default function DIPage() {
   const [diNumber, setDiNumber] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+
+  const [globalStatusCounts, setGlobalStatusCounts] = useState<Record<string, number>>({});
+  const [globalProgress, setGlobalProgress] = useState(0);
+  const [globalBarData, setGlobalBarData] = useState<any[]>([]);
+  const [globalTotalActiveDIs, setGlobalTotalActiveDIs] = useState(0);
 
   const fetchDIs = () => {
     setLoading(true);
@@ -35,17 +44,30 @@ export default function DIPage() {
       search: search || undefined,
       diNumber: diNumber || undefined,
       startDate: startDate || undefined,
-      endDate: endDate || undefined
+      endDate: endDate || undefined,
+      status: statusFilter || undefined
     })
       .then(res => {
         if (res.success && res.data && typeof res.data === 'object' && !Array.isArray(res.data)) {
           setDis(res.data.dis || []);
           setTotalPages(res.data.pagination?.totalPages || 1);
           setTotalItems(res.data.pagination?.total || 0);
+          if (res.data.insights) {
+            if (res.data.insights.statusCounts) setGlobalStatusCounts(res.data.insights.statusCounts);
+            if (res.data.insights.overallProgress !== undefined) setGlobalProgress(res.data.insights.overallProgress);
+            if (res.data.insights.barData) setGlobalBarData(res.data.insights.barData);
+            if (res.data.insights.totalActiveDIs !== undefined) setGlobalTotalActiveDIs(res.data.insights.totalActiveDIs);
+          }
         } else {
           setDis(Array.isArray(res.data) ? res.data : []);
           setTotalPages(1);
           setTotalItems(Array.isArray(res.data) ? res.data.length : 0);
+          if (res.data?.insights) {
+            if (res.data.insights.statusCounts) setGlobalStatusCounts(res.data.insights.statusCounts);
+            if (res.data.insights.overallProgress !== undefined) setGlobalProgress(res.data.insights.overallProgress);
+            if (res.data.insights.barData) setGlobalBarData(res.data.insights.barData);
+            if (res.data.insights.totalActiveDIs !== undefined) setGlobalTotalActiveDIs(res.data.insights.totalActiveDIs);
+          }
         }
       })
       .catch(console.error)
@@ -54,7 +76,18 @@ export default function DIPage() {
 
   useEffect(() => {
     fetchDIs();
-  }, [page, limit, search, diNumber, startDate, endDate]);
+  }, [page, limit, search, diNumber, startDate, endDate, statusFilter]);
+
+  // Insights rely on global state from backend
+  const overallProgress = globalProgress;
+  
+  const pieData = Object.keys(globalStatusCounts).map(status => ({
+    name: status,
+    value: globalStatusCounts[status]
+  }));
+  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#64748b'];
+
+  const barData = globalBarData;
 
   return (
     <div className="flex-1 bg-slate-50/50 min-h-screen">
@@ -95,6 +128,90 @@ export default function DIPage() {
           }} 
         />
 
+        {/* Business Insights Dashboard */}
+        {showInsights && !loading && dis.length > 0 && (
+          <div className="mb-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* KPI Cards */}
+            <div className="lg:col-span-1 flex flex-col gap-4">
+              <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total Active DIs</p>
+                  <p className="text-2xl font-black text-slate-800">{globalTotalActiveDIs || totalItems}</p>
+                </div>
+                <div className="w-12 h-12 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center">
+                  <Activity className="w-6 h-6" />
+                </div>
+              </div>
+              
+              <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Overall Fulfillment</p>
+                  <div className="flex items-end gap-2">
+                    <p className="text-2xl font-black text-slate-800">{overallProgress}%</p>
+                    <p className="text-xs font-medium text-slate-500 mb-1">Items Invoiced</p>
+                  </div>
+                </div>
+                <div className="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center">
+                  <CheckCircle className="w-6 h-6" />
+                </div>
+              </div>
+            </div>
+
+            {/* Status Breakdown Chart */}
+            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col">
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                <PieChartIcon className="w-4 h-4" /> Status Breakdown
+              </h3>
+              <div className="flex-1 min-h-[150px]">
+                {pieData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={pieData} cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={5} dataKey="value">
+                        {pieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => [`${value} DIs`, 'Count']} contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-xs text-slate-400">No data available</div>
+                )}
+              </div>
+              <div className="flex flex-wrap justify-center gap-3 mt-2">
+                {pieData.map((entry, index) => (
+                  <div key={index} className="flex items-center gap-1.5 text-[11px] font-medium text-slate-600">
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
+                    {entry.name}: {entry.value}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Top DIs Fulfillment Chart */}
+            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col">
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                <Activity className="w-4 h-4" /> Fulfillment by DI
+              </h3>
+              <div className="flex-1 min-h-[150px]">
+                {barData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={barData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} tickLine={false} axisLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: '#64748b' }} tickLine={false} axisLine={false} domain={[0, 100]} />
+                      <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} cursor={{ fill: '#f8fafc' }} />
+                      <Bar dataKey="Fulfillment" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={30} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-xs text-slate-400">No data available</div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Filters */}
         <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm mb-6 flex flex-wrap gap-4 items-end">
           <div className="flex-1 min-w-[200px]">
@@ -107,17 +224,21 @@ export default function DIPage() {
               className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          <div className="w-[180px]">
-            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">DI Number</label>
-            <input
-              type="text"
-              placeholder="DI Number..."
-              value={diNumber}
-              onChange={(e) => { setPage(1); setDiNumber(e.target.value); }}
+          <div className="w-[140px]">
+            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Status</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => { setPage(1); setStatusFilter(e.target.value); }}
               className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            >
+              <option value="">All Statuses</option>
+              <option value="Active">Active</option>
+              <option value="Received">Received</option>
+              <option value="Draft">Draft</option>
+              <option value="Closed">Closed</option>
+            </select>
           </div>
-          <div className="w-[150px]">
+          <div className="w-[140px]">
             <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">From Date</label>
             <input
               type="date"
@@ -126,7 +247,7 @@ export default function DIPage() {
               className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          <div className="w-[150px]">
+          <div className="w-[140px]">
             <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">To Date</label>
             <input
               type="date"
@@ -135,7 +256,7 @@ export default function DIPage() {
               className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          {(search || diNumber || startDate || endDate) && (
+          {(search || diNumber || startDate || endDate || statusFilter) && (
             <Button
               variant="ghost"
               onClick={() => {
@@ -143,6 +264,7 @@ export default function DIPage() {
                 setDiNumber("");
                 setStartDate("");
                 setEndDate("");
+                setStatusFilter("");
                 setPage(1);
               }}
               className="h-9 text-slate-500 hover:text-slate-700"
@@ -182,42 +304,77 @@ export default function DIPage() {
             <>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[800px] text-sm text-left">
-                  <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
+                  <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200 text-[11px] uppercase tracking-wider">
                     <tr>
                       <th className="px-6 py-3 whitespace-nowrap">DI NUMBER</th>
                       <th className="px-6 py-3 whitespace-nowrap">PO NUMBER</th>
                       <th className="px-6 py-3 whitespace-nowrap">VENDOR</th>
                       <th className="px-6 py-3 whitespace-nowrap">DATE</th>
                       <th className="px-6 py-3 whitespace-nowrap">STATUS</th>
-                      <th className="px-6 py-3 whitespace-nowrap text-right">ITEMS</th>
+                      <th className="px-6 py-3 whitespace-nowrap">PROGRESS</th>
+                      <th className="px-6 py-3 whitespace-nowrap text-right">INVOICES</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {dis.map(di => (
-                      <tr 
-                        key={di._id} 
-                        className="hover:bg-slate-50 transition-colors cursor-pointer"
-                        onClick={() => {
-                          router.push(`/di/${di._id}`);
-                        }}
-                      >
-                        <td className="px-6 py-4 font-medium text-blue-600 whitespace-nowrap">{di.diNumber}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{di.poNumber || di.purchaseOrderId?.purchaseOrderNumber || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{di.vendorName || di.purchaseOrderId?.vendorName || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{new Date(di.date).toLocaleDateString()}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                            di.status === 'Active' ? 'bg-green-100 text-green-700' :
-                            di.status === 'Received' ? 'bg-green-100 text-green-700' :
-                            di.status === 'Draft' ? 'bg-slate-100 text-slate-700' :
-                            'bg-amber-100 text-amber-700'
-                          }`}>
-                            {di.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right whitespace-nowrap">{di.lineItems?.length || 0}</td>
-                      </tr>
-                    ))}
+                    {dis.map(di => {
+                      const percent = di.progressPercent || 0;
+                      return (
+                        <tr 
+                          key={di._id} 
+                          className="hover:bg-slate-50 transition-colors cursor-pointer"
+                          onClick={() => {
+                            router.push(`/di/${di._id}`);
+                          }}
+                        >
+                          <td className="px-6 py-4 font-medium text-blue-600 whitespace-nowrap">{di.diNumber}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">{di.poNumber || di.purchaseOrderId?.purchaseOrderNumber || '-'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">{di.vendorName || di.purchaseOrderId?.vendorName || '-'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">{new Date(di.date).toLocaleDateString('en-GB')}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                              di.status === 'Active' ? 'bg-green-100 text-green-700' :
+                              di.status === 'Received' ? 'bg-green-100 text-green-700' :
+                              di.status === 'Draft' ? 'bg-slate-100 text-slate-700' :
+                              'bg-amber-100 text-amber-700'
+                            }`}>
+                              {di.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-2 w-32">
+                              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full rounded-full ${percent === 100 ? 'bg-emerald-500' : 'bg-blue-500'}`} 
+                                  style={{ width: `${percent}%` }}
+                                ></div>
+                              </div>
+                              <span className="text-[11px] font-bold text-slate-500 w-8">{percent}%</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-right whitespace-nowrap">
+                            {di.childInvoices && di.childInvoices.length > 0 ? (
+                              <div className="flex flex-col items-end gap-1">
+                                <span className="text-xs font-bold text-slate-700">{di.childInvoices.length} Invoices</span>
+                                <div className="flex flex-wrap gap-1 justify-end max-w-[150px]">
+                                  {di.childInvoices.slice(0, 2).map((pi: any, idx: number) => (
+                                    <span key={idx} className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded">
+                                      {pi.invoiceNumber}
+                                    </span>
+                                  ))}
+                                  {di.childInvoices.length > 2 && (
+                                    <span className="text-[10px] px-1.5 py-0.5 bg-slate-50 text-slate-500 border border-slate-200 rounded">
+                                      +{di.childInvoices.length - 2} more
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-slate-400">None</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

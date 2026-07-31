@@ -8,6 +8,8 @@ import { StoreInwardEntry } from '../store/storeInwardEntry.schema';
 import mongoose from 'mongoose';
 import { SummaryService } from '../reports/summary/summary.service';
 import Item from '../items/item.model';
+import { ValidationService } from '../../core/document-engine/validation/validation.service';
+import { RelationsService } from '../../core/document-engine/relations/relations.service';
 
 export const createPurchaseInvoice = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -29,10 +31,31 @@ export const createPurchaseInvoice = async (req: Request, res: Response): Promis
         amount: item.amount || item.totalAmount || 0,
         description: item.description || item.itemDescription
       }));
+      
+      const diLinesToConsume = prData.lineItems
+        .filter((i: any) => i.diId && i.diLineId)
+        .map((i: any) => ({
+          lineId: i.diLineId.toString(),
+          quantity: Number(i.quantity) || 0
+        }));
+      
+      if (diLinesToConsume.length > 0) {
+        const diId = prData.lineItems.find((i: any) => i.diId).diId.toString();
+        await ValidationService.validateConsumption(diId, diLinesToConsume);
+      }
     }
 
     const newPr = new PurchaseInvoice(prData);
     await newPr.save();
+
+    // Automatically link to DI and PO
+    const diId = prData.lineItems?.find((i: any) => i.diId)?.diId;
+    if (diId) {
+      await RelationsService.linkDocuments(diId.toString(), 'DispatchInstruction', newPr._id.toString(), 'PurchaseInvoice');
+    }
+    if (newPr.purchaseOrderId) {
+      await RelationsService.linkDocuments(newPr.purchaseOrderId.toString(), 'PurchaseOrder', newPr._id.toString(), 'PurchaseInvoice');
+    }
 
     if (newPr.lineItems && newPr.lineItems.length > 0) {
       const inwardEntries = newPr.lineItems.map((item: any) => ({
@@ -254,6 +277,18 @@ export const updatePurchaseInvoice = async (req: Request, res: Response): Promis
         amount: item.amount || item.totalAmount || 0,
         description: item.description || item.itemDescription
       }));
+      
+      const diLinesToConsume = updateData.lineItems
+        .filter((i: any) => i.diId && i.diLineId)
+        .map((i: any) => ({
+          lineId: i.diLineId.toString(),
+          quantity: Number(i.quantity) || 0
+        }));
+      
+      if (diLinesToConsume.length > 0) {
+        const diId = updateData.lineItems.find((i: any) => i.diId).diId.toString();
+        await ValidationService.validateConsumption(diId, diLinesToConsume, id);
+      }
     }
 
     const updatedPr: any = await PurchaseInvoice.findByIdAndUpdate(id, updateData, { new: true }).lean();
@@ -264,6 +299,15 @@ export const updatePurchaseInvoice = async (req: Request, res: Response): Promis
         message: 'Purchase Invoice not found'
       });
       return;
+    }
+
+    // Automatically link to DI and PO
+    const diId = updateData.lineItems?.find((i: any) => i.diId)?.diId;
+    if (diId) {
+      await RelationsService.linkDocuments(diId.toString(), 'DispatchInstruction', updatedPr._id.toString(), 'PurchaseInvoice');
+    }
+    if (updatedPr.purchaseOrderId) {
+      await RelationsService.linkDocuments(updatedPr.purchaseOrderId.toString(), 'PurchaseOrder', updatedPr._id.toString(), 'PurchaseInvoice');
     }
 
     // 2. Synchronize StoreInwardEntry records

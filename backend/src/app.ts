@@ -22,6 +22,8 @@ import dashboardRoutes from './modules/dashboard/dashboard.routes';
 import reportRoutes from './modules/reports/summary/summary.routes';
 import integrationRoutes from './modules/integrations/integrations.routes';
 import demandNoteRoutes from './modules/demand-notes/demandNote.routes';
+import allocationRoutes from './core/document-engine/allocation/allocation.routes';
+import relationsRoutes from './core/document-engine/relations/relations.routes';
 import { errorHandler } from './core/middlewares/error.middleware';
 
 import { contextMiddleware } from './core/middlewares/context.middleware';
@@ -85,6 +87,8 @@ apiRouter.use('/dashboard', dashboardRoutes);
 apiRouter.use('/reports', reportRoutes);
 apiRouter.use('/integrations', integrationRoutes);
 apiRouter.use('/demand-notes', demandNoteRoutes);
+apiRouter.use('/allocations', allocationRoutes);
+apiRouter.use('/relations', relationsRoutes);
 
 // Mount API routes on both / and /api to handle DigitalOcean path stripping
 app.use('/', apiRouter);

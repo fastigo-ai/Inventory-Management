@@ -9,7 +9,10 @@ export interface IPurchaseInvoiceLineItem {
   package?: string;
   circle?: string;
   tempCode?: string;
+  diId?: mongoose.Types.ObjectId;
+  diLineId?: mongoose.Types.ObjectId;
   poQuantity?: number;
+  diQuantity?: number;
   srt?: number;
   act?: number;
   totalInventory?: number;
@@ -83,7 +86,10 @@ const purchaseInvoiceLineItemSchema = new Schema<IPurchaseInvoiceLineItem>({
   package: { type: String },
   circle: { type: String },
   tempCode: { type: String },
+  diId: { type: Schema.Types.ObjectId, ref: 'DI' },
+  diLineId: { type: Schema.Types.ObjectId },
   poQuantity: { type: Number },
+  diQuantity: { type: Number, default: 0 },
   srt: { type: Number },
   act: { type: Number },
   totalInventory: { type: Number },

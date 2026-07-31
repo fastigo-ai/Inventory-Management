@@ -139,6 +139,7 @@ export default function NewDIRegistrationPage() {
     try {
       const itemsToSave = lineItems.map(item => ({
         itemId: item.itemId,
+        loaSerialNo: item.sku || item.loaSerialNo,
         itemName: item.itemName,
         tempCode: item.tempCode,
         package: item.package,

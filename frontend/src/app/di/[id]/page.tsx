@@ -9,6 +9,9 @@ import { toast } from 'sonner';
 import { AuditTimeline } from '@/shared/components/audit/AuditTimeline';
 import { API_BASE_URL } from '@/shared/api/axios';
 import { PdfPreview } from '@/shared/components/PdfPreview';
+import { getDocumentAllocation } from '@/features/allocations/api/allocations.api';
+import { getDocumentRelations } from '@/features/relations/api/relations.api';
+import { getPurchaseInvoices } from '@/features/purchases/api/purchases.api';
 
 export default function DIDetailPage() {
   const params = useParams();
@@ -22,7 +25,11 @@ export default function DIDetailPage() {
 
   // UI States
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
-  const [isPdfView, setIsPdfView] = useState(true);
+  const [isPdfView, setIsPdfView] = useState(false);
+  const [allocations, setAllocations] = useState<any[]>([]);
+  const [relations, setRelations] = useState<any>({ parents: [], children: [] });
+  const [childPIs, setChildPIs] = useState<any[]>([]);
+  const [expandedItemIds, setExpandedItemIds] = useState<Record<string, boolean>>({});
   const [sidebarSearch, setSidebarSearch] = useState('');
 
   useEffect(() => {
@@ -52,12 +59,41 @@ export default function DIDetailPage() {
   const fetchDIDetails = async () => {
     try {
       setIsLoading(true);
-      const diData = await getDIById(id);
+      const [diData, allocData, relData] = await Promise.all([
+        getDIById(id).catch(() => null),
+        getDocumentAllocation(id, 'DI').catch(() => []),
+        getDocumentRelations(id).catch(() => ({ parents: [], children: [] }))
+      ]);
+
       if (diData) {
         setDi(diData);
       }
+      if (allocData) {
+        setAllocations(allocData);
+      }
+      if (relData) {
+        setRelations(relData);
+        // Fetch the actual Purchase Invoices that are children
+        const piRelations = relData.children?.filter((r: any) => r.targetModule === 'PurchaseInvoice') || [];
+        if (piRelations.length > 0) {
+          try {
+            const piRes = await getPurchaseInvoices({}); // or fetch by specific IDs if your API supports it. For now, fetch all or adjust backend.
+            // Ideally we need an API to fetch PIs by multiple IDs or we fetch them one by one. 
+            // We can fetch the list and filter:
+            if (piRes.success || Array.isArray(piRes.data)) {
+               const allPIs = piRes.data || piRes.data?.data || [];
+               const linkedPIs = allPIs.filter((pi: any) => piRelations.some((r: any) => r.targetDocument === pi._id));
+               setChildPIs(linkedPIs);
+            }
+          } catch (e) {
+            console.error("Failed to load child PIs", e);
+          }
+        } else {
+          setChildPIs([]);
+        }
+      }
     } catch (err) {
-      console.error('Failed to fetch DI:', err);
+      console.error('Failed to fetch DI details:', err);
     } finally {
       setIsLoading(false);
     }
@@ -380,57 +416,217 @@ export default function DIDetailPage() {
                 </>
               ) : (
                 /* Normal Dashboard View */
-                <div className="max-w-5xl mx-auto space-y-6 mt-4 mb-12 px-4 print:hidden">
-                  <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col md:flex-row gap-8 justify-between">
-                    <div className="space-y-4 flex-1">
-                      <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">PO Reference</p>
-                        <p className="text-sm font-semibold text-blue-600">{poNumber}</p>
-
+                <div className="max-w-6xl mx-auto space-y-6 mt-4 mb-12 px-4 print:hidden">
+                  
+                  {/* Smart Summary Card & Progress */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                    <div className="flex flex-col md:flex-row gap-8 justify-between">
+                      <div className="space-y-4 flex-1">
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">PO Reference</p>
+                          <p className="text-sm font-semibold text-blue-600">{poNumber}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Vendor</p>
+                          <p className="text-sm font-medium text-slate-800">{di.vendorName || di.purchaseOrderId?.vendorName || '-'}</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-12 gap-y-6 flex-1 border-l border-slate-100 pl-8">
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Date</p>
+                          <p className="text-sm font-medium text-slate-800">{new Date(di.date).toLocaleDateString('en-GB')}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Status</p>
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${di.status === 'Active' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'}`}>
+                            {di.status}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-x-12 gap-y-6 flex-1">
-                      <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Date</p>
-                        <p className="text-sm font-medium text-slate-800">{new Date(di.date).toLocaleDateString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Status</p>
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${di.status === 'Active' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'}`}>
-                          {di.status}
-                        </span>
-                      </div>
-                    </div>
+                    
+                    {/* Allocation Progress */}
+                    {(() => {
+                      const totalOrdered = di?.lineItems?.reduce((sum: number, item: any) => sum + (Number(item.quantity) || 0), 0) || 0;
+                      const totalRemaining = allocations.reduce((sum: number, alloc: any) => sum + (Number(alloc.remainingQuantity) || 0), 0) || 0;
+                      // Wait, allocations only has remaining if we mapped it correctly. The endpoint returns `remainingQuantity`.
+                      // Actually if an item isn't in allocations, its remaining is its full quantity (no PI has consumed it).
+                      // Let's compute it accurately:
+                      const remainingMap = new Map();
+                      allocations.forEach((a: any) => remainingMap.set(a.lineId, a.remainingQuantity));
+                      
+                      let calculatedRemaining = 0;
+                      di?.lineItems?.forEach((item: any) => {
+                        const rem = remainingMap.get(item._id);
+                        calculatedRemaining += (rem !== undefined ? rem : (Number(item.quantity) || 0));
+                      });
+                      
+                      const totalConsumed = totalOrdered - calculatedRemaining;
+                      const progressPercent = totalOrdered > 0 ? Math.round((totalConsumed / totalOrdered) * 100) : 0;
+                      
+                      return (
+                        <div className="mt-8 pt-6 border-t border-slate-100">
+                           <div className="flex justify-between items-end mb-2">
+                             <div>
+                               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Overall Fulfillment</p>
+                               <div className="flex gap-4 mt-1">
+                                 <p className="text-sm font-medium text-slate-700"><span className="font-bold text-slate-900">{totalConsumed}</span> Consumed</p>
+                                 <p className="text-sm font-medium text-slate-700"><span className="font-bold text-blue-600">{calculatedRemaining}</span> Remaining</p>
+                               </div>
+                             </div>
+                             <div className="text-2xl font-bold text-slate-800">{progressPercent}%</div>
+                           </div>
+                           <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden flex">
+                              <div className="bg-blue-500 h-full rounded-full transition-all duration-1000 ease-in-out" style={{ width: `${progressPercent}%` }}></div>
+                           </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                  
+                  {/* Document Flow / Relations Panel */}
+                  <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                     <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
+                        <h3 className="font-semibold text-slate-800 text-sm">Document Flow & Related Invoices</h3>
+                     </div>
+                     <div className="p-6">
+                        <div className="flex items-center gap-2 mb-6 text-sm">
+                           <div className="px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-700 font-medium border border-indigo-100 flex items-center gap-2">
+                             <FileText className="w-4 h-4" />
+                             PO: {poNumber}
+                           </div>
+                           <div className="w-8 h-px bg-slate-300"></div>
+                           <div className="px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 font-medium border border-blue-100 flex items-center gap-2 shadow-sm">
+                             <FileText className="w-4 h-4" />
+                             DI: {di.diNumber}
+                           </div>
+                           <div className="w-8 h-px bg-slate-300"></div>
+                           <div className="px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 font-medium border border-emerald-100 flex items-center gap-2">
+                             <FileText className="w-4 h-4" />
+                             {childPIs.length} Invoices
+                           </div>
+                        </div>
+                        
+                        {childPIs.length > 0 ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {childPIs.map((pi: any, idx: number) => (
+                              <Link key={idx} href={`/purchases/invoices/${pi._id}`} className="block border border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all group">
+                                <div className="flex justify-between items-start mb-2">
+                                  <p className="font-semibold text-blue-600 group-hover:text-blue-700">{pi.invoiceNumber}</p>
+                                  <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${pi.status === 'Draft' ? 'bg-slate-100 text-slate-600' : 'bg-emerald-100 text-emerald-700'}`}>
+                                    {pi.status}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-slate-500 mb-1">Date: {new Date(pi.date).toLocaleDateString('en-GB')}</p>
+                                <p className="text-xs text-slate-500">Amount: ₹{(pi.totalAmount || 0).toLocaleString()}</p>
+                              </Link>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center p-6 border border-dashed border-slate-200 rounded-lg text-slate-500 text-sm">
+                            No Purchase Invoices have been created for this DI yet.
+                          </div>
+                        )}
+                     </div>
                   </div>
 
+                  {/* Enhanced Line Items Table */}
                   <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
                     <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
-                      <h3 className="font-semibold text-slate-800 text-sm">Line Items ({di.lineItems?.length || 0})</h3>
+                      <h3 className="font-semibold text-slate-800 text-sm">Line Items Allocation ({di.lineItems?.length || 0})</h3>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm text-left">
-                        <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200 text-xs uppercase">
+                        <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200 text-[11px] uppercase tracking-wider">
                           <tr>
                             <th className="px-6 py-3 whitespace-nowrap">Item Details</th>
-                            <th className="px-6 py-3 whitespace-nowrap">Package</th>
-                            <th className="px-6 py-3 whitespace-nowrap">Circle</th>
-                            <th className="px-6 py-3 whitespace-nowrap">Unit</th>
-                            <th className="px-6 py-3 text-right whitespace-nowrap">Quantity</th>
+                            <th className="px-6 py-3 whitespace-nowrap">Package & Circle</th>
+                            <th className="px-6 py-3 text-right whitespace-nowrap">Total Ordered</th>
+                            <th className="px-6 py-3 text-right whitespace-nowrap">Consumed</th>
+                            <th className="px-6 py-3 text-right whitespace-nowrap">Remaining</th>
+                            <th className="px-6 py-3 w-10"></th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                          {di.lineItems?.map((item: any, idx: number) => (
-                            <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                              <td className="px-6 py-4">
-                                <p className="font-medium text-slate-800">{item.itemName}</p>
-                                {item.tempCode && <p className="text-xs text-slate-500 mt-0.5">Code: {item.tempCode}</p>}
-                              </td>
-                              <td className="px-6 py-4 text-slate-600">{item.package || '--'}</td>
-                              <td className="px-6 py-4 text-slate-600">{item.circle || '--'}</td>
-                              <td className="px-6 py-4 text-slate-600">{item.unit || '--'}</td>
-                              <td className="px-6 py-4 text-right font-medium text-slate-800">{item.quantity}</td>
-                            </tr>
-                          ))}
+                          {(() => {
+                            const remainingMap = new Map();
+                            allocations.forEach((a: any) => remainingMap.set(a.lineId, a.remainingQuantity));
+                            
+                            return di.lineItems?.map((item: any, idx: number) => {
+                              const ordered = Number(item.quantity) || 0;
+                              const rem = remainingMap.get(item._id);
+                              const remaining = rem !== undefined ? rem : ordered;
+                              const consumed = ordered - remaining;
+                              const isFullyConsumed = remaining <= 0;
+                              const isExpanded = expandedItemIds[item._id];
+                              
+                              // Find PIs that consumed this specific line item
+                              const consumingPIs = childPIs.filter((pi: any) => 
+                                pi.lineItems?.some((piItem: any) => piItem.diLineId === item._id)
+                              );
+                              
+                              return (
+                                <React.Fragment key={idx}>
+                                  <tr className={`hover:bg-slate-50/50 transition-colors ${isFullyConsumed ? 'bg-slate-50/30' : ''}`}>
+                                    <td className="px-6 py-4">
+                                      <p className="font-medium text-slate-800">{item.itemName}</p>
+                                      {item.tempCode && <p className="text-xs text-slate-500 mt-0.5">Code: {item.tempCode}</p>}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                      <div className="flex gap-2">
+                                        {item.package && <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs border border-slate-200">{item.package}</span>}
+                                        {item.circle && <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs border border-slate-200">{item.circle}</span>}
+                                      </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-right font-medium text-slate-800">{ordered} <span className="text-xs text-slate-400 font-normal ml-1">{item.unit}</span></td>
+                                    <td className="px-6 py-4 text-right font-medium text-slate-800">{consumed} <span className="text-xs text-slate-400 font-normal ml-1">{item.unit}</span></td>
+                                    <td className="px-6 py-4 text-right">
+                                      <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-bold ${isFullyConsumed ? 'bg-slate-100 text-slate-500' : 'bg-blue-100 text-blue-700'}`}>
+                                        {remaining} <span className="font-normal ml-1 opacity-70">{item.unit}</span>
+                                      </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-center">
+                                      {consumingPIs.length > 0 && (
+                                        <button 
+                                          onClick={() => setExpandedItemIds(prev => ({...prev, [item._id]: !prev[item._id]}))}
+                                          className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded transition-colors"
+                                        >
+                                          <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                        </button>
+                                      )}
+                                    </td>
+                                  </tr>
+                                  
+                                  {isExpanded && consumingPIs.length > 0 && (
+                                    <tr className="bg-slate-50/50">
+                                      <td colSpan={6} className="px-6 py-4 border-l-4 border-l-blue-400">
+                                        <div className="pl-4">
+                                          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Consumed By</p>
+                                          <div className="space-y-2">
+                                            {consumingPIs.map((pi: any, pIdx: number) => {
+                                              const piItem = pi.lineItems.find((i: any) => i.diLineId === item._id);
+                                              return (
+                                                <div key={pIdx} className="flex items-center justify-between bg-white border border-slate-200 p-2.5 rounded-lg max-w-2xl">
+                                                  <div className="flex items-center gap-3">
+                                                    <FileText className="w-4 h-4 text-slate-400" />
+                                                    <Link href={`/purchases/invoices/${pi._id}`} className="text-sm font-semibold text-blue-600 hover:underline">{pi.invoiceNumber}</Link>
+                                                    <span className="text-xs text-slate-400 border-l border-slate-200 pl-3">{new Date(pi.date).toLocaleDateString('en-GB')}</span>
+                                                  </div>
+                                                  <div className="text-sm font-medium text-slate-700">
+                                                    -{piItem.quantity} {item.unit}
+                                                  </div>
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  )}
+                                </React.Fragment>
+                              );
+                            });
+                          })()}
                         </tbody>
                       </table>
                     </div>

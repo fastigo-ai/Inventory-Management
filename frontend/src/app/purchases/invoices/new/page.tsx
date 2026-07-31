@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import { getItems } from "@/features/items/api/items.api";
 import { uploadDocument } from "@/features/documents/api/documents.api";
 import { getBillingCompanies } from "@/features/settings/api/billingCompanies.api";
 import { getDIs } from "@/features/di/api/di.api";
+import { getDocumentAllocation } from "@/features/allocations/api/allocations.api";
 
 const customSelectStyles = {
   control: (base: any, state: any) => ({
@@ -74,7 +75,45 @@ export default function NewPurchaseInvoicePage() {
   const [itemsList, setItemsList] = useState<any[]>([]);
   const [openDropdown, setOpenDropdown] = useState<{ type: string, index: number } | null>(null);
   const [searchQueries, setSearchQueries] = useState<Record<string, string>>({});
+
+  // Bulk Add Modal State
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [bulkSearchQuery, setBulkSearchQuery] = useState('');
+  const [bulkFilters, setBulkFilters] = useState({ sku: '', tempCode: '', name: '', package: '', circle: '' });
+  const [selectedBulkItems, setSelectedBulkItems] = useState<string[]>([]);
   
+  const bulkOptions = useMemo(() => {
+    if (!itemsList.length) return { skus: [], tempCodes: [], names: [], packages: [], circles: [] };
+    const skus = new Set<string>();
+    const tempCodes = new Set<string>();
+    const names = new Set<string>();
+    const packages = new Set<string>();
+    const circles = new Set<string>();
+
+    itemsList.forEach((i: any) => {
+      const d = i.dynamicData || {};
+      const sku = String(d.sku || d.loaSerialNo || d['LOA Serial No.'] || d.loa || '');
+      const tempCode = String(d.tempCode || '');
+      const name = String(d.name || d.itemDescription || '');
+      const pkg = String(d.package || '');
+      const circle = String(d.circle || '');
+
+      if (sku) skus.add(sku);
+      if (tempCode) tempCodes.add(tempCode);
+      if (name) names.add(name);
+      if (pkg) packages.add(pkg);
+      if (circle) circles.add(circle);
+    });
+
+    return {
+      skus: Array.from(skus).sort(),
+      tempCodes: Array.from(tempCodes).sort(),
+      names: Array.from(names).sort(),
+      packages: Array.from(packages).sort(),
+      circles: Array.from(circles).sort()
+    };
+  }, [itemsList]);
+
   const [uploadedDocs, setUploadedDocs] = useState<any[]>([]);
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -126,50 +165,74 @@ export default function NewPurchaseInvoicePage() {
 
   const selectedDI = dis.find(d => d.diNumber === diNo);
 
-  // When DI changes, populate vendor, PO, and line items
+  // When DI changes, populate vendor, PO, and line items based on remaining allocation
   useEffect(() => {
-    if (selectedDI) {
-      if (selectedDI.vendorName && selectedDI.vendorName !== vendorName) {
-         setVendorName(selectedDI.vendorName);
+    const fetchAndSetDI = async () => {
+      if (selectedDI) {
+        if (selectedDI.vendorName && selectedDI.vendorName !== vendorName) {
+           setVendorName(selectedDI.vendorName);
+        }
+        if (selectedDI.poNumber && selectedDI.poNumber !== purchaseOrderInput) {
+           setPurchaseOrderInput(selectedDI.poNumber);
+        }
+        if (selectedDI.date && !diDate) {
+           setDiDate(new Date(selectedDI.date).toISOString().split('T')[0]);
+        }
+        
+        let allocationMap = new Map();
+        try {
+          const allocations = await getDocumentAllocation(selectedDI._id, 'DI');
+          allocations.forEach((alloc: any) => {
+            allocationMap.set(alloc.lineId, alloc.remainingQuantity);
+          });
+        } catch (error) {
+          console.error("Failed to fetch DI allocations", error);
+        }
+        
+        if (selectedDI.lineItems && selectedDI.lineItems.length > 0) {
+          const itemsWithBalance = selectedDI.lineItems.filter((item: any) => {
+             const remaining = allocationMap.get(item._id);
+             return remaining === undefined || remaining > 0;
+          });
+
+          setLineItems(itemsWithBalance.map((item: any) => {
+            const remaining = allocationMap.get(item._id) !== undefined ? allocationMap.get(item._id) : (item.quantity || 0);
+            return {
+              isManual: false,
+              itemId: item.itemId,
+              diId: selectedDI._id,
+              diLineId: item._id,
+              package: item.package || '',
+              circle: item.circle || '',
+              tempCode: item.tempCode || '',
+              itemName: item.itemName,
+              itemDescription: item.description || item.itemName || '',
+              loaSerialNo: item.loaSerialNo || '',
+              hsnCode: item.hsnCode || '',
+              poQuantity: 0,
+              diQuantity: remaining,
+              poDate: '', 
+              srt: 0,
+              act: 0,
+              totalInvoiceQuantity: 0,
+              unit: item.unit || '',
+              gstType: item.gstType || 'Intra State',
+              cgst: item.cgst || 0,
+              sgst: item.sgst || 0,
+              igst: item.igst || 0,
+              invoiceQuantity: remaining,
+              rate: item.rate || 0,
+              amount: 0,
+              totalAmount: 0
+            };
+          }));
+        }
       }
-      if (selectedDI.poNumber && selectedDI.poNumber !== purchaseOrderInput) {
-         setPurchaseOrderInput(selectedDI.poNumber);
-      }
-      if (selectedDI.date && !diDate) {
-         setDiDate(new Date(selectedDI.date).toISOString().split('T')[0]);
-      }
-      
-      if (selectedDI.lineItems && selectedDI.lineItems.length > 0) {
-        setLineItems(selectedDI.lineItems.map((item: any) => ({
-          isManual: false,
-          itemId: item.itemId,
-          package: item.package || '',
-          circle: item.circle || '',
-          tempCode: item.tempCode || '',
-          itemName: item.itemName,
-          itemDescription: item.description || item.itemName || '',
-          loaSerialNo: item.loaSerialNo || '',
-          hsnCode: item.hsnCode || '',
-          poQuantity: item.quantity || 0,
-          poDate: item.poDate || '', 
-          srt: 0,
-          act: 0,
-          totalInvoiceQuantity: 0,
-          unit: item.unit || '',
-          gstType: item.gstType || 'Intra State',
-          cgst: item.cgst || 0,
-          sgst: item.sgst || 0,
-          igst: item.igst || 0,
-          invoiceQuantity: item.quantity || 0,
-          rate: item.rate || 0,
-          amount: 0,
-          totalAmount: 0
-        })));
-      }
-    }
+    };
+    fetchAndSetDI();
   }, [selectedDI]);
 
-  // When PO changes, populate line items
+  // When PO changes, populate or cross-reference line items
   useEffect(() => {
     if (purchaseOrderInput && !selectedDI) {
       const po = purchaseOrders.find(p => p.purchaseOrderNumber === purchaseOrderInput);
@@ -187,6 +250,7 @@ export default function NewPurchaseInvoicePage() {
           loaSerialNo: item.loaSerialNo || '',
           hsnCode: item.hsnCode || '',
           poQuantity: item.quantity || 0,
+          diQuantity: 0,
           poDate: item.poDate || '',
           srt: 0,
           act: 0,
@@ -196,7 +260,7 @@ export default function NewPurchaseInvoicePage() {
           cgst: item.cgst || 0,
           sgst: item.sgst || 0,
           igst: item.igst || 0,
-          invoiceQuantity: item.quantity || 0,
+          invoiceQuantity: 0,
           rate: item.rate || 0,
           amount: 0,
           totalAmount: 0
@@ -204,10 +268,123 @@ export default function NewPurchaseInvoicePage() {
       } else {
         setLineItems([]);
       }
+    } else if (purchaseOrderInput && selectedDI) {
+      const po = purchaseOrders.find(p => p.purchaseOrderNumber === purchaseOrderInput);
+      if (po && po.lineItems) {
+        setLineItems((prev: any[]) => {
+          let changed = false;
+          const updated = prev.map(item => {
+            const poMatch = po.lineItems.find((pItem: any) => 
+              !pItem.isCanceled &&
+              String(pItem.loaSerialNo || '').trim() === String(item.loaSerialNo || '').trim() &&
+              String(pItem.package || '').trim() === String(item.package || '').trim() &&
+              String(pItem.circle || '').trim() === String(item.circle || '').trim()
+            );
+            if (poMatch) {
+              const poQty = poMatch.quantity || 0;
+              const poDate = poMatch.poDate || '';
+              if (item.poQuantity !== poQty || item.poDate !== poDate) {
+                changed = true;
+                return { ...item, poQuantity: poQty, poDate: poDate };
+              }
+            }
+            return item;
+          });
+          return changed ? updated : prev;
+        });
+      }
     } else if (!purchaseOrderInput && !selectedDI) {
       setLineItems([]);
     }
   }, [purchaseOrderInput, purchaseOrders, selectedDI]);
+
+  // Auto-hydrator for missing tempCode or loaSerialNo
+  useEffect(() => {
+    if (itemsList.length === 0 || lineItems.length === 0) return;
+
+    const getDVal = (d: any, ...keys: string[]): string => {
+      if (!d) return '';
+      for (const key of keys) {
+        if (d[key] !== undefined && d[key] !== null && d[key] !== '') return String(d[key]);
+        const alphaNumKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const found = Object.keys(d).find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === alphaNumKey);
+        if (found && d[found] !== undefined && d[found] !== null && d[found] !== '') return String(d[found]);
+      }
+      return '';
+    };
+
+    const findMatchForItem = (item: any): any => {
+      if (item.itemId) {
+         const match = itemsList.find(i => i._id === item.itemId);
+         if (match) return match;
+      }
+      
+      return itemsList.find((i: any) => {
+        const d = i.dynamicData || {};
+        let matchCount = 0;
+        let checkCount = 0;
+
+        if (item.tempCode) {
+          checkCount++;
+          const dbTemp = getDVal(d, 'tempCode', 'sku', 'itemCode').trim();
+          const rowTemp = String(item.tempCode).trim();
+          if (dbTemp === rowTemp) matchCount++;
+          else return false;
+        }
+        if (item.loaSerialNo) {
+          checkCount++;
+          const dbLoa = getDVal(d, 'loaSerialNo', 'loaSerial', 'sku').trim();
+          const rowLoa = String(item.loaSerialNo).trim();
+          if (dbLoa === rowLoa) matchCount++;
+          else return false;
+        }
+        if (item.circle) {
+          checkCount++;
+          const dbCirc = getDVal(d, 'circle').trim().toLowerCase();
+          const rowCirc = String(item.circle).trim().toLowerCase();
+          if (dbCirc === rowCirc) matchCount++;
+          else return false;
+        }
+        if (item.package) {
+          checkCount++;
+          const dbPkg = getDVal(d, 'package').replace(/\s+/g, '').toLowerCase();
+          const rowPkg = String(item.package).replace(/\s+/g, '').toLowerCase();
+          if (dbPkg && (rowPkg.includes(dbPkg) || dbPkg.includes(rowPkg))) matchCount++;
+          else return false;
+        }
+        if (item.itemName) {
+          checkCount++;
+          const dbName = getDVal(d, 'name', 'itemName', 'itemDescription').trim().toLowerCase();
+          const rowName = String(item.itemName).trim().toLowerCase();
+          if (dbName && (dbName.includes(rowName) || rowName.includes(dbName))) matchCount++;
+          else return false;
+        }
+
+        return checkCount > 0 && matchCount === checkCount;
+      });
+    };
+
+    let changed = false;
+    const updated = lineItems.map((item: any) => {
+      if (item.loaSerialNo && item.tempCode) return item;
+
+      const match = findMatchForItem(item);
+      if (match) {
+        const d = match.dynamicData || {};
+        let newTempCode = item.tempCode || getDVal(d, 'tempCode', 'sku', 'itemCode');
+        let newLoa = item.loaSerialNo || getDVal(d, 'loaSerialNo', 'loaSerial', 'sku');
+
+        if (newTempCode !== item.tempCode || newLoa !== item.loaSerialNo) {
+           changed = true;
+           return { ...item, tempCode: newTempCode, loaSerialNo: newLoa, itemId: item.itemId || match._id };
+        }
+      }
+      return item;
+    });
+
+    if (changed) setLineItems(updated);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemsList, lineItems]);
 
   // Recalculate amount when quantityToReceive or rate changes
   const updateLineItem = (index: number, field: string, value: any) => {
@@ -220,6 +397,7 @@ export default function NewPurchaseInvoicePage() {
       const act = Number(newItems[index].act) || 0;
       const rate = Number(newItems[index].rate) || 0;
       newItems[index].totalInvoiceQuantity = srt + act;
+      newItems[index].invoiceQuantity = (Number(newItems[index].diQuantity) || 0) - newItems[index].totalInvoiceQuantity;
       newItems[index].amount = newItems[index].totalInvoiceQuantity * rate;
       
       const cgst = Number(newItems[index].cgst) || 0;
@@ -227,6 +405,69 @@ export default function NewPurchaseInvoicePage() {
       const igst = Number(newItems[index].igst) || 0;
       const taxRate = newItems[index].gstType === 'Intra State' ? (cgst + sgst) : igst;
       newItems[index].totalAmount = newItems[index].amount + (newItems[index].amount * taxRate / 100);
+    }
+
+    // Auto fill LOA Serial No based on package, circle, tempCode, itemName
+    if (['package', 'circle', 'tempCode', 'itemName', 'itemDescription'].includes(field)) {
+       const updatedItem = newItems[index];
+       if (!updatedItem.loaSerialNo) {
+          const getDVal = (d: any, ...keys: string[]): string => {
+            if (!d) return '';
+            for (const key of keys) {
+              if (d[key] !== undefined && d[key] !== null && d[key] !== '') return String(d[key]);
+              const found = Object.keys(d).find(k => k.toLowerCase() === key.toLowerCase());
+              if (found && d[found] !== undefined && d[found] !== null && d[found] !== '') return String(d[found]);
+            }
+            return '';
+          };
+          
+          const filtered = itemsList.filter(i => {
+            const d = i.dynamicData || {};
+            if (updatedItem.tempCode) {
+              const dbTemp = getDVal(d, 'tempCode').trim();
+              const rowTemp = String(updatedItem.tempCode).trim();
+              if (!dbTemp || dbTemp !== rowTemp) return false;
+            }
+            if (updatedItem.itemName) {
+              const dbName = getDVal(d, 'name', 'itemName', 'itemDescription').trim().toLowerCase();
+              const rowName = String(updatedItem.itemName).trim().toLowerCase();
+              if (!dbName || (!dbName.includes(rowName) && !rowName.includes(dbName))) return false;
+            }
+            if (updatedItem.package) {
+              const dbPkg = getDVal(d, 'package').replace(/\s+/g, '').toLowerCase();
+              const rowPkg = String(updatedItem.package).replace(/\s+/g, '').toLowerCase();
+              if (!dbPkg || (!rowPkg.includes(dbPkg) && !dbPkg.includes(rowPkg))) return false;
+            }
+            if (updatedItem.circle) {
+              const dbCirc = getDVal(d, 'circle').trim().toLowerCase();
+              const rowCirc = String(updatedItem.circle).trim().toLowerCase();
+              if (!dbCirc || dbCirc !== rowCirc) return false;
+            }
+            if (updatedItem.itemDescription) {
+              const dbDesc = getDVal(d, 'description', 'itemDescription').trim().toLowerCase();
+              const rowDesc = String(updatedItem.itemDescription).trim().toLowerCase();
+              if (dbDesc && (!dbDesc.includes(rowDesc) && !rowDesc.includes(dbDesc))) return false;
+            }
+            return true;
+          });
+
+          if (filtered.length > 0) {
+            const loaSerialNos = Array.from(new Set(
+              filtered.map(i => {
+                const d = i.dynamicData || {};
+                const loaKey = Object.keys(d).find(k => {
+                  const normalized = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+                  return normalized === 'loaserialno' || normalized === 'loaserial';
+                });
+                return loaKey ? String(d[loaKey]) : (d.sku ? String(d.sku) : null);
+              }).filter(v => v && v.trim() !== '')
+            ));
+
+            if (loaSerialNos.length === 1) {
+              newItems[index].loaSerialNo = loaSerialNos[0];
+            }
+          }
+       }
     }
 
     setLineItems(newItems);
@@ -262,7 +503,8 @@ export default function NewPurchaseInvoicePage() {
         diNo, diDate, 
         notes,
         lineItems,
-        status,
+        status: status === 'Draft' ? 'Draft' : 'Unpaid',
+        receiptStatus: status === 'Received' ? 'Received' : 'Pending Receipt',
         attachments: uploadedDocs.map(doc => ({ name: doc.fileName, url: doc.url }))
       };
 
@@ -372,7 +614,7 @@ export default function NewPurchaseInvoicePage() {
             <div className="col-span-2"></div>
 
             <div className="col-span-1">
-              <label className="block text-[13px] font-medium text-slate-700 mb-2">Purchase Order# <span className="text-red-500">*</span></label>
+              <label className="block text-[13px] font-medium text-slate-700 mb-2">Purchase Order#</label>
               <Select
                 options={purchaseOrders
                   .filter(po => !vendorName || po.vendorName === vendorName)
@@ -466,9 +708,14 @@ export default function NewPurchaseInvoicePage() {
                   <TableIcon className="w-5 h-5 text-blue-500" />
                   <h3 className="text-[15px] font-semibold text-slate-700">Item Table</h3>
                 </div>
-                <Button variant="outline" size="sm" onClick={handleAddItem} className="h-8 text-blue-600 border-blue-200 hover:bg-blue-50">
-                  <Plus className="w-4 h-4 mr-1" /> Add Item
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={handleAddItem} className="h-8 text-blue-600 border-blue-200 hover:bg-blue-50">
+                    <Plus className="w-4 h-4 mr-1" /> Add Item
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => { setBulkFilters({ sku: '', tempCode: '', name: '', package: '', circle: '' }); setSelectedBulkItems([]); setIsBulkModalOpen(true); }} className="h-8 text-blue-600 border-blue-200 hover:bg-blue-50">
+                    <Plus className="w-4 h-4 mr-1" /> Add Items in Bulk
+                  </Button>
+                </div>
               </div>
               <div className="border border-slate-200 rounded-lg overflow-x-auto shadow-sm pb-4">
                 <table className="w-full text-sm text-left whitespace-nowrap min-w-[2200px]">
@@ -484,7 +731,8 @@ export default function NewPurchaseInvoicePage() {
                       <th className="px-3 py-3 min-w-[100px]">HSN Code</th>
                       <th className="px-3 py-3 min-w-[100px] text-right">PO Qty</th>
                       <th className="px-3 py-3 min-w-[120px]">PO Date</th>
-                      <th className="px-3 py-3 min-w-[100px] text-center">Inv Qty</th>
+                      <th className="px-3 py-3 min-w-[100px] text-right">DI Qty</th>
+                      <th className="px-3 py-3 min-w-[100px] text-center">Balance Qty</th>
                       <th className="px-3 py-3 min-w-[80px]">Unit</th>
                       <th className="px-3 py-3 min-w-[80px] text-right">SRT</th>
                       <th className="px-3 py-3 min-w-[80px] text-right">ACT</th>
@@ -510,13 +758,59 @@ export default function NewPurchaseInvoicePage() {
                       lineItems.map((item, index) => {
                         const allPackages = Array.from(new Set(itemsList.map(i => i.dynamicData?.package).filter(Boolean)));
                         const circles = Array.from(new Set(itemsList.map(i => i.dynamicData?.circle).filter(Boolean)));
-                        const tempCodes = Array.from(new Set(itemsList.map(i => i.dynamicData?.tempCode || i.dynamicData?.sku || i.dynamicData?.itemCode).filter(Boolean)));
+                        const tempCodes = Array.from(new Set(itemsList.map(i => i.dynamicData?.tempCode).filter(Boolean)));
                         const itemNames = Array.from(new Set(itemsList.map(i => i.dynamicData?.name || i.dynamicData?.itemDescription || i._id)));
-                        const loaSerialNos = Array.from(new Set(itemsList.map(i => {
+
+                        const getDVal = (d: any, ...keys: string[]): string => {
+                          if (!d) return '';
+                          for (const key of keys) {
+                            if (d[key] !== undefined && d[key] !== null && d[key] !== '') return String(d[key]);
+                            const found = Object.keys(d).find(k => k.toLowerCase() === key.toLowerCase());
+                            if (found && d[found] !== undefined && d[found] !== null && d[found] !== '') return String(d[found]);
+                          }
+                          return '';
+                        };
+
+                        const filteredItemsList = itemsList.filter(i => {
                           const d = i.dynamicData || {};
-                          const loaKey = Object.keys(d).find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === 'loaserialno' || k.toLowerCase().replace(/[^a-z0-9]/g, '') === 'loaserial' || k.toLowerCase() === 'sku');
-                          return loaKey ? d[loaKey] : null;
-                        }).filter(Boolean)));
+                          if (item.tempCode) {
+                            const dbTemp = getDVal(d, 'tempCode').trim();
+                            const rowTemp = String(item.tempCode).trim();
+                            if (!dbTemp || dbTemp !== rowTemp) return false;
+                          }
+                          if (item.itemName) {
+                            const dbName = getDVal(d, 'name', 'itemName', 'itemDescription').trim().toLowerCase();
+                            const rowName = String(item.itemName).trim().toLowerCase();
+                            if (!dbName || (!dbName.includes(rowName) && !rowName.includes(dbName))) return false;
+                          }
+                          if (item.package) {
+                            const dbPkg = getDVal(d, 'package').replace(/\s+/g, '').toLowerCase();
+                            const rowPkg = String(item.package).replace(/\s+/g, '').toLowerCase();
+                            if (!dbPkg || (!rowPkg.includes(dbPkg) && !dbPkg.includes(rowPkg))) return false;
+                          }
+                          if (item.circle) {
+                            const dbCirc = getDVal(d, 'circle').trim().toLowerCase();
+                            const rowCirc = String(item.circle).trim().toLowerCase();
+                            if (!dbCirc || dbCirc !== rowCirc) return false;
+                          }
+                          if (item.itemDescription) {
+                            const dbDesc = getDVal(d, 'description', 'itemDescription').trim().toLowerCase();
+                            const rowDesc = String(item.itemDescription).trim().toLowerCase();
+                            if (dbDesc && (!dbDesc.includes(rowDesc) && !rowDesc.includes(dbDesc))) return false;
+                          }
+                          return true;
+                        });
+
+                        const loaSerialNos = Array.from(new Set(
+                          (filteredItemsList.length > 0 ? filteredItemsList : []).map(i => {
+                            const d = i.dynamicData || {};
+                            const loaKey = Object.keys(d).find(k => {
+                              const normalized = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+                              return normalized === 'loaserialno' || normalized === 'loaserial';
+                            });
+                            return loaKey ? String(d[loaKey]) : (d.sku ? String(d.sku) : null);
+                          }).filter(v => v && v.trim() !== '')
+                        ));
 
                         const handleItemSelection = (identifier: string, type: 'name' | 'tempCode' | 'description' | 'loaSerialNo') => {
                           const selectedItem = itemsList.find(i => {
@@ -568,7 +862,7 @@ export default function NewPurchaseInvoicePage() {
                                circle: circ || newItems[index].circle,
                                tempCode: getVal('tempCode') || getVal('sku') || getVal('itemCode') || newItems[index].tempCode,
                                itemDescription: getVal('description') || getVal('itemDescription') || newItems[index].itemDescription,
-                               loaSerialNo: getVal('loaSerialNo') || getVal('loaSerial') || getVal('sku') || '',
+                               loaSerialNo: getVal('loaSerialNo') || getVal('loaSerial') || getVal('sku') || (loaSerialNos.length === 1 ? loaSerialNos[0] : ''),
                                hsnCode: getVal('hsnCode') || getVal('hsn') || '',
                                unit: getVal('unit') || '',
                                gstType: newItems[index].gstType || 'Intra State',
@@ -708,42 +1002,53 @@ export default function NewPurchaseInvoicePage() {
                                 }}
                               />
                             </td>
-                            <td className="px-2 py-2">
-                              <Select
-                                options={loaSerialNos.map(loa => ({ value: String(loa), label: String(loa) }))}
-                                value={item.loaSerialNo ? { value: String(item.loaSerialNo), label: String(item.loaSerialNo) } : null}
-                                onChange={(selected: any) => {
-                                  if (selected) handleItemSelection(selected.value as string, 'loaSerialNo');
-                                  else updateLineItem(index, 'loaSerialNo', '');
-                                }}
-                                onInputChange={(inputValue, { action }) => {
-                                  if (action === 'input-change') updateLineItem(index, 'loaSerialNo', inputValue);
-                                }}
-                                placeholder="LOA Serial"
-                                isClearable
-                                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                                styles={{
-                                  control: (base) => ({ ...base, minHeight: '32px', height: '32px', fontSize: '12px', backgroundColor: 'transparent', border: '1px solid #e2e8f0', boxShadow: 'none' }),
-                                  valueContainer: (base) => ({ ...base, padding: '0 8px' }),
-                                  input: (base) => ({ ...base, margin: 0, padding: 0 }),
-                                  indicatorsContainer: (base) => ({ ...base, height: '32px' }),
-                                  menuPortal: (base) => ({ ...base, zIndex: 9999 }),
-                                  menu: (base) => ({ ...base, fontSize: '12px', minWidth: '200px' }),
-                                  option: (base) => ({ ...base, padding: '8px 12px' })
-                                }}
-                              />
+                            <td className="px-2 py-2" style={{ minWidth: '130px' }}>
+                              {item.loaSerialNo ? (
+                                <div className="flex items-center gap-1">
+                                  <span className="inline-flex items-center px-2 py-1 rounded bg-blue-50 border border-blue-200 text-blue-800 text-[12px] font-semibold tracking-wide whitespace-nowrap">
+                                    {item.loaSerialNo}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className="text-slate-400 hover:text-red-500 transition-colors ml-1"
+                                    onClick={() => updateLineItem(index, 'loaSerialNo', '')}
+                                    title="Clear LOA"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              ) : (
+                                <input
+                                  type="text"
+                                  placeholder="LOA Serial No"
+                                  className="w-full h-8 text-[12px] border border-slate-200 rounded px-2 focus:border-blue-500 outline-none bg-transparent text-slate-700"
+                                  value={item.loaSerialNo || ''}
+                                  onChange={e => updateLineItem(index, 'loaSerialNo', e.target.value)}
+                                />
+                              )}
                             </td>
                             <td className="px-2 py-2">
                               <Input placeholder="HSN" className="h-8 text-[12px] border-slate-200 bg-transparent px-2" value={item.hsnCode || ''} onChange={(e) => updateLineItem(index, 'hsnCode', e.target.value)} />
                             </td>
                             <td className="px-2 py-2">
-                              <Input type="number" placeholder="PO Qty" className="h-8 text-[12px] border-slate-200 bg-transparent px-2 text-right" value={item.poQuantity || 0} onChange={(e) => updateLineItem(index, 'poQuantity', e.target.value)} />
+                              <div className="h-8 flex items-center justify-end px-2 text-[12px] font-medium text-slate-700 bg-slate-50/50 rounded">
+                                {item.poQuantity || 0}
+                              </div>
                             </td>
                             <td className="px-2 py-2">
-                              <Input type="date" className="h-8 text-[12px] border-slate-200 bg-transparent px-2" value={item.poDate ? String(item.poDate).split('T')[0] : ''} onChange={(e) => updateLineItem(index, 'poDate', e.target.value)} />
+                              <div className="h-8 flex items-center justify-start px-2 text-[12px] text-slate-600 bg-slate-50/50 rounded">
+                                {item.poDate ? String(item.poDate).split('T')[0] : '--'}
+                              </div>
                             </td>
                             <td className="px-2 py-2">
-                              <Input type="number" className="h-8 text-[12px] border-slate-200 px-2 text-center bg-transparent" value={item.invoiceQuantity || 0} onChange={(e) => updateLineItem(index, 'invoiceQuantity', e.target.value)} />
+                              <div className="h-8 flex items-center justify-end px-2 text-[12px] font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded shadow-sm">
+                                {item.diQuantity || 0}
+                              </div>
+                            </td>
+                            <td className="px-2 py-2">
+                              <div className={`h-8 flex items-center justify-center px-2 text-[12px] font-bold border rounded ${(Number(item.invoiceQuantity) || 0) < 0 ? 'text-red-600 bg-red-50 border-red-200' : 'text-emerald-700 bg-emerald-50 border-emerald-200'}`}>
+                                {item.invoiceQuantity || 0}
+                              </div>
                             </td>
                             <td className="px-2 py-2">
                               <Input placeholder="Unit" className="h-8 text-[12px] border-slate-200 bg-transparent px-2" value={item.unit || ''} onChange={(e) => updateLineItem(index, 'unit', e.target.value)} />
@@ -887,6 +1192,137 @@ export default function NewPurchaseInvoicePage() {
           </div>
         </div>
       </div>
+
+      {/* Bulk Add Items Modal */}
+      {isBulkModalOpen && (() => {
+        const filteredItems = itemsList.filter((item: any) => {
+          const query = (bulkSearchQuery || '').toLowerCase();
+          const skuRaw  = String(item.dynamicData?.sku || item.dynamicData?.loaSerialNo || item.dynamicData?.['LOA Serial No.'] || item.dynamicData?.loa || '');
+          const nameRaw = String(item.dynamicData?.name || item.dynamicData?.itemDescription || '');
+          const codeRaw = String(item.dynamicData?.tempCode || '');
+          const pkgRaw  = String(item.dynamicData?.package || '');
+          const circRaw = String(item.dynamicData?.circle || '');
+          const matchesGlobal = !query || skuRaw.toLowerCase().includes(query) || nameRaw.toLowerCase().includes(query) || codeRaw.toLowerCase().includes(query);
+          return matchesGlobal
+            && (!bulkFilters.sku      || skuRaw  === bulkFilters.sku)
+            && (!bulkFilters.tempCode || codeRaw === bulkFilters.tempCode)
+            && (!bulkFilters.name     || nameRaw === bulkFilters.name)
+            && (!bulkFilters.package  || pkgRaw  === bulkFilters.package)
+            && (!bulkFilters.circle   || circRaw === bulkFilters.circle);
+        });
+        return (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white">
+                <h2 className="text-lg font-bold text-slate-800">Add Items in Bulk</h2>
+                <button type="button" onClick={() => setIsBulkModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors bg-white rounded-full p-1 hover:bg-slate-100">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="px-6 py-3 border-b border-slate-200 bg-slate-50">
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input type="text" placeholder="Search by LOA/SKU, name, or temp code..." className="w-full border border-slate-200 rounded-md pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white shadow-sm" value={bulkSearchQuery} onChange={e => setBulkSearchQuery(e.target.value)} />
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto min-h-0">
+                <table className="w-full text-sm text-left relative">
+                  <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+                    <tr>
+                      <th className="px-4 py-3 w-10">
+                        <input type="checkbox" className="rounded cursor-pointer border-slate-300 text-blue-600 focus:ring-blue-500" onChange={e => { if (e.target.checked) setSelectedBulkItems(filteredItems.map((i: any) => i._id)); else setSelectedBulkItems([]); }} checked={selectedBulkItems.length === filteredItems.length && filteredItems.length > 0} />
+                      </th>
+                      <th className="px-2 py-3">
+                        <div className="font-bold text-slate-600 mb-1.5 text-xs uppercase tracking-wider">LOA / SKU</div>
+                        <select className="w-full border border-slate-200 rounded text-xs py-1.5 px-2 bg-white outline-none focus:border-blue-500 max-w-[120px]" value={bulkFilters.sku} onChange={e => setBulkFilters({...bulkFilters, sku: e.target.value})}>
+                          <option value="">All</option>
+                          {bulkOptions.skus.map((v: string) => <option key={v} value={v}>{v}</option>)}
+                        </select>
+                      </th>
+                      <th className="px-2 py-3">
+                        <div className="font-bold text-slate-600 mb-1.5 text-xs uppercase tracking-wider">Temp Code</div>
+                        <select className="w-full border border-slate-200 rounded text-xs py-1.5 px-2 bg-white outline-none focus:border-blue-500 max-w-[100px]" value={bulkFilters.tempCode} onChange={e => setBulkFilters({...bulkFilters, tempCode: e.target.value})}>
+                          <option value="">All</option>
+                          {bulkOptions.tempCodes.map((v: string) => <option key={v} value={v}>{v}</option>)}
+                        </select>
+                      </th>
+                      <th className="px-2 py-3">
+                        <div className="font-bold text-slate-600 mb-1.5 text-xs uppercase tracking-wider">Item Name</div>
+                        <select className="w-full border border-slate-200 rounded text-xs py-1.5 px-2 bg-white outline-none focus:border-blue-500 max-w-[160px]" value={bulkFilters.name} onChange={e => setBulkFilters({...bulkFilters, name: e.target.value})}>
+                          <option value="">All</option>
+                          {bulkOptions.names.map((v: string) => <option key={v} value={v} title={v}>{v}</option>)}
+                        </select>
+                      </th>
+                      <th className="px-2 py-3">
+                        <div className="font-bold text-slate-600 mb-1.5 text-xs uppercase tracking-wider">Package</div>
+                        <select className="w-full border border-slate-200 rounded text-xs py-1.5 px-2 bg-white outline-none focus:border-blue-500 max-w-[110px]" value={bulkFilters.package} onChange={e => setBulkFilters({...bulkFilters, package: e.target.value})}>
+                          <option value="">All</option>
+                          {bulkOptions.packages.map((v: string) => <option key={v} value={v}>{v}</option>)}
+                        </select>
+                      </th>
+                      <th className="px-2 py-3">
+                        <div className="font-bold text-slate-600 mb-1.5 text-xs uppercase tracking-wider">Circle</div>
+                        <select className="w-full border border-slate-200 rounded text-xs py-1.5 px-2 bg-white outline-none focus:border-blue-500 max-w-[100px]" value={bulkFilters.circle} onChange={e => setBulkFilters({...bulkFilters, circle: e.target.value})}>
+                          <option value="">All</option>
+                          {bulkOptions.circles.map((v: string) => <option key={v} value={v}>{v}</option>)}
+                        </select>
+                      </th>
+                      <th className="px-4 py-3 font-bold text-slate-600 text-xs uppercase tracking-wider">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {filteredItems.map((item: any) => (
+                      <tr key={item._id} className="hover:bg-slate-50 cursor-pointer transition-colors" onClick={() => setSelectedBulkItems(prev => prev.includes(item._id) ? prev.filter(id => id !== item._id) : [...prev, item._id])}>
+                        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                          <input type="checkbox" className="rounded cursor-pointer border-slate-300 text-blue-600 focus:ring-blue-500" checked={selectedBulkItems.includes(item._id)} onChange={e => { if (e.target.checked) setSelectedBulkItems([...selectedBulkItems, item._id]); else setSelectedBulkItems(selectedBulkItems.filter(id => id !== item._id)); }} />
+                        </td>
+                        <td className="px-4 py-3 text-slate-700 font-medium whitespace-nowrap">{item.dynamicData?.sku || item.dynamicData?.loaSerialNo || item.dynamicData?.['LOA Serial No.'] || item.dynamicData?.loa || '--'}</td>
+                        <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{item.dynamicData?.tempCode || '--'}</td>
+                        <td className="px-4 py-3 text-slate-700 max-w-[200px] truncate" title={item.dynamicData?.name || ''}>{item.dynamicData?.name || item.dynamicData?.itemDescription || 'Unnamed'}</td>
+                        <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{item.dynamicData?.package || '--'}</td>
+                        <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{item.dynamicData?.circle || '--'}</td>
+                        <td className="px-4 py-3 text-slate-400 max-w-[200px] truncate" title={item.dynamicData?.description || ''}>{item.dynamicData?.description || item.dynamicData?.itemDescription || '--'}</td>
+                      </tr>
+                    ))}
+                    {filteredItems.length === 0 && (
+                      <tr><td colSpan={7} className="px-4 py-12 text-center text-sm text-slate-400 bg-slate-50/50">No items match your search or filters.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-6 py-4 border-t border-slate-200 bg-white flex items-center justify-between shadow-[0_-4px_6px_-1px_rgb(0,0,0,0.05)] z-20">
+                <span className="text-sm font-medium text-slate-600 bg-slate-100 px-3 py-1 rounded-full">{selectedBulkItems.length} items selected</span>
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => setIsBulkModalOpen(false)} className="px-5 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
+                  <button type="button" disabled={selectedBulkItems.length === 0} className="px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm" onClick={() => {
+                    const newItems = selectedBulkItems.map(id => {
+                      const it = itemsList.find((i: any) => i._id === id);
+                      if (!it) return null;
+                      const d = it.dynamicData || {};
+                      return {
+                        isManual: true, itemId: it._id,
+                        package: d.package || '', circle: d.circle || '',
+                        tempCode: d.tempCode || '',
+                        itemName: d.name || d.itemDescription || '',
+                        itemDescription: d.description || d.itemDescription || '',
+                        loaSerialNo: d.sku || d.loaSerialNo || d['LOA Serial No.'] || d.loa || '',
+                        hsnCode: '', poQuantity: 0, poDate: '',
+                        srt: 0, act: 0, totalInvoiceQuantity: 0,
+                        unit: d.unit || '', gstType: 'Intra State',
+                        cgst: 0, sgst: 0, igst: 0,
+                        invoiceQuantity: 0, rate: 0, amount: 0, totalAmount: 0
+                      };
+                    }).filter(Boolean);
+                    if (newItems.length > 0) setLineItems((prev: any[]) => [...prev, ...newItems]);
+                    setIsBulkModalOpen(false);
+                    setSelectedBulkItems([]);
+                  }}>Add Selected Items</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

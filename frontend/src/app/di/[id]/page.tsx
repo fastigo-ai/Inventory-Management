@@ -48,8 +48,9 @@ export default function DIDetailPage() {
   const fetchDIsList = async (searchQuery = '') => {
     try {
       const res = await getDIs({ search: searchQuery });
-      if (res.success || Array.isArray(res.data)) {
-        setDis(res.data || []);
+      if (res.success) {
+        const list = res.data?.dis || (Array.isArray(res.data) ? res.data : []);
+        setDis(list);
       }
     } catch (err) {
       console.error('Failed to fetch DI list:', err);

@@ -57,8 +57,8 @@ export const createItem = asyncHandler(async (req: Request, res: Response) => {
 
   await validateDynamicData(dynamicData, metadata.fields);
 
-  // Note: in a real app, performedBy should come from req.user
-  const performedBy = 'system'; 
+  // performedBy comes from req.user
+  const performedBy = (req as any).user?._id || 'system'; 
 
   const item = await Item.create({ 
     dynamicData,
@@ -383,7 +383,7 @@ export const bulkDeleteItems = asyncHandler(async (req: Request, res: Response) 
     throw new ApiError(400, 'Please provide an array of item IDs to delete');
   }
 
-  const performedBy = 'system';
+  const performedBy = (req as any).user?._id || 'system';
   const result = await Item.updateMany(
     { _id: { $in: ids } },
     { 
@@ -544,7 +544,7 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
       }
       
       // If validation passed, push to valid items array
-      const performedBy = 'system';
+      const performedBy = (req as any).user?._id || 'system';
       validItems.push({ 
         dynamicData,
         history: [{ action: 'Imported', performedBy }]
@@ -597,7 +597,7 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
                      dynamicData: { ...matchedExisting.dynamicData, ...item.dynamicData }
                   },
                   $push: {
-                     history: { action: 'Updated via Import', performedBy: 'system', date: new Date() }
+                     history: { action: 'Updated via Import', performedBy: (req as any).user?._id || 'system', date: new Date() }
                   }
                }
             }

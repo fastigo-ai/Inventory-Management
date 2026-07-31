@@ -137,65 +137,14 @@ export const getDIs = asyncHandler(async (req: Request, res: Response) => {
   const isPaginated = req.query.page !== undefined;
 
   if (isPaginated) {
-    const [dis, total, statusAggregation, matchingDIsForInsights, totalActiveDIs] = await Promise.all([
+    const [dis, total] = await Promise.all([
       DI.find(filter)
         .populate('purchaseOrderId', 'purchaseOrderNumber vendorName')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
-      DI.countDocuments(filter),
-      DI.aggregate([
-        { $match: {} }, // Global insights regardless of filter
-        { $group: { _id: "$status", count: { $sum: 1 } } }
-      ]),
-      DI.find({}).select('_id diNumber lineItems.quantity').lean(), // Global insights regardless of filter
-      DI.countDocuments({}) // Total active DIs globally
+      DI.countDocuments(filter)
     ]);
-    
-    const globalStatusCounts = statusAggregation.reduce((acc, curr) => {
-      acc[curr._id] = curr.count;
-      return acc;
-    }, {});
-
-    // Calculate global fulfillment & bar chart data
-    const diIds = matchingDIsForInsights.map((d: any) => d._id);
-    const globalPIs = await PurchaseInvoice.find({ 'lineItems.diId': { $in: diIds } }).select('lineItems').lean();
-    
-    let globalTotalOrdered = 0;
-    let globalTotalConsumed = 0;
-    
-    const diFulfillmentMap = new Map<string, { ordered: number, consumed: number, diNumber: string }>();
-
-    matchingDIsForInsights.forEach((d: any) => {
-       const ordered = d.lineItems?.reduce((s: number, i: any) => s + (Number(i.quantity) || 0), 0) || 0;
-       globalTotalOrdered += ordered;
-       diFulfillmentMap.set(d._id.toString(), { ordered, consumed: 0, diNumber: d.diNumber });
-    });
-
-    globalPIs.forEach(pi => {
-       pi.lineItems?.forEach((line: any) => {
-          if (line.diId) {
-             const diIdStr = line.diId.toString();
-             if (diFulfillmentMap.has(diIdStr)) {
-                const qty = Number(line.quantity) || Number(line.invoiceQuantity) || 0;
-                globalTotalConsumed += qty;
-                const stats = diFulfillmentMap.get(diIdStr)!;
-                stats.consumed += qty;
-             }
-          }
-       });
-    });
-
-    const globalOverallProgress = globalTotalOrdered > 0 ? Math.round((globalTotalConsumed / globalTotalOrdered) * 100) : 0;
-    
-    const globalBarData = Array.from(diFulfillmentMap.values())
-      .map(stats => ({
-        name: stats.diNumber,
-        Fulfillment: stats.ordered > 0 ? Math.round((stats.consumed / stats.ordered) * 100) : 0
-      }))
-      // Sort by fulfillment descending and take top 15 for the chart
-      .sort((a, b) => b.Fulfillment - a.Fulfillment)
-      .slice(0, 15);
 
     const enhancedDIs = await Promise.all(dis.map(async (di) => {
        const diObj = di.toObject();
@@ -228,12 +177,6 @@ export const getDIs = asyncHandler(async (req: Request, res: Response) => {
     res.status(200).json(
       new ApiResponse(200, {
         dis: enhancedDIs,
-        insights: {
-          statusCounts: globalStatusCounts,
-          overallProgress: globalOverallProgress,
-          barData: globalBarData,
-          totalActiveDIs
-        },
         pagination: {
           total,
           page,
@@ -247,11 +190,6 @@ export const getDIs = asyncHandler(async (req: Request, res: Response) => {
       .populate('purchaseOrderId', 'purchaseOrderNumber vendorName')
       .sort({ createdAt: -1 });
 
-    const statusCounts = dis.reduce((acc, curr) => {
-      acc[curr.status] = (acc[curr.status] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
     const enhancedDIs = await Promise.all(dis.map(async (di) => {
        const diObj = di.toObject();
        const totalOrdered = diObj.lineItems?.reduce((sum: number, item: any) => sum + (Number(item.quantity) || 0), 0) || 0;
@@ -282,13 +220,75 @@ export const getDIs = asyncHandler(async (req: Request, res: Response) => {
 
     res.status(200).json(
       new ApiResponse(200, {
-        dis: enhancedDIs,
-        insights: {
-          statusCounts
-        }
+        dis: enhancedDIs
       }, 'DIs fetched successfully')
     );
   }
+});
+
+export const getDIInsights = asyncHandler(async (req: Request, res: Response) => {
+  const [statusAggregation, matchingDIsForInsights, totalActiveDIs] = await Promise.all([
+    DI.aggregate([
+      { $match: {} }, // Global insights
+      { $group: { _id: "$status", count: { $sum: 1 } } }
+    ]),
+    DI.find({}).select('_id diNumber lineItems.quantity').lean(),
+    DI.countDocuments({})
+  ]);
+  
+  const globalStatusCounts = statusAggregation.reduce((acc, curr) => {
+    acc[curr._id] = curr.count;
+    return acc;
+  }, {});
+
+  const diIds = matchingDIsForInsights.map((d: any) => d._id);
+  const globalPIs = await PurchaseInvoice.find({ 'lineItems.diId': { $in: diIds } }).select('lineItems').lean();
+  
+  let globalTotalOrdered = 0;
+  let globalTotalConsumed = 0;
+  
+  const diFulfillmentMap = new Map<string, { ordered: number, consumed: number, diNumber: string }>();
+
+  matchingDIsForInsights.forEach((d: any) => {
+     const ordered = d.lineItems?.reduce((s: number, i: any) => s + (Number(i.quantity) || 0), 0) || 0;
+     globalTotalOrdered += ordered;
+     diFulfillmentMap.set(d._id.toString(), { ordered, consumed: 0, diNumber: d.diNumber });
+  });
+
+  globalPIs.forEach(pi => {
+     pi.lineItems?.forEach((line: any) => {
+        if (line.diId) {
+           const diIdStr = line.diId.toString();
+           if (diFulfillmentMap.has(diIdStr)) {
+              const qty = Number(line.quantity) || Number(line.invoiceQuantity) || 0;
+              globalTotalConsumed += qty;
+              const stats = diFulfillmentMap.get(diIdStr)!;
+              stats.consumed += qty;
+           }
+        }
+     });
+  });
+
+  const globalOverallProgress = globalTotalOrdered > 0 ? Math.round((globalTotalConsumed / globalTotalOrdered) * 100) : 0;
+  
+  const globalBarData = Array.from(diFulfillmentMap.values())
+    .map(stats => ({
+      name: stats.diNumber,
+      Fulfillment: stats.ordered > 0 ? Math.round((stats.consumed / stats.ordered) * 100) : 0
+    }))
+    .sort((a, b) => b.Fulfillment - a.Fulfillment)
+    .slice(0, 15);
+
+  res.status(200).json(
+    new ApiResponse(200, {
+      insights: {
+        statusCounts: globalStatusCounts,
+        overallProgress: globalOverallProgress,
+        barData: globalBarData,
+        totalActiveDIs
+      }
+    }, 'DI insights fetched successfully')
+  );
 });
 
 export const getDIById = asyncHandler(async (req: Request, res: Response) => {

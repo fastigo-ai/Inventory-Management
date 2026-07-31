@@ -42,6 +42,11 @@ export const getDIs = async (params?: {
   return response.data;
 };
 
+export const getDIInsights = async () => {
+  const response = await api.get('/di/insights');
+  return response.data;
+};
+
 export const getDIById = async (id: string) => {
   const response = await api.get(`/di/${id}`);
   return response.data.data;

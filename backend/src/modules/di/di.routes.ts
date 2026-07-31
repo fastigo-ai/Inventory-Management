@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../../core/middlewares/auth.middleware';
-import { createDI, getDIs, getDIById, updateDIStatus, receiveDI, updateDI, importDIs, deleteDI } from './di.controller';
+import { createDI, getDIs, getDIInsights, getDIById, updateDIStatus, receiveDI, updateDI, importDIs, deleteDI } from './di.controller';
 
 import multer from 'multer';
 
@@ -11,6 +11,8 @@ const uploadCsv = multer({ storage: multer.memoryStorage() });
 router.use(authenticate);
 
 router.post('/import', uploadCsv.single('file'), importDIs);
+
+router.get('/insights', getDIInsights);
 
 router.route('/')
   .post(upload.fields([

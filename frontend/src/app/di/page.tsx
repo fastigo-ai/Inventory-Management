@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plus, MoreHorizontal, Upload } from "lucide-react";
-import { getDIs } from "@/features/di/api/di.api";
+import { getDIs, getDIInsights } from "@/features/di/api/di.api";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DIImportModal } from "@/features/di/components/DIImportModal";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
@@ -38,7 +38,7 @@ export default function DIPage() {
 
   const fetchDIs = () => {
     setLoading(true);
-    getDIs({ 
+    const listPromise = getDIs({ 
       page, 
       limit,
       search: search || undefined,
@@ -46,31 +46,41 @@ export default function DIPage() {
       startDate: startDate || undefined,
       endDate: endDate || undefined,
       status: statusFilter || undefined
-    })
-      .then(res => {
-        if (res.success && res.data && typeof res.data === 'object' && !Array.isArray(res.data)) {
-          setDis(res.data.dis || []);
-          setTotalPages(res.data.pagination?.totalPages || 1);
-          setTotalItems(res.data.pagination?.total || 0);
-          if (res.data.insights) {
+    });
+    
+    const insightsPromise = getDIInsights();
+
+    Promise.allSettled([listPromise, insightsPromise])
+      .then(([listResult, insightsResult]) => {
+        // Handle List Data
+        if (listResult.status === 'fulfilled') {
+          const res = listResult.value;
+          if (res.success && res.data && typeof res.data === 'object' && !Array.isArray(res.data)) {
+            setDis(res.data.dis || []);
+            setTotalPages(res.data.pagination?.totalPages || 1);
+            setTotalItems(res.data.pagination?.total || 0);
+          } else {
+            setDis(Array.isArray(res.data) ? res.data : []);
+            setTotalPages(1);
+            setTotalItems(Array.isArray(res.data) ? res.data.length : 0);
+          }
+        } else {
+          console.error("Failed to fetch DI list:", listResult.reason);
+        }
+
+        // Handle Insights Data
+        if (insightsResult.status === 'fulfilled') {
+          const res = insightsResult.value;
+          if (res.success && res.data?.insights) {
             if (res.data.insights.statusCounts) setGlobalStatusCounts(res.data.insights.statusCounts);
             if (res.data.insights.overallProgress !== undefined) setGlobalProgress(res.data.insights.overallProgress);
             if (res.data.insights.barData) setGlobalBarData(res.data.insights.barData);
             if (res.data.insights.totalActiveDIs !== undefined) setGlobalTotalActiveDIs(res.data.insights.totalActiveDIs);
           }
         } else {
-          setDis(Array.isArray(res.data) ? res.data : []);
-          setTotalPages(1);
-          setTotalItems(Array.isArray(res.data) ? res.data.length : 0);
-          if (res.data?.insights) {
-            if (res.data.insights.statusCounts) setGlobalStatusCounts(res.data.insights.statusCounts);
-            if (res.data.insights.overallProgress !== undefined) setGlobalProgress(res.data.insights.overallProgress);
-            if (res.data.insights.barData) setGlobalBarData(res.data.insights.barData);
-            if (res.data.insights.totalActiveDIs !== undefined) setGlobalTotalActiveDIs(res.data.insights.totalActiveDIs);
-          }
+          console.error("Failed to fetch DI insights:", insightsResult.reason);
         }
       })
-      .catch(console.error)
       .finally(() => setLoading(false));
   };
 

@@ -14,6 +14,7 @@ export const metadata: Metadata = {
 
 import { ClientLayout } from "@/shared/components/layout/ClientLayout";
 
+import NextTopLoader from 'nextjs-toploader';
 import { Toaster } from "sonner";
 
 export default function RootLayout({
@@ -27,6 +28,7 @@ export default function RootLayout({
       className={`${inter.variable} font-sans h-full antialiased`}
     >
       <body className="min-h-full">
+        <NextTopLoader color="#2563eb" showSpinner={false} />
         <ClientLayout>{children}</ClientLayout>
         <Toaster richColors position="top-center" />
       </body>

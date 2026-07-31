@@ -108,7 +108,13 @@ export default function EditPurchaseInvoicePage() {
       getVendors({ limit: 100 }).then(res => setVendors(res.vendors || res)),
       getPurchaseOrders().then(res => setPurchaseOrders(Array.isArray(res.data) ? res.data : (res.data?.pos || res.data || []))),
       getItems({ limit: 10000 }).then(res => setItemsList(res.items || res.data || res)),
-      getDIs({ limit: 10000 }).then(res => setDis(res.dis || res.data || res)),
+      getDIs({ limit: 10000 }).then(res => {
+        if (res.data) {
+          setDis(Array.isArray(res.data) ? res.data : (res.data.dis || []));
+        } else {
+          setDis([]);
+        }
+      }),
       getBillingCompanies().then(res => setBillingCompanies(res.data || [])),
       getPurchaseInvoiceById(prId).then(data => {
         setVendorName(data.vendorName || "");

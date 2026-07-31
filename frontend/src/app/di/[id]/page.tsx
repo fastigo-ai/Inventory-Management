@@ -32,6 +32,8 @@ export default function DIDetailPage() {
   const [expandedItemIds, setExpandedItemIds] = useState<Record<string, boolean>>({});
   const [sidebarSearch, setSidebarSearch] = useState('');
 
+  const [isListLoading, setIsListLoading] = useState(true);
+
   useEffect(() => {
     const handler = setTimeout(() => {
       fetchDIsList(sidebarSearch);
@@ -46,13 +48,23 @@ export default function DIDetailPage() {
   }, [id]);
 
   const fetchDIsList = async (searchQuery = '') => {
+    setIsListLoading(true);
     try {
       const res = await getDIs({ search: searchQuery });
-      if (res.success || Array.isArray(res.data)) {
-        setDis(res.data || []);
+      console.log('fetchDIsList response:', res);
+      if (res.success && res.data) {
+        if (Array.isArray(res.data)) {
+          setDis(res.data);
+        } else if (res.data.dis && Array.isArray(res.data.dis)) {
+          setDis(res.data.dis);
+        } else {
+          setDis([]);
+        }
       }
     } catch (err) {
       console.error('Failed to fetch DI list:', err);
+    } finally {
+      setIsListLoading(false);
     }
   };
 
@@ -160,7 +172,7 @@ export default function DIDetailPage() {
     }
   };
 
-  const poNumber = di.poNumber || di.purchaseOrderId?.purchaseOrderNumber || di.purchaseOrderNumber || '--';
+  const poNumber = di?.poNumber || di?.purchaseOrderId?.purchaseOrderNumber || di?.purchaseOrderNumber || '--';
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-slate-50 print:bg-white print:h-auto print:block">
@@ -171,15 +183,18 @@ export default function DIDetailPage() {
             All DI Registrations
           </h2>
           <div className="flex gap-2">
-            <button onClick={() => router.push('/di/new')} className="bg-blue-500 text-white rounded p-1.5 hover:bg-blue-600 transition shadow-sm">
+            <button className="p-1 hover:bg-slate-100 rounded text-slate-500 transition-colors">
+              <ChevronDown className="w-4 h-4" />
+            </button>
+            <button onClick={() => router.push('/di/new')} className="p-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors shadow-sm">
               <Plus className="w-4 h-4" />
             </button>
           </div>
         </div>
-        <div className="p-2 border-b border-slate-100 bg-slate-50/50 shrink-0">
-          <input 
-            type="text" 
-            placeholder="Search DI, PO, Vendor..." 
+        <div className="p-2 border-b border-slate-200 shrink-0 bg-slate-50/50">
+          <input
+            type="text"
+            placeholder="Search DI, PO, Vendor..."
             value={sidebarSearch}
             onChange={(e) => setSidebarSearch(e.target.value)}
             className="w-full text-xs px-3 py-2 border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-sm"
@@ -187,46 +202,88 @@ export default function DIDetailPage() {
         </div>
         
         <div className="flex-1 overflow-y-auto">
-          {dis.map(d => (
-            <Link key={d._id} href={`/di/${d._id}`} className={`block border-b border-slate-100 p-4 hover:bg-slate-50/80 transition-colors ${d._id === id ? 'bg-blue-50/30 relative' : ''}`}>
-               {d._id === id && <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>}
-               <div className="flex items-start gap-3">
-                 <input type="checkbox" className="mt-0.5 rounded border-slate-300 text-blue-500 w-3.5 h-3.5 cursor-pointer" onClick={(e) => e.stopPropagation()} />
-                 <div className="flex-1 min-w-0">
-                   <div className="flex justify-between items-start mb-1.5">
-                     <p className="text-[13px] font-semibold text-slate-700 truncate pr-2" title={d.diNumber}>{d.diNumber}</p>
-                     <p className="text-[13px] font-bold text-slate-800 whitespace-nowrap">{d.lineItems?.length || 0} Items</p>
-                   </div>
-                   <div className="flex justify-between items-center text-[11px] text-slate-500 mb-2">
-                     <p>PO: {d.purchaseOrderId?.purchaseOrderNumber || '-'} &nbsp;•&nbsp; {new Date(d.date).toLocaleDateString('en-GB')}</p>
-                   </div>
-                   <div>
-                     <span className={`text-[10px] font-bold uppercase ${d.status === 'Active' || d.status === 'Received' ? 'text-blue-500' : 'text-slate-400'}`}>
-                       {d.status}
-                     </span>
+          {isListLoading ? (
+            <div className="p-4 space-y-4">
+              {[1, 2, 3, 4, 5].map(i => (
+                <div key={i} className="animate-pulse flex gap-3">
+                  <div className="w-3.5 h-3.5 bg-slate-200 rounded mt-0.5"></div>
+                  <div className="flex-1">
+                    <div className="flex justify-between mb-2">
+                      <div className="h-4 bg-slate-200 rounded w-1/2"></div>
+                      <div className="h-4 bg-slate-200 rounded w-1/4"></div>
+                    </div>
+                    <div className="h-3 bg-slate-200 rounded w-3/4 mb-2"></div>
+                    <div className="h-3 bg-slate-200 rounded w-1/4"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : dis.length === 0 ? (
+             <div className="p-4 text-center text-sm text-slate-500">No DI registrations found.</div>
+          ) : (
+            dis.map(d => (
+              <Link key={d._id} href={`/di/${d._id}`} className={`block border-b border-slate-100 p-4 hover:bg-slate-50/80 transition-colors ${d._id === id ? 'bg-blue-50/30 relative' : ''}`}>
+                 {d._id === id && <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>}
+                 <div className="flex items-start gap-3">
+                   <input type="checkbox" className="mt-0.5 rounded border-slate-300 text-blue-500 w-3.5 h-3.5 cursor-pointer" onClick={(e) => e.stopPropagation()} />
+                   <div className="flex-1 min-w-0">
+                     <div className="flex justify-between items-start mb-1.5">
+                       <p className="text-[13px] font-semibold text-slate-700 truncate pr-2" title={d.diNumber}>{d.diNumber}</p>
+                       <p className="text-[13px] font-bold text-slate-800 whitespace-nowrap">{d.lineItems?.length || 0} Items</p>
+                     </div>
+                     <div className="flex justify-between items-center text-[11px] text-slate-500 mb-2">
+                       <p>PO: {d.purchaseOrderId?.purchaseOrderNumber || '-'} &nbsp;•&nbsp; {new Date(d.date).toLocaleDateString('en-GB')}</p>
+                     </div>
+                     <div>
+                       <span className={`text-[10px] font-bold uppercase ${d.status === 'Active' || d.status === 'Received' ? 'text-blue-500' : 'text-slate-400'}`}>
+                         {d.status}
+                       </span>
+                     </div>
                    </div>
                  </div>
-               </div>
-            </Link>
-          ))}
-          {dis.length === 0 && (
-             <div className="p-4 text-center text-sm text-slate-500">No DI registrations found.</div>
+              </Link>
+            ))
           )}
         </div>
       </div>
 
       {/* Right Detail Panel */}
       <div className="flex-1 flex flex-col min-w-0 bg-slate-100/50 h-screen overflow-hidden print:bg-white print:overflow-visible print:h-auto print:block">
-        {/* Top Header / Actions */}
-        <div className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between shrink-0 shadow-sm print:hidden">
-          <div className="flex items-center gap-4">
-            <button onClick={() => router.push('/di')} className="p-1.5 hover:bg-slate-100 rounded-md transition-colors text-slate-500 md:hidden">
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div>
-              <p className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">DI REGISTRATION</p>
-              <h1 className="text-xl font-bold text-slate-800 leading-tight">{di.diNumber}</h1>
+        {isLoading || !di ? (
+          <div className="p-8 space-y-8 animate-pulse flex-1 overflow-y-auto">
+            <div className="flex justify-between items-center bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+               <div className="w-1/3 h-8 bg-slate-200 rounded"></div>
+               <div className="w-1/4 h-8 bg-slate-200 rounded"></div>
             </div>
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 space-y-6">
+              <div className="w-1/4 h-6 bg-slate-200 rounded"></div>
+              <div className="grid grid-cols-3 gap-6">
+                 <div className="h-10 bg-slate-100 rounded"></div>
+                 <div className="h-10 bg-slate-100 rounded"></div>
+                 <div className="h-10 bg-slate-100 rounded"></div>
+              </div>
+            </div>
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 space-y-6">
+              <div className="w-1/4 h-6 bg-slate-200 rounded"></div>
+              <div className="space-y-3">
+                 <div className="h-16 bg-slate-100 rounded"></div>
+                 <div className="h-16 bg-slate-100 rounded"></div>
+                 <div className="h-16 bg-slate-100 rounded"></div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Top Header / Actions */}
+            <div className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between shrink-0 shadow-sm print:hidden">
+              <div className="flex items-center gap-4">
+                <button onClick={() => router.push('/di')} className="p-1.5 hover:bg-slate-100 rounded-md transition-colors text-slate-500 md:hidden">
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+                <div>
+                  <p className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">DI REGISTRATION</p>
+                  <h1 className="text-xl font-bold text-slate-800 leading-tight">{di.diNumber}</h1>
+                </div>
             <div className="ml-8 flex space-x-1 bg-slate-100 p-1 rounded-lg">
               <button
                 onClick={() => setActiveTab('details')}
@@ -677,6 +734,8 @@ export default function DIDetailPage() {
             </>
           )}
         </div>
+        </>
+      )}
       </div>
     </div>
   );

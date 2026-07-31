@@ -57,8 +57,8 @@ export const createItem = asyncHandler(async (req: Request, res: Response) => {
 
   await validateDynamicData(dynamicData, metadata.fields);
 
-  // Note: in a real app, performedBy should come from req.user
-  const performedBy = 'system'; 
+  // performedBy comes from req.user
+  const performedBy = (req as any).user?._id || 'system'; 
 
   const item = await Item.create({ 
     dynamicData,
@@ -383,7 +383,7 @@ export const bulkDeleteItems = asyncHandler(async (req: Request, res: Response) 
     throw new ApiError(400, 'Please provide an array of item IDs to delete');
   }
 
-  const performedBy = 'system';
+  const performedBy = (req as any).user?._id || 'system';
   const result = await Item.updateMany(
     { _id: { $in: ids } },
     { 
@@ -544,7 +544,7 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
       }
       
       // If validation passed, push to valid items array
-      const performedBy = 'system';
+      const performedBy = (req as any).user?._id || 'system';
       validItems.push({ 
         dynamicData,
         history: [{ action: 'Imported', performedBy }]
@@ -597,7 +597,7 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
                      dynamicData: { ...matchedExisting.dynamicData, ...item.dynamicData }
                   },
                   $push: {
-                     history: { action: 'Updated via Import', performedBy: 'system', date: new Date() }
+                     history: { action: 'Updated via Import', performedBy: (req as any).user?._id || 'system', date: new Date() }
                   }
                }
             }
@@ -614,6 +614,33 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
 
   if (bulkOps.length > 0) {
     await Item.bulkWrite(bulkOps);
+
+    // Update Metadata Activity Options if new activities are imported
+    if (validItems.length > 0) {
+      const importedActivities = validItems.map(item => item.dynamicData.activity).filter(a => a && typeof a === 'string');
+      if (importedActivities.length > 0) {
+        const uniqueImported = Array.from(new Set(importedActivities));
+        const meta = await Metadata.findOne({ entityName: 'Item' });
+        if (meta) {
+          const fields = (meta as any).fields;
+          const activityField = fields.find((f: any) => f.name === 'activity');
+          if (activityField) {
+            const currentOptions = new Set(activityField.options || []);
+            let added = false;
+            for (const act of uniqueImported) {
+              if (!currentOptions.has(act)) {
+                currentOptions.add(act);
+                added = true;
+              }
+            }
+            if (added) {
+              activityField.options = Array.from(currentOptions);
+              await Metadata.updateOne({ entityName: 'Item' }, { $set: { fields } });
+            }
+          }
+        }
+      }
+    }
 
     // After bulk write, rebuild summary for all affected items by their SKUs
     if (validItems.length > 0) {

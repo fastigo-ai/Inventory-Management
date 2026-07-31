@@ -251,14 +251,30 @@ export function DynamicTable({
                           ) : null}
                         </select>
                       ) : (
-                        <input
-                          type="text"
-                          placeholder={`Search...`}
-                          value={columnFilters?.[col.name] || ''}
-                          onChange={(e) => onColumnFilterChange(col.name, e.target.value)}
-                          className="w-full h-8 px-2 text-xs border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
-                          onClick={(e) => e.stopPropagation()}
-                        />
+                        <div className="relative">
+                          <input
+                            type="text"
+                            list={`list-${col.name}`}
+                            placeholder={`Search...`}
+                            value={columnFilters?.[col.name] || ''}
+                            onChange={(e) => onColumnFilterChange(col.name, e.target.value)}
+                            className="w-full h-8 px-2 text-xs border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <datalist id={`list-${col.name}`}>
+                            {col.options && col.options.length > 0 ? (
+                              col.options.map((opt: string) => <option key={opt} value={opt} />)
+                            ) : (
+                              Array.from(
+                                new Set(
+                                  data
+                                    .map((r) => r.dynamicData?.[col.name] ?? r[col.name])
+                                    .filter((v) => v !== undefined && v !== null && v !== '')
+                                )
+                              ).map((opt: any) => <option key={opt} value={String(opt)} />)
+                            )}
+                          </datalist>
+                        </div>
                       )}
                     </TableHead>
                   ))}

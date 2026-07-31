@@ -52,14 +52,9 @@ export default function DIDetailPage() {
     try {
       const res = await getDIs({ search: searchQuery });
       console.log('fetchDIsList response:', res);
-      if (res.success && res.data) {
-        if (Array.isArray(res.data)) {
-          setDis(res.data);
-        } else if (res.data.dis && Array.isArray(res.data.dis)) {
-          setDis(res.data.dis);
-        } else {
-          setDis([]);
-        }
+      if (res.success) {
+        const list = res.data?.dis || (Array.isArray(res.data) ? res.data : []);
+        setDis(list);
       }
     } catch (err) {
       console.error('Failed to fetch DI list:', err);

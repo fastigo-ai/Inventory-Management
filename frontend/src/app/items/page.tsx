@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
-import { getEntityMetadata, getItems, bulkDeleteItems } from "@/features/items/api/items.api";
+import { getEntityMetadata, getItems, bulkDeleteItems, getItemMetrics } from "@/features/items/api/items.api";
 import { exportItemsToCsv } from "@/features/items/api/items.api";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { DynamicTable } from "@/shared/components/dynamic/DynamicTable";
 import { FieldMetadata } from "@/shared/components/dynamic/DynamicForm";
 import Link from "next/link";
@@ -32,6 +33,7 @@ export default function ItemsPage() {
   const [fields, setFields] = useState<FieldMetadata[]>([]);
   const [items, setItems] = useState<any[]>([]);
   const [pagination, setPagination] = useState<any>(null);
+  const [metrics, setMetrics] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -67,8 +69,7 @@ const handleColumnFilterChange = (columnName: string, value: string) => {
       return next;
     });
   };
-
-  const fetchItemsData = async () => {
+  const fetchItemsData = async () => {
     setIsLoading(true);
     try {
       const urlFilters: Record<string, string> = {};
@@ -77,13 +78,25 @@ const handleColumnFilterChange = (columnName: string, value: string) => {
           urlFilters[key.replace('filter_', '')] = value;
         }
       });
-      const [metaRes, itemsRes] = await Promise.all([
+      const [metaRes, itemsRes, metricsRes] = await Promise.all([
         getEntityMetadata('Item'),
-        getItems({ page, limit, sortBy: sortBy || undefined, sortOrder, isDeleted, filters: urlFilters })
+        getItems({ page, limit, sortBy: sortBy || undefined, sortOrder, isDeleted, filters: urlFilters }),
+        getItemMetrics()
       ]);
-      setFields(metaRes.fields);
+      const allActivities = metricsRes.activityStats
+        .map((s: any) => s._id)
+        .filter((id: any) => typeof id === 'string' && id.trim() !== '');
+      
+      const modifiedFields = metaRes.fields.map((f: any) => {
+        if (f.name === 'activity') {
+          return { ...f, type: 'dropdown', options: allActivities };
+        }
+        return f;
+      });
+      setFields(modifiedFields);
       setItems(itemsRes.items || itemsRes);
       setPagination(itemsRes.pagination || null);
+      setMetrics(metricsRes);
     } catch (error) {
       console.error("Failed to load items data", error);
     } finally {
@@ -234,6 +247,110 @@ const handleColumnFilterChange = (columnName: string, value: string) => {
           Trash
         </button>
       </div>
+
+      {/* Metrics Dashboard */}
+      {metrics && !isDeleted && (
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-2">
+          {/* Total Items in Solan/Nahan */}
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm transition-all hover:shadow-md">
+            <h3 className="text-[13px] font-semibold text-slate-700 mb-4 uppercase tracking-wider flex items-center">
+              <div className="w-2 h-2 rounded-full bg-blue-500 mr-2"></div>
+              Items per Circle
+            </h3>
+            <div style={{ height: 250, width: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={metrics.circleStats.filter((d: any) => d._id)} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="_id" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                  <RechartsTooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '13px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                  <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {(() => {
+            const processedStats = metrics.activityStats.map((d: any) => ({
+              ...d,
+              _id: (!d._id || (typeof d._id === 'string' && d._id.trim() === '')) ? 'Unbillable' : d._id
+            }));
+            
+            const sortedActivities = [...processedStats].sort((a: any, b: any) => b.count - a.count);
+            
+            // For the data table (Activity per Circle)
+            const circleNames = Array.from(new Set(metrics.circleActivityStats.map((s: any) => s._id?.circle).filter(Boolean))) as string[];
+            const activityTableData = sortedActivities.map((act: any) => {
+              const row: any = { activity: act._id, total: act.count };
+              const originalId = act._id === 'Unbillable' ? '' : act._id;
+              
+              circleNames.forEach(c => {
+                const stat = metrics.circleActivityStats.find((s: any) => s._id?.circle === c && (s._id?.activity === originalId || (!s._id?.activity && originalId === '')));
+                row[c] = stat ? stat.count : 0;
+              });
+              return row;
+            });
+
+            return (
+              <>
+                {/* Total Activity Items per Activity */}
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm transition-all hover:shadow-md">
+                  <h3 className="text-[13px] font-semibold text-slate-700 mb-4 uppercase tracking-wider flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 mr-2"></div>
+                      Items per Activity
+                    </div>
+                    <span className="text-xs text-slate-500 font-normal normal-case">{sortedActivities.length} total activities</span>
+                  </h3>
+                  <div style={{ height: 250, overflowY: 'auto', overflowX: 'hidden', paddingRight: '5px' }} className="custom-scrollbar">
+                    <div style={{ height: Math.max(250, sortedActivities.length * 35), width: '100%' }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart layout="vertical" data={sortedActivities} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
+                          <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} />
+                          <YAxis type="category" dataKey="_id" axisLine={false} tickLine={false} width={150} interval={0} tick={{ fontSize: 10, fill: '#64748b' }} />
+                          <RechartsTooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                          <Bar dataKey="count" fill="#10b981" radius={[0, 4, 4, 0]} barSize={16} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Activity Breakdown Table */}
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm transition-all hover:shadow-md">
+                  <h3 className="text-[13px] font-semibold text-slate-700 mb-4 uppercase tracking-wider flex items-center">
+                    <div className="w-2 h-2 rounded-full bg-amber-500 mr-2"></div>
+                    Activity Breakdown by Circle
+                  </h3>
+                  <div style={{ height: 250, overflowY: 'auto' }} className="custom-scrollbar relative border border-slate-100 rounded-md">
+                    <table className="w-full text-left text-xs text-slate-600">
+                      <thead className="sticky top-0 bg-slate-50 text-slate-700 shadow-sm">
+                        <tr>
+                          <th className="px-3 py-2 font-semibold">Activity</th>
+                          {circleNames.map(c => <th key={c} className="px-3 py-2 font-semibold text-center">{c}</th>)}
+                          <th className="px-3 py-2 font-semibold text-center">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {activityTableData.map((row, i) => (
+                          <tr key={row.activity} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                            <td className="px-3 py-2 font-medium max-w-[120px] truncate" title={row.activity}>{row.activity}</td>
+                            {circleNames.map(c => (
+                              <td key={c} className="px-3 py-2 text-center">{row[c] || '-'}</td>
+                            ))}
+                            <td className="px-3 py-2 text-center font-semibold text-slate-700">{row.total}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      )}
 
       {selectedIds.length > 0 && (
         <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4 flex items-center justify-between animate-in fade-in slide-in-from-top-2">

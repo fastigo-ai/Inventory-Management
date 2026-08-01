@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { createItem, getItems, exportItems, importItems, getItemById, getItemUsage, bulkDeleteItems, updateItem } from './item.controller';
+import { createItem, getItems, exportItems, importItems, getItemById, getItemUsage, bulkDeleteItems, updateItem, getItemMetrics } from './item.controller';
 import { authenticate } from '../../core/middlewares/auth.middleware';
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -26,6 +26,7 @@ router.get('/', getItems);
 router.get('/export', exportItems);
 router.post('/bulk-delete', bulkDeleteItems);
 router.post('/import', upload.single('file'), importItems);
+router.get('/metrics', getItemMetrics);
 router.get('/:id/usage', getItemUsage);
 router.get('/:id', getItemById);
 router.put('/:id', updateItem);

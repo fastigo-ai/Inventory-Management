@@ -254,26 +254,12 @@ export function DynamicTable({
                         <div className="relative">
                           <input
                             type="text"
-                            list={`list-${col.name}`}
                             placeholder={`Search...`}
                             value={columnFilters?.[col.name] || ''}
                             onChange={(e) => onColumnFilterChange(col.name, e.target.value)}
                             className="w-full h-8 px-2 text-xs border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
                             onClick={(e) => e.stopPropagation()}
                           />
-                          <datalist id={`list-${col.name}`}>
-                            {col.options && col.options.length > 0 ? (
-                              col.options.map((opt: string) => <option key={opt} value={opt} />)
-                            ) : (
-                              Array.from(
-                                new Set(
-                                  data
-                                    .map((r) => r.dynamicData?.[col.name] ?? r[col.name])
-                                    .filter((v) => v !== undefined && v !== null && v !== '')
-                                )
-                              ).map((opt: any) => <option key={opt} value={String(opt)} />)
-                            )}
-                          </datalist>
                         </div>
                       )}
                     </TableHead>
@@ -337,9 +323,12 @@ export function DynamicTable({
                       return String(v);
                     };
 
+                    const cellValue = renderValue(row.dynamicData?.[col.name] ?? row[col.name]);
                     return (
-                      <TableCell key={col.name} className="text-slate-600">
-                        {renderValue(row.dynamicData?.[col.name] ?? row[col.name])}
+                      <TableCell key={col.name} className="text-slate-600 align-top max-w-[250px] sm:max-w-[300px]">
+                        <div className="whitespace-normal break-words">
+                          {cellValue}
+                        </div>
                       </TableCell>
                     );
                   })}

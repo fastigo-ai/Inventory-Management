@@ -656,3 +656,22 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
 
   res.status(200).json(new ApiResponse(200, { successCount: validItems.length }, 'Import processed successfully (updated or added items).'));
 });
+
+export const getItemMetrics = asyncHandler(async (req: Request, res: Response) => {
+  const circleStats = await Item.aggregate([
+    { $match: { isDeleted: { $ne: true } } },
+    { $group: { _id: "$dynamicData.circle", count: { $sum: 1 } } }
+  ]);
+  
+  const activityStats = await Item.aggregate([
+    { $match: { isDeleted: { $ne: true } } },
+    { $group: { _id: "$dynamicData.activity", count: { $sum: 1 } } }
+  ]);
+  
+  const circleActivityStats = await Item.aggregate([
+    { $match: { isDeleted: { $ne: true } } },
+    { $group: { _id: { circle: "$dynamicData.circle", activity: "$dynamicData.activity" }, count: { $sum: 1 } } }
+  ]);
+  
+  res.status(200).json(new ApiResponse(200, { circleStats, activityStats, circleActivityStats }, 'Item metrics retrieved successfully'));
+});

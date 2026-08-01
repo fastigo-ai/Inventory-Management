@@ -210,6 +210,7 @@ export default function NewPurchaseInvoicePage() {
               diLineId: item._id,
               package: item.package || '',
               circle: item.circle || '',
+              subcircle: '',
               tempCode: item.tempCode || '',
               itemName: item.itemName,
               itemDescription: item.description || item.itemName || '',
@@ -250,6 +251,7 @@ export default function NewPurchaseInvoicePage() {
           itemId: item.itemId,
           package: item.package || '',
           circle: item.circle || '',
+          subcircle: '',
           tempCode: item.tempCode || '',
           itemName: item.itemName,
           itemDescription: item.description || item.itemDescription || '',
@@ -556,6 +558,7 @@ export default function NewPurchaseInvoicePage() {
         itemId: '',
         package: '',
         circle: '',
+        subcircle: '',
         tempCode: '',
         itemName: '',
         itemDescription: '',
@@ -730,6 +733,7 @@ export default function NewPurchaseInvoicePage() {
                       <th className="px-4 py-3 w-12 text-center">#</th>
                       <th className="px-2 py-3 font-bold text-slate-500 whitespace-nowrap text-left"><span className="bg-blue-600 text-white px-1.5 py-0.5 rounded">PACKAGE</span> <span className="text-red-500">*</span></th>
                       <th className="px-2 py-3 font-bold text-slate-500 whitespace-nowrap text-left"><span className="bg-blue-600 text-white px-1.5 py-0.5 rounded">CIRCLE</span> <span className="text-red-500">*</span></th>
+                      <th className="px-2 py-3 font-bold text-slate-500 whitespace-nowrap text-left">Subcircle</th>
                       <th className="px-3 py-3 min-w-[140px]">Temp Code</th>
                       <th className="px-3 py-3 min-w-[180px]">Item Name</th>
                       <th className="px-3 py-3 min-w-[200px]">Description</th>
@@ -898,6 +902,7 @@ export default function NewPurchaseInvoicePage() {
                                   onChange={e => {
                                     updateLineItem(index, 'package', e.target.value);
                                     updateLineItem(index, 'circle', '');
+                                    updateLineItem(index, 'subcircle', '');
                                   }}
                                 >
                                   <option value="">Select</option>
@@ -912,7 +917,10 @@ export default function NewPurchaseInvoicePage() {
                               {item.isManual ? (
                                 <select className="w-full h-8 text-[12px] border border-slate-200 rounded px-2 focus:border-blue-500 outline-none bg-transparent"
                                   value={item.circle || ''}
-                                  onChange={e => updateLineItem(index, 'circle', e.target.value)}
+                                  onChange={e => {
+                                    updateLineItem(index, 'circle', e.target.value);
+                                    updateLineItem(index, 'subcircle', '');
+                                  }}
                                 >
                                   <option value="">Select</option>
                                   
@@ -923,6 +931,20 @@ export default function NewPurchaseInvoicePage() {
                                 </select>
                               ) : (
                                 <span className="text-[12px] px-2">{item.circle || '-'}</span>
+                              )}
+                            </td>
+                            <td className="px-2 py-2">
+                              {item.circle === 'Solan' ? (
+                                <select className="w-full h-8 text-[12px] border border-slate-200 rounded px-2 focus:border-blue-500 outline-none bg-transparent"
+                                  value={item.subcircle || ''}
+                                  onChange={e => updateLineItem(index, 'subcircle', e.target.value)}
+                                >
+                                  <option value="">Select Subcircle</option>
+                                  <option value="Kumarhatti">Kumarhatti</option>
+                                  <option value="Nalagarh">Nalagarh</option>
+                                </select>
+                              ) : (
+                                <span className="text-[12px] px-2 text-slate-400">-</span>
                               )}
                             </td>
                             <td className="px-2 py-2">

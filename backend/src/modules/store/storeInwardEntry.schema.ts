@@ -48,6 +48,7 @@ export interface IStoreInwardEntry extends Document {
   remarks?: string;
   
   circle?: string;
+  subcircle?: string;
   package?: string;
   serialNumber?: string;
   
@@ -114,6 +115,7 @@ const storeInwardEntrySchema = new Schema<IStoreInwardEntry>(
     remarks: { type: String },
     
     circle: { type: String },
+    subcircle: { type: String },
     package: { type: String },
     serialNumber: { type: String },
     

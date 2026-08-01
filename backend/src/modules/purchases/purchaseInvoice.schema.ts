@@ -8,6 +8,7 @@ export interface IPurchaseInvoiceLineItem {
   hsnCode?: string;
   package?: string;
   circle?: string;
+  subcircle?: string;
   tempCode?: string;
   diId?: mongoose.Types.ObjectId;
   diLineId?: mongoose.Types.ObjectId;
@@ -85,6 +86,7 @@ const purchaseInvoiceLineItemSchema = new Schema<IPurchaseInvoiceLineItem>({
   hsnCode: { type: String },
   package: { type: String },
   circle: { type: String },
+  subcircle: { type: String },
   tempCode: { type: String },
   diId: { type: Schema.Types.ObjectId, ref: 'DI' },
   diLineId: { type: Schema.Types.ObjectId },

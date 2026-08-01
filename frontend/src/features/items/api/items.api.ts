@@ -42,6 +42,11 @@ export const getItemUsage = async (id: string) => {
   return response.data.data;
 };
 
+export const getItemMetrics = async () => {
+  const response = await api.get('/items/metrics');
+  return response.data.data;
+};
+
 export const createItem = async (dynamicData: any) => {
   const response = await api.post('/items', { dynamicData });
   return response.data.data;

@@ -11,7 +11,8 @@ export class RelationsService {
     sourceModule: string,
     targetDocument: string,
     targetModule: string,
-    relationType: string = 'CONSUMES'
+    relationType: string = 'CONSUMES',
+    session?: mongoose.ClientSession
   ): Promise<void> {
     try {
       // Avoid duplicate links
@@ -19,19 +20,20 @@ export class RelationsService {
         sourceDocument,
         targetDocument,
         relationType
-      });
+      }).session(session || null);
 
       if (!existing) {
-        await DocumentRelation.create({
+        await DocumentRelation.create([{
           sourceDocument,
           sourceModule,
           targetDocument,
           targetModule,
           relationType
-        });
+        }], { session });
       }
     } catch (err) {
       console.error('Failed to link documents:', err);
+      throw err; // Re-throw so transaction can catch it
     }
   }
 

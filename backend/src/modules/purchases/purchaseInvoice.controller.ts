@@ -550,13 +550,16 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
 
     const prMap: Record<string, any> = {};
 
-    for (const row of rows) {
+    for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+      const row = rows[rowIndex];
+      const actualRowNumber = rowIndex + 2; // +1 for header, +1 for 0-index
       const prNumber = row['purchaseinvoicenumber'] || row['invoicenumber'] || row['purchasereceivenumber'] || row['storeinwardnumber'] || row['prnumber'];
       if (!prNumber) continue;
 
       if (!prMap[prNumber]) {
         prMap[prNumber] = {
           invoiceNumber: prNumber,
+          rowNumbers: [],
           purchaseOrderNumber: row['purchaseordernumber'] || '',
           date: row['date'] || row['receivedate'] || new Date().toISOString().split('T')[0],
           vendorName: row['vendorname'],
@@ -567,6 +570,7 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
           lineItems: [],
         };
       }
+      prMap[prNumber].rowNumbers.push(actualRowNumber);
 
       const itemName = row['itemname'];
       const tempCode = row['tempcode'] || '';
@@ -635,28 +639,30 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
     }
 
     let successCount = 0;
-    const errors: any[] = [];
     const globalAffectedItemIds = new Set<string>();
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
     
-    const chunkArray = <T>(array: T[], size: number): T[][] => {
-      const chunked: T[][] = [];
-      for (let i = 0; i < array.length; i += size) {
-        chunked.push(array.slice(i, i + size));
-      }
-      return chunked;
-    };
-
-    const prChunks = chunkArray(prNumbers, 25);
-
-    for (const chunk of prChunks) {
-      await Promise.all(chunk.map(async (prNumber) => {
-        const prData = prMap[prNumber];
-        try {
-        const existing = existingPRs.find(p => p.invoiceNumber === prData.invoiceNumber);
-        if (existing) {
-          errors.push(`Purchase Invoice ${prData.invoiceNumber} already exists.`);
-          return;
+    try {
+      const chunkArray = <T>(array: T[], size: number): T[][] => {
+        const chunked: T[][] = [];
+        for (let i = 0; i < array.length; i += size) {
+          chunked.push(array.slice(i, i + size));
         }
+        return chunked;
+      };
+
+      const prChunks = chunkArray(prNumbers, 25);
+
+      for (const chunk of prChunks) {
+        await Promise.all(chunk.map(async (prNumber) => {
+          const prData = prMap[prNumber];
+          
+          const existing = existingPRs.find(p => p.invoiceNumber === prData.invoiceNumber);
+          if (existing) {
+            throw new Error(`Purchase Invoice ${prData.invoiceNumber} (Rows: ${prData.rowNumbers.join(', ')}) already exists.`);
+          }
 
         if (prData.purchaseOrderNumber) {
           const po = existingPOs.find(p => p.purchaseOrderNumber === prData.purchaseOrderNumber);
@@ -679,15 +685,16 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
           await ValidationService.validateConsumption(diIdForConsumption, diLinesToConsume);
         }
 
-        const createdPr = await PurchaseInvoice.create(prData);
+        const createdPrs = await PurchaseInvoice.create([prData], { session });
+        const createdPr = createdPrs[0];
         successCount++;
 
         // Link Relations
         if (diIdForConsumption) {
-          await RelationsService.linkDocuments(diIdForConsumption, 'DispatchInstruction', createdPr._id.toString(), 'PurchaseInvoice');
+          await RelationsService.linkDocuments(diIdForConsumption, 'DispatchInstruction', createdPr._id.toString(), 'PurchaseInvoice', 'CONSUMES', session);
         }
         if (createdPr.purchaseOrderId) {
-          await RelationsService.linkDocuments(createdPr.purchaseOrderId.toString(), 'PurchaseOrder', createdPr._id.toString(), 'PurchaseInvoice');
+          await RelationsService.linkDocuments(createdPr.purchaseOrderId.toString(), 'PurchaseOrder', createdPr._id.toString(), 'PurchaseInvoice', 'CONSUMES', session);
         }
 
         // Create Store Receipts
@@ -723,7 +730,7 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
             status: 'PENDING_RECEIPT',
             packingList: [{ packType: 'BOX', quantity: item.invoiceQuantity || item.quantity || 0 }]
           }));
-          await StoreInwardEntry.insertMany(inwardEntries);
+          await StoreInwardEntry.insertMany(inwardEntries, { session });
         }
 
         // Queue rebuild summary for imported items
@@ -732,20 +739,31 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
             if (item.itemId) globalAffectedItemIds.add(item.itemId.toString());
           }
         }
-      } catch (err: any) {
-        errors.push(`Failed to import Invoice ${prData.invoiceNumber}: ${err.message}`);
-      }
-    }));
-  }
+      }));
+    }
+
+    await session.commitTransaction();
+    session.endSession();
 
     res.status(200).json({
       success: true,
       message: 'Import processed',
       data: {
         successCount,
-        errors
+        errors: []
       }
     });
+  } catch (err: any) {
+    await session.abortTransaction();
+    session.endSession();
+
+    res.status(400).json({
+      success: false,
+      message: err.message || 'Transaction aborted due to error.',
+      data: null
+    });
+    return;
+  }
 
     const uniqueItemIds = Array.from(globalAffectedItemIds);
     setTimeout(() => {

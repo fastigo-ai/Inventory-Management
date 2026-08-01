@@ -95,24 +95,24 @@ export default function NewContractorWorkOrderPage() {
         const mappedItems = Array.isArray(fetchedItems) ? fetchedItems.map(item => {
           const isPkg1 = formData.package === 'Package 1(S/N)';
           const totalPackageLoaQty = isPkg1 
-            ? (Number(item.dynamicData?.solanLoaQuantity || 0) + Number(item.dynamicData?.nahanLoaQuantity || 0))
-            : (Number(item.dynamicData?.rampurLoaQuantity || 0) + Number(item.dynamicData?.rohruLoaQuantity || 0));
+            ? (Number(item.dynamicData?.solanloaqty || item.dynamicData?.solanLoaQuantity || item.dynamicData?.solanLoaQty || 0) + Number(item.dynamicData?.nahanloaqty || item.dynamicData?.nahanLoaQuantity || item.dynamicData?.nahanLoaQty || 0))
+            : (Number(item.dynamicData?.rampurloaqty || item.dynamicData?.rampurLoaQuantity || item.dynamicData?.rampurLoaQty || 0) + Number(item.dynamicData?.rohruloaqty || item.dynamicData?.rohruLoaQuantity || item.dynamicData?.rohruLoaQty || 0));
 
           return {
             itemId: item._id,
             tempCode: item.dynamicData?.tempCode || '',
             activity: item.dynamicData?.activity || '',
-            loaSrNo: item.dynamicData?.sku || '',
+            loaSrNo: item.dynamicData?.sku || item.dynamicData?.loaSrNo || '',
             description: item.dynamicData?.description || item.dynamicData?.name || '',
             unit: item.dynamicData?.unit || '',
-            circleLoaQty: formData.circle.toLowerCase() === 'solan' ? Number(item.dynamicData?.solanLoaQuantity || 0) :
-                          formData.circle.toLowerCase() === 'nahan' ? Number(item.dynamicData?.nahanLoaQuantity || 0) :
-                          formData.circle.toLowerCase() === 'rampur' ? Number(item.dynamicData?.rampurLoaQuantity || 0) :
-                          formData.circle.toLowerCase() === 'rohru' ? Number(item.dynamicData?.rohruLoaQuantity || 0) : 0,
-            circleBomQty: formData.circle.toLowerCase() === 'solan' ? Number(item.dynamicData?.solanBomQuantity || 0) :
-                          formData.circle.toLowerCase() === 'nahan' ? Number(item.dynamicData?.nahanBomQuantity || 0) :
-                          formData.circle.toLowerCase() === 'rampur' ? Number(item.dynamicData?.rampurBomQuantity || 0) :
-                          formData.circle.toLowerCase() === 'rohru' ? Number(item.dynamicData?.rohruBomQuantity || 0) : 0,
+            circleLoaQty: formData.circle?.toLowerCase() === 'solan' ? Number(item.dynamicData?.solanloaqty || item.dynamicData?.solanLoaQuantity || item.dynamicData?.solanLoaQty || 0) :
+                          formData.circle?.toLowerCase() === 'nahan' ? Number(item.dynamicData?.nahanloaqty || item.dynamicData?.nahanLoaQuantity || item.dynamicData?.nahanLoaQty || 0) :
+                          formData.circle?.toLowerCase() === 'rampur' ? Number(item.dynamicData?.rampurloaqty || item.dynamicData?.rampurLoaQuantity || item.dynamicData?.rampurLoaQty || 0) :
+                          formData.circle?.toLowerCase() === 'rohru' ? Number(item.dynamicData?.rohruloaqty || item.dynamicData?.rohruLoaQuantity || item.dynamicData?.rohruLoaQty || 0) : 0,
+            circleBomQty: formData.circle?.toLowerCase() === 'solan' ? Number(item.dynamicData?.solanbomqty || item.dynamicData?.solanBomQuantity || item.dynamicData?.solanBomQty || 0) :
+                          formData.circle?.toLowerCase() === 'nahan' ? Number(item.dynamicData?.nahanbomqty || item.dynamicData?.nahanBomQuantity || item.dynamicData?.nahanBomQty || 0) :
+                          formData.circle?.toLowerCase() === 'rampur' ? Number(item.dynamicData?.rampurbomqty || item.dynamicData?.rampurBomQuantity || item.dynamicData?.rampurBomQty || 0) :
+                          formData.circle?.toLowerCase() === 'rohru' ? Number(item.dynamicData?.rohrubomqty || item.dynamicData?.rohruBomQuantity || item.dynamicData?.rohruBomQty || 0) : 0,
             totalPackageLoaQty,
             alreadyIssuedQty: 0, // Placeholder
           woQty: 0,
@@ -196,8 +196,8 @@ export default function NewContractorWorkOrderPage() {
   const handleAddManualItem = (item: any) => {
     const isPkg1 = formData.package === 'Package 1(S/N)';
     const totalPackageLoaQty = isPkg1 
-      ? (Number(item.dynamicData?.solanLoaQuantity || 0) + Number(item.dynamicData?.nahanLoaQuantity || 0))
-      : (Number(item.dynamicData?.rampurLoaQuantity || 0) + Number(item.dynamicData?.rohruLoaQuantity || 0));
+      ? (Number(item.dynamicData?.solanloaqty || item.dynamicData?.solanLoaQuantity || item.dynamicData?.solanLoaQty || 0) + Number(item.dynamicData?.nahanloaqty || item.dynamicData?.nahanLoaQuantity || item.dynamicData?.nahanLoaQty || 0))
+      : (Number(item.dynamicData?.rampurloaqty || item.dynamicData?.rampurLoaQuantity || item.dynamicData?.rampurLoaQty || 0) + Number(item.dynamicData?.rohruloaqty || item.dynamicData?.rohruLoaQuantity || item.dynamicData?.rohruLoaQty || 0));
 
     const mappedItem = {
       itemId: item._id,
@@ -206,14 +206,14 @@ export default function NewContractorWorkOrderPage() {
       loaSrNo: item.dynamicData?.sku || item.dynamicData?.loaSrNo || '',
       description: item.dynamicData?.description || item.dynamicData?.name || '',
       unit: item.dynamicData?.unit || '',
-      circleLoaQty: formData.circle?.toLowerCase() === 'solan' ? Number(item.dynamicData?.solanLoaQuantity || 0) :
-                    formData.circle?.toLowerCase() === 'nahan' ? Number(item.dynamicData?.nahanLoaQuantity || 0) :
-                    formData.circle?.toLowerCase() === 'rampur' ? Number(item.dynamicData?.rampurLoaQuantity || 0) :
-                    formData.circle?.toLowerCase() === 'rohru' ? Number(item.dynamicData?.rohruLoaQuantity || 0) : 0,
-      circleBomQty: formData.circle?.toLowerCase() === 'solan' ? Number(item.dynamicData?.solanBomQuantity || 0) :
-                    formData.circle?.toLowerCase() === 'nahan' ? Number(item.dynamicData?.nahanBomQuantity || 0) :
-                    formData.circle?.toLowerCase() === 'rampur' ? Number(item.dynamicData?.rampurBomQuantity || 0) :
-                    formData.circle?.toLowerCase() === 'rohru' ? Number(item.dynamicData?.rohruBomQuantity || 0) : 0,
+      circleLoaQty: formData.circle?.toLowerCase() === 'solan' ? Number(item.dynamicData?.solanloaqty || item.dynamicData?.solanLoaQuantity || item.dynamicData?.solanLoaQty || 0) :
+                    formData.circle?.toLowerCase() === 'nahan' ? Number(item.dynamicData?.nahanloaqty || item.dynamicData?.nahanLoaQuantity || item.dynamicData?.nahanLoaQty || 0) :
+                    formData.circle?.toLowerCase() === 'rampur' ? Number(item.dynamicData?.rampurloaqty || item.dynamicData?.rampurLoaQuantity || item.dynamicData?.rampurLoaQty || 0) :
+                    formData.circle?.toLowerCase() === 'rohru' ? Number(item.dynamicData?.rohruloaqty || item.dynamicData?.rohruLoaQuantity || item.dynamicData?.rohruLoaQty || 0) : 0,
+      circleBomQty: formData.circle?.toLowerCase() === 'solan' ? Number(item.dynamicData?.solanbomqty || item.dynamicData?.solanBomQuantity || item.dynamicData?.solanBomQty || 0) :
+                    formData.circle?.toLowerCase() === 'nahan' ? Number(item.dynamicData?.nahanbomqty || item.dynamicData?.nahanBomQuantity || item.dynamicData?.nahanBomQty || 0) :
+                    formData.circle?.toLowerCase() === 'rampur' ? Number(item.dynamicData?.rampurbomqty || item.dynamicData?.rampurBomQuantity || item.dynamicData?.rampurBomQty || 0) :
+                    formData.circle?.toLowerCase() === 'rohru' ? Number(item.dynamicData?.rohrubomqty || item.dynamicData?.rohruBomQuantity || item.dynamicData?.rohruBomQty || 0) : 0,
       totalPackageLoaQty,
       alreadyIssuedQty: 0,
       woQty: 0,
@@ -485,8 +485,8 @@ export default function NewContractorWorkOrderPage() {
                 <th className="px-4 py-3 text-left max-w-[200px]">Description</th>
                 <th className="px-4 py-3 text-left">Unit</th>
                 <th className="px-4 py-3 text-right whitespace-nowrap">Total LOA Qty</th>
-                <th className="px-4 py-3 text-right whitespace-nowrap">Circle LOA Qty</th>
-                <th className="px-4 py-3 text-right whitespace-nowrap">Circle BOM Qty</th>
+                <th className="px-4 py-3 text-right whitespace-nowrap">{formData.circle || 'Circle'} LOA Qty</th>
+                <th className="px-4 py-3 text-right whitespace-nowrap">{formData.circle || 'Circle'} BOM Qty</th>
                 <th className="px-4 py-3 text-right text-orange-600 whitespace-nowrap">Issued Qty</th>
                 <th className="px-4 py-3 text-right text-indigo-600 whitespace-nowrap">WO Qty</th>
                 <th className="px-4 py-3 text-right text-indigo-600">Rate</th>

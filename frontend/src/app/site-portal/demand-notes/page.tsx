@@ -2,13 +2,15 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, FileText, ChevronRight } from 'lucide-react';
+import { Plus, FileText, ChevronRight, Upload } from 'lucide-react';
 import { getDemandNotes } from '@/features/site-portal/api/demand-notes.api';
 import { toast } from 'sonner';
+import ImportDNModal from './ImportDNModal';
 
 export default function DemandNotesList() {
   const [demandNotes, setDemandNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   useEffect(() => {
     fetchDemandNotes();
@@ -48,12 +50,20 @@ export default function DemandNotesList() {
           </h1>
           <p className="text-slate-500 text-sm mt-1">Manage and track material requisitions for your assigned package and circle.</p>
         </div>
-        <Link
-          href="/site-portal/demand-notes/new"
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md flex items-center gap-2 font-medium transition-colors"
-        >
-          <Plus className="w-4 h-4" /> Create Demand Note
-        </Link>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsImportModalOpen(true)}
+            className="bg-white hover:bg-slate-50 text-indigo-600 border border-indigo-200 px-4 py-2 rounded-md flex items-center gap-2 font-medium transition-colors"
+          >
+            <Upload className="w-4 h-4" /> Import CSV
+          </button>
+          <Link
+            href="/site-portal/demand-notes/new"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md flex items-center gap-2 font-medium transition-colors"
+          >
+            <Plus className="w-4 h-4" /> Create Demand Note
+          </Link>
+        </div>
       </div>
 
       {loading ? (
@@ -107,6 +117,15 @@ export default function DemandNotesList() {
           </table>
         </div>
       )}
+
+      <ImportDNModal 
+        isOpen={isImportModalOpen} 
+        onClose={() => setIsImportModalOpen(false)} 
+        onSuccess={() => {
+          setIsImportModalOpen(false);
+          fetchDemandNotes();
+        }}
+      />
     </div>
   );
 }

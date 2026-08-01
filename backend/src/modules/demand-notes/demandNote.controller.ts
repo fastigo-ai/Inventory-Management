@@ -6,6 +6,9 @@ import { asyncHandler } from '../../core/utils/asyncHandler';
 import { ApiError } from '../../core/utils/ApiError';
 import { ApiResponse } from '../../core/utils/ApiResponse';
 import cloudinary from '../../core/utils/cloudinary';
+import { stringify } from 'csv-stringify/sync';
+import { parseAndSanitizeCsv } from '../../utils/csv.util';
+import mongoose from 'mongoose';
 
 const uploadToCloudinary = (buffer: Buffer, folder: string): Promise<any> => {
   return new Promise((resolve, reject) => {
@@ -189,4 +192,199 @@ export const deleteDemandNote = asyncHandler(async (req: AuthRequest, res: Respo
 
   await existing.deleteOne();
   res.status(200).json(new ApiResponse(200, {}, 'Demand Note deleted successfully'));
+});
+
+export const downloadSampleCSV = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const sampleData = [{
+    DemandNoteNumber: 'DN-00001',
+    Package: 'Package A',
+    Circle: 'Circle X',
+    ContractorName: 'ABC Construction',
+    Division: 'Div 1',
+    SubDivision: 'SubDiv A',
+    Location: 'Site 1',
+    Remarks: 'Sample import',
+    Status: 'Draft',
+    ItemName: 'Sample Item',
+    ItemDescription: 'A sample item description',
+    Activity: 'Erection',
+    TempCode: 'TC-123',
+    LoaSrNo: 'LOA-1',
+    Unit: 'Nos',
+    TotalPackageLoaQty: 100,
+    CircleLoaQty: 50,
+    CircleBomQty: 40,
+    LoaQty: 10,
+    WoQty: 10,
+    BomQty: 10,
+    AlreadyIssuedQty: 0,
+    ContractorErectionRate: 15.5,
+    Amount: 155,
+    GSTType: 'Intra State',
+    GSTAmount: 18,
+    TotalAmount: 173,
+    TransferFromOther: 0,
+    TransferToOther: 0,
+    StockBal: 100,
+    JmcQty: 0,
+    WipQty: 0,
+    WipRequiredQty: 0,
+    MiscellaneousQty: 0,
+    DemandQty: 5,
+    BalBomQty: 5
+  }];
+
+  const csvString = stringify(sampleData, { header: true });
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename=demand_note_sample.csv');
+  res.status(200).send(csvString);
+});
+
+export const importDemandNotes = asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (!req.file) throw new ApiError(400, 'No CSV file uploaded');
+  const user = req.user as any;
+  const parser = parseAndSanitizeCsv(req.file.buffer);
+
+  const rows: any[] = [];
+  const tempCodes = new Set<string>();
+  const loaSerialNos = new Set<string>();
+  const itemNames = new Set<string>();
+
+  for await (const r of parser) {
+    const row = r as any;
+    const nRow: any = {};
+    for (const key of Object.keys(row)) {
+      nRow[key.toLowerCase().replace(/[^a-z0-9]/g, '')] = row[key];
+    }
+    rows.push(nRow);
+    
+    if (nRow['tempcode']) tempCodes.add(nRow['tempcode']);
+    if (nRow['loasrno']) loaSerialNos.add(nRow['loasrno']);
+    if (nRow['loaserialno']) loaSerialNos.add(nRow['loaserialno']);
+    if (nRow['serialno']) loaSerialNos.add(nRow['serialno']);
+    if (nRow['itemname']) itemNames.add(nRow['itemname']);
+  }
+
+  const orConditions: any[] = [];
+  if (tempCodes.size > 0) orConditions.push({ 'dynamicData.tempCode': { $in: Array.from(tempCodes) } });
+  if (loaSerialNos.size > 0) {
+    const serials = Array.from(loaSerialNos);
+    orConditions.push({ 'dynamicData.loaSerialNo': { $in: serials } });
+    orConditions.push({ 'dynamicData.loaSerialNumber': { $in: serials } });
+    orConditions.push({ 'dynamicData.sku': { $in: serials } });
+  }
+  if (itemNames.size > 0) orConditions.push({ 'dynamicData.name': { $in: Array.from(itemNames) } });
+
+  const existingItems = orConditions.length > 0 ? await Item.find({ $or: orConditions }) : [];
+  
+  const findItemInMemory = (tCode?: string, lSerial?: string, name?: string) => {
+    if (tCode) {
+      const found = existingItems.find((i: any) => i.dynamicData?.tempCode === tCode);
+      if (found) return found;
+    }
+    if (lSerial) {
+      const found = existingItems.find((i: any) => 
+        i.dynamicData?.loaSerialNo === lSerial || 
+        i.dynamicData?.loaSerialNumber === lSerial || 
+        i.dynamicData?.sku === lSerial
+      );
+      if (found) return found;
+    }
+    if (name) {
+      const found = existingItems.find((i: any) => i.dynamicData?.name === name);
+      if (found) return found;
+    }
+    return null;
+  };
+
+  const dnMap: Record<string, any> = {};
+
+  for (const row of rows) {
+    const dnNumber = row['demandnotenumber'];
+    if (!dnNumber) continue;
+
+    if (!dnMap[dnNumber]) {
+      dnMap[dnNumber] = {
+        demandNoteNumber: dnNumber,
+        createdBy: user._id,
+        package: row['package'] || '',
+        circle: row['circle'] || '',
+        contractorName: row['contractorname'] || '',
+        division: row['division'] || '',
+        subDivision: row['subdivision'] || '',
+        location: row['location'] || '',
+        remarks: row['remarks'] || '',
+        status: row['status'] || 'Draft',
+        items: []
+      };
+    }
+
+    const itemName = row['itemname'];
+    const tempCode = row['tempcode'] || '';
+    const loaSrNo = row['loasrno'] || row['loaserialno'] || row['serialno'] || '';
+
+    if (itemName) {
+      const item = findItemInMemory(tempCode, loaSrNo, itemName);
+      const itemId = item ? item._id : undefined;
+
+      dnMap[dnNumber].items.push({
+        itemId,
+        itemName,
+        itemDescription: row['itemdescription'] || row['description'] || '',
+        activity: row['activity'] || '',
+        tempCode,
+        loaSrNo,
+        unit: row['unit'] || '',
+        totalPackageLoaQty: Number(row['totalpackageloaqty'] || 0),
+        circleLoaQty: Number(row['circleloaqty'] || 0),
+        circleBomQty: Number(row['circlebomqty'] || 0),
+        loaQty: Number(row['loaqty'] || 0),
+        woQty: Number(row['woqty'] || 0),
+        bomQty: Number(row['bomqty'] || 0),
+        alreadyIssuedQty: Number(row['alreadyissuedqty'] || 0),
+        contractorErectionRate: Number(row['contractorerectionrate'] || 0),
+        amount: Number(row['amount'] || 0),
+        gstType: row['gsttype'] || '',
+        gstAmount: Number(row['gstamount'] || 0),
+        totalAmount: Number(row['totalamount'] || 0),
+        transferFromOther: Number(row['transferfromother'] || 0),
+        transferToOther: Number(row['transfertoother'] || 0),
+        stockBal: Number(row['stockbal'] || 0),
+        jmcQty: Number(row['jmcqty'] || 0),
+        wipQty: Number(row['wipqty'] || 0),
+        wipRequiredQty: Number(row['wiprequiredqty'] || 0),
+        miscellaneousQty: Number(row['miscellaneousqty'] || 0),
+        demandQty: Number(row['demandqty'] || 0),
+        balBomQty: Number(row['balbomqty'] || 0)
+      });
+    }
+  }
+
+  const dnNumbers = Object.keys(dnMap);
+  const existingDNs = await DemandNote.find({ demandNoteNumber: { $in: dnNumbers } });
+
+  let successCount = 0;
+  const errors: any[] = [];
+
+  for (const dnNumber of dnNumbers) {
+    const dnData = dnMap[dnNumber];
+    try {
+      if (!dnData.package || !dnData.circle) {
+        errors.push(`Demand Note ${dnNumber} is missing required Package or Circle.`);
+        continue;
+      }
+      
+      const existing = existingDNs.find(d => d.demandNoteNumber === dnNumber);
+      if (existing) {
+        errors.push(`Demand Note ${dnNumber} already exists.`);
+        continue;
+      }
+      await DemandNote.create(dnData);
+      successCount++;
+    } catch (err: any) {
+      errors.push(`Failed to import Demand Note ${dnNumber}: ${err.message}`);
+    }
+  }
+
+  res.status(200).json(new ApiResponse(200, { successCount, errors }, 'Import processed'));
 });

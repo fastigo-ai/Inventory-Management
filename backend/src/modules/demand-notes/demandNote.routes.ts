@@ -5,7 +5,9 @@ import {
   getDemandNoteById,
   updateDemandNote,
   deleteDemandNote,
-  getContextData
+  getContextData,
+  downloadSampleCSV,
+  importDemandNotes
 } from './demandNote.controller';
 import { authenticate, authorize } from '../../core/middlewares/auth.middleware';
 import multer from 'multer';
@@ -17,6 +19,8 @@ const router = express.Router();
 router.use(authenticate);
 
 router.get('/context', authorize(['Site Portal']), getContextData);
+router.get('/sample-csv', authorize(['Site Portal']), downloadSampleCSV);
+router.post('/import', authorize(['Site Portal']), upload.single('file'), importDemandNotes);
 
 router.post('/', authorize(['Site Portal']), upload.single('file'), createDemandNote);
 router.get('/', authorize(['Site Portal']), getDemandNotes);

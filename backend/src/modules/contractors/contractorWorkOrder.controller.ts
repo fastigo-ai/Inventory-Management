@@ -240,7 +240,7 @@ export const bulkImportWorkOrders = asyncHandler(async (req: AuthRequest, res: R
 });
 
 export const updateWorkOrderStatus = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   const { status } = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {

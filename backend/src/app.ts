@@ -24,6 +24,7 @@ import integrationRoutes from './modules/integrations/integrations.routes';
 import demandNoteRoutes from './modules/demand-notes/demandNote.routes';
 import allocationRoutes from './core/document-engine/allocation/allocation.routes';
 import relationsRoutes from './core/document-engine/relations/relations.routes';
+import contractorWorkOrderRoutes from './modules/contractors/contractorWorkOrder.routes';
 import { errorHandler } from './core/middlewares/error.middleware';
 
 import { contextMiddleware } from './core/middlewares/context.middleware';
@@ -89,6 +90,7 @@ apiRouter.use('/integrations', integrationRoutes);
 apiRouter.use('/demand-notes', demandNoteRoutes);
 apiRouter.use('/allocations', allocationRoutes);
 apiRouter.use('/relations', relationsRoutes);
+apiRouter.use('/ho-billing/contractor-work-orders', contractorWorkOrderRoutes);
 
 // Mount API routes on both / and /api to handle DigitalOcean path stripping
 app.use('/', apiRouter);

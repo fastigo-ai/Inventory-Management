@@ -1,0 +1,76 @@
+import mongoose, { Schema, Document } from 'mongoose';
+
+export interface IContractorWorkOrderItem {
+  itemId: mongoose.Types.ObjectId;
+  tempCode: string;
+  activity: string;
+  loaSrNo: string;
+  description: string;
+  unit: string;
+  circleLoaQty: number;
+  circleBomQty: number;
+  alreadyIssuedQty: number;
+  woQty: number;
+  contractorErectionRate: number;
+  amount: number;
+  gstType: 'Inter' | 'Intra';
+  gstAmount: number;
+  totalAmount: number;
+}
+
+export interface IContractorWorkOrder extends Document {
+  workOrderNumber: string;
+  package: string;
+  circle: string;
+  contractorId: mongoose.Types.ObjectId;
+  division: string;
+  subDivision: string;
+  location: string;
+  remarks: string;
+  activity: string; // The selected activity for the WO
+  items: IContractorWorkOrderItem[];
+  createdBy: mongoose.Types.ObjectId;
+  status: 'Draft' | 'Approved' | 'Completed';
+  totalWoAmount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const ContractorWorkOrderItemSchema = new Schema<IContractorWorkOrderItem>({
+  itemId: { type: Schema.Types.ObjectId, ref: 'Item', required: true },
+  tempCode: { type: String, default: '' },
+  activity: { type: String, default: '' },
+  loaSrNo: { type: String, default: '' },
+  description: { type: String, default: '' },
+  unit: { type: String, default: '' },
+  circleLoaQty: { type: Number, default: 0 },
+  circleBomQty: { type: Number, default: 0 },
+  alreadyIssuedQty: { type: Number, default: 0 }, // Placeholder for ratio logic
+  woQty: { type: Number, default: 0 },
+  contractorErectionRate: { type: Number, default: 0 },
+  amount: { type: Number, default: 0 },
+  gstType: { type: String, enum: ['Inter', 'Intra'], default: 'Intra' },
+  gstAmount: { type: Number, default: 0 },
+  totalAmount: { type: Number, default: 0 },
+}, { _id: false });
+
+const ContractorWorkOrderSchema = new Schema<IContractorWorkOrder>(
+  {
+    workOrderNumber: { type: String, required: true, unique: true },
+    package: { type: String, required: true },
+    circle: { type: String, required: true },
+    contractorId: { type: Schema.Types.ObjectId, ref: 'Contractor', required: true },
+    division: { type: String, default: '' },
+    subDivision: { type: String, default: '' },
+    location: { type: String, default: '' },
+    remarks: { type: String, default: '' },
+    activity: { type: String, default: '' },
+    items: [ContractorWorkOrderItemSchema],
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    status: { type: String, enum: ['Draft', 'Approved', 'Completed'], default: 'Draft' },
+    totalWoAmount: { type: Number, default: 0 }
+  },
+  { timestamps: true }
+);
+
+export const ContractorWorkOrder = mongoose.models.ContractorWorkOrder || mongoose.model<IContractorWorkOrder>('ContractorWorkOrder', ContractorWorkOrderSchema);

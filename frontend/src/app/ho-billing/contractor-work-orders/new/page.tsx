@@ -177,7 +177,7 @@ export default function NewContractorWorkOrderPage() {
           <ArrowLeft className="w-5 h-5 text-slate-600" />
         </button>
         <div>
-          <h1 className="text-2xl font-semibold text-slate-800">New Contractor Work Order</h1>
+          <h1 className="text-xl font-bold text-slate-800">New Contractor Work Order</h1>
           <p className="text-sm text-slate-500 mt-1">Create a new work order for a registered contractor</p>
         </div>
       </div>
@@ -186,13 +186,13 @@ export default function NewContractorWorkOrderPage() {
         <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Package <span className="text-red-500">*</span></label>
+            <label className="block text-[13px] font-semibold text-slate-800 mb-1">Package <span className="text-red-500">*</span></label>
             <select
               value={formData.package}
               onChange={(e) => {
                 setFormData({ ...formData, package: e.target.value, circle: '', contractorId: '' });
               }}
-              className="w-full h-10 px-3 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+              className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500 bg-white"
             >
               <option value="">Select Package</option>
               {packageOptions.map(p => <option key={p} value={p}>{p}</option>)}
@@ -200,12 +200,12 @@ export default function NewContractorWorkOrderPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Circle <span className="text-red-500">*</span></label>
+            <label className="block text-[13px] font-semibold text-slate-800 mb-1">Circle <span className="text-red-500">*</span></label>
             <select
               value={formData.circle}
               onChange={(e) => setFormData({ ...formData, circle: e.target.value, contractorId: '' })}
               disabled={!formData.package}
-              className="w-full h-10 px-3 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white disabled:bg-slate-50 disabled:text-slate-500"
+              className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500 bg-white disabled:bg-slate-50 disabled:text-slate-500"
             >
               <option value="">Select Circle</option>
               {availableCircles.map(c => <option key={c} value={c}>{c}</option>)}
@@ -213,7 +213,7 @@ export default function NewContractorWorkOrderPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Regd Contractor <span className="text-red-500">*</span></label>
+            <label className="block text-[13px] font-semibold text-slate-800 mb-1">Regd Contractor <span className="text-red-500">*</span></label>
             <div className="relative">
               <input
                 type="text"
@@ -226,7 +226,7 @@ export default function NewContractorWorkOrderPage() {
                 }}
                 disabled={!formData.circle}
                 placeholder="Search contractor..."
-                className="w-full h-10 px-3 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50"
+                className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500 disabled:bg-slate-50"
               />
               <datalist id="contractor-list">
                 {contractors.map(c => (
@@ -237,46 +237,46 @@ export default function NewContractorWorkOrderPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Division</label>
+            <label className="block text-[13px] font-semibold text-slate-800 mb-1">Division</label>
             <select
               value={formData.division}
               onChange={(e) => setFormData({ ...formData, division: e.target.value })}
-              className="w-full h-10 px-3 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+              className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500 bg-white"
             >
               <option value="">Select Division (Pending Data)</option>
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Sub Division</label>
+            <label className="block text-[13px] font-semibold text-slate-800 mb-1">Sub Division</label>
             <select
               value={formData.subDivision}
               onChange={(e) => setFormData({ ...formData, subDivision: e.target.value })}
-              className="w-full h-10 px-3 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+              className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500 bg-white"
             >
               <option value="">Select Sub Div (Pending Data)</option>
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Location</label>
+            <label className="block text-[13px] font-semibold text-slate-800 mb-1">Location</label>
             <input
               type="text"
               value={formData.location}
               onChange={(e) => setFormData({ ...formData, location: e.target.value })}
               placeholder="Enter location manually"
-              className="w-full h-10 px-3 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500"
             />
           </div>
 
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-slate-700 mb-1">Remarks</label>
+            <label className="block text-[13px] font-semibold text-slate-800 mb-1">Remarks</label>
             <input
               type="text"
               value={formData.remarks}
               onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
               placeholder="Enter remarks manually"
-              className="w-full h-10 px-3 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500"
             />
           </div>
         </div>
@@ -285,7 +285,7 @@ export default function NewContractorWorkOrderPage() {
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6">
         <div className="p-6 border-b border-slate-200">
           <div className="max-w-xl">
-            <label className="block text-sm font-medium text-slate-700 mb-1">Add Activities <span className="text-red-500">*</span></label>
+            <label className="block text-[13px] font-semibold text-slate-800 mb-1">Add Activities <span className="text-red-500">*</span></label>
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <input
@@ -295,7 +295,7 @@ export default function NewContractorWorkOrderPage() {
                   onChange={(e) => setCurrentActivityInput(e.target.value)}
                   placeholder="Search activity keywords..."
                   disabled={!formData.circle || isLoadingItems}
-                  className="w-full h-10 px-3 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50"
+                  className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500 disabled:bg-slate-50"
                 />
                 <datalist id="activity-list">
                   {activities.map(a => <option key={a} value={a} />)}
@@ -304,7 +304,7 @@ export default function NewContractorWorkOrderPage() {
               <button 
                 onClick={handleAddActivity}
                 disabled={!currentActivityInput || isLoadingItems}
-                className="h-10 px-4 bg-indigo-50 text-indigo-700 font-medium rounded-lg hover:bg-indigo-100 transition-colors disabled:opacity-50"
+                className="px-4 py-2 bg-indigo-50 text-indigo-700 font-medium rounded-md hover:bg-indigo-100 transition-colors disabled:opacity-50 text-sm"
               >
                 Add Activity
               </button>

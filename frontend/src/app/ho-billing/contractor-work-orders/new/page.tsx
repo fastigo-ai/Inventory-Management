@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Save, ArrowLeft, Plus } from 'lucide-react';
+import { Save, ArrowLeft, Plus, X } from 'lucide-react';
 import { getContractors } from '@/features/contractors/api/contractors.api';
 import { getItems, getEntityMetadata } from '@/features/items/api/items.api';
 import { createContractorWorkOrder } from '@/features/contractors/api/contractorWorkOrder.api';
@@ -119,6 +119,14 @@ export default function NewContractorWorkOrderPage() {
       })
       .catch(() => toast.error('Failed to fetch items for activity'))
       .finally(() => setIsLoadingItems(false));
+  };
+
+  const handleRemoveActivity = (activityToRemove: string) => {
+    setFormData(prev => ({
+      ...prev,
+      activities: prev.activities.filter(a => a !== activityToRemove)
+    }));
+    setItems(prev => prev.filter(item => item.activity !== activityToRemove));
   };
 
   const updateItem = (index: number, field: string, value: any) => {
@@ -308,6 +316,13 @@ export default function NewContractorWorkOrderPage() {
                 {formData.activities.map((act, i) => (
                   <div key={i} className="flex items-center gap-1 px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-sm border border-slate-200">
                     <span className="max-w-[300px] truncate" title={act}>{act}</span>
+                    <button 
+                      onClick={() => handleRemoveActivity(act)}
+                      className="ml-1 text-slate-400 hover:text-red-500 focus:outline-none transition-colors"
+                      title="Remove Activity"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 ))}
               </div>
@@ -351,7 +366,16 @@ export default function NewContractorWorkOrderPage() {
                     {showActivityHeader && (
                       <tr className="bg-slate-100/80 border-y border-slate-200">
                         <td colSpan={13} className="px-4 py-2 text-[13px] font-bold text-slate-700">
-                          Activity: <span className="text-indigo-700 ml-1">{item.activity}</span>
+                          <div className="flex justify-between items-center">
+                            <div>Activity: <span className="text-indigo-700 ml-1">{item.activity}</span></div>
+                            <button
+                              onClick={() => handleRemoveActivity(item.activity)}
+                              className="text-slate-400 hover:text-red-500 transition-colors p-1 rounded-md hover:bg-slate-200"
+                              title="Remove Activity"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     )}

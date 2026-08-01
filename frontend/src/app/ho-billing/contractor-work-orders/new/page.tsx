@@ -297,7 +297,7 @@ export default function NewContractorWorkOrderPage() {
             <select
               value={formData.package}
               onChange={(e) => {
-                setFormData({ ...formData, package: e.target.value, circle: '', contractorId: '' });
+                setFormData({ ...formData, package: e.target.value, circle: '', contractorId: '', division: '' });
               }}
               className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500 bg-white"
             >
@@ -310,7 +310,7 @@ export default function NewContractorWorkOrderPage() {
             <label className="block text-[13px] font-semibold text-slate-800 mb-1">Circle <span className="text-red-500">*</span></label>
             <select
               value={formData.circle}
-              onChange={(e) => setFormData({ ...formData, circle: e.target.value, contractorId: '' })}
+              onChange={(e) => setFormData({ ...formData, circle: e.target.value, contractorId: '', division: '' })}
               disabled={!formData.package}
               className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500 bg-white disabled:bg-slate-50 disabled:text-slate-500"
             >
@@ -341,21 +341,23 @@ export default function NewContractorWorkOrderPage() {
             <select
               value={formData.division}
               onChange={(e) => setFormData({ ...formData, division: e.target.value })}
-              className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500 bg-white"
+              className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500 bg-white disabled:bg-slate-50 disabled:text-slate-500"
+              disabled={!formData.circle || availableDivisions.length === 0}
             >
-              <option value="">Select Division (Pending Data)</option>
+              <option value="">Select Division</option>
+              {availableDivisions.map(div => <option key={div} value={div}>{div}</option>)}
             </select>
           </div>
 
           <div>
             <label className="block text-[13px] font-semibold text-slate-800 mb-1">Sub Division</label>
-            <select
+            <input
+              type="text"
               value={formData.subDivision}
               onChange={(e) => setFormData({ ...formData, subDivision: e.target.value })}
-              className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500 bg-white"
-            >
-              <option value="">Select Sub Div (Pending Data)</option>
-            </select>
+              placeholder="Enter sub division manually"
+              className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500"
+            />
           </div>
 
           <div>

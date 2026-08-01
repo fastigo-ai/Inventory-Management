@@ -30,7 +30,7 @@ export interface IContractorWorkOrder extends Document {
   activities: string[]; // Replaced single activity with array
   items: IContractorWorkOrderItem[];
   createdBy: mongoose.Types.ObjectId;
-  status: 'Draft' | 'Approved' | 'Completed';
+  status: 'Draft' | 'Approved' | 'Site Approved' | 'Completed';
   totalWoAmount: number;
   createdAt: Date;
   updatedAt: Date;
@@ -67,7 +67,7 @@ const ContractorWorkOrderSchema = new Schema<IContractorWorkOrder>(
     activities: { type: [String], default: [] },
     items: [ContractorWorkOrderItemSchema],
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    status: { type: String, enum: ['Draft', 'Approved', 'Completed'], default: 'Draft' },
+    status: { type: String, enum: ['Draft', 'Approved', 'Site Approved', 'Completed'], default: 'Draft' },
     totalWoAmount: { type: Number, default: 0 }
   },
   { timestamps: true }

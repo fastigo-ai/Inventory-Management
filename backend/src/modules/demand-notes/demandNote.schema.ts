@@ -4,11 +4,22 @@ export interface IDemandNoteItem {
   itemId?: mongoose.Types.ObjectId;
   itemName: string;
   itemDescription?: string;
+  activity?: string;
+  tempCode?: string;
   loaSrNo?: string;
+  unit?: string;
+  totalPackageLoaQty?: number;
+  circleLoaQty?: number;
+  circleBomQty?: number;
   loaQty?: number;
   woQty?: number;
   bomQty?: number;
   alreadyIssuedQty?: number;
+  contractorErectionRate?: number;
+  amount?: number;
+  gstType?: string;
+  gstAmount?: number;
+  totalAmount?: number;
   transferFromOther?: number;
   transferToOther?: number;
   stockBal?: number;
@@ -41,11 +52,22 @@ const demandNoteItemSchema = new Schema<IDemandNoteItem>({
   itemId: { type: Schema.Types.ObjectId, ref: 'Item' },
   itemName: { type: String, required: true },
   itemDescription: { type: String },
+  activity: { type: String },
+  tempCode: { type: String },
   loaSrNo: { type: String },
+  unit: { type: String },
+  totalPackageLoaQty: { type: Number, default: 0 },
+  circleLoaQty: { type: Number, default: 0 },
+  circleBomQty: { type: Number, default: 0 },
   loaQty: { type: Number, default: 0 },
   woQty: { type: Number, default: 0 },
   bomQty: { type: Number, default: 0 },
   alreadyIssuedQty: { type: Number, default: 0 },
+  contractorErectionRate: { type: Number, default: 0 },
+  amount: { type: Number, default: 0 },
+  gstType: { type: String },
+  gstAmount: { type: Number, default: 0 },
+  totalAmount: { type: Number, default: 0 },
   transferFromOther: { type: Number, default: 0 },
   transferToOther: { type: Number, default: 0 },
   stockBal: { type: Number, default: 0 },

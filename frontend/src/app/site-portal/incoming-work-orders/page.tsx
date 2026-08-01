@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Search, Filter, Layers, FileText, ChevronRight } from 'lucide-react';
-import { getContractorWorkOrders } from '@/features/contractors/api/contractorWorkOrder.api';
+import { Plus, Search, Filter, Layers, FileText, ChevronRight, CheckCircle } from 'lucide-react';
+import { getContractorWorkOrders, updateContractorWorkOrderStatus } from '@/features/contractors/api/contractorWorkOrder.api';
 import { toast } from 'sonner';
 
 export default function IncomingWorkOrdersPage() {
@@ -40,7 +40,7 @@ export default function IncomingWorkOrdersPage() {
         search, 
         circle: selectedCircle, 
         division: selectedDivision,
-        status: 'Approved'
+        status: 'Approved,Site Approved'
       });
       if (res.success) {
         setWorkOrders(res.data?.data || []);
@@ -55,6 +55,16 @@ export default function IncomingWorkOrdersPage() {
   useEffect(() => {
     fetchWorkOrders();
   }, [search, selectedCircle, selectedDivision]);
+
+  const handleApprove = async (id: string) => {
+    try {
+      await updateContractorWorkOrderStatus(id, 'Site Approved');
+      toast.success('Work Order approved successfully');
+      fetchWorkOrders();
+    } catch (e) {
+      toast.error('Failed to approve Work Order');
+    }
+  };
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-6">
@@ -160,14 +170,24 @@ export default function IncomingWorkOrdersPage() {
                       {new Date(wo.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <button
-                        onClick={() => router.push(`/site-portal/demand-notes/new?workOrderId=${wo._id}`)}
-                        className="inline-flex items-center space-x-1 bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-50 px-3 py-1.5 rounded-md text-xs font-medium transition-colors"
-                      >
-                        <FileText className="w-3.5 h-3.5" />
-                        <span>Create Demand Note</span>
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
+                      {wo.status === 'Approved' ? (
+                        <button
+                          onClick={() => handleApprove(wo._id)}
+                          className="inline-flex items-center space-x-1 bg-white border border-green-200 text-green-600 hover:bg-green-50 px-3 py-1.5 rounded-md text-xs font-medium transition-colors"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          <span>Approve Work Order</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => router.push(`/site-portal/demand-notes/new?workOrderId=${wo._id}`)}
+                          className="inline-flex items-center space-x-1 bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-50 px-3 py-1.5 rounded-md text-xs font-medium transition-colors"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          <span>Create Demand Note</span>
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))

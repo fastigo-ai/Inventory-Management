@@ -10,6 +10,7 @@ import { SummaryService } from '../reports/summary/summary.service';
 import Item from '../items/item.model';
 import { ValidationService } from '../../core/document-engine/validation/validation.service';
 import { RelationsService } from '../../core/document-engine/relations/relations.service';
+import { DI } from '../di/di.schema';
 
 export const createPurchaseInvoice = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -447,6 +448,7 @@ export const exportPurchaseInvoices = async (req: Request, res: Response): Promi
         Billed: (r as any).billed ? 'Yes' : 'No',
         ItemName: item.itemName,
         TempCode: item.tempCode || '',
+        Subcircle: item.subcircle || '',
         POQuantity: item.poQuantity,
         InvoiceQuantity: item.invoiceQuantity,
         Rate: item.rate || 0,
@@ -464,7 +466,7 @@ export const exportPurchaseInvoices = async (req: Request, res: Response): Promi
         Status: r.status,
         DINo: r.diNumber || (r as any).diNo || '',
         Billed: (r as any).billed ? 'Yes' : 'No',
-        ItemName: '', TempCode: '', POQuantity: '', InvoiceQuantity: '', Rate: '', Amount: '', CGST: '', SGST: '', IGST: '', TotalAmount: '',
+        ItemName: '', TempCode: '', Subcircle: '', POQuantity: '', InvoiceQuantity: '', Rate: '', Amount: '', CGST: '', SGST: '', IGST: '', TotalAmount: '',
         BillingFrom: (r as any).billingFrom || ''
       }]
     );
@@ -499,11 +501,15 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
 
     for await (const r of parser) {
       const row = r as any;
-      rows.push(row);
+      const nRow: any = {};
+      for (const key of Object.keys(row)) {
+        nRow[key.toLowerCase().replace(/[^a-z0-9]/g, '')] = row[key];
+      }
+      rows.push(nRow);
       
-      const tempCode = row['Temp Code'] || row['TempCode'] || row['tempCode'];
-      const loaSerialNo = row['LOA Serial No'] || row['LOASerialNo'] || row['loaSerialNo'];
-      const itemName = row['Item Name'] || row['ItemName'] || row['itemName'];
+      const tempCode = nRow['tempcode'];
+      const loaSerialNo = nRow['loaserialno'] || nRow['serialno'] || nRow['sku'];
+      const itemName = nRow['itemname'];
       
       if (tempCode) tempCodes.add(tempCode);
       if (loaSerialNo) loaSerialNos.add(loaSerialNo);
@@ -545,25 +551,26 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
     const prMap: Record<string, any> = {};
 
     for (const row of rows) {
-      const prNumber = row['PurchaseReceiveNumber'] || row['purchaseReceiveNumber'] || row['StoreInwardNumber'] || row['storeInwardNumber'] || row['PrNumber'] || row['prNumber'];
+      const prNumber = row['purchaseinvoicenumber'] || row['invoicenumber'] || row['purchasereceivenumber'] || row['storeinwardnumber'] || row['prnumber'];
       if (!prNumber) continue;
 
       if (!prMap[prNumber]) {
         prMap[prNumber] = {
           invoiceNumber: prNumber,
-          purchaseOrderNumber: row['PurchaseOrderNumber'] || row['purchaseOrderNumber'] || '',
-          date: row['Date'] || row['receiveDate'] || new Date().toISOString().split('T')[0],
-          vendorName: row['VendorName'] || row['vendorName'],
-          status: row['Status'] || row['status'] || 'Draft',
-          diNumber: row['DINo'] || row['diNo'] || '',
-          billed: (row['Billed'] || row['billed'] || '').toLowerCase() === 'yes',
+          purchaseOrderNumber: row['purchaseordernumber'] || '',
+          date: row['date'] || row['receivedate'] || new Date().toISOString().split('T')[0],
+          vendorName: row['vendorname'],
+          status: row['status'] || 'Draft',
+          diNumber: row['dino'] || row['dinumber'] || '',
+          billed: (row['billed'] || '').toLowerCase() === 'yes',
+          billingFrom: row['billingfrom'] || '',
           lineItems: [],
         };
       }
 
-      const itemName = row['Item Name'] || row['ItemName'] || row['itemName'];
-      const tempCode = row['Temp Code'] || row['TempCode'] || row['tempCode'] || '';
-      const loaSerialNo = row['LOA Serial No'] || row['LOASerialNo'] || row['loaSerialNo'] || '';
+      const itemName = row['itemname'];
+      const tempCode = row['tempcode'] || '';
+      const loaSerialNo = row['loaserialno'] || row['serialno'] || '';
 
       if (itemName) {
         const item = findItemInMemory(tempCode, loaSerialNo, itemName);
@@ -572,37 +579,60 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
         prMap[prNumber].lineItems.push({
           itemId,
           itemName,
-          itemDescription: row['Description'] || row['description'] || '',
+          itemDescription: row['description'] || row['itemdescription'] || '',
           loaSerialNo,
           tempCode,
-          package: row['Package'] || row['package'] || '',
-          circle: row['Circle'] || row['circle'] || '',
-          hsnCode: row['HSN Code'] || row['HSNCode'] || row['hsnCode'] || '',
-          unit: row['Unit'] || row['unit'] || '',
-          poDate: row['PO Date'] || row['PODate'] || row['poDate'] || undefined,
-          poQuantity: Number(row['PO Qty'] || row['POQuantity'] || row['poQuantity'] || 0),
-          quantity: Number(row['Inv Qty'] || row['InvoiceQuantity'] || row['invoiceQuantity'] || row['ACT'] || row['act'] || 0),
-          srt: Number(row['SRT'] || row['srt'] || 0),
-          act: Number(row['ACT'] || row['act'] || 0),
-          totalInventory: Number(row['Tot Inv Qty'] || row['TotInvQty'] || row['totalInvoiceQuantity'] || 0),
-          rate: Number(row['Rate'] || row['rate'] || 0),
-          amount: Number(row['Amount'] || row['amount'] || 0),
-          gstType: row['GST Type'] || row['GSTType'] || row['gstType'] || 'Intra State',
-          cgst: Number(row['CGST %'] || row['CGST'] || row['cgst'] || 0),
-          sgst: Number(row['SGST %'] || row['SGST'] || row['sgst'] || 0),
-          igst: Number(row['IGST %'] || row['IGST'] || row['igst'] || 0),
-          totalAmount: Number(row['Total Amount'] || row['TotalAmount'] || row['totalAmount'] || 0)
+          package: row['package'] || '',
+          circle: row['circle'] || '',
+          subcircle: row['subcircle'] || '',
+          hsnCode: row['hsncode'] || '',
+          unit: row['unit'] || '',
+          poDate: row['podate'] || undefined,
+          poQuantity: Number(row['poqty'] || row['poquantity'] || 0),
+          quantity: Number(row['invqty'] || row['invoicequantity'] || row['act'] || 0),
+          srt: Number(row['srt'] || 0),
+          act: Number(row['act'] || 0),
+          totalInventory: Number(row['totinvqty'] || row['totalinvoicequantity'] || 0),
+          rate: Number(row['rate'] || 0),
+          amount: Number(row['amount'] || 0),
+          gstType: row['gsttype'] || 'Intra State',
+          cgst: Number(row['cgst'] || 0),
+          sgst: Number(row['sgst'] || 0),
+          igst: Number(row['igst'] || 0),
+          totalAmount: Number(row['totalamount'] || 0)
         });
       }
     }
 
     const prNumbers = Object.keys(prMap);
     const poNumbers = Array.from(new Set(prNumbers.map(n => prMap[n].purchaseOrderNumber).filter(Boolean)));
+    const diNumbers = Array.from(new Set(prNumbers.map(n => prMap[n].diNumber).filter(Boolean)));
 
-    const [existingPRs, existingPOs] = await Promise.all([
+    const [existingPRs, existingPOs, existingDIs] = await Promise.all([
       PurchaseInvoice.find({ invoiceNumber: { $in: prNumbers } }),
-      poNumbers.length > 0 ? PurchaseOrder.find({ purchaseOrderNumber: { $in: poNumbers } }) : []
+      poNumbers.length > 0 ? PurchaseOrder.find({ purchaseOrderNumber: { $in: poNumbers } }) : [],
+      diNumbers.length > 0 ? DI.find({ diNumber: { $in: diNumbers } }) : []
     ]);
+
+    for (const prNumber of prNumbers) {
+      const prData = prMap[prNumber];
+      if (prData.diNumber) {
+        const di = existingDIs.find((d: any) => d.diNumber === prData.diNumber);
+        if (di) {
+          prData.lineItems.forEach((li: any) => {
+            li.diId = di._id;
+            const diLine = di.lineItems.find((dli: any) => 
+              (dli.itemId && li.itemId && dli.itemId.toString() === li.itemId.toString()) ||
+              (dli.tempCode && li.tempCode && dli.tempCode === li.tempCode) ||
+              dli.itemName === li.itemName
+            );
+            if (diLine) {
+              li.diLineId = (diLine as any)._id;
+            }
+          });
+        }
+      }
+    }
 
     let successCount = 0;
     const errors: any[] = [];
@@ -624,8 +654,66 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
           }
         }
 
+        // Validate Consumption
+        const diLinesToConsume = prData.lineItems
+          .filter((i: any) => i.diId && i.diLineId)
+          .map((i: any) => ({
+            lineId: i.diLineId.toString(),
+            quantity: Number(i.quantity) || 0
+          }));
+        
+        let diIdForConsumption = null;
+        if (diLinesToConsume.length > 0) {
+          diIdForConsumption = prData.lineItems.find((i: any) => i.diId).diId.toString();
+          await ValidationService.validateConsumption(diIdForConsumption, diLinesToConsume);
+        }
+
         const createdPr = await PurchaseInvoice.create(prData);
         successCount++;
+
+        // Link Relations
+        if (diIdForConsumption) {
+          await RelationsService.linkDocuments(diIdForConsumption, 'DispatchInstruction', createdPr._id.toString(), 'PurchaseInvoice');
+        }
+        if (createdPr.purchaseOrderId) {
+          await RelationsService.linkDocuments(createdPr.purchaseOrderId.toString(), 'PurchaseOrder', createdPr._id.toString(), 'PurchaseInvoice');
+        }
+
+        // Create Store Receipts
+        if (createdPr.lineItems && createdPr.lineItems.length > 0) {
+          const inwardEntries = createdPr.lineItems.map((item: any) => ({
+            purchaseInvoiceId: createdPr._id,
+            purchaseOrderId: createdPr.purchaseOrderId,
+            poNumber: createdPr.purchaseOrderNumber,
+            poDate: item.poDate,
+            billingFrom: createdPr.billingFrom,
+            vendorName: createdPr.vendorName,
+            invoiceNumber: createdPr.invoiceNumber,
+            invoiceDate: createdPr.date,
+            diRefNo: createdPr.diNumber || (createdPr as any).diNo,
+            circle: item.circle,
+            subcircle: item.subcircle,
+            package: item.package,
+            unit: item.unit,
+            invoiceQty: item.invoiceQuantity || item.quantity,
+            totalQty: item.totalInvoiceQuantity || item.totalInventory,
+            rate: item.rate,
+            amount: item.totalAmount || item.amount,
+            tempCode: item.tempCode,
+            itemId: item.itemId,
+            itemName: item.itemName,
+            itemDescription: item.itemDescription,
+            hsnCode: item.hsnCode,
+            cgst: item.cgst,
+            sgst: item.sgst,
+            igst: item.igst,
+            taxableAmount: item.amount,
+            serialNumber: item.loaSerialNo,
+            status: 'PENDING_RECEIPT',
+            packingList: [{ packType: 'BOX', quantity: item.invoiceQuantity || item.quantity || 0 }]
+          }));
+          await StoreInwardEntry.insertMany(inwardEntries);
+        }
 
         // Queue rebuild summary for imported items
         if (createdPr.lineItems && createdPr.lineItems.length > 0) {
@@ -634,7 +722,7 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
           }
         }
       } catch (err: any) {
-        errors.push(`Failed to import Invoice ${prData.purchaseReceiveNumber}: ${err.message}`);
+        errors.push(`Failed to import Invoice ${prData.invoiceNumber}: ${err.message}`);
       }
     }
 

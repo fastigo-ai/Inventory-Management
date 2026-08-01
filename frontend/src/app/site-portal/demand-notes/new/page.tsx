@@ -19,6 +19,7 @@ function DemandNoteForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFetchingWO, setIsFetchingWO] = useState(false);
   const [itemsList, setItemsList] = useState<any[]>([]);
+  const [workOrderItems, setWorkOrderItems] = useState<any[]>([]);
   const [file, setFile] = useState<File | null>(null);
   
   const [formData, setFormData] = useState({
@@ -37,11 +38,22 @@ function DemandNoteForm() {
       itemId: '',
       itemName: '',
       itemDescription: '',
+      activity: '',
+      tempCode: '',
       loaSrNo: '',
+      unit: '',
+      totalPackageLoaQty: 0,
+      circleLoaQty: 0,
+      circleBomQty: 0,
       loaQty: 0,
       woQty: 0,
       bomQty: 0,
       alreadyIssuedQty: 0,
+      contractorErectionRate: 0,
+      amount: 0,
+      gstType: '',
+      gstAmount: 0,
+      totalAmount: 0,
       transferFromOther: 0,
       transferToOther: 0,
       stockBal: 0,
@@ -95,13 +107,24 @@ function DemandNoteForm() {
         if (wo.items && wo.items.length > 0) {
           const mappedItems = wo.items.map((i: any) => ({
             itemId: i.itemId,
-            itemName: i.itemName,
+            itemName: i.itemName || i.description || '',
             itemDescription: i.itemDescription || '',
+            activity: i.activity || '',
+            tempCode: i.tempCode || '',
             loaSrNo: i.loaSrNo || '',
+            unit: i.unit || '',
+            totalPackageLoaQty: i.totalPackageLoaQty || 0,
+            circleLoaQty: i.circleLoaQty || 0,
+            circleBomQty: i.circleBomQty || 0,
             loaQty: i.loaQty || i.circleLoaQty || 0,
             woQty: i.woQty || i.issuedQty || 0,
             bomQty: i.bomQty || i.circleBomQty || 0,
-            alreadyIssuedQty: i.alreadyIssuedQty || i.issuedQty || 0, // Fallback to issuedQty from WO if alreadyIssuedQty is missing
+            alreadyIssuedQty: i.alreadyIssuedQty || i.issuedQty || 0,
+            contractorErectionRate: i.contractorErectionRate || 0,
+            amount: i.amount || 0,
+            gstType: i.gstType || '',
+            gstAmount: i.gstAmount || 0,
+            totalAmount: i.totalAmount || 0,
             transferFromOther: i.transferFromOther || 0,
             transferToOther: i.transferToOther || 0,
             stockBal: i.stockBal || 0,
@@ -113,7 +136,9 @@ function DemandNoteForm() {
             balBomQty: (i.bomQty || i.circleBomQty || 0) - (i.alreadyIssuedQty || i.issuedQty || 0),
             isLoadingContext: false
           }));
-          setItems(mappedItems);
+          setWorkOrderItems(mappedItems);
+        } else {
+          toast.warning('This Work Order does not contain any items.');
         }
       }
     } catch (error) {
@@ -127,8 +152,9 @@ function DemandNoteForm() {
     setItems([
       ...items,
       {
-        itemId: '', itemName: '', itemDescription: '', loaSrNo: '',
-        loaQty: 0, woQty: 0, bomQty: 0, alreadyIssuedQty: 0,
+        itemId: '', itemName: '', itemDescription: '', activity: '', tempCode: '', loaSrNo: '',
+        unit: '', totalPackageLoaQty: 0, circleLoaQty: 0, circleBomQty: 0,
+        loaQty: 0, woQty: 0, bomQty: 0, alreadyIssuedQty: 0, contractorErectionRate: 0, amount: 0, gstType: '', gstAmount: 0, totalAmount: 0,
         transferFromOther: 0, transferToOther: 0, stockBal: 0,
         jmcQty: 0, wipQty: 0, wipRequiredQty: 0, miscellaneousQty: 0, demandQty: 0, balBomQty: 0, isLoadingContext: false
       }
@@ -142,10 +168,36 @@ function DemandNoteForm() {
   };
 
   const handleItemSelect = async (index: number, itemId: string) => {
-    const selectedItem = itemsList.find(i => i._id === itemId);
+    let selectedWOItem = null;
+    let selectedGlobalItem = null;
+
+    if (workOrderId) {
+      selectedWOItem = workOrderItems.find(i => i.itemId === itemId);
+    } else {
+      selectedGlobalItem = itemsList.find(i => i._id === itemId);
+    }
+
     const newItems = [...items];
-    newItems[index].itemId = itemId;
-    newItems[index].itemName = selectedItem?.name || '';
+    
+    if (selectedWOItem) {
+      newItems[index] = {
+        ...newItems[index],
+        ...selectedWOItem,
+        demandQty: 0,
+        jmcQty: 0,
+        wipQty: 0,
+        wipRequiredQty: 0,
+        miscellaneousQty: 0,
+        balBomQty: selectedWOItem.bomQty - selectedWOItem.alreadyIssuedQty,
+      };
+    } else if (selectedGlobalItem) {
+      newItems[index].itemId = itemId;
+      newItems[index].itemName = selectedGlobalItem.name || '';
+      newItems[index].activity = selectedGlobalItem.dynamicData?.activity || '';
+      newItems[index].tempCode = selectedGlobalItem.dynamicData?.tempCode || '';
+    } else {
+      newItems[index].itemId = itemId;
+    }
     
     if (!itemId) return setItems(newItems);
 
@@ -157,12 +209,14 @@ function DemandNoteForm() {
       if (res.success) {
         const ctx = res.data;
         newItems[index].itemDescription = ctx.itemDescription || '';
-        newItems[index].bomQty = ctx.bomQty || 0;
+        if (selectedGlobalItem) {
+          newItems[index].bomQty = ctx.bomQty || 0;
+          newItems[index].alreadyIssuedQty = ctx.alreadyIssuedQty || 0;
+        }
         newItems[index].stockBal = ctx.stockBal || 0;
-        newItems[index].alreadyIssuedQty = ctx.alreadyIssuedQty || 0;
         newItems[index].transferFromOther = ctx.transferFromOther || 0;
         newItems[index].transferToOther = ctx.transferToOther || 0;
-        newItems[index].balBomQty = newItems[index].bomQty - newItems[index].alreadyIssuedQty - newItems[index].demandQty;
+        newItems[index].balBomQty = newItems[index].bomQty - newItems[index].alreadyIssuedQty - (newItems[index].demandQty || 0);
       }
     } catch (error) {
       toast.error('Failed to load item context constraints.');
@@ -205,6 +259,8 @@ function DemandNoteForm() {
         const { isLoadingContext, ...rest } = i;
         return {
           ...rest,
+          activity: rest.activity || '',
+          tempCode: rest.tempCode || '',
           jmcQty: Number(rest.jmcQty) || 0,
           wipQty: Number(rest.wipQty) || 0,
           wipRequiredQty: Number(rest.wipRequiredQty) || 0,
@@ -323,7 +379,19 @@ function DemandNoteForm() {
             <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase">
               <tr>
                 <th className="px-4 py-3 min-w-[200px]">Item Name</th>
+                <th className="px-4 py-3 min-w-[120px]">Activity</th>
+                <th className="px-4 py-3 min-w-[120px]">Temp Code</th>
+                <th className="px-4 py-3 min-w-[120px]">LOA Sr No</th>
+                <th className="px-4 py-3">Unit</th>
+                <th className="px-4 py-3">Total Pkg LOA</th>
+                <th className="px-4 py-3">Circle LOA</th>
+                <th className="px-4 py-3">WO Qty</th>
                 <th className="px-4 py-3">BOM Qty</th>
+                <th className="px-4 py-3">Rate</th>
+                <th className="px-4 py-3">Amount</th>
+                <th className="px-4 py-3">GST Type</th>
+                <th className="px-4 py-3">GST Amt</th>
+                <th className="px-4 py-3">Total Amt</th>
                 <th className="px-4 py-3">Stock Bal</th>
                 <th className="px-4 py-3 text-amber-700 bg-amber-50">Already Issued</th>
                 <th className="px-4 py-3 text-indigo-700 bg-indigo-50">JMC Done Qty</th>
@@ -337,60 +405,88 @@ function DemandNoteForm() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {items.map((item, idx) => (
-                <tr key={idx} className="hover:bg-slate-50">
-                  <td className="px-4 py-3">
-                    <select
-                      className="w-full h-9 rounded-md border border-slate-300 px-3 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 text-sm"
-                      value={item.itemId}
-                      onChange={(e) => handleItemSelect(idx, e.target.value)}
-                    >
-                      <option value="">Select Item</option>
-                      {itemsList.map(i => (
-                        <option key={i._id} value={i._id}>{i.name}</option>
-                      ))}
-                    </select>
-                    {item.isLoadingContext && <Loader2 className="w-4 h-4 animate-spin text-indigo-500 mt-2" />}
-                  </td>
-                  <td className="px-4 py-3 font-medium text-slate-700">{item.bomQty}</td>
-                  <td className="px-4 py-3 font-medium text-blue-600">{item.stockBal}</td>
-                  <td className="px-4 py-3 font-medium text-amber-600 bg-amber-50">{item.alreadyIssuedQty}</td>
-                  
-                  {/* New JMC and WIP inputs */}
-                  <td className="px-4 py-3 bg-indigo-50">
-                    <Input type="number" className="w-20 h-9" value={item.jmcQty || ''} onChange={(e) => handleItemChange(idx, 'jmcQty', e.target.value)} />
-                  </td>
-                  <td className="px-4 py-3 bg-blue-50">
-                    <Input type="number" className="w-20 h-9" value={item.wipQty || ''} onChange={(e) => handleItemChange(idx, 'wipQty', e.target.value)} />
-                  </td>
-                  <td className="px-4 py-3 bg-blue-50">
-                    <Input type="number" className="w-20 h-9" value={item.wipRequiredQty || ''} onChange={(e) => handleItemChange(idx, 'wipRequiredQty', e.target.value)} />
-                  </td>
-                  <td className="px-4 py-3 bg-orange-50">
-                    <Input type="number" className="w-20 h-9" value={item.miscellaneousQty || ''} onChange={(e) => handleItemChange(idx, 'miscellaneousQty', e.target.value)} />
-                  </td>
-                  
-                  {/* Balance Calculation */}
-                  <td className="px-4 py-3 font-bold text-red-600 bg-red-50">
-                    {calculateContractorBalance(item)}
-                  </td>
-
-                  <td className="px-4 py-3">
-                    <Input
-                      type="number"
-                      className="w-20 h-9"
-                      value={item.demandQty || ''}
-                      onChange={(e) => handleItemChange(idx, 'demandQty', e.target.value)}
-                      placeholder="0"
-                    />
-                  </td>
-                  <td className="px-4 py-3 font-semibold text-indigo-600">{item.balBomQty}</td>
-                  <td className="px-4 py-3 text-center">
-                    <button onClick={() => removeItemRow(idx)} className="text-red-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded transition-colors" disabled={items.length === 1}>
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </td>
-                </tr>
+              {Object.entries(items.reduce((acc, item, idx) => {
+                const act = item.activity || 'Unassigned Activity';
+                if (!acc[act]) acc[act] = [];
+                acc[act].push({ item, idx });
+                return acc;
+              }, {} as Record<string, {item: any, idx: number}[]>)).map(([activity, group]) => (
+                <React.Fragment key={activity}>
+                  <tr className="bg-slate-100/80 border-y border-slate-200">
+                    <td colSpan={24} className="px-4 py-2 text-[13px] font-bold text-slate-700">
+                      Activity: <span className="text-indigo-700 ml-1">{activity === 'Unassigned Activity' ? 'Pending Item Selection' : activity}</span>
+                    </td>
+                  </tr>
+                  {group.map(({ item, idx }) => (
+                    <tr key={idx} className="hover:bg-slate-50">
+                      <td className="px-4 py-3">
+                        <select
+                          className="w-full h-9 rounded-md border border-slate-300 px-3 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 text-sm"
+                          value={item.itemId}
+                          onChange={(e) => handleItemSelect(idx, e.target.value)}
+                        >
+                          <option value="">Select Item</option>
+                          {(workOrderId ? workOrderItems : itemsList).map(i => (
+                            <option key={workOrderId ? i.itemId : i._id} value={workOrderId ? i.itemId : i._id}>
+                              {workOrderId ? i.itemName : i.name}
+                            </option>
+                          ))}
+                        </select>
+                        {item.isLoadingContext && <Loader2 className="w-4 h-4 animate-spin text-indigo-500 mt-2" />}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-600 truncate max-w-[150px]" title={item.activity}>{item.activity || 'N/A'}</td>
+                      <td className="px-4 py-3 text-sm text-slate-600">{item.tempCode || 'N/A'}</td>
+                      <td className="px-4 py-3 text-sm text-slate-600">{item.loaSrNo || 'N/A'}</td>
+                      <td className="px-4 py-3 text-sm text-slate-600">{item.unit || 'N/A'}</td>
+                      <td className="px-4 py-3 text-sm text-slate-600">{item.totalPackageLoaQty}</td>
+                      <td className="px-4 py-3 text-sm text-slate-600">{item.circleLoaQty}</td>
+                      <td className="px-4 py-3 font-medium text-slate-700">{item.woQty}</td>
+                      <td className="px-4 py-3 font-medium text-slate-700">{item.bomQty}</td>
+                      <td className="px-4 py-3 font-medium text-slate-700">₹{item.contractorErectionRate}</td>
+                      <td className="px-4 py-3 font-medium text-slate-700">₹{item.amount}</td>
+                      <td className="px-4 py-3 text-sm text-slate-600">{item.gstType || 'N/A'}</td>
+                      <td className="px-4 py-3 font-medium text-slate-700">₹{item.gstAmount}</td>
+                      <td className="px-4 py-3 font-bold text-slate-800">₹{item.totalAmount}</td>
+                      <td className="px-4 py-3 font-medium text-blue-600">{item.stockBal}</td>
+                      <td className="px-4 py-3 font-medium text-amber-600 bg-amber-50">{item.alreadyIssuedQty}</td>
+                      
+                      {/* New JMC and WIP inputs */}
+                      <td className="px-4 py-3 bg-indigo-50">
+                        <Input type="number" className="w-20 h-9" value={item.jmcQty || ''} onChange={(e) => handleItemChange(idx, 'jmcQty', e.target.value)} />
+                      </td>
+                      <td className="px-4 py-3 bg-blue-50">
+                        <Input type="number" className="w-20 h-9" value={item.wipQty || ''} onChange={(e) => handleItemChange(idx, 'wipQty', e.target.value)} />
+                      </td>
+                      <td className="px-4 py-3 bg-blue-50">
+                        <Input type="number" className="w-20 h-9" value={item.wipRequiredQty || ''} onChange={(e) => handleItemChange(idx, 'wipRequiredQty', e.target.value)} />
+                      </td>
+                      <td className="px-4 py-3 bg-orange-50">
+                        <Input type="number" className="w-20 h-9" value={item.miscellaneousQty || ''} onChange={(e) => handleItemChange(idx, 'miscellaneousQty', e.target.value)} />
+                      </td>
+                      
+                      {/* Balance Calculation */}
+                      <td className="px-4 py-3 font-bold text-red-600 bg-red-50">
+                        {calculateContractorBalance(item)}
+                      </td>
+    
+                      <td className="px-4 py-3">
+                        <Input
+                          type="number"
+                          className="w-20 h-9"
+                          value={item.demandQty || ''}
+                          onChange={(e) => handleItemChange(idx, 'demandQty', e.target.value)}
+                          placeholder="0"
+                        />
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-indigo-600">{item.balBomQty}</td>
+                      <td className="px-4 py-3 text-center">
+                        <button onClick={() => removeItemRow(idx)} className="text-red-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded transition-colors" disabled={items.length === 1}>
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </React.Fragment>
               ))}
             </tbody>
           </table>

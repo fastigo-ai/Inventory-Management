@@ -52,7 +52,13 @@ export const getWorkOrders = asyncHandler(async (req: AuthRequest, res: Response
   if (pkg) filter.package = pkg;
   if (circle) filter.circle = circle;
   if (division) filter.division = division;
-  if (status) filter.status = status;
+  if (status) {
+    if ((status as string).includes(',')) {
+      filter.status = { $in: (status as string).split(',') };
+    } else {
+      filter.status = status;
+    }
+  }
   if (search) {
     filter.workOrderNumber = { $regex: search, $options: 'i' };
   }
@@ -231,4 +237,30 @@ export const bulkImportWorkOrders = asyncHandler(async (req: AuthRequest, res: R
     },
     message: 'Bulk import processed'
   });
+});
+
+export const updateWorkOrderStatus = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new ApiError(400, 'Invalid Work Order ID');
+  }
+
+  const validStatuses = ['Draft', 'Approved', 'Site Approved', 'Completed'];
+  if (!validStatuses.includes(status)) {
+    throw new ApiError(400, 'Invalid status value');
+  }
+
+  const workOrder = await ContractorWorkOrder.findByIdAndUpdate(
+    id,
+    { status },
+    { new: true }
+  );
+
+  if (!workOrder) {
+    throw new ApiError(404, 'Work Order not found');
+  }
+
+  res.status(200).json(new ApiResponse(200, workOrder, 'Work Order status updated successfully'));
 });

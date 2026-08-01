@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Save, ArrowLeft, Plus, X } from 'lucide-react';
+import { Save, ArrowLeft, Plus, X, Search } from 'lucide-react';
 import { getContractors } from '@/features/contractors/api/contractors.api';
 import { getItems, getEntityMetadata } from '@/features/items/api/items.api';
 import { createContractorWorkOrder } from '@/features/contractors/api/contractorWorkOrder.api';
@@ -35,6 +35,11 @@ export default function NewContractorWorkOrderPage() {
   const [items, setItems] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
+
+  const [manualItemSearch, setManualItemSearch] = useState('');
+  const [manualItemResults, setManualItemResults] = useState<any[]>([]);
+  const [isSearchingManual, setIsSearchingManual] = useState(false);
+  const [showManualResults, setShowManualResults] = useState(false);
 
   // Derive circles based on package
   const availableCircles = formData.package === 'Package 1(S/N)' ? ['Solan', 'Nahan'] :
@@ -127,6 +132,54 @@ export default function NewContractorWorkOrderPage() {
       activities: prev.activities.filter(a => a !== activityToRemove)
     }));
     setItems(prev => prev.filter(item => item.activity !== activityToRemove));
+  };
+
+  useEffect(() => {
+    if (!manualItemSearch || manualItemSearch.length < 2) {
+      setManualItemResults([]);
+      setShowManualResults(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setIsSearchingManual(true);
+      getItems({ search: manualItemSearch, limit: 10 })
+        .then(res => {
+          const itemsList = res?.items || res?.data?.items || (Array.isArray(res) ? res : []);
+          setManualItemResults(Array.isArray(itemsList) ? itemsList : []);
+          setShowManualResults(true);
+        })
+        .finally(() => setIsSearchingManual(false));
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [manualItemSearch]);
+
+  const handleAddManualItem = (item: any) => {
+    const mappedItem = {
+      itemId: item._id,
+      tempCode: item.dynamicData?.tempCode || '',
+      activity: 'Manually Added (Misc)',
+      loaSrNo: item.dynamicData?.sku || item.dynamicData?.loaSrNo || '',
+      description: item.dynamicData?.description || item.dynamicData?.name || '',
+      unit: item.dynamicData?.unit || '',
+      circleLoaQty: formData.circle?.toLowerCase() === 'solan' ? Number(item.dynamicData?.solanLoaQuantity || 0) :
+                    formData.circle?.toLowerCase() === 'nahan' ? Number(item.dynamicData?.nahanLoaQuantity || 0) :
+                    formData.circle?.toLowerCase() === 'rampur' ? Number(item.dynamicData?.rampurLoaQuantity || 0) :
+                    formData.circle?.toLowerCase() === 'rohru' ? Number(item.dynamicData?.rohruLoaQuantity || 0) : 0,
+      circleBomQty: formData.circle?.toLowerCase() === 'solan' ? Number(item.dynamicData?.solanBomQuantity || 0) :
+                    formData.circle?.toLowerCase() === 'nahan' ? Number(item.dynamicData?.nahanBomQuantity || 0) :
+                    formData.circle?.toLowerCase() === 'rampur' ? Number(item.dynamicData?.rampurBomQuantity || 0) :
+                    formData.circle?.toLowerCase() === 'rohru' ? Number(item.dynamicData?.rohruBomQuantity || 0) : 0,
+      alreadyIssuedQty: 0,
+      woQty: 0,
+      contractorErectionRate: 0,
+      amount: 0,
+      gstType: 'Intra',
+      gstAmount: 0,
+      totalAmount: 0
+    };
+    setItems(prev => [...prev, mappedItem]);
+    setManualItemSearch('');
+    setShowManualResults(false);
   };
 
   const updateItem = (index: number, field: string, value: any) => {
@@ -285,48 +338,94 @@ export default function NewContractorWorkOrderPage() {
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6">
         <div className="p-6 border-b border-slate-200">
-          <div className="max-w-xl">
-            <label className="block text-[13px] font-semibold text-slate-800 mb-1">Add Activities <span className="text-red-500">*</span></label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-[13px] font-semibold text-slate-800 mb-1">Add Activities <span className="text-red-500">*</span></label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    list="activity-list"
+                    value={currentActivityInput}
+                    onChange={(e) => setCurrentActivityInput(e.target.value)}
+                    placeholder="Search activity keywords..."
+                    disabled={!formData.circle || isLoadingItems}
+                    className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500 disabled:bg-slate-50"
+                  />
+                  <datalist id="activity-list">
+                    {activities.map((act, i) => (
+                      <option key={i} value={act} />
+                    ))}
+                  </datalist>
+                </div>
+                <button
+                  onClick={handleAddActivity}
+                  disabled={!currentActivityInput || isLoadingItems}
+                  className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-md text-sm font-medium hover:bg-indigo-100 disabled:opacity-50 transition-colors whitespace-nowrap"
+                >
+                  {isLoadingItems ? 'Adding...' : 'Add Activity'}
+                </button>
+              </div>
+
+              {formData.activities.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {formData.activities.map((act, i) => (
+                    <div key={i} className="flex items-center gap-1 px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-sm border border-slate-200">
+                      <span className="max-w-[300px] truncate" title={act}>{act}</span>
+                      <button 
+                        onClick={() => handleRemoveActivity(act)}
+                        className="ml-1 text-slate-400 hover:text-red-500 focus:outline-none transition-colors"
+                        title="Remove Activity"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="relative">
+              <label className="block text-[13px] font-semibold text-slate-800 mb-1">Add Single Item <span className="text-slate-500 font-normal">(Non-billable / Misc)</span></label>
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  list="activity-list"
-                  value={currentActivityInput}
-                  onChange={(e) => setCurrentActivityInput(e.target.value)}
-                  placeholder="Search activity keywords..."
-                  disabled={!formData.circle || isLoadingItems}
-                  className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500 disabled:bg-slate-50"
+                  value={manualItemSearch}
+                  onChange={(e) => setManualItemSearch(e.target.value)}
+                  onFocus={() => { if (manualItemResults.length > 0) setShowManualResults(true); }}
+                  placeholder="Search item by description, temp code, LOA..."
+                  disabled={!formData.circle}
+                  className="w-full pl-9 pr-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500 disabled:bg-slate-50"
                 />
-                <datalist id="activity-list">
-                  {activities.map(a => <option key={a} value={a} />)}
-                </datalist>
               </div>
-              <button 
-                onClick={handleAddActivity}
-                disabled={!currentActivityInput || isLoadingItems}
-                className="px-4 py-2 bg-indigo-50 text-indigo-700 font-medium rounded-md hover:bg-indigo-100 transition-colors disabled:opacity-50 text-sm"
-              >
-                Add Activity
-              </button>
+
+              {showManualResults && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {isSearchingManual ? (
+                    <div className="p-3 text-sm text-center text-slate-500">Searching...</div>
+                  ) : manualItemResults.length > 0 ? (
+                    manualItemResults.map((res) => (
+                      <div
+                        key={res._id}
+                        onClick={() => handleAddManualItem(res)}
+                        className="px-4 py-2 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0"
+                      >
+                        <div className="text-sm font-medium text-slate-800">
+                          {res.dynamicData?.description || res.dynamicData?.name || 'Unknown Item'}
+                        </div>
+                        <div className="text-xs text-slate-500 mt-0.5 flex gap-3">
+                          <span>Temp: {res.dynamicData?.tempCode || 'N/A'}</span>
+                          <span>LOA: {res.dynamicData?.sku || res.dynamicData?.loaSrNo || 'N/A'}</span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-3 text-sm text-center text-slate-500">No items found.</div>
+                  )}
+                </div>
+              )}
             </div>
-            
-            {formData.activities.length > 0 && (
-              <div className="mt-4 flex flex-wrap gap-2">
-                {formData.activities.map((act, i) => (
-                  <div key={i} className="flex items-center gap-1 px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-sm border border-slate-200">
-                    <span className="max-w-[300px] truncate" title={act}>{act}</span>
-                    <button 
-                      onClick={() => handleRemoveActivity(act)}
-                      className="ml-1 text-slate-400 hover:text-red-500 focus:outline-none transition-colors"
-                      title="Remove Activity"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </div>
 

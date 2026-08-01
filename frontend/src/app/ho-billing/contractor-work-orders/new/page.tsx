@@ -40,6 +40,11 @@ export default function NewContractorWorkOrderPage() {
   const [manualItemResults, setManualItemResults] = useState<any[]>([]);
   const [isSearchingManual, setIsSearchingManual] = useState(false);
   const [showManualResults, setShowManualResults] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<{isOpen: boolean, type: 'package' | 'circle', value: string}>({
+    isOpen: false,
+    type: 'package',
+    value: ''
+  });
   
   const [activityRatios, setActivityRatios] = useState<Record<string, string>>({});
 
@@ -143,6 +148,17 @@ export default function NewContractorWorkOrderPage() {
       .finally(() => setIsLoadingItems(false));
   };
 
+  const handleConfirmChange = () => {
+    if (confirmDialog.type === 'package') {
+      setFormData({ ...formData, package: confirmDialog.value, circle: '', contractorId: '', division: '', activities: [] });
+    } else {
+      setFormData({ ...formData, circle: confirmDialog.value, contractorId: '', division: '', activities: [] });
+    }
+    setItems([]);
+    setActivityRatios({});
+    setConfirmDialog({ isOpen: false, type: 'package', value: '' });
+  };
+
   const handleRemoveActivity = (activityToRemove: string) => {
     setFormData(prev => ({
       ...prev,
@@ -161,7 +177,6 @@ export default function NewContractorWorkOrderPage() {
     const ratio = parseFloat(ratioStr);
 
     setItems(prev => {
-      // Find the first item in this activity to act as the base (dividend)
       const firstItem = prev.find(i => i.activity === activity);
       const baseLoaQty = firstItem?.totalPackageLoaQty || 1;
 
@@ -180,7 +195,6 @@ export default function NewContractorWorkOrderPage() {
             woQty: finalQty
           };
           
-          // Re-calculate amount and GST for this new woQty
           newItem.amount = finalQty * (Number(newItem.contractorErectionRate) || 0);
           newItem.gstAmount = newItem.amount * 0.18;
           newItem.totalAmount = newItem.amount + newItem.gstAmount;
@@ -250,20 +264,16 @@ export default function NewContractorWorkOrderPage() {
     const newItems = [...items];
     const item = { ...newItems[index], [field]: value };
 
-    // Auto-fill WO Qty when Issued Qty changes
     if (field === 'alreadyIssuedQty') {
       item.woQty = value;
     }
 
-    // Calculate Amount
     if (field === 'woQty' || field === 'contractorErectionRate' || field === 'alreadyIssuedQty') {
       item.amount = (Number(item.woQty) || 0) * (Number(item.contractorErectionRate) || 0);
     }
     
-    // Calculate GST
     if (field === 'woQty' || field === 'contractorErectionRate' || field === 'gstType' || field === 'alreadyIssuedQty') {
       const amt = item.amount;
-      // Fixed 18% overall for both Inter (9+9) and Intra (18)
       item.gstAmount = amt * 0.18;
       item.totalAmount = amt + item.gstAmount;
     }
@@ -332,7 +342,13 @@ export default function NewContractorWorkOrderPage() {
             <select
               value={formData.package}
               onChange={(e) => {
-                setFormData({ ...formData, package: e.target.value, circle: '', contractorId: '', division: '' });
+                if (formData.activities && formData.activities.length > 0) {
+                  setConfirmDialog({ isOpen: true, type: 'package', value: e.target.value });
+                  return;
+                }
+                setFormData({ ...formData, package: e.target.value, circle: '', contractorId: '', division: '', activities: [] });
+                setItems([]);
+                setActivityRatios({});
               }}
               className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500 bg-white"
             >
@@ -345,7 +361,15 @@ export default function NewContractorWorkOrderPage() {
             <label className="block text-[13px] font-semibold text-slate-800 mb-1">Circle <span className="text-red-500">*</span></label>
             <select
               value={formData.circle}
-              onChange={(e) => setFormData({ ...formData, circle: e.target.value, contractorId: '', division: '' })}
+              onChange={(e) => {
+                if (formData.activities && formData.activities.length > 0) {
+                  setConfirmDialog({ isOpen: true, type: 'circle', value: e.target.value });
+                  return;
+                }
+                setFormData({ ...formData, circle: e.target.value, contractorId: '', division: '', activities: [] });
+                setItems([]);
+                setActivityRatios({});
+              }}
               disabled={!formData.package}
               className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500 bg-white disabled:bg-slate-50 disabled:text-slate-500"
             >

@@ -28,12 +28,19 @@ export default function IncomingWorkOrdersPage() {
   };
 
   const fetchWorkOrders = async () => {
+    if (!selectedCircle || !selectedDivision) {
+      setWorkOrders([]);
+      setIsLoading(false);
+      return;
+    }
+    
     try {
       setIsLoading(true);
       const res = await getContractorWorkOrders({ 
         search, 
         circle: selectedCircle, 
-        division: selectedDivision 
+        division: selectedDivision,
+        status: 'Approved'
       });
       if (res.success) {
         setWorkOrders(res.data?.data || []);
@@ -127,7 +134,9 @@ export default function IncomingWorkOrdersPage() {
               ) : workOrders.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
-                    No incoming work orders found for the selected filters.
+                    {!selectedCircle || !selectedDivision 
+                      ? "Please select a Circle and Division to view incoming work orders." 
+                      : "No incoming work orders found for the selected filters."}
                   </td>
                 </tr>
               ) : (

@@ -550,6 +550,14 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
 
     const prMap: Record<string, any> = {};
 
+    // Safely parses a CSV numeric value, stripping commas and non-numeric chars
+    const safeNum = (val: any): number => {
+      if (val === null || val === undefined || val === '') return 0;
+      const cleaned = String(val).replace(/,/g, '').trim();
+      const n = parseFloat(cleaned);
+      return isNaN(n) ? 0 : n;
+    };
+
     for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
       const row = rows[rowIndex];
       const actualRowNumber = rowIndex + 2; // +1 for header, +1 for 0-index
@@ -592,18 +600,18 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
           hsnCode: row['hsncode'] || '',
           unit: row['unit'] || '',
           poDate: row['podate'] || undefined,
-          poQuantity: Number(row['poqty'] || row['poquantity'] || 0),
-          quantity: Number(row['invqty'] || row['invoicequantity'] || row['act'] || 0),
-          srt: Number(row['srt'] || 0),
-          act: Number(row['act'] || 0),
-          totalInventory: Number(row['totinvqty'] || row['totalinvoicequantity'] || 0),
-          rate: Number(row['rate'] || 0),
-          amount: Number(row['amount'] || 0),
+          poQuantity: safeNum(row['poqty'] || row['poquantity']),
+          quantity: safeNum(row['invqty'] || row['invoicequantity'] || row['act']),
+          srt: safeNum(row['srt']),
+          act: safeNum(row['act']),
+          totalInventory: safeNum(row['totinvqty'] || row['totalinvoicequantity']),
+          rate: safeNum(row['rate']),
+          amount: safeNum(row['amount']),
           gstType: row['gsttype'] || 'Intra State',
-          cgst: Number(row['cgst'] || 0),
-          sgst: Number(row['sgst'] || 0),
-          igst: Number(row['igst'] || 0),
-          totalAmount: Number(row['totalamount'] || 0)
+          cgst: safeNum(row['cgst']),
+          sgst: safeNum(row['sgst']),
+          igst: safeNum(row['igst']),
+          totalAmount: safeNum(row['totalamount'])
         });
       }
     }

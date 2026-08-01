@@ -168,13 +168,24 @@ export default function NewContractorWorkOrderPage() {
       return prev.map(item => {
         if (item.activity === activity) {
           if (!ratio || isNaN(ratio) || ratio === 0) {
-            return { ...item, alreadyIssuedQty: 0 };
+            const newItem = { ...item, alreadyIssuedQty: 0, woQty: 0, amount: 0, gstAmount: 0, totalAmount: 0 };
+            return newItem;
           }
           const calculatedQty = (item.totalPackageLoaQty / baseLoaQty) * ratio;
-          return {
+          const finalQty = Number(calculatedQty.toFixed(3));
+          
+          const newItem = {
             ...item,
-            alreadyIssuedQty: Number(calculatedQty.toFixed(3))
+            alreadyIssuedQty: finalQty,
+            woQty: finalQty
           };
+          
+          // Re-calculate amount and GST for this new woQty
+          newItem.amount = finalQty * (Number(newItem.contractorErectionRate) || 0);
+          newItem.gstAmount = newItem.amount * 0.18;
+          newItem.totalAmount = newItem.amount + newItem.gstAmount;
+          
+          return newItem;
         }
         return item;
       });
@@ -239,13 +250,18 @@ export default function NewContractorWorkOrderPage() {
     const newItems = [...items];
     const item = { ...newItems[index], [field]: value };
 
+    // Auto-fill WO Qty when Issued Qty changes
+    if (field === 'alreadyIssuedQty') {
+      item.woQty = value;
+    }
+
     // Calculate Amount
-    if (field === 'woQty' || field === 'contractorErectionRate') {
+    if (field === 'woQty' || field === 'contractorErectionRate' || field === 'alreadyIssuedQty') {
       item.amount = (Number(item.woQty) || 0) * (Number(item.contractorErectionRate) || 0);
     }
     
     // Calculate GST
-    if (field === 'woQty' || field === 'contractorErectionRate' || field === 'gstType') {
+    if (field === 'woQty' || field === 'contractorErectionRate' || field === 'gstType' || field === 'alreadyIssuedQty') {
       const amt = item.amount;
       // Fixed 18% overall for both Inter (9+9) and Intra (18)
       item.gstAmount = amt * 0.18;

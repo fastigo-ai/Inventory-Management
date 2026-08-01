@@ -72,7 +72,7 @@ export default function NewContractorWorkOrderPage() {
       setIsLoadingItems(true);
       getItems({ filters: { activity: formData.activity }, limit: 1000 })
         .then(res => {
-          const fetchedItems = res.data || res;
+          const fetchedItems = res?.items || res?.data?.items || (Array.isArray(res) ? res : []);
           const mappedItems = Array.isArray(fetchedItems) ? fetchedItems.map(item => ({
             itemId: item._id,
             tempCode: item.dynamicData?.tempCode || '',

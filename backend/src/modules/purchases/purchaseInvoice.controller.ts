@@ -783,7 +783,7 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
   } catch (error: any) {
     res.status(500).json({
       success: false,
-      message: 'Failed to import Purchase Invoices',
+      message: error.message || 'Failed to import Purchase Invoices',
       error: error.message,
     });
   }

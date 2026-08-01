@@ -103,7 +103,17 @@ export default function ContractorWorkOrdersPage() {
                       {wo.package} <br />
                       <span className="text-xs text-slate-500">{wo.circle}</span>
                     </td>
-                    <td className="px-6 py-4">{wo.activity || 'N/A'}</td>
+                    <td className="px-6 py-4">
+                      {wo.activities && wo.activities.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {wo.activities.map((act: string, i: number) => (
+                            <span key={i} className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs truncate max-w-[150px]" title={act}>
+                              {act}
+                            </span>
+                          ))}
+                        </div>
+                      ) : 'N/A'}
+                    </td>
                     <td className="px-6 py-4 font-medium">
                       ₹{wo.totalWoAmount?.toLocaleString()}
                     </td>

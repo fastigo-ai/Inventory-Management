@@ -27,7 +27,7 @@ export interface IContractorWorkOrder extends Document {
   subDivision: string;
   location: string;
   remarks: string;
-  activity: string; // The selected activity for the WO
+  activities: string[]; // Replaced single activity with array
   items: IContractorWorkOrderItem[];
   createdBy: mongoose.Types.ObjectId;
   status: 'Draft' | 'Approved' | 'Completed';
@@ -64,7 +64,7 @@ const ContractorWorkOrderSchema = new Schema<IContractorWorkOrder>(
     subDivision: { type: String, default: '' },
     location: { type: String, default: '' },
     remarks: { type: String, default: '' },
-    activity: { type: String, default: '' },
+    activities: { type: [String], default: [] },
     items: [ContractorWorkOrderItemSchema],
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     status: { type: String, enum: ['Draft', 'Approved', 'Completed'], default: 'Draft' },

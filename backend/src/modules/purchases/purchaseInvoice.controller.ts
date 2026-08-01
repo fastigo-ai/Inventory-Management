@@ -287,7 +287,7 @@ export const updatePurchaseInvoice = async (req: Request, res: Response): Promis
       
       if (diLinesToConsume.length > 0) {
         const diId = updateData.lineItems.find((i: any) => i.diId).diId.toString();
-        await ValidationService.validateConsumption(diId, diLinesToConsume, id);
+        await ValidationService.validateConsumption(diId, diLinesToConsume, typeof id === 'string' ? id : String(id));
       }
     }
 

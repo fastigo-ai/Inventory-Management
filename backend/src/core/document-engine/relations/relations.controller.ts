@@ -5,7 +5,7 @@ export const getDocumentRelations = async (req: Request, res: Response): Promise
   try {
     const { documentId } = req.params;
     
-    const relations = await RelationsService.getRelatedDocuments(documentId);
+    const relations = await RelationsService.getRelatedDocuments(typeof documentId === 'string' ? documentId : String(documentId));
     
     res.status(200).json({
       success: true,

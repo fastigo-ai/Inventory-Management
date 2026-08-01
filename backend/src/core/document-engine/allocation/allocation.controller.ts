@@ -8,7 +8,10 @@ export const getDocumentAllocation = async (req: Request, res: Response): Promis
 
     // Phase 1: We only support DI allocation for now
     if (moduleType === 'DI' || !moduleType) {
-      const allocations = await AllocationService.getDiAllocation(sourceId, excludePiId as string);
+      const allocations = await AllocationService.getDiAllocation(
+        typeof sourceId === 'string' ? sourceId : String(sourceId), 
+        typeof excludePiId === 'string' ? excludePiId : undefined
+      );
       res.status(200).json({
         success: true,
         data: allocations

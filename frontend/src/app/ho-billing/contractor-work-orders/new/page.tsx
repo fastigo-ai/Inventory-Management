@@ -40,6 +40,8 @@ export default function NewContractorWorkOrderPage() {
   const [manualItemResults, setManualItemResults] = useState<any[]>([]);
   const [isSearchingManual, setIsSearchingManual] = useState(false);
   const [showManualResults, setShowManualResults] = useState(false);
+  
+  const [activityRatios, setActivityRatios] = useState<Record<string, string>>({});
 
   // Derive circles based on package
   const availableCircles = formData.package === 'Package 1(S/N)' ? ['Solan', 'Nahan'] :
@@ -90,29 +92,37 @@ export default function NewContractorWorkOrderPage() {
     getItems({ filters: { activity: currentActivityInput }, limit: 1000 })
       .then(res => {
         const fetchedItems = res?.items || res?.data?.items || (Array.isArray(res) ? res : []);
-        const mappedItems = Array.isArray(fetchedItems) ? fetchedItems.map(item => ({
-          itemId: item._id,
-          tempCode: item.dynamicData?.tempCode || '',
-          activity: item.dynamicData?.activity || '',
-          loaSrNo: item.dynamicData?.sku || '',
-          description: item.dynamicData?.description || item.dynamicData?.name || '',
-          unit: item.dynamicData?.unit || '',
-          circleLoaQty: formData.circle.toLowerCase() === 'solan' ? Number(item.dynamicData?.solanLoaQuantity || 0) :
-                        formData.circle.toLowerCase() === 'nahan' ? Number(item.dynamicData?.nahanLoaQuantity || 0) :
-                        formData.circle.toLowerCase() === 'rampur' ? Number(item.dynamicData?.rampurLoaQuantity || 0) :
-                        formData.circle.toLowerCase() === 'rohru' ? Number(item.dynamicData?.rohruLoaQuantity || 0) : 0,
-          circleBomQty: formData.circle.toLowerCase() === 'solan' ? Number(item.dynamicData?.solanBomQuantity || 0) :
-                        formData.circle.toLowerCase() === 'nahan' ? Number(item.dynamicData?.nahanBomQuantity || 0) :
-                        formData.circle.toLowerCase() === 'rampur' ? Number(item.dynamicData?.rampurBomQuantity || 0) :
-                        formData.circle.toLowerCase() === 'rohru' ? Number(item.dynamicData?.rohruBomQuantity || 0) : 0,
-          alreadyIssuedQty: 0, // Placeholder
+        const mappedItems = Array.isArray(fetchedItems) ? fetchedItems.map(item => {
+          const isPkg1 = formData.package === 'Package 1(S/N)';
+          const totalPackageLoaQty = isPkg1 
+            ? (Number(item.dynamicData?.solanLoaQuantity || 0) + Number(item.dynamicData?.nahanLoaQuantity || 0))
+            : (Number(item.dynamicData?.rampurLoaQuantity || 0) + Number(item.dynamicData?.rohruLoaQuantity || 0));
+
+          return {
+            itemId: item._id,
+            tempCode: item.dynamicData?.tempCode || '',
+            activity: item.dynamicData?.activity || '',
+            loaSrNo: item.dynamicData?.sku || '',
+            description: item.dynamicData?.description || item.dynamicData?.name || '',
+            unit: item.dynamicData?.unit || '',
+            circleLoaQty: formData.circle.toLowerCase() === 'solan' ? Number(item.dynamicData?.solanLoaQuantity || 0) :
+                          formData.circle.toLowerCase() === 'nahan' ? Number(item.dynamicData?.nahanLoaQuantity || 0) :
+                          formData.circle.toLowerCase() === 'rampur' ? Number(item.dynamicData?.rampurLoaQuantity || 0) :
+                          formData.circle.toLowerCase() === 'rohru' ? Number(item.dynamicData?.rohruLoaQuantity || 0) : 0,
+            circleBomQty: formData.circle.toLowerCase() === 'solan' ? Number(item.dynamicData?.solanBomQuantity || 0) :
+                          formData.circle.toLowerCase() === 'nahan' ? Number(item.dynamicData?.nahanBomQuantity || 0) :
+                          formData.circle.toLowerCase() === 'rampur' ? Number(item.dynamicData?.rampurBomQuantity || 0) :
+                          formData.circle.toLowerCase() === 'rohru' ? Number(item.dynamicData?.rohruBomQuantity || 0) : 0,
+            totalPackageLoaQty,
+            alreadyIssuedQty: 0, // Placeholder
           woQty: 0,
           contractorErectionRate: 0,
-          amount: 0,
-          gstType: 'Intra', // default
-          gstAmount: 0,
-          totalAmount: 0
-        })) : [];
+            amount: 0,
+            gstType: 'Intra', // default
+            gstAmount: 0,
+            totalAmount: 0
+          };
+        }) : [];
         
         if (mappedItems.length === 0) {
           toast.info('No items found for this activity');
@@ -132,6 +142,36 @@ export default function NewContractorWorkOrderPage() {
       activities: prev.activities.filter(a => a !== activityToRemove)
     }));
     setItems(prev => prev.filter(item => item.activity !== activityToRemove));
+    setActivityRatios(prev => {
+      const newRatios = { ...prev };
+      delete newRatios[activityToRemove];
+      return newRatios;
+    });
+  };
+
+  const handleRatioChange = (activity: string, ratioStr: string) => {
+    setActivityRatios(prev => ({ ...prev, [activity]: ratioStr }));
+    const ratio = parseFloat(ratioStr);
+
+    setItems(prev => {
+      // Find the first item in this activity to act as the base (dividend)
+      const firstItem = prev.find(i => i.activity === activity);
+      const baseLoaQty = firstItem?.totalPackageLoaQty || 1;
+
+      return prev.map(item => {
+        if (item.activity === activity) {
+          if (!ratio || isNaN(ratio) || ratio === 0) {
+            return { ...item, alreadyIssuedQty: 0 };
+          }
+          const calculatedQty = (item.totalPackageLoaQty / baseLoaQty) * ratio;
+          return {
+            ...item,
+            alreadyIssuedQty: Number(calculatedQty.toFixed(3))
+          };
+        }
+        return item;
+      });
+    });
   };
 
   useEffect(() => {
@@ -154,6 +194,11 @@ export default function NewContractorWorkOrderPage() {
   }, [manualItemSearch]);
 
   const handleAddManualItem = (item: any) => {
+    const isPkg1 = formData.package === 'Package 1(S/N)';
+    const totalPackageLoaQty = isPkg1 
+      ? (Number(item.dynamicData?.solanLoaQuantity || 0) + Number(item.dynamicData?.nahanLoaQuantity || 0))
+      : (Number(item.dynamicData?.rampurLoaQuantity || 0) + Number(item.dynamicData?.rohruLoaQuantity || 0));
+
     const mappedItem = {
       itemId: item._id,
       tempCode: item.dynamicData?.tempCode || '',
@@ -169,6 +214,7 @@ export default function NewContractorWorkOrderPage() {
                     formData.circle?.toLowerCase() === 'nahan' ? Number(item.dynamicData?.nahanBomQuantity || 0) :
                     formData.circle?.toLowerCase() === 'rampur' ? Number(item.dynamicData?.rampurBomQuantity || 0) :
                     formData.circle?.toLowerCase() === 'rohru' ? Number(item.dynamicData?.rohruBomQuantity || 0) : 0,
+      totalPackageLoaQty,
       alreadyIssuedQty: 0,
       woQty: 0,
       contractorErectionRate: 0,
@@ -438,6 +484,7 @@ export default function NewContractorWorkOrderPage() {
                 <th className="px-4 py-3 text-left whitespace-nowrap">LOA Sr No</th>
                 <th className="px-4 py-3 text-left max-w-[200px]">Description</th>
                 <th className="px-4 py-3 text-left">Unit</th>
+                <th className="px-4 py-3 text-right whitespace-nowrap">Total LOA Qty</th>
                 <th className="px-4 py-3 text-right whitespace-nowrap">Circle LOA Qty</th>
                 <th className="px-4 py-3 text-right whitespace-nowrap">Circle BOM Qty</th>
                 <th className="px-4 py-3 text-right text-orange-600 whitespace-nowrap">Issued Qty</th>
@@ -464,17 +511,28 @@ export default function NewContractorWorkOrderPage() {
                   <React.Fragment key={item.itemId}>
                     {showActivityHeader && (
                       <tr className="bg-slate-100/80 border-y border-slate-200">
-                        <td colSpan={13} className="px-4 py-2 text-[13px] font-bold text-slate-700">
-                          <div className="flex justify-between items-center">
-                            <div>Activity: <span className="text-indigo-700 ml-1">{item.activity}</span></div>
-                            <button
-                              onClick={() => handleRemoveActivity(item.activity)}
-                              className="text-slate-400 hover:text-red-500 transition-colors p-1 rounded-md hover:bg-slate-200"
-                              title="Remove Activity"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
+                        <td colSpan={8} className="px-4 py-2 text-[13px] font-bold text-slate-700">
+                          Activity: <span className="text-indigo-700 ml-1">{item.activity}</span>
+                        </td>
+                        <td className="px-4 py-2">
+                          <input
+                            type="number"
+                            placeholder="Ratio"
+                            value={activityRatios[item.activity] || ''}
+                            onChange={(e) => handleRatioChange(item.activity, e.target.value)}
+                            className="w-20 text-right px-2 py-1 rounded border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                            title="Enter Ratio to divide Total Package LOA Qty"
+                          />
+                        </td>
+                        <td colSpan={4}></td>
+                        <td className="px-4 py-2 text-right">
+                          <button
+                            onClick={() => handleRemoveActivity(item.activity)}
+                            className="text-slate-400 hover:text-red-500 transition-colors p-1 rounded-md hover:bg-slate-200"
+                            title="Remove Activity"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
                         </td>
                       </tr>
                     )}
@@ -484,9 +542,17 @@ export default function NewContractorWorkOrderPage() {
                       <td className="px-4 py-2.5 text-slate-700">{item.loaSrNo}</td>
                       <td className="px-4 py-2.5 text-slate-700 truncate max-w-[200px]" title={item.description}>{item.description}</td>
                       <td className="px-4 py-2.5 text-slate-700">{item.unit}</td>
+                      <td className="px-4 py-2.5 text-right font-medium text-slate-800">{item.totalPackageLoaQty}</td>
                       <td className="px-4 py-2.5 text-right font-medium text-slate-800">{item.circleLoaQty}</td>
                       <td className="px-4 py-2.5 text-right font-medium text-slate-800">{item.circleBomQty}</td>
-                      <td className="px-4 py-2.5 text-right font-medium text-orange-600">{item.alreadyIssuedQty}</td>
+                      <td className="px-4 py-2.5">
+                        <input
+                          type="number"
+                          value={item.alreadyIssuedQty || ''}
+                          onChange={(e) => updateItem(index, 'alreadyIssuedQty', Number(e.target.value))}
+                          className="w-24 text-right px-2 py-1.5 rounded border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500 font-medium text-orange-600 text-sm transition-shadow bg-orange-50"
+                        />
+                      </td>
                       <td className="px-4 py-2.5">
                         <input
                           type="number"

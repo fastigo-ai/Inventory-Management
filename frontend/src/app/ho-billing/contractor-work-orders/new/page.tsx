@@ -343,48 +343,61 @@ export default function NewContractorWorkOrderPage() {
                 <tr>
                   <td colSpan={13} className="px-6 py-8 text-center text-slate-500">Select an activity to view items</td>
                 </tr>
-              ) : items.map((item, index) => (
-                <tr key={item.itemId} className="hover:bg-slate-50 group">
-                  <td className="px-4 py-2.5 text-slate-700">{item.tempCode}</td>
-                  <td className="px-4 py-2.5 text-slate-700 truncate max-w-[150px]" title={item.activity}>{item.activity}</td>
-                  <td className="px-4 py-2.5 text-slate-700">{item.loaSrNo}</td>
-                  <td className="px-4 py-2.5 text-slate-700 truncate max-w-[200px]" title={item.description}>{item.description}</td>
-                  <td className="px-4 py-2.5 text-slate-700">{item.unit}</td>
-                  <td className="px-4 py-2.5 text-right font-medium text-slate-800">{item.circleLoaQty}</td>
-                  <td className="px-4 py-2.5 text-right font-medium text-slate-800">{item.circleBomQty}</td>
-                  <td className="px-4 py-2.5 text-right font-medium text-orange-600">{item.alreadyIssuedQty}</td>
-                  <td className="px-4 py-2.5">
-                    <input
-                      type="number"
-                      value={item.woQty || ''}
-                      onChange={(e) => updateItem(index, 'woQty', Number(e.target.value))}
-                      className="w-20 text-right px-2 py-1.5 rounded border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm transition-shadow"
-                    />
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <input
-                      type="number"
-                      value={item.contractorErectionRate || ''}
-                      onChange={(e) => updateItem(index, 'contractorErectionRate', Number(e.target.value))}
-                      className="w-24 text-right px-2 py-1.5 rounded border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm transition-shadow"
-                    />
-                  </td>
-                  <td className="px-4 py-2.5 text-right font-medium text-slate-800">₹{item.amount.toLocaleString()}</td>
-                  <td className="px-4 py-2.5">
-                    <select
-                      value={item.gstType}
-                      onChange={(e) => updateItem(index, 'gstType', e.target.value)}
-                      className="w-28 px-2 py-1.5 rounded border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs text-slate-700 transition-shadow bg-white"
-                    >
-                      <option value="Intra">Intra (18%)</option>
-                      <option value="Inter">Inter (9+9%)</option>
-                    </select>
-                  </td>
-                  <td className="px-4 py-2.5 text-right font-bold text-indigo-700 bg-indigo-50/30 group-hover:bg-indigo-50/50 transition-colors">
-                    ₹{item.totalAmount.toLocaleString()}
-                  </td>
-                </tr>
-              ))}
+              ) : items.map((item, index) => {
+                const showActivityHeader = index === 0 || items[index - 1].activity !== item.activity;
+
+                return (
+                  <React.Fragment key={item.itemId}>
+                    {showActivityHeader && (
+                      <tr className="bg-slate-100/80 border-y border-slate-200">
+                        <td colSpan={13} className="px-4 py-2 text-[13px] font-bold text-slate-700">
+                          Activity: <span className="text-indigo-700 ml-1">{item.activity}</span>
+                        </td>
+                      </tr>
+                    )}
+                    <tr className="hover:bg-slate-50 group">
+                      <td className="px-4 py-2.5 text-slate-700">{item.tempCode}</td>
+                      <td className="px-4 py-2.5 text-slate-700 truncate max-w-[150px]" title={item.activity}>{item.activity}</td>
+                      <td className="px-4 py-2.5 text-slate-700">{item.loaSrNo}</td>
+                      <td className="px-4 py-2.5 text-slate-700 truncate max-w-[200px]" title={item.description}>{item.description}</td>
+                      <td className="px-4 py-2.5 text-slate-700">{item.unit}</td>
+                      <td className="px-4 py-2.5 text-right font-medium text-slate-800">{item.circleLoaQty}</td>
+                      <td className="px-4 py-2.5 text-right font-medium text-slate-800">{item.circleBomQty}</td>
+                      <td className="px-4 py-2.5 text-right font-medium text-orange-600">{item.alreadyIssuedQty}</td>
+                      <td className="px-4 py-2.5">
+                        <input
+                          type="number"
+                          value={item.woQty || ''}
+                          onChange={(e) => updateItem(index, 'woQty', Number(e.target.value))}
+                          className="w-20 text-right px-2 py-1.5 rounded border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm transition-shadow"
+                        />
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <input
+                          type="number"
+                          value={item.contractorErectionRate || ''}
+                          onChange={(e) => updateItem(index, 'contractorErectionRate', Number(e.target.value))}
+                          className="w-24 text-right px-2 py-1.5 rounded border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm transition-shadow"
+                        />
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-medium text-slate-800">₹{item.amount.toLocaleString()}</td>
+                      <td className="px-4 py-2.5">
+                        <select
+                          value={item.gstType}
+                          onChange={(e) => updateItem(index, 'gstType', e.target.value)}
+                          className="w-28 px-2 py-1.5 rounded border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs text-slate-700 transition-shadow bg-white"
+                        >
+                          <option value="Intra">Intra (18%)</option>
+                          <option value="Inter">Inter (9+9%)</option>
+                        </select>
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-bold text-indigo-700 bg-indigo-50/30 group-hover:bg-indigo-50/50 transition-colors">
+                        ₹{item.totalAmount.toLocaleString()}
+                      </td>
+                    </tr>
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>

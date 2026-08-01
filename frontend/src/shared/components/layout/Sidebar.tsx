@@ -123,6 +123,7 @@ const navItems: NavItem[] = [
     title: 'Site Portal',
     icon: <Layers className="w-5 h-5" />,
     children: [
+      { title: 'Incoming Work Orders', href: '/site-portal/incoming-work-orders' },
       { title: 'Demand Notes', href: '/site-portal/demand-notes' }
     ]
   }

@@ -14,6 +14,8 @@ export interface IDemandNoteItem {
   stockBal?: number;
   jmcQty?: number;
   wipQty?: number;
+  wipRequiredQty?: number;
+  miscellaneousQty?: number;
   demandQty: number;
   balBomQty?: number;
 }
@@ -49,6 +51,8 @@ const demandNoteItemSchema = new Schema<IDemandNoteItem>({
   stockBal: { type: Number, default: 0 },
   jmcQty: { type: Number, default: 0 },
   wipQty: { type: Number, default: 0 },
+  wipRequiredQty: { type: Number, default: 0 },
+  miscellaneousQty: { type: Number, default: 0 },
   demandQty: { type: Number, required: true, default: 0 },
   balBomQty: { type: Number, default: 0 }
 });

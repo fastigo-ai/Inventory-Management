@@ -667,60 +667,56 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
     let successCount = 0;
     const globalAffectedItemIds = new Set<string>();
 
-    const session = await mongoose.startSession();
-    session.startTransaction();
-    
-    try {
-      const chunkArray = <T>(array: T[], size: number): T[][] => {
-        const chunked: T[][] = [];
-        for (let i = 0; i < array.length; i += size) {
-          chunked.push(array.slice(i, i + size));
-        }
-        return chunked;
-      };
+    const chunkArray = <T>(array: T[], size: number): T[][] => {
+      const chunked: T[][] = [];
+      for (let i = 0; i < array.length; i += size) {
+        chunked.push(array.slice(i, i + size));
+      }
+      return chunked;
+    };
 
-      const prChunks = chunkArray(prNumbers, 25);
+    // ── PASS 1: Validate everything before writing ──────────────────────────
+    for (const prNumber of prNumbers) {
+      const prData = prMap[prNumber];
 
-      for (const chunk of prChunks) {
-        await Promise.all(chunk.map(async (prNumber) => {
-          const prData = prMap[prNumber];
-          
-          const existing = existingPRs.find(p => p.invoiceNumber === prData.invoiceNumber);
-          if (existing) {
-            throw new Error(`Purchase Invoice ${prData.invoiceNumber} (Rows: ${prData.rowNumbers.join(', ')}) already exists.`);
-          }
+      const existing = existingPRs.find(p => p.invoiceNumber === prData.invoiceNumber);
+      if (existing) {
+        throw new Error(`Purchase Invoice "${prData.invoiceNumber}" (Rows: ${prData.rowNumbers.join(', ')}) already exists. Fix the CSV and try again.`);
+      }
 
-        if (prData.purchaseOrderNumber) {
-          const po = existingPOs.find(p => p.purchaseOrderNumber === prData.purchaseOrderNumber);
-          if (po) {
-            prData.purchaseOrderId = po._id;
-          }
-        }
+      if (prData.purchaseOrderNumber) {
+        const po = existingPOs.find(p => p.purchaseOrderNumber === prData.purchaseOrderNumber);
+        if (po) prData.purchaseOrderId = po._id;
+      }
 
-        // Validate Consumption
-        const diLinesToConsume = prData.lineItems
-          .filter((i: any) => i.diId && i.diLineId)
-          .map((i: any) => ({
-            lineId: i.diLineId.toString(),
-            quantity: Number(i.quantity) || 0
-          }));
-        
-        let diIdForConsumption = null;
-        if (diLinesToConsume.length > 0) {
-          diIdForConsumption = prData.lineItems.find((i: any) => i.diId).diId.toString();
-          await ValidationService.validateConsumption(diIdForConsumption, diLinesToConsume);
-        }
+      const diLinesToConsume = prData.lineItems
+        .filter((i: any) => i.diId && i.diLineId)
+        .map((i: any) => ({ lineId: i.diLineId.toString(), quantity: Number(i.quantity) || 0 }));
 
-        const createdPrs = await PurchaseInvoice.create([prData], { session });
-        const createdPr = createdPrs[0];
+      if (diLinesToConsume.length > 0) {
+        const diIdForConsumption = prData.lineItems.find((i: any) => i.diId).diId.toString();
+        await ValidationService.validateConsumption(diIdForConsumption, diLinesToConsume);
+        prData._diIdForConsumption = diIdForConsumption;
+      }
+    }
+
+    // ── PASS 2: All validations passed — write everything ───────────────────
+    const prChunks = chunkArray(prNumbers, 25);
+
+    for (const chunk of prChunks) {
+      await Promise.all(chunk.map(async (prNumber) => {
+        const prData = prMap[prNumber];
+        const diIdForConsumption = prData._diIdForConsumption || null;
+
+        const createdPr = await PurchaseInvoice.create(prData);
         successCount++;
 
         // Link Relations
         if (diIdForConsumption) {
-          await RelationsService.linkDocuments(diIdForConsumption, 'DispatchInstruction', createdPr._id.toString(), 'PurchaseInvoice', 'CONSUMES', session);
+          await RelationsService.linkDocuments(diIdForConsumption, 'DispatchInstruction', createdPr._id.toString(), 'PurchaseInvoice');
         }
         if (createdPr.purchaseOrderId) {
-          await RelationsService.linkDocuments(createdPr.purchaseOrderId.toString(), 'PurchaseOrder', createdPr._id.toString(), 'PurchaseInvoice', 'CONSUMES', session);
+          await RelationsService.linkDocuments(createdPr.purchaseOrderId.toString(), 'PurchaseOrder', createdPr._id.toString(), 'PurchaseInvoice');
         }
 
         // Create Store Receipts
@@ -756,7 +752,7 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
             status: 'PENDING_RECEIPT',
             packingList: [{ packType: 'BOX', quantity: item.invoiceQuantity || item.quantity || 0 }]
           }));
-          await StoreInwardEntry.insertMany(inwardEntries, { session });
+          await StoreInwardEntry.insertMany(inwardEntries);
         }
 
         // Queue rebuild summary for imported items
@@ -768,28 +764,11 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
       }));
     }
 
-    await session.commitTransaction();
-    session.endSession();
-
     res.status(200).json({
       success: true,
       message: 'Import processed',
-      data: {
-        successCount,
-        errors: []
-      }
+      data: { successCount, errors: [] }
     });
-  } catch (err: any) {
-    await session.abortTransaction();
-    session.endSession();
-
-    res.status(400).json({
-      success: false,
-      message: err.message || 'Transaction aborted due to error.',
-      data: null
-    });
-    return;
-  }
 
     const uniqueItemIds = Array.from(globalAffectedItemIds);
     setTimeout(() => {

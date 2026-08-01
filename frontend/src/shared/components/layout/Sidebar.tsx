@@ -115,7 +115,8 @@ const navItems: NavItem[] = [
     title: 'HO Billing Portal',
     icon: <ShoppingBag className="w-5 h-5" />,
     children: [
-      { title: 'Contractors', href: '/ho-billing/contractors' }
+      { title: 'Contractors', href: '/ho-billing/contractors' },
+      { title: 'Contractor Work Orders', href: '/ho-billing/contractor-work-orders' }
     ]
   },
   {

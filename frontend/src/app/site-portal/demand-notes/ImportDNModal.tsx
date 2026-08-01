@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Upload, X, FileSpreadsheet } from 'lucide-react';
 import { toast } from 'sonner';
+import { api } from '@/shared/api/axios';
 
 interface ImportDNModalProps {
   isOpen: boolean;
@@ -35,15 +36,9 @@ export default function ImportDNModal({ isOpen, onClose, onSuccess }: ImportDNMo
     formData.append('file', file);
 
     try {
-      const response = await fetch('/api/demand-notes/import', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: formData,
-      });
-
-      const res = await response.json();
+      const response = await api.post('/demand-notes/import', formData);
+      const res = response.data;
+      
       if (res.success) {
         setUploadStats({
           success: res.data.successCount || 0,
@@ -54,8 +49,8 @@ export default function ImportDNModal({ isOpen, onClose, onSuccess }: ImportDNMo
       } else {
         toast.error(res.message || 'Import failed');
       }
-    } catch (error) {
-      toast.error('Failed to upload file');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to upload file');
     } finally {
       setUploading(false);
     }
@@ -63,23 +58,19 @@ export default function ImportDNModal({ isOpen, onClose, onSuccess }: ImportDNMo
 
   const handleDownloadSample = async () => {
     try {
-      const response = await fetch('/api/demand-notes/sample-csv', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+      const response = await api.get('/demand-notes/sample-csv', {
+        responseType: 'blob'
       });
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'demand_note_sample.csv';
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-      } else {
-        toast.error('Failed to download sample CSV');
-      }
+      
+      const blob = new Blob([response.data], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'demand_note_sample.csv';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      
     } catch (error) {
       toast.error('An error occurred while downloading the sample CSV');
     }

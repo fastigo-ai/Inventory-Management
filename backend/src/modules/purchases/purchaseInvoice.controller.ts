@@ -675,14 +675,13 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
       return chunked;
     };
 
-    // ── PASS 1: Validate everything before writing ──────────────────────────
+    // ── PASS 1: Validate DI allocations before writing ─────────────────────
     for (const prNumber of prNumbers) {
       const prData = prMap[prNumber];
 
+      // Mark if existing (for upsert decision)
       const existing = existingPRs.find(p => p.invoiceNumber === prData.invoiceNumber);
-      if (existing) {
-        throw new Error(`Purchase Invoice "${prData.invoiceNumber}" (Rows: ${prData.rowNumbers.join(', ')}) already exists. Fix the CSV and try again.`);
-      }
+      prData._existingId = existing ? existing._id : null;
 
       if (prData.purchaseOrderNumber) {
         const po = existingPOs.find(p => p.purchaseOrderNumber === prData.purchaseOrderNumber);
@@ -695,12 +694,14 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
 
       if (diLinesToConsume.length > 0) {
         const diIdForConsumption = prData.lineItems.find((i: any) => i.diId).diId.toString();
-        await ValidationService.validateConsumption(diIdForConsumption, diLinesToConsume);
+        // For existing PIs, exclude the PI itself from allocation check to allow re-import
+        const excludeId = prData._existingId ? prData._existingId.toString() : undefined;
+        await ValidationService.validateConsumption(diIdForConsumption, diLinesToConsume, excludeId);
         prData._diIdForConsumption = diIdForConsumption;
       }
     }
 
-    // ── PASS 2: All validations passed — write everything ───────────────────
+    // ── PASS 2: All validations passed — upsert everything ──────────────────
     const prChunks = chunkArray(prNumbers, 25);
 
     for (const chunk of prChunks) {
@@ -708,29 +709,38 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
         const prData = prMap[prNumber];
         const diIdForConsumption = prData._diIdForConsumption || null;
 
-        const createdPr = await PurchaseInvoice.create(prData);
+        // Upsert: update existing or create new
+        const { _existingId, _diIdForConsumption, rowNumbers, ...prPayload } = prData;
+        const savedPr = await PurchaseInvoice.findOneAndUpdate(
+          { invoiceNumber: prData.invoiceNumber },
+          { $set: prPayload },
+          { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
+        );
         successCount++;
 
         // Link Relations
         if (diIdForConsumption) {
-          await RelationsService.linkDocuments(diIdForConsumption, 'DispatchInstruction', createdPr._id.toString(), 'PurchaseInvoice');
+          await RelationsService.linkDocuments(diIdForConsumption, 'DispatchInstruction', savedPr._id.toString(), 'PurchaseInvoice');
         }
-        if (createdPr.purchaseOrderId) {
-          await RelationsService.linkDocuments(createdPr.purchaseOrderId.toString(), 'PurchaseOrder', createdPr._id.toString(), 'PurchaseInvoice');
+        if (savedPr.purchaseOrderId) {
+          await RelationsService.linkDocuments(savedPr.purchaseOrderId.toString(), 'PurchaseOrder', savedPr._id.toString(), 'PurchaseInvoice');
         }
 
-        // Create Store Receipts
-        if (createdPr.lineItems && createdPr.lineItems.length > 0) {
-          const inwardEntries = createdPr.lineItems.map((item: any) => ({
-            purchaseInvoiceId: createdPr._id,
-            purchaseOrderId: createdPr.purchaseOrderId,
-            poNumber: createdPr.purchaseOrderNumber,
+        // Recreate Store Receipts (delete old ones first on update)
+        if (_existingId) {
+          await StoreInwardEntry.deleteMany({ purchaseInvoiceId: savedPr._id });
+        }
+        if (savedPr.lineItems && savedPr.lineItems.length > 0) {
+          const inwardEntries = savedPr.lineItems.map((item: any) => ({
+            purchaseInvoiceId: savedPr._id,
+            purchaseOrderId: savedPr.purchaseOrderId,
+            poNumber: savedPr.purchaseOrderNumber,
             poDate: item.poDate,
-            billingFrom: createdPr.billingFrom,
-            vendorName: createdPr.vendorName,
-            invoiceNumber: createdPr.invoiceNumber,
-            invoiceDate: createdPr.date,
-            diRefNo: createdPr.diNumber || (createdPr as any).diNo,
+            billingFrom: savedPr.billingFrom,
+            vendorName: savedPr.vendorName,
+            invoiceNumber: savedPr.invoiceNumber,
+            invoiceDate: savedPr.date,
+            diRefNo: savedPr.diNumber || (savedPr as any).diNo,
             circle: item.circle,
             subcircle: item.subcircle,
             package: item.package,
@@ -756,8 +766,8 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
         }
 
         // Queue rebuild summary for imported items
-        if (createdPr.lineItems && createdPr.lineItems.length > 0) {
-          for (const item of createdPr.lineItems) {
+        if (savedPr.lineItems && savedPr.lineItems.length > 0) {
+          for (const item of savedPr.lineItems) {
             if (item.itemId) globalAffectedItemIds.add(item.itemId.toString());
           }
         }

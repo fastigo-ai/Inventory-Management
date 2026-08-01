@@ -558,6 +558,24 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
       return isNaN(n) ? 0 : n;
     };
 
+    // Safely parses date strings like DD-MM-YYYY, DD/MM/YYYY, or ISO format
+    const safeDate = (val: any): string => {
+      if (!val) return new Date().toISOString().split('T')[0];
+      const str = String(val).trim();
+      // Match DD-MM-YYYY or DD/MM/YYYY
+      const ddmmyyyy = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+      if (ddmmyyyy) {
+        const [, d, m, y] = ddmmyyyy;
+        return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+      }
+      // Match YYYY-MM-DD already fine
+      const iso = str.match(/^\d{4}-\d{2}-\d{2}/);
+      if (iso) return str.split('T')[0];
+      // Fallback: try native Date parse
+      const d = new Date(str);
+      return isNaN(d.getTime()) ? new Date().toISOString().split('T')[0] : d.toISOString().split('T')[0];
+    };
+
     for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
       const row = rows[rowIndex];
       const actualRowNumber = rowIndex + 2; // +1 for header, +1 for 0-index
@@ -569,7 +587,7 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
           invoiceNumber: prNumber,
           rowNumbers: [],
           purchaseOrderNumber: row['purchaseordernumber'] || '',
-          date: row['date'] || row['receivedate'] || new Date().toISOString().split('T')[0],
+          date: safeDate(row['date'] || row['receivedate']),
           vendorName: row['vendorname'],
           status: row['status'] || 'Draft',
           diNumber: row['dino'] || row['dinumber'] || '',

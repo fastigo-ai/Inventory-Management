@@ -214,26 +214,19 @@ export default function NewContractorWorkOrderPage() {
 
           <div>
             <label className="block text-[13px] font-semibold text-slate-800 mb-1">Regd Contractor <span className="text-red-500">*</span></label>
-            <div className="relative">
-              <input
-                type="text"
-                list="contractor-list"
-                value={formData.contractorId ? contractors.find(c => c._id === formData.contractorId)?.dynamicData?.contractorName || formData.contractorId : ''}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const matched = contractors.find(c => c.dynamicData?.contractorName === val);
-                  setFormData({ ...formData, contractorId: matched ? matched._id : val });
-                }}
-                disabled={!formData.circle}
-                placeholder="Search contractor..."
-                className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500 disabled:bg-slate-50"
-              />
-              <datalist id="contractor-list">
-                {contractors.map(c => (
-                  <option key={c._id} value={c.dynamicData?.contractorName} />
-                ))}
-              </datalist>
-            </div>
+            <select
+              value={formData.contractorId}
+              onChange={(e) => setFormData({ ...formData, contractorId: e.target.value })}
+              disabled={!formData.circle}
+              className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500 bg-white disabled:bg-slate-50 disabled:text-slate-500"
+            >
+              <option value="">Select Contractor...</option>
+              {contractors.map(c => (
+                <option key={c._id} value={c._id}>
+                  {c.dynamicData?.contractorName} {c.location ? `(${c.location})` : ''}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>

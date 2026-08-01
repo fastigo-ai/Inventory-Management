@@ -638,13 +638,24 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
     const errors: any[] = [];
     const globalAffectedItemIds = new Set<string>();
     
-    for (const prNumber of prNumbers) {
-      const prData = prMap[prNumber];
-      try {
+    const chunkArray = <T>(array: T[], size: number): T[][] => {
+      const chunked: T[][] = [];
+      for (let i = 0; i < array.length; i += size) {
+        chunked.push(array.slice(i, i + size));
+      }
+      return chunked;
+    };
+
+    const prChunks = chunkArray(prNumbers, 25);
+
+    for (const chunk of prChunks) {
+      await Promise.all(chunk.map(async (prNumber) => {
+        const prData = prMap[prNumber];
+        try {
         const existing = existingPRs.find(p => p.invoiceNumber === prData.invoiceNumber);
         if (existing) {
           errors.push(`Purchase Invoice ${prData.invoiceNumber} already exists.`);
-          continue;
+          return;
         }
 
         if (prData.purchaseOrderNumber) {
@@ -724,7 +735,8 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
       } catch (err: any) {
         errors.push(`Failed to import Invoice ${prData.invoiceNumber}: ${err.message}`);
       }
-    }
+    }));
+  }
 
     res.status(200).json({
       success: true,

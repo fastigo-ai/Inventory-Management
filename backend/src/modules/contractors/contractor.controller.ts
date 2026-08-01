@@ -16,7 +16,15 @@ export const getContractors = asyncHandler(async (req: Request, res: Response) =
   const filter: any = { isActive: true };
   
   if (location) {
-    filter.location = location;
+    filter.$or = [
+      { location: location },
+      { assignedLocations: location },
+      { 'dynamicData.circle': location },
+      { 'dynamicData.assignedCircle': location },
+      { 'dynamicData.assignedCircles': location },
+      // Substring match in case it's a comma separated string
+      { 'dynamicData.assignedCircle': { $regex: location, $options: 'i' } }
+    ];
   }
 
   const contractors = await Contractor.find(filter).sort({ 'dynamicData.displayName': 1 });

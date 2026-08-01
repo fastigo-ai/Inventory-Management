@@ -97,7 +97,7 @@ export default function ContractorWorkOrdersPage() {
                       {wo.workOrderNumber}
                     </td>
                     <td className="px-6 py-4">
-                      {wo.contractorId?.dynamicData?.contractorName || 'Unknown Contractor'}
+                      {wo.contractorId?.dynamicData?.displayName || wo.contractorId?.dynamicData?.companyName || 'Unknown Contractor'}
                     </td>
                     <td className="px-6 py-4">
                       {wo.package} <br />

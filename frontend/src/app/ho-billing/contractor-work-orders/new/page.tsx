@@ -223,7 +223,7 @@ export default function NewContractorWorkOrderPage() {
               <option value="">Select Contractor...</option>
               {contractors.map(c => (
                 <option key={c._id} value={c._id}>
-                  {c.dynamicData?.contractorName} {c.location ? `(${c.location})` : ''}
+                  {c.dynamicData?.displayName || c.dynamicData?.companyName || 'Unknown Contractor'} {c.location ? `(${c.location})` : ''}
                 </option>
               ))}
             </select>

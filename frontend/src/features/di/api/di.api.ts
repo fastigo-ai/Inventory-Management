@@ -37,6 +37,7 @@ export const getDIs = async (params?: {
   startDate?: string;
   endDate?: string;
   search?: string;
+  status?: string;
 }) => {
   const response = await api.get('/di', { params });
   return response.data;

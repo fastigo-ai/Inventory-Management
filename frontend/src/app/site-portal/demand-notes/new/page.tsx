@@ -410,14 +410,14 @@ function DemandNoteForm() {
                 if (!acc[act]) acc[act] = [];
                 acc[act].push({ item, idx });
                 return acc;
-              }, {} as Record<string, {item: any, idx: number}[]>)).map(([activity, group]) => (
+              }, {} as Record<string, {item: any, idx: number}[]>)).map(([activity, group]: any) => (
                 <React.Fragment key={activity}>
                   <tr className="bg-slate-100/80 border-y border-slate-200">
                     <td colSpan={24} className="px-4 py-2 text-[13px] font-bold text-slate-700">
                       Activity: <span className="text-indigo-700 ml-1">{activity === 'Unassigned Activity' ? 'Pending Item Selection' : activity}</span>
                     </td>
                   </tr>
-                  {group.map(({ item, idx }) => (
+                  {group.map(({ item, idx }: {item: any, idx: number}) => (
                     <tr key={idx} className="hover:bg-slate-50">
                       <td className="px-4 py-3">
                         <select

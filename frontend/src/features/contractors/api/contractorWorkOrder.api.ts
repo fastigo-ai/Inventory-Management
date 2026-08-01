@@ -14,3 +14,8 @@ export const getContractorWorkOrderById = async (id: string) => {
   const response = await api.get(`/ho-billing/contractor-work-orders/${id}`);
   return response.data;
 };
+
+export const importContractorWorkOrders = async (data: any[]) => {
+  const response = await api.post('/ho-billing/contractor-work-orders/bulk-import', { data });
+  return response.data;
+};

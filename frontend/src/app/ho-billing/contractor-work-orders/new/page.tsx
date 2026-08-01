@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Save, ArrowLeft, Plus, X, Search } from 'lucide-react';
 import { getContractors } from '@/features/contractors/api/contractors.api';
-import { getItems, getEntityMetadata } from '@/features/items/api/items.api';
+import { getItems, getEntityMetadata, getItemMetrics } from '@/features/items/api/items.api';
 import { createContractorWorkOrder } from '@/features/contractors/api/contractorWorkOrder.api';
 import { toast } from 'sonner';
 
@@ -30,7 +30,7 @@ export default function NewContractorWorkOrderPage() {
   const [currentActivityInput, setCurrentActivityInput] = useState('');
 
   const [contractors, setContractors] = useState<any[]>([]);
-  const [activities, setActivities] = useState<string[]>([]);
+  const [allActivityStats, setAllActivityStats] = useState<any[]>([]);
   
   const [items, setItems] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -51,10 +51,9 @@ export default function NewContractorWorkOrderPage() {
   useEffect(() => {
     const fetchActivities = async () => {
       try {
-        const meta = await getEntityMetadata('Item');
-        const actField = meta?.fields?.find((f: any) => f.name === 'activity');
-        if (actField && actField.options) {
-          setActivities(actField.options);
+        const metrics = await getItemMetrics();
+        if (metrics && metrics.circleActivityStats) {
+          setAllActivityStats(metrics.circleActivityStats);
         }
       } catch (e) {
         console.error('Failed to load activities', e);
@@ -62,6 +61,14 @@ export default function NewContractorWorkOrderPage() {
     };
     fetchActivities();
   }, []);
+
+  // Compute available activities based on selected circle
+  const activities = React.useMemo(() => {
+    if (!formData.circle) return [];
+    const relevantStats = allActivityStats.filter((s: any) => s._id?.circle === formData.circle);
+    const acts = relevantStats.map((s: any) => s._id?.activity).filter((id: any) => typeof id === 'string' && id.trim() !== '');
+    return Array.from(new Set(acts)).sort();
+  }, [formData.circle, allActivityStats]);
 
   // Fetch contractors when circle changes
   useEffect(() => {
@@ -403,20 +410,17 @@ export default function NewContractorWorkOrderPage() {
               <label className="block text-[13px] font-semibold text-slate-800 mb-1">Add Activities <span className="text-red-500">*</span></label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <input
-                    type="text"
-                    list="activity-list"
+                  <select
                     value={currentActivityInput}
                     onChange={(e) => setCurrentActivityInput(e.target.value)}
-                    placeholder="Search activity keywords..."
                     disabled={!formData.circle || isLoadingItems}
-                    className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500 disabled:bg-slate-50"
-                  />
-                  <datalist id="activity-list">
+                    className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500 disabled:bg-slate-50 bg-white"
+                  >
+                    <option value="">Select an activity...</option>
                     {activities.map((act, i) => (
-                      <option key={i} value={act} />
+                      <option key={i} value={act}>{act}</option>
                     ))}
-                  </datalist>
+                  </select>
                 </div>
                 <button
                   onClick={handleAddActivity}

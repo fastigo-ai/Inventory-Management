@@ -277,6 +277,18 @@ export default function NewContractorWorkOrderPage() {
     }
   };
 
+  const getDivisions = (circle: string) => {
+    switch (circle?.toLowerCase()) {
+      case 'nahan':
+        return ['Nahan', 'Rajgarh', 'Poanta'];
+      case 'solan':
+        return ['Solan', 'Nalagarh', 'Baddhi', 'Parwahoo', 'Arki'];
+      default:
+        return [];
+    }
+  };
+  const availableDivisions = getDivisions(formData.circle);
+
   return (
     <div className="p-6 pb-24 max-w-7xl mx-auto">
       <div className="flex items-center space-x-4 mb-6">

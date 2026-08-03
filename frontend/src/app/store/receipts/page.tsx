@@ -15,7 +15,7 @@ export default function StoreReceiptsPage() {
   const fetchReceipts = () => {
     setLoading(true);
     getPendingStoreReceipts()
-      .then(res => setEntries(res.data || []))
+      .then(res => setEntries(res.data?.entries || res.data || []))
       .catch(console.error)
       .finally(() => setLoading(false));
   };

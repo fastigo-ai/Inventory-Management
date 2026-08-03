@@ -126,44 +126,44 @@ export const getDIPrefillData = asyncHandler(async (req: Request, res: Response)
     throw new ApiError(404, 'DI not found');
   }
 
-  const po = await PurchaseOrder.findById(di.purchaseOrderId);
-  if (!po) {
-    throw new ApiError(404, 'Purchase Order not found');
-  }
+  const po = di.purchaseOrderId ? await PurchaseOrder.findById(di.purchaseOrderId) : null;
+  // If no PO is linked, we just proceed with what we have in DI.
 
-  // Find if there's any matching Purchase Invoice for this PO
-  const invoice = await PurchaseInvoice.findOne({ purchaseOrderId: po._id }).sort({ createdAt: -1 });
+  // Find if there's any matching Purchase Invoice for this PO (only if PO exists)
+  const invoice = po ? await PurchaseInvoice.findOne({ purchaseOrderId: po._id }).sort({ createdAt: -1 }) : null;
 
   // Get the first item from DI to map properties (assuming 1 item per DI typically, or sum them)
   const item = di.lineItems[0];
-  const poItem = po.lineItems.find((li: any) => li.itemId?.toString() === item?.itemId?.toString() || li.tempCode === item?.tempCode);
+  const poItem = po ? po.lineItems.find((li: any) => li.itemId?.toString() === item?.itemId?.toString() || li.tempCode === item?.tempCode) : null;
   const invoiceItem = invoice?.lineItems?.find((li: any) => li.itemId?.toString() === item?.itemId?.toString());
 
   const prefillData = {
     diId: di._id,
-    purchaseOrderId: po._id,
-    poNumber: po.purchaseOrderNumber,
-    poDate: po.date,
-    billingFrom: po.billingCompany?.name,
-    vendorName: po.vendorName,
-    unit: poItem?.unit || 'Nos',
+    purchaseOrderId: po?._id || null,
+    poNumber: po?.purchaseOrderNumber || di.poNumber || '',
+    poDate: po?.date || '',
+    billingFrom: po?.billingCompany?.name || '',
+    vendorName: po?.vendorName || di.vendorName || '',
+    unit: poItem?.unit || item?.unit || 'Nos',
     invoiceQty: invoiceItem ? invoiceItem.quantity : (item?.quantity || poItem?.quantity || 0),
     totalQty: poItem?.quantity || item?.quantity || 0,
     rate: invoiceItem ? invoiceItem.rate : (poItem?.rate || 0),
     amount: invoiceItem ? invoiceItem.amount : (poItem?.amount || 0),
     taxableAmount: invoiceItem ? invoiceItem.amount : (poItem?.amount || 0),
-    hsnCode: invoiceItem ? invoiceItem.hsnCode : poItem?.hsnCode,
-    gst: po.cgstPercentage ? `${(po.cgstPercentage * 2)}%` : po.igstPercentage ? `${po.igstPercentage}%` : '',
-    cgst: po.cgstPercentage || 0,
-    sgst: po.sgstPercentage || 0,
-    igst: po.igstPercentage || 0,
-    invoiceDate: invoice?.date,
+    hsnCode: invoiceItem ? invoiceItem.hsnCode : (poItem?.hsnCode || ''),
+    gst: po ? (po.cgstPercentage ? `${(po.cgstPercentage * 2)}%` : po.igstPercentage ? `${po.igstPercentage}%` : '') : '0%',
+    cgst: po?.cgstPercentage || 0,
+    sgst: po?.sgstPercentage || 0,
+    igst: po?.igstPercentage || 0,
+    invoiceDate: invoice?.date || '',
     diRefNo: di.diNumber, // Usually DI number is the ref no
     circle: di.circle,
     package: di.package,
     serialNumber: poItem?.loaSerialNo || item?.tempCode || '',
     matchedInvoiceNumber: invoice?.invoiceNumber || null,
-    matchedInvoiceId: invoice?._id || null
+    matchedInvoiceId: invoice?._id || null,
+    itemName: item?.itemName || '',
+    tempCode: item?.tempCode || ''
   };
 
   res.status(200).json(

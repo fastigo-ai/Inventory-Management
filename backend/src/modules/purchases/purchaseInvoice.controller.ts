@@ -119,15 +119,66 @@ export const getPurchaseInvoices = async (req: Request, res: Response): Promise<
     const skip = (page - 1) * limit;
 
     const filter: any = {};
+    
     if (req.query.vendorName) {
       filter.vendorName = req.query.vendorName;
     }
-    if (req.query.search) {
-      filter.invoiceNumber = { $regex: req.query.search as string, $options: 'i' };
+    
+    if (req.query.invoiceNumber) {
+      filter.invoiceNumber = { $regex: req.query.invoiceNumber as string, $options: 'i' };
+    }
+
+    if (req.query.status) {
+      const statuses = Array.isArray(req.query.status) ? req.query.status : [req.query.status];
+      filter.status = { $in: statuses };
+    }
+
+    if (req.query.receiptStatus) {
+      const rStatuses = Array.isArray(req.query.receiptStatus) ? req.query.receiptStatus : [req.query.receiptStatus];
+      filter.receiptStatus = { $in: rStatuses };
+    }
+
+    if (req.query.billedStatus) {
+      const bStatuses = Array.isArray(req.query.billedStatus) ? req.query.billedStatus : [req.query.billedStatus];
+      filter.billedStatus = { $in: bStatuses };
+    }
+
+    if (req.query.fromDate || req.query.toDate) {
+      filter.date = {};
+      if (req.query.fromDate) filter.date.$gte = new Date(req.query.fromDate as string);
+      if (req.query.toDate) {
+        const toDate = new Date(req.query.toDate as string);
+        toDate.setHours(23, 59, 59, 999);
+        filter.date.$lte = toDate;
+      }
+    }
+
+    if (req.query.minAmount || req.query.maxAmount) {
+      filter.total = {};
+      if (req.query.minAmount) filter.total.$gte = Number(req.query.minAmount);
+      if (req.query.maxAmount) filter.total.$lte = Number(req.query.maxAmount);
+    }
+
+    if (req.query.hasPO === 'true') {
+      filter.purchaseOrderId = { $exists: true, $ne: null };
+    } else if (req.query.hasPO === 'false') {
+      filter.purchaseOrderId = { $eq: null };
+    }
+
+    if (req.query.hasDI === 'true') {
+      filter.$or = [
+        { diNumber: { $exists: true, $ne: '' } },
+        { 'lineItems.diId': { $exists: true, $ne: null } }
+      ];
+    } else if (req.query.hasDI === 'false') {
+      filter.$and = [
+        { $or: [{ diNumber: { $exists: false } }, { diNumber: '' }] },
+        { 'lineItems.diId': { $eq: null } }
+      ];
     }
 
     const [prs, total] = await Promise.all([
-      PurchaseInvoice.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      PurchaseInvoice.find(filter).sort({ date: -1, createdAt: -1 }).skip(skip).limit(limit).lean(),
       PurchaseInvoice.countDocuments(filter)
     ]);
 
@@ -176,6 +227,23 @@ export const getPurchaseInvoices = async (req: Request, res: Response): Promise<
     res.status(500).json({
       success: false,
       message: 'Failed to fetch Purchase Invoices',
+      error: error.message
+    });
+  }
+};
+
+export const getUniqueVendors = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const vendors = await PurchaseInvoice.distinct('vendorName');
+    res.status(200).json({
+      success: true,
+      data: vendors.filter(v => v) // filter out null/undefined
+    });
+  } catch (error: any) {
+    console.error('Error fetching unique vendors:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch unique vendors',
       error: error.message
     });
   }

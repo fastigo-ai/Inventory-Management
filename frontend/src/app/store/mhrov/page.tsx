@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Plus, Search, FileText, BarChart3, ListTodo, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import { useClientTable } from "@/shared/hooks/useClientTable";
+import { DataTableTopControls, DataTableBottomControls } from "@/shared/components/DataTableControls";
 
 export default function MhrovPage() {
   const router = useRouter();
@@ -15,7 +17,6 @@ export default function MhrovPage() {
   // Vouchers State
   const [mhrovs, setMhrovs] = useState<any[]>([]);
   const [loadingVouchers, setLoadingVouchers] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
 
   // Dashboard State
   const [dashboardData, setDashboardData] = useState<any>(null);
@@ -54,9 +55,17 @@ export default function MhrovPage() {
     }
   };
 
-  const filteredMhrovs = mhrovs.filter((m) =>
-    m.mhrovNumber.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const {
+    paginatedData,
+    searchTerm,
+    setSearchTerm,
+    pageSize,
+    setPageSize,
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    totalItems
+  } = useClientTable(mhrovs);
 
   const filteredItems = dashboardData?.items?.filter((item: any) => 
     item.itemName?.toLowerCase().includes(itemSearch.toLowerCase()) ||
@@ -250,19 +259,14 @@ export default function MhrovPage() {
       )}
 
       {activeTab === "vouchers" && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
-            <h3 className="text-base font-semibold text-slate-800">Voucher Registry</h3>
-            <div className="relative w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input
-                className="pl-9 h-9 text-[13px] bg-white border-slate-200 focus-visible:ring-indigo-500"
-                placeholder="Search by MHROV Number..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-          </div>
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300 flex flex-col">
+          <DataTableTopControls
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            pageSize={pageSize}
+            setPageSize={setPageSize}
+            totalItems={totalItems}
+          />
 
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
@@ -283,7 +287,7 @@ export default function MhrovPage() {
                       Loading MHROVs...
                     </td>
                   </tr>
-                ) : filteredMhrovs.length === 0 ? (
+                ) : paginatedData.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-12">
                       <div className="flex flex-col items-center justify-center text-slate-500">
@@ -298,7 +302,7 @@ export default function MhrovPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredMhrovs.map((mhrov) => (
+                  paginatedData.map((mhrov) => (
                     <tr
                       key={mhrov._id}
                       className="hover:bg-slate-50 cursor-pointer transition-colors group"
@@ -361,6 +365,14 @@ export default function MhrovPage() {
               </tbody>
             </table>
           </div>
+          <DataTableBottomControls
+            currentPage={currentPage}
+            setCurrentPage={setCurrentPage}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            setPageSize={setPageSize}
+            totalItems={totalItems}
+          />
         </div>
       )}
     </div>

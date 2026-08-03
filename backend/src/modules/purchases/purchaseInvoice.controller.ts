@@ -122,6 +122,9 @@ export const getPurchaseInvoices = async (req: Request, res: Response): Promise<
     if (req.query.vendorName) {
       filter.vendorName = req.query.vendorName;
     }
+    if (req.query.search) {
+      filter.invoiceNumber = { $regex: req.query.search as string, $options: 'i' };
+    }
 
     const [prs, total] = await Promise.all([
       PurchaseInvoice.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),

@@ -166,13 +166,14 @@ export const createPurchaseInvoice = async (payload: any) => {
   return response.data;
 };
 
-export const getPurchaseInvoices = async (params?: { vendorName?: string; status?: string; storeStatus?: string; page?: number; limit?: number }) => {
+export const getPurchaseInvoices = async (params?: { vendorName?: string; status?: string; storeStatus?: string; page?: number; limit?: number; search?: string }) => {
   const query = new URLSearchParams();
   if (params?.vendorName) query.append('vendorName', params.vendorName);
   if (params?.status) query.append('status', params.status);
   if (params?.storeStatus) query.append('storeStatus', params.storeStatus);
   if (params?.page) query.append('page', params.page.toString());
   if (params?.limit) query.append('limit', params.limit.toString());
+  if (params?.search) query.append('search', params.search);
   
   const queryString = query.toString();
   const url = queryString ? `/purchases/invoices?${queryString}` : '/purchases/invoices';

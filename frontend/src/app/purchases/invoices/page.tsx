@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { PurchaseInvoiceImportModal } from "@/features/purchases/components/PurchaseInvoiceImportModal";
-import { Upload, Download } from "lucide-react";
+import { Upload, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { exportPurchaseInvoicesToCsv } from "@/features/purchases/api/purchases.api";
 
 export default function PurchaseInvoicesPage() {
@@ -21,7 +21,19 @@ export default function PurchaseInvoicesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const router = useRouter();
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1); // Reset to page 1 on new search
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [search]);
 
   const handleExport = async () => {
     try {
@@ -34,11 +46,12 @@ export default function PurchaseInvoicesPage() {
     }
   };
 
-  const fetchReceives = async () => {
+  const fetchReceives = async (currentPage = 1, currentSearch = "") => {
     try {
       setIsLoading(true);
-      const res = await getPurchaseInvoices();
+      const res = await getPurchaseInvoices({ page: currentPage, limit: 50, search: currentSearch });
       setReceives(res.data?.prs || []);
+      setTotalPages(res.data?.pagination?.totalPages || 1);
     } catch (error) {
       console.error("Failed to load Purchase Invoices", error);
     } finally {
@@ -47,8 +60,8 @@ export default function PurchaseInvoicesPage() {
   };
 
   useEffect(() => {
-    fetchReceives();
-  }, []);
+    fetchReceives(page, debouncedSearch);
+  }, [page, debouncedSearch]);
 
   return (
     <div className="flex flex-col h-full bg-[#fcfcfc] overflow-hidden">
@@ -67,6 +80,19 @@ export default function PurchaseInvoicesPage() {
               <DropdownMenuItem>In Transit</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          
+          <div className="relative ml-6">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-slate-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Search Invoice No..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 pr-4 py-1.5 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 w-64"
+            />
+          </div>
         </div>
         <div className="flex items-center space-x-3">
           <Link href="/purchases/invoices/new">
@@ -194,6 +220,35 @@ export default function PurchaseInvoicesPage() {
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      {!isLoading && receives.length > 0 && (
+        <div className="h-14 px-6 border-t border-slate-200 bg-white flex items-center justify-between shrink-0">
+          <p className="text-sm text-slate-500">
+            Page {page} of {totalPages}
+          </p>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="h-8 px-2"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="h-8 px-2"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       <PurchaseInvoiceImportModal 
         isOpen={isImportModalOpen} 

@@ -301,6 +301,7 @@ export const updateInwardEntry = asyncHandler(async (req: Request, res: Response
 export const getInwardEntryById = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const entry = await StoreInwardEntry.findById(id)
+    .populate('itemId')
     .populate('diId')
     .populate('purchaseOrderId')
     .populate('purchaseInvoiceId')

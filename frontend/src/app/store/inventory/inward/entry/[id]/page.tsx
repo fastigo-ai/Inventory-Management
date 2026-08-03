@@ -93,7 +93,9 @@ export default function InwardRegistrationForm() {
 
           setFormData({
             ...entry,
-            description: entry.itemDescription || entry.itemName || '',
+            description: entry.itemDescription || entry.itemName || (entry.itemId?.dynamicData?.name) || '',
+            unit: entry.unit || (entry.itemId?.dynamicData?.unit) || '',
+            serialNumber: entry.serialNumber || (entry.itemId?.dynamicData?.sku) || '',
             invoiceDate: entry.invoiceDate ? entry.invoiceDate.split('T')[0] : '',
             grDate: entry.grDate ? entry.grDate.split('T')[0] : '',
             receivedDate: entry.receivedDate ? entry.receivedDate.split('T')[0] : new Date().toISOString().split('T')[0],
@@ -312,6 +314,7 @@ export default function InwardRegistrationForm() {
                 <tr>
                   <th className="px-4 py-3 border-r">Sr. No</th>
                   <th className="px-4 py-3 border-r min-w-[200px]">Material Description</th>
+                  <th className="px-4 py-3 border-r">LOA Serial No</th>
                   <th className="px-4 py-3 border-r">Temp Code</th>
                   <th className="px-4 py-3 border-r">HSN Code</th>
                   <th className="px-4 py-3 border-r">Unit</th>
@@ -336,7 +339,9 @@ export default function InwardRegistrationForm() {
                   <td className="px-4 py-3 border-r border-slate-100 text-center font-medium">1</td>
                   <td className="px-4 py-3 border-r border-slate-100 whitespace-normal">
                     <div className="font-medium text-slate-800">{formData.description || '-'}</div>
-                    <div className="text-xs text-slate-400 mt-0.5">SN: {formData.serialNumber || '-'}</div>
+                  </td>
+                  <td className="px-4 py-3 border-r border-slate-100 font-medium text-slate-700">
+                    {formData.serialNumber || '-'}
                   </td>
                   <td className="px-4 py-3 border-r border-slate-100 font-medium text-slate-700">
                     {formData.tempCode || '-'}

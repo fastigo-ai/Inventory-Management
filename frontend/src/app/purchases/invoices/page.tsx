@@ -13,11 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { PurchaseInvoiceImportModal } from "@/features/purchases/components/PurchaseInvoiceImportModal";
-<<<<<<< HEAD
-=======
-import { Upload, Download, ChevronLeft, ChevronRight } from "lucide-react";
-import { exportPurchaseInvoicesToCsv } from "@/features/purchases/api/purchases.api";
->>>>>>> 4ce7dd1b0a5a47062c82e90fa23d50e113ce68b6
+
 
 export default function PurchaseInvoicesPage() {
   const router = useRouter();
@@ -32,7 +28,6 @@ export default function PurchaseInvoicesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-<<<<<<< HEAD
   
   // Filter states
   const [vendorsList, setVendorsList] = useState<string[]>([]);
@@ -603,62 +598,7 @@ export default function PurchaseInvoicesPage() {
         )}
       </div>
 
-      {/* Pagination */}
-      {!isLoading && receives.length > 0 && (
-        <div className="h-16 px-6 border-t border-slate-200 bg-white flex items-center justify-between shrink-0 font-medium">
-          <p className="text-sm text-slate-500">
-            Showing {limit} out of {total}
-          </p>
-          <div className="flex items-center space-x-1">
-            <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="p-1.5 text-slate-400 hover:text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            {generatePagination(page, totalPages).map((p, i) => (
-              <button
-                key={i}
-                onClick={() => typeof p === 'number' && setPage(p)}
-                disabled={p === '...'}
-                className={`min-w-[32px] h-8 flex items-center justify-center rounded text-sm ${
-                  p === page
-                    ? 'border border-[#42b4b4] text-[#42b4b4]'
-                    : p === '...'
-                    ? 'text-slate-400 cursor-default'
-                    : 'text-slate-500 hover:bg-slate-50'
-                }`}
-              >
-                {p}
-              </button>
-            ))}
-            <button
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="p-1.5 text-slate-400 hover:text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </div>
-          <div className="flex items-center text-sm text-slate-500">
-            <span className="mr-3">Rows per page</span>
-            <select
-              value={limit}
-              onChange={(e) => {
-                setLimit(Number(e.target.value));
-                setPage(1);
-              }}
-              className="border border-slate-200 rounded px-2 py-1.5 outline-none focus:border-[#42b4b4]"
-            >
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-          </div>
-        </div>
-      )}
+
 
       <PurchaseInvoiceImportModal 
         isOpen={isImportModalOpen} 

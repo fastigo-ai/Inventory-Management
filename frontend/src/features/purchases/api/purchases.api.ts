@@ -166,13 +166,18 @@ export const createPurchaseInvoice = async (payload: any) => {
   return response.data;
 };
 
-export const getPurchaseInvoices = async (params?: { vendorName?: string; status?: string; storeStatus?: string; page?: number; limit?: number }) => {
+export const getPurchaseInvoices = async (params: Record<string, any> = {}) => {
   const query = new URLSearchParams();
-  if (params?.vendorName) query.append('vendorName', params.vendorName);
-  if (params?.status) query.append('status', params.status);
-  if (params?.storeStatus) query.append('storeStatus', params.storeStatus);
-  if (params?.page) query.append('page', params.page.toString());
-  if (params?.limit) query.append('limit', params.limit.toString());
+  
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      if (Array.isArray(value)) {
+        value.forEach(v => query.append(key, v));
+      } else {
+        query.append(key, value.toString());
+      }
+    }
+  });
   
   const queryString = query.toString();
   const url = queryString ? `/purchases/invoices?${queryString}` : '/purchases/invoices';
@@ -231,6 +236,11 @@ export const deletePurchaseInvoice = async (id: string) => {
 
 export const getNextPurchaseInvoiceNumber = async () => {
   const response = await api.get('/purchases/invoices/next-number');
+  return response.data;
+};
+
+export const getUniqueVendors = async () => {
+  const response = await api.get('/purchases/invoices/vendors');
   return response.data;
 };
 

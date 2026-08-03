@@ -66,8 +66,10 @@ export interface IPurchaseInvoice extends Document {
   amountPaid: number;
   balanceDue: number;
   
-  status: 'Draft' | 'Sent' | 'Unpaid' | 'Overdue' | 'Partially Paid' | 'Paid';
-  receiptStatus: 'Pending Receipt' | 'Received';
+  status: 'Draft' | 'Sent' | 'Unpaid' | 'Overdue' | 'Partially Paid' | 'Paid' | 'Void' | 'Cancelled';
+  receiptStatus: 'Pending Receipt' | 'Partially Received' | 'Received';
+  billed?: boolean;
+  billedStatus?: 'Billed' | 'Unbilled' | 'Partially Billed';
   
   attachments?: {
     name: string;
@@ -147,13 +149,19 @@ const purchaseInvoiceSchema = new Schema<IPurchaseInvoice>(
     
     status: { 
       type: String, 
-      enum: ['Draft', 'Sent', 'Unpaid', 'Overdue', 'Partially Paid', 'Paid'], 
+      enum: ['Draft', 'Sent', 'Unpaid', 'Overdue', 'Partially Paid', 'Paid', 'Void', 'Cancelled'], 
       default: 'Draft' 
     },
     receiptStatus: {
       type: String,
-      enum: ['Pending Receipt', 'Received'],
+      enum: ['Pending Receipt', 'Partially Received', 'Received'],
       default: 'Pending Receipt'
+    },
+    billed: { type: Boolean, default: false },
+    billedStatus: {
+      type: String,
+      enum: ['Billed', 'Unbilled', 'Partially Billed'],
+      default: 'Unbilled'
     },
     
     attachments: [{
@@ -165,6 +173,13 @@ const purchaseInvoiceSchema = new Schema<IPurchaseInvoice>(
     timestamps: true,
   }
 );
+
+// Indexes for optimizing queries (sorting, pagination, filtering)
+purchaseInvoiceSchema.index({ date: -1 });
+purchaseInvoiceSchema.index({ vendorName: 1 });
+purchaseInvoiceSchema.index({ purchaseOrderId: 1 });
+purchaseInvoiceSchema.index({ status: 1 });
+purchaseInvoiceSchema.index({ receiptStatus: 1 });
 
 // Pre-save hook to calculate balance due and update status if needed
 purchaseInvoiceSchema.pre('save', function() {

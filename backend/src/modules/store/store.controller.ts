@@ -841,13 +841,7 @@ export const getPendingStoreReceipts = asyncHandler(async (req: Request, res: Re
 
   res.status(200).json(
     new ApiResponse(200, {
-      entries,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit)
-      }
+      entries
     }, 'Pending store receipts fetched successfully')
   );
 });

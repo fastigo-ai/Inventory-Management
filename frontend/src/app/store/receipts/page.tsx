@@ -143,6 +143,9 @@ export default function StoreReceiptsPage() {
                 currentPage={currentPage}
                 setCurrentPage={setCurrentPage}
                 totalPages={totalPages}
+                pageSize={pageSize}
+                setPageSize={setPageSize}
+                totalItems={totalItems}
               />
             </>
           )}

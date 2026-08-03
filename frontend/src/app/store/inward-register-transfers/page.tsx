@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { getStoreTransfers } from "@/features/store/api/store.api";
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useClientTable } from "@/shared/hooks/useClientTable";
+import { DataTableTopControls, DataTableBottomControls } from "@/shared/components/DataTableControls";
 
 export default function InwardRegisterTransfersPage() {
   const [transfers, setTransfers] = useState<any[]>([]);
@@ -65,6 +67,18 @@ export default function InwardRegisterTransfersPage() {
     }
   };
 
+  const {
+    paginatedData,
+    searchTerm,
+    setSearchTerm,
+    pageSize,
+    setPageSize,
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    totalItems
+  } = useClientTable(transfers);
+
   const formatDate = (d: any) => d ? new Date(d).toLocaleDateString() : "-";
 
   return (
@@ -81,7 +95,14 @@ export default function InwardRegisterTransfersPage() {
           </Button>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+          <DataTableTopControls
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            pageSize={pageSize}
+            setPageSize={setPageSize}
+            totalItems={totalItems}
+          />
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left whitespace-nowrap">
               <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase">
@@ -113,14 +134,14 @@ export default function InwardRegisterTransfersPage() {
                   <tr>
                     <td colSpan={20} className="px-6 py-8 text-center text-slate-500">Loading register...</td>
                   </tr>
-                ) : transfers.length === 0 ? (
+                ) : paginatedData.length === 0 ? (
                   <tr>
                     <td colSpan={20} className="px-6 py-8 text-center text-slate-500">
                       No inward transfers received yet.
                     </td>
                   </tr>
                 ) : (
-                  transfers.map((t: any, idx: number) => (
+                  paginatedData.map((t: any, idx: number) => (
                     <tr key={idx} className="hover:bg-slate-50 transition-colors">
                       <td className="px-4 py-3 border-r border-slate-100 text-center">{t.srNo}</td>
                       <td className="px-4 py-3 border-r border-slate-100 font-medium text-slate-800 bg-blue-50/10">{formatDate(t.dateOfReceived)}</td>
@@ -148,6 +169,14 @@ export default function InwardRegisterTransfersPage() {
               </tbody>
             </table>
           </div>
+          <DataTableBottomControls
+            currentPage={currentPage}
+            setCurrentPage={setCurrentPage}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            setPageSize={setPageSize}
+            totalItems={totalItems}
+          />
         </div>
       </div>
     </div>

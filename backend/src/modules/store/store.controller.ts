@@ -828,12 +828,33 @@ export const getPendingStoreReceipts = asyncHandler(async (req: Request, res: Re
     }
   }
 
-  const entries = await StoreInwardEntry.find(filter)
-    .populate('purchaseInvoiceId')
-    .sort({ createdAt: -1 });
+  if (req.query.search) {
+    filter.inwardId = { $regex: req.query.search as string, $options: 'i' };
+  }
+
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 50;
+  const skip = (page - 1) * limit;
+
+  const [entries, total] = await Promise.all([
+    StoreInwardEntry.find(filter)
+      .populate('purchaseInvoiceId')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+    StoreInwardEntry.countDocuments(filter)
+  ]);
 
   res.status(200).json(
-    new ApiResponse(200, entries, 'Pending store receipts fetched successfully')
+    new ApiResponse(200, {
+      entries,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    }, 'Pending store receipts fetched successfully')
   );
 });
 

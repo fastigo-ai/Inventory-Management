@@ -6,6 +6,8 @@ import { getPendingDIs } from "@/features/store/api/store.api";
 import { FileText, ListChecks, Upload, MoreHorizontal } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { InwardImportModal } from "@/features/store/components/InwardImportModal";
+import { useClientTable } from "@/shared/hooks/useClientTable";
+import { DataTableTopControls, DataTableBottomControls } from "@/shared/components/DataTableControls";
 
 export default function StoreInventoryPage() {
   const router = useRouter();
@@ -29,6 +31,18 @@ export default function StoreInventoryPage() {
     }
   };
 
+  const {
+    paginatedData,
+    searchTerm,
+    setSearchTerm,
+    pageSize,
+    setPageSize,
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    totalItems
+  } = useClientTable(dis);
+
   return (
     <div className="flex-1 bg-white min-h-screen p-6">
       <div className="max-w-[1200px] mx-auto">
@@ -47,7 +61,14 @@ export default function StoreInventoryPage() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+          <DataTableTopControls
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            pageSize={pageSize}
+            setPageSize={setPageSize}
+            totalItems={totalItems}
+          />
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
                 <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase">
@@ -65,15 +86,15 @@ export default function StoreInventoryPage() {
                     <tr>
                       <td colSpan={6} className="px-6 py-8 text-center text-slate-500">Loading...</td>
                     </tr>
-                  ) : dis.length === 0 ? (
+                  ) : paginatedData.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-6 py-12 text-center">
                         <FileText className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-                        <p className="text-slate-500 font-medium">No pending DIs found for your circle.</p>
+                        <p className="text-slate-500 font-medium">No pending DIs found for your search.</p>
                       </td>
                     </tr>
                   ) : (
-                    dis.map((di: any) => (
+                    paginatedData.map((di: any) => (
                       <tr key={di._id} className="hover:bg-slate-50 transition-colors">
                         <td className="px-6 py-4 font-medium text-blue-600">{di.diNumber}</td>
                         <td className="px-6 py-4">{di.purchaseOrderId?.purchaseOrderNumber || '-'}</td>
@@ -98,8 +119,15 @@ export default function StoreInventoryPage() {
                 </tbody>
               </table>
             </div>
-          </div>
-
+          <DataTableBottomControls
+            currentPage={currentPage}
+            setCurrentPage={setCurrentPage}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            setPageSize={setPageSize}
+            totalItems={totalItems}
+          />
+        </div>
       </div>
       
       {isImportModalOpen && (

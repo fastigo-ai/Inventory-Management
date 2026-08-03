@@ -129,7 +129,10 @@ export default function EditPurchaseInvoicePage() {
         setIsLocked(data.isLocked || false);
         
         if (data.lineItems) {
-          setLineItems(data.lineItems);
+          setLineItems(data.lineItems.map((item: any) => ({
+            ...item,
+            itemDescription: item.itemDescription || item.description || ''
+          })));
         }
         if (data.attachments) {
           setUploadedDocs(data.attachments.map((a: any) => ({ _id: a._id || Math.random().toString(), fileName: a.name, url: a.url })));

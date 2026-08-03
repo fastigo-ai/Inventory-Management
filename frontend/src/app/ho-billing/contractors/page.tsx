@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Plus, MapPin, Upload } from "lucide-react";
+import { Plus, MapPin, Upload, Download } from "lucide-react";
 import { getContractors } from "@/features/contractors/api/contractors.api";
 import { AssignContractorModal } from "@/features/contractors/components/AssignContractorModal";
 import { ContractorImportModal } from "@/features/contractors/components/ContractorImportModal";
@@ -31,6 +31,33 @@ export default function ContractorsPage() {
     fetchContractors();
   }, []);
 
+  const handleExport = () => {
+    if (contractors.length === 0) return;
+    const headers = ["NAME", "STATUS", "PHONE", "EMAIL", "ADDRESS", "ASSIGNED CIRCLES"];
+    const csvRows = [headers.join(",")];
+    
+    contractors.forEach(c => {
+      const name = c.dynamicData?.displayName || '';
+      const status = c.isActive !== false ? 'Active' : 'Inactive';
+      const phone = c.dynamicData?.phone?.workPhone || '';
+      const email = c.dynamicData?.emailAddress || '';
+      const address = c.dynamicData?.contractorAddress?.billing?.city || '';
+      const assigned = c.assignedLocations?.length > 0 ? c.assignedLocations.join(" | ") : 'None';
+      
+      const row = [name, status, phone, email, address, assigned].map(val => `"${String(val).replace(/"/g, '""')}"`);
+      csvRows.push(row.join(","));
+    });
+    
+    const csvString = csvRows.join("\n");
+    const blob = new Blob([csvString], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `contractors_export_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   const openAssignModal = (contractor: any) => {
     setSelectedContractor(contractor);
     setAssignModalOpen(true);
@@ -45,6 +72,14 @@ export default function ContractorsPage() {
             <p className="text-sm text-slate-500 mt-1">Manage all contractors</p>
           </div>
           <div className="flex items-center gap-3">
+            <Button 
+              variant="outline"
+              className="bg-white"
+              onClick={handleExport}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </Button>
             <Button 
               variant="outline"
               className="bg-white"

@@ -31,20 +31,63 @@ export default function ContractorsPage() {
     fetchContractors();
   }, []);
 
+  const flattenObject = (obj: any, prefix = ''): Record<string, string> => {
+    let flattened: Record<string, string> = {};
+    if (!obj || typeof obj !== 'object') return flattened;
+    
+    for (const [key, value] of Object.entries(obj)) {
+      const newKey = prefix ? `${prefix}.${key}` : key;
+      if (value === null || value === undefined) {
+        flattened[newKey] = '';
+      } else if (Array.isArray(value)) {
+        if (value.length > 0 && typeof value[0] === 'object') {
+          flattened[newKey] = JSON.stringify(value);
+        } else {
+          flattened[newKey] = value.join(', ');
+        }
+      } else if (typeof value === 'object') {
+        Object.assign(flattened, flattenObject(value, newKey));
+      } else {
+        flattened[newKey] = String(value);
+      }
+    }
+    return flattened;
+  };
+
   const handleExport = () => {
     if (contractors.length === 0) return;
-    const headers = ["NAME", "STATUS", "PHONE", "EMAIL", "ADDRESS", "ASSIGNED CIRCLES"];
+    
+    const flattenedContractors = contractors.map(c => {
+      const flattenedDynamic = c.dynamicData ? flattenObject(c.dynamicData) : {};
+      return {
+        STATUS: c.isActive !== false ? 'Active' : 'Inactive',
+        "ASSIGNED CIRCLES": c.assignedLocations?.length > 0 ? c.assignedLocations.join(" | ") : 'None',
+        ...flattenedDynamic
+      };
+    });
+    
+    const headersSet = new Set<string>();
+    flattenedContractors.forEach(c => Object.keys(c).forEach(k => headersSet.add(k)));
+    
+    const headers = Array.from(headersSet);
+    const importantHeaders = ["displayName", "primaryContact.firstName", "companyName", "STATUS", "ASSIGNED CIRCLES", "emailAddress", "phone.workPhone"];
+    
+    headers.sort((a, b) => {
+      const indexA = importantHeaders.indexOf(a);
+      const indexB = importantHeaders.indexOf(b);
+      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+      if (indexA !== -1) return -1;
+      if (indexB !== -1) return 1;
+      return a.localeCompare(b);
+    });
+
     const csvRows = [headers.join(",")];
     
-    contractors.forEach(c => {
-      const name = c.dynamicData?.displayName || '';
-      const status = c.isActive !== false ? 'Active' : 'Inactive';
-      const phone = c.dynamicData?.phone?.workPhone || '';
-      const email = c.dynamicData?.emailAddress || '';
-      const address = c.dynamicData?.contractorAddress?.billing?.city || '';
-      const assigned = c.assignedLocations?.length > 0 ? c.assignedLocations.join(" | ") : 'None';
-      
-      const row = [name, status, phone, email, address, assigned].map(val => `"${String(val).replace(/"/g, '""')}"`);
+    flattenedContractors.forEach(c => {
+      const row = headers.map(header => {
+        const val = c[header as keyof typeof c] || '';
+        return `"${String(val).replace(/"/g, '""')}"`;
+      });
       csvRows.push(row.join(","));
     });
     

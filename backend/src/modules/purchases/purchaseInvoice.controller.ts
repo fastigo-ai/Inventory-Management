@@ -131,6 +131,7 @@ export const getPurchaseInvoices = async (req: Request, res: Response): Promise<
     const prsWithQuantity = await Promise.all(prs.map(async (pr: any) => {
       // Map it back for the frontend which expects PR fields
       pr.purchaseReceiveNumber = pr.invoiceNumber;
+      pr.PurchaseInvoiceNumber = pr.invoiceNumber;
       pr.receiveDate = pr.date;
       
       const quantity = pr.lineItems?.reduce((acc: number, item: any) => acc + (Number(item.quantity) || Number(item.totalInvoiceQuantity) || 0), 0) || 0;
@@ -198,6 +199,7 @@ export const getPurchaseInvoiceById = async (req: Request, res: Response): Promi
 
     // Map fields for frontend
     pr.purchaseReceiveNumber = pr.invoiceNumber;
+    pr.PurchaseInvoiceNumber = pr.invoiceNumber;
     pr.receiveDate = pr.date;
 
     res.status(200).json({

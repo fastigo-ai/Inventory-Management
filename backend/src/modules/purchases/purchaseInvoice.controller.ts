@@ -181,7 +181,9 @@ export const getPurchaseInvoices = async (req: Request, res: Response): Promise<
 export const getPurchaseInvoiceById = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const pr: any = await PurchaseInvoice.findById(id).lean();
+    const pr: any = await PurchaseInvoice.findById(id)
+      .populate('lineItems.itemId', 'dynamicData')
+      .lean();
 
     if (!pr) {
       res.status(404).json({
@@ -189,6 +191,21 @@ export const getPurchaseInvoiceById = async (req: Request, res: Response): Promi
         message: 'Purchase Invoice not found'
       });
       return;
+    }
+
+    // Hydrate missing descriptions from the populated itemId, then revert itemId to string
+    if (pr.lineItems && pr.lineItems.length > 0) {
+      pr.lineItems = pr.lineItems.map((item: any) => {
+        if (!item.description && item.itemId && item.itemId.dynamicData) {
+          item.description = item.itemId.dynamicData.description || item.itemId.dynamicData.itemDescription || '';
+        }
+        
+        // Ensure itemId is a string ID for the frontend forms
+        if (item.itemId && item.itemId._id) {
+          item.itemId = item.itemId._id.toString();
+        }
+        return item;
+      });
     }
 
     // Check if any StoreInwardEntry is beyond PENDING_RECEIPT or DRAFT

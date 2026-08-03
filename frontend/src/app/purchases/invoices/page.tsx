@@ -432,6 +432,7 @@ export default function PurchaseInvoicesPage() {
                   <th className="px-4 py-3 font-semibold">Purchase Invoice#</th>
                   <th className="px-4 py-3 font-semibold">PURCHASE ORDER#</th>
                   <th className="px-4 py-3 font-semibold">VENDOR NAME</th>
+                  <th className="px-4 py-3 font-semibold">BILLING FROM</th>
                   <th className="px-4 py-3 font-semibold">INVOICE STATUS</th>
                   <th className="px-4 py-3 font-semibold">STORE RECEIPT</th>
                   <th className="px-4 py-3 font-semibold">BILLED</th>
@@ -442,7 +443,7 @@ export default function PurchaseInvoicesPage() {
               <tbody className="flex-1">
                 {receives.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="py-20 text-center">
+                    <td colSpan={12} className="py-20 text-center">
                       <p className="text-[15px] text-slate-500">No Purchase Invoices to display!</p>
                     </td>
                   </tr>
@@ -480,6 +481,9 @@ export default function PurchaseInvoicesPage() {
                       </td>
                       <td className="px-4 py-3 text-slate-700">
                         {pr.vendorName}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700 whitespace-nowrap">
+                        {pr.billingCompany?.name || pr.billingFrom || '-'}
                       </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium uppercase ${

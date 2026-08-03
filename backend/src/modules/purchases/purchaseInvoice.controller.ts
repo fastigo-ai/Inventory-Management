@@ -683,6 +683,7 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
           diNumber: row['dino'] || row['dinumber'] || '',
           billed: (row['billed'] || '').toLowerCase() === 'yes',
           billingFrom: row['billingfrom'] || '',
+          billingCompany: row['billingfrom'] ? { name: row['billingfrom'] } : undefined,
           lineItems: [],
         };
       }

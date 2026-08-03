@@ -23,6 +23,8 @@ export default function PurchaseInvoicesPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [limit, setLimit] = useState(50);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const router = useRouter();
@@ -46,12 +48,13 @@ export default function PurchaseInvoicesPage() {
     }
   };
 
-  const fetchReceives = async (currentPage = 1, currentSearch = "") => {
+  const fetchReceives = async (currentPage = 1, currentSearch = "", currentLimit = 50) => {
     try {
       setIsLoading(true);
-      const res = await getPurchaseInvoices({ page: currentPage, limit: 50, search: currentSearch });
+      const res = await getPurchaseInvoices({ page: currentPage, limit: currentLimit, search: currentSearch });
       setReceives(res.data?.prs || []);
       setTotalPages(res.data?.pagination?.totalPages || 1);
+      setTotal(res.data?.pagination?.total || 0);
     } catch (error) {
       console.error("Failed to load Purchase Invoices", error);
     } finally {
@@ -60,8 +63,15 @@ export default function PurchaseInvoicesPage() {
   };
 
   useEffect(() => {
-    fetchReceives(page, debouncedSearch);
-  }, [page, debouncedSearch]);
+    fetchReceives(page, debouncedSearch, limit);
+  }, [page, debouncedSearch, limit]);
+
+  const generatePagination = (current: number, totalPagesCount: number) => {
+    if (totalPagesCount <= 7) return Array.from({ length: totalPagesCount }, (_, i) => i + 1);
+    if (current <= 4) return [1, 2, 3, 4, 5, '...', totalPagesCount];
+    if (current >= totalPagesCount - 3) return [1, '...', totalPagesCount - 4, totalPagesCount - 3, totalPagesCount - 2, totalPagesCount - 1, totalPagesCount];
+    return [1, '...', current - 1, current, current + 1, '...', totalPagesCount];
+  };
 
   return (
     <div className="flex flex-col h-full bg-[#fcfcfc] overflow-hidden">
@@ -223,29 +233,57 @@ export default function PurchaseInvoicesPage() {
 
       {/* Pagination */}
       {!isLoading && receives.length > 0 && (
-        <div className="h-14 px-6 border-t border-slate-200 bg-white flex items-center justify-between shrink-0">
+        <div className="h-16 px-6 border-t border-slate-200 bg-white flex items-center justify-between shrink-0 font-medium">
           <p className="text-sm text-slate-500">
-            Page {page} of {totalPages}
+            Showing {limit} out of {total}
           </p>
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
+          <div className="flex items-center space-x-1">
+            <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="h-8 px-2"
+              className="p-1.5 text-slate-400 hover:text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            {generatePagination(page, totalPages).map((p, i) => (
+              <button
+                key={i}
+                onClick={() => typeof p === 'number' && setPage(p)}
+                disabled={p === '...'}
+                className={`min-w-[32px] h-8 flex items-center justify-center rounded text-sm ${
+                  p === page
+                    ? 'border border-[#42b4b4] text-[#42b4b4]'
+                    : p === '...'
+                    ? 'text-slate-400 cursor-default'
+                    : 'text-slate-500 hover:bg-slate-50'
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+            <button
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="h-8 px-2"
+              className="p-1.5 text-slate-400 hover:text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <ChevronRight className="w-4 h-4" />
-            </Button>
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="flex items-center text-sm text-slate-500">
+            <span className="mr-3">Rows per page</span>
+            <select
+              value={limit}
+              onChange={(e) => {
+                setLimit(Number(e.target.value));
+                setPage(1);
+              }}
+              className="border border-slate-200 rounded px-2 py-1.5 outline-none focus:border-[#42b4b4]"
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
           </div>
         </div>
       )}

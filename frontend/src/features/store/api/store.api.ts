@@ -20,6 +20,11 @@ export const getPendingStoreReceipts = async () => {
   return response.data;
 };
 
+export const getInwardRegister = async () => {
+  const response = await api.get('/store/receipts/register');
+  return response.data;
+};
+
 export const approveStoreReceipt = async (id: string) => {
   const response = await api.put(`/store/receipts/${id}/approve`);
   return response.data;

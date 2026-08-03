@@ -26,6 +26,7 @@ import {
   receiveStoreTransfer,
   importInwardRegistrations,
   getPendingStoreReceipts,
+  getInwardRegister,
   approveStoreReceipt,
   importStoreTransfers
 } from './store.controller';
@@ -40,6 +41,7 @@ router.route('/di/:diId/prefill').get(getDIPrefillData);
 router.route('/pi/:invoiceId/prefill').get(getPurchaseInvoicePrefillData);
 
 router.route('/receipts/pending').get(getPendingStoreReceipts);
+router.route('/receipts/register').get(getInwardRegister);
 router.route('/receipts/:id/approve').put(approveStoreReceipt);
 
 router.route('/inventory/inward')

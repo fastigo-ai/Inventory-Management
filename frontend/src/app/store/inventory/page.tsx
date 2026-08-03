@@ -1,29 +1,28 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { getPendingDIs } from "@/features/store/api/store.api";
+import { getInwardRegister } from "@/features/store/api/store.api";
 import { FileText, ListChecks, Upload, MoreHorizontal } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { InwardImportModal } from "@/features/store/components/InwardImportModal";
 import { useClientTable } from "@/shared/hooks/useClientTable";
 import { DataTableTopControls, DataTableBottomControls } from "@/shared/components/DataTableControls";
 
-export default function StoreInventoryPage() {
-  const router = useRouter();
-  const [dis, setDis] = useState<any[]>([]);
+export default function StoreInwardRegisterPage() {
+  const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   useEffect(() => {
-    fetchDIs();
+    fetchInwardRegister();
   }, []);
 
-  const fetchDIs = async () => {
+  const fetchInwardRegister = async () => {
     try {
       setLoading(true);
-      const res = await getPendingDIs();
-      setDis(res.data || []);
+      const res = await getInwardRegister();
+      // res.data from the backend comes as { entries: [...] } for this specific API wrapper
+      setEntries(res.data?.entries || []);
     } catch (error) {
       console.error(error);
     } finally {
@@ -41,13 +40,13 @@ export default function StoreInventoryPage() {
     setCurrentPage,
     totalPages,
     totalItems
-  } = useClientTable(dis);
+  } = useClientTable(entries);
 
   return (
     <div className="flex-1 bg-white min-h-screen p-6">
       <div className="max-w-[1200px] mx-auto">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-slate-800">Inventory Management</h1>
+          <h1 className="text-2xl font-bold text-slate-800">Inward Register</h1>
           
           <DropdownMenu>
             <DropdownMenuTrigger className="flex items-center justify-center text-slate-500 hover:bg-slate-100 p-2 rounded-md border border-slate-200 transition-colors">
@@ -73,45 +72,45 @@ export default function StoreInventoryPage() {
               <table className="w-full text-sm text-left">
                 <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase">
                   <tr>
-                    <th className="px-6 py-4">DI Number</th>
+                    <th className="px-6 py-4">Inward ID</th>
+                    <th className="px-6 py-4">Date</th>
+                    <th className="px-6 py-4">Vendor</th>
                     <th className="px-6 py-4">PO Number</th>
+                    <th className="px-6 py-4">PI Number</th>
                     <th className="px-6 py-4">Circle</th>
-                    <th className="px-6 py-4">Package</th>
                     <th className="px-6 py-4">Status</th>
-                    <th className="px-6 py-4 text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {loading ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-8 text-center text-slate-500">Loading...</td>
+                      <td colSpan={7} className="px-6 py-8 text-center text-slate-500">Loading...</td>
                     </tr>
                   ) : paginatedData.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center">
+                      <td colSpan={7} className="px-6 py-12 text-center">
                         <FileText className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-                        <p className="text-slate-500 font-medium">No pending DIs found for your search.</p>
+                        <p className="text-slate-500 font-medium">No inward entries found for your search.</p>
                       </td>
                     </tr>
                   ) : (
-                    paginatedData.map((di: any) => (
-                      <tr key={di._id} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-6 py-4 font-medium text-blue-600">{di.diNumber}</td>
-                        <td className="px-6 py-4">{di.purchaseOrderId?.purchaseOrderNumber || '-'}</td>
-                        <td className="px-6 py-4">{di.circle || '-'}</td>
-                        <td className="px-6 py-4">{di.package || '-'}</td>
+                    paginatedData.map((entry: any) => (
+                      <tr key={entry._id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-4 font-medium text-blue-600">{entry.inwardId}</td>
+                        <td className="px-6 py-4">{new Date(entry.createdAt).toLocaleDateString()}</td>
+                        <td className="px-6 py-4">{entry.vendorName || '-'}</td>
+                        <td className="px-6 py-4">{entry.poNumber || '-'}</td>
+                        <td className="px-6 py-4 font-medium">{entry.purchaseInvoiceId?.invoiceNumber || '-'}</td>
+                        <td className="px-6 py-4">{entry.circle || '-'}</td>
                         <td className="px-6 py-4">
-                          <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
-                            {di.status}
+                          <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide ${
+                            entry.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-700' :
+                            entry.status === 'INWARDED' ? 'bg-blue-100 text-blue-700' :
+                            entry.status === 'APPROVED' ? 'bg-indigo-100 text-indigo-700' :
+                            'bg-slate-100 text-slate-700'
+                          }`}>
+                            {entry.status}
                           </span>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <button
-                            onClick={() => router.push(`/store/inventory/inward/${di._id}`)}
-                            className="text-sm font-semibold text-blue-600 hover:text-blue-800"
-                          >
-                            Register Inward
-                          </button>
                         </td>
                       </tr>
                     ))
@@ -119,26 +118,20 @@ export default function StoreInventoryPage() {
                 </tbody>
               </table>
             </div>
-          <DataTableBottomControls
-            currentPage={currentPage}
-            setCurrentPage={setCurrentPage}
-            totalPages={totalPages}
-            pageSize={pageSize}
-            setPageSize={setPageSize}
-            totalItems={totalItems}
-          />
+            
+            <DataTableBottomControls
+              currentPage={currentPage}
+              setCurrentPage={setCurrentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+            />
         </div>
       </div>
-      
-      {isImportModalOpen && (
-        <InwardImportModal
-          isOpen={isImportModalOpen}
-          onClose={() => setIsImportModalOpen(false)}
-          onSuccess={() => {
-            fetchDIs();
-          }}
-        />
-      )}
+      <InwardImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={fetchInwardRegister}
+      />
     </div>
   );
 }

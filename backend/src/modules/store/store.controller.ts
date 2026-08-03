@@ -846,6 +846,40 @@ export const getPendingStoreReceipts = asyncHandler(async (req: Request, res: Re
   );
 });
 
+export const getInwardRegister = asyncHandler(async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  
+  const filter: any = { 
+    status: { $in: ['APPROVED', 'VERIFIED', 'INWARDED', 'SUBMITTED'] }, 
+    purchaseInvoiceId: { $exists: true } 
+  };
+  
+  if (user && user.role?.name === 'Store Manager') {
+    if (user.assignedPackage) {
+      const normalizedPkg = user.assignedPackage.replace(/\s+/g, '');
+      const regexStr = normalizedPkg.split('').map((char: string) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*');
+      filter.package = { $regex: new RegExp(`^\\s*${regexStr}\\s*$`, 'i') };
+    }
+    if (user.assignedCircle) {
+      filter.circle = { $regex: new RegExp(`^\\s*${user.assignedCircle.trim()}\\s*$`, 'i') };
+    }
+  }
+
+  if (req.query.search) {
+    filter.inwardId = { $regex: req.query.search as string, $options: 'i' };
+  }
+
+  const entries = await StoreInwardEntry.find(filter)
+    .populate('purchaseInvoiceId')
+    .sort({ createdAt: -1 });
+
+  res.status(200).json(
+    new ApiResponse(200, {
+      entries
+    }, 'Inward register fetched successfully')
+  );
+});
+
 export const approveStoreReceipt = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   

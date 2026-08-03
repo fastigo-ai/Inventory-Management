@@ -121,7 +121,7 @@ export default function EditPurchaseInvoicePage() {
         setPurchaseOrderInput(data.purchaseOrderNumber || "");
         setPurchaseInvoiceNumber(data.PurchaseInvoiceNumber || "");
         setReceiveDate(data.receiveDate ? new Date(data.receiveDate).toISOString().split('T')[0] : "");
-        setBillingFrom(data.billingFrom || "");
+        setBillingFrom(data.billingCompany?.name || data.billingFrom || "");
         setDiNo(data.diNo || "");
         setDiDate(data.diDate ? new Date(data.diDate).toISOString().split('T')[0] : "");
         setNotes(data.notes || "");
@@ -678,6 +678,9 @@ export default function EditPurchaseInvoicePage() {
                   onChange={(e) => setBillingFrom(e.target.value)}
                 >
                   <option value="">Select Billing Company</option>
+                  {billingFrom && !billingCompanies.some(c => c.name === billingFrom) && (
+                    <option value={billingFrom}>{billingFrom} (Unregistered)</option>
+                  )}
                   {billingCompanies.map(c => (
                     <option key={c._id} value={c.name}>{c.name}</option>
                   ))}
@@ -908,7 +911,7 @@ export default function EditPurchaseInvoicePage() {
                                itemDescription: getVal('description') || getVal('itemDescription') || newItems[index].itemDescription,
                                loaSerialNo: getVal('loaSerialNo') || getVal('loaSerial') || getVal('sku') || (loaSerialNos.length === 1 ? loaSerialNos[0] : ''),
                                hsnCode: getVal('hsnCode') || getVal('hsn') || '',
-                               unit: getVal('unit') || '',
+                               unit: getVal('unit') || getVal('uom') || '',
                                gstType: newItems[index].gstType || 'Intra State',
                                cgst: Number(getVal('cgst')) || 0,
                                sgst: Number(getVal('sgst')) || 0,

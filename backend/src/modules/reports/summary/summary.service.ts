@@ -102,7 +102,7 @@ export class SummaryService {
 
       // 2. Fetch the item
       const item = await Item.findById(itemId);
-      if (!item) return;
+      if (!item || item.isDeleted) return;
 
       const circles = ['solan', 'nahan', 'rampur', 'rohru'];
       let migratedAny = false;
@@ -156,11 +156,20 @@ export class SummaryService {
       for (const di of dis) {
         for (const line of di.lineItems) {
           if (line.itemId?.toString() === itemIdStr) {
+            let cName = item.dynamicData?.circle || line.circle || di.circle || '';
+            let pName = item.dynamicData?.package || line.package || di.package || '';
+            
+            if (cName.toLowerCase().includes('package')) {
+              pName = cName;
+              cName = ''; 
+            }
+            
             await SummaryService.updateSummary({
               itemId,
-              circle: line.circle || di.circle,
-              package: line.package || di.package,
-              increments: { diQty: line.quantity || 0 }
+              circle: cName,
+              package: pName,
+              increments: { diQty: line.quantity || 0 },
+              companyId: item.companyId?.toString()
             });
           }
         }
@@ -171,15 +180,24 @@ export class SummaryService {
       for (const pr of prs) {
         for (const line of pr.lineItems) {
           if (line.itemId?.toString() === itemIdStr) {
+            let cName = item.dynamicData?.circle || line.circle || '';
+            let pName = item.dynamicData?.package || line.package || '';
+            
+            if (cName.toLowerCase().includes('package')) {
+              pName = cName;
+              cName = ''; 
+            }
+            
             await SummaryService.updateSummary({
               itemId,
-              circle: line.circle,
-              package: line.package,
+              circle: cName,
+              package: pName,
               increments: { 
                 invQty: line.invoiceQuantity || 0,
                 actQty: line.act || 0,
                 srtQty: line.srt || 0
-              }
+              },
+              companyId: item.companyId?.toString()
             });
           }
         }
@@ -190,11 +208,20 @@ export class SummaryService {
       for (const invoice of invoices) {
         for (const line of invoice.lineItems) {
           if (line.itemId?.toString() === itemIdStr) {
+            let cName = item.dynamicData?.circle || line.circle || '';
+            let pName = item.dynamicData?.package || line.package || '';
+            
+            if (cName.toLowerCase().includes('package')) {
+              pName = cName;
+              cName = ''; 
+            }
+
             await SummaryService.updateSummary({
               itemId,
-              circle: line.circle,
-              package: line.package,
-              increments: { billedQty: line.quantity || 0 }
+              circle: cName,
+              package: pName,
+              increments: { billedQty: line.quantity || 0 },
+              companyId: item.companyId?.toString()
             });
           }
         }

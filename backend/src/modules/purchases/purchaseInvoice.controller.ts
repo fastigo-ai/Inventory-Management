@@ -24,10 +24,15 @@ export const createPurchaseInvoice = async (req: Request, res: Response): Promis
     }
     prData.date = prData.date || prData.receiveDate || new Date();
     
+    if (prData.billingFrom) {
+      prData.billingCompany = { name: prData.billingFrom };
+    }
+    
     if (prData.lineItems) {
       prData.lineItems = prData.lineItems.map((item: any) => ({
         ...item,
         quantity: item.quantity || item.invoiceQuantity || item.act || 0,
+        totalInventory: item.totalInventory || item.totalInvoiceQuantity || 0,
         rate: item.rate || 0,
         amount: item.amount || item.totalAmount || 0,
         description: item.description || item.itemDescription
@@ -64,7 +69,7 @@ export const createPurchaseInvoice = async (req: Request, res: Response): Promis
         purchaseOrderId: newPr.purchaseOrderId,
         poNumber: newPr.purchaseOrderNumber,
         poDate: item.poDate,
-        billingFrom: newPr.billingFrom,
+        billingFrom: newPr.billingCompany?.name || (newPr as any).billingFrom,
         vendorName: newPr.vendorName,
         invoiceNumber: newPr.invoiceNumber,
         invoiceDate: newPr.date,
@@ -264,17 +269,25 @@ export const getPurchaseInvoiceById = async (req: Request, res: Response): Promi
       return;
     }
 
-    // Hydrate missing descriptions from the populated itemId, then revert itemId to string
+    // Hydrate missing descriptions and units from the populated itemId, then revert itemId to string
     if (pr.lineItems && pr.lineItems.length > 0) {
       pr.lineItems = pr.lineItems.map((item: any) => {
         if (!item.description && item.itemId && item.itemId.dynamicData) {
           item.description = item.itemId.dynamicData.description || item.itemId.dynamicData.itemDescription || '';
+        }
+        if (!item.unit && item.itemId && item.itemId.dynamicData) {
+          item.unit = item.itemId.dynamicData.unit || item.itemId.dynamicData.uom || '';
         }
         
         // Ensure itemId is a string ID for the frontend forms
         if (item.itemId && item.itemId._id) {
           item.itemId = item.itemId._id.toString();
         }
+        
+        // Map quantity and inventory fields for frontend components expecting these keys
+        item.invoiceQuantity = item.quantity || 0;
+        item.totalInvoiceQuantity = item.totalInventory || 0;
+        
         return item;
       });
     }
@@ -289,6 +302,7 @@ export const getPurchaseInvoiceById = async (req: Request, res: Response): Promi
     pr.purchaseReceiveNumber = pr.invoiceNumber;
     pr.PurchaseInvoiceNumber = pr.invoiceNumber;
     pr.receiveDate = pr.date;
+    pr.billingFrom = pr.billingCompany?.name || pr.billingFrom || '';
 
     res.status(200).json({
       success: true,
@@ -361,10 +375,15 @@ export const updatePurchaseInvoice = async (req: Request, res: Response): Promis
     if (updateData.purchaseReceiveNumber) updateData.invoiceNumber = updateData.purchaseReceiveNumber;
     if (updateData.receiveDate) updateData.date = updateData.receiveDate;
     
+    if (updateData.billingFrom) {
+      updateData.billingCompany = { name: updateData.billingFrom };
+    }
+    
     if (updateData.lineItems) {
       updateData.lineItems = updateData.lineItems.map((item: any) => ({
         ...item,
         quantity: item.quantity || item.invoiceQuantity || item.act || 0,
+        totalInventory: item.totalInventory || item.totalInvoiceQuantity || 0,
         rate: item.rate || 0,
         amount: item.amount || item.totalAmount || 0,
         description: item.description || item.itemDescription
@@ -416,7 +435,7 @@ export const updatePurchaseInvoice = async (req: Request, res: Response): Promis
         purchaseOrderId: updatedPr.purchaseOrderId,
         poNumber: updatedPr.purchaseOrderNumber,
         poDate: item.poDate,
-        billingFrom: updatedPr.billingFrom,
+        billingFrom: updatedPr.billingCompany?.name || updatedPr.billingFrom,
         vendorName: updatedPr.vendorName,
         invoiceNumber: updatedPr.invoiceNumber,
         invoiceDate: updatedPr.date,
@@ -682,6 +701,7 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
           status: row['status'] || 'Draft',
           diNumber: row['dino'] || row['dinumber'] || '',
           billed: (row['billed'] || '').toLowerCase() === 'yes',
+          billingCompany: row['billingfrom'] ? { name: row['billingfrom'] } : undefined,
           billingFrom: row['billingfrom'] || '',
           billingCompany: row['billingfrom'] ? { name: row['billingfrom'] } : undefined,
           lineItems: [],
@@ -700,7 +720,7 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
         prMap[prNumber].lineItems.push({
           itemId,
           itemName,
-          itemDescription: row['description'] || row['itemdescription'] || '',
+          description: row['description'] || row['itemdescription'] || '',
           loaSerialNo,
           tempCode,
           package: row['package'] || '',
@@ -827,7 +847,7 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
             purchaseOrderId: savedPr.purchaseOrderId,
             poNumber: savedPr.purchaseOrderNumber,
             poDate: item.poDate,
-            billingFrom: savedPr.billingFrom,
+            billingFrom: savedPr.billingCompany?.name || (savedPr as any).billingFrom,
             vendorName: savedPr.vendorName,
             invoiceNumber: savedPr.invoiceNumber,
             invoiceDate: savedPr.date,

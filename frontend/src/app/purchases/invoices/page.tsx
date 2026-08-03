@@ -452,13 +452,7 @@ export default function PurchaseInvoicesPage() {
                     <tr 
                       key={pr._id} 
                       className="border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer"
-                      onClick={() => {
-                        if (pr.status === 'Received') {
-                          router.push(`/purchases/invoices/${pr._id}`);
-                        } else {
-                          router.push(`/purchases/invoices/${pr._id}/edit`);
-                        }
-                      }}
+                      onClick={() => router.push(`/purchases/invoices/${pr._id}`)}
                     >
                       <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                         <input type="checkbox" className="rounded border-slate-300 text-[#0076f2] focus:ring-[#0076f2]" />
@@ -469,7 +463,7 @@ export default function PurchaseInvoicesPage() {
                       </td>
                       <td className="px-4 py-3 font-medium text-[#0076f2]">
                         <Link 
-                          href={pr.status === 'Received' ? `/purchases/invoices/${pr._id}` : `/purchases/invoices/${pr._id}/edit`} 
+                          href={`/purchases/invoices/${pr._id}`} 
                           className="hover:underline"
                           onClick={(e) => e.stopPropagation()}
                         >

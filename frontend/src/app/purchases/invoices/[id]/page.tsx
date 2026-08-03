@@ -4,7 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { getPurchaseInvoiceById, deletePurchaseInvoice, getPurchaseInvoices } from '@/features/purchases/api/purchases.api';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, Edit, Trash2, Printer, FileText, CheckCircle2, AlertCircle, Clock, Banknote, HelpCircle, Paperclip } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { ChevronLeft, Edit, Trash2, Printer, FileText, CheckCircle2, AlertCircle, Clock, Banknote, HelpCircle, Paperclip, Search } from 'lucide-react';
 import Link from 'next/link';
 import { AuditTimeline } from '@/shared/components/audit/AuditTimeline';
 import { PdfPreview } from '@/shared/components/PdfPreview';
@@ -18,6 +19,7 @@ export default function PurchaseInvoiceDetailPage() {
   
   const [invoice, setInvoice] = useState<any>(null);
   const [receives, setReceives] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'details' | 'history'>('details');
   const [isPdfView, setIsPdfView] = useState(true);
@@ -40,13 +42,13 @@ export default function PurchaseInvoiceDetailPage() {
         setIsLoading(true);
         const data = await getPurchaseInvoiceById(id);
         
-        // Ensure billingCompany is populated if it's missing but billingFrom is present
-        if (data && !data.billingCompany && data.billingFrom) {
+        // Ensure full billingCompany details are populated
+        if (data && data.billingFrom) {
            const { getBillingCompanies } = await import('@/features/settings/api/billingCompanies.api');
            const res = await getBillingCompanies();
-           const company = (res.data || []).find((c: any) => c.name === data.billingFrom);
+           const company = (res.data || []).find((c: any) => c.name === data.billingFrom || (data.billingCompany && c.name === data.billingCompany.name));
            if (company) {
-             data.billingCompany = company;
+             data.billingCompany = { ...data.billingCompany, ...company };
            }
         }
 
@@ -183,8 +185,24 @@ export default function PurchaseInvoiceDetailPage() {
           <h3 className="font-semibold text-slate-800">In Transit</h3>
           <Button variant="ghost" size="sm" onClick={() => router.push('/purchases/invoices')} className="text-blue-600 hover:text-blue-700 h-8 text-xs hover:bg-blue-50">View All</Button>
         </div>
+        <div className="p-2 border-b border-slate-100 bg-white">
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+            <Input 
+              placeholder="Search invoices..." 
+              className="pl-8 h-8 text-xs bg-slate-50 border-slate-200 focus-visible:ring-1 focus-visible:ring-blue-500 rounded-md"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {receives.map(pr => (
+          {receives
+            .filter(pr => 
+              pr.PurchaseInvoiceNumber?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+              pr.vendorName?.toLowerCase().includes(searchQuery.toLowerCase())
+            )
+            .map(pr => (
             <Link 
               key={pr._id} 
               href={`/purchases/invoices/${pr._id}`} 
@@ -208,7 +226,10 @@ export default function PurchaseInvoiceDetailPage() {
               </div>
             </Link>
           ))}
-          {receives.length === 0 && (
+          {receives.filter(pr => 
+              pr.PurchaseInvoiceNumber?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+              pr.vendorName?.toLowerCase().includes(searchQuery.toLowerCase())
+            ).length === 0 && (
             <div className="p-8 text-center text-slate-400 text-sm">No receives found.</div>
           )}
         </div>
@@ -373,19 +394,22 @@ export default function PurchaseInvoiceDetailPage() {
                   <table className="w-full text-center border-collapse">
                     <thead className="bg-slate-100">
                       <tr>
-                        <th className="border border-black p-2 w-8 text-[11px]">Sr. No.</th>
-                        <th className="border border-black p-2 text-[11px] text-left">Item Name</th>
-                        <th className="border border-black p-2 w-16 text-[11px]">HSN / SAC</th>
-                        <th className="border border-black p-2 w-16 text-[11px]">Tot Inv Qty</th>
-                        <th className="border border-black p-2 w-10 text-[11px]">SRT</th>
-                        <th className="border border-black p-2 w-10 text-[11px]">ACT</th>
-                        <th className="border border-black p-2 w-16 text-[11px]">Rate</th>
-                        <th className="border border-black p-2 w-20 text-[11px]">Amount</th>
-                        <th className="border border-black p-1 w-20 text-[11px]">GST Type</th>
-                        <th className="border border-black p-1 text-[11px]">CGST %</th>
-                        <th className="border border-black p-1 text-[11px]">SGST %</th>
-                        <th className="border border-black p-1 text-[11px]">IGST %</th>
-                        <th className="border border-black p-2 w-20 text-[11px]">Total Amount</th>
+                        <th className="border border-black px-1 py-2 w-8 text-[10px]">Sr. No.</th>
+                        <th className="border border-black px-1 py-2 text-[10px] text-left">Item Name</th>
+                        <th className="border border-black px-1 py-2 w-12 text-[10px]">HSN / SAC</th>
+                        <th className="border border-black px-1 py-2 w-8 text-[10px]">PO Qty</th>
+                        <th className="border border-black px-1 py-2 w-8 text-[10px]">DI Qty</th>
+                        <th className="border border-black px-1 py-2 w-8 text-[10px]">Bal Qty</th>
+                        <th className="border border-black px-1 py-2 w-10 text-[10px]">Tot Inv Qty</th>
+                        <th className="border border-black px-1 py-2 w-8 text-[10px]">SRT</th>
+                        <th className="border border-black px-1 py-2 w-8 text-[10px]">ACT</th>
+                        <th className="border border-black px-1 py-2 w-12 text-[10px]">Rate</th>
+                        <th className="border border-black px-1 py-2 w-16 text-[10px]">Amount</th>
+                        <th className="border border-black px-1 py-2 w-12 text-[10px]">GST Type</th>
+                        <th className="border border-black px-1 py-2 text-[10px]">CGST %</th>
+                        <th className="border border-black px-1 py-2 text-[10px]">SGST %</th>
+                        <th className="border border-black px-1 py-2 text-[10px]">IGST %</th>
+                        <th className="border border-black px-1 py-2 w-16 text-[10px]">Total Amount</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -397,28 +421,31 @@ export default function PurchaseInvoiceDetailPage() {
                         const rowTotal = itemAmount + taxAmount;
                         return (
                           <tr key={idx} className="h-10">
-                            <td className="border-x border-black p-2 text-center align-top">{idx + 1}</td>
-                            <td className="border-x border-black p-2 text-left font-semibold align-top">
+                            <td className="border-x border-black px-1 py-2 text-center align-top">{idx + 1}</td>
+                            <td className="border-x border-black px-1 py-2 text-left font-semibold align-top">
                               <div>{item.itemName}</div>
                               {(item.package || item.circle) && (
-                                <div className="text-[10px] font-normal text-slate-600 mt-1">
+                                <div className="text-[9px] font-normal text-slate-600 mt-1">
                                   {item.circle && <span>Circle: {item.circle}</span>}
                                   {item.circle && item.package && <span> | </span>}
                                   {item.package && <span>Package: {item.package}</span>}
                                 </div>
                               )}
                             </td>
-                            <td className="border-x border-black p-2 text-center align-top">{item.hsnCode || '-'}</td>
-                            <td className="border-x border-black p-2 text-center align-top">{qty} {item.unit || 'NOS'}</td>
-                            <td className="border-x border-black p-2 text-center align-top">{item.srt || 0}</td>
-                            <td className="border-x border-black p-2 text-center align-top">{item.act || 0}</td>
-                            <td className="border-x border-black p-2 text-right align-top">{item.rate?.toFixed(2)}</td>
-                            <td className="border-x border-black p-2 text-right align-top">{itemAmount.toFixed(2)}</td>
-                            <td className="border-x border-black p-2 text-center align-top">{item.gstType || 'Intra State'}</td>
-                            <td className="border-x border-black p-2 text-center align-top">{item.cgst || 0}</td>
-                            <td className="border-x border-black p-2 text-center align-top">{item.sgst || 0}</td>
-                            <td className="border-x border-black p-2 text-center align-top">{item.igst || 0}</td>
-                            <td className="border-x border-black p-2 text-right align-top">{rowTotal.toFixed(2)}</td>
+                            <td className="border-x border-black px-1 py-2 text-center align-top">{item.hsnCode || '-'}</td>
+                            <td className="border-x border-black px-1 py-2 text-center align-top">{item.poQuantity || 0}</td>
+                            <td className="border-x border-black px-1 py-2 text-center align-top">{item.diQuantity || 0}</td>
+                            <td className="border-x border-black px-1 py-2 text-center align-top">{item.invoiceQuantity || 0}</td>
+                            <td className="border-x border-black px-1 py-2 text-center align-top">{qty} {item.unit || 'NOS'}</td>
+                            <td className="border-x border-black px-1 py-2 text-center align-top">{item.srt || 0}</td>
+                            <td className="border-x border-black px-1 py-2 text-center align-top">{item.act || 0}</td>
+                            <td className="border-x border-black px-1 py-2 text-right align-top">{item.rate?.toFixed(2)}</td>
+                            <td className="border-x border-black px-1 py-2 text-right align-top">{itemAmount.toFixed(2)}</td>
+                            <td className="border-x border-black px-1 py-2 text-center align-top">{item.gstType || 'Intra State'}</td>
+                            <td className="border-x border-black px-1 py-2 text-center align-top">{item.cgst || 0}</td>
+                            <td className="border-x border-black px-1 py-2 text-center align-top">{item.sgst || 0}</td>
+                            <td className="border-x border-black px-1 py-2 text-center align-top">{item.igst || 0}</td>
+                            <td className="border-x border-black px-1 py-2 text-right align-top">{rowTotal.toFixed(2)}</td>
                           </tr>
                         );
                       })}
@@ -438,18 +465,24 @@ export default function PurchaseInvoiceDetailPage() {
                           <td className="border-x border-black"></td>
                           <td className="border-x border-black"></td>
                           <td className="border-x border-black"></td>
+                          <td className="border-x border-black"></td>
+                          <td className="border-x border-black"></td>
+                          <td className="border-x border-black"></td>
                         </tr>
                       ))}
                       {/* Totals Row */}
                       <tr className="border-t border-black font-bold bg-slate-100">
-                        <td className="border border-black p-2 text-right" colSpan={3}>Total :</td>
-                        <td className="border border-black p-2 text-center">{invoice.lineItems?.reduce((acc: number, item: any) => acc + ((item.totalInvoiceQuantity ?? item.invoiceQuantity ?? item.quantity) || 0), 0)}</td>
-                        <td className="border border-black p-2 text-center">{invoice.lineItems?.reduce((acc: number, item: any) => acc + (item.srt || 0), 0)}</td>
-                        <td className="border border-black p-2 text-center">{invoice.lineItems?.reduce((acc: number, item: any) => acc + (item.act || 0), 0)}</td>
-                        <td className="border border-black p-2 bg-white"></td>
-                        <td className="border border-black p-2 text-right">{invoice.subTotal?.toFixed(2)}</td>
-                        <td className="border border-black p-2 bg-white" colSpan={4}></td>
-                        <td className="border border-black p-2 text-right">{(invoice.subTotal + (invoice.taxAmount || 0)).toFixed(2)}</td>
+                        <td className="border border-black px-1 py-2 text-right" colSpan={3}>Total :</td>
+                        <td className="border border-black px-1 py-2 text-center">{invoice.lineItems?.reduce((acc: number, item: any) => acc + (Number(item.poQuantity) || 0), 0)}</td>
+                        <td className="border border-black px-1 py-2 text-center">{invoice.lineItems?.reduce((acc: number, item: any) => acc + (Number(item.diQuantity) || 0), 0)}</td>
+                        <td className="border border-black px-1 py-2 text-center">{invoice.lineItems?.reduce((acc: number, item: any) => acc + (Number(item.invoiceQuantity) || 0), 0)}</td>
+                        <td className="border border-black px-1 py-2 text-center">{invoice.lineItems?.reduce((acc: number, item: any) => acc + ((item.totalInvoiceQuantity ?? item.invoiceQuantity ?? item.quantity) || 0), 0)}</td>
+                        <td className="border border-black px-1 py-2 text-center">{invoice.lineItems?.reduce((acc: number, item: any) => acc + (Number(item.srt) || 0), 0)}</td>
+                        <td className="border border-black px-1 py-2 text-center">{invoice.lineItems?.reduce((acc: number, item: any) => acc + (Number(item.act) || 0), 0)}</td>
+                        <td className="border border-black px-1 py-2 bg-white"></td>
+                        <td className="border border-black px-1 py-2 text-right">{invoice.subTotal?.toFixed(2)}</td>
+                        <td className="border border-black px-1 py-2 bg-white" colSpan={4}></td>
+                        <td className="border border-black px-1 py-2 text-right">{(invoice.subTotal + (invoice.taxAmount || 0)).toFixed(2)}</td>
                       </tr>
                     </tbody>
                   </table>

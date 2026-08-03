@@ -874,7 +874,7 @@ export default function NewPurchaseInvoicePage() {
                                itemDescription: getVal('description') || getVal('itemDescription') || newItems[index].itemDescription,
                                loaSerialNo: getVal('loaSerialNo') || getVal('loaSerial') || getVal('sku') || (loaSerialNos.length === 1 ? loaSerialNos[0] : ''),
                                hsnCode: getVal('hsnCode') || getVal('hsn') || '',
-                               unit: getVal('unit') || '',
+                               unit: getVal('unit') || getVal('uom') || '',
                                gstType: newItems[index].gstType || 'Intra State',
                                cgst: Number(getVal('cgst')) || 0,
                                sgst: Number(getVal('sgst')) || 0,

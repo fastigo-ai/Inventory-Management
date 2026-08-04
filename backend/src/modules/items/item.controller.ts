@@ -567,53 +567,70 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
   // Batch Upsert Logic (Update if exists by unique composite key, else Insert)
   const bulkOps: any[] = [];
   
-  if (validItems.length > 0) {
-    const orConditions = validItems.map(item => ({
-      'dynamicData.sku': item.dynamicData.sku,
-      'dynamicData.package': item.dynamicData.package,
-      'dynamicData.circle': item.dynamicData.circle
-    })).filter(c => c['dynamicData.sku']);
-    
-    const existingItemsMap = new Map();
-    if (orConditions.length > 0) {
-      const existingItems = await Item.find({ $or: orConditions }).lean();
-      for (const existing of existingItems) {
-        const ext = existing as any;
-        const key = `${ext.dynamicData?.package || ''}|${ext.dynamicData?.circle || ''}|${ext.dynamicData?.sku || ''}`;
-        existingItemsMap.set(key, existing);
-      }
+  // Chunk helper
+  const chunkArray = (arr, size) => {
+    const chunks = [];
+    for (let i = 0; i < arr.length; i += size) {
+      chunks.push(arr.slice(i, i + size));
     }
+    return chunks;
+  };
 
-    for (const item of validItems) {
-      const key = `${item.dynamicData.package || ''}|${item.dynamicData.circle || ''}|${item.dynamicData.sku || ''}`;
-      const matchedExisting = existingItemsMap.get(key);
+  if (validItems.length > 0) {
+    const itemChunks = chunkArray(validItems, 1000);
+    
+    for (const chunk of itemChunks) {
+      const orConditions = chunk.map(item => ({
+        'dynamicData.sku': item.dynamicData.sku,
+        'dynamicData.package': item.dynamicData.package,
+        'dynamicData.circle': item.dynamicData.circle
+      })).filter(c => c['dynamicData.sku']);
+      
+      const existingItemsMap = new Map();
+      if (orConditions.length > 0) {
+        const existingItems = await Item.find({ $or: orConditions }).lean();
+        for (const existing of existingItems) {
+          const ext = existing;
+          const key = `${ext.dynamicData?.package || ''}|${ext.dynamicData?.circle || ''}|${ext.dynamicData?.sku || ''}`;
+          existingItemsMap.set(key, existing);
+        }
+      }
 
-      if (matchedExisting) {
-         bulkOps.push({
-            updateOne: {
-               filter: { _id: matchedExisting._id },
-               update: {
-                  $set: {
-                     dynamicData: { ...matchedExisting.dynamicData, ...item.dynamicData }
-                  },
-                  $push: {
-                     history: { action: 'Updated via Import', performedBy: (req as any).user?._id || 'system', date: new Date() }
-                  }
-               }
-            }
-         });
-      } else {
-         bulkOps.push({
-            insertOne: {
-               document: item
-            }
-         });
+      const chunkOps = [];
+      for (const item of chunk) {
+        const key = `${item.dynamicData.package || ''}|${item.dynamicData.circle || ''}|${item.dynamicData.sku || ''}`;
+        const matchedExisting = existingItemsMap.get(key);
+
+        if (matchedExisting) {
+           chunkOps.push({
+              updateOne: {
+                 filter: { _id: matchedExisting._id },
+                 update: {
+                    $set: {
+                       dynamicData: { ...matchedExisting.dynamicData, ...item.dynamicData }
+                    },
+                    $push: {
+                       history: { action: 'Updated via Import', performedBy: req.user?._id || 'system', date: new Date() }
+                    }
+                 }
+              }
+           });
+        } else {
+           chunkOps.push({
+              insertOne: {
+                 document: item
+              }
+           });
+        }
+      }
+      
+      if (chunkOps.length > 0) {
+        await Item.bulkWrite(chunkOps);
       }
     }
   }
 
-  if (bulkOps.length > 0) {
-    await Item.bulkWrite(bulkOps);
+  if (validItems.length > 0) { // To keep block structure for following code
 
     // Update Metadata Activity Options if new activities are imported
     if (validItems.length > 0) {

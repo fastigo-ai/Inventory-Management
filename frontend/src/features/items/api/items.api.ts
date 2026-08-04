@@ -73,13 +73,15 @@ export const exportItemsToCsv = async () => {
   link.remove();
 };
 
-export const importItemsFromCsv = async (file: File) => {
+export const importItemsFromCsv = async (file: File, onUploadProgress?: (progressEvent: any) => void) => {
   const formData = new FormData();
   formData.append('file', file);
   const response = await api.post('/items/import', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
+    timeout: 300000, // 5 minutes timeout for large file processing
+    onUploadProgress,
   });
   return response.data.data;
 };

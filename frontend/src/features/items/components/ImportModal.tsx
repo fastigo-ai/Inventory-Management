@@ -17,10 +17,25 @@ export function ImportModal({ isOpen, onClose, onSuccess, fields = [] }: ImportM
   const [isUploading, setIsUploading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setFile(e.target.files[0]);
+      const selectedFile = e.target.files[0];
+      
+      if (!selectedFile.name.toLowerCase().endsWith('.csv')) {
+        setError("Please select a valid CSV file.");
+        setFile(null);
+        return;
+      }
+      
+      if (selectedFile.size > 50 * 1024 * 1024) {
+        setError("File size exceeds 50MB limit. Please upload a smaller file.");
+        setFile(null);
+        return;
+      }
+      
+      setFile(selectedFile);
       setResult(null);
       setError(null);
     }
@@ -33,7 +48,13 @@ export function ImportModal({ isOpen, onClose, onSuccess, fields = [] }: ImportM
     setResult(null);
 
     try {
-      const res = await importItemsFromCsv(file);
+      setUploadProgress(0);
+      const res = await importItemsFromCsv(file, (progressEvent: any) => {
+        if (progressEvent.total) {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(percentCompleted);
+        }
+      });
       
       if (res.successCount > 0) {
         toast.success(`Imported successfully! ${res.successCount} items added.`);
@@ -65,6 +86,7 @@ export function ImportModal({ isOpen, onClose, onSuccess, fields = [] }: ImportM
     setFile(null);
     setResult(null);
     setError(null);
+    setUploadProgress(0);
   };
 
   const downloadSampleCsv = () => {
@@ -128,13 +150,31 @@ export function ImportModal({ isOpen, onClose, onSuccess, fields = [] }: ImportM
               />
               
               {file ? (
-                <div className="flex flex-col items-center">
+                <div className="flex flex-col items-center w-full">
                   <FileText className="w-10 h-10 text-[#0076f2] mb-3" />
                   <p className="text-sm font-medium text-slate-700">{file.name}</p>
                   <p className="text-xs text-slate-500 mt-1">{(file.size / 1024).toFixed(1)} KB</p>
-                  <Button type="button" variant="link" className="text-xs text-red-500 mt-2 z-10 relative" onClick={(e) => { e.stopPropagation(); setFile(null); }}>
-                    Remove
-                  </Button>
+                  
+                  {isUploading && (
+                    <div className="w-full max-w-[80%] mt-4">
+                      <div className="flex justify-between text-xs text-slate-600 mb-1">
+                        <span>Uploading...</span>
+                        <span>{uploadProgress}%</span>
+                      </div>
+                      <div className="w-full bg-slate-200 rounded-full h-2">
+                        <div 
+                          className="bg-[#0076f2] h-2 rounded-full transition-all duration-300" 
+                          style={{ width: `${uploadProgress}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {!isUploading && (
+                    <Button type="button" variant="link" className="text-xs text-red-500 mt-2 z-10 relative" onClick={(e) => { e.stopPropagation(); setFile(null); }}>
+                      Remove
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <div className="flex flex-col items-center">

@@ -568,7 +568,7 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
   const bulkOps: any[] = [];
   
   // Chunk helper
-  const chunkArray = (arr, size) => {
+  const chunkArray = (arr: any[], size: number) => {
     const chunks = [];
     for (let i = 0; i < arr.length; i += size) {
       chunks.push(arr.slice(i, i + size));
@@ -580,11 +580,11 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
     const itemChunks = chunkArray(validItems, 1000);
     
     for (const chunk of itemChunks) {
-      const orConditions = chunk.map(item => ({
+      const orConditions = chunk.map((item: any) => ({
         'dynamicData.sku': item.dynamicData.sku,
         'dynamicData.package': item.dynamicData.package,
         'dynamicData.circle': item.dynamicData.circle
-      })).filter(c => c['dynamicData.sku']);
+      })).filter((c: any) => c['dynamicData.sku']);
       
       const existingItemsMap = new Map();
       if (orConditions.length > 0) {
@@ -596,7 +596,7 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
         }
       }
 
-      const chunkOps = [];
+      const chunkOps: any[] = [];
       for (const item of chunk) {
         const key = `${item.dynamicData.package || ''}|${item.dynamicData.circle || ''}|${item.dynamicData.sku || ''}`;
         const matchedExisting = existingItemsMap.get(key);
@@ -610,7 +610,7 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
                        dynamicData: { ...matchedExisting.dynamicData, ...item.dynamicData }
                     },
                     $push: {
-                       history: { action: 'Updated via Import', performedBy: req.user?._id || 'system', date: new Date() }
+                       history: { action: 'Updated via Import', performedBy: (req as any).user?._id || 'system', date: new Date() }
                     }
                  }
               }

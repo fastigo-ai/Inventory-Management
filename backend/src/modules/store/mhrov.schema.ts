@@ -19,15 +19,19 @@ const mhrovSchema = new Schema(
       type: String, 
       required: true,
       enum: ['done', 'pending', 'MHROV done but not signed'],
-      default: 'pending'
+      default: 'pending',
+      index: true
     },
     documentUrl: { type: String },
     package: { type: String },
     circle: { type: String },
-    inwardEntries: [{ type: Schema.Types.ObjectId, ref: 'StoreInwardEntry' }],
-    createdBy: { type: Schema.Types.ObjectId, ref: 'User' }
+    inwardEntries: [{ type: Schema.Types.ObjectId, ref: 'StoreInwardEntry', index: true }],
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User', index: true }
   },
   { timestamps: true }
 );
+
+mhrovSchema.index({ mhrovDate: -1 });
+mhrovSchema.index({ createdAt: -1 });
 
 export const Mhrov = mongoose.model<IMhrov>('Mhrov', mhrovSchema);

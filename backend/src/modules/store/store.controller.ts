@@ -813,8 +813,48 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
   );
 });
 
+export const getStoreReceiptFilterOptions = asyncHandler(async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  const baseFilter: any = { purchaseInvoiceId: { $exists: true } };
+
+  // Scope filter to assigned package/circle/subcircle for Store Managers
+  if (user && user.role?.name === 'Store Manager') {
+    if (user.assignedPackage) {
+      const normalizedPkg = user.assignedPackage.replace(/\s+/g, '');
+      const regexStr = normalizedPkg.split('').map((char: string) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*');
+      baseFilter.package = { $regex: new RegExp(`^\\s*${regexStr}\\s*$`, 'i') };
+    }
+    if (user.assignedCircle) {
+      baseFilter.circle = { $regex: new RegExp(`^\\s*${user.assignedCircle.trim()}\\s*$`, 'i') };
+    }
+    if (user.assignedSubcircle) {
+      baseFilter.subcircle = { $regex: new RegExp(`^\\s*${user.assignedSubcircle.trim()}\\s*$`, 'i') };
+    }
+  }
+
+  const [packages, circles, vendors] = await Promise.all([
+    StoreInwardEntry.distinct('package', baseFilter),
+    StoreInwardEntry.distinct('circle', baseFilter),
+    StoreInwardEntry.distinct('vendorName', baseFilter),
+  ]);
+
+  res.status(200).json(
+    new ApiResponse(200, {
+      packages: packages.filter(Boolean).sort(),
+      circles: circles.filter(Boolean).sort(),
+      vendors: vendors.filter(Boolean).sort(),
+    }, 'Filter options fetched')
+  );
+});
+
 export const getPendingStoreReceipts = asyncHandler(async (req: Request, res: Response) => {
   const user = (req as any).user;
+  const { 
+    page = '1', limit = '10', search, 
+    package: pkg, circle, status, vendor, 
+    invoicePo, dateRange, itemTemp, discrepancy,
+    export: exportAll
+  } = req.query;
   
   const filter: any = { status: { $in: ['PENDING_RECEIPT', 'APPROVED'] }, purchaseInvoiceId: { $exists: true } };
   
@@ -827,22 +867,97 @@ export const getPendingStoreReceipts = asyncHandler(async (req: Request, res: Re
     if (user.assignedCircle) {
       filter.circle = { $regex: new RegExp(`^\\s*${user.assignedCircle.trim()}\\s*$`, 'i') };
     }
+    if (user.assignedSubcircle) {
+      filter.subcircle = { $regex: new RegExp(`^\\s*${user.assignedSubcircle.trim()}\\s*$`, 'i') };
+    }
+  } else if (user && (user.role?.name === 'Admin' || user.role?.name === 'Super Admin' || user.role?.permissions?.includes('*'))) {
+    if (pkg && pkg !== 'All') filter.package = pkg;
+    if (circle && circle !== 'All') filter.circle = circle;
   }
 
-  if (req.query.search) {
-    filter.inwardId = { $regex: req.query.search as string, $options: 'i' };
+  if (status && status !== 'All') {
+    filter.status = status;
+  }
+
+  if (vendor && vendor !== 'All') {
+    filter.vendorName = { $regex: vendor as string, $options: 'i' };
+  }
+
+  if (invoicePo) {
+    const searchStr = invoicePo as string;
+    filter.$or = filter.$or || [];
+    filter.$or.push(
+      { invoiceNumber: { $regex: searchStr, $options: 'i' } },
+      { poNumber: { $regex: searchStr, $options: 'i' } }
+    );
+  }
+
+  if (itemTemp) {
+    const searchStr = itemTemp as string;
+    filter.$or = filter.$or || [];
+    filter.$or.push(
+      { itemName: { $regex: searchStr, $options: 'i' } },
+      { tempCode: { $regex: searchStr, $options: 'i' } }
+    );
+  }
+
+  if (discrepancy === 'Quantity Mismatch') {
+    filter.$expr = {
+      $lt: [
+        { $ifNull: [ "$receivedQty", { $ifNull: [ "$challanQty", 0 ] } ] },
+        "$invoiceQty"
+      ]
+    };
+  }
+
+  if (dateRange && dateRange !== 'All') {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    // Copy today so we don't mutate it for 'This Week' calculations
+    const todayCopy = new Date(today);
+
+    if (dateRange === 'Today') {
+      filter.invoiceDate = { $gte: today, $lt: tomorrow };
+    } else if (dateRange === 'This Week') {
+      const firstDay = new Date(todayCopy.setDate(todayCopy.getDate() - todayCopy.getDay()));
+      filter.invoiceDate = { $gte: firstDay, $lt: tomorrow };
+    } else if (dateRange === 'This Month') {
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      filter.invoiceDate = { $gte: firstDay, $lt: tomorrow };
+    }
+  }
+
+  if (search) {
+    filter.$or = filter.$or || [];
+    filter.$or.push({ inwardId: { $regex: search as string, $options: 'i' } });
+  }
+
+  console.log("DEBUG getPendingStoreReceipts query filter:", JSON.stringify(filter, null, 2));
+
+  let query = StoreInwardEntry.find(filter)
+    .populate('purchaseInvoiceId')
+    .sort({ createdAt: -1 });
+
+  if (exportAll !== 'true') {
+    const pageNum = parseInt(page as string, 10);
+    const limitNum = parseInt(limit as string, 10);
+    query = query.skip((pageNum - 1) * limitNum).limit(limitNum);
   }
 
   const [entries, total] = await Promise.all([
-    StoreInwardEntry.find(filter)
-      .populate('purchaseInvoiceId')
-      .sort({ createdAt: -1 }),
+    query,
     StoreInwardEntry.countDocuments(filter)
   ]);
 
   res.status(200).json(
     new ApiResponse(200, {
-      entries
+      entries,
+      total,
+      page: exportAll === 'true' ? 1 : parseInt(page as string, 10),
+      totalPages: exportAll === 'true' ? 1 : Math.ceil(total / parseInt(limit as string, 10))
     }, 'Pending store receipts fetched successfully')
   );
 });
@@ -1334,4 +1449,118 @@ export const getMhrovDashboardData = asyncHandler(async (req: Request, res: Resp
   };
 
   res.status(200).json(new ApiResponse(200, { metrics, items: mergedItems }, 'Dashboard data fetched successfully'));
+});
+
+export const bulkImportInwardEntries = asyncHandler(async (req: Request, res: Response) => {
+  const { entries } = req.body;
+
+  if (!entries || !Array.isArray(entries) || entries.length === 0) {
+    throw new ApiError(400, 'Invalid or empty entries array provided');
+  }
+
+  const results = {
+    success: 0,
+    failed: 0,
+    errors: [] as string[]
+  };
+
+  for (const row of entries) {
+    try {
+      const entryId = row['Entry ID'];
+      if (!entryId) {
+        results.failed++;
+        results.errors.push('Missing Entry ID in row');
+        continue;
+      }
+
+      const existingEntry = await StoreInwardEntry.findById(entryId);
+      if (!existingEntry) {
+        results.failed++;
+        results.errors.push(`Entry ID ${entryId} not found`);
+        continue;
+      }
+
+      // Extract optional values with defaults
+      const receivedQty = Number(row['Received Qty']) || 0;
+      const rejectedQty = Number(row['Rejected Qty']) || 0;
+      // If Accepted Qty is provided, use it, otherwise use Received - Rejected, or default to invoiceQty
+      const invoiceQty = Number(row['Invoice Qty (Accepted)']) || (receivedQty > 0 ? (receivedQty - rejectedQty) : Number(existingEntry.invoiceQty)) || 0;
+      
+      const rate = Number(row['Rate']) || Number(existingEntry.rate) || 0;
+      const packType = row['Pack Type'] || existingEntry.packingList?.[0]?.packType || 'BOX';
+      const packQty = Number(row['Pack Qty']) || invoiceQty;
+      
+      const transportName = row['Transport Name'] || existingEntry.transportName || '';
+      const truckNumber = row['Truck Number'] || existingEntry.truckNumber || '';
+      const grNumber = row['GR Number'] || existingEntry.grNumber || '';
+      
+      let grDate = existingEntry.grDate;
+      if (row['GR Date']) {
+        const parsed = new Date(row['GR Date']);
+        if (!isNaN(parsed.getTime())) grDate = parsed;
+      }
+
+      let receivedDate = existingEntry.receivedDate || new Date();
+      if (row['Received Date']) {
+        const parsed = new Date(row['Received Date']);
+        if (!isNaN(parsed.getTime())) receivedDate = parsed;
+      }
+
+      const biltyNumber = row['Bilty Number'] || existingEntry.biltyNumber || '';
+      const remarks = row['Remarks'] || existingEntry.remarks || '';
+
+      // Perform calculations
+      const cgstRate = Number(existingEntry.cgst) > 0 ? (Number(existingEntry.cgst) / (Number(existingEntry.taxableAmount) || 1) * 100) : 0;
+      const sgstRate = Number(existingEntry.sgst) > 0 ? (Number(existingEntry.sgst) / (Number(existingEntry.taxableAmount) || 1) * 100) : 0;
+      const igstRate = Number(existingEntry.igst) > 0 ? (Number(existingEntry.igst) / (Number(existingEntry.taxableAmount) || 1) * 100) : 0;
+
+      const taxableAmount = invoiceQty * rate;
+      const cgst = (taxableAmount * cgstRate) / 100;
+      const sgst = (taxableAmount * sgstRate) / 100;
+      const igst = (taxableAmount * igstRate) / 100;
+      const amount = taxableAmount + cgst + sgst + igst;
+
+      const updateData = {
+        challanQty: Number(row['Challan Qty']) || existingEntry.challanQty || invoiceQty,
+        rejectedQty,
+        invoiceQty,
+        totalQty: invoiceQty,
+        rate,
+        taxableAmount,
+        cgst,
+        sgst,
+        igst,
+        amount,
+        transportName,
+        truckNumber,
+        grNumber,
+        grDate,
+        biltyNumber,
+        receivedDate,
+        remarks,
+        status: 'SUBMITTED', // Move directly to SUBMITTED
+        packingList: [{
+          packType,
+          quantity: packQty,
+          packUnit: existingEntry.packingList?.[0]?.packUnit || 'Nos'
+        }]
+      };
+
+      await StoreInwardEntry.findByIdAndUpdate(entryId, updateData);
+      
+      // Also invoke summary rebuild just like manual update
+      if (existingEntry.itemId) {
+        SummaryService.rebuildForItem(existingEntry.itemId.toString()).catch(console.error);
+      }
+
+      results.success++;
+    } catch (err: any) {
+      results.failed++;
+      results.errors.push(`Row processing failed: ${err.message}`);
+    }
+  }
+
+  res.status(200).json(
+    new ApiResponse(200, results, 'Bulk import completed')
+  );
 });

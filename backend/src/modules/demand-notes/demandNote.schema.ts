@@ -49,7 +49,7 @@ export interface IDemandNote extends Document {
 }
 
 const demandNoteItemSchema = new Schema<IDemandNoteItem>({
-  itemId: { type: Schema.Types.ObjectId, ref: 'Item' },
+  itemId: { type: Schema.Types.ObjectId, ref: 'Item', index: true },
   itemName: { type: String, required: true },
   itemDescription: { type: String },
   activity: { type: String },
@@ -82,17 +82,18 @@ const demandNoteItemSchema = new Schema<IDemandNoteItem>({
 const demandNoteSchema = new Schema<IDemandNote>(
   {
     demandNoteNumber: { type: String, required: true, unique: true },
-    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     package: { type: String, required: true },
     circle: { type: String, required: true },
-    contractorName: { type: String },
+    contractorName: { type: String, index: true },
     division: { type: String },
     subDivision: { type: String },
     location: { type: String },
     status: {
       type: String,
       enum: ['Draft', 'Pending Approval', 'Approved', 'Rejected', 'Fulfilled'],
-      default: 'Draft'
+      default: 'Draft',
+      index: true
     },
     remarks: { type: String },
     locationDrawingUrl: { type: String },
@@ -100,6 +101,8 @@ const demandNoteSchema = new Schema<IDemandNote>(
   },
   { timestamps: true }
 );
+
+demandNoteSchema.index({ createdAt: -1 });
 
 import { auditPlugin } from '../../core/plugins/audit.plugin';
 demandNoteSchema.plugin(auditPlugin, { entityName: 'DemandNote', track: true });

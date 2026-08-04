@@ -28,8 +28,8 @@ export class SummaryService {
     const { itemId, circle, increments, session, companyId, warehouseId } = params;
     
     // In JS/TS 'package' is a reserved keyword, so we alias it carefully
-    const pkg = params.package || '';
-    const circ = circle || '';
+    let pkg = params.package || '';
+    let circ = circle || '';
 
     // Remove undefined increments
     const incObj: any = {};
@@ -57,6 +57,30 @@ export class SummaryService {
       if (item.dynamicData.name) itemName = item.dynamicData.name;
       if (item.dynamicData.sku) loaSerialNo = item.dynamicData.sku;
       if (item.dynamicData.tempCode) tempCode = item.dynamicData.tempCode;
+
+      // Force to master item dimensions to prevent transactions from creating phantom circles
+      // Only do this if we are not explicitly migrating multi-circle LOA/BOM inside rebuildForItem
+      // To keep it simple, we just check if the passed circle matches any valid circle on the item.
+      const validCircles = [];
+      if (item.dynamicData.circle) validCircles.push(item.dynamicData.circle.toLowerCase());
+      
+      const circles = ['solan', 'nahan', 'rampur', 'rohru'];
+      for (const c of circles) {
+        if (Number(item.dynamicData[`${c}LoaQuantity`]) > 0 || Number(item.dynamicData[`${c}BomQuantity`]) > 0) {
+          validCircles.push(c);
+        }
+      }
+
+      // If the transaction's circle isn't valid for this item, force it to the item's primary master circle
+      if (circ && !validCircles.includes(circ.toLowerCase())) {
+        circ = item.dynamicData.circle || circ;
+        if (circ.toLowerCase().includes('package')) {
+          pkg = circ;
+          circ = '';
+        } else {
+          pkg = item.dynamicData.package || pkg;
+        }
+      }
     }
 
     const filter: Record<string, any> = {

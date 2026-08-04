@@ -15,4 +15,6 @@ const RoleSchema: Schema = new Schema(
   { timestamps: true }
 );
 
+RoleSchema.index({ createdAt: -1 });
+
 export default mongoose.model<IRole>('Role', RoleSchema);

@@ -56,7 +56,7 @@ export interface IContractorAssignment extends Document {
 }
 
 const assignmentLineItemSchema = new Schema<IAssignmentLineItem>({
-  itemId: { type: Schema.Types.ObjectId, ref: 'Item' },
+  itemId: { type: Schema.Types.ObjectId, ref: 'Item', index: true },
   itemName: { type: String, required: true },
   tempCode: { type: String },
   unit: { type: String, default: 'Nos' },
@@ -70,7 +70,7 @@ const assignmentLineItemSchema = new Schema<IAssignmentLineItem>({
 
 const contractorAssignmentSchema = new Schema<IContractorAssignment>(
   {
-    contractorId: { type: Schema.Types.ObjectId, ref: 'Contractor', required: true },
+    contractorId: { type: Schema.Types.ObjectId, ref: 'Contractor', required: true, index: true },
     location: { type: String },
     assignmentNumber: { type: String, required: true, unique: true },
     orderNumber: { type: String },
@@ -106,9 +106,11 @@ const contractorAssignmentSchema = new Schema<IContractorAssignment>(
     total: { type: Number, required: true, default: 0 },
     customerNotes: { type: String },
     termsConditions: { type: String },
-    status: { type: String, enum: ['Draft', 'Sent', 'Cancelled'], default: 'Draft' },
+    status: { type: String, enum: ['Draft', 'Sent', 'Cancelled'], default: 'Draft', index: true },
   },
   { timestamps: true }
 );
+
+contractorAssignmentSchema.index({ createdAt: -1 });
 
 export const ContractorAssignment = mongoose.models.ContractorAssignment || mongoose.model<IContractorAssignment>('ContractorAssignment', contractorAssignmentSchema);

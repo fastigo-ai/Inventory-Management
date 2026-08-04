@@ -53,7 +53,7 @@ export interface IPr extends Document {
 }
 
 const prLineItemSchema = new Schema<IPrLineItem>({
-  itemId: { type: Schema.Types.ObjectId, ref: 'Item' },
+  itemId: { type: Schema.Types.ObjectId, ref: 'Item', index: true },
   loaSerialNo: { type: String },
   itemName: { type: String, required: true },
   itemDescription: { type: String },
@@ -79,8 +79,8 @@ const prLineItemSchema = new Schema<IPrLineItem>({
 
 const prSchema = new Schema<IPr>(
   {
-    vendorName: { type: String, required: true },
-    purchaseOrderId: { type: Schema.Types.ObjectId, ref: 'PurchaseOrder' },
+    vendorName: { type: String, required: true, index: true },
+    purchaseOrderId: { type: Schema.Types.ObjectId, ref: 'PurchaseOrder', index: true },
     purchaseOrderNumber: { type: String },
     purchaseReceiveNumber: { type: String, required: true, unique: true },
     receiveDate: { type: Date, required: true },
@@ -92,7 +92,7 @@ const prSchema = new Schema<IPr>(
     
     notes: { type: String },
     
-    status: { type: String, enum: ['Draft', 'Received', 'In Transit'], default: 'Draft' },
+    status: { type: String, enum: ['Draft', 'Received', 'In Transit'], default: 'Draft', index: true },
     billed: { type: Boolean, default: false },
     
     attachments: [{
@@ -104,6 +104,9 @@ const prSchema = new Schema<IPr>(
     timestamps: true,
   }
 );
+
+prSchema.index({ receiveDate: -1 });
+prSchema.index({ createdAt: -1 });
 
 import { auditPlugin } from '../../core/plugins/audit.plugin';
 prSchema.plugin(auditPlugin, { entityName: 'PurchaseReceive', track: true });

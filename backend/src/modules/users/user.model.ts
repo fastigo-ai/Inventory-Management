@@ -18,13 +18,15 @@ const UserSchema: Schema = new Schema(
     lastName: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-    role: { type: Schema.Types.ObjectId, ref: 'Role', required: true },
+    role: { type: Schema.Types.ObjectId, ref: 'Role', required: true, index: true },
     sessionVersion: { type: Number, default: 0 },
     assignedPackage: { type: String },
     assignedCircle: { type: String },
   },
   { timestamps: true }
 );
+
+UserSchema.index({ createdAt: -1 });
 
 // Exclude password field from the default JSON output
 UserSchema.set('toJSON', {

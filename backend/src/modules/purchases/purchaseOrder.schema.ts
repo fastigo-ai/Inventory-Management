@@ -85,7 +85,7 @@ export interface IPurchaseOrder extends Document {
 }
 
 const purchaseOrderLineItemSchema = new Schema<IPurchaseOrderLineItem>({
-  itemId: { type: Schema.Types.ObjectId, ref: 'Item' },
+  itemId: { type: Schema.Types.ObjectId, ref: 'Item', index: true },
   itemName: { type: String, required: true },
   tempCode: { type: String },
   account: { type: String },
@@ -103,7 +103,7 @@ const purchaseOrderLineItemSchema = new Schema<IPurchaseOrderLineItem>({
 
 const purchaseOrderSchema = new Schema<IPurchaseOrder>(
   {
-    vendorName: { type: String, required: true },
+    vendorName: { type: String, required: true, index: true },
     location: { type: String },
     deliveryAddressType: { type: String, enum: ['Locations', 'Customer'] },
     deliveryAddressId: { type: String },
@@ -153,8 +153,8 @@ const purchaseOrderSchema = new Schema<IPurchaseOrder>(
     adjustment: { type: Number, default: 0 },
     total: { type: Number, required: true, default: 0 },
     
-    status: { type: String, enum: ['Draft', 'Sent', 'Cancelled'], default: 'Draft' },
-    receiveStatus: { type: String, enum: ['Yet To Be Received', 'Received'], default: 'Yet To Be Received' },
+    status: { type: String, enum: ['Draft', 'Sent', 'Cancelled'], default: 'Draft', index: true },
+    receiveStatus: { type: String, enum: ['Yet To Be Received', 'Received'], default: 'Yet To Be Received', index: true },
     
     attachments: [{
       name: { type: String },
@@ -165,6 +165,9 @@ const purchaseOrderSchema = new Schema<IPurchaseOrder>(
     timestamps: true,
   }
 );
+
+purchaseOrderSchema.index({ date: -1 });
+purchaseOrderSchema.index({ createdAt: -1 });
 
 import { auditPlugin } from '../../core/plugins/audit.plugin';
 purchaseOrderSchema.plugin(auditPlugin, { entityName: 'PurchaseOrder', track: true });

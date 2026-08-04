@@ -37,7 +37,7 @@ export interface IContractorWorkOrder extends Document {
 }
 
 const ContractorWorkOrderItemSchema = new Schema<IContractorWorkOrderItem>({
-  itemId: { type: Schema.Types.ObjectId, ref: 'Item', required: true },
+  itemId: { type: Schema.Types.ObjectId, ref: 'Item', required: true, index: true },
   tempCode: { type: String, default: '' },
   activity: { type: String, default: '' },
   loaSrNo: { type: String, default: '' },
@@ -59,18 +59,20 @@ const ContractorWorkOrderSchema = new Schema<IContractorWorkOrder>(
     workOrderNumber: { type: String, required: true, unique: true },
     package: { type: String, required: true },
     circle: { type: String, required: true },
-    contractorId: { type: Schema.Types.ObjectId, ref: 'Contractor', required: true },
+    contractorId: { type: Schema.Types.ObjectId, ref: 'Contractor', required: true, index: true },
     division: { type: String, default: '' },
     subDivision: { type: String, default: '' },
     location: { type: String, default: '' },
     remarks: { type: String, default: '' },
     activities: { type: [String], default: [] },
     items: [ContractorWorkOrderItemSchema],
-    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    status: { type: String, enum: ['Draft', 'Approved', 'Site Approved', 'Completed'], default: 'Draft' },
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    status: { type: String, enum: ['Draft', 'Approved', 'Site Approved', 'Completed'], default: 'Draft', index: true },
     totalWoAmount: { type: Number, default: 0 }
   },
   { timestamps: true }
 );
+
+ContractorWorkOrderSchema.index({ createdAt: -1 });
 
 export const ContractorWorkOrder = mongoose.models.ContractorWorkOrder || mongoose.model<IContractorWorkOrder>('ContractorWorkOrder', ContractorWorkOrderSchema);

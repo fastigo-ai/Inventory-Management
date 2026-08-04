@@ -15,16 +15,18 @@ export interface ILocation extends Document {
 const locationSchema = new Schema<ILocation>(
   {
     name: { type: String, required: true },
-    parentLocation: { type: Schema.Types.ObjectId, ref: 'Location' },
+    parentLocation: { type: Schema.Types.ObjectId, ref: 'Location', index: true },
     type: { type: String, enum: ['Head Office', 'Warehouse', 'Store', 'Other'], default: 'Warehouse' },
     address: { type: String },
     contactPerson: { type: String },
     phone: { type: String },
-    status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' },
+    status: { type: String, enum: ['Active', 'Inactive'], default: 'Active', index: true },
   },
   {
     timestamps: true,
   }
 );
+
+locationSchema.index({ createdAt: -1 });
 
 export const Location = mongoose.models.Location || mongoose.model<ILocation>('Location', locationSchema);

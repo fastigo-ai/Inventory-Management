@@ -34,7 +34,7 @@ export interface IContractorReturn extends Document {
 }
 
 const returnLineItemSchema = new Schema<IReturnLineItem>({
-  itemId: { type: Schema.Types.ObjectId, ref: 'Item' },
+  itemId: { type: Schema.Types.ObjectId, ref: 'Item', index: true },
   itemName: { type: String, required: true },
   tempCode: { type: String },
   unit: { type: String, default: 'Nos' },
@@ -44,7 +44,7 @@ const returnLineItemSchema = new Schema<IReturnLineItem>({
 
 const contractorReturnSchema = new Schema<IContractorReturn>(
   {
-    contractorId: { type: Schema.Types.ObjectId, ref: 'Contractor', required: true },
+    contractorId: { type: Schema.Types.ObjectId, ref: 'Contractor', required: true, index: true },
     location: { type: String },
     
     // Return Specific Fields
@@ -61,10 +61,12 @@ const contractorReturnSchema = new Schema<IContractorReturn>(
     issuedTfsSrNo: { type: String },
 
     lineItems: [returnLineItemSchema],
-    status: { type: String, enum: ['Draft', 'Submitted', 'Cancelled'], default: 'Submitted' },
-    createdBy: { type: Schema.Types.ObjectId, ref: 'User' }
+    status: { type: String, enum: ['Draft', 'Submitted', 'Cancelled'], default: 'Submitted', index: true },
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User', index: true }
   },
   { timestamps: true }
 );
+
+contractorReturnSchema.index({ createdAt: -1 });
 
 export const ContractorReturn = mongoose.models.ContractorReturn || mongoose.model<IContractorReturn>('ContractorReturn', contractorReturnSchema);

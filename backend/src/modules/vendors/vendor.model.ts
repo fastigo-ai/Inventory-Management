@@ -8,8 +8,10 @@ export interface IVendor extends Document {
 
 const VendorSchema = new Schema({
   dynamicData: { type: Schema.Types.Mixed, required: true },
-  isDeleted: { type: Boolean, default: false },
-  status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' }
+  isDeleted: { type: Boolean, default: false, index: true },
+  status: { type: String, enum: ['Active', 'Inactive'], default: 'Active', index: true }
 }, { timestamps: true });
+
+VendorSchema.index({ createdAt: -1 });
 
 export default mongoose.model<IVendor>('Vendor', VendorSchema);

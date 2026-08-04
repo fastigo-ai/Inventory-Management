@@ -74,15 +74,15 @@ const packingListSchema = new Schema<IStoreInwardPackingList>({
 
 const storeInwardEntrySchema = new Schema<IStoreInwardEntry>(
   {
-    diId: { type: Schema.Types.ObjectId, ref: 'DI' },
-    purchaseOrderId: { type: Schema.Types.ObjectId, ref: 'PurchaseOrder' },
-    purchaseInvoiceId: { type: Schema.Types.ObjectId, ref: 'PurchaseInvoice' },
+    diId: { type: Schema.Types.ObjectId, ref: 'DI', index: true },
+    purchaseOrderId: { type: Schema.Types.ObjectId, ref: 'PurchaseOrder', index: true },
+    purchaseInvoiceId: { type: Schema.Types.ObjectId, ref: 'PurchaseInvoice', index: true },
     
-    poNumber: { type: String },
+    poNumber: { type: String, index: true },
     poDate: { type: Date },
     billingFrom: { type: String },
-    vendorName: { type: String },
-    invoiceNumber: { type: String },
+    vendorName: { type: String, index: true },
+    invoiceNumber: { type: String, index: true },
     invoiceDate: { type: Date },
     receivedDate: { type: Date },
     unit: { type: String },
@@ -94,12 +94,12 @@ const storeInwardEntrySchema = new Schema<IStoreInwardEntry>(
     amount: { type: Number },
     taxableAmount: { type: Number },
     
-    tempCode: { type: String },
-    itemId: { type: Schema.Types.ObjectId, ref: 'Item' },
+    tempCode: { type: String, index: true },
+    itemId: { type: Schema.Types.ObjectId, ref: 'Item', index: true },
     itemName: { type: String },
     itemDescription: { type: String },
     hsnCode: { type: String },
-    challanNumber: { type: String },
+    challanNumber: { type: String, index: true },
     transportName: { type: String },
     truckNumber: { type: String },
     grNumber: { type: String },
@@ -122,7 +122,8 @@ const storeInwardEntrySchema = new Schema<IStoreInwardEntry>(
     status: { 
       type: String, 
       enum: ['DRAFT', 'PENDING_RECEIPT', 'APPROVED', 'SUBMITTED', 'VERIFIED', 'NEEDS_CORRECTION'], 
-      default: 'DRAFT' 
+      default: 'DRAFT',
+      index: true
     },
     
     packingList: [packingListSchema],
@@ -132,5 +133,7 @@ const storeInwardEntrySchema = new Schema<IStoreInwardEntry>(
   },
   { timestamps: true }
 );
+
+storeInwardEntrySchema.index({ createdAt: -1 });
 
 export const StoreInwardEntry = mongoose.models.StoreInwardEntry || mongoose.model<IStoreInwardEntry>('StoreInwardEntry', storeInwardEntrySchema);

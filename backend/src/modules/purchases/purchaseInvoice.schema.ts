@@ -81,7 +81,7 @@ export interface IPurchaseInvoice extends Document {
 }
 
 const purchaseInvoiceLineItemSchema = new Schema<IPurchaseInvoiceLineItem>({
-  itemId: { type: Schema.Types.ObjectId, ref: 'Item' },
+  itemId: { type: Schema.Types.ObjectId, ref: 'Item', index: true },
   itemName: { type: String, required: true },
   description: { type: String },
   loaSerialNo: { type: String },
@@ -180,6 +180,7 @@ purchaseInvoiceSchema.index({ vendorName: 1 });
 purchaseInvoiceSchema.index({ purchaseOrderId: 1 });
 purchaseInvoiceSchema.index({ status: 1 });
 purchaseInvoiceSchema.index({ receiptStatus: 1 });
+purchaseInvoiceSchema.index({ createdAt: -1 });
 
 // Pre-save hook to calculate balance due and update status if needed
 purchaseInvoiceSchema.pre('save', function() {

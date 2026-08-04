@@ -13,11 +13,13 @@ const contractorSchema = new Schema<IContractor>(
   {
     dynamicData: { type: Schema.Types.Mixed, required: true },
     assignedLocations: { type: [String], default: [] },
-    location: { type: String, enum: ['Solan', 'Nahan', 'Rampur', 'Rohru'] },
-    isActive: { type: Boolean, default: true },
+    location: { type: String, enum: ['Solan', 'Nahan', 'Rampur', 'Rohru'], index: true },
+    isActive: { type: Boolean, default: true, index: true },
   },
   { timestamps: true }
 );
+
+contractorSchema.index({ createdAt: -1 });
 
 export const Contractor = mongoose.models.Contractor || mongoose.model<IContractor>('Contractor', contractorSchema);
 

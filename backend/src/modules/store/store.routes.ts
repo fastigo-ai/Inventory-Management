@@ -28,7 +28,9 @@ import {
   getPendingStoreReceipts,
   getInwardRegister,
   approveStoreReceipt,
-  importStoreTransfers
+  importStoreTransfers,
+  bulkImportInwardEntries,
+  getStoreReceiptFilterOptions
 } from './store.controller';
 
 const router = Router();
@@ -40,13 +42,16 @@ router.route('/di/pending').get(getPendingDIs);
 router.route('/di/:diId/prefill').get(getDIPrefillData);
 router.route('/pi/:invoiceId/prefill').get(getPurchaseInvoicePrefillData);
 
-router.route('/receipts/pending').get(getPendingStoreReceipts);
-router.route('/receipts/register').get(getInwardRegister);
-router.route('/receipts/:id/approve').put(approveStoreReceipt);
+router.get('/receipts/filter-options', getStoreReceiptFilterOptions);
+router.get('/receipts/pending', getPendingStoreReceipts);
+router.get('/receipts/register', getInwardRegister);
+router.put('/receipts/:id/approve', approveStoreReceipt);
 
 router.route('/inventory/inward')
   .post(createInwardEntry)
   .get(queryInwardEntries);
+
+router.route('/inventory/inward/bulk-import').post(bulkImportInwardEntries);
 
 router.post('/inventory/inward/import', upload.single('file'), importInwardRegistrations);
 

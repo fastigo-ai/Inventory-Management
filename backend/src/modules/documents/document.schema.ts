@@ -24,13 +24,15 @@ const documentSchema = new Schema<IDocument>(
     publicId: { type: String, required: true },
     sourceType: { type: String },
     sourceId: { type: String },
-    uploadedBy: { type: Schema.Types.ObjectId, ref: 'User' },
-    status: { type: String, enum: ['Unreadable', 'Pending', 'Processed'], default: 'Pending' },
+    uploadedBy: { type: Schema.Types.ObjectId, ref: 'User', index: true },
+    status: { type: String, enum: ['Unreadable', 'Pending', 'Processed'], default: 'Pending', index: true },
     uploadedOn: { type: Date, default: Date.now },
   },
   {
     timestamps: true,
   }
 );
+
+documentSchema.index({ createdAt: -1 });
 
 export const AppDocument = mongoose.model<IDocument>('Document', documentSchema);

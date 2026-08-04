@@ -23,9 +23,11 @@ const HistorySchema = new Schema({
 const ItemSchema = new Schema({
   // Instead of hardcoding sku, name, brand, etc., we store everything here.
   dynamicData: { type: Schema.Types.Mixed, required: true },
-  isDeleted: { type: Boolean, default: false },
+  isDeleted: { type: Boolean, default: false, index: true },
   history: [HistorySchema] // We'll phase this out
 }, { timestamps: true, strictQuery: false });
+
+ItemSchema.index({ createdAt: -1 });
 
 import { auditPlugin } from '../../core/plugins/audit.plugin';
 ItemSchema.plugin(auditPlugin, { entityName: 'Item', track: true });

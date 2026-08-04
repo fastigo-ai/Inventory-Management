@@ -27,4 +27,6 @@ const billingCompanySchema = new Schema<IBillingCompany>(
   }
 );
 
+billingCompanySchema.index({ createdAt: -1 });
+
 export const BillingCompany = mongoose.models.BillingCompany || mongoose.model<IBillingCompany>('BillingCompany', billingCompanySchema);

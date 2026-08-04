@@ -41,7 +41,7 @@ export interface IStoreTransfer extends Document {
 }
 
 const transferItemSchema = new Schema<ITransferItem>({
-  itemId: { type: Schema.Types.ObjectId, ref: 'Item', required: true },
+  itemId: { type: Schema.Types.ObjectId, ref: 'Item', required: true, index: true },
   tempCode: { type: String, required: true },
   description: { type: String, required: true },
   unit: { type: String, required: true },
@@ -56,11 +56,12 @@ const storeTransferSchema = new Schema<IStoreTransfer>({
     type: String, 
     enum: ['PENDING', 'APPROVED', 'IN_TRANSIT', 'RECEIVED', 'REJECTED'], 
     default: 'PENDING',
-    required: true
+    required: true,
+    index: true
   },
   fromStore: { type: String, required: true },
   toStore: { type: String, required: true },
-  requestedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  requestedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   vendorName: { type: String },
 
   items: [transferItemSchema],
@@ -82,5 +83,7 @@ const storeTransferSchema = new Schema<IStoreTransfer>({
 }, {
   timestamps: true
 });
+
+storeTransferSchema.index({ createdAt: -1 });
 
 export const StoreTransfer = mongoose.model<IStoreTransfer>('StoreTransfer', storeTransferSchema);

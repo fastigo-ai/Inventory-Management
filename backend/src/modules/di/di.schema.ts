@@ -29,7 +29,7 @@ export interface IDI extends Document {
 }
 
 const diLineItemSchema = new Schema<IDILineItem>({
-  itemId: { type: Schema.Types.ObjectId, ref: 'Item' },
+  itemId: { type: Schema.Types.ObjectId, ref: 'Item', index: true },
   loaSerialNo: { type: String },
   itemName: { type: String, required: true },
   tempCode: { type: String },
@@ -42,20 +42,22 @@ const diLineItemSchema = new Schema<IDILineItem>({
 const diSchema = new Schema<IDI>(
   {
     diNumber: { type: String, required: true, unique: true },
-    purchaseOrderId: { type: Schema.Types.ObjectId, ref: 'PurchaseOrder' },
-    poNumber: { type: String },
-    vendorName: { type: String },
-    date: { type: Date, required: true, default: Date.now },
+    purchaseOrderId: { type: Schema.Types.ObjectId, ref: 'PurchaseOrder', index: true },
+    poNumber: { type: String, index: true },
+    vendorName: { type: String, index: true },
+    date: { type: Date, required: true, default: Date.now, index: true },
     circle: { type: String },
     package: { type: String },
     lineItems: [diLineItemSchema],
-    status: { type: String, enum: ['Draft', 'Active', 'Cancelled'], default: 'Active' },
+    status: { type: String, enum: ['Draft', 'Active', 'Cancelled'], default: 'Active', index: true },
     notes: { type: String },
     diLetterCopyUrl: { type: String },
     inspectionReportCopyUrl: { type: String }
   },
   { timestamps: true }
 );
+
+diSchema.index({ createdAt: -1 });
 
 import { auditPlugin } from '../../core/plugins/audit.plugin';
 diSchema.plugin(auditPlugin, { entityName: 'DI', track: true });

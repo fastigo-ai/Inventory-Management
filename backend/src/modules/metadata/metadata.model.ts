@@ -66,4 +66,6 @@ const MetadataSchema = new Schema({
   fields: [FieldSchema]
 }, { timestamps: true });
 
+MetadataSchema.index({ createdAt: -1 });
+
 export default mongoose.model<IMetadata>('Metadata', MetadataSchema);

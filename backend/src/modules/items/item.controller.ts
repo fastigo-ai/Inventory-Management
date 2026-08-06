@@ -214,7 +214,8 @@ export const getItems = asyncHandler(async (req: Request, res: Response) => {
     .sort(sortObject)
     .collation({ locale: 'en', numericOrdering: true })
     .skip(skip)
-    .limit(limit);
+    .limit(limit)
+    .lean();
 
   res.status(200).json(new ApiResponse(200, {
     items,
@@ -606,7 +607,11 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
   };
 
   if (validItems.length > 0) {
-    const itemChunks = chunkArray(validItems, 1000);
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      const itemChunks = chunkArray(validItems, 1000);
     
     for (const chunk of itemChunks) {
       const orConditions = chunk.map((item: any) => ({
@@ -654,19 +659,16 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
       }
       
       if (chunkOps.length > 0) {
-        await Item.bulkWrite(chunkOps);
+        await Item.bulkWrite(chunkOps, { session });
       }
     }
-  }
-
-  if (validItems.length > 0) { // To keep block structure for following code
 
     // Update Metadata Activity Options if new activities are imported
     if (validItems.length > 0) {
       const importedActivities = validItems.map(item => item.dynamicData.activity).filter(a => a && typeof a === 'string');
       if (importedActivities.length > 0) {
         const uniqueImported = Array.from(new Set(importedActivities));
-        const meta = await Metadata.findOne({ entityName: 'Item' });
+        const meta = await Metadata.findOne({ entityName: 'Item' }).session(session);
         if (meta) {
           const fields = (meta as any).fields;
           const activityField = fields.find((f: any) => f.name === 'activity');
@@ -681,11 +683,18 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
             }
             if (added) {
               activityField.options = Array.from(currentOptions);
-              await Metadata.updateOne({ entityName: 'Item' }, { $set: { fields } });
+              await Metadata.updateOne({ entityName: 'Item' }, { $set: { fields } }, { session });
             }
           }
         }
       }
+      }
+      await session.commitTransaction();
+      session.endSession();
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
     }
 
     // After bulk write, rebuild summary for all affected items by their SKUs

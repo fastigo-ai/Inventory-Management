@@ -1,18 +1,10 @@
-# Antigravity CLI Agent Directives
+# Backend Architecture and Clean Code Rules
 
-## 1. Code Standards & Production Readiness
-- **Production-Grade**: Write modular, clean, type-safe, and fully handle errors.
-- **Zero Extraneous Code**: Do NOT generate placeholder comments, unrequested mock data, unused helper functions, or unnecessary log statements.
-- **Strictly Modern & Minimal**: Use current best practices and minimal dependencies.
-
-## 2. Directory Structure & Architecture
-- Maintain strict modular separation of concerns (e.g., controllers/services/models or domain-driven folders).
-- Place files according to the established structure below. Do not generate single-file code dumps unless explicitly asked.
-
-## 3. Verification
-- Validate code using existing tests or linters before marking a task complete.
-
-## Store Receipt & Inward Registration Workflow
-- **Purchase Receives (PR)**: When modifying or interacting with `pr.controller.ts` (Purchase Invoices/Receives), always remember that creating a PR must automatically generate corresponding `StoreInwardEntry` records.
-- **Store Receipts**: These generated inward entries must be populated with `status: 'PENDING_RECEIPT'` to appear in the Store Manager's Store Receipts tab.
-- **Inward Registration**: The flow strictly follows: PR Generation -> Store Receipt (Pending) -> Store Manager Approval -> Inward Registration (Prefilled). Any modifications to item mappings or schemas must account for this end-to-end data flow to prevent broken states in the UI.
+## Controller-Service Architecture
+- **Do not write fat controllers:** Controllers should ONLY handle HTTP requests, responses, status codes, and basic validation.
+- **Business Logic in Services:** All core business logic, database queries, and transformations must be split into dedicated service files (e.g., `feature.service.ts`).
+- **Clean Code (Senior Dev Standards):** 
+  - Keep functions small and focused on a single responsibility.
+  - Apply DRY principles—extract reusable code into utility functions or shared services.
+  - Always use clear, descriptive naming for variables and functions.
+  - Implement robust error handling and ensure type safety throughout the codebase.

@@ -10,6 +10,7 @@ import { ContractorAssignment } from './contractorAssignment.schema';
 import { ContractorReturn } from './contractorReturn.schema';
 import Metadata from '../metadata/metadata.model';
 import Item from '../items/item.model';
+import mongoose from 'mongoose';
 
 export const getContractors = asyncHandler(async (req: Request, res: Response) => {
   const { location } = req.query;
@@ -380,7 +381,18 @@ export const importContractors = asyncHandler(async (req: Request, res: Response
     }
   }
 
-  await Contractor.insertMany(validContractors);
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    await Contractor.insertMany(validContractors, { session });
+    await session.commitTransaction();
+    session.endSession();
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
 
   res.status(200).json(new ApiResponse(200, { successCount: validContractors.length }, 'Import processed successfully'));
 });
@@ -534,8 +546,12 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
     }
   }
 
-  // Save assignments
-  for (const minNo of Object.keys(assignmentsByMin)) {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // Save assignments
+    for (const minNo of Object.keys(assignmentsByMin)) {
     const payload = assignmentsByMin[minNo];
     
     const existing = await ContractorAssignment.findOne({ assignmentNumber: payload.assignmentNumber });
@@ -545,11 +561,27 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
     }
 
     try {
-      await ContractorAssignment.create(payload);
+      await ContractorAssignment.create([payload], { session });
       successCount++;
     } catch (err: any) {
       errors.push(`Error saving MIN ${minNo}: ${err.message}`);
     }
+  }
+
+  if (errors.length > 0) {
+    await session.abortTransaction();
+    session.endSession();
+    return res.status(400).json(
+      new ApiResponse(400, { errors }, 'Import failed due to row errors. No data was imported.')
+    );
+  }
+
+  await session.commitTransaction();
+  session.endSession();
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
   }
 
   res.status(200).json(

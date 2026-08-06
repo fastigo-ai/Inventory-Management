@@ -43,7 +43,7 @@ export const getItemUsage = async (id: string) => {
 };
 
 export const getItemMetrics = async () => {
-  const response = await api.get('/items/metrics');
+  const response = await api.get(`/items/metrics?t=${new Date().getTime()}`);
   return response.data.data;
 };
 

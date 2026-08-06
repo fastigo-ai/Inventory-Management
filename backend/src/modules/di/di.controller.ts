@@ -142,19 +142,19 @@ export const getDIs = asyncHandler(async (req: Request, res: Response) => {
         .populate('purchaseOrderId', 'purchaseOrderNumber vendorName')
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(limit),
+        .limit(limit)
+        .lean(),
       DI.countDocuments(filter)
     ]);
 
-    const enhancedDIs = await Promise.all(dis.map(async (di) => {
-       const diObj = di.toObject();
+    const enhancedDIs = await Promise.all(dis.map(async (diObj: any) => {
        const totalOrdered = diObj.lineItems?.reduce((sum: number, item: any) => sum + (Number(item.quantity) || 0), 0) || 0;
        
-       const childRelations = await DocumentRelation.find({ sourceDocument: di._id, targetModule: 'PurchaseInvoice' }).lean();
+       const childRelations = await DocumentRelation.find({ sourceDocument: diObj._id, targetModule: 'PurchaseInvoice' }).lean();
        const piIds = childRelations.map((r: any) => r.targetDocument);
        const pis = await PurchaseInvoice.find({ _id: { $in: piIds } }).select('invoiceNumber status amount').lean();
        
-       const allocations = await AllocationService.getDiAllocation(di._id.toString());
+       const allocations = await AllocationService.getDiAllocation(diObj._id.toString());
        const remainingMap = new Map();
        allocations.forEach((a: any) => remainingMap.set(a.lineId, a.remainingQuantity));
        
@@ -188,17 +188,17 @@ export const getDIs = asyncHandler(async (req: Request, res: Response) => {
   } else {
     const dis = await DI.find(filter)
       .populate('purchaseOrderId', 'purchaseOrderNumber vendorName')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
-    const enhancedDIs = await Promise.all(dis.map(async (di) => {
-       const diObj = di.toObject();
+    const enhancedDIs = await Promise.all(dis.map(async (diObj: any) => {
        const totalOrdered = diObj.lineItems?.reduce((sum: number, item: any) => sum + (Number(item.quantity) || 0), 0) || 0;
        
-       const childRelations = await DocumentRelation.find({ sourceDocument: di._id, targetModule: 'PurchaseInvoice' }).lean();
+       const childRelations = await DocumentRelation.find({ sourceDocument: diObj._id, targetModule: 'PurchaseInvoice' }).lean();
        const piIds = childRelations.map((r: any) => r.targetDocument);
        const pis = await PurchaseInvoice.find({ _id: { $in: piIds } }).select('invoiceNumber status amount').lean();
        
-       const allocations = await AllocationService.getDiAllocation(di._id.toString());
+       const allocations = await AllocationService.getDiAllocation(diObj._id.toString());
        const remainingMap = new Map();
        allocations.forEach((a: any) => remainingMap.set(a.lineId, a.remainingQuantity));
        
@@ -550,6 +550,10 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
     const errors: any[] = [];
     const globalAffectedItemIds = new Set<string>();
     
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
     for (const diNumber of diNumbers) {
       const diData = disMap[diNumber];
       try {
@@ -604,7 +608,7 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
           }
           existing.lineItems = mergedItems;
 
-          const updated = await existing.save();
+          const updated = await existing.save({ session });
           successCount++;
 
           const allAffectedItemIds = Array.from(new Set([
@@ -614,7 +618,7 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
           allAffectedItemIds.forEach(id => globalAffectedItemIds.add(id));
 
         } else {
-          const createdDI = await DI.create(diData);
+          const createdDI = (await DI.create([diData], { session }))[0];
           successCount++;
           
           for (const line of createdDI.lineItems) {
@@ -624,6 +628,24 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
       } catch (err: any) {
         errors.push(`Failed to import DI ${diData.diNumber}: ${err.message}`);
       }
+    }
+
+    if (errors.length > 0) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({
+        success: false,
+        message: 'Import failed due to row errors. No data was imported.',
+        errors
+      });
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
     }
 
     // Process all rebuilds at the end to prevent Node/MongoDB connection pool starvation

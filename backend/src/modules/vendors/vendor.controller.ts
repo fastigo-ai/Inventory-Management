@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import multer from 'multer';
 import { parseAndSanitizeCsv } from '../../utils/csv.util';
 import { parse } from 'csv-parse';
@@ -7,7 +8,6 @@ import Vendor from './vendor.model';
 import Metadata from '../metadata/metadata.model';
 import { PurchaseOrder } from '../purchases/purchaseOrder.schema';
 import { PurchaseInvoice } from '../purchases/purchaseInvoice.schema';
-import { Pr } from '../purchases/pr.schema';
 import { DI } from '../di/di.schema';
 import { asyncHandler } from '../../core/utils/asyncHandler';
 import { ApiResponse } from '../../core/utils/ApiResponse';
@@ -98,7 +98,8 @@ export const getVendors = asyncHandler(async (req: Request, res: Response) => {
     .sort(sortObject)
     .collation({ locale: 'en', numericOrdering: true }) // helps sort numbers/strings nicely
     .skip(skip)
-    .limit(limit);
+    .limit(limit)
+    .lean();
 
   res.status(200).json(new ApiResponse(200, {
     vendors,
@@ -600,8 +601,19 @@ export const importVendors = asyncHandler(async (req: Request, res: Response) =>
     }
   }
 
-  // Atomic bulk insert
-  await Vendor.insertMany(validVendors);
+  // Atomic bulk insert with transactions
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    await Vendor.insertMany(validVendors, { session });
+    await session.commitTransaction();
+    session.endSession();
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
 
   res.status(200).json(new ApiResponse(200, { successCount: validVendors.length }, 'Import processed successfully'));
 });

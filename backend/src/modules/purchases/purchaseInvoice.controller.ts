@@ -703,7 +703,6 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
           billed: (row['billed'] || '').toLowerCase() === 'yes',
           billingCompany: row['billingfrom'] ? { name: row['billingfrom'] } : undefined,
           billingFrom: row['billingfrom'] || '',
-          billingCompany: row['billingfrom'] ? { name: row['billingfrom'] } : undefined,
           lineItems: [],
         };
       }
@@ -815,6 +814,10 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
     // ── PASS 2: All validations passed — upsert everything ──────────────────
     const prChunks = chunkArray(prNumbers, 25);
 
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
     for (const chunk of prChunks) {
       await Promise.all(chunk.map(async (prNumber) => {
         const prData = prMap[prNumber];
@@ -825,21 +828,21 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
         const savedPr = await PurchaseInvoice.findOneAndUpdate(
           { invoiceNumber: prData.invoiceNumber },
           { $set: prPayload },
-          { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
+          { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true, session }
         );
         successCount++;
 
         // Link Relations
         if (diIdForConsumption) {
-          await RelationsService.linkDocuments(diIdForConsumption, 'DispatchInstruction', savedPr._id.toString(), 'PurchaseInvoice');
+          await RelationsService.linkDocuments(diIdForConsumption, 'DispatchInstruction', savedPr._id.toString(), 'PurchaseInvoice', 'CONSUMES', session);
         }
         if (savedPr.purchaseOrderId) {
-          await RelationsService.linkDocuments(savedPr.purchaseOrderId.toString(), 'PurchaseOrder', savedPr._id.toString(), 'PurchaseInvoice');
+          await RelationsService.linkDocuments(savedPr.purchaseOrderId.toString(), 'PurchaseOrder', savedPr._id.toString(), 'PurchaseInvoice', 'CONSUMES', session);
         }
 
         // Recreate Store Receipts (delete old ones first on update)
         if (_existingId) {
-          await StoreInwardEntry.deleteMany({ purchaseInvoiceId: savedPr._id });
+          await StoreInwardEntry.deleteMany({ purchaseInvoiceId: savedPr._id }, { session });
         }
         if (savedPr.lineItems && savedPr.lineItems.length > 0) {
           const inwardEntries = savedPr.lineItems.map((item: any) => ({
@@ -873,7 +876,7 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
             status: 'PENDING_RECEIPT',
             packingList: [{ packType: 'BOX', quantity: item.invoiceQuantity || item.quantity || 0 }]
           }));
-          await StoreInwardEntry.insertMany(inwardEntries);
+          await StoreInwardEntry.insertMany(inwardEntries, { session });
         }
 
         // Queue rebuild summary for imported items
@@ -883,6 +886,14 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
           }
         }
       }));
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
     }
 
     res.status(200).json({

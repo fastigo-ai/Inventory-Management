@@ -69,7 +69,8 @@ const handleColumnFilterChange = (columnName: string, value: string) => {
       return next;
     });
   };
-  const fetchItemsData = async () => {
+
+  const fetchItemsData = async () => {
     setIsLoading(true);
     try {
       const urlFilters: Record<string, string> = {};
@@ -399,6 +400,7 @@ const handleColumnFilterChange = (columnName: string, value: string) => {
         selectedIds={selectedIds}
         columnFilters={columnFilters}
         onColumnFilterChange={handleColumnFilterChange}
+        groupBy="activity"
       />
 
       {isImportModalOpen && (

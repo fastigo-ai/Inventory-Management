@@ -15,8 +15,13 @@ export const getPurchaseInvoicePrefillData = async (invoiceId: string) => {
   return response.data;
 };
 
-export const getPendingStoreReceipts = async () => {
-  const response = await api.get('/store/receipts/pending');
+export const getPendingStoreReceipts = async (params?: any) => {
+  const response = await api.get('/store/receipts/pending', { params });
+  return response.data;
+};
+
+export const getStoreReceiptFilterOptions = async () => {
+  const response = await api.get('/store/receipts/filter-options');
   return response.data;
 };
 
@@ -42,6 +47,11 @@ export const updateInwardEntry = async (id: string, data: any) => {
 
 export const getInwardEntryById = async (id: string) => {
   const response = await api.get(`/store/inventory/inward/${id}`);
+  return response.data;
+};
+
+export const bulkImportInwardEntries = async (data: any[]) => {
+  const response = await api.post('/store/inventory/inward/bulk-import', { entries: data });
   return response.data;
 };
 

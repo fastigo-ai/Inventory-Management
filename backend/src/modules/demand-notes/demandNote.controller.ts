@@ -365,7 +365,11 @@ export const importDemandNotes = asyncHandler(async (req: AuthRequest, res: Resp
 
   let successCount = 0;
   const errors: any[] = [];
+  
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
+  try {
   for (const dnNumber of dnNumbers) {
     const dnData = dnMap[dnNumber];
     try {
@@ -379,11 +383,27 @@ export const importDemandNotes = asyncHandler(async (req: AuthRequest, res: Resp
         errors.push(`Demand Note ${dnNumber} already exists.`);
         continue;
       }
-      await DemandNote.create(dnData);
+      await DemandNote.create([dnData], { session });
       successCount++;
     } catch (err: any) {
       errors.push(`Failed to import Demand Note ${dnNumber}: ${err.message}`);
     }
+  }
+
+  if (errors.length > 0) {
+    await session.abortTransaction();
+    session.endSession();
+    return res.status(400).json(
+      new ApiResponse(400, { errors }, 'Import failed due to row errors. No data was imported.')
+    );
+  }
+
+  await session.commitTransaction();
+  session.endSession();
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
   }
 
   res.status(200).json(new ApiResponse(200, { successCount, errors }, 'Import processed'));

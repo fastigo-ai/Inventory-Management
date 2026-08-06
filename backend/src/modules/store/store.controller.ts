@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import { asyncHandler } from '../../core/utils/asyncHandler';
 import { ApiResponse } from '../../core/utils/ApiResponse';
 import { ApiError } from '../../core/utils/ApiError';
@@ -658,8 +659,13 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
   const parser = parseAndSanitizeCsv(req.file.buffer);
 
   const inwardEntries: any[] = [];
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   const errors: string[] = [];
   let successCount = 0;
+
+  try {
 
   for await (const row of parser) {
     try {
@@ -795,11 +801,11 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
         serialNumber: payload.serialNumber
       };
       
-      let entry = await StoreInwardEntry.findOne(draftFilter);
+      let entry = await StoreInwardEntry.findOne(draftFilter).session(session);
       if (entry) {
-        await StoreInwardEntry.findByIdAndUpdate(entry._id, payload);
+        await StoreInwardEntry.findByIdAndUpdate(entry._id, payload, { session });
       } else {
-        await StoreInwardEntry.create(payload);
+        await StoreInwardEntry.create([payload], { session });
       }
       
       successCount++;
@@ -807,6 +813,23 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
       errors.push(`Row error: ${err.message}`);
     }
   }
+
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
+
+  if (errors.length > 0) {
+    await session.abortTransaction();
+    session.endSession();
+    return res.status(400).json(
+      new ApiResponse(400, { errors }, 'Import failed due to row errors. No data was imported.')
+    );
+  }
+
+  await session.commitTransaction();
+  session.endSession();
 
   res.status(200).json(
     new ApiResponse(200, { successCount, errors }, 'Import process completed')
@@ -1240,8 +1263,12 @@ export const importStoreTransfers = asyncHandler(async (req: Request, res: Respo
     }
   }
 
-  // Save transfers
-  for (const docKey of Object.keys(transfersByDoc)) {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // Save transfers
+    for (const docKey of Object.keys(transfersByDoc)) {
     const payload = transfersByDoc[docKey];
     
     // Check if transfer already exists based on ChallanNo or MinNo
@@ -1258,11 +1285,27 @@ export const importStoreTransfers = asyncHandler(async (req: Request, res: Respo
     }
 
     try {
-      await StoreTransfer.create(payload);
+      await StoreTransfer.create([payload], { session });
       successCount++;
     } catch (err: any) {
       errors.push(`Error saving Transfer ${docKey}: ${err.message}`);
     }
+  }
+
+  if (errors.length > 0) {
+    await session.abortTransaction();
+    session.endSession();
+    return res.status(400).json(
+      new ApiResponse(400, { errors }, 'Import failed due to row errors. No data was imported.')
+    );
+  }
+
+  await session.commitTransaction();
+  session.endSession();
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
   }
 
   res.status(200).json(
@@ -1464,7 +1507,11 @@ export const bulkImportInwardEntries = asyncHandler(async (req: Request, res: Re
     errors: [] as string[]
   };
 
-  for (const row of entries) {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    for (const row of entries) {
     try {
       const entryId = row['Entry ID'];
       if (!entryId) {
@@ -1473,7 +1520,7 @@ export const bulkImportInwardEntries = asyncHandler(async (req: Request, res: Re
         continue;
       }
 
-      const existingEntry = await StoreInwardEntry.findById(entryId);
+      const existingEntry = await StoreInwardEntry.findById(entryId).session(session);
       if (!existingEntry) {
         results.failed++;
         results.errors.push(`Entry ID ${entryId} not found`);
@@ -1546,7 +1593,7 @@ export const bulkImportInwardEntries = asyncHandler(async (req: Request, res: Re
         }]
       };
 
-      await StoreInwardEntry.findByIdAndUpdate(entryId, updateData);
+      await StoreInwardEntry.findByIdAndUpdate(entryId, updateData, { session });
       
       // Also invoke summary rebuild just like manual update
       if (existingEntry.itemId) {
@@ -1558,6 +1605,22 @@ export const bulkImportInwardEntries = asyncHandler(async (req: Request, res: Re
       results.failed++;
       results.errors.push(`Row processing failed: ${err.message}`);
     }
+  }
+
+  if (results.errors.length > 0) {
+    await session.abortTransaction();
+    session.endSession();
+    return res.status(400).json(
+      new ApiResponse(400, { results }, 'Bulk import failed due to row errors. No entries were updated.')
+    );
+  }
+
+  await session.commitTransaction();
+  session.endSession();
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
   }
 
   res.status(200).json(

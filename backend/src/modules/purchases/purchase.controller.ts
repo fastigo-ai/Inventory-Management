@@ -6,6 +6,7 @@ import Item from '../items/item.model';
 import { parseAndSanitizeCsv } from '../../utils/csv.util';
 import { parse } from 'csv-parse';
 import { stringify } from 'csv-stringify/sync';
+import mongoose from 'mongoose';
 
 import { SummaryService } from '../reports/summary/summary.service';
 
@@ -700,6 +701,10 @@ export const importPurchaseOrders = async (req: Request, res: Response) => {
     let successCount = 0;
     const errors: any[] = [];
     
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
     for (const orderData of ordersToInsert) {
        try {
          const existing = existingPOs.find(p => p.purchaseOrderNumber === orderData.purchaseOrderNumber);
@@ -738,7 +743,7 @@ export const importPurchaseOrders = async (req: Request, res: Response) => {
            existing.total = orderData.total;
            existing.lineItems = orderData.lineItems;
 
-           const updated = await existing.save();
+           const updated = await existing.save({ session });
            successCount++;
 
            const allAffectedItemIds = Array.from(new Set([
@@ -750,7 +755,7 @@ export const importPurchaseOrders = async (req: Request, res: Response) => {
              SummaryService.rebuildForItem(itemId).catch(console.error);
            }
          } else {
-           const createdOrder = await PurchaseOrder.create(orderData);
+           const createdOrder = (await PurchaseOrder.create([orderData], { session }))[0];
            successCount++;
            
            if (createdOrder.lineItems && createdOrder.lineItems.length > 0) {
@@ -762,6 +767,24 @@ export const importPurchaseOrders = async (req: Request, res: Response) => {
        } catch (err: any) {
          errors.push(`Failed to import PO ${orderData.purchaseOrderNumber}: ${err.message}`);
        }
+    }
+
+    if (errors.length > 0) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({
+        success: false,
+        message: 'Import failed due to row errors. No data was imported.',
+        errors
+      });
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
     }
 
     res.status(200).json({

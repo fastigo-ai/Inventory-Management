@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { FieldMetadata } from "./DynamicForm";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Settings2, ChevronUp, ChevronDown, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
@@ -27,6 +27,7 @@ interface DynamicTableProps {
   onDelete?: (row: any) => void;
   columnFilters?: Record<string, string>;
   onColumnFilterChange?: (columnName: string, value: string) => void;
+  groupBy?: string;
 }
 
 export function DynamicTable({ 
@@ -45,7 +46,8 @@ export function DynamicTable({
   onEdit,
   onDelete,
   columnFilters,
-  onColumnFilterChange
+  onColumnFilterChange,
+  groupBy
 }: DynamicTableProps) {
   // Only show fields that are visible by default, active, and sort by order
   const sortedFields = [...fields].filter(f => f.active !== false).sort((a,b) => a.order - b.order);
@@ -269,9 +271,8 @@ export function DynamicTable({
               )}
           </TableHeader>
           <TableBody>
-            {data.map((row, i) => {
-              const srNo = pagination ? (pagination.currentPage - 1) * pagination.limit + i + 1 : i + 1;
-              return (
+            {(() => {
+              const renderRow = (row: any, i: number, srNo: number) => (
                 <TableRow 
                   key={row._id || i}
                   onClick={(e) => {
@@ -358,10 +359,45 @@ export function DynamicTable({
                   )}
                 </TableRow>
               );
-            })}
+
+              if (groupBy) {
+                const groupedData = data.reduce((acc, row) => {
+                  let val = row.dynamicData?.[groupBy] ?? row[groupBy];
+                  val = val || 'Uncategorized';
+                  if (!acc[val]) acc[val] = [];
+                  acc[val].push(row);
+                  return acc;
+                }, {} as Record<string, any[]>);
+
+                let globalIndex = 0;
+                return Object.entries(groupedData).map(([groupName, rows]) => (
+                  <React.Fragment key={groupName}>
+                    <TableRow className="bg-indigo-50/50 hover:bg-indigo-50/50 border-y-2 border-indigo-100">
+                      <TableCell 
+                        colSpan={columns.length + (enableSelection ? 1 : 0) + 1 + ((onEdit || onDelete) ? 1 : 0)} 
+                        className="font-bold text-indigo-900 py-2.5 text-[13px] uppercase tracking-wider"
+                      >
+                        {groupName} <span className="text-indigo-600/80 text-xs ml-2 normal-case font-medium">({(rows as any[]).length} items)</span>
+                      </TableCell>
+                    </TableRow>
+                    {(rows as any[]).map((row, localIndex) => {
+                      const srNo = pagination ? (pagination.currentPage - 1) * pagination.limit + globalIndex + 1 : globalIndex + 1;
+                      const element = renderRow(row, localIndex, srNo);
+                      globalIndex++;
+                      return element;
+                    })}
+                  </React.Fragment>
+                ));
+              } else {
+                return data.map((row, i) => {
+                  const srNo = pagination ? (pagination.currentPage - 1) * pagination.limit + i + 1 : i + 1;
+                  return renderRow(row, i, srNo);
+                });
+              }
+            })()}
             {data.length === 0 && (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center text-slate-500">
+                <TableCell colSpan={columns.length + (enableSelection ? 1 : 0) + 1 + ((onEdit || onDelete) ? 1 : 0)} className="h-24 text-center text-slate-500">
                   No records found.
                 </TableCell>
               </TableRow>

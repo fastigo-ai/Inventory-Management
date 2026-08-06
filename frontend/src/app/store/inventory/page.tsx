@@ -57,6 +57,51 @@ export default function StoreInwardRegisterPage() {
                 <Upload className="w-4 h-4 mr-2 text-slate-500" />
                 Import Bulk GRNs
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {
+                const csvRows = [];
+                // Headers
+                csvRows.push(['Inward ID', 'Date', 'Vendor', 'PO Number', 'PI Number', 'Circle', 'Status', 'Item Description', 'Temp Code', 'LOA Serial No', 'Received Qty', 'Challan Qty', 'Rejected Qty', 'Rate', 'GST', 'Taxable Amount', 'Amount', 'Remarks'].join(','));
+                
+                // Data rows
+                entries.forEach((entry: any) => {
+                  const date = new Date(entry.createdAt).toLocaleDateString();
+                  // Avoid commas breaking CSV by wrapping strings in quotes
+                  const esc = (s: any) => `"${(s || '').toString().replace(/"/g, '""')}"`;
+                  csvRows.push([
+                    esc(entry.inwardId),
+                    esc(date),
+                    esc(entry.vendorName),
+                    esc(entry.poNumber),
+                    esc(entry.purchaseInvoiceId?.invoiceNumber),
+                    esc(entry.circle),
+                    esc(entry.status),
+                    esc(entry.description),
+                    esc(entry.tempCode),
+                    esc(entry.serialNumber),
+                    esc(entry.invoiceQty),
+                    esc(entry.challanQty),
+                    esc(entry.rejectedQty),
+                    esc(entry.rate),
+                    esc(entry.gst),
+                    esc(entry.taxableAmount),
+                    esc(entry.amount),
+                    esc(entry.remarks)
+                  ].join(','));
+                });
+
+                const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Inward_Register_${new Date().toISOString().split('T')[0]}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+              }} className="cursor-pointer">
+                <FileText className="w-4 h-4 mr-2 text-slate-500" />
+                Export to CSV
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -95,7 +140,11 @@ export default function StoreInwardRegisterPage() {
                     </tr>
                   ) : (
                     paginatedData.map((entry: any) => (
-                      <tr key={entry._id} className="hover:bg-slate-50 transition-colors">
+                      <tr 
+                        key={entry._id} 
+                        className="hover:bg-slate-50 transition-colors cursor-pointer"
+                        onClick={() => window.location.href = `/store/inventory/inward/entry/${entry._id}`}
+                      >
                         <td className="px-6 py-4 font-medium text-blue-600">{entry.inwardId}</td>
                         <td className="px-6 py-4">{new Date(entry.createdAt).toLocaleDateString()}</td>
                         <td className="px-6 py-4">{entry.vendorName || '-'}</td>

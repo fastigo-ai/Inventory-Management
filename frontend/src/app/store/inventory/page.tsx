@@ -60,7 +60,7 @@ export default function StoreInwardRegisterPage() {
               <DropdownMenuItem onClick={() => {
                 const csvRows = [];
                 // Headers
-                csvRows.push(['Inward ID', 'Date', 'Vendor', 'PO Number', 'PI Number', 'Circle', 'Status', 'Item Description', 'Temp Code', 'LOA Serial No', 'Received Qty', 'Challan Qty', 'Rejected Qty', 'Rate', 'GST', 'Taxable Amount', 'Amount', 'Remarks'].join(','));
+                csvRows.push(['Inward ID', 'Date', 'Vendor', 'PO Number', 'PI Number', 'Circle', 'Status', 'Material Description', 'LOA Serial No', 'Temp Code', 'HSN Code', 'Unit', 'Challan Qty', 'Received Qty', 'Rejected Qty', 'Accepted Qty', 'Pack Type', 'Pack Unit', 'Pack Qty', 'Rate', 'GST', 'Taxable Amount', 'CGST', 'SGST', 'IGST', 'Total Amount', 'Remarks'].join(','));
                 
                 // Data rows
                 entries.forEach((entry: any) => {
@@ -76,14 +76,23 @@ export default function StoreInwardRegisterPage() {
                     esc(entry.circle),
                     esc(entry.status),
                     esc(entry.description),
-                    esc(entry.tempCode),
                     esc(entry.serialNumber),
-                    esc(entry.invoiceQty),
+                    esc(entry.tempCode),
+                    esc(entry.hsnCode),
+                    esc(entry.unit),
                     esc(entry.challanQty),
+                    esc(entry.totalQty),
                     esc(entry.rejectedQty),
+                    esc(entry.invoiceQty), // This is the Accepted Qty
+                    esc(entry.packType),
+                    esc(entry.packUnit),
+                    esc(entry.packQty),
                     esc(entry.rate),
                     esc(entry.gst),
                     esc(entry.taxableAmount),
+                    esc(entry.cgst),
+                    esc(entry.sgst),
+                    esc(entry.igst),
                     esc(entry.amount),
                     esc(entry.remarks)
                   ].join(','));

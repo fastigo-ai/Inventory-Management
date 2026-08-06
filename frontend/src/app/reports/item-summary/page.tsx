@@ -9,6 +9,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 export default function ItemSummaryReportPage() {
   const router = useRouter();
   const [data, setData] = useState<any[]>([]);
+  const [totalsData, setTotalsData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   
   const [circleFilter, setCircleFilter] = useState('');
@@ -37,6 +38,7 @@ export default function ItemSummaryReportPage() {
       });
       if (res.success && res.data) {
         setData(res.data.items);
+        setTotalsData(res.data.totals || null);
         setTotalItems(res.data.pagination.totalItems);
       }
     } catch (err) {
@@ -50,19 +52,20 @@ export default function ItemSummaryReportPage() {
     fetchReport();
   }, [circleFilter, packageFilter, itemNameFilter, descriptionFilter, loaSerialNoFilter, tempCodeFilter, page, limit]);
 
-  // Derived Dashboard Metrics from current page data (for demo purposes)
-  // In a real app, these might be computed on the backend across the entire dataset
+  // Use backend totals for accurate metrics across all pages
   const metrics = useMemo(() => {
-    return data.reduce((acc, curr) => {
-      acc.totalLoa += (curr.loaQty || 0);
-      acc.totalBom += (curr.bomQty || 0);
-      acc.totalDi += (curr.diQty || 0);
-      acc.totalInv += (curr.invQty || 0);
-      acc.totalAct += (curr.actQty || 0);
-      acc.totalBilled += (curr.billedQty || 0);
-      return acc;
-    }, { totalLoa: 0, totalBom: 0, totalDi: 0, totalInv: 0, totalAct: 0, totalBilled: 0 });
-  }, [data]);
+    if (totalsData) {
+      return {
+        totalLoa: totalsData.loaQty || 0,
+        totalBom: totalsData.bomQty || 0,
+        totalDi: totalsData.diQty || 0,
+        totalInv: totalsData.invQty || 0,
+        totalAct: totalsData.actQty || 0,
+        totalBilled: totalsData.billedQty || 0
+      };
+    }
+    return { totalLoa: 0, totalBom: 0, totalDi: 0, totalInv: 0, totalAct: 0, totalBilled: 0 };
+  }, [totalsData]);
 
   const chartData = useMemo(() => {
     return [
@@ -244,9 +247,9 @@ export default function ItemSummaryReportPage() {
         ) : (
           <DynamicTable
 
-          
             fields={fields as any}
             data={data}
+            totalsData={totalsData}
             onRowClick={(row) => {
               if (row.itemId) {
                 router.push(`/items/${row.itemId}`);

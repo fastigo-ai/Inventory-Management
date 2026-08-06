@@ -14,7 +14,7 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
   if (itemName) filter.itemName = { $regex: itemName, $options: 'i' };
   if (description) filter.description = { $regex: description, $options: 'i' };
   if (loaSerialNo) filter.loaSerialNo = { $regex: loaSerialNo, $options: 'i' };
-  if (tempCode) filter.tempCode = { $regex: tempCode, $options: 'i' };
+  if (tempCode) filter.tempCode = tempCode; // Exact match for tempCode
 
   const pageNum = parseInt(page as string);
   const limitNum = parseInt(limit as string);
@@ -22,10 +22,49 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
 
   const totalAggregation = await ItemSummary.aggregate([
     { $match: filter },
-    { $group: { _id: { itemName: "$itemName", circle: "$circle", package: "$package" } } },
-    { $count: "total" }
+    { $group: { 
+        _id: { itemName: "$itemName", circle: "$circle", package: "$package" },
+        loaQty: { $sum: "$loaQty" },
+        bomQty: { $sum: "$bomQty" },
+        diQty: { $sum: "$diQty" },
+        invQty: { $sum: "$invQty" },
+        actQty: { $sum: "$actQty" },
+        srtQty: { $sum: "$srtQty" },
+        billedQty: { $sum: "$billedQty" }
+      } 
+    },
+    { $group: { 
+        _id: null, 
+        total: { $sum: 1 },
+        totalLoaQty: { $sum: "$loaQty" },
+        totalBomQty: { $sum: "$bomQty" },
+        totalDiQty: { $sum: "$diQty" },
+        totalInvQty: { $sum: "$invQty" },
+        totalActQty: { $sum: "$actQty" },
+        totalSrtQty: { $sum: "$srtQty" },
+        totalBilledQty: { $sum: "$billedQty" }
+      } 
+    }
   ]);
   const totalItems = totalAggregation.length > 0 ? totalAggregation[0].total : 0;
+  
+  const totals = totalAggregation.length > 0 ? {
+    loaQty: totalAggregation[0].totalLoaQty,
+    bomQty: totalAggregation[0].totalBomQty,
+    diQty: totalAggregation[0].totalDiQty,
+    invQty: totalAggregation[0].totalInvQty,
+    actQty: totalAggregation[0].totalActQty,
+    srtQty: totalAggregation[0].totalSrtQty,
+    billedQty: totalAggregation[0].totalBilledQty,
+    balLoaBilled: totalAggregation[0].totalLoaQty - totalAggregation[0].totalBilledQty,
+    balBomBilled: totalAggregation[0].totalBomQty - totalAggregation[0].totalBilledQty,
+    goodDispatch: totalAggregation[0].totalActQty,
+    balDispatchVsDi: totalAggregation[0].totalDiQty - totalAggregation[0].totalActQty,
+    diBalAsPerLoa: totalAggregation[0].totalLoaQty - totalAggregation[0].totalBomQty,
+    diBalAsPerBom: totalAggregation[0].totalBomQty - totalAggregation[0].totalDiQty,
+    balDiIssuedAsPerLoa: totalAggregation[0].totalLoaQty - totalAggregation[0].totalDiQty,
+    balDiIssuedAsPerBom: totalAggregation[0].totalBomQty - totalAggregation[0].totalDiQty
+  } : null;
 
   const summaries = await ItemSummary.aggregate([
     { $match: filter },
@@ -107,6 +146,7 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
 
   res.status(200).json(new ApiResponse(200, {
     items: enrichedSummaries,
+    totals,
     pagination: {
       totalItems,
       currentPage: pageNum,

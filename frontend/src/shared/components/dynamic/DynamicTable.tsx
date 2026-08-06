@@ -28,6 +28,7 @@ interface DynamicTableProps {
   columnFilters?: Record<string, string>;
   onColumnFilterChange?: (columnName: string, value: string) => void;
   groupBy?: string;
+  totalsData?: Record<string, number | string>;
 }
 
 export function DynamicTable({ 
@@ -47,7 +48,8 @@ export function DynamicTable({
   onDelete,
   columnFilters,
   onColumnFilterChange,
-  groupBy
+  groupBy,
+  totalsData
 }: DynamicTableProps) {
   // Only show fields that are visible by default, active, and sort by order
   const sortedFields = [...fields].filter(f => f.active !== false).sort((a,b) => a.order - b.order);
@@ -400,6 +402,29 @@ export function DynamicTable({
                 <TableCell colSpan={columns.length + (enableSelection ? 1 : 0) + 1 + ((onEdit || onDelete) ? 1 : 0)} className="h-24 text-center text-slate-500">
                   No records found.
                 </TableCell>
+              </TableRow>
+            )}
+            {totalsData && data.length > 0 && (
+              <TableRow className="bg-slate-50 font-semibold border-t-2 border-slate-200 hover:bg-slate-50">
+                {enableSelection && <TableCell></TableCell>}
+                <TableCell className="text-center font-bold text-slate-700">Total</TableCell>
+                {columns.map((col, idx) => {
+                  if (idx === 0) return null; // We already added "Total" in the first column
+                  const val = totalsData[col.name];
+                  let displayStr = '-';
+                  if (val !== undefined && val !== null) {
+                    const numVal = Number(val);
+                    const formattedNum = !isNaN(numVal) ? (Math.round(numVal * 100) / 100).toString() : val;
+                    const cleanLabel = col.label.replace(/^\d+\.\s*/, '');
+                    displayStr = `Total ${cleanLabel}: ${formattedNum}`;
+                  }
+                  return (
+                    <TableCell key={`total-${col.name}`} className="text-center font-bold text-slate-800 whitespace-nowrap text-[13px]">
+                      {displayStr}
+                    </TableCell>
+                  );
+                })}
+                {(onEdit || onDelete) && <TableCell></TableCell>}
               </TableRow>
             )}
           </TableBody>

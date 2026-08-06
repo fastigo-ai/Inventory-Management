@@ -11,6 +11,7 @@ import Item from '../items/item.model';
 import { ValidationService } from '../../core/document-engine/validation/validation.service';
 import { RelationsService } from '../../core/document-engine/relations/relations.service';
 import { DI } from '../di/di.schema';
+import { reverseInwardStockUpdate } from '../store/store.controller';
 
 export const createPurchaseInvoice = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -491,18 +492,14 @@ export const deletePurchaseInvoice = async (req: Request, res: Response): Promis
   try {
     const { id } = req.params;
     
-    // 1. Check if it is locked
-    const lockedEntries = await StoreInwardEntry.countDocuments({
-      purchaseInvoiceId: id,
-      status: { $nin: ['PENDING_RECEIPT', 'DRAFT'] }
-    });
-
-    if (lockedEntries > 0) {
-      res.status(400).json({
-        success: false,
-        message: 'Cannot delete this Purchase Invoice because the Store Manager has already begun processing it.'
-      });
-      return;
+    // 1. Fetch all StoreInwardEntry records linked to this invoice
+    const inwardEntries = await StoreInwardEntry.find({ purchaseInvoiceId: id });
+    
+    // 2. Rollback inventory for any processed inward entries
+    for (const entry of inwardEntries) {
+      if (entry.status === 'VERIFIED' || entry.status === 'SUBMITTED') {
+        await reverseInwardStockUpdate(entry._id.toString());
+      }
     }
 
     const deletedPr = await PurchaseInvoice.findByIdAndDelete(id);
@@ -515,10 +512,9 @@ export const deletePurchaseInvoice = async (req: Request, res: Response): Promis
       return;
     }
 
-    // 2. Cascade delete orphaned inward entries
+    // 3. Delete all inward entries for this invoice
     await StoreInwardEntry.deleteMany({
-      purchaseInvoiceId: id,
-      status: { $in: ['PENDING_RECEIPT', 'DRAFT'] }
+      purchaseInvoiceId: id
     });
 
     // Rebuild summary for deleted items

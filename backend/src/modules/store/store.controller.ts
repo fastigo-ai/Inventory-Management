@@ -1083,6 +1083,7 @@ async function processInwardStockUpdate(entryId: string) {
           ...(circleKey && { [circleKey]: Number(item.dynamicData?.[circleKey] || 0) + qtyToAdd })
         };
         item.markModified('dynamicData');
+      item.markModified('dynamicData');
         await item.save();
         
         // Rebuild ItemSummary as item quantity was updated
@@ -1163,6 +1164,111 @@ async function processInwardStockUpdate(entryId: string) {
     console.error('Failed to update inventory stock on inward processing:', err);
   }
 }
+
+export async function reverseInwardStockUpdate(entryId: string) {
+  const entry = await StoreInwardEntry.findById(entryId);
+  if (!entry) return;
+  
+  if (entry.itemId && entry.invoiceQty) {
+    try {
+      const item = await Item.findById(entry.itemId);
+      if (item) {
+        const qtyToSubtract = Number(entry.invoiceQty || 0);
+        const currentStock = Number(item.dynamicData?.stock || 0);
+        
+        let locations = item.dynamicData?.stockLocations || [];
+        const circle = entry.circle || 'Default';
+        const pkg = entry.package || 'Default';
+        let locIndex = locations.findIndex((l: any) => l.circle === circle && l.package === pkg);
+        if (locIndex >= 0) {
+          locations[locIndex].quantity = Math.max(0, Number(locations[locIndex].quantity || 0) - qtyToSubtract);
+        }
+
+        let history = item.dynamicData?.purchaseHistory || [];
+        // Find the index of the matching history entry
+        const historyIndex = history.findIndex((h: any) => 
+          h.vendorName === (entry.vendorName || 'Unknown Vendor') &&
+          h.poNumber === (entry.poNumber || '-') &&
+          Number(h.quantity) === qtyToSubtract
+        );
+        
+        if (historyIndex >= 0) {
+          history.splice(historyIndex, 1);
+        }
+
+        const circleKey = circle && circle !== 'Default' ? `${circle.toLowerCase().replace(/\s+/g, '')}LoaQuantity` : null;
+
+        item.dynamicData = {
+          ...item.dynamicData,
+          stock: Math.max(0, currentStock - qtyToSubtract),
+          stockLocations: locations,
+          purchaseHistory: history,
+          ...(circleKey && { [circleKey]: Math.max(0, Number(item.dynamicData?.[circleKey] || 0) - qtyToSubtract) })
+        };
+        item.markModified('dynamicData');
+        await item.save();
+        
+        SummaryService.rebuildForItem(item._id.toString()).catch(console.error);
+      }
+    } catch (err) {
+      console.error('Failed to reverse inventory stock on inward processing:', err);
+    }
+  }
+
+  // Handle the other branch (invoice lineItems)
+  if (!entry.purchaseInvoiceId) return;
+  
+  try {
+    const invoice = await PurchaseInvoice.findById(entry.purchaseInvoiceId);
+    if (invoice && invoice.lineItems && invoice.lineItems.length > 0) {
+      for (const lineItem of invoice.lineItems) {
+        if (lineItem.itemId) {
+          const item = await Item.findById(lineItem.itemId);
+          if (item) {
+            const qtyToSubtract = Number(lineItem.quantity || 0);
+            const currentStock = Number(item.dynamicData?.stock || 0);
+            
+            let locations = item.dynamicData?.stockLocations || [];
+            const circle = entry.circle || invoice.circle || 'Default';
+            const pkg = entry.package || invoice.package || 'Default';
+            let locIndex = locations.findIndex((l: any) => l.circle === circle && l.package === pkg);
+            if (locIndex >= 0) {
+              locations[locIndex].quantity = Math.max(0, Number(locations[locIndex].quantity || 0) - qtyToSubtract);
+            }
+
+            let history = item.dynamicData?.purchaseHistory || [];
+            const historyIndex = history.findIndex((h: any) => 
+              h.vendorName === (entry.vendorName || invoice.vendorName || 'Unknown Vendor') &&
+              h.poNumber === (entry.poNumber || invoice.poNumber || '-') &&
+              Number(h.quantity) === qtyToSubtract
+            );
+            
+            if (historyIndex >= 0) {
+              history.splice(historyIndex, 1);
+            }
+
+            const circleKey = circle && circle !== 'Default' ? `${circle.toLowerCase().replace(/\s+/g, '')}LoaQuantity` : null;
+
+            item.dynamicData = {
+              ...item.dynamicData,
+              stock: Math.max(0, currentStock - qtyToSubtract),
+              stockLocations: locations,
+              purchaseHistory: history,
+              ...(circleKey && { [circleKey]: Math.max(0, Number(item.dynamicData?.[circleKey] || 0) - qtyToSubtract) })
+            };
+            item.markModified('dynamicData');
+            await item.save();
+            
+            SummaryService.rebuildForItem(item._id.toString()).catch(console.error);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Failed to reverse inventory stock on invoice line item processing:', err);
+  }
+}
+
 
 export const importStoreTransfers = asyncHandler(async (req: Request, res: Response) => {
   if (!req.file) {

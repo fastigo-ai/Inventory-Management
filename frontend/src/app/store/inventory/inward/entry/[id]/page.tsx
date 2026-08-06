@@ -349,8 +349,8 @@ export default function InwardRegistrationForm() {
                   <td className="px-4 py-3 border-r border-slate-100">
                     <Input 
                       value={formData.hsnCode || ''} 
-                      readOnly
-                      className="h-8 w-24 text-sm bg-slate-50 text-slate-500 cursor-not-allowed"
+                      onChange={e => handleItemChange('hsnCode', e.target.value)}
+                      className="h-8 w-24 text-sm"
                     />
                   </td>
                   <td className="px-4 py-3 border-r border-slate-100">
@@ -421,16 +421,25 @@ export default function InwardRegistrationForm() {
                     <Input 
                       type="number"
                       value={formData.rate ?? ''} 
-                      readOnly
-                      className="h-8 w-24 text-sm bg-slate-50 text-slate-500 cursor-not-allowed"
+                      onChange={e => handleItemChange('rate', e.target.value)}
+                      className="h-8 w-24 text-sm"
                     />
                   </td>
                   <td className="px-4 py-3 border-r border-slate-100">
                     <Input 
                       type="text"
                       value={formData.gst || ''} 
-                      readOnly
-                      className="h-8 w-16 text-sm bg-slate-50 text-slate-500 cursor-not-allowed"
+                      onChange={e => {
+                        handleItemChange('gst', e.target.value);
+                        // Also roughly estimate rates if it's a number
+                        const val = parseFloat(e.target.value) || 0;
+                        handleItemChange('igstRate', val);
+                        if (val > 0) {
+                          handleItemChange('cgstRate', val / 2);
+                          handleItemChange('sgstRate', val / 2);
+                        }
+                      }}
+                      className="h-8 w-16 text-sm"
                     />
                   </td>
 

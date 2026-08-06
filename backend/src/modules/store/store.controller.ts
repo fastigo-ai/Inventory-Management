@@ -259,7 +259,7 @@ export const updateInwardEntry = asyncHandler(async (req: Request, res: Response
     throw new ApiError(404, 'Entry not found');
   }
 
-  if (entry.status !== 'DRAFT' && entry.status !== 'PENDING_RECEIPT' && entry.status !== 'APPROVED') {
+  if (entry.status !== 'DRAFT' && entry.status !== 'PENDING_RECEIPT' && entry.status !== 'APPROVED' && entry.status !== 'SUBMITTED') {
     // Allow status updates for admin/verification
     if (data.status === 'VERIFIED' || data.status === 'NEEDS_CORRECTION') {
       const updated = await StoreInwardEntry.findByIdAndUpdate(id, { status: data.status }, { new: true });
@@ -271,7 +271,7 @@ export const updateInwardEntry = asyncHandler(async (req: Request, res: Response
       
       return res.status(200).json(new ApiResponse(200, updated, `Status updated to ${data.status}`));
     }
-    throw new ApiError(400, 'Cannot fully update a non-draft entry via this endpoint');
+    throw new ApiError(400, 'Cannot fully update an entry in this state via this endpoint');
   }
 
   // validations...

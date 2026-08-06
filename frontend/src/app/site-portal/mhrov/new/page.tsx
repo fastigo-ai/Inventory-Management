@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import { updateMhrov, queryInwardEntries, getMhrovById } from "@/features/store/api/store.api";
+import { createMhrov, queryInwardEntries } from "@/features/store/api/store.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,10 +12,8 @@ import { ArrowLeft, Save, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 
-export default function EditMhrovPage() {
+export default function NewMhrovPage() {
   const router = useRouter();
-  const params = useParams();
-  const id = params?.id as string;
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm({
     defaultValues: {
       mhrovNumber: "",
@@ -32,27 +30,7 @@ export default function EditMhrovPage() {
 
   useEffect(() => {
     fetchInwardEntries();
-    if (id) {
-      fetchMhrovDetails();
-    }
-  }, [id]);
-
-  const fetchMhrovDetails = async () => {
-    try {
-      setLoading(true);
-      const res = await getMhrovById(id);
-      const data = res.data;
-      setValue("mhrovNumber", data.mhrovNumber);
-      setValue("mhrovDate", data.mhrovDate ? new Date(data.mhrovDate).toISOString().split("T")[0] : "");
-      setValue("status", data.status);
-      setSelectedEntries(data.inwardEntries?.map((e: any) => e._id || e) || []);
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to load MHROV details");
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, []);
 
   const fetchInwardEntries = async () => {
     try {
@@ -96,9 +74,9 @@ export default function EditMhrovPage() {
         formData.append("document", data.document);
       }
 
-      await updateMhrov(id, formData);
-      toast.success("MHROV updated successfully");
-      router.push("/store/mhrov");
+      await createMhrov(formData);
+      toast.success("MHROV created successfully");
+      router.push("/site-portal/mhrov");
     } catch (error: any) {
       console.error(error);
       toast.error(error?.response?.data?.message || "Failed to create MHROV");
@@ -120,8 +98,8 @@ export default function EditMhrovPage() {
             <ArrowLeft className="w-5 h-5 text-slate-600" />
           </Button>
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900">Edit MHROV</h1>
-            <p className="text-sm text-slate-500 mt-1">Edit an existing Material Handover Receipt Voucher</p>
+            <h1 className="text-2xl font-semibold text-slate-900">New MHROV</h1>
+            <p className="text-sm text-slate-500 mt-1">Create a Material Handover Receipt Voucher</p>
           </div>
         </div>
         <div className="flex space-x-3">

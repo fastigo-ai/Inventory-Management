@@ -88,7 +88,7 @@ export default function MhrovPage() {
           </p>
         </div>
         <Button
-          onClick={() => router.push("/store/mhrov/new")}
+          onClick={() => router.push("/site-portal/mhrov/new")}
           className="bg-indigo-600 hover:bg-indigo-700 h-9 shadow-sm"
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -306,7 +306,7 @@ export default function MhrovPage() {
                     <tr
                       key={mhrov._id}
                       className="hover:bg-slate-50 cursor-pointer transition-colors group"
-                      onClick={() => router.push(`/store/mhrov/${mhrov._id}`)}
+                      onClick={() => router.push(`/site-portal/mhrov/${mhrov._id}`)}
                     >
                       <td className="px-6 py-3 font-medium text-indigo-600">
                         {mhrov.mhrovNumber}
@@ -341,7 +341,7 @@ export default function MhrovPage() {
                             className="h-8 text-slate-500 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"
                             onClick={(e) => {
                               e.stopPropagation();
-                              router.push(`/store/mhrov/edit/${mhrov._id}`);
+                              router.push(`/site-portal/mhrov/edit/${mhrov._id}`);
                             }}
                           >
                             Edit
@@ -353,7 +353,7 @@ export default function MhrovPage() {
                           className="h-8 text-slate-500 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"
                           onClick={(e) => {
                             e.stopPropagation();
-                            router.push(`/store/mhrov/${mhrov._id}`);
+                            router.push(`/site-portal/mhrov/${mhrov._id}`);
                           }}
                         >
                           View Details

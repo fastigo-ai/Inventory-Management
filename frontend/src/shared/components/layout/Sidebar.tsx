@@ -79,7 +79,6 @@ const navItems: NavItem[] = [
     children: [
       { title: 'Store Receipts', href: '/store/receipts' },
       { title: 'Inward Register', href: '/store/inventory' },
-      { title: 'MHROV', href: '/store/mhrov' },
       { title: 'Contractor Return', href: '/store/contractor-return' },
       { title: 'Inward Register (Transfers)', href: '/store/inward-register-transfers' },
       { title: 'Inter Store Transfer (Requests)', href: '/store/transfers?tab=incoming' }
@@ -124,7 +123,8 @@ const navItems: NavItem[] = [
     icon: <Layers className="w-5 h-5" />,
     children: [
       { title: 'Incoming Work Orders', href: '/site-portal/incoming-work-orders' },
-      { title: 'Demand Notes', href: '/site-portal/demand-notes' }
+      { title: 'Demand Notes', href: '/site-portal/demand-notes' },
+      { title: 'MHROV', href: '/site-portal/mhrov' }
     ]
   }
 ];

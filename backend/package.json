@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "jest",
-    "dev": "nodemon --watch src --ext ts --exec tsx src/server.ts",
+    "dev": "cross-env NODE_OPTIONS=--max-old-space-size=4096 nodemon --watch src --ext ts --exec tsx src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js"
   },
@@ -44,6 +44,7 @@
     "@types/node": "^26.1.1",
     "@types/streamifier": "^0.1.2",
     "@types/supertest": "^7.2.1",
+    "cross-env": "^10.1.0",
     "eslint": "^10.7.0",
     "jest": "^30.4.2",
     "lint-staged": "^17.0.8",

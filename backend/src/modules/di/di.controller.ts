@@ -12,7 +12,51 @@ import { SummaryService } from '../reports/summary/summary.service';
 import Item from '../items/item.model';
 import { DocumentRelation } from '../../core/document-engine/relations/documentRelation.schema';
 import { PurchaseInvoice } from '../purchases/purchaseInvoice.schema';
+import { StoreInwardEntry } from '../store/storeInwardEntry.schema';
 import { AllocationService } from '../../core/document-engine/allocation/allocation.service';
+
+async function getDiLifecycleState(di: any) {
+  const [invoices, inwards] = await Promise.all([
+    PurchaseInvoice.find({ diNumber: di.diNumber }).lean(),
+    StoreInwardEntry.find({ diId: di._id }).lean()
+  ]);
+
+  const hasDownstream = invoices.length > 0 || inwards.length > 0;
+  if (!hasDownstream) return { state: 'DRAFT', invoicesCount: 0, inwardsCount: 0, itemBilledMap: new Map() };
+
+  const itemBilledMap = new Map();
+  
+  for (const inv of invoices) {
+    for (const li of (inv as any).lineItems || []) {
+      const id = li.itemId?.toString();
+      if (id) {
+        itemBilledMap.set(id, (itemBilledMap.get(id) || 0) + (li.quantity || 0));
+      }
+    }
+  }
+
+  let allFullyBilled = true;
+  if (!di.lineItems || di.lineItems.length === 0) {
+    allFullyBilled = false;
+  } else {
+    for (const li of di.lineItems) {
+      const id = li.itemId?.toString();
+      const billed = id ? itemBilledMap.get(id) || 0 : 0;
+      if (billed < (li.quantity || 0)) {
+        allFullyBilled = false;
+        break;
+      }
+    }
+  }
+
+  return {
+    state: allFullyBilled ? 'FULLY_INVOICED' : 'PARTIALLY_INVOICED',
+    invoicesCount: invoices.length,
+    inwardsCount: inwards.length,
+    itemBilledMap
+  };
+}
+
 export const createDI = asyncHandler(async (req: Request, res: Response) => {
   const data = req.body;
 
@@ -379,21 +423,49 @@ export const updateDI = asyncHandler(async (req: Request, res: Response) => {
     existingDI.inspectionReportCopyUrl = `/uploads/dis/${files['inspectionReportCopyUrl'][0].filename}`;
   }
 
-  // Check if locked
-  const hasPr = await Pr.exists({ diNo: existingDI.diNumber });
-  const isLocked = existingDI.status === 'Received' || !!hasPr;
+  // Check Lifecycle State
+  const lifecycle = await getDiLifecycleState(existingDI);
 
   // Get unique item ids from before and after update
   const oldItemIds = existingDI.lineItems.map((li: any) => li.itemId?.toString()).filter(Boolean);
   const newItemIds = parsedLineItems.map((li: any) => li.itemId?.toString()).filter(Boolean);
   const allAffectedItemIds = Array.from(new Set([...oldItemIds, ...newItemIds]));
 
-  if (isLocked) {
-    // If locked, we ONLY allow updating notes or attachments (already processed above)
+  if (lifecycle.state === 'FULLY_INVOICED') {
+    // If FULLY_INVOICED, we ONLY allow updating notes or attachments (already processed above)
     if (data.notes !== undefined) existingDI.notes = data.notes;
     // Disallow line items, status changes, etc.
+  } else if (lifecycle.state === 'PARTIALLY_INVOICED') {
+    // Block vendor, diNumber (which isn't updated anyway here, but let's be sure), and line items that are billed
+    if (data.notes !== undefined) existingDI.notes = data.notes;
+    if (data.status) existingDI.status = data.status;
+    
+    // Ensure vendorName and diNumber are not changed
+    if (data.vendorName && data.vendorName !== existingDI.vendorName) {
+      throw new ApiError(400, 'Cannot change Vendor Name because this DI is partially invoiced/received.');
+    }
+
+    // Validate line items
+    // Block reducing quantity below already billed quantity
+    // Block deleting invoiced line items
+    for (const oldLi of existingDI.lineItems) {
+      const itemIdStr = oldLi.itemId?.toString();
+      const billedQty = itemIdStr ? lifecycle.itemBilledMap.get(itemIdStr) || 0 : 0;
+      
+      if (billedQty > 0) {
+        // Find it in parsedLineItems
+        const newLi = parsedLineItems.find((li: any) => li.itemId?.toString() === itemIdStr);
+        if (!newLi) {
+          throw new ApiError(400, `Cannot delete item '${oldLi.itemName}' because ${billedQty} units have already been invoiced or received.`);
+        }
+        if (Number(newLi.quantity) < billedQty) {
+          throw new ApiError(400, `Cannot reduce quantity of '${oldLi.itemName}' below ${billedQty} because it has already been invoiced or received.`);
+        }
+      }
+    }
+    existingDI.lineItems = parsedLineItems;
   } else {
-    // Not locked, allow full update
+    // DRAFT / UNLINKED: Not locked, allow full update
     if (data.status) existingDI.status = data.status;
     if (data.notes !== undefined) existingDI.notes = data.notes;
     if (data.vendorName !== undefined) existingDI.vendorName = data.vendorName;
@@ -451,21 +523,27 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
 
     const existingItems = orConditions.length > 0 ? await Item.find({ $or: orConditions }) : [];
 
-    const findItemInMemory = (tCode?: string, lSerial?: string, name?: string) => {
+    const findItemInMemory = (tCode?: string, lSerial?: string, name?: string, pkg?: string, circle?: string) => {
+      const matchCriteria = (i: any) => {
+        if (pkg && i.dynamicData?.package && i.dynamicData.package !== pkg) return false;
+        if (circle && i.dynamicData?.circle && i.dynamicData.circle !== circle) return false;
+        return true;
+      };
+
       if (tCode) {
-        const found = existingItems.find(i => i.dynamicData?.tempCode === tCode);
+        const found = existingItems.find(i => i.dynamicData?.tempCode === tCode && matchCriteria(i));
         if (found) return found;
       }
       if (lSerial) {
         const found = existingItems.find(i => 
-          i.dynamicData?.loaSerialNo === lSerial || 
-          i.dynamicData?.loaSerialNumber === lSerial || 
-          i.dynamicData?.sku === lSerial
+          (i.dynamicData?.loaSerialNo === lSerial || 
+           i.dynamicData?.loaSerialNumber === lSerial || 
+           i.dynamicData?.sku === lSerial) && matchCriteria(i)
         );
         if (found) return found;
       }
       if (name) {
-        const found = existingItems.find(i => i.dynamicData?.name === name);
+        const found = existingItems.find(i => i.dynamicData?.name === name && matchCriteria(i));
         if (found) return found;
       }
       return null;
@@ -473,6 +551,7 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
 
     // 2. Build disMap in-memory
     const disMap: Record<string, any> = {};
+    const errors: any[] = [];
 
     for (const row of rows) {
       const diNumber = row['DINumber'] || row['diNumber'] || row['DI Number'];
@@ -516,8 +595,12 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
       const unit = row['Unit'] || row['unit'] || row['Unit Name'];
 
       if (itemName) {
-        const item = findItemInMemory(tempCode, loaSerialNo, itemName);
+        const item = findItemInMemory(tempCode, loaSerialNo, itemName, itemPackage, itemCircle);
         const itemId = item ? item._id : null;
+
+        if (!itemId) {
+          errors.push(`Row error in DI ${diNumber}: Item '${itemName}' (TempCode: '${tempCode}', LoaSerialNo: '${loaSerialNo}') was not found in the master item list.`);
+        }
 
         disMap[diNumber].lineItems.push({
           itemId,
@@ -547,7 +630,6 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
     const prDiNumbers = new Set(existingPrs.map((pr: any) => pr.diNo));
 
     let successCount = 0;
-    const errors: any[] = [];
     const globalAffectedItemIds = new Set<string>();
     
     const session = await mongoose.startSession();
@@ -685,13 +767,16 @@ export const deleteDI = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(404, 'DI not found');
   }
 
-  const hasPr = await Pr.exists({ diNo: di.diNumber });
-  if (di.status === 'Received' || hasPr) {
-    throw new ApiError(400, 'Cannot delete this DI because it has already been Received or Invoiced.');
+  const lifecycle = await getDiLifecycleState(di);
+  if (lifecycle.state !== 'DRAFT') {
+    throw new ApiError(400, `Cannot delete DI ${di.diNumber}. Linked to Purchase Invoice or Store Inward Entry.`);
   }
 
+  // Soft delete instead of hard delete
+  di.status = 'Cancelled';
+  await di.save();
+
   const itemIds = di.lineItems.map((li: any) => li.itemId?.toString()).filter(Boolean);
-  await DI.findByIdAndDelete(id);
 
   for (const itemId of itemIds) {
     if (itemId) SummaryService.rebuildForItem(itemId).catch(console.error);

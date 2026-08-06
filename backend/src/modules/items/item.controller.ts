@@ -491,6 +491,15 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
         }
       }
 
+      // If the row is completely empty (no SKU, no Temp Code, no Name), skip it entirely
+      const hasSku = !!(dynamicData.sku || dynamicData['loaserialno']);
+      const hasTempCode = !!(dynamicData.tempCode || dynamicData['tempcode']);
+      const hasName = !!(dynamicData.name || dynamicData['itemname']);
+      
+      if (!hasSku && !hasTempCode && !hasName) {
+         continue;
+      }
+
       for (const field of metadata.fields) {
         if (dynamicData[field.name]) {
            if (['number', 'decimal', 'amount'].includes(field.type)) {

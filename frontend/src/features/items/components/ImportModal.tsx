@@ -123,9 +123,9 @@ export function ImportModal({ isOpen, onClose, onSuccess, fields = [] }: ImportM
           <DialogDescription>
             Upload a CSV file containing your items. Make sure the headers exactly match the field names.
             <br />
-            <a href="/item_bulk_upload_sample.csv" download className="text-[#0076f2] hover:underline mt-2 inline-block font-medium">
+            <button onClick={downloadSampleCsv} className="text-[#0076f2] hover:underline mt-2 inline-block font-medium cursor-pointer bg-transparent border-none p-0">
               Download Sample CSV Template
-            </a>
+            </button>
           </DialogDescription>
         </DialogHeader>
 

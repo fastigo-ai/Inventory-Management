@@ -47,6 +47,20 @@ const validateDynamicData = async (data: any, metadataFields: any[], currentItem
   }
 };
 
+const calculateLoaQuantity = (dynamicData: any) => {
+  const solan = Number(dynamicData.solanLoaQuantity) || 0;
+  const nahan = Number(dynamicData.nahanLoaQuantity) || 0;
+  const rampur = Number(dynamicData.rampurLoaQuantity) || 0;
+  const rohru = Number(dynamicData.rohruLoaQuantity) || 0;
+
+  const pkg1Sum = solan + nahan;
+  const pkg2Sum = rampur + rohru;
+
+  if (pkg1Sum > 0) return pkg1Sum;
+  if (pkg2Sum > 0) return pkg2Sum;
+  return Number(dynamicData.loaQuantity) || 0;
+};
+
 export const createItem = asyncHandler(async (req: Request, res: Response) => {
   const { dynamicData } = req.body;
 
@@ -54,6 +68,8 @@ export const createItem = asyncHandler(async (req: Request, res: Response) => {
   if (!metadata) {
     throw new ApiError(500, 'Item metadata configuration missing');
   }
+
+  dynamicData.loaQuantity = calculateLoaQuantity(dynamicData);
 
   await validateDynamicData(dynamicData, metadata.fields);
 
@@ -107,6 +123,8 @@ export const updateItem = asyncHandler(async (req: Request, res: Response) => {
   const performedBy = (req as any).user?._id || 'system';
 
   item.dynamicData = { ...item.dynamicData, ...dynamicData };
+  item.dynamicData.loaQuantity = calculateLoaQuantity(item.dynamicData);
+  
   item.history.push({ action: 'Updated', performedBy, date: new Date() });
   item.markModified('dynamicData');
   await item.save();
@@ -515,6 +533,8 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
       if (!dynamicData.costPrice && dynamicData.costPrice !== 0) dynamicData.costPrice = 0;
       if (!dynamicData.sellingPrice && dynamicData.sellingPrice !== 0) dynamicData.sellingPrice = 0;
       if (!dynamicData.unit) dynamicData.unit = 'pcs';
+
+      dynamicData.loaQuantity = calculateLoaQuantity(dynamicData);
 
       const rowErrors: string[] = [];
       const packageVal = dynamicData['package'] || '';

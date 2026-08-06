@@ -43,7 +43,7 @@ export default function PurchaseInvoiceDetailPage() {
         const data = await getPurchaseInvoiceById(id);
         
         // Ensure full billingCompany details are populated
-        if (data && data.billingFrom) {
+        if (data && (data.billingFrom || data.billingCompany?.name)) {
            const { getBillingCompanies } = await import('@/features/settings/api/billingCompanies.api');
            const res = await getBillingCompanies();
            const company = (res.data || []).find((c: any) => c.name === data.billingFrom || (data.billingCompany && c.name === data.billingCompany.name));
@@ -60,7 +60,10 @@ export default function PurchaseInvoiceDetailPage() {
              const vendorsList = vendorsRes.vendors || vendorsRes.items || vendorsRes.data || [];
              const vendor = vendorsList.find((v: any) => (v.dynamicData?.companyName || v.dynamicData?.displayName || v.name || v._id) === data.vendorName);
              if (vendor) {
-               data.vendorAddress = vendor.dynamicData?.address || vendor.dynamicData?.billingAddress || vendor.dynamicData?.['billing.street1'] || '-';
+               data.vendorAddress = vendor.dynamicData?.address || vendor.dynamicData?.Address || vendor.dynamicData?.vendorAddresses?.billing?.street1 || vendor.dynamicData?.billingstreet1 || vendor.dynamicData?.['Billing Street 1'] || vendor.dynamicData?.billingAddress || vendor.dynamicData?.['billing.street1'] || vendor.dynamicData?.['billing.street'] || vendor.dynamicData?.['billing.address'] || vendor.dynamicData?.street || '-';
+               if (typeof data.vendorAddress === 'object') {
+                 data.vendorAddress = Object.values(data.vendorAddress).filter(Boolean).join(', ');
+               }
                const phoneObj = vendor.dynamicData?.phone || vendor.dynamicData?.mobile;
                let phoneStr = '-';
                if (typeof phoneObj === 'string') {
@@ -495,7 +498,7 @@ export default function PurchaseInvoiceDetailPage() {
                     <div className="border-b border-black">
                       <div className="font-bold text-center border-b border-black py-1 bg-slate-100 text-xs">Total in words</div>
                       <div className="p-3 text-center text-sm uppercase tracking-wide">
-                        {numberToWords(invoice.subTotal + (invoice.taxAmount || 0))} RUPEES ONLY
+                        {numberToWords(invoice.subTotal + (invoice.taxAmount || 0))}
                       </div>
                     </div>
                     <div className="flex-1 flex flex-col">

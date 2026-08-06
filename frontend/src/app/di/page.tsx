@@ -8,6 +8,7 @@ import { Plus, MoreHorizontal, Upload } from "lucide-react";
 import { getDIs, getDIInsights } from "@/features/di/api/di.api";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DIImportModal } from "@/features/di/components/DIImportModal";
+import { Download } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Filter, PieChart as PieChartIcon, Activity, CheckCircle, Clock } from "lucide-react";
 
@@ -99,6 +100,66 @@ export default function DIPage() {
 
   const barData = globalBarData;
 
+  const exportToCSV = async () => {
+    try {
+      const res = await getDIs({ 
+        page: 1, 
+        limit: 10000,
+        search: search || undefined,
+        diNumber: diNumber || undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        status: statusFilter || undefined
+      });
+      
+      const data = res.data?.dis || res.data || [];
+      if (!Array.isArray(data) || data.length === 0) {
+        alert("No DIs to export");
+        return;
+      }
+      
+      const headers = "DINumber,PurchaseOrderNumber,VendorName,Date,Circle,Package,Notes,ItemName,TempCode,LoaSerialNo,Unit,Quantity\n";
+      
+      let csvContent = headers;
+      
+      data.forEach((di: any) => {
+        const diNo = di.diNumber || '';
+        const poNo = di.poNumber || di.purchaseOrderId?.purchaseOrderNumber || '';
+        const vendor = di.vendorName || di.purchaseOrderId?.vendorName || '';
+        const date = di.date ? new Date(di.date).toISOString().split('T')[0] : '';
+        const circle = di.circle || '';
+        const pkg = di.package || '';
+        const notes = di.notes ? `"${di.notes.replace(/"/g, '""')}"` : '';
+        
+        if (di.lineItems && di.lineItems.length > 0) {
+          di.lineItems.forEach((li: any) => {
+            const itemName = li.itemName ? `"${li.itemName.replace(/"/g, '""')}"` : '';
+            const tempCode = li.tempCode || '';
+            const loaSerial = li.loaSerialNo || '';
+            const unit = li.unit || '';
+            const qty = li.quantity || 0;
+            
+            csvContent += `${diNo},${poNo},"${vendor}",${date},${circle},"${pkg}",${notes},${itemName},${tempCode},${loaSerial},${unit},${qty}\n`;
+          });
+        } else {
+          csvContent += `${diNo},${poNo},"${vendor}",${date},${circle},"${pkg}",${notes},,,,,\n`;
+        }
+      });
+      
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `DI_Export_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error("Export failed:", err);
+      alert("Failed to export DIs");
+    }
+  };
+
   return (
     <div className="flex-1 bg-slate-50/50 min-h-screen">
       <div className="p-4 md:p-8 max-w-7xl mx-auto">
@@ -123,6 +184,10 @@ export default function DIPage() {
                 <DropdownMenuItem onClick={() => setIsImportModalOpen(true)} className="cursor-pointer">
                   <Upload className="w-4 h-4 mr-2 text-slate-500" />
                   Import DI Registrations
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportToCSV} className="cursor-pointer">
+                  <Download className="w-4 h-4 mr-2 text-slate-500" />
+                  Export DI Registrations
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -351,14 +416,17 @@ export default function DIPage() {
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center gap-2 w-32">
-                              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                            <div className="flex items-center gap-3 w-36">
+                              <div className="flex-1 bg-slate-200 h-2 rounded-full overflow-hidden shadow-inner">
                                 <div 
-                                  className={`h-full rounded-full ${percent === 100 ? 'bg-emerald-500' : 'bg-blue-500'}`} 
-                                  style={{ width: `${percent}%` }}
+                                  className="h-full rounded-full transition-all duration-500" 
+                                  style={{ 
+                                    width: `${Math.max(0, Number(percent) || 0)}%`,
+                                    background: Number(percent) >= 100 ? 'linear-gradient(to right, #34d399, #10b981)' : 'linear-gradient(to right, #60a5fa, #3b82f6)'
+                                  }}
                                 ></div>
                               </div>
-                              <span className="text-[11px] font-bold text-slate-500 w-8">{percent}%</span>
+                              <span className="text-[11px] font-bold text-slate-600 w-9">{percent}%</span>
                             </div>
                           </td>
                           <td className="px-6 py-4 text-right whitespace-nowrap">

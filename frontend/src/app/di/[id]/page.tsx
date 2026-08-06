@@ -84,11 +84,11 @@ export default function DIDetailPage() {
         const piRelations = relData.children?.filter((r: any) => r.targetModule === 'PurchaseInvoice') || [];
         if (piRelations.length > 0) {
           try {
-            const piRes = await getPurchaseInvoices({}); // or fetch by specific IDs if your API supports it. For now, fetch all or adjust backend.
+            const piRes = await getPurchaseInvoices({ limit: 500 }); // Try fetching enough invoices to cover the relations
             // Ideally we need an API to fetch PIs by multiple IDs or we fetch them one by one. 
             // We can fetch the list and filter:
             if (piRes.success || Array.isArray(piRes.data)) {
-               const allPIs = piRes.data || piRes.data?.data || [];
+               const allPIs = piRes.data?.prs || piRes.data?.data || piRes.data || [];
                const linkedPIs = allPIs.filter((pi: any) => piRelations.some((r: any) => r.targetDocument === pi._id));
                setChildPIs(linkedPIs);
             }

@@ -101,9 +101,9 @@ export function PurchaseInvoiceImportModal({ isOpen, onClose, onSuccess }: Purch
   };
 
   const downloadSampleCsv = () => {
-    const headers = "PurchaseInvoiceNumber,PurchaseOrderNumber,VendorName,BillingFrom,Date,Status,DINo,Billed,Package,Circle,Subcircle,Temp Code,Item Name,Description,LOA Serial No,HSN Code,PO Qty,PO Date,Inv Qty,Unit,SRT,ACT,Tot Inv Qty,Rate,Amount,GST Type,CGST %,SGST %,IGST %,Total Amount\n";
-    const sampleRow1 = "PINV-10001,PO-00001,Fastigo Tech,HQ,20-07-2026,Received,DI-001,No,PKG-1,North,North-Sub,FBR-001,Optical Fiber,Fiber Cable,LOA-1234,8544,10,20-07-2026,10,Mtrs,0,0,10,5000,50000,Intra State,9,9,0,59000\n";
-    const sampleRow2 = "PINV-10001,PO-00001,Fastigo Tech,HQ,20-07-2026,Received,DI-001,No,PKG-1,North,North-Sub,RTR-900,Router,WiFi Router,LOA-1234,8517,5,20-07-2026,5,Nos,0,0,5,12000,60000,Intra State,9,9,0,70800\n";
+    const headers = "Vendor Name,Purchase Order#,Received Date,Billing From,Purchase Invoice#,DI No,DI Date,PACKAGE,CIRCLE,Subcircle,Temp Code,Item Name,Description,LOA Serial No,HSN Code,Inv Qty,Unit,Rate,GST Type,CGST %,SGST %,IGST %\n";
+    const sampleRow1 = "Fastigo Tech,PO-00001,2026-07-20,HQ,PINV-10001,DI-001,2026-07-15,PKG-1,North,North-Sub,FBR-001,Optical Fiber,Fiber Cable,LOA-1234,8544,10,Mtrs,5000,Intra State,9,9,0\n";
+    const sampleRow2 = "Fastigo Tech,PO-00001,2026-07-20,HQ,PINV-10001,DI-001,2026-07-15,PKG-1,North,North-Sub,RTR-900,Router,WiFi Router,LOA-1234,8517,5,Nos,12000,Intra State,9,9,0\n";
     const blob = new Blob([headers + sampleRow1 + sampleRow2], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");

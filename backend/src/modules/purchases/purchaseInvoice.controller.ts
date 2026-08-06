@@ -30,20 +30,49 @@ export const createPurchaseInvoice = async (req: Request, res: Response): Promis
     }
     
     if (prData.lineItems) {
-      prData.lineItems = prData.lineItems.map((item: any) => ({
-        ...item,
-        quantity: item.quantity || item.invoiceQuantity || item.act || 0,
-        totalInventory: item.totalInventory || item.totalInvoiceQuantity || 0,
-        rate: item.rate || 0,
-        amount: item.amount || item.totalAmount || 0,
-        description: item.description || item.itemDescription
-      }));
+      prData.lineItems = prData.lineItems.map((item: any) => {
+        const qty = Number(item.quantity || item.invoiceQuantity || item.act || 0);
+        const rate = Number(item.rate || 0);
+        const amount = qty * rate;
+
+        let cgst = Number(item.cgst) || 0;
+        let sgst = Number(item.sgst) || 0;
+        let igst = Number(item.igst) || 0;
+
+        const gstType = (item.gstType || '').toUpperCase().replace(/\s/g, '');
+        if (gstType === 'INTERSTATE') {
+          cgst = 0;
+          sgst = 0;
+          igst = igst > 0 ? igst : 18;
+        } else {
+          igst = 0; // Default INTRASTATE
+          cgst = cgst > 0 ? cgst : 9;
+          sgst = sgst > 0 ? sgst : 9;
+        }
+
+        const taxAmount = amount * ((cgst + sgst + igst) / 100);
+        const totalAmount = amount + taxAmount;
+
+        return {
+          ...item,
+          quantity: qty,
+          totalInventory: item.totalInventory || item.totalInvoiceQuantity || 0,
+          rate,
+          amount,
+          cgst,
+          sgst,
+          igst,
+          totalAmount,
+          description: item.description || item.itemDescription
+        };
+      });
       
       const diLinesToConsume = prData.lineItems
         .filter((i: any) => i.diId && i.diLineId)
         .map((i: any) => ({
           lineId: i.diLineId.toString(),
-          quantity: Number(i.quantity) || 0
+          quantity: Number(i.quantity) || 0,
+          itemName: `${i.itemName} (DI: ${prData.diNumber || prData.diNo || 'N/A'}, Temp Code: ${i.tempCode || 'N/A'}, Circle: ${i.circle || 'N/A'}, Package: ${i.package || 'N/A'})`
         }));
       
       if (diLinesToConsume.length > 0) {
@@ -79,10 +108,10 @@ export const createPurchaseInvoice = async (req: Request, res: Response): Promis
         subcircle: item.subcircle,
         package: item.package,
         unit: item.unit,
-        invoiceQty: item.invoiceQuantity,
-        totalQty: item.totalInvoiceQuantity,
+        invoiceQty: item.invoiceQuantity || item.quantity,
+        totalQty: item.totalInvoiceQuantity || item.quantity,
         rate: item.rate,
-        amount: item.totalAmount || item.amount,
+        amount: item.totalAmount,
         tempCode: item.tempCode,
         itemId: item.itemId,
         itemName: item.itemName,
@@ -381,20 +410,49 @@ export const updatePurchaseInvoice = async (req: Request, res: Response): Promis
     }
     
     if (updateData.lineItems) {
-      updateData.lineItems = updateData.lineItems.map((item: any) => ({
-        ...item,
-        quantity: item.quantity || item.invoiceQuantity || item.act || 0,
-        totalInventory: item.totalInventory || item.totalInvoiceQuantity || 0,
-        rate: item.rate || 0,
-        amount: item.amount || item.totalAmount || 0,
-        description: item.description || item.itemDescription
-      }));
+      updateData.lineItems = updateData.lineItems.map((item: any) => {
+        const qty = Number(item.quantity || item.invoiceQuantity || item.act || 0);
+        const rate = Number(item.rate || 0);
+        const amount = qty * rate;
+
+        let cgst = Number(item.cgst) || 0;
+        let sgst = Number(item.sgst) || 0;
+        let igst = Number(item.igst) || 0;
+
+        const gstType = (item.gstType || '').toUpperCase().replace(/\s/g, '');
+        if (gstType === 'INTERSTATE') {
+          cgst = 0;
+          sgst = 0;
+          igst = igst > 0 ? igst : 18;
+        } else {
+          igst = 0; // Default INTRASTATE
+          cgst = cgst > 0 ? cgst : 9;
+          sgst = sgst > 0 ? sgst : 9;
+        }
+
+        const taxAmount = amount * ((cgst + sgst + igst) / 100);
+        const totalAmount = amount + taxAmount;
+
+        return {
+          ...item,
+          quantity: qty,
+          totalInventory: item.totalInventory || item.totalInvoiceQuantity || 0,
+          rate,
+          amount,
+          cgst,
+          sgst,
+          igst,
+          totalAmount,
+          description: item.description || item.itemDescription
+        };
+      });
       
       const diLinesToConsume = updateData.lineItems
         .filter((i: any) => i.diId && i.diLineId)
         .map((i: any) => ({
           lineId: i.diLineId.toString(),
-          quantity: Number(i.quantity) || 0
+          quantity: Number(i.quantity) || 0,
+          itemName: `${i.itemName} (DI: ${updateData.diNumber || updateData.diNo || 'N/A'}, Temp Code: ${i.tempCode || 'N/A'}, Circle: ${i.circle || 'N/A'}, Package: ${i.package || 'N/A'})`
         }));
       
       if (diLinesToConsume.length > 0) {
@@ -502,9 +560,9 @@ export const deletePurchaseInvoice = async (req: Request, res: Response): Promis
       }
     }
 
-    const deletedPr = await PurchaseInvoice.findByIdAndDelete(id);
+    const pi = await PurchaseInvoice.findById(id);
     
-    if (!deletedPr) {
+    if (!pi) {
       res.status(404).json({
         success: false,
         message: 'Purchase Invoice not found'
@@ -516,17 +574,20 @@ export const deletePurchaseInvoice = async (req: Request, res: Response): Promis
     await StoreInwardEntry.deleteMany({
       purchaseInvoiceId: id
     });
+    
+    // 4. Delete the Purchase Invoice itself
+    await PurchaseInvoice.findByIdAndDelete(id);
 
-    // Rebuild summary for deleted items
-    if (deletedPr.lineItems && deletedPr.lineItems.length > 0) {
-      for (const item of deletedPr.lineItems) {
+    // Rebuild summary for deleted/cancelled items
+    if (pi.lineItems && pi.lineItems.length > 0) {
+      for (const item of pi.lineItems) {
         if (item.itemId) SummaryService.rebuildForItem(item.itemId.toString()).catch(console.error);
       }
     }
 
     res.status(200).json({
       success: true,
-      message: 'Purchase Invoice and pending inward entries deleted successfully'
+      message: isDraft ? 'Purchase Invoice hard deleted successfully' : 'Purchase Invoice cancelled successfully'
     });
   } catch (error: any) {
     console.error('Error deleting Purchase Invoice:', error);
@@ -544,35 +605,51 @@ export const exportPurchaseInvoices = async (req: Request, res: Response): Promi
 
     const csvData = receives.flatMap(r => 
       r.lineItems && r.lineItems.length > 0 ? r.lineItems.map((item: any) => ({
-        PurchaseInvoiceNumber: r.invoiceNumber,
-        PurchaseOrderNumber: r.purchaseOrderNumber || '',
-        Date: r.date ? new Date(r.date).toISOString().split('T')[0] : '',
-        VendorName: r.vendorName,
-        Status: r.status,
-        DINo: r.diNumber || (r as any).diNo || '',
-        Billed: (r as any).billed ? 'Yes' : 'No',
-        ItemName: item.itemName,
-        TempCode: item.tempCode || '',
-        Subcircle: item.subcircle || '',
-        POQuantity: item.poQuantity,
-        InvoiceQuantity: item.invoiceQuantity,
-        Rate: item.rate || 0,
-        Amount: item.amount || 0,
-        CGST: item.cgst || 0,
-        SGST: item.sgst || 0,
-        IGST: item.igst || 0,
-        TotalAmount: item.totalAmount || 0,
-        BillingFrom: r.billingFrom || ''
+        "Vendor Name": r.vendorName || '',
+        "Purchase Order#": r.purchaseOrderNumber || '',
+        "Received Date": r.date ? new Date(r.date).toISOString().split('T')[0] : '',
+        "Billing From": r.billingFrom || '',
+        "Purchase Invoice#": r.invoiceNumber || '',
+        "DI No": r.diNumber || (r as any).diNo || '',
+        "DI Date": item.diDate ? new Date(item.diDate).toISOString().split('T')[0] : '',
+        "PACKAGE": item.package || '',
+        "CIRCLE": item.circle || '',
+        "Subcircle": item.subcircle || '',
+        "Temp Code": item.tempCode || '',
+        "Item Name": item.itemName || '',
+        "Description": item.description || '',
+        "LOA Serial No": item.loaSerialNo || '',
+        "HSN Code": item.hsnCode || '',
+        "Inv Qty": item.quantity || item.invoiceQuantity || 0,
+        "Unit": item.unit || '',
+        "Rate": item.rate || 0,
+        "GST Type": item.gstType || 'Intra State',
+        "CGST %": item.cgst || 0,
+        "SGST %": item.sgst || 0,
+        "IGST %": item.igst || 0
       })) : [{
-        PurchaseInvoiceNumber: r.invoiceNumber,
-        PurchaseOrderNumber: r.purchaseOrderNumber || '',
-        Date: r.date ? new Date(r.date).toISOString().split('T')[0] : '',
-        VendorName: r.vendorName,
-        Status: r.status,
-        DINo: r.diNumber || (r as any).diNo || '',
-        Billed: (r as any).billed ? 'Yes' : 'No',
-        ItemName: '', TempCode: '', Subcircle: '', POQuantity: '', InvoiceQuantity: '', Rate: '', Amount: '', CGST: '', SGST: '', IGST: '', TotalAmount: '',
-        BillingFrom: (r as any).billingFrom || ''
+        "Vendor Name": r.vendorName || '',
+        "Purchase Order#": r.purchaseOrderNumber || '',
+        "Received Date": r.date ? new Date(r.date).toISOString().split('T')[0] : '',
+        "Billing From": r.billingFrom || '',
+        "Purchase Invoice#": r.invoiceNumber || '',
+        "DI No": r.diNumber || (r as any).diNo || '',
+        "DI Date": '',
+        "PACKAGE": '',
+        "CIRCLE": '',
+        "Subcircle": '',
+        "Temp Code": '',
+        "Item Name": '',
+        "Description": '',
+        "LOA Serial No": '',
+        "HSN Code": '',
+        "Inv Qty": 0,
+        "Unit": '',
+        "Rate": 0,
+        "GST Type": 'Intra State',
+        "CGST %": 0,
+        "SGST %": 0,
+        "IGST %": 0
       }]
     );
 
@@ -600,6 +677,7 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
     const parser = parseAndSanitizeCsv(req.file.buffer);
 
     const rows: any[] = [];
+    const errors: string[] = [];
     const tempCodes = new Set<string>();
     const loaSerialNos = new Set<string>();
     const itemNames = new Set<string>();
@@ -684,15 +762,15 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
     for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
       const row = rows[rowIndex];
       const actualRowNumber = rowIndex + 2; // +1 for header, +1 for 0-index
-      const prNumber = row['purchaseinvoicenumber'] || row['invoicenumber'] || row['purchasereceivenumber'] || row['storeinwardnumber'] || row['prnumber'];
+      const prNumber = row['purchaseinvoicenumber'] || row['invoicenumber'] || row['purchaseinvoice'] || row['purchasereceivenumber'] || row['storeinwardnumber'] || row['prnumber'];
       if (!prNumber) continue;
 
       if (!prMap[prNumber]) {
         prMap[prNumber] = {
           invoiceNumber: prNumber,
           rowNumbers: [],
-          purchaseOrderNumber: row['purchaseordernumber'] || '',
-          date: safeDate(row['date'] || row['receivedate']),
+          purchaseOrderNumber: row['purchaseordernumber'] || row['purchaseorder'] || '',
+          date: safeDate(row['date'] || row['receiveddate']),
           vendorName: row['vendorname'],
           status: row['status'] || 'Draft',
           diNumber: row['dino'] || row['dinumber'] || '',
@@ -710,9 +788,44 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
 
       if (itemName) {
         const item = findItemInMemory(tempCode, loaSerialNo, itemName);
-        const itemId = item ? item._id : null;
+        if (!item) {
+          errors.push(`Row ${actualRowNumber}: UNRESOLVED_ITEM - Could not find item matching Temp Code "${tempCode}", Serial "${loaSerialNo}", or Name "${itemName}"`);
+          continue;
+        }
+        
+        const itemId = item._id;
+        const qty = safeNum(row['invqty'] || row['invoicequantity'] || row['quantity'] || row['act']);
+        const rate = safeNum(row['rate']);
+        const amount = qty * rate;
+
+        const rawGstType = (row['gsttype'] || 'Intra State').toUpperCase().replace(/\s/g, '');
+        let cgst = safeNum(row['cgst']);
+        let sgst = safeNum(row['sgst']);
+        let igst = safeNum(row['igst']);
+
+        if (rawGstType === 'INTERSTATE') {
+           if (cgst > 0 || sgst > 0) {
+             errors.push(`Row ${actualRowNumber}: Tax Structure Mismatch - INTERSTATE cannot have CGST or SGST > 0 for item "${itemName}"`);
+             continue;
+           }
+           igst = igst > 0 ? igst : 18;
+           cgst = 0;
+           sgst = 0;
+        } else {
+           if (igst > 0) {
+             errors.push(`Row ${actualRowNumber}: Tax Structure Mismatch - INTRASTATE cannot have IGST > 0 for item "${itemName}"`);
+             continue;
+           }
+           igst = 0;
+           cgst = cgst > 0 ? cgst : 9;
+           sgst = sgst > 0 ? sgst : 9;
+        }
+
+        const taxAmount = amount * ((cgst + sgst + igst) / 100);
+        const totalAmount = amount + taxAmount;
 
         prMap[prNumber].lineItems.push({
+          rowNumber: actualRowNumber,
           itemId,
           itemName,
           description: row['description'] || row['itemdescription'] || '',
@@ -725,19 +838,28 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
           unit: row['unit'] || '',
           poDate: row['podate'] || undefined,
           poQuantity: safeNum(row['poqty'] || row['poquantity']),
-          quantity: safeNum(row['invqty'] || row['invoicequantity'] || row['act']),
+          quantity: qty,
           srt: safeNum(row['srt']),
           act: safeNum(row['act']),
           totalInventory: safeNum(row['totinvqty'] || row['totalinvoicequantity']),
-          rate: safeNum(row['rate']),
-          amount: safeNum(row['amount']),
+          rate,
+          amount,
           gstType: row['gsttype'] || 'Intra State',
-          cgst: safeNum(row['cgst']),
-          sgst: safeNum(row['sgst']),
-          igst: safeNum(row['igst']),
-          totalAmount: safeNum(row['totalamount'])
+          cgst,
+          sgst,
+          igst,
+          totalAmount
         });
       }
+    }
+
+    if (errors.length > 0) {
+      res.status(400).json({
+        success: false,
+        message: 'Import failed due to validation errors',
+        data: { errors }
+      });
+      return;
     }
 
     const prNumbers = Object.keys(prMap);
@@ -757,15 +879,22 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
         if (di) {
           prData.lineItems.forEach((li: any) => {
             li.diId = di._id;
-            const diLine = di.lineItems.find((dli: any) => 
-              (dli.itemId && li.itemId && dli.itemId.toString() === li.itemId.toString()) ||
-              (dli.tempCode && li.tempCode && dli.tempCode === li.tempCode) ||
-              dli.itemName === li.itemName
-            );
+            const diLine = di.lineItems.find((dli: any) => {
+              const itemMatch = (dli.itemId && li.itemId && dli.itemId.toString() === li.itemId.toString()) ||
+                (dli.tempCode && li.tempCode && dli.tempCode === li.tempCode) ||
+                dli.itemName === li.itemName;
+              if (!itemMatch) return false;
+              
+              const circleMatch = (!dli.circle || !li.circle || dli.circle.trim().toLowerCase() === li.circle.trim().toLowerCase());
+              const packageMatch = (!dli.package || !li.package || dli.package.trim().toLowerCase() === li.package.trim().toLowerCase());
+              return circleMatch && packageMatch;
+            });
             if (diLine) {
               li.diLineId = (diLine as any)._id;
             }
           });
+        } else {
+          errors.push(`Validation Error for Invoice# ${prData.invoiceNumber}: DI number "${prData.diNumber}" does not exist in the system.`);
         }
       }
     }
@@ -791,27 +920,59 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
 
       if (prData.purchaseOrderNumber) {
         const po = existingPOs.find(p => p.purchaseOrderNumber === prData.purchaseOrderNumber);
-        if (po) prData.purchaseOrderId = po._id;
+        if (po) {
+          prData.purchaseOrderId = po._id;
+          
+          for (const li of prData.lineItems) {
+            const poLine = po.lineItems.find((pl: any) => 
+              (pl.itemId && li.itemId && pl.itemId.toString() === li.itemId.toString()) || 
+              (pl.itemName === li.itemName)
+            );
+            
+            if (poLine) {
+              if (li.quantity > poLine.quantity) {
+                errors.push(`Row ${li.rowNumber}: Inv Qty (${li.quantity}) cannot exceed remaining PO Qty (${poLine.quantity}) for item "${li.itemName}"`);
+              }
+            }
+          }
+        }
       }
 
       const diLinesToConsume = prData.lineItems
         .filter((i: any) => i.diId && i.diLineId)
-        .map((i: any) => ({ lineId: i.diLineId.toString(), quantity: Number(i.quantity) || 0 }));
+        .map((i: any) => ({ 
+          lineId: i.diLineId.toString(), 
+          quantity: Number(i.quantity) || 0, 
+          itemName: `${i.itemName} (DI: ${prData.diNumber || 'N/A'}, Temp Code: ${i.tempCode || 'N/A'}, Circle: ${i.circle || 'N/A'}, Package: ${i.package || 'N/A'})` 
+        }));
 
       if (diLinesToConsume.length > 0) {
         const diIdForConsumption = prData.lineItems.find((i: any) => i.diId).diId.toString();
         // For existing PIs, exclude the PI itself from allocation check to allow re-import
         const excludeId = prData._existingId ? prData._existingId.toString() : undefined;
-        await ValidationService.validateConsumption(diIdForConsumption, diLinesToConsume, excludeId);
-        prData._diIdForConsumption = diIdForConsumption;
+        try {
+          await ValidationService.validateConsumption(diIdForConsumption, diLinesToConsume, excludeId);
+          prData._diIdForConsumption = diIdForConsumption;
+        } catch (err: any) {
+          errors.push(`Validation Error for Invoice# ${prData.invoiceNumber}: ${err.message}`);
+        }
       }
+    }
+
+    if (errors.length > 0) {
+      res.status(400).json({
+        success: false,
+        message: 'Import failed due to validation errors',
+        data: { errors }
+      });
+      return;
     }
 
     // ── PASS 2: All validations passed — upsert everything ──────────────────
     const prChunks = chunkArray(prNumbers, 25);
-
-    const session = await mongoose.startSession();
-    session.startTransaction();
+    
+    // Transactions disabled entirely to support Atlas M0/M2/M5 shared proxies
+    const session = undefined;
 
     try {
     for (const chunk of prChunks) {
@@ -824,7 +985,7 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
         const savedPr = await PurchaseInvoice.findOneAndUpdate(
           { invoiceNumber: prData.invoiceNumber },
           { $set: prPayload },
-          { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true, session }
+          { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true, session: session || undefined }
         );
         successCount++;
 
@@ -838,7 +999,7 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
 
         // Recreate Store Receipts (delete old ones first on update)
         if (_existingId) {
-          await StoreInwardEntry.deleteMany({ purchaseInvoiceId: savedPr._id }, { session });
+          await StoreInwardEntry.deleteMany({ purchaseInvoiceId: savedPr._id }, { session: session || undefined });
         }
         if (savedPr.lineItems && savedPr.lineItems.length > 0) {
           const inwardEntries = savedPr.lineItems.map((item: any) => ({
@@ -884,11 +1045,7 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
       }));
     }
 
-    await session.commitTransaction();
-    session.endSession();
     } catch (error) {
-      await session.abortTransaction();
-      session.endSession();
       throw error;
     }
 

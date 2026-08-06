@@ -8,7 +8,7 @@ export class ValidationService {
    */
   static async validateConsumption(
     sourceId: string, 
-    requestedQuantities: { lineId: string, quantity: number }[],
+    requestedQuantities: { lineId: string, quantity: number, itemName?: string }[],
     excludePiId?: string
   ): Promise<void> {
     const allocations = await AllocationService.getDiAllocation(sourceId, excludePiId);
@@ -17,7 +17,8 @@ export class ValidationService {
     for (const req of requestedQuantities) {
       const remaining = allocationMap.get(req.lineId) || 0;
       if (req.quantity > remaining) {
-        throw new Error(`Allocation exceeded for line ${req.lineId}. Requested: ${req.quantity}, Remaining: ${remaining}`);
+        const itemStr = req.itemName ? `item "${req.itemName}"` : `line ${req.lineId}`;
+        throw new Error(`Allocation exceeded for ${itemStr}. Requested: ${req.quantity}, Remaining: ${remaining}`);
       }
     }
   }

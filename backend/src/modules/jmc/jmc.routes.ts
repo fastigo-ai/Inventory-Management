@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { protect, restrictTo } from '../../core/middleware/auth.middleware';
+import { authenticate, requireRole } from '../../core/middlewares/auth.middleware';
 import {
   createJmc,
   getJmcs,
@@ -10,15 +10,15 @@ import {
 
 const router = Router();
 
-router.use(protect);
+router.use(authenticate);
 
 router.route('/')
   .get(getJmcs)
-  .post(restrictTo('Admin', 'Site Manager', 'Contractor'), createJmc);
+  .post(requireRole(['Admin', 'Site Manager', 'Contractor']), createJmc);
 
 router.route('/:id')
   .get(getJmcById)
-  .put(restrictTo('Admin', 'Site Manager', 'Contractor'), updateJmc)
-  .delete(restrictTo('Admin'), deleteJmc);
+  .put(requireRole(['Admin', 'Site Manager', 'Contractor']), updateJmc)
+  .delete(requireRole(['Admin']), deleteJmc);
 
 export default router;

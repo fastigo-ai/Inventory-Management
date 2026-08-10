@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 import { JmcRegister } from './jmc.schema';
-import { ApiResponse } from '../../core/api/ApiResponse';
-import { ApiError } from '../../core/api/ApiError';
-import { asyncHandler } from '../../core/api/asyncHandler';
+import { ApiResponse } from '../../core/utils/ApiResponse';
+import { ApiError } from '../../core/utils/ApiError';
+import { asyncHandler } from '../../core/utils/asyncHandler';
 
 export const createJmc = asyncHandler(async (req: Request, res: Response) => {
   const data = req.body;

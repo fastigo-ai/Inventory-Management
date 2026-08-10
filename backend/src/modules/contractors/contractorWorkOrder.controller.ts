@@ -268,7 +268,7 @@ export const updateWorkOrderStatus = asyncHandler(async (req: AuthRequest, res: 
 export const updateWorkOrder = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
   
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!mongoose.Types.ObjectId.isValid(id as string)) {
     throw new ApiError(400, 'Invalid Work Order ID');
   }
 
@@ -288,7 +288,7 @@ export const updateWorkOrder = asyncHandler(async (req: AuthRequest, res: Respon
 export const deleteWorkOrder = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
 
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!mongoose.Types.ObjectId.isValid(id as string)) {
     throw new ApiError(400, 'Invalid Work Order ID');
   }
 

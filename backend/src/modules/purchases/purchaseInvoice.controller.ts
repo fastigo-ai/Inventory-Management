@@ -587,7 +587,7 @@ export const deletePurchaseInvoice = async (req: Request, res: Response): Promis
 
     res.status(200).json({
       success: true,
-      message: isDraft ? 'Purchase Invoice hard deleted successfully' : 'Purchase Invoice cancelled successfully'
+      message: pi.status === 'Draft' ? 'Purchase Invoice hard deleted successfully' : 'Purchase Invoice cancelled successfully'
     });
   } catch (error: any) {
     console.error('Error deleting Purchase Invoice:', error);

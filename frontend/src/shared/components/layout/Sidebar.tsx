@@ -124,7 +124,8 @@ const navItems: NavItem[] = [
     children: [
       { title: 'Incoming Work Orders', href: '/site-portal/incoming-work-orders' },
       { title: 'Demand Notes', href: '/site-portal/demand-notes' },
-      { title: 'MHROV', href: '/site-portal/mhrov' }
+      { title: 'MHROV', href: '/site-portal/mhrov' },
+      { title: 'JMC Register', href: '/site-portal/jmc-register' }
     ]
   }
 ];

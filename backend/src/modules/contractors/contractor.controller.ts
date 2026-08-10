@@ -60,9 +60,20 @@ export const getAssignments = asyncHandler(async (req: Request, res: Response) =
   }
   
   const assignments = await ContractorAssignment.find(filter)
-    .populate('contractorId', 'dynamicData.displayName')
+    .populate('contractorId', 'dynamicData.displayName name farmName companyName')
     .sort({ createdAt: -1 });
   res.status(200).json(new ApiResponse(200, assignments, 'Assignments fetched successfully'));
+});
+
+export const getAssignmentById = asyncHandler(async (req: Request, res: Response) => {
+  const assignment = await ContractorAssignment.findById(req.params.id)
+    .populate('contractorId', 'dynamicData.displayName name farmName companyName');
+    
+  if (!assignment) {
+    throw new ApiError(404, 'Assignment not found');
+  }
+  
+  res.status(200).json(new ApiResponse(200, assignment, 'Assignment fetched successfully'));
 });
 
 export const createAssignment = asyncHandler(async (req: Request, res: Response) => {
@@ -80,6 +91,47 @@ export const createAssignment = asyncHandler(async (req: Request, res: Response)
   const newAssignment = await ContractorAssignment.create(assignmentData);
 
   res.status(201).json(new ApiResponse(201, newAssignment, 'Contractor Assignment created successfully'));
+});
+
+export const updateAssignment = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const updateData = req.body;
+
+  const existing = await ContractorAssignment.findById(id);
+  if (!existing) {
+    throw new ApiError(404, 'Assignment not found');
+  }
+
+  // If status is Cancelled, prevent edit
+  if (existing.status === 'Cancelled') {
+    throw new ApiError(400, 'Cannot edit a cancelled assignment');
+  }
+
+  const updatedAssignment = await ContractorAssignment.findByIdAndUpdate(
+    id,
+    updateData,
+    { new: true, runValidators: true }
+  );
+
+  res.status(200).json(new ApiResponse(200, updatedAssignment, 'Contractor Assignment updated successfully'));
+});
+
+export const cancelAssignment = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  const assignment = await ContractorAssignment.findById(id);
+  if (!assignment) {
+    throw new ApiError(404, 'Assignment not found');
+  }
+
+  if (assignment.status === 'Cancelled') {
+    throw new ApiError(400, 'Assignment is already cancelled');
+  }
+
+  assignment.status = 'Cancelled';
+  await assignment.save();
+
+  res.status(200).json(new ApiResponse(200, assignment, 'Contractor Assignment cancelled successfully'));
 });
 
 export const assignContractor = asyncHandler(async (req: Request, res: Response) => {

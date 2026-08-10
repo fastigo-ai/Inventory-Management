@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { X, Trash2, PlusCircle, ChevronDown } from "lucide-react";
+import { X, Trash2, PlusCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { getContractors, createAssignment } from "@/features/contractors/api/contractors.api";
+import { getContractors, updateAssignment, getAssignmentById } from "@/features/contractors/api/contractors.api";
 import { getStockSummary } from "@/features/store/api/store.api";
 import { getDemandNotes } from "@/features/site-portal/api/demand-notes.api";
 import Select, { StylesConfig } from 'react-select';
@@ -16,13 +16,13 @@ const customSelectStyles: StylesConfig<any, false> = {
     ...base,
     minHeight: '36px',
     height: '36px',
-    borderRadius: '0.375rem', // rounded-md
-    borderColor: state.isFocused ? '#3b82f6' : '#cbd5e1', // blue-500 or slate-300
+    borderRadius: '0.375rem',
+    borderColor: state.isFocused ? '#3b82f6' : '#cbd5e1',
     boxShadow: state.isFocused ? '0 0 0 1px #3b82f6' : 'none',
     '&:hover': {
-      borderColor: state.isFocused ? '#3b82f6' : '#94a3b8' // slate-400
+      borderColor: state.isFocused ? '#3b82f6' : '#94a3b8'
     },
-    fontSize: '0.875rem', // text-sm
+    fontSize: '0.875rem',
   }),
   valueContainer: (base) => ({
     ...base,
@@ -51,20 +51,24 @@ const customSelectStyles: StylesConfig<any, false> = {
     ...base,
     fontSize: '0.875rem',
     backgroundColor: state.isSelected 
-      ? '#eff6ff' // blue-50
+      ? '#eff6ff'
       : state.isFocused 
-        ? '#f8fafc' // slate-50
+        ? '#f8fafc'
         : 'white',
-    color: state.isSelected ? '#1e40af' : '#334155', // blue-800 or slate-700
+    color: state.isSelected ? '#1e40af' : '#334155',
     cursor: 'pointer',
     '&:active': {
-      backgroundColor: '#dbeafe' // blue-100
+      backgroundColor: '#dbeafe'
     }
   })
 };
 
-export default function StoreContractorIssueNewPage() {
+export default function StoreContractorIssueEditPage() {
   const router = useRouter();
+  const params = useParams();
+  const { id } = params;
+  
+  const [isLoading, setIsLoading] = useState(true);
   
   // Data State
   const [contractors, setContractors] = useState<any[]>([]);
@@ -86,34 +90,65 @@ export default function StoreContractorIssueNewPage() {
   const [feeder, setFeeder] = useState("");
   
   const [vehicleNo, setVehicleNo] = useState("");
-  const [minNo, setMinNo] = useState(`MIN-${Math.floor(1000 + Math.random() * 9000)}`);
+  const [minNo, setMinNo] = useState("");
   const [minBookNo, setMinBookNo] = useState("");
   const [minDate, setMinDate] = useState("");
   const [issuedTfsSrNo, setIssuedTfsSrNo] = useState("");
   const [remarks, setRemarks] = useState("");
   
-  const [lineItems, setLineItems] = useState<any[]>([{ 
-    itemId: "", 
-    itemName: "", 
-    tempCode: "", 
-    activity: "",
-    unit: "Nos",
-    hsnCode: "",
-    demandQty: 1,
-    quantity: 1, // This is Issued Qty
-    availableQty: 0
-  }]);
-  
+  const [lineItems, setLineItems] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
-    setDemandDate(today);
-    setMinDate(today);
-    getContractors().then(res => setContractors(res.data || []));
-    getStockSummary({}).then(res => setStockSummary(res.data || []));
-    getDemandNotes().then(res => setDemandNotes(res.data?.demandNotes || []));
-  }, []);
+    Promise.all([
+      getContractors(),
+      getStockSummary({}),
+      getDemandNotes(),
+      getAssignmentById(id as string)
+    ]).then(([resContractors, resStock, resDemandNotes, resAssignment]) => {
+      setContractors(resContractors.data || []);
+      setStockSummary(resStock.data || []);
+      setDemandNotes(resDemandNotes.data?.demandNotes || []);
+      
+      const assignment = resAssignment.data;
+      if (assignment) {
+        setContractorId(assignment.contractorId?._id || assignment.contractorId || "");
+        setContractorFarmName(assignment.contractorFarmName || "");
+        setSupervisorEngineer(assignment.supervisorEngineer || "");
+        setDemandNo(assignment.demandNo || "");
+        setDemandBookNo(assignment.demandBookNo || "");
+        setDemandDate(assignment.demandDate ? new Date(assignment.demandDate).toISOString().split('T')[0] : "");
+        setDivision(assignment.division || "");
+        setSubDivision(assignment.subDivision || "");
+        setSubStation(assignment.subStation || "");
+        setFeeder(assignment.feeder || "");
+        setVehicleNo(assignment.vehicleNo || "");
+        setMinNo(assignment.minNo || assignment.assignmentNumber || "");
+        setMinBookNo(assignment.minBookNo || "");
+        setMinDate(assignment.minDate ? new Date(assignment.minDate).toISOString().split('T')[0] : assignment.date ? new Date(assignment.date).toISOString().split('T')[0] : "");
+        setIssuedTfsSrNo(assignment.issuedTfsSrNo || "");
+        setRemarks(assignment.remarks || "");
+        
+        if (assignment.lineItems) {
+          const loadedItems = assignment.lineItems.map((item: any) => {
+            const stockMatch = (resStock.data || []).find((s: any) => s.itemId === item.itemId || (item.tempCode && s.tempCode === item.tempCode));
+            return {
+              itemId: item.itemId,
+              itemName: item.itemName,
+              tempCode: item.tempCode,
+              activity: item.activity || (stockMatch ? stockMatch.activity : ""),
+              unit: item.unit || "Nos",
+              hsnCode: item.hsnCode || (stockMatch ? stockMatch.hsnCode : ""),
+              demandQty: item.demandQty || 1,
+              quantity: item.quantity || 1,
+              availableQty: stockMatch ? stockMatch.totalBalanceQty + item.quantity : item.quantity // Add back issued qty for editing
+            };
+          });
+          setLineItems(loadedItems);
+        }
+      }
+    }).catch(console.error).finally(() => setIsLoading(false));
+  }, [id]);
 
   const updateLineItem = (index: number, field: string, value: any) => {
     const newItems = [...lineItems];
@@ -189,7 +224,6 @@ export default function StoreContractorIssueNewPage() {
       return;
     }
 
-    // Validate quantities against available stock
     const negativeStockWarnings: string[] = [];
     for (let i = 0; i < lineItems.length; i++) {
       const item = lineItems[i];
@@ -218,7 +252,7 @@ export default function StoreContractorIssueNewPage() {
       const payload = {
         contractorId,
         location: "Store",
-        assignmentNumber: minNo, // Mapping MIN No to primary assignment number
+        assignmentNumber: minNo,
         date: minDate,
         
         demandNo,
@@ -237,12 +271,6 @@ export default function StoreContractorIssueNewPage() {
         issuedTfsSrNo,
         remarks,
 
-        subTotal: 0,
-        total: 0,
-        shippingCharges: 0,
-        taxAmount: 0,
-        adjustment: 0,
-        status: "Sent",
         lineItems: lineItems.map(item => ({
           itemId: item.itemId,
           itemName: item.itemName,
@@ -250,21 +278,27 @@ export default function StoreContractorIssueNewPage() {
           unit: item.unit,
           hsnCode: item.hsnCode,
           demandQty: Number(item.demandQty),
-          quantity: Number(item.quantity),
-          rate: 0,
-          amount: 0
+          quantity: Number(item.quantity)
         }))
       };
 
-      await createAssignment(payload);
+      await updateAssignment(id as string, payload);
       router.push('/store/contractor-issue');
     } catch (error: any) {
       console.error(error);
-      alert(error.response?.data?.message || "Failed to create issue");
+      alert(error.response?.data?.message || "Failed to update issue");
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 bg-slate-50 min-h-screen">
@@ -273,7 +307,7 @@ export default function StoreContractorIssueNewPage() {
           <Link href="/store/contractor-issue" className="text-slate-500 hover:text-slate-700">
             <X className="w-5 h-5" />
           </Link>
-          <h1 className="text-xl font-semibold text-slate-800">Material Issue Note (Contractor Issue)</h1>
+          <h1 className="text-xl font-semibold text-slate-800">Edit Material Issue Note</h1>
         </div>
       </div>
 
@@ -334,7 +368,6 @@ export default function StoreContractorIssueNewPage() {
                 placeholder="Select an approved Demand Note..."
               />
             </div>
-            <p className="text-xs text-blue-600/70 ml-2">Select a Demand Note to automatically fill the contractor and item details.</p>
           </div>
           <div className="grid grid-cols-3 gap-6">
             <div>
@@ -459,7 +492,6 @@ export default function StoreContractorIssueNewPage() {
                     <td className="p-4 align-top">
                       <Select
                         options={stockSummary
-                          .filter(s => s.totalBalanceQty > 0)
                           .map(s => ({
                             value: s.itemId,
                             label: s.description || 'N/A'
@@ -480,7 +512,6 @@ export default function StoreContractorIssueNewPage() {
                     <td className="p-4 align-top">
                       <Select
                         options={stockSummary
-                          .filter(s => s.totalBalanceQty > 0)
                           .map(s => ({
                             value: s.itemId,
                             label: s.tempCode || 'N/A'
@@ -500,7 +531,7 @@ export default function StoreContractorIssueNewPage() {
                     </td>
                     <td className="p-4 align-top">
                       <Select
-                        options={Array.from(new Set(stockSummary.filter(s => s.totalBalanceQty > 0 && s.activity).map(s => s.activity)))
+                        options={Array.from(new Set(stockSummary.filter(s => s.activity).map(s => s.activity)))
                           .map(a => ({ value: a, label: a as string }))
                         }
                         value={
@@ -567,7 +598,7 @@ export default function StoreContractorIssueNewPage() {
           
           <div className="p-4 border-t border-slate-200 bg-slate-50">
             <button 
-              onClick={addLineItem}
+               onClick={addLineItem}
               className="flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors px-2 py-1"
             >
               <PlusCircle className="w-4 h-4" />
@@ -586,7 +617,7 @@ export default function StoreContractorIssueNewPage() {
             onClick={handleSave}
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Saving...' : 'Save MIN'}
+            {isSubmitting ? 'Updating...' : 'Update MIN'}
           </Button>
         </div>
       </div>

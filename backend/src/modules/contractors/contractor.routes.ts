@@ -8,6 +8,9 @@ import {
   createAssignment, 
   assignContractor, 
   getContractorById, 
+  getAssignmentById,
+  updateAssignment,
+  cancelAssignment,
   updateContractor, 
   deleteContractor, 
   exportTemplate, 
@@ -33,6 +36,12 @@ router.route('/')
 router.route('/assignments')
   .get(getAssignments)
   .post(createAssignment);
+
+router.route('/assignments/:id')
+  .get(getAssignmentById)
+  .put(updateAssignment);
+
+router.patch('/assignments/:id/cancel', cancelAssignment);
 
 router.post('/assignments/import', uploadCsv.single('file'), importContractorAssignments);
 

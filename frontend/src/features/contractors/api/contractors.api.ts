@@ -65,8 +65,23 @@ export const getAssignments = async (contractorId?: string) => {
   return response.data;
 };
 
+export const getAssignmentById = async (id: string) => {
+  const response = await api.get(`/contractors/assignments/${id}`);
+  return response.data;
+};
+
 export const createAssignment = async (payload: any) => {
   const response = await api.post('/contractors/assignments', payload);
+  return response.data;
+};
+
+export const updateAssignment = async (id: string, payload: any) => {
+  const response = await api.put(`/contractors/assignments/${id}`, payload);
+  return response.data;
+};
+
+export const cancelAssignment = async (id: string) => {
+  const response = await api.patch(`/contractors/assignments/${id}/cancel`);
   return response.data;
 };
 

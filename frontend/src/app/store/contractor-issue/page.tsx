@@ -3,9 +3,10 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus, Upload } from "lucide-react";
-import { getAssignments } from "@/features/contractors/api/contractors.api";
+import { Plus, Upload, Eye, Edit, Trash2, XCircle } from "lucide-react";
+import { getAssignments, cancelAssignment } from "@/features/contractors/api/contractors.api";
 import { ContractorIssueImportModal } from "@/features/store/components/ContractorIssueImportModal";
+import { toast } from "sonner";
 import { useClientTable } from "@/shared/hooks/useClientTable";
 import { DataTableTopControls, DataTableBottomControls } from "@/shared/components/DataTableControls";
 
@@ -20,6 +21,18 @@ export default function StoreContractorIssuePage() {
       .then(res => setAssignments(res.data || []))
       .catch(console.error)
       .finally(() => setLoading(false));
+  };
+
+  const handleCancel = async (id: string, minNo: string) => {
+    if (confirm(`Are you sure you want to cancel MIN ${minNo}? This will restore the stock.`)) {
+      try {
+        await cancelAssignment(id);
+        toast.success(`MIN ${minNo} cancelled successfully.`);
+        fetchAssignments();
+      } catch (error) {
+        toast.error(`Failed to cancel MIN ${minNo}`);
+      }
+    }
   };
 
   useEffect(() => {
@@ -89,6 +102,7 @@ export default function StoreContractorIssuePage() {
                       <th className="px-6 py-3">CONTRACTOR</th>
                       <th className="px-6 py-3">STATUS</th>
                       <th className="px-6 py-3 text-right">TOTAL ITEMS</th>
+                      <th className="px-6 py-3 text-center">ACTIONS</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -103,17 +117,47 @@ export default function StoreContractorIssuePage() {
                         const totalItems = a.lineItems?.reduce((sum: number, item: any) => sum + (Number(item.quantity) || 0), 0) || 0;
                         return (
                           <tr key={a._id} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-6 py-4 font-medium text-blue-600">{a.minNo || a.assignmentNumber}</td>
+                            <td className="px-6 py-4 font-medium text-blue-600">
+                              <Link href={`/store/contractor-issue/${a._id}`} className="hover:underline">
+                                {a.minNo || a.assignmentNumber}
+                              </Link>
+                            </td>
                             <td className="px-6 py-4">{new Date(a.minDate || a.date).toLocaleDateString()}</td>
                             <td className="px-6 py-4">{a.contractorId?.name || a.contractorId?.dynamicData?.displayName || 'Unknown'}</td>
                             <td className="px-6 py-4">
                               <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                                a.status === 'Cancelled' ? 'bg-red-100 text-red-700' :
                                 a.status === 'Sent' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'
                               }`}>
                                 {a.status}
                               </span>
                             </td>
                             <td className="px-6 py-4 text-right font-medium">{totalItems}</td>
+                            <td className="px-6 py-4 flex items-center justify-center gap-2">
+                              <Link href={`/store/contractor-issue/${a._id}`}>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-blue-600 hover:text-blue-800 hover:bg-blue-50" title="View Details">
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                              </Link>
+                              {a.status !== 'Cancelled' && (
+                                <>
+                                  <Link href={`/store/contractor-issue/${a._id}/edit`}>
+                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-600 hover:text-slate-800 hover:bg-slate-100" title="Edit MIN">
+                                      <Edit className="w-4 h-4" />
+                                    </Button>
+                                  </Link>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="h-8 w-8 p-0 text-red-600 hover:text-red-800 hover:bg-red-50"
+                                    onClick={() => handleCancel(a._id, a.minNo || a.assignmentNumber)}
+                                    title="Cancel MIN"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </>
+                              )}
+                            </td>
                           </tr>
                         );
                       })

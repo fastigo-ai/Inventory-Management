@@ -88,6 +88,7 @@ const navItems: NavItem[] = [
     title: 'Stock Outward',
     icon: <Archive className="w-5 h-5" />,
     children: [
+      { title: 'Demand Notes', href: '/site-portal/demand-notes' },
       { title: 'Contractor Issue', href: '/store/contractor-issue' },
       { title: 'Outward Register', href: '/store/outward-register' }
     ]

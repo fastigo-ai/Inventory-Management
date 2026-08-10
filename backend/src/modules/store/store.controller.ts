@@ -391,11 +391,13 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
   items.forEach(item => {
     const data = item.dynamicData || {};
     const tempCode = data.tempCode || data.temp_code || '';
+    const activity = data.activity || data.itemActivity || 'Uncategorized Activity';
     
     summaryMap[tempCode] = {
       itemId: item._id,
       sr: 0,
       tempCode: tempCode,
+      activity: activity,
       hsnCode: data.hsnCode || data.hsn_code || '-',
       description: data.name || data.description || '-',
       unit: data.unit || 'Nos',
@@ -540,7 +542,8 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
         contractorsReturnQty: 10,
         contractorsActualIssued: 190,
         totalBalanceQty: 750,
-        remarks: 'Sample Mock Data'
+        remarks: 'Sample Mock Data',
+        activity: 'Installation of 11kV line'
       },
       {
         itemId: 'mock_2',
@@ -559,7 +562,8 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
         contractorsReturnQty: 0,
         contractorsActualIssued: 8,
         totalBalanceQty: 12,
-        remarks: 'Site Alpha'
+        remarks: 'Site Alpha',
+        activity: 'Installation of 11kV line'
       }
     ];
   }

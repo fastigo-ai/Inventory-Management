@@ -23,8 +23,8 @@ router.get('/sample-csv', authorize(['Site Portal']), downloadSampleCSV);
 router.post('/import', authorize(['Site Portal']), upload.single('file'), importDemandNotes);
 
 router.post('/', authorize(['Site Portal']), upload.single('file'), createDemandNote);
-router.get('/', authorize(['Site Portal']), getDemandNotes);
-router.get('/:id', authorize(['Site Portal']), getDemandNoteById);
+router.get('/', getDemandNotes);
+router.get('/:id', getDemandNoteById);
 router.put('/:id', authorize(['Site Portal']), updateDemandNote);
 router.delete('/:id', authorize(['Site Portal']), deleteDemandNote);
 

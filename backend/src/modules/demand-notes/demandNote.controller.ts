@@ -137,10 +137,10 @@ export const getDemandNotes = asyncHandler(async (req: AuthRequest, res: Respons
   const user = req.user as any;
   const filter: any = {};
 
-  // If user is not an admin, restrict to their package and circle
-  if (user.role?.name === 'Site Manager') {
-    filter.package = user.assignedPackage;
-    filter.circle = user.assignedCircle;
+  // If user is not an admin, restrict to their assigned areas
+  if (user.role?.name === 'Site Manager' || user.role?.name === 'Store Manager') {
+    if (user.assignedPackage) filter.package = user.assignedPackage;
+    if (user.assignedCircle) filter.circle = user.assignedCircle;
   }
 
   const demandNotes = await DemandNote.find(filter)

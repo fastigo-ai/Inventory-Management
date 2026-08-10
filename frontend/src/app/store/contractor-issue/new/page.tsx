@@ -8,6 +8,7 @@ import { X, Trash2, PlusCircle, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { getContractors, createAssignment } from "@/features/contractors/api/contractors.api";
 import { getStockSummary } from "@/features/store/api/store.api";
+import { getDemandNotes } from "@/features/site-portal/api/demand-notes.api";
 import Select, { StylesConfig } from 'react-select';
 
 const customSelectStyles: StylesConfig<any, false> = {
@@ -68,6 +69,7 @@ export default function StoreContractorIssueNewPage() {
   // Data State
   const [contractors, setContractors] = useState<any[]>([]);
   const [stockSummary, setStockSummary] = useState<any[]>([]);
+  const [demandNotes, setDemandNotes] = useState<any[]>([]);
   
   // Form State
   const [contractorId, setContractorId] = useState("");
@@ -94,6 +96,7 @@ export default function StoreContractorIssueNewPage() {
     itemId: "", 
     itemName: "", 
     tempCode: "", 
+    activity: "",
     unit: "Nos",
     hsnCode: "",
     demandQty: 1,
@@ -109,6 +112,7 @@ export default function StoreContractorIssueNewPage() {
     setMinDate(today);
     getContractors().then(res => setContractors(res.data || []));
     getStockSummary({}).then(res => setStockSummary(res.data || []));
+    getDemandNotes().then(res => setDemandNotes(res.data?.demandNotes || []));
   }, []);
 
   const updateLineItem = (index: number, field: string, value: any) => {
@@ -120,12 +124,15 @@ export default function StoreContractorIssueNewPage() {
         newItems[index].itemId = selectedStock.itemId;
         newItems[index].itemName = selectedStock.description;
         newItems[index].tempCode = selectedStock.tempCode || selectedStock.itemCode || '';
+        newItems[index].activity = selectedStock.activity || '';
         newItems[index].unit = selectedStock.unit || 'Nos';
         newItems[index].hsnCode = selectedStock.hsnCode || '';
         newItems[index].availableQty = selectedStock.totalBalanceQty || 0;
       } else {
         newItems[index].itemId = "";
         newItems[index].itemName = "";
+        newItems[index].tempCode = "";
+        newItems[index].activity = "";
         newItems[index].unit = "Nos";
         newItems[index].hsnCode = "";
         newItems[index].availableQty = 0;
@@ -139,8 +146,35 @@ export default function StoreContractorIssueNewPage() {
 
   const addLineItem = () => {
     setLineItems([...lineItems, { 
-      itemId: "", itemName: "", tempCode: "", unit: "Nos", hsnCode: "", demandQty: 1, quantity: 1, availableQty: 0 
+      itemId: "", itemName: "", tempCode: "", activity: "", unit: "Nos", hsnCode: "", demandQty: 1, quantity: 1, availableQty: 0 
     }]);
+  };
+
+  const addItemsByActivityToRow = (index: number, activity: string) => {
+    const itemsForActivity = stockSummary.filter(s => s.activity === activity && s.totalBalanceQty > 0);
+    if (itemsForActivity.length === 0) return;
+
+    const existingItemIds = new Set(lineItems.filter((item, i) => item.itemId && i !== index).map(item => item.itemId));
+    const newItemsToAdd = itemsForActivity.filter(s => !existingItemIds.has(s.itemId)).map(s => ({
+      itemId: s.itemId,
+      itemName: s.description,
+      tempCode: s.tempCode || s.itemCode || '',
+      activity: s.activity || '',
+      unit: s.unit || 'Nos',
+      hsnCode: s.hsnCode || '',
+      demandQty: 1,
+      quantity: 1,
+      availableQty: s.totalBalanceQty || 0
+    }));
+
+    if (newItemsToAdd.length > 0) {
+      const newItems = [...lineItems];
+      newItems[index] = newItemsToAdd[0];
+      newItems.splice(index + 1, 0, ...newItemsToAdd.slice(1));
+      setLineItems(newItems);
+    } else {
+      alert("All available items for this activity are already added.");
+    }
   };
 
   const removeLineItem = (index: number) => {
@@ -241,6 +275,60 @@ export default function StoreContractorIssueNewPage() {
         {/* Demand & Contractor Info */}
         <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
           <h2 className="text-sm font-semibold text-blue-700 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Demand & Contractor Details</h2>
+          <div className="col-span-3 mb-6 bg-blue-50/50 p-4 rounded-lg border border-blue-100 flex items-center gap-4">
+            <label className="block text-sm font-semibold text-blue-800 whitespace-nowrap">Auto-fill from Demand Note:</label>
+            <div className="flex-grow max-w-md">
+              <Select
+                options={demandNotes
+                  .filter(dn => dn.status === 'Approved' || dn.status === 'Pending Approval' || dn.status === 'Draft')
+                  .map(dn => ({
+                    value: dn._id,
+                    label: `${dn.demandNoteNumber} - ${dn.status} (${dn.circle})`,
+                    dn
+                  }))}
+                onChange={(option: any) => {
+                  if (option && option.dn) {
+                    const dn = option.dn;
+                    setDemandNo(dn.demandNoteNumber);
+                    setDemandDate(new Date(dn.createdAt).toISOString().split('T')[0]);
+                    setDivision(dn.division || '');
+                    setSubDivision(dn.subDivision || '');
+                    
+                    if (dn.contractorName) {
+                      const matchedC = contractors.find(c => 
+                        c.name === dn.contractorName || 
+                        c.dynamicData?.displayName === dn.contractorName || 
+                        c.dynamicData?.companyName === dn.contractorName
+                      );
+                      if (matchedC) setContractorId(matchedC._id);
+                    }
+                    
+                    if (dn.items && dn.items.length > 0) {
+                      const newItems = dn.items.map((item: any) => {
+                        const stockMatch = stockSummary.find(s => s.itemId === item.itemId || (item.tempCode && s.tempCode === item.tempCode));
+                        return {
+                          itemId: item.itemId || (stockMatch ? stockMatch.itemId : ""),
+                          itemName: item.itemName || "",
+                          tempCode: item.tempCode || "",
+                          activity: item.activity || "",
+                          unit: item.unit || "Nos",
+                          hsnCode: stockMatch ? stockMatch.hsnCode : "",
+                          demandQty: item.demandQty || 1,
+                          quantity: item.demandQty || 1,
+                          availableQty: stockMatch ? stockMatch.totalBalanceQty : 0
+                        };
+                      });
+                      setLineItems(newItems);
+                    }
+                  }
+                }}
+                className="text-sm"
+                styles={customSelectStyles}
+                placeholder="Select an approved Demand Note..."
+              />
+            </div>
+            <p className="text-xs text-blue-600/70 ml-2">Select a Demand Note to automatically fill the contractor and item details.</p>
+          </div>
           <div className="grid grid-cols-3 gap-6">
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">Contractor Name <span className="text-red-500">*</span></label>
@@ -344,9 +432,10 @@ export default function StoreContractorIssueNewPage() {
               <thead className="bg-slate-100 border-b border-slate-200 text-slate-600 text-[11px] uppercase tracking-wider">
                 <tr>
                   <th className="px-4 py-3 font-medium w-[5%] text-center">Sr. No.</th>
-                  <th className="px-4 py-3 font-medium w-[25%]">Description of Material</th>
-                  <th className="px-4 py-3 font-medium w-[15%]">Temp Code</th>
-                  <th className="px-4 py-3 font-medium w-[15%]">HSN Code</th>
+                  <th className="px-4 py-3 font-medium w-[20%]">Description of Material</th>
+                  <th className="px-4 py-3 font-medium w-[12%]">Temp Code</th>
+                  <th className="px-4 py-3 font-medium w-[15%]">Activity</th>
+                  <th className="px-4 py-3 font-medium w-[10%]">HSN Code</th>
                   <th className="px-4 py-3 font-medium w-[8%]">UNIT</th>
                   <th className="px-4 py-3 font-medium w-[8%] text-center">In Stock</th>
                   <th className="px-4 py-3 font-medium w-[8%]">Demand Qty</th>
@@ -400,6 +489,27 @@ export default function StoreContractorIssueNewPage() {
                         styles={customSelectStyles}
                         placeholder="Search code..."
                         className="text-sm font-mono"
+                      />
+                    </td>
+                    <td className="p-4 align-top">
+                      <Select
+                        options={Array.from(new Set(stockSummary.filter(s => s.totalBalanceQty > 0 && s.activity).map(s => s.activity)))
+                          .map(a => ({ value: a, label: a as string }))
+                        }
+                        value={
+                          item.activity 
+                            ? { value: item.activity, label: item.activity } 
+                            : null
+                        }
+                        onChange={(selectedOption) => {
+                          if (selectedOption?.value) {
+                            addItemsByActivityToRow(index, selectedOption.value);
+                          }
+                        }}
+                        menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                        styles={customSelectStyles}
+                        placeholder="Search activity..."
+                        className="text-sm"
                       />
                     </td>
                     <td className="p-4 align-top pt-6 text-slate-700 text-xs">

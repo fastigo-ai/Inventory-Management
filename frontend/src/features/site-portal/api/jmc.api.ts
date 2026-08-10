@@ -1,21 +1,21 @@
-import { axiosInstance } from '@/shared/api/axios';
+import { api } from '@/shared/api/axios';
 
 export const getJmcs = async () => {
-  return axiosInstance.get('/jmc');
+  return api.get('/jmc');
 };
 
 export const getJmcById = async (id: string) => {
-  return axiosInstance.get(`/jmc/${id}`);
+  return api.get(`/jmc/${id}`);
 };
 
 export const createJmc = async (data: any) => {
-  return axiosInstance.post('/jmc', data);
+  return api.post('/jmc', data);
 };
 
 export const updateJmc = async (id: string, data: any) => {
-  return axiosInstance.put(`/jmc/${id}`, data);
+  return api.put(`/jmc/${id}`, data);
 };
 
 export const deleteJmc = async (id: string) => {
-  return axiosInstance.delete(`/jmc/${id}`);
+  return api.delete(`/jmc/${id}`);
 };

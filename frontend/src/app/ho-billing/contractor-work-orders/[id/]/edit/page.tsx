@@ -101,14 +101,7 @@ export default function NewContractorWorkOrderPage() {
     }
 
     setIsLoadingItems(true);
-    getItems({ 
-      filters: {
-        activity: currentActivityInput, 
-        circle: formData.circle, 
-        package: formData.package
-      },
-      limit: 1000 
-    })
+    getItems({ filter_activity: currentActivityInput, limit: 1000 })
       .then(res => {
         const fetchedItems = res?.items || res?.data?.items || (Array.isArray(res) ? res : []);
         const mappedItems = Array.isArray(fetchedItems) ? fetchedItems.map(item => {
@@ -221,14 +214,7 @@ export default function NewContractorWorkOrderPage() {
     }
     const timer = setTimeout(() => {
       setIsSearchingManual(true);
-      getItems({ 
-        search: manualItemSearch, 
-        filters: {
-          circle: formData.circle, 
-          package: formData.package
-        },
-        limit: 10 
-      })
+      getItems({ search: manualItemSearch, limit: 10 })
         .then(res => {
           const itemsList = res?.items || res?.data?.items || (Array.isArray(res) ? res : []);
           setManualItemResults(Array.isArray(itemsList) ? itemsList : []);
@@ -297,7 +283,7 @@ export default function NewContractorWorkOrderPage() {
   };
 
   const handleSave = async () => {
-    if (!formData.package || !formData.circle || !formData.contractorId || !formData.division || formData.activities.length === 0) {
+    if (!formData.package || !formData.circle || !formData.contractorId || formData.activities.length === 0) {
       toast.error('Please fill all required fields');
       return;
     }
@@ -411,7 +397,7 @@ export default function NewContractorWorkOrderPage() {
           </div>
 
           <div>
-            <label className="block text-[13px] font-semibold text-slate-800 mb-1">Division <span className="text-red-500">*</span></label>
+            <label className="block text-[13px] font-semibold text-slate-800 mb-1">Division</label>
             <select
               value={formData.division}
               onChange={(e) => setFormData({ ...formData, division: e.target.value })}

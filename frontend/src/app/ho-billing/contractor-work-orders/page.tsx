@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Plus, Search, Filter, Upload, Download, Loader2 } from 'lucide-react';
 import { getContractorWorkOrders } from '@/features/contractors/api/contractorWorkOrder.api';
 import { ImportWOModal } from '@/features/contractors/components/ImportWOModal';
@@ -190,10 +191,12 @@ export default function ContractorWorkOrdersPage() {
                 workOrders.map((wo) => (
                   <tr key={wo._id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4 font-medium text-indigo-600">
-                      {wo.workOrderNumber}
+                      <Link href={`/ho-billing/contractor-work-orders/${wo._id}`} className="hover:underline">
+                        {wo.workOrderNumber}
+                      </Link>
                     </td>
                     <td className="px-6 py-4">
-                      {wo.contractorId?.dynamicData?.companyName || wo.contractorId?.dynamicData?.displayName || 'Unknown Contractor'}
+                      {wo.contractorId?.dynamicData?.companyName || wo.contractorId?.dynamicData?.displayName || wo.contractorId?.dynamicData?.contractorName || 'Unknown Contractor'}
                     </td>
                     <td className="px-6 py-4">
                       {wo.package} <br />

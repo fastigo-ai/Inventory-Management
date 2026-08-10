@@ -156,7 +156,7 @@ export default function IncomingWorkOrdersPage() {
                       {wo.workOrderNumber}
                     </td>
                     <td className="px-6 py-4">
-                      {wo.contractorId?.dynamicData?.companyName || wo.contractorId?.dynamicData?.displayName || wo.contractorName || 'Unknown Contractor'}
+                      {wo.contractorId?.dynamicData?.companyName || wo.contractorId?.dynamicData?.displayName || wo.contractorId?.dynamicData?.contractorName || 'Unknown Contractor'}
                     </td>
                     <td className="px-6 py-4">
                       {wo.division || 'N/A'} <br />

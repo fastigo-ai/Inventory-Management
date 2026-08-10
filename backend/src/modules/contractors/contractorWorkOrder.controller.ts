@@ -67,7 +67,7 @@ export const getWorkOrders = asyncHandler(async (req: AuthRequest, res: Response
   const total = await ContractorWorkOrder.countDocuments(filter);
   
   const workOrders = await ContractorWorkOrder.find(filter)
-    .populate('contractorId', 'dynamicData.contractorName')
+    .populate('contractorId', 'dynamicData.contractorName dynamicData.companyName dynamicData.displayName')
     .populate('createdBy', 'firstName lastName')
     .sort({ createdAt: -1 })
     .skip(skip)
@@ -96,7 +96,7 @@ export const getWorkOrderById = asyncHandler(async (req: AuthRequest, res: Respo
   }
 
   const workOrder = await ContractorWorkOrder.findById(id)
-    .populate('contractorId', 'dynamicData.contractorName location')
+    .populate('contractorId', 'dynamicData.contractorName dynamicData.companyName dynamicData.displayName location')
     .populate('createdBy', 'firstName lastName');
     
   if (!workOrder) {
@@ -263,4 +263,40 @@ export const updateWorkOrderStatus = asyncHandler(async (req: AuthRequest, res: 
   }
 
   res.status(200).json(new ApiResponse(200, workOrder, 'Work Order status updated successfully'));
+});
+
+export const updateWorkOrder = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { id } = req.params;
+  
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new ApiError(400, 'Invalid Work Order ID');
+  }
+
+  const workOrder = await ContractorWorkOrder.findByIdAndUpdate(
+    id,
+    req.body,
+    { new: true }
+  );
+
+  if (!workOrder) {
+    throw new ApiError(404, 'Work Order not found');
+  }
+
+  res.status(200).json(new ApiResponse(200, workOrder, 'Contractor Work Order updated successfully'));
+});
+
+export const deleteWorkOrder = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new ApiError(400, 'Invalid Work Order ID');
+  }
+
+  const workOrder = await ContractorWorkOrder.findByIdAndDelete(id);
+
+  if (!workOrder) {
+    throw new ApiError(404, 'Work Order not found');
+  }
+
+  res.status(200).json(new ApiResponse(200, null, 'Contractor Work Order deleted successfully'));
 });

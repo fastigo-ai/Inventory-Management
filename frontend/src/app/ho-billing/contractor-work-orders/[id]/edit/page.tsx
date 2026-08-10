@@ -1,15 +1,17 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { Save, ArrowLeft, Plus, X, Search } from 'lucide-react';
 import { getContractors } from '@/features/contractors/api/contractors.api';
 import { getItems, getEntityMetadata, getItemMetrics } from '@/features/items/api/items.api';
-import { createContractorWorkOrder } from '@/features/contractors/api/contractorWorkOrder.api';
+import { updateContractorWorkOrder, getContractorWorkOrderById } from '@/features/contractors/api/contractorWorkOrder.api';
 import { toast } from 'sonner';
 
-export default function NewContractorWorkOrderPage() {
+export default function EditContractorWorkOrderPage() {
   const router = useRouter();
+  const params = useParams();
+  const { id } = params;
 
   const [packageOptions] = useState([
     "Package 1(S/N)",
@@ -35,6 +37,7 @@ export default function NewContractorWorkOrderPage() {
   const [items, setItems] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
+  const [isLoadingWorkOrder, setIsLoadingWorkOrder] = useState(true);
 
   const [manualItemSearch, setManualItemSearch] = useState('');
   const [manualItemResults, setManualItemResults] = useState<any[]>([]);
@@ -47,6 +50,39 @@ export default function NewContractorWorkOrderPage() {
   });
   
   const [activityRatios, setActivityRatios] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const fetchWO = async () => {
+      try {
+        setIsLoadingWorkOrder(true);
+        const res = await getContractorWorkOrderById(id as string);
+        if (res.success && res.data) {
+          const wo = res.data;
+          setFormData({
+            package: wo.package || '',
+            circle: wo.circle || '',
+            contractorId: wo.contractorId?._id || wo.contractorId || '',
+            division: wo.division || '',
+            subDivision: wo.subDivision || '',
+            location: wo.location || '',
+            remarks: wo.remarks || '',
+            activities: wo.activities || []
+          });
+          
+          // Group/sort items by activity to prevent interleaved headers
+          const sortedItems = [...(wo.items || [])].sort((a, b) => (a.activity || '').localeCompare(b.activity || ''));
+          setItems(sortedItems);
+        } else {
+          toast.error('Failed to fetch work order');
+        }
+      } catch (error) {
+        toast.error('Failed to fetch work order');
+      } finally {
+        setIsLoadingWorkOrder(false);
+      }
+    };
+    if (id) fetchWO();
+  }, [id]);
 
   // Derive circles based on package
   const availableCircles = formData.package === 'Package 1(S/N)' ? ['Solan', 'Nahan'] :
@@ -315,11 +351,12 @@ export default function NewContractorWorkOrderPage() {
 
     try {
       setIsSubmitting(true);
-      await createContractorWorkOrder(payload);
-      toast.success('Work Order created successfully');
-      router.push('/ho-billing/contractor-work-orders');
+      await updateContractorWorkOrder(id as string, payload);
+      toast.success('Work Order updated successfully');
+      router.push(`/ho-billing/contractor-work-orders/${id}`);
     } catch (e: any) {
-      toast.error(e.response?.data?.message || 'Failed to create work order');
+      console.error('Update WO Error:', e, e.response?.data);
+      toast.error(e.response?.data?.message || 'Failed to update work order');
     } finally {
       setIsSubmitting(false);
     }
@@ -337,6 +374,10 @@ export default function NewContractorWorkOrderPage() {
   };
   const availableDivisions = getDivisions(formData.circle);
 
+  if (isLoadingWorkOrder) {
+    return <div className="p-8 text-center text-slate-500">Loading Work Order...</div>;
+  }
+
   return (
     <div className="p-6 pb-24 max-w-7xl mx-auto">
       <div className="flex items-center space-x-4 mb-6">
@@ -344,8 +385,8 @@ export default function NewContractorWorkOrderPage() {
           <ArrowLeft className="w-5 h-5 text-slate-600" />
         </button>
         <div>
-          <h1 className="text-xl font-bold text-slate-800">New Contractor Work Order</h1>
-          <p className="text-sm text-slate-500 mt-1">Create a new work order for a registered contractor</p>
+          <h1 className="text-xl font-bold text-slate-800">Edit Contractor Work Order</h1>
+          <p className="text-sm text-slate-500 mt-1">Update the work order details</p>
         </div>
       </div>
 

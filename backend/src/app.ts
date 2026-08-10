@@ -26,6 +26,7 @@ import allocationRoutes from './core/document-engine/allocation/allocation.route
 import relationsRoutes from './core/document-engine/relations/relations.routes';
 import contractorWorkOrderRoutes from './modules/contractors/contractorWorkOrder.routes';
 import jmcRoutes from './modules/jmc/jmc.routes';
+import billingRoutes from './modules/contractor-billing/billing.routes';
 import { errorHandler } from './core/middlewares/error.middleware';
 
 import { contextMiddleware } from './core/middlewares/context.middleware';
@@ -93,6 +94,7 @@ apiRouter.use('/allocations', allocationRoutes);
 apiRouter.use('/relations', relationsRoutes);
 apiRouter.use('/ho-billing/contractor-work-orders', contractorWorkOrderRoutes);
 apiRouter.use('/jmc', jmcRoutes);
+apiRouter.use('/contractor-billing', billingRoutes);
 
 // Mount API routes on both / and /api to handle DigitalOcean path stripping
 app.use('/', apiRouter);

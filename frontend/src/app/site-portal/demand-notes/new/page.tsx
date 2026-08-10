@@ -137,6 +137,7 @@ function DemandNoteForm() {
             isLoadingContext: false
           }));
           setWorkOrderItems(mappedItems);
+          setItems(mappedItems);
         } else {
           toast.warning('This Work Order does not contain any items.');
         }

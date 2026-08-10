@@ -35,14 +35,16 @@ export default function NewHandoverCertificate() {
   useEffect(() => {
     // Fetch initial contractors
     api.get('/contractors').then(res => {
-      setContractors(res.data?.data || []);
+      const arr = res.data?.data?.data || res.data?.data || res.data || [];
+      setContractors(Array.isArray(arr) ? arr : []);
     }).catch(console.error);
   }, []);
 
   useEffect(() => {
     if (contractorId) {
       api.get(`/ho-billing/contractor-work-orders?contractorId=${contractorId}`).then(res => {
-        setWorkOrders(res.data?.data || []);
+        const arr = res.data?.data?.data || res.data?.data || res.data || [];
+        setWorkOrders(Array.isArray(arr) ? arr : []);
       }).catch(console.error);
     }
   }, [contractorId]);

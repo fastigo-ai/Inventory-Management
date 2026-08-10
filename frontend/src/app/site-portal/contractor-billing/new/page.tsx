@@ -49,14 +49,16 @@ export default function NewContractorBill() {
   useEffect(() => {
     // Fetch initial contractors
     api.get('/contractors').then(res => {
-      setContractors(res.data?.data || []);
+      const arr = res.data?.data?.data || res.data?.data || res.data || [];
+      setContractors(Array.isArray(arr) ? arr : []);
     }).catch(console.error);
   }, []);
 
   useEffect(() => {
     if (contractorId) {
       api.get(`/ho-billing/contractor-work-orders?contractorId=${contractorId}`).then(res => {
-        setWorkOrders(res.data?.data || []);
+        const arr = res.data?.data?.data || res.data?.data || res.data || [];
+        setWorkOrders(Array.isArray(arr) ? arr : []);
       }).catch(console.error);
     }
   }, [contractorId]);
@@ -65,11 +67,20 @@ export default function NewContractorBill() {
     if (stage && workOrderId) {
       setFetchingDocs(true);
       if (stage === 'Stage 1 (Supply Initial)') {
-        api.get('/store/mhrov').then(res => setMhrovs(res.data?.data || [])).finally(() => setFetchingDocs(false));
+        api.get('/store/mhrov').then(res => {
+          const arr = res.data?.data?.data || res.data?.data || res.data || [];
+          setMhrovs(Array.isArray(arr) ? arr : []);
+        }).finally(() => setFetchingDocs(false));
       } else if (stage === 'Stage 2 (Erection & Supply Balance)') {
-        api.get('/jmc').then(res => setJmcs(res.data?.data || [])).finally(() => setFetchingDocs(false));
+        api.get('/jmc').then(res => {
+          const arr = res.data?.data?.data || res.data?.data || res.data || [];
+          setJmcs(Array.isArray(arr) ? arr : []);
+        }).finally(() => setFetchingDocs(false));
       } else if (stage === 'Stage 3 (Final/Retention)') {
-        api.get('/contractor-billing/handover-certificates').then(res => setHandovers(res.data?.data || [])).finally(() => setFetchingDocs(false));
+        api.get('/contractor-billing/handover-certificates').then(res => {
+          const arr = res.data?.data?.data || res.data?.data || res.data || [];
+          setHandovers(Array.isArray(arr) ? arr : []);
+        }).finally(() => setFetchingDocs(false));
       }
     }
   }, [stage, workOrderId]);

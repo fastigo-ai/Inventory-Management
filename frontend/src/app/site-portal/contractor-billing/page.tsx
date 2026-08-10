@@ -133,7 +133,7 @@ export default function ContractorBillingDashboard() {
                       <td className="px-6 py-4 font-medium text-blue-600">{inv.invoiceNumber}</td>
                       <td className="px-6 py-4">{format(new Date(inv.date), 'dd MMM yyyy')}</td>
                       <td className="px-6 py-4">
-                        <div className="font-medium text-gray-900">{inv.contractorId?.name || 'Unknown'}</div>
+                        <div className="font-medium text-gray-900">{inv.contractorId?.dynamicData?.displayName || inv.contractorId?.name || 'Unknown'}</div>
                         <div className="text-xs text-gray-500">{inv.workOrderId?.workOrderNumber}</div>
                       </td>
                       <td className="px-6 py-4">
@@ -188,7 +188,7 @@ export default function ContractorBillingDashboard() {
                       <td className="px-6 py-4 font-medium text-blue-600">{hc.certificateNumber}</td>
                       <td className="px-6 py-4">{format(new Date(hc.date), 'dd MMM yyyy')}</td>
                       <td className="px-6 py-4">
-                        <div className="font-medium text-gray-900">{hc.contractorId?.name || 'Unknown'}</div>
+                        <div className="font-medium text-gray-900">{hc.contractorId?.dynamicData?.displayName || hc.contractorId?.name || 'Unknown'}</div>
                         <div className="text-xs text-gray-500">{hc.workOrderId?.workOrderNumber}</div>
                       </td>
                       <td className="px-6 py-4">

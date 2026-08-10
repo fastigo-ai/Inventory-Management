@@ -157,7 +157,7 @@ export default function NewContractorInvoice() {
               >
                 <option value="">Select Contractor</option>
                 {contractors.map(c => (
-                  <option key={c._id} value={c._id}>{c.name}</option>
+                  <option key={c._id} value={c._id}>{c.dynamicData?.displayName || c.name || 'Unnamed Contractor'}</option>
                 ))}
               </select>
             </div>

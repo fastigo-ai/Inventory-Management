@@ -16,7 +16,7 @@ import {
   createStage3Invoice
 } from '@/features/contractor-billing/api/contractor-billing.api';
 
-export default function NewContractorInvoice() {
+export default function NewContractorBill() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [fetchingDocs, setFetchingDocs] = useState(false);
@@ -121,10 +121,10 @@ export default function NewContractorInvoice() {
         await createStage3Invoice({ ...payload, handoverCertificateId: handoverId });
       }
 
-      toast.success('Invoice generated successfully!');
+      toast.success('Bill generated successfully!');
       router.push('/site-portal/contractor-billing');
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Failed to create invoice');
+      toast.error(error?.response?.data?.message || 'Failed to create bill');
     } finally {
       setLoading(false);
     }
@@ -137,8 +137,8 @@ export default function NewContractorInvoice() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">Create Contractor Invoice</h1>
-          <p className="text-gray-500">Generate a staggered billing invoice.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900">Create Contractor Bill</h1>
+          <p className="text-gray-500">Generate a staggered bill.</p>
         </div>
       </div>
 

@@ -13,8 +13,8 @@ import { format } from 'date-fns';
 
 export default function ContractorBillingDashboard() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState('invoices');
-  const [invoices, setInvoices] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState('bills');
+  const [bills, setBills] = useState<any[]>([]);
   const [handoverCertificates, setHandoverCertificates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -25,7 +25,7 @@ export default function ContractorBillingDashboard() {
         getContractorInvoices(),
         getHandoverCertificates()
       ]);
-      setInvoices(invRes.data || []);
+      setBills(invRes.data || []);
       setHandoverCertificates(hoRes.data || []);
     } catch (error) {
       console.error('Failed to fetch billing data', error);
@@ -54,7 +54,7 @@ export default function ContractorBillingDashboard() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">Contractor Billing</h1>
-          <p className="text-gray-500 mt-1">Manage multi-stage invoices and handover certificates.</p>
+          <p className="text-gray-500 mt-1">Manage multi-stage bills and handover certificates.</p>
         </div>
         <div className="flex items-center gap-3">
           <Button 
@@ -70,7 +70,7 @@ export default function ContractorBillingDashboard() {
             onClick={() => router.push('/site-portal/contractor-billing/new')}
           >
             <Plus className="h-4 w-4" />
-            Create Invoice
+            Create Bill
           </Button>
         </div>
       </div>
@@ -79,14 +79,14 @@ export default function ContractorBillingDashboard() {
         <div className="flex space-x-1 border-b border-gray-200 mb-6">
           <button
             className={`px-4 py-2 text-sm font-medium border-b-2 flex items-center gap-2 transition-colors ${
-              activeTab === 'invoices' 
+              activeTab === 'bills' 
                 ? 'border-blue-600 text-blue-600' 
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
-            onClick={() => setActiveTab('invoices')}
+            onClick={() => setActiveTab('bills')}
           >
             <FileText className="h-4 w-4" />
-            Invoices
+            Bills
           </button>
           <button
             className={`px-4 py-2 text-sm font-medium border-b-2 flex items-center gap-2 transition-colors ${
@@ -101,12 +101,12 @@ export default function ContractorBillingDashboard() {
           </button>
         </div>
 
-        {activeTab === 'invoices' && (
+        {activeTab === 'bills' && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50/50">
                 <tr>
-                  <th className="px-6 py-3 text-left font-semibold text-gray-900">Invoice #</th>
+                  <th className="px-6 py-3 text-left font-semibold text-gray-900">Bill #</th>
                   <th className="px-6 py-3 text-left font-semibold text-gray-900">Date</th>
                   <th className="px-6 py-3 text-left font-semibold text-gray-900">Contractor</th>
                   <th className="px-6 py-3 text-left font-semibold text-gray-900">Stage</th>
@@ -118,17 +118,17 @@ export default function ContractorBillingDashboard() {
                 {loading ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                      Loading invoices...
+                      Loading bills...
                     </td>
                   </tr>
-                ) : invoices.length === 0 ? (
+                ) : bills.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                      No invoices found. Click 'Create Invoice' to begin billing.
+                      No bills found. Click 'Create Bill' to begin billing.
                     </td>
                   </tr>
                 ) : (
-                  invoices.map((inv) => (
+                  bills.map((inv) => (
                     <tr key={inv._id} className="hover:bg-gray-50/50 transition-colors cursor-pointer">
                       <td className="px-6 py-4 font-medium text-blue-600">{inv.invoiceNumber}</td>
                       <td className="px-6 py-4">{format(new Date(inv.date), 'dd MMM yyyy')}</td>

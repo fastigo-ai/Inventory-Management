@@ -247,6 +247,7 @@ export default function StoreContractorIssueNewPage() {
           itemId: item.itemId,
           itemName: item.itemName,
           tempCode: item.tempCode,
+          activity: item.activity,
           unit: item.unit,
           hsnCode: item.hsnCode,
           demandQty: Number(item.demandQty),

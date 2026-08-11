@@ -88,9 +88,47 @@ export const createPurchaseInvoice = async (req: Request, res: Response): Promis
     const diId = prData.lineItems?.find((i: any) => i.diId)?.diId;
     if (diId) {
       await RelationsService.linkDocuments(diId.toString(), 'DispatchInstruction', newPr._id.toString(), 'PurchaseInvoice');
+      
+      // Update DI invoiced quantities
+      const di = await DI.findById(diId);
+      if (di && newPr.lineItems) {
+        let diUpdated = false;
+        newPr.lineItems.forEach((invItem: any) => {
+          if (invItem.diLineId) {
+            const diItem = di.lineItems.find((dItem: any) => dItem._id.toString() === invItem.diLineId.toString());
+            if (diItem) {
+              diItem.invoicedQuantity = (diItem.invoicedQuantity || 0) + (Number(invItem.quantity) || 0);
+              diUpdated = true;
+            }
+          }
+        });
+        if (diUpdated) {
+          await di.save();
+        }
+      }
     }
     if (newPr.purchaseOrderId) {
       await RelationsService.linkDocuments(newPr.purchaseOrderId.toString(), 'PurchaseOrder', newPr._id.toString(), 'PurchaseInvoice');
+      
+      // Update PO invoiced quantities
+      const po = await PurchaseOrder.findById(newPr.purchaseOrderId);
+      if (po && newPr.lineItems) {
+        let poUpdated = false;
+        newPr.lineItems.forEach((invItem: any) => {
+          const poItem = po.lineItems.find((pItem: any) => 
+            (pItem.itemId && invItem.itemId && pItem.itemId.toString() === invItem.itemId.toString()) || 
+            (pItem.tempCode && invItem.tempCode && pItem.tempCode === invItem.tempCode) ||
+            pItem.itemName === invItem.itemName
+          );
+          if (poItem) {
+            poItem.invoicedQuantity = (poItem.invoicedQuantity || 0) + (Number(invItem.quantity) || 0);
+            poUpdated = true;
+          }
+        });
+        if (poUpdated) {
+          await po.save();
+        }
+      }
     }
 
     if (newPr.lineItems && newPr.lineItems.length > 0) {

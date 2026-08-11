@@ -9,6 +9,7 @@ export interface IDILineItem {
   circle?: string;
   unit?: string;
   quantity: number;
+  invoicedQuantity?: number;
 }
 
 export interface IDI extends Document {
@@ -37,6 +38,7 @@ const diLineItemSchema = new Schema<IDILineItem>({
   circle: { type: String },
   unit: { type: String },
   quantity: { type: Number, required: true, default: 0 },
+  invoicedQuantity: { type: Number, default: 0 },
 });
 
 const diSchema = new Schema<IDI>(

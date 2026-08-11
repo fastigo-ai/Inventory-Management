@@ -11,6 +11,7 @@ export interface IAssignmentLineItem {
   rate: number;
   discountPercentage?: number;
   amount: number;
+  activity?: string;
 }
 
 export interface IContractorAssignment extends Document {
@@ -66,6 +67,7 @@ const assignmentLineItemSchema = new Schema<IAssignmentLineItem>({
   rate: { type: Number, required: true, default: 0 },
   discountPercentage: { type: Number, default: 0 },
   amount: { type: Number, required: true, default: 0 },
+  activity: { type: String },
 });
 
 const contractorAssignmentSchema = new Schema<IContractorAssignment>(

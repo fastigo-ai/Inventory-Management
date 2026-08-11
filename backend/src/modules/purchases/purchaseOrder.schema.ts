@@ -12,8 +12,8 @@ export interface IPurchaseOrderLineItem {
   circle?: string;
   unit?: string;
   quantity: number;
-  rate: number;
   amount: number;
+  invoicedQuantity?: number;
   isCanceled?: boolean;
 }
 
@@ -96,6 +96,7 @@ const purchaseOrderLineItemSchema = new Schema<IPurchaseOrderLineItem>({
   circle: { type: String },
   unit: { type: String },
   quantity: { type: Number, required: true, default: 1 },
+  invoicedQuantity: { type: Number, default: 0 },
   rate: { type: Number, required: true, default: 0 },
   amount: { type: Number, required: true, default: 0 },
   isCanceled: { type: Boolean, default: false },

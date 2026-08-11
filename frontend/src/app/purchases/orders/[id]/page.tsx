@@ -698,6 +698,8 @@ export default function PurchaseOrderDetailPage() {
                     <th className="px-3 py-2 text-left font-bold text-[#5e7790] uppercase border-r border-slate-200">CIRCLE</th>
                     <th className="px-3 py-2 text-center font-bold text-[#5e7790] uppercase border-r border-slate-200">UNIT</th>
                     <th className="px-3 py-2 text-right font-bold text-[#5e7790] uppercase border-r border-slate-200 w-16">QTY</th>
+                    <th className="px-3 py-2 text-right font-bold text-[#5e7790] uppercase border-r border-slate-200 w-16">INVOICED</th>
+                    <th className="px-3 py-2 text-right font-bold text-[#5e7790] uppercase border-r border-slate-200 w-16">PENDING</th>
                     <th className="px-3 py-2 text-right font-bold text-[#5e7790] uppercase border-r border-slate-200 w-20">RATE</th>
                     <th className="px-3 py-2 text-right font-bold text-[#5e7790] uppercase w-24">AMOUNT</th>
                   </tr>
@@ -714,6 +716,8 @@ export default function PurchaseOrderDetailPage() {
                       <td className="px-3 py-3 text-slate-600 align-top border-r border-slate-200">{item.circle || '--'}</td>
                       <td className="px-3 py-3 text-center text-slate-600 align-top border-r border-slate-200">{item.unit || 'Nos'}</td>
                       <td className="px-3 py-3 text-right text-slate-800 align-top border-r border-slate-200">{item.quantity}</td>
+                      <td className="px-3 py-3 text-right text-green-600 font-medium align-top border-r border-slate-200">{item.invoicedQuantity || 0}</td>
+                      <td className="px-3 py-3 text-right text-amber-600 font-medium align-top border-r border-slate-200">{Math.max(0, item.quantity - (item.invoicedQuantity || 0))}</td>
                       <td className="px-3 py-3 text-right text-slate-800 align-top border-r border-slate-200">{item.rate.toFixed(2)}</td>
                       <td className="px-3 py-3 text-right font-bold text-slate-800 align-top">{item.amount.toFixed(2)}</td>
                     </tr>

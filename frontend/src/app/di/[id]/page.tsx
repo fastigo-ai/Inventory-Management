@@ -437,8 +437,9 @@ export default function DIDetailPage() {
                         <th className="px-3 py-2 text-left font-bold text-[#5e7790] uppercase border-r border-slate-200">PACKAGE</th>
                         <th className="px-3 py-2 text-left font-bold text-[#5e7790] uppercase border-r border-slate-200">CIRCLE</th>
                         <th className="px-3 py-2 text-left font-bold text-[#5e7790] uppercase border-r border-slate-200 w-16">UNIT</th>
-                        <th className="px-3 py-2 text-right font-bold text-[#5e7790] uppercase w-20">QTY</th>
-                      </tr>
+                        <th className="px-3 py-2 text-right font-bold text-[#5e7790] uppercase w-16">QTY</th>
+                        <th className="px-3 py-2 text-right font-bold text-[#5e7790] uppercase w-16 border-l border-slate-200">INVOICED</th>
+                        <th className="px-3 py-2 text-right font-bold text-[#5e7790] uppercase w-16 border-l border-slate-200">PENDING</th>
                     </thead>
                     <tbody>
                       {di.lineItems?.map((item: any, idx: number) => (
@@ -450,6 +451,8 @@ export default function DIDetailPage() {
                           <td className="px-3 py-3 text-slate-600 align-top border-r border-slate-200">{item.circle || '--'}</td>
                           <td className="px-3 py-3 text-slate-600 align-top border-r border-slate-200">{item.unit || '--'}</td>
                           <td className="px-3 py-3 text-right text-slate-800 align-top">{item.quantity}</td>
+                          <td className="px-3 py-3 text-right text-green-600 font-medium align-top border-l border-slate-200">{item.invoicedQuantity || 0}</td>
+                          <td className="px-3 py-3 text-right text-amber-600 font-medium align-top border-l border-slate-200">{Math.max(0, item.quantity - (item.invoicedQuantity || 0))}</td>
                         </tr>
                       ))}
                     </tbody>

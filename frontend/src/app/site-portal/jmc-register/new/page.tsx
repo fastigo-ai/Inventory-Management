@@ -33,6 +33,7 @@ export default function JmcRegisterFormPage() {
     items: [
       {
         activity: "",
+        tempCode: "",
         description: "",
         unit: "",
         claimedQty: 0,
@@ -114,7 +115,8 @@ export default function JmcRegisterFormPage() {
         ...formData.items,
         {
           activity: "",
-          description: "",
+        tempCode: "",
+        description: "",
           unit: "",
           claimedQty: 0,
           approvedQty: 0,
@@ -322,6 +324,7 @@ export default function JmcRegisterFormPage() {
                     const activityItems = availableItems.filter(ai => ai.dynamicData?.activity === selected.value);
                     const newRows = activityItems.map(ai => ({
                       activity: ai.dynamicData?.activity || '',
+                      tempCode: ai.dynamicData?.tempCode || '',
                       description: ai.dynamicData?.description || ai.dynamicData?.itemDescription || ai.dynamicData?.name || '',
                       unit: ai.dynamicData?.unit || ai.dynamicData?.uom || '',
                       totalLoaQty: Number(ai.dynamicData?.loaQty || ai.dynamicData?.totalLoaQuantity || ai.dynamicData?.qty || ai.dynamicData?.quantity || 0),
@@ -351,6 +354,7 @@ export default function JmcRegisterFormPage() {
               <thead className="bg-slate-100 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase">
                 <tr>
                   <th className="px-4 py-3 border-r w-[200px]">Activity</th>
+                  <th className="px-4 py-3 border-r w-[150px]">Temp Code</th>
                   <th className="px-4 py-3 border-r w-[250px]">Description</th>
                   <th className="px-4 py-3 border-r w-20">Unit</th>
                   <th className="px-4 py-3 border-r w-24">LOA Qty</th>
@@ -370,6 +374,14 @@ export default function JmcRegisterFormPage() {
                         value={item.activity || ''} 
                         onChange={e => handleItemChange(index, 'activity', e.target.value)} 
                         className="h-8 text-sm bg-slate-50"
+                      />
+                    </td>
+                    <td className="px-4 py-2 border-r border-slate-100">
+                      <Input 
+                        value={item.tempCode || ''} 
+                        onChange={e => handleItemChange(index, 'tempCode', e.target.value)} 
+                        className="h-8 text-sm"
+                        placeholder="Code"
                       />
                     </td>
                     <td className="px-4 py-2 border-r border-slate-100">
@@ -437,7 +449,7 @@ export default function JmcRegisterFormPage() {
                 ))}
                 {formData.items.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="px-6 py-8 text-center text-slate-500">
+                    <td colSpan={11} className="px-6 py-8 text-center text-slate-500">
                       No items added yet. Click "Add Item" to begin.
                     </td>
                   </tr>

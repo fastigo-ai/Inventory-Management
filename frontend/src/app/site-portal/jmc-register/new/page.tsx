@@ -324,7 +324,7 @@ export default function JmcRegisterFormPage() {
                       activity: ai.dynamicData?.activity || '',
                       description: ai.dynamicData?.description || ai.dynamicData?.itemDescription || ai.dynamicData?.name || '',
                       unit: ai.dynamicData?.unit || ai.dynamicData?.uom || '',
-                      totalLoaQty: Number(ai.dynamicData?.totalLoaQuantity || ai.dynamicData?.qty || ai.dynamicData?.quantity || 0),
+                      totalLoaQty: Number(ai.dynamicData?.loaQty || ai.dynamicData?.totalLoaQuantity || ai.dynamicData?.qty || ai.dynamicData?.quantity || 0),
                       claimedQty: 0,
                       approvedQty: 0,
                       rate: 0,

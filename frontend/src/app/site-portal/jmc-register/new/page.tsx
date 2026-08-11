@@ -39,6 +39,7 @@ export default function JmcRegisterFormPage() {
         approvedQty: 0,
         rate: 0,
         amount: 0,
+        totalLoaQty: 0,
         remarks: ""
       }
     ]
@@ -119,6 +120,7 @@ export default function JmcRegisterFormPage() {
           approvedQty: 0,
           rate: 0,
           amount: 0,
+        totalLoaQty: 0,
           remarks: ""
         }
       ]
@@ -310,17 +312,48 @@ export default function JmcRegisterFormPage() {
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
             <h2 className="text-sm font-bold text-slate-700 uppercase">JMC Items</h2>
-            <Button onClick={addItem} variant="outline" size="sm" className="h-8">
+            <div className="flex items-center gap-4">
+              <div className="w-[300px]">
+                <Select
+                  options={Array.from(new Set(availableItems.map(ai => ai.dynamicData?.activity).filter(Boolean))).map(act => ({ value: act, label: act }))}
+                  placeholder="Add by Activity..."
+                  onChange={(selected: any) => {
+                    if (!selected) return;
+                    const activityItems = availableItems.filter(ai => ai.dynamicData?.activity === selected.value);
+                    const newRows = activityItems.map(ai => ({
+                      activity: ai.dynamicData?.activity || '',
+                      description: ai.dynamicData?.description || ai.dynamicData?.itemDescription || ai.dynamicData?.name || '',
+                      unit: ai.dynamicData?.unit || ai.dynamicData?.uom || '',
+                      totalLoaQty: Number(ai.dynamicData?.totalLoaQuantity || ai.dynamicData?.qty || ai.dynamicData?.quantity || 0),
+                      claimedQty: 0,
+                      approvedQty: 0,
+                      rate: 0,
+                      amount: 0,
+                      remarks: ''
+                    }));
+                    setFormData(prev => ({
+                      ...prev,
+                      items: [...prev.items, ...newRows]
+                    }));
+                  }}
+                  styles={{
+                    control: (base) => ({ ...base, minHeight: '32px', height: '32px', fontSize: '13px', backgroundColor: 'white', border: '1px solid #cbd5e1', boxShadow: 'none' })
+                  }}
+                />
+              </div>
+              <Button onClick={addItem} variant="outline" size="sm" className="h-8">
               <Plus className="w-4 h-4 mr-2" /> Add Item
             </Button>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="bg-slate-100 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase">
                 <tr>
-                  <th className="px-4 py-3 border-r">Activity</th>
+                  <th className="px-4 py-3 border-r w-[200px]">Activity</th>
                   <th className="px-4 py-3 border-r w-[250px]">Description</th>
-                  <th className="px-4 py-3 border-r w-24">Unit</th>
+                  <th className="px-4 py-3 border-r w-20">Unit</th>
+                  <th className="px-4 py-3 border-r w-24">LOA Qty</th>
                   <th className="px-4 py-3 border-r w-28 bg-blue-50">Claimed Qty</th>
                   <th className="px-4 py-3 border-r w-28 bg-green-50">Approved Qty</th>
                   <th className="px-4 py-3 border-r w-32">Rate (₹)</th>
@@ -333,39 +366,10 @@ export default function JmcRegisterFormPage() {
                 {formData.items.map((item, index) => (
                   <tr key={index} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-2 border-r border-slate-100">
-                      <Select
-                        options={availableItems.map(ai => ({ value: ai.dynamicData?.description || ai.dynamicData?.itemDescription || ai.dynamicData?.name, label: ai.dynamicData?.description || ai.dynamicData?.itemDescription || ai.dynamicData?.name })).filter(o => o.value)}
-                        value={item.activity ? { value: item.activity, label: item.activity } : null}
-                        onChange={(selected: any) => {
-                          if (selected) {
-                            handleItemChange(index, 'activity', selected.value);
-                            // Auto-fill description/unit if possible
-                            const found = availableItems.find(ai => (ai.dynamicData?.description || ai.dynamicData?.itemDescription || ai.dynamicData?.name) === selected.value);
-                            if (found && !item.description) {
-                               handleItemChange(index, 'description', found.dynamicData?.description || found.dynamicData?.itemDescription || found.dynamicData?.name || '');
-                            }
-                            if (found && !item.unit) {
-                               handleItemChange(index, 'unit', found.dynamicData?.unit || found.dynamicData?.uom || '');
-                            }
-                          } else {
-                            handleItemChange(index, 'activity', '');
-                          }
-                        }}
-                        onInputChange={(inputValue, { action }) => {
-                          if (action === 'input-change') handleItemChange(index, 'activity', inputValue);
-                        }}
-                        placeholder="Select or Type Activity"
-                        isClearable
-                        menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                        styles={{
-                          control: (base) => ({ ...base, minHeight: '32px', height: '32px', fontSize: '14px', backgroundColor: 'transparent', border: '1px solid #e2e8f0', boxShadow: 'none' }),
-                          valueContainer: (base) => ({ ...base, padding: '0 8px' }),
-                          input: (base) => ({ ...base, margin: 0, padding: 0 }),
-                          indicatorsContainer: (base) => ({ ...base, height: '32px' }),
-                          menuPortal: (base) => ({ ...base, zIndex: 9999 }),
-                          menu: (base) => ({ ...base, fontSize: '14px', minWidth: '300px' }),
-                          option: (base) => ({ ...base, padding: '8px 12px' })
-                        }}
+                      <Input 
+                        value={item.activity || ''} 
+                        onChange={e => handleItemChange(index, 'activity', e.target.value)} 
+                        className="h-8 text-sm bg-slate-50"
                       />
                     </td>
                     <td className="px-4 py-2 border-r border-slate-100">
@@ -378,11 +382,14 @@ export default function JmcRegisterFormPage() {
                     </td>
                     <td className="px-4 py-2 border-r border-slate-100">
                       <Input 
-                        value={item.unit} 
+                        value={item.unit || ''} 
                         onChange={e => handleItemChange(index, 'unit', e.target.value)} 
                         className="h-8 text-sm"
                         placeholder="e.g. Mtr"
                       />
+                    </td>
+                    <td className="px-4 py-2 border-r border-slate-100 bg-slate-50 text-center font-medium text-slate-700">
+                      {item.totalLoaQty || 0}
                     </td>
                     <td className="px-4 py-2 border-r border-slate-100 bg-blue-50/30">
                       <Input 
@@ -430,7 +437,7 @@ export default function JmcRegisterFormPage() {
                 ))}
                 {formData.items.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-6 py-8 text-center text-slate-500">
+                    <td colSpan={10} className="px-6 py-8 text-center text-slate-500">
                       No items added yet. Click "Add Item" to begin.
                     </td>
                   </tr>

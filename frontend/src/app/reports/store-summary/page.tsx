@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from 'react';
-import { api } from '@/shared/api/api';
+import { api } from '@/shared/api/axios';
 import { Store, ArrowLeft, Calendar } from 'lucide-react';
 import Link from 'next/link';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -106,7 +106,7 @@ export default function StoreSummary() {
                     ))}
                   </Pie>
                   <Tooltip 
-                    formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Inventory Value']}
+                    formatter={(value: any) => [`₹${value.toLocaleString()}`, 'Inventory Value']}
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   />
                   <Legend verticalAlign="middle" align="right" layout="vertical" iconType="circle" />

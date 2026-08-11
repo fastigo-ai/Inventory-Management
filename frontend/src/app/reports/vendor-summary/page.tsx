@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from 'react';
-import { api } from '@/shared/api/api';
+import { api } from '@/shared/api/axios';
 import { Building2, ArrowLeft, Calendar } from 'lucide-react';
 import Link from 'next/link';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -102,7 +102,7 @@ export default function VendorSummary() {
                   <Tooltip 
                     cursor={{ fill: '#f8fafc' }}
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    formatter={(value: number) => [`₹${value.toLocaleString()}`, '']}
+                    formatter={(value: any) => [`₹${value.toLocaleString()}`, '']}
                   />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
                   <Bar dataKey="Ordered" fill="#6366f1" radius={[4, 4, 0, 0]} maxBarSize={50} />

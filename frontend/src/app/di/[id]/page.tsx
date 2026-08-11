@@ -440,6 +440,7 @@ export default function DIDetailPage() {
                         <th className="px-3 py-2 text-right font-bold text-[#5e7790] uppercase w-16">QTY</th>
                         <th className="px-3 py-2 text-right font-bold text-[#5e7790] uppercase w-16 border-l border-slate-200">INVOICED</th>
                         <th className="px-3 py-2 text-right font-bold text-[#5e7790] uppercase w-16 border-l border-slate-200">PENDING</th>
+                    </tr>
                     </thead>
                     <tbody>
                       {di.lineItems?.map((item: any, idx: number) => (
@@ -601,7 +602,7 @@ export default function DIDetailPage() {
                             <th className="px-6 py-3 text-right whitespace-nowrap">Remaining</th>
                             <th className="px-6 py-3 w-10"></th>
                           </tr>
-                        </thead>
+                    </thead>
                         <tbody className="divide-y divide-slate-100">
                           {(() => {
                             const remainingMap = new Map();

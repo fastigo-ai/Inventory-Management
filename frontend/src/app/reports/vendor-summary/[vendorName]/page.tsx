@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from 'react';
-import { api } from '@/shared/api/api';
+import { api } from '@/shared/api/axios';
 import { Building2, ArrowLeft, FileText, Receipt } from 'lucide-react';
 import Link from 'next/link';
 

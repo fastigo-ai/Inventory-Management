@@ -12,6 +12,7 @@ export interface IPurchaseOrderLineItem {
   circle?: string;
   unit?: string;
   quantity: number;
+  rate: number;
   amount: number;
   invoicedQuantity?: number;
   isCanceled?: boolean;

@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from 'react';
-import { api } from '@/shared/api/api';
+import { api } from '@/shared/api/axios';
 import { Users, ArrowLeft, Calendar } from 'lucide-react';
 import Link from 'next/link';
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -101,7 +101,7 @@ export default function ContractorSummary() {
                   <Tooltip 
                     cursor={{ fill: '#f8fafc' }}
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    formatter={(value: number) => [`₹${value.toLocaleString()}`, '']}
+                    formatter={(value: any) => [`₹${value.toLocaleString()}`, '']}
                   />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
                   <Bar dataKey="Issued" fill="#f59e0b" radius={[4, 4, 0, 0]} maxBarSize={50} />

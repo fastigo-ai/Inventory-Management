@@ -36,14 +36,16 @@ export default function NewHandoverCertificate() {
   useEffect(() => {
     // Fetch initial contractors
     api.get('/contractors').then(res => {
-      setContractors(res.data?.data || []);
+      const arr = res.data?.data?.data || res.data?.data || res.data || [];
+      setContractors(Array.isArray(arr) ? arr : []);
     }).catch(console.error);
   }, []);
 
   useEffect(() => {
     if (contractorId) {
       api.get(`/ho-billing/contractor-work-orders?contractorId=${contractorId}`).then(res => {
-        setWorkOrders(res.data?.data || []);
+        const arr = res.data?.data?.data || res.data?.data || res.data || [];
+        setWorkOrders(Array.isArray(arr) ? arr : []);
       }).catch(console.error);
     }
   }, [contractorId]);
@@ -113,7 +115,7 @@ export default function NewHandoverCertificate() {
               >
                 <option value="">Select Contractor</option>
                 {contractors.map(c => (
-                  <option key={c._id} value={c._id}>{c.name}</option>
+                  <option key={c._id} value={c._id}>{c.dynamicData?.displayName || c.name || 'Unnamed Contractor'}</option>
                 ))}
               </select>
               {errors.contractorId && <p className="text-xs text-red-500">{errors.contractorId}</p>}

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, Save, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/shared/api/axios';
 import { 
@@ -15,8 +15,9 @@ import {
   createStage2Invoice,
   createStage3Invoice
 } from '@/features/contractor-billing/api/contractor-billing.api';
+import { getItems } from '@/features/items/api/items.api';
 
-export default function NewContractorInvoice() {
+export default function NewContractorBill() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [fetchingDocs, setFetchingDocs] = useState(false);
@@ -44,18 +45,21 @@ export default function NewContractorInvoice() {
   const [mhrovs, setMhrovs] = useState<any[]>([]);
   const [jmcs, setJmcs] = useState<any[]>([]);
   const [handovers, setHandovers] = useState<any[]>([]);
+  const [availableItems, setAvailableItems] = useState<any[]>([]);
 
   useEffect(() => {
     // Fetch initial contractors
     api.get('/contractors').then(res => {
-      setContractors(res.data?.data || []);
+      const arr = res.data?.data?.data || res.data?.data || res.data || [];
+      setContractors(Array.isArray(arr) ? arr : []);
     }).catch(console.error);
   }, []);
 
   useEffect(() => {
     if (contractorId) {
       api.get(`/ho-billing/contractor-work-orders?contractorId=${contractorId}`).then(res => {
-        setWorkOrders(res.data?.data || []);
+        const arr = res.data?.data?.data || res.data?.data || res.data || [];
+        setWorkOrders(Array.isArray(arr) ? arr : []);
       }).catch(console.error);
     }
   }, [contractorId]);
@@ -64,44 +68,92 @@ export default function NewContractorInvoice() {
     if (stage && workOrderId) {
       setFetchingDocs(true);
       if (stage === 'Stage 1 (Supply Initial)') {
-        api.get('/store/mhrov').then(res => setMhrovs(res.data?.data || [])).finally(() => setFetchingDocs(false));
+        api.get('/store/mhrov').then(res => {
+          const arr = res.data?.data?.data || res.data?.data || res.data || [];
+          setMhrovs(Array.isArray(arr) ? arr : []);
+        }).finally(() => setFetchingDocs(false));
       } else if (stage === 'Stage 2 (Erection & Supply Balance)') {
-        api.get('/jmc').then(res => setJmcs(res.data?.data || [])).finally(() => setFetchingDocs(false));
+        api.get('/jmc').then(res => {
+          const arr = res.data?.data?.data || res.data?.data || res.data || [];
+          setJmcs(Array.isArray(arr) ? arr : []);
+        }).finally(() => setFetchingDocs(false));
       } else if (stage === 'Stage 3 (Final/Retention)') {
-        api.get('/contractor-billing/handover-certificates').then(res => setHandovers(res.data?.data || [])).finally(() => setFetchingDocs(false));
+        api.get('/contractor-billing/handover-certificates').then(res => {
+          const arr = res.data?.data?.data || res.data?.data || res.data || [];
+          setHandovers(Array.isArray(arr) ? arr : []);
+        }).finally(() => setFetchingDocs(false));
       }
     }
   }, [stage, workOrderId]);
 
-  // Mocking the parse of document to LineItems for preview
-  const handleDocumentSelect = (docId: string, docType: string) => {
-    if (docType === 'mhrov') setMhrovId(docId);
-    if (docType === 'jmc') setJmcId(docId);
-    if (docType === 'handover') setHandoverId(docId);
+  useEffect(() => {
+    const selectedWO = workOrders.find(w => w._id === workOrderId);
+    if (selectedWO && selectedWO.package && selectedWO.circle) {
+      getItems({ 
+        filters: { 
+          package: selectedWO.package, 
+          circle: selectedWO.circle 
+        }, 
+        limit: 1000 
+      }).then(res => {
+        const fetchedItems = res?.items || res?.data?.items || (Array.isArray(res) ? res : res.data) || [];
+        setAvailableItems(fetchedItems);
+      }).catch(console.error);
+    } else if (selectedWO) {
+      // Fallback if no package/circle
+      getItems({ limit: 1000 }).then(res => {
+        const fetchedItems = res?.items || res?.data?.items || (Array.isArray(res) ? res : res.data) || [];
+        setAvailableItems(fetchedItems);
+      }).catch(console.error);
+    } else {
+      setAvailableItems([]);
+    }
+  }, [workOrderId, workOrders]);
 
-    if (docId === "") {
-        setLineItems([]);
-        return;
+  const handleAddLineItem = () => {
+    setLineItems([...lineItems, {
+      itemId: '',
+      activity: '',
+      description: '',
+      billingCategory: stage === 'Stage 1 (Supply Initial)' ? 'Supply' : 'Erection',
+      quantity: 1,
+      rate: 0,
+      gstRate: 18,
+      baseAmount: 0,
+      gstAmount: 0
+    }]);
+  };
+
+  const handleUpdateLineItem = (index: number, field: string, value: any) => {
+    const newItems = [...lineItems];
+    newItems[index][field] = value;
+    
+    if (field === 'itemId') {
+      const item = availableItems.find(i => i._id === value);
+      if (item) {
+        newItems[index].description = item.dynamicData?.description || item.dynamicData?.itemDescription || '';
+      }
     }
 
-    // In a real flow, this would fetch the specific document's items
-    // and map them into the lineItems array for preview
-    setLineItems([
-      {
-        itemId: '64f1b2c3e4d5a6b7c8d9e0f1', // Mock ID
-        activity: 'Installation',
-        description: 'Mock Item from ' + docType,
-        billingCategory: docType === 'mhrov' ? 'Supply' : 'Erection',
-        quantity: 100,
-        rate: 50,
-        gstRate: 18
-      }
-    ]);
+    if (field === 'quantity' || field === 'rate' || field === 'gstRate') {
+      const qty = parseFloat(newItems[index].quantity) || 0;
+      const rate = parseFloat(newItems[index].rate) || 0;
+      const gst = parseFloat(newItems[index].gstRate) || 0;
+      newItems[index].baseAmount = qty * rate;
+      newItems[index].gstAmount = (qty * rate * gst) / 100;
+    }
+
+    setLineItems(newItems);
+  };
+
+  const handleRemoveLineItem = (index: number) => {
+    const newItems = [...lineItems];
+    newItems.splice(index, 1);
+    setLineItems(newItems);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     // Strict Validation
     const newErrors: Record<string, string> = {};
     if (!contractorId) newErrors.contractorId = 'Contractor is required';
@@ -119,8 +171,20 @@ export default function NewContractorInvoice() {
     }
 
     if (lineItems.length === 0) {
-      toast.error('Source document has no items to bill');
+      toast.error('Source document has no items to bill. Add at least one line item.');
       return;
+    }
+
+    // Validate line items
+    for (const item of lineItems) {
+      if (item.billingCategory === 'Supply' && !item.itemId) {
+        toast.error('Supply items must have a registered Item selected');
+        return;
+      }
+      if (!item.quantity || !item.rate) {
+        toast.error('Quantity and Rate are required for all line items');
+        return;
+      }
     }
 
     setErrors({});
@@ -140,24 +204,24 @@ export default function NewContractorInvoice() {
         await createStage3Invoice({ ...payload, handoverCertificateId: handoverId });
       }
 
-      toast.success('Invoice generated successfully!');
+      toast.success('Bill generated successfully!');
       router.push('/site-portal/contractor-billing');
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Failed to create invoice');
+      toast.error(error?.response?.data?.message || 'Failed to create bill');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6 pb-28">
+    <div className="p-6 max-w-[1600px] mx-auto space-y-6 pb-28">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => router.back()}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">Create Contractor Invoice</h1>
-          <p className="text-gray-500">Generate a staggered billing invoice.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900">Create Contractor Bill</h1>
+          <p className="text-gray-500">Generate a staggered bill with dynamic items.</p>
         </div>
       </div>
 
@@ -179,7 +243,7 @@ export default function NewContractorInvoice() {
               >
                 <option value="">Select Contractor</option>
                 {contractors.map(c => (
-                  <option key={c._id} value={c._id}>{c.name}</option>
+                  <option key={c._id} value={c._id}>{c.dynamicData?.displayName || c.name || 'Unnamed Contractor'}</option>
                 ))}
               </select>
               {errors.contractorId && <p className="text-xs text-red-500">{errors.contractorId}</p>}
@@ -198,7 +262,7 @@ export default function NewContractorInvoice() {
               >
                 <option value="">Select Work Order</option>
                 {workOrders.map(wo => (
-                  <option key={wo._id} value={wo._id}>{wo.workOrderNumber}</option>
+                  <option key={wo._id} value={wo._id}>{wo.workOrderNumber} (Pkg: {wo.package || 'N/A'})</option>
                 ))}
               </select>
               {errors.workOrderId && <p className="text-xs text-red-500">{errors.workOrderId}</p>}
@@ -212,6 +276,7 @@ export default function NewContractorInvoice() {
                 onChange={(e) => {
                   setStage(e.target.value);
                   if (errors.stage) setErrors({ ...errors, stage: '' });
+                  setLineItems([]); // reset items when stage changes
                 }} 
                 disabled={!workOrderId}
               >
@@ -240,7 +305,7 @@ export default function NewContractorInvoice() {
                     className={`flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50 ${errors.mhrovId ? 'border-red-500 bg-red-50' : 'border-slate-200'}`}
                     value={mhrovId} 
                     onChange={(e) => {
-                      handleDocumentSelect(e.target.value, 'mhrov');
+                      setMhrovId(e.target.value);
                       if (errors.mhrovId) setErrors({ ...errors, mhrovId: '' });
                     }}
                   >
@@ -261,7 +326,7 @@ export default function NewContractorInvoice() {
                       className={`flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50 ${errors.jmcId ? 'border-red-500 bg-red-50' : 'border-slate-200'}`}
                       value={jmcId} 
                       onChange={(e) => {
-                        handleDocumentSelect(e.target.value, 'jmc');
+                        setJmcId(e.target.value);
                         if (errors.jmcId) setErrors({ ...errors, jmcId: '' });
                       }}
                     >
@@ -296,7 +361,7 @@ export default function NewContractorInvoice() {
                     className={`flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50 ${errors.handoverId ? 'border-red-500 bg-red-50' : 'border-slate-200'}`}
                     value={handoverId} 
                     onChange={(e) => {
-                      handleDocumentSelect(e.target.value, 'handover');
+                      setHandoverId(e.target.value);
                       if (errors.handoverId) setErrors({ ...errors, handoverId: '' });
                     }}
                   >
@@ -308,33 +373,117 @@ export default function NewContractorInvoice() {
                   {errors.handoverId && <p className="text-xs text-red-500">{errors.handoverId}</p>}
                 </div>
               )}
-
             </CardContent>
           </Card>
         )}
 
-        {lineItems.length > 0 && (
-          <Card className="border-green-100 shadow-sm bg-green-50/10">
-            <CardHeader className="border-b border-green-50">
-              <CardTitle className="text-lg text-green-900">Line Items Preview</CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="rounded-md border bg-white">
-                 <div className="p-4 flex items-center justify-between bg-gray-50 border-b">
-                   <span className="font-semibold text-sm">Base Items found in document: {lineItems.length}</span>
-                 </div>
-                 <div className="p-4 text-sm text-gray-600">
-                   (The backend will automatically apply the {stage.includes('Stage 1') ? '60%' : stage.includes('Stage 2') ? '90%/30%' : '10%'} staggered percentages and GST logic upon submission)
-                 </div>
+        {stage && (
+          <Card className="border-gray-100 shadow-sm">
+            <CardHeader className="bg-gray-50/50 border-b border-gray-100 flex flex-row items-center justify-between py-4">
+              <div>
+                <CardTitle className="text-lg">Line Items</CardTitle>
+                <CardDescription>Add the items for this billing stage. The backend will calculate exact staggered percentages upon submission.</CardDescription>
               </div>
+              <Button type="button" onClick={handleAddLineItem} size="sm" className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2">
+                <Plus className="h-4 w-4" /> Add Item
+              </Button>
+            </CardHeader>
+            <CardContent className="p-0 overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold text-slate-700 w-1/4">Item / Activity</th>
+                    <th className="px-4 py-3 font-semibold text-slate-700">Category</th>
+                    <th className="px-4 py-3 font-semibold text-slate-700 w-24">Qty</th>
+                    <th className="px-4 py-3 font-semibold text-slate-700 w-32">Rate (₹)</th>
+                    <th className="px-4 py-3 font-semibold text-slate-700 w-24">GST %</th>
+                    <th className="px-4 py-3 font-semibold text-slate-700 text-right">Base Total</th>
+                    <th className="px-4 py-3 font-semibold text-slate-700 w-12 text-center"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {lineItems.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
+                        No items added yet. Click "Add Item" to start building your bill.
+                      </td>
+                    </tr>
+                  ) : lineItems.map((item, index) => (
+                    <tr key={index} className="hover:bg-slate-50/50">
+                      <td className="px-4 py-3 space-y-2">
+                        <select
+                          className="flex h-9 w-full rounded-md border border-slate-200 bg-transparent px-3 py-1 text-sm shadow-sm"
+                          value={item.itemId || ''}
+                          onChange={(e) => handleUpdateLineItem(index, 'itemId', e.target.value)}
+                        >
+                          <option value="">Free Text Activity / Item</option>
+                          {availableItems.map(ai => (
+                            <option key={ai._id} value={ai._id}>{ai.dynamicData?.description || ai.dynamicData?.itemDescription || ai.dynamicData?.itemCode || 'Unnamed Item'}</option>
+                          ))}
+                        </select>
+                        <Input
+                          placeholder="Or type custom description/activity..."
+                          value={item.description}
+                          onChange={(e) => handleUpdateLineItem(index, 'description', e.target.value)}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <select
+                          className="flex h-9 w-full rounded-md border border-slate-200 bg-transparent px-3 py-1 text-sm shadow-sm"
+                          value={item.billingCategory}
+                          onChange={(e) => handleUpdateLineItem(index, 'billingCategory', e.target.value)}
+                        >
+                          <option value="Supply">Supply</option>
+                          <option value="Erection">Erection</option>
+                        </select>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={item.quantity}
+                          onChange={(e) => handleUpdateLineItem(index, 'quantity', e.target.value)}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={item.rate}
+                          onChange={(e) => handleUpdateLineItem(index, 'rate', e.target.value)}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <Input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={item.gstRate}
+                          onChange={(e) => handleUpdateLineItem(index, 'gstRate', e.target.value)}
+                        />
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium text-slate-800 align-middle">
+                        ₹{item.baseAmount?.toFixed(2) || '0.00'}
+                      </td>
+                      <td className="px-4 py-3 text-center align-middle">
+                        <Button type="button" variant="ghost" size="icon" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleRemoveLineItem(index)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </CardContent>
           </Card>
         )}
 
         <div className="fixed bottom-0 left-0 right-0 md:left-64 bg-white border-t p-4 z-50 flex justify-end gap-3 px-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
           <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
-          <Button type="submit" disabled={loading} className="min-w-[120px]">
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Save className="h-4 w-4 mr-2" /> Generate Bill</>}
+          <Button type="submit" disabled={loading || lineItems.length === 0} className="min-w-[120px]">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Save className="h-4 w-4 mr-2" /> Submit Bill</>}
           </Button>
         </div>
       </form>

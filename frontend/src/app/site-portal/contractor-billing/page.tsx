@@ -15,8 +15,8 @@ import { DataTableTopControls, DataTableBottomControls } from '@/shared/componen
 
 export default function ContractorBillingDashboard() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState('invoices');
-  const [invoices, setInvoices] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState('bills');
+  const [bills, setBills] = useState<any[]>([]);
   const [handoverCertificates, setHandoverCertificates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -27,7 +27,7 @@ export default function ContractorBillingDashboard() {
         getContractorInvoices(),
         getHandoverCertificates()
       ]);
-      setInvoices(invRes.data || []);
+      setBills(invRes.data || []);
       setHandoverCertificates(hoRes.data || []);
     } catch (error) {
       console.error('Failed to fetch billing data', error);
@@ -61,7 +61,7 @@ export default function ContractorBillingDashboard() {
     setRowsPerPage: setInvRowsPerPage,
     totalPages: invTotalPages,
     totalItems: invTotalItems,
-  } = useClientTable(invoices, {
+  } = useClientTable(bills, {
     searchableFields: ['invoiceNumber', 'contractorId.name', 'workOrderId.workOrderNumber', 'stage', 'status'],
     defaultSort: { field: 'createdAt', direction: 'desc' }
   });
@@ -86,7 +86,7 @@ export default function ContractorBillingDashboard() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">Contractor Billing</h1>
-          <p className="text-gray-500 mt-1">Manage multi-stage invoices and handover certificates.</p>
+          <p className="text-gray-500 mt-1">Manage multi-stage bills and handover certificates.</p>
         </div>
         <div className="flex items-center gap-3">
           <Button 
@@ -102,7 +102,7 @@ export default function ContractorBillingDashboard() {
             onClick={() => router.push('/site-portal/contractor-billing/new')}
           >
             <Plus className="h-4 w-4" />
-            Create Invoice
+            Create Bill
           </Button>
         </div>
       </div>
@@ -111,14 +111,14 @@ export default function ContractorBillingDashboard() {
         <div className="flex space-x-1 border-b border-gray-200 mb-6">
           <button
             className={`px-4 py-2 text-sm font-medium border-b-2 flex items-center gap-2 transition-colors ${
-              activeTab === 'invoices' 
+              activeTab === 'bills' 
                 ? 'border-blue-600 text-blue-600' 
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
-            onClick={() => setActiveTab('invoices')}
+            onClick={() => setActiveTab('bills')}
           >
             <FileText className="h-4 w-4" />
-            Invoices
+            Bills
           </button>
           <button
             className={`px-4 py-2 text-sm font-medium border-b-2 flex items-center gap-2 transition-colors ${
@@ -133,20 +133,20 @@ export default function ContractorBillingDashboard() {
           </button>
         </div>
 
-        {activeTab === 'invoices' && (
+        {activeTab === 'bills' && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
             <DataTableTopControls
               searchQuery={invSearchQuery}
               onSearchChange={setInvSearchQuery}
               rowsPerPage={invRowsPerPage}
               onRowsPerPageChange={setInvRowsPerPage}
-              searchPlaceholder="Search invoices..."
+              searchPlaceholder="Search bills..."
             />
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 text-sm">
                 <thead className="bg-gray-50/50">
                   <tr>
-                    <th className="px-6 py-3 text-left font-semibold text-gray-900">Invoice #</th>
+                    <th className="px-6 py-3 text-left font-semibold text-gray-900">Bill #</th>
                     <th className="px-6 py-3 text-left font-semibold text-gray-900">Date</th>
                     <th className="px-6 py-3 text-left font-semibold text-gray-900">Contractor</th>
                     <th className="px-6 py-3 text-left font-semibold text-gray-900">Stage</th>
@@ -174,15 +174,15 @@ export default function ContractorBillingDashboard() {
                       <td colSpan={6} className="px-6 py-16 text-center">
                         <div className="flex flex-col items-center justify-center text-gray-500">
                           <SearchX className="w-12 h-12 text-gray-300 mb-3" />
-                          <p className="text-base font-medium text-gray-900 mb-1">No invoices found</p>
-                          <p className="text-sm">We couldn't find any invoices matching your criteria.</p>
+                          <p className="text-base font-medium text-gray-900 mb-1">No bills found</p>
+                          <p className="text-sm">We couldn't find any bills matching your criteria.</p>
                           <Button 
                             variant="outline" 
                             className="mt-4"
                             onClick={() => router.push('/site-portal/contractor-billing/new')}
                           >
                             <Plus className="h-4 w-4 mr-2" />
-                            Create Invoice
+                            Create Bill
                           </Button>
                         </div>
                       </td>
@@ -193,7 +193,7 @@ export default function ContractorBillingDashboard() {
                         <td className="px-6 py-4 font-medium text-blue-600">{inv.invoiceNumber}</td>
                         <td className="px-6 py-4">{format(new Date(inv.date), 'dd MMM yyyy')}</td>
                         <td className="px-6 py-4">
-                          <div className="font-medium text-gray-900">{inv.contractorId?.name || 'Unknown'}</div>
+                          <div className="font-medium text-gray-900">{inv.contractorId?.dynamicData?.displayName || inv.contractorId?.name || 'Unknown'}</div>
                           <div className="text-xs text-gray-500">{inv.workOrderId?.workOrderNumber}</div>
                         </td>
                         <td className="px-6 py-4">
@@ -215,7 +215,7 @@ export default function ContractorBillingDashboard() {
                 </tbody>
               </table>
             </div>
-            {!loading && invoices.length > 0 && (
+            {!loading && bills.length > 0 && (
               <DataTableBottomControls
                 currentPage={invCurrentPage}
                 totalPages={invTotalPages}
@@ -288,7 +288,7 @@ export default function ContractorBillingDashboard() {
                         <td className="px-6 py-4 font-medium text-blue-600">{hc.certificateNumber}</td>
                         <td className="px-6 py-4">{format(new Date(hc.date), 'dd MMM yyyy')}</td>
                         <td className="px-6 py-4">
-                          <div className="font-medium text-gray-900">{hc.contractorId?.name || 'Unknown'}</div>
+                          <div className="font-medium text-gray-900">{hc.contractorId?.dynamicData?.displayName || hc.contractorId?.name || 'Unknown'}</div>
                           <div className="text-xs text-gray-500">{hc.workOrderId?.workOrderNumber}</div>
                         </td>
                         <td className="px-6 py-4">

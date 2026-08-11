@@ -70,7 +70,7 @@ export default function JmcRegisterFormPage() {
   const fetchContractors = async () => {
     try {
       const res = await getContractors();
-      setContractors(res.data?.data || []);
+      setContractors(res?.data || (Array.isArray(res) ? res : []));
     } catch (err) {
       console.error(err);
     }
@@ -235,7 +235,7 @@ export default function JmcRegisterFormPage() {
                 >
                   <option value="">Select Contractor</option>
                   {contractors.map((c: any) => (
-                    <option key={c._id} value={c._id}>{c.name || c.vendorName}</option>
+                    <option key={c._id} value={c._id}>{c.name || c.vendorName || c.dynamicData?.displayName || c.dynamicData?.name}</option>
                   ))}
                 </select>
               </div>

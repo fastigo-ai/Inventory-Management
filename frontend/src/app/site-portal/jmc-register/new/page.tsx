@@ -7,6 +7,8 @@ import { getContractors } from "@/features/contractors/api/contractors.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Plus, Trash2, Save, Send } from "lucide-react";
+import Select from "react-select";
+import { getItems } from "@/features/items/api/items.api";
 
 export default function JmcRegisterFormPage() {
   const router = useRouter();
@@ -17,6 +19,7 @@ export default function JmcRegisterFormPage() {
   const [contractors, setContractors] = useState<any[]>([]);
   const [loading, setLoading] = useState(!isNew);
   const [submitting, setSubmitting] = useState(false);
+  const [availableItems, setAvailableItems] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -40,6 +43,20 @@ export default function JmcRegisterFormPage() {
       }
     ]
   });
+
+  useEffect(() => {
+    if (formData.package && formData.circle) {
+      getItems({ filters: { package: formData.package, circle: formData.circle }, limit: 1000 }).then(res => {
+        const fetched = res?.items || res?.data?.items || (Array.isArray(res) ? res : res.data) || [];
+        setAvailableItems(fetched);
+      }).catch(console.error);
+    } else {
+      getItems({ limit: 1000 }).then(res => {
+        const fetched = res?.items || res?.data?.items || (Array.isArray(res) ? res : res.data) || [];
+        setAvailableItems(fetched);
+      }).catch(console.error);
+    }
+  }, [formData.package, formData.circle]);
 
   useEffect(() => {
     fetchContractors();
@@ -316,11 +333,39 @@ export default function JmcRegisterFormPage() {
                 {formData.items.map((item, index) => (
                   <tr key={index} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-2 border-r border-slate-100">
-                      <Input 
-                        value={item.activity} 
-                        onChange={e => handleItemChange(index, 'activity', e.target.value)} 
-                        className="h-8 text-sm"
-                        placeholder="Activity"
+                      <Select
+                        options={availableItems.map(ai => ({ value: ai.dynamicData?.description || ai.dynamicData?.itemDescription || ai.dynamicData?.name, label: ai.dynamicData?.description || ai.dynamicData?.itemDescription || ai.dynamicData?.name })).filter(o => o.value)}
+                        value={item.activity ? { value: item.activity, label: item.activity } : null}
+                        onChange={(selected: any) => {
+                          if (selected) {
+                            handleItemChange(index, 'activity', selected.value);
+                            // Auto-fill description/unit if possible
+                            const found = availableItems.find(ai => (ai.dynamicData?.description || ai.dynamicData?.itemDescription || ai.dynamicData?.name) === selected.value);
+                            if (found && !item.description) {
+                               handleItemChange(index, 'description', found.dynamicData?.description || found.dynamicData?.itemDescription || found.dynamicData?.name || '');
+                            }
+                            if (found && !item.unit) {
+                               handleItemChange(index, 'unit', found.dynamicData?.unit || found.dynamicData?.uom || '');
+                            }
+                          } else {
+                            handleItemChange(index, 'activity', '');
+                          }
+                        }}
+                        onInputChange={(inputValue, { action }) => {
+                          if (action === 'input-change') handleItemChange(index, 'activity', inputValue);
+                        }}
+                        placeholder="Select or Type Activity"
+                        isClearable
+                        menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                        styles={{
+                          control: (base) => ({ ...base, minHeight: '32px', height: '32px', fontSize: '14px', backgroundColor: 'transparent', border: '1px solid #e2e8f0', boxShadow: 'none' }),
+                          valueContainer: (base) => ({ ...base, padding: '0 8px' }),
+                          input: (base) => ({ ...base, margin: 0, padding: 0 }),
+                          indicatorsContainer: (base) => ({ ...base, height: '32px' }),
+                          menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+                          menu: (base) => ({ ...base, fontSize: '14px', minWidth: '300px' }),
+                          option: (base) => ({ ...base, padding: '8px 12px' })
+                        }}
                       />
                     </td>
                     <td className="px-4 py-2 border-r border-slate-100">

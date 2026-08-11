@@ -15,6 +15,7 @@ import { createHandoverCertificate } from '@/features/contractor-billing/api/con
 export default function NewHandoverCertificate() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Form State
   const [contractorId, setContractorId] = useState('');
@@ -49,11 +50,20 @@ export default function NewHandoverCertificate() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!contractorId || !workOrderId) {
-      toast.error('Please select both Contractor and Work Order');
+    
+    // Strict Validation
+    const newErrors: Record<string, string> = {};
+    if (!contractorId) newErrors.contractorId = 'Contractor is required';
+    if (!workOrderId) newErrors.workOrderId = 'Work Order is required';
+    if (!date) newErrors.date = 'Date is required';
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      toast.error('Please fix the highlighted errors');
       return;
     }
 
+    setErrors({});
     setLoading(true);
     try {
       await createHandoverCertificate({
@@ -74,7 +84,7 @@ export default function NewHandoverCertificate() {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-6 max-w-4xl mx-auto space-y-6 pb-28">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => router.back()}>
           <ArrowLeft className="h-5 w-5" />
@@ -92,25 +102,32 @@ export default function NewHandoverCertificate() {
           </CardHeader>
           <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label>Contractor</Label>
+              <Label className={errors.contractorId ? "text-red-500" : ""}>Contractor <span className="text-red-500">*</span></Label>
               <select 
-                className="flex h-9 w-full rounded-md border border-slate-200 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
+                className={`flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50 ${errors.contractorId ? 'border-red-500 bg-red-50' : 'border-slate-200'}`}
                 value={contractorId} 
-                onChange={(e) => setContractorId(e.target.value)}
+                onChange={(e) => {
+                  setContractorId(e.target.value);
+                  if (errors.contractorId) setErrors({ ...errors, contractorId: '' });
+                }}
               >
                 <option value="">Select Contractor</option>
                 {contractors.map(c => (
                   <option key={c._id} value={c._id}>{c.name}</option>
                 ))}
               </select>
+              {errors.contractorId && <p className="text-xs text-red-500">{errors.contractorId}</p>}
             </div>
             
             <div className="space-y-2">
-              <Label>Work Order</Label>
+              <Label className={errors.workOrderId ? "text-red-500" : ""}>Work Order <span className="text-red-500">*</span></Label>
               <select 
-                className="flex h-9 w-full rounded-md border border-slate-200 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
+                className={`flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50 ${errors.workOrderId ? 'border-red-500 bg-red-50' : 'border-slate-200'}`}
                 value={workOrderId} 
-                onChange={(e) => setWorkOrderId(e.target.value)} 
+                onChange={(e) => {
+                  setWorkOrderId(e.target.value);
+                  if (errors.workOrderId) setErrors({ ...errors, workOrderId: '' });
+                }} 
                 disabled={!contractorId}
               >
                 <option value="">Select Work Order</option>
@@ -118,16 +135,21 @@ export default function NewHandoverCertificate() {
                   <option key={wo._id} value={wo._id}>{wo.workOrderNumber}</option>
                 ))}
               </select>
+              {errors.workOrderId && <p className="text-xs text-red-500">{errors.workOrderId}</p>}
             </div>
 
             <div className="space-y-2">
-              <Label>Handover Date</Label>
+              <Label className={errors.date ? "text-red-500" : ""}>Handover Date <span className="text-red-500">*</span></Label>
               <Input 
                 type="date" 
                 value={date} 
-                onChange={(e) => setDate(e.target.value)} 
-                required
+                onChange={(e) => {
+                  setDate(e.target.value);
+                  if (errors.date) setErrors({ ...errors, date: '' });
+                }} 
+                className={errors.date ? 'border-red-500 bg-red-50' : ''}
               />
+              {errors.date && <p className="text-xs text-red-500">{errors.date}</p>}
             </div>
           </CardContent>
         </Card>
@@ -190,7 +212,7 @@ export default function NewHandoverCertificate() {
           </CardContent>
         </Card>
 
-        <div className="flex justify-end gap-3 pt-6 border-t">
+        <div className="fixed bottom-0 left-0 right-0 md:left-64 bg-white border-t p-4 z-50 flex justify-end gap-3 px-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
           <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
           <Button type="submit" disabled={loading} className="min-w-[120px] bg-green-600 hover:bg-green-700 text-white">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Save className="h-4 w-4 mr-2" /> Issue Certificate</>}

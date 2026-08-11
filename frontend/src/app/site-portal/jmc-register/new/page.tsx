@@ -231,7 +231,16 @@ export default function JmcRegisterFormPage() {
                 <select 
                   className="w-full h-9 rounded-md border border-slate-200 px-3 text-sm focus:border-blue-500 focus:ring-blue-500 bg-white"
                   value={formData.contractorId}
-                  onChange={e => setFormData({...formData, contractorId: e.target.value})}
+                  onChange={e => {
+                    const selectedId = e.target.value;
+                    const selectedContractor = contractors.find(c => c._id === selectedId);
+                    setFormData(prev => ({
+                      ...prev, 
+                      contractorId: selectedId,
+                      package: selectedContractor?.dynamicData?.package || selectedContractor?.dynamicData?.assignedPackage || selectedContractor?.package || prev.package,
+                      circle: selectedContractor?.dynamicData?.circle || selectedContractor?.dynamicData?.assignedCircle || selectedContractor?.circle || selectedContractor?.location || prev.circle
+                    }));
+                  }}
                 >
                   <option value="">Select Contractor</option>
                   {contractors.map((c: any) => (

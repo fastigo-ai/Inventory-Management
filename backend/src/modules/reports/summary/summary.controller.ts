@@ -1,5 +1,11 @@
 import { Request, Response } from 'express';
 import { ItemSummary } from './summary.schema';
+import { PurchaseOrder } from '../../purchases/purchaseOrder.schema';
+import { PurchaseInvoice } from '../../purchases/purchaseInvoice.schema';
+import { ContractorAssignment } from '../../contractors/contractorAssignment.schema';
+import { ContractorInvoice } from '../../contractor-billing/contractorInvoice.schema';
+import { DI } from '../../di/di.schema';
+import { StoreInwardEntry } from '../../store/storeInwardEntry.schema';
 import { asyncHandler } from '../../../core/utils/asyncHandler';
 import { ApiResponse } from '../../../core/utils/ApiResponse';
 
@@ -154,4 +160,224 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
       totalPages: Math.ceil(totalItems / limitNum)
     }
   }, 'Summaries fetched successfully'));
+});
+
+export const getVendorSummary = asyncHandler(async (req: Request, res: Response) => {
+  const { startDate, endDate } = req.query;
+  const matchQuery: any = { status: { $ne: 'Cancelled' } };
+  
+  if (startDate || endDate) {
+    matchQuery.date = {};
+    if (startDate) matchQuery.date.$gte = new Date(startDate as string);
+    if (endDate) {
+      const end = new Date(endDate as string);
+      end.setUTCHours(23, 59, 59, 999);
+      matchQuery.date.$lte = end;
+    }
+  }
+
+  const summaries = await PurchaseOrder.aggregate([
+    { $match: matchQuery },
+    { $unwind: "$lineItems" },
+    {
+      $group: {
+        _id: "$vendorName",
+        poCount: { $addToSet: "$_id" },
+        totalOrderedValue: { $sum: { $multiply: ["$lineItems.quantity", "$lineItems.rate"] } },
+        totalInvoicedValue: { $sum: { $multiply: [{ $ifNull: ["$lineItems.invoicedQuantity", 0] }, "$lineItems.rate"] } },
+        totalOrderedQty: { $sum: "$lineItems.quantity" },
+        totalInvoicedQty: { $sum: { $ifNull: ["$lineItems.invoicedQuantity", 0] } }
+      }
+    },
+    {
+      $project: {
+        _id: 0,
+        vendorName: "$_id",
+        poCount: { $size: "$poCount" },
+        totalOrderedValue: 1,
+        totalInvoicedValue: 1,
+        totalOrderedQty: 1,
+        totalInvoicedQty: 1,
+        pendingValue: { $subtract: ["$totalOrderedValue", "$totalInvoicedValue"] }
+      }
+    },
+    { $sort: { totalOrderedValue: -1 } }
+  ]);
+
+  res.status(200).json(new ApiResponse(200, summaries, 'Vendor summary fetched successfully'));
+});
+
+export const getContractorSummary = asyncHandler(async (req: Request, res: Response) => {
+  const { startDate, endDate } = req.query;
+  
+  const minMatch: any = {};
+  const billMatch: any = { status: { $nin: ['Void', 'Rejected', 'Draft'] } };
+  
+  if (startDate || endDate) {
+    const dateQuery: any = {};
+    if (startDate) dateQuery.$gte = new Date(startDate as string);
+    if (endDate) {
+      const end = new Date(endDate as string);
+      end.setUTCHours(23, 59, 59, 999);
+      dateQuery.$lte = end;
+    }
+    minMatch.assignmentDate = dateQuery;
+    billMatch.date = dateQuery;
+  }
+
+  const minSummaries = await ContractorAssignment.aggregate([
+    { $match: minMatch },
+    { $unwind: "$lineItems" },
+    {
+      $group: {
+        _id: "$contractorFarmName",
+        totalIssuedQty: { $sum: "$lineItems.quantity" },
+        totalIssuedValue: { $sum: { $multiply: ["$lineItems.quantity", "$lineItems.rate"] } },
+        minCount: { $addToSet: "$_id" }
+      }
+    }
+  ]);
+
+  const billSummaries = await ContractorInvoice.aggregate([
+    { $match: billMatch },
+    {
+      $lookup: {
+        from: 'contractors',
+        localField: 'contractorId',
+        foreignField: '_id',
+        as: 'contractor'
+      }
+    },
+    { $unwind: { path: "$contractor", preserveNullAndEmptyArrays: true } },
+    {
+      $group: {
+        _id: "$contractor.companyName",
+        totalBilledValue: { $sum: "$grandTotal" },
+        billCount: { $addToSet: "$_id" }
+      }
+    }
+  ]);
+
+  // Merge the two summaries in JS
+  const contractorMap = new Map();
+  minSummaries.forEach(m => {
+    contractorMap.set(m._id || 'Unknown', {
+      contractorName: m._id || 'Unknown',
+      totalIssuedQty: m.totalIssuedQty,
+      totalIssuedValue: m.totalIssuedValue,
+      minCount: m.minCount.length,
+      totalBilledValue: 0,
+      billCount: 0
+    });
+  });
+
+  billSummaries.forEach(b => {
+    const name = b._id || 'Unknown';
+    if (contractorMap.has(name)) {
+      const data = contractorMap.get(name);
+      data.totalBilledValue = b.totalBilledValue;
+      data.billCount = b.billCount.length;
+    } else {
+      contractorMap.set(name, {
+        contractorName: name,
+        totalIssuedQty: 0,
+        totalIssuedValue: 0,
+        minCount: 0,
+        totalBilledValue: b.totalBilledValue,
+        billCount: b.billCount.length
+      });
+    }
+  });
+
+  const merged = Array.from(contractorMap.values()).map(c => ({
+    ...c,
+    balanceLiability: c.totalIssuedValue - c.totalBilledValue
+  })).sort((a, b) => b.totalIssuedValue - a.totalIssuedValue);
+
+  res.status(200).json(new ApiResponse(200, merged, 'Contractor summary fetched successfully'));
+});
+
+export const getStoreSummary = asyncHandler(async (req: Request, res: Response) => {
+  const { startDate, endDate } = req.query;
+  
+  const matchQuery: any = { status: 'VERIFIED' };
+  if (startDate || endDate) {
+    matchQuery.date = {};
+    if (startDate) matchQuery.date.$gte = new Date(startDate as string);
+    if (endDate) {
+      const end = new Date(endDate as string);
+      end.setUTCHours(23, 59, 59, 999);
+      matchQuery.date.$lte = end;
+    }
+  }
+
+  const summaries = await StoreInwardEntry.aggregate([
+    { $match: matchQuery },
+    { $unwind: "$packingList" },
+    {
+      $group: {
+        _id: "$circle",
+        totalReceivedQty: { $sum: "$packingList.quantity" },
+        totalValue: { $sum: { $multiply: ["$packingList.quantity", { $ifNull: ["$rate", 0] }] } },
+        inwardCount: { $addToSet: "$_id" }
+      }
+    },
+    {
+      $project: {
+        _id: 0,
+        storeName: { $ifNull: ["$_id", "Unassigned Store"] },
+        totalReceivedQty: 1,
+        totalValue: 1,
+        inwardCount: { $size: "$inwardCount" }
+      }
+    },
+    { $sort: { totalValue: -1 } }
+  ]);
+
+  res.status(200).json(new ApiResponse(200, summaries, 'Store summary fetched successfully'));
+});
+
+export const getVendorDetails = asyncHandler(async (req: Request, res: Response) => {
+  const { vendorName } = req.params;
+  
+  const pos = await PurchaseOrder.find({ vendorName, status: { $ne: 'Cancelled' } }).sort({ date: -1 });
+  const invoices = await PurchaseInvoice.find({ vendorName, status: { $ne: 'Cancelled' } }).sort({ receiveDate: -1 });
+
+  res.status(200).json(new ApiResponse(200, { pos, invoices }, 'Vendor details fetched successfully'));
+});
+
+export const getContractorDetails = asyncHandler(async (req: Request, res: Response) => {
+  const { contractorName } = req.params;
+  
+  const mins = await ContractorAssignment.find({ contractorFarmName: contractorName }).sort({ assignmentDate: -1 });
+  
+  // We need to match ContractorInvoice by the actual contractor name.
+  // Since ContractorInvoice only has contractorId, we can either look up or if we pass the contractorId from frontend.
+  // Wait, in ContractorSummary we aggregated by contractor name. Let's just lookup the contractor.
+  const invoices = await ContractorInvoice.aggregate([
+    {
+      $lookup: {
+        from: 'contractors',
+        localField: 'contractorId',
+        foreignField: '_id',
+        as: 'contractor'
+      }
+    },
+    { $unwind: "$contractor" },
+    { $match: { "contractor.companyName": contractorName, status: { $nin: ['Void', 'Rejected', 'Draft'] } } },
+    { $sort: { date: -1 } }
+  ]);
+
+  res.status(200).json(new ApiResponse(200, { mins, invoices }, 'Contractor details fetched successfully'));
+});
+
+export const getItemDetails = asyncHandler(async (req: Request, res: Response) => {
+  const { itemId } = req.params;
+  
+  const pos = await PurchaseOrder.find({ "lineItems.itemId": itemId, status: { $ne: 'Cancelled' } }).sort({ date: -1 });
+  const dis = await DI.find({ "lineItems.itemId": itemId, status: { $ne: 'Cancelled' } }).sort({ date: -1 });
+  const invoices = await PurchaseInvoice.find({ "lineItems.itemId": itemId, status: { $ne: 'Cancelled' } }).sort({ receiveDate: -1 });
+  const mins = await ContractorAssignment.find({ "lineItems.itemId": itemId }).sort({ assignmentDate: -1 });
+
+  res.status(200).json(new ApiResponse(200, { pos, dis, invoices, mins }, 'Item details fetched successfully'));
 });

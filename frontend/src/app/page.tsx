@@ -9,6 +9,7 @@ import { getDashboardSummary } from '@/features/dashboard/api/dashboard.api';
 import { TopStockedItems } from '@/features/dashboard/components/TopStockedItems';
 import { RecentActivity } from '@/features/dashboard/components/RecentActivity';
 import { PendingActions } from '@/features/dashboard/components/PendingActions';
+import { ExecutiveFinancials } from '@/features/dashboard/components/ExecutiveFinancials';
 import { StockSummaryTable } from "@/features/store/components/StockSummaryTable";
 import { getStockSummary } from "@/features/store/api/store.api";
 import { useAuthStore } from '@/shared/store/auth.store';
@@ -129,7 +130,8 @@ export default function Home() {
             </div>
             
             {/* Right Column (Sidebar of dashboard) */}
-            <div className="w-[340px] shrink-0">
+            <div className="w-[340px] shrink-0 flex flex-col gap-6">
+              <ExecutiveFinancials summary={data?.summary || {}} />
               <PendingActions summary={data?.summary || {}} />
             </div>
           </>

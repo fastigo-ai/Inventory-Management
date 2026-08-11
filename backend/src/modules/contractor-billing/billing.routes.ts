@@ -6,7 +6,8 @@ import {
   createStage3Invoice,
   getInvoices,
   getInvoiceById,
-  updateInvoiceStatus
+  updateInvoiceStatus,
+  getBillingAnalytics
 } from './billing.controller';
 import {
   createHandoverCertificate,
@@ -20,6 +21,7 @@ const router = Router();
 router.use(authenticate);
 
 // Billing Routes
+router.get('/analytics', getBillingAnalytics);
 router.post('/invoices/stage1', requireRole(['Admin', 'Site Manager', 'Contractor']), createStage1Invoice);
 router.post('/invoices/stage2', requireRole(['Admin', 'Site Manager', 'Contractor']), createStage2Invoice);
 router.post('/invoices/stage3', requireRole(['Admin', 'Site Manager', 'Contractor']), createStage3Invoice);

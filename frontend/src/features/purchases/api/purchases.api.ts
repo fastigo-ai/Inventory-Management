@@ -244,3 +244,7 @@ export const getUniqueVendors = async () => {
   return response.data;
 };
 
+export const getPurchaseAnalytics = async () => {
+  const response = await api.get('/purchases/analytics');
+  return response.data;
+};

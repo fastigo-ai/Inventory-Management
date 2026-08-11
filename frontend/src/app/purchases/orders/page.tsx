@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { ChevronDown, RefreshCw, Plus, MoreHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { getPurchaseOrders, exportPurchaseOrdersToCsv } from '@/features/purchases/api/purchases.api';
+import { getPurchaseOrders, exportPurchaseOrdersToCsv, getPurchaseAnalytics } from '@/features/purchases/api/purchases.api';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PurchaseOrderImportModal } from '@/features/purchases/components/PurchaseOrderImportModal';
 import { Upload, Download, Loader2 } from 'lucide-react';
@@ -14,6 +14,7 @@ export default function PurchaseOrdersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [analytics, setAnalytics] = useState<any>(null);
   const router = useRouter();
 
   const handleExport = async () => {
@@ -43,7 +44,19 @@ export default function PurchaseOrdersPage() {
 
   useEffect(() => {
     fetchOrders();
+    fetchAnalytics();
   }, []);
+
+  const fetchAnalytics = async () => {
+    try {
+      const res = await getPurchaseAnalytics();
+      if (res.success) {
+        setAnalytics(res.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch purchase analytics:', err);
+    }
+  };
 
   return (
     <div className="flex flex-col min-h-full bg-white">
@@ -82,6 +95,33 @@ export default function PurchaseOrdersPage() {
           </DropdownMenu>
         </div>
       </div>
+
+      {/* Analytics Row */}
+      {analytics && (
+        <div className="px-6 py-4 grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 border-b border-slate-200 shrink-0">
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+            <h3 className="text-sm font-semibold text-slate-500">PO Fulfillment Rate</h3>
+            <p className="text-2xl font-bold text-slate-800 mt-1">
+              {analytics.fulfillmentRate?.rate?.toFixed(1) || 0}%
+            </p>
+            <p className="text-xs text-slate-400 mt-1">
+              {analytics.fulfillmentRate?.received || 0} Received / {analytics.fulfillmentRate?.pending || 0} Pending
+            </p>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+            <h3 className="text-sm font-semibold text-slate-500">Total Purchase Orders</h3>
+            <p className="text-2xl font-bold text-slate-800 mt-1">
+              {analytics.prVsPo?.totalPOs || 0}
+            </p>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+            <h3 className="text-sm font-semibold text-slate-500">Total Purchase Requests</h3>
+            <p className="text-2xl font-bold text-slate-800 mt-1">
+              {analytics.prVsPo?.totalPRs || 0}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Table Area */}
       <div className="flex-1 overflow-auto">

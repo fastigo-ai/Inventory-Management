@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { createPurchaseOrder, getPurchaseOrders, getPurchaseOrderById, exportPurchaseOrders, importPurchaseOrders, getNextPurchaseOrderNumber, updatePurchaseOrder, deletePurchaseOrder } from './purchase.controller';
+import { createPurchaseOrder, getPurchaseOrders, getPurchaseOrderById, exportPurchaseOrders, importPurchaseOrders, getNextPurchaseOrderNumber, updatePurchaseOrder, deletePurchaseOrder, getPurchaseAnalytics } from './purchase.controller';
 import { createPurchaseInvoice, getPurchaseInvoices, getPurchaseInvoiceById, getNextPurchaseInvoiceNumber, updatePurchaseInvoice, deletePurchaseInvoice, importPurchaseInvoices, exportPurchaseInvoices, getUniqueVendors } from './purchaseInvoice.controller';
 import { authenticate } from '../../core/middlewares/auth.middleware';
 
@@ -11,6 +11,8 @@ const uploadCsv = multer({ storage: multer.memoryStorage() });
 
 // Apply auth middleware to all purchase routes
 router.use(authenticate);
+
+router.get('/analytics', getPurchaseAnalytics);
 
 router.post('/orders/import', uploadCsv.single('file'), importPurchaseOrders);
 router.get('/orders/export', exportPurchaseOrders);

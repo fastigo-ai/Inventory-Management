@@ -3,7 +3,8 @@ import { asyncHandler } from '../../core/utils/asyncHandler';
 import { ApiResponse } from '../../core/utils/ApiResponse';
 import { buildStockSummaryData } from '../store/store.controller';
 import { StoreInwardEntry } from '../store/storeInwardEntry.schema';
-
+import { PurchaseOrder } from '../purchases/purchaseOrder.schema';
+import { ContractorInvoice } from '../contractor-billing/contractorInvoice.schema';
 export const getDashboardSummary = asyncHandler(async (req: Request, res: Response) => {
   // 1. Fetch real-time stock summary (this is heavy but accurate)
   const stockSummary = await buildStockSummaryData();
@@ -61,12 +62,27 @@ export const getDashboardSummary = asyncHandler(async (req: Request, res: Respon
     user: entry.createdBy ? `${entry.createdBy.firstName} ${entry.createdBy.lastName}` : 'System'
   }));
 
+  // 4. Executive Financials
+  const poSpendResult = await PurchaseOrder.aggregate([
+    { $match: { status: { $ne: 'Cancelled' } } },
+    { $group: { _id: null, totalSpend: { $sum: '$total' } } }
+  ]);
+  const totalProcurementSpend = poSpendResult[0]?.totalSpend || 0;
+
+  const contractorLiabilitiesResult = await ContractorInvoice.aggregate([
+    { $match: { status: { $in: ['Approved', 'Submitted'] } } },
+    { $group: { _id: null, totalLiabilities: { $sum: '$grandTotal' } } }
+  ]);
+  const totalContractorLiabilities = contractorLiabilitiesResult[0]?.totalLiabilities || 0;
+
   const dashboardData = {
     summary: {
       totalStockValue,
       totalItemsInStock,
       pendingReceiptsCount,
-      pendingVerificationCount
+      pendingVerificationCount,
+      totalProcurementSpend,
+      totalContractorLiabilities
     },
     topStockedItems,
     lowStockItems,

@@ -276,3 +276,30 @@ export const updateInvoiceStatus = asyncHandler(async (req: Request, res: Respon
 
   res.status(200).json(new ApiResponse(200, invoice, 'Invoice status updated successfully'));
 });
+
+export const getBillingAnalytics = asyncHandler(async (req: Request, res: Response) => {
+  // 1. Billing Stage Breakdown
+  const stageBreakdown = await ContractorInvoice.aggregate([
+    { $match: { status: { $ne: 'Rejected' } } },
+    { $group: { _id: '$stage', totalAmount: { $sum: '$grandTotal' }, count: { $sum: 1 } } }
+  ]);
+
+  // 2. Invoice Status Distribution
+  const statusDistribution = await ContractorInvoice.aggregate([
+    { $group: { _id: '$status', count: { $sum: 1 }, totalAmount: { $sum: '$grandTotal' } } }
+  ]);
+
+  // 3. Aging analysis
+  const oldSubmittedInvoices = await ContractorInvoice.countDocuments({
+    status: 'Submitted',
+    updatedAt: { $lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } // older than 7 days
+  });
+
+  res.status(200).json(new ApiResponse(200, {
+    stageBreakdown,
+    statusDistribution,
+    aging: {
+      oldSubmittedCount: oldSubmittedInvoices
+    }
+  }, 'Billing analytics fetched successfully'));
+});

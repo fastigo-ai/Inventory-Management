@@ -51,3 +51,8 @@ export const updateHandoverCertificate = async (id: string, payload: any) => {
   const response = await api.put(`/contractor-billing/handover-certificates/${id}`, payload);
   return response.data;
 };
+
+export const getBillingAnalytics = async () => {
+  const response = await api.get('/contractor-billing/analytics');
+  return response.data;
+};

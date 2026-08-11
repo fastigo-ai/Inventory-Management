@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Plus, FileText, CheckCircle, SearchX } from 'lucide-react';
 import { 
   getContractorInvoices, 
-  getHandoverCertificates 
+  getHandoverCertificates,
+  getBillingAnalytics
 } from '@/features/contractor-billing/api/contractor-billing.api';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -19,6 +20,7 @@ export default function ContractorBillingDashboard() {
   const [bills, setBills] = useState<any[]>([]);
   const [handoverCertificates, setHandoverCertificates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [analytics, setAnalytics] = useState<any>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -39,7 +41,19 @@ export default function ContractorBillingDashboard() {
 
   useEffect(() => {
     fetchData();
+    fetchAnalytics();
   }, []);
+
+  const fetchAnalytics = async () => {
+    try {
+      const res = await getBillingAnalytics();
+      if (res.success) {
+        setAnalytics(res.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch billing analytics', error);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch(status) {
@@ -52,34 +66,28 @@ export default function ContractorBillingDashboard() {
   };
 
   const {
-    pageData: invoicePageData,
-    searchQuery: invSearchQuery,
-    setSearchQuery: setInvSearchQuery,
+    paginatedData: invoicePageData,
+    searchTerm: invSearchQuery,
+    setSearchTerm: setInvSearchQuery,
     currentPage: invCurrentPage,
     setCurrentPage: setInvCurrentPage,
-    rowsPerPage: invRowsPerPage,
-    setRowsPerPage: setInvRowsPerPage,
+    pageSize: invRowsPerPage,
+    setPageSize: setInvRowsPerPage,
     totalPages: invTotalPages,
     totalItems: invTotalItems,
-  } = useClientTable(bills, {
-    searchableFields: ['invoiceNumber', 'contractorId.name', 'workOrderId.workOrderNumber', 'stage', 'status'],
-    defaultSort: { field: 'createdAt', direction: 'desc' }
-  });
+  } = useClientTable(bills);
 
   const {
-    pageData: hoPageData,
-    searchQuery: hoSearchQuery,
-    setSearchQuery: setHoSearchQuery,
+    paginatedData: hoPageData,
+    searchTerm: hoSearchQuery,
+    setSearchTerm: setHoSearchQuery,
     currentPage: hoCurrentPage,
     setCurrentPage: setHoCurrentPage,
-    rowsPerPage: hoRowsPerPage,
-    setRowsPerPage: setHoRowsPerPage,
+    pageSize: hoRowsPerPage,
+    setPageSize: setHoRowsPerPage,
     totalPages: hoTotalPages,
     totalItems: hoTotalItems,
-  } = useClientTable(handoverCertificates, {
-    searchableFields: ['certificateNumber', 'contractorId.name', 'locationDetails.package', 'locationDetails.circle', 'status'],
-    defaultSort: { field: 'createdAt', direction: 'desc' }
-  });
+  } = useClientTable(handoverCertificates);
 
   return (
     <div className="p-6 max-w-[1600px] mx-auto space-y-6">
@@ -106,6 +114,42 @@ export default function ContractorBillingDashboard() {
           </Button>
         </div>
       </div>
+
+      {/* Analytics Row */}
+      {analytics && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+            <h3 className="text-sm font-semibold text-slate-500">Stage 1 Billed</h3>
+            <p className="text-2xl font-bold text-slate-800 mt-1">
+              ₹ {analytics.stageBreakdown?.find((s: any) => s._id.includes('Stage 1'))?.totalAmount?.toLocaleString('en-IN') || 0}
+            </p>
+            <p className="text-xs text-slate-400 mt-1">
+              {analytics.stageBreakdown?.find((s: any) => s._id.includes('Stage 1'))?.count || 0} Invoices
+            </p>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+            <h3 className="text-sm font-semibold text-slate-500">Stage 2 Billed</h3>
+            <p className="text-2xl font-bold text-slate-800 mt-1">
+              ₹ {analytics.stageBreakdown?.find((s: any) => s._id.includes('Stage 2'))?.totalAmount?.toLocaleString('en-IN') || 0}
+            </p>
+            <p className="text-xs text-slate-400 mt-1">
+              {analytics.stageBreakdown?.find((s: any) => s._id.includes('Stage 2'))?.count || 0} Invoices
+            </p>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+            <h3 className="text-sm font-semibold text-slate-500">Total Unpaid (Approved/Submitted)</h3>
+            <p className="text-2xl font-bold text-rose-600 mt-1">
+              ₹ {(
+                (analytics.statusDistribution?.find((s: any) => s._id === 'Approved')?.totalAmount || 0) +
+                (analytics.statusDistribution?.find((s: any) => s._id === 'Submitted')?.totalAmount || 0)
+              ).toLocaleString('en-IN')}
+            </p>
+            <p className="text-xs text-slate-400 mt-1">
+              {analytics.aging?.oldSubmittedCount || 0} invoices aging over 7 days
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="w-full">
         <div className="flex space-x-1 border-b border-gray-200 mb-6">

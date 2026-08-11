@@ -805,3 +805,45 @@ export const importPurchaseOrders = async (req: Request, res: Response) => {
   }
 };
 
+export const getPurchaseAnalytics = async (req: Request, res: Response) => {
+  try {
+    // 1. PO Fulfillment Rate
+    const totalReceived = await PurchaseOrder.countDocuments({ status: { $ne: 'Cancelled' }, receiveStatus: 'Received' });
+    const totalPending = await PurchaseOrder.countDocuments({ status: { $ne: 'Cancelled' }, receiveStatus: 'Yet To Be Received' });
+    const totalSent = totalReceived + totalPending;
+    const fulfillmentRate = totalSent > 0 ? (totalReceived / totalSent) * 100 : 0;
+
+    // 2. Top Vendors by Spend
+    const topVendors = await PurchaseOrder.aggregate([
+      { $match: { status: { $ne: 'Cancelled' } } },
+      { $group: { _id: '$vendorName', totalSpend: { $sum: '$total' }, poCount: { $sum: 1 } } },
+      { $sort: { totalSpend: -1 } },
+      { $limit: 5 },
+      { $project: { name: '$_id', totalSpend: 1, poCount: 1, _id: 0 } }
+    ]);
+
+    // 3. Purchase Request vs Purchase Order
+    const totalPRs = await Pr.countDocuments();
+    const totalPOs = await PurchaseOrder.countDocuments({ status: { $ne: 'Cancelled' } });
+    
+    res.status(200).json({
+      success: true,
+      message: 'Purchase analytics fetched successfully',
+      data: {
+        fulfillmentRate: {
+          rate: fulfillmentRate,
+          received: totalReceived,
+          pending: totalPending
+        },
+        topVendors,
+        prVsPo: { totalPRs, totalPOs }
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch purchase analytics',
+      error: error.message,
+    });
+  }
+};

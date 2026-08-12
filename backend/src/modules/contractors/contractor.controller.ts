@@ -602,7 +602,7 @@ export const bulkImportContractorReturns = asyncHandler(async (req: Request, res
       } else {
         if (tempCode) item = await Item.findOne({ itemCode: tempCode });
         if (!item && itemName) {
-          const escapedItemName = itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const escapedItemName = itemName.replace(new RegExp('[.*+?^${}()|\\\\[\\\\]\\\\\\\\]', 'g'), '\\$&');
           item = await Item.findOne({ description: { $regex: new RegExp(`^\\s*${escapedItemName}\\s*$`, 'i') } });
         }
         if (item) itemCache.set(cacheKey, item);
@@ -713,8 +713,6 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
   
   // Group rows by MinNo or AssignmentNumber
   const assignmentsByMin: Record<string, any> = {};
-
-
   // Caches to prevent massive DB query roundtrips
   const contractorCache = new Map<string, any>();
   const itemCache = new Map<string, any>();

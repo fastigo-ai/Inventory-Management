@@ -545,11 +545,15 @@ export const createStoreTransfer = asyncHandler(async (req: Request, res: Respon
 });
 
 export const getStoreTransfers = asyncHandler(async (req: Request, res: Response) => {
-  const { circle } = req.query;
+  const { circle, registerType } = req.query;
   
   let filter: any = {};
   if (circle) {
     filter = { $or: [{ fromStore: circle }, { toStore: circle }] };
+  }
+
+  if (registerType) {
+    filter.registerType = registerType;
   }
 
   const transfers = await StoreTransfer.find(filter)
@@ -1454,6 +1458,7 @@ export const importStoreTransfers = asyncHandler(async (req: Request, res: Respo
       if (!transfersByDoc[docKey]) {
         transfersByDoc[docKey] = {
           requestDate: parseCsvDate(row['Date']) || new Date(),
+          registerType: 'INWARD',
           status: 'IN_TRANSIT',
           fromStore: row['From'] || row['FromStore'] || 'Unknown Store',
           toStore: row['To'] || row['ToStore'] || 'Unknown Store',
@@ -1614,6 +1619,7 @@ export const importReceivedStoreTransfers = asyncHandler(async (req: Request, re
       if (!transfersByDoc[docKey]) {
         transfersByDoc[docKey] = {
           requestDate: parseCsvDate(row['Date of Received']) || new Date(),
+          registerType: 'OUTWARD',
           status: 'RECEIVED',
           fromStore: row['From'] || 'Unknown Store',
           toStore: row['To'] || 'Unknown Store',

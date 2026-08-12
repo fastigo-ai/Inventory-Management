@@ -14,6 +14,7 @@ export interface ITransferItem {
 
 export interface IStoreTransfer extends Document {
   requestDate: Date;
+  registerType?: 'INWARD' | 'OUTWARD';
   status: 'PENDING' | 'APPROVED' | 'IN_TRANSIT' | 'RECEIVED' | 'REJECTED';
   fromStore: string; // Source Circle/Package
   toStore: string; // Destination Circle/Package
@@ -56,6 +57,7 @@ const transferItemSchema = new Schema<ITransferItem>({
 
 const storeTransferSchema = new Schema<IStoreTransfer>({
   requestDate: { type: Date, default: Date.now, required: true },
+  registerType: { type: String, enum: ['INWARD', 'OUTWARD'], default: 'INWARD' },
   status: { 
     type: String, 
     enum: ['PENDING', 'APPROVED', 'IN_TRANSIT', 'RECEIVED', 'REJECTED'], 

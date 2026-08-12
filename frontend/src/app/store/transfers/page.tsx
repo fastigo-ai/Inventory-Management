@@ -33,7 +33,7 @@ export default function StoreTransfersPage() {
     try {
       setLoading(true);
       // Let's fetch all and filter client side for simplicity unless backend strictly enforces it
-      const res = await getStoreTransfers();
+      const res = await getStoreTransfers({ registerType: 'INWARD' });
       const allTransfers = res.data || [];
       
       if (activeTab === 'incoming') {

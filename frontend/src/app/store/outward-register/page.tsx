@@ -21,7 +21,7 @@ export default function OutwardRegisterPage() {
   const fetchTransfers = async () => {
     try {
       setLoading(true);
-      const res = await getStoreTransfers();
+      const res = await getStoreTransfers({ registerType: 'OUTWARD' });
       const allTransfers = res.data || [];
       
       const dispatchedTransfers = allTransfers.filter((t: any) => 

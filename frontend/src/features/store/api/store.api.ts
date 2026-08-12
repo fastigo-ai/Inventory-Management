@@ -116,6 +116,7 @@ export const importInwardRegistrations = async (file: File) => {
   formData.append('file', file);
   const response = await api.post('/store/inventory/inward/import', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 300000
   });
   return response.data;
 };
@@ -125,6 +126,7 @@ export const importStoreTransfers = async (file: File) => {
   formData.append('file', file);
   const response = await api.post('/store/transfers/outward/import', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 300000
   });
   return response.data;
 };
@@ -134,6 +136,7 @@ export const importReceivedTransfers = async (file: File) => {
   formData.append('file', file);
   const response = await api.post('/store/transfers/inward/import', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 300000
   });
   return response.data;
 };

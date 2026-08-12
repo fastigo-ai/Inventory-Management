@@ -6,7 +6,7 @@ export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 export const api = axios.create({
   baseURL: `${API_BASE_URL}/api`,
-  timeout: 20000,
+  timeout: 300000,
   withCredentials: true, // Essential for sending/receiving httpOnly cookies
   headers: {
     'Content-Type': 'application/json',

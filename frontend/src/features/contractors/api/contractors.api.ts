@@ -1,7 +1,9 @@
 import { api } from "@/shared/api/axios";
 
-export const getContractors = async (location?: string) => {
-  const url = location ? `/contractors?location=${encodeURIComponent(location)}` : '/contractors';
+export const getContractors = async (location?: string, search?: string) => {
+  let url = '/contractors?';
+  if (location) url += `location=${encodeURIComponent(location)}&`;
+  if (search) url += `search=${encodeURIComponent(search)}&`;
   const response = await api.get(url);
   return response.data;
 };

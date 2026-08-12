@@ -19,17 +19,22 @@ export default function ContractorsPage() {
   const [selectedContractor, setSelectedContractor] = useState<any | null>(null);
   const [importModalOpen, setImportModalOpen] = useState(false);
 
-  const fetchContractors = () => {
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const fetchContractors = (query = "") => {
     setLoading(true);
-    getContractors()
+    getContractors(undefined, query)
       .then(res => setContractors(res.data || []))
       .catch(console.error)
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
-    fetchContractors();
-  }, []);
+    const delayDebounceFn = setTimeout(() => {
+      fetchContractors(searchQuery);
+    }, 500);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery]);
 
   const flattenObject = (obj: any, prefix = ''): Record<string, string> => {
     let flattened: Record<string, string> = {};
@@ -115,6 +120,18 @@ export default function ContractorsPage() {
             <p className="text-sm text-slate-500 mt-1">Manage all contractors</p>
           </div>
           <div className="flex items-center gap-3">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search contractor..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-9 w-64 rounded-md border border-slate-200 pl-8 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              <svg className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
             <Button 
               variant="outline"
               className="bg-white"

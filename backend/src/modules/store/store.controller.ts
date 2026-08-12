@@ -1371,6 +1371,7 @@ export const importStoreTransfers = asyncHandler(async (req: Request, res: Respo
   // Group rows by ChallanNo or MinNo to bundle them into single StoreTransfer docs
   const transfersByDoc: Record<string, any> = {};
   const user = (req as any).user;
+  const itemCache = new Map();
 
   for await (const row of parser) {
     try {
@@ -1390,12 +1391,18 @@ export const importStoreTransfers = asyncHandler(async (req: Request, res: Respo
 
       // Find Item
       let item = null;
-      if (tempCode) {
-        item = await Item.findOne({ itemCode: tempCode });
-      }
-      if (!item && itemName) {
-        const escapedItemName = itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        item = await Item.findOne({ description: { $regex: new RegExp(`^\\s*${escapedItemName}\\s*$`, 'i') } });
+      const cacheKey = `${tempCode}_${itemName}`;
+      if (itemCache.has(cacheKey)) {
+        item = itemCache.get(cacheKey);
+      } else {
+        if (tempCode) {
+          item = await Item.findOne({ itemCode: tempCode });
+        }
+        if (!item && itemName) {
+          const escapedItemName = itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          item = await Item.findOne({ description: { $regex: new RegExp(`^\\s*${escapedItemName}\\s*$`, 'i') } });
+        }
+        if (item) itemCache.set(cacheKey, item);
       }
 
       if (!item) {
@@ -1525,6 +1532,7 @@ export const importReceivedStoreTransfers = asyncHandler(async (req: Request, re
   
   const transfersByDoc: Record<string, any> = {};
   const user = (req as any).user;
+  const itemCache = new Map();
 
   for await (const row of parser) {
     try {
@@ -1543,12 +1551,18 @@ export const importReceivedStoreTransfers = asyncHandler(async (req: Request, re
       }
 
       let item = null;
-      if (tempCode) {
-        item = await Item.findOne({ itemCode: tempCode });
-      }
-      if (!item && itemName) {
-        const escapedItemName = itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        item = await Item.findOne({ description: { $regex: new RegExp(`^\\s*${escapedItemName}\\s*$`, 'i') } });
+      const cacheKey = `${tempCode}_${itemName}`;
+      if (itemCache.has(cacheKey)) {
+        item = itemCache.get(cacheKey);
+      } else {
+        if (tempCode) {
+          item = await Item.findOne({ itemCode: tempCode });
+        }
+        if (!item && itemName) {
+          const escapedItemName = itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          item = await Item.findOne({ description: { $regex: new RegExp(`^\\s*${escapedItemName}\\s*$`, 'i') } });
+        }
+        if (item) itemCache.set(cacheKey, item);
       }
 
       if (!item) {

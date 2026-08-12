@@ -555,6 +555,7 @@ export const bulkImportContractorReturns = asyncHandler(async (req: Request, res
   let successCount = 0;
   
   const returnsByChallan: Record<string, any> = {};
+  const itemCache = new Map();
 
   for await (const row of parser) {
     try {
@@ -579,10 +580,16 @@ export const bulkImportContractorReturns = asyncHandler(async (req: Request, res
       const returnQty = Number(row['Return QTY.'] || row['ReturnQty'] || 0);
 
       let item = null;
-      if (tempCode) item = await Item.findOne({ itemCode: tempCode });
-      if (!item && itemName) {
-        const escapedItemName = itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        item = await Item.findOne({ description: { $regex: new RegExp(`^\\s*${escapedItemName}\\s*$`, 'i') } });
+      const cacheKey = `${tempCode}_${itemName}`;
+      if (itemCache.has(cacheKey)) {
+        item = itemCache.get(cacheKey);
+      } else {
+        if (tempCode) item = await Item.findOne({ itemCode: tempCode });
+        if (!item && itemName) {
+          const escapedItemName = itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          item = await Item.findOne({ description: { $regex: new RegExp(`^\\s*${escapedItemName}\\s*$`, 'i') } });
+        }
+        if (item) itemCache.set(cacheKey, item);
       }
 
       const lineItem = {
@@ -675,6 +682,7 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
   
   // Group rows by MinNo or AssignmentNumber
   const assignmentsByMin: Record<string, any> = {};
+  const itemCache = new Map();
 
   for await (const row of parser) {
     try {
@@ -713,12 +721,18 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
 
       // Find Item
       let item = null;
-      if (tempCode) {
-        item = await Item.findOne({ itemCode: tempCode });
-      }
-      if (!item && itemName) {
-        const escapedItemName = itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        item = await Item.findOne({ description: { $regex: new RegExp(`^\\s*${escapedItemName}\\s*$`, 'i') } });
+      const cacheKey = `${tempCode}_${itemName}`;
+      if (itemCache.has(cacheKey)) {
+        item = itemCache.get(cacheKey);
+      } else {
+        if (tempCode) {
+          item = await Item.findOne({ itemCode: tempCode });
+        }
+        if (!item && itemName) {
+          const escapedItemName = itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          item = await Item.findOne({ description: { $regex: new RegExp(`^\\s*${escapedItemName}\\s*$`, 'i') } });
+        }
+        if (item) itemCache.set(cacheKey, item);
       }
 
       const demandQty = Number(row['DemandQty'] || row['Demand Qty'] || 0);

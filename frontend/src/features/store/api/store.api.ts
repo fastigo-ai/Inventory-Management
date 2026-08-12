@@ -56,7 +56,7 @@ export const getInwardEntryById = async (id: string) => {
 };
 
 export const bulkImportInwardEntries = async (data: any[]) => {
-  const response = await api.post('/store/inventory/inward/bulk-import', { entries: data });
+  const response = await api.post('/store/inventory/inward/bulk-import', { entries: data }, { timeout: 300000 });
   return response.data;
 };
 

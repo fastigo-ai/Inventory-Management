@@ -95,9 +95,25 @@ export const createContractor = asyncHandler(async (req: Request, res: Response)
 
 export const getAssignments = asyncHandler(async (req: Request, res: Response) => {
   const { contractorId } = req.query;
+  const user = (req as any).user;
   const filter: any = {};
+  
   if (contractorId) {
     filter.contractorId = contractorId;
+  }
+  
+  const SUB_STORE_MAP: Record<string, string[]> = {
+    'Solan': ['Solan', 'Kumarhatti', 'Nalagarh'],
+    'Nahan': ['Nahan'],
+    'Rohru': ['Rohru'],
+    'Rampur': ['Rampur'],
+  };
+
+  if (user && user.role?.name === 'Store Manager') {
+    if (user.assignedCircle) {
+      const allowedCircles = SUB_STORE_MAP[user.assignedCircle] || [user.assignedCircle];
+      filter.location = { $regex: new RegExp(`^(${allowedCircles.join('|')})$`, 'i') };
+    }
   }
   
   const assignments = await ContractorAssignment.find(filter)
@@ -697,7 +713,7 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
   
   // Group rows by MinNo or AssignmentNumber
   const assignmentsByMin: Record<string, any> = {};
-  const itemCache = new Map();
+
 
   // Caches to prevent massive DB query roundtrips
   const contractorCache = new Map<string, any>();
@@ -804,7 +820,7 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
       if (!assignmentsByMin[minNo]) {
         assignmentsByMin[minNo] = {
           contractorId: contractor._id,
-          location: 'Store',
+          location: circle || 'Store',
           assignmentNumber: minNo,
           date: parseCsvDate(row['Date']) || new Date(),
           demandNo: row['DemandNo'] || '',

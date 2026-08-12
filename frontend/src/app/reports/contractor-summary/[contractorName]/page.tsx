@@ -12,7 +12,7 @@ export default function ContractorDetail({ params }: { params: { contractorName:
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await api.get(`/reports/summary/contractor-summary/${encodeURIComponent(contractorName)}`);
+        const res = await api.get(`/reports/contractor-summary/${encodeURIComponent(contractorName)}`);
         setData(res.data.data || { mins: [], invoices: [] });
       } catch (err) {
         console.error(err);

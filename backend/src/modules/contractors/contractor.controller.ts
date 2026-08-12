@@ -451,7 +451,7 @@ export const importContractors = asyncHandler(async (req: Request, res: Response
 
 export const getContractorReturns = asyncHandler(async (req: Request, res: Response) => {
   const returns = await ContractorReturn.find()
-    .populate('contractorId', 'name farmName company')
+    .populate('contractorId', 'dynamicData')
     .sort({ createdAt: -1 });
 
   res.status(200).json(
@@ -477,6 +477,145 @@ export const createContractorReturn = asyncHandler(async (req: Request, res: Res
 
   res.status(201).json(
     new ApiResponse(201, newReturn, 'Contractor return created successfully')
+  );
+});
+
+export const getContractorReturnById = asyncHandler(async (req: Request, res: Response) => {
+  const returnObj = await ContractorReturn.findById(req.params.id)
+    .populate('contractorId', 'dynamicData')
+    .populate('lineItems.itemId', 'itemCode description unit');
+  if (!returnObj) throw new ApiError(404, 'Contractor return not found');
+  res.status(200).json(new ApiResponse(200, returnObj, 'Contractor return fetched successfully'));
+});
+
+export const updateContractorReturn = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const data = req.body;
+  const returnObj = await ContractorReturn.findByIdAndUpdate(id, data, { new: true });
+  if (!returnObj) throw new ApiError(404, 'Contractor return not found');
+  res.status(200).json(new ApiResponse(200, returnObj, 'Contractor return updated successfully'));
+});
+
+export const deleteContractorReturn = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const returnObj = await ContractorReturn.findByIdAndDelete(id);
+  if (!returnObj) throw new ApiError(404, 'Contractor return not found');
+  res.status(200).json(new ApiResponse(200, null, 'Contractor return deleted successfully'));
+});
+
+export const bulkImportContractorReturns = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.file) {
+    throw new ApiError(400, 'Please upload a CSV file');
+  }
+
+  const parser = parseAndSanitizeCsv(req.file.buffer);
+
+  const errors: string[] = [];
+  let successCount = 0;
+  
+  const returnsByChallan: Record<string, any> = {};
+
+  for await (const row of parser) {
+    try {
+      const challanNo = row['Return Challan No.'] || row['ReturnChallanNo'] || '';
+      if (!challanNo) {
+        errors.push(`Row missing Return Challan No.`);
+        continue;
+      }
+
+      const contractorName = row['Contractor Name'] || '';
+      let contractor = null;
+      if (contractorName) {
+        contractor = await Contractor.findOne({ name: { $regex: new RegExp(`^${contractorName}$`, 'i') } });
+      }
+      if (!contractor) {
+        errors.push(`Contractor '${contractorName}' not found for Challan ${challanNo}`);
+        continue;
+      }
+
+      const itemName = row['Description of Material'] || '';
+      const tempCode = row['Temp Code'] || '';
+      const returnQty = Number(row['Return QTY.'] || row['ReturnQty'] || 0);
+
+      let item = null;
+      if (tempCode) item = await Item.findOne({ itemCode: tempCode });
+      if (!item && itemName) item = await Item.findOne({ description: { $regex: new RegExp(`^${itemName}$`, 'i') } });
+
+      const lineItem = {
+        itemId: item ? item._id : undefined,
+        itemName: item?.description || itemName,
+        tempCode: item?.itemCode || tempCode,
+        hsnCode: row['HSN Code'] || item?.hsnCode || '',
+        unit: row['UNIT'] || row['Unit'] || item?.unit || 'Nos',
+        quantity: returnQty
+      };
+
+      if (!returnsByChallan[challanNo]) {
+        returnsByChallan[challanNo] = {
+          contractorId: contractor._id,
+          returnChallanNo: challanNo,
+          bookNo: row['Book No.'] || row['BookNo'] || '',
+          returnChallanDate: row['Return Challan Date'] ? new Date(row['Return Challan Date']) : new Date(),
+          contractorFarmName: row['Contractor\'s Firm/Farm Name'] || row['ContractorFirmName'] || contractor.farmName || '',
+          supervisorEngineer: row['Supervisor / Engineer'] || '',
+          division: row['Name of Division'] || '',
+          subDivision: row['Name of Sub-Division'] || '',
+          subStation: row['Name of Sub-Station'] || '',
+          feeder: row['Name of Feeder'] || '',
+          issuedTfsSrNo: row['Return TFS Sr No.'] || '',
+          remarks: row['Remarks'] || '',
+          status: 'Submitted',
+          lineItems: []
+        };
+      }
+      
+      if (itemName || tempCode) {
+        returnsByChallan[challanNo].lineItems.push(lineItem);
+      }
+    } catch (err: any) {
+      errors.push(`Row error: ${err.message}`);
+    }
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    for (const challanNo of Object.keys(returnsByChallan)) {
+      const payload = returnsByChallan[challanNo];
+      
+      const existing = await ContractorReturn.findOne({ returnChallanNo: challanNo });
+      if (existing) {
+        errors.push(`Return Challan ${challanNo} already exists. Skipping.`);
+        continue;
+      }
+
+      try {
+        await ContractorReturn.create([payload], { session });
+        successCount++;
+      } catch (err: any) {
+        errors.push(`Error saving Challan ${challanNo}: ${err.message}`);
+      }
+    }
+
+    if (errors.length > 0) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json(
+        new ApiResponse(400, { errors }, 'Import failed due to row errors.')
+      );
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
+
+  res.status(200).json(
+    new ApiResponse(200, { successCount, errors }, 'Import process completed')
   );
 });
 

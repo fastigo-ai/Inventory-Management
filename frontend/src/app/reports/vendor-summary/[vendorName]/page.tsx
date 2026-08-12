@@ -12,7 +12,7 @@ export default function VendorDetail({ params }: { params: { vendorName: string 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await api.get(`/reports/summary/vendor-summary/${encodeURIComponent(vendorName)}`);
+        const res = await api.get(`/reports/vendor-summary/${encodeURIComponent(vendorName)}`);
         setData(res.data.data || { pos: [], invoices: [] });
       } catch (err) {
         console.error(err);

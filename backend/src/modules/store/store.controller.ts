@@ -250,54 +250,7 @@ export const createInwardEntry = asyncHandler(async (req: Request, res: Response
   );
 });
 
-export const updateInwardEntry = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const data = req.body;
-  
-  const entry = await StoreInwardEntry.findById(id);
-  if (!entry) {
-    throw new ApiError(404, 'Entry not found');
-  }
 
-  if (entry.status !== 'DRAFT' && entry.status !== 'PENDING_RECEIPT' && entry.status !== 'APPROVED' && entry.status !== 'SUBMITTED') {
-    // Allow status updates for admin/verification
-    if (data.status === 'VERIFIED' || data.status === 'NEEDS_CORRECTION') {
-      const updated = await StoreInwardEntry.findByIdAndUpdate(id, { status: data.status }, { new: true });
-      
-      // Update inventory and invoice receipt status if verified (legacy)
-      if (data.status === 'VERIFIED' && updated && updated.purchaseInvoiceId) {
-        await processInwardStockUpdate(updated._id.toString());
-      }
-      
-      return res.status(200).json(new ApiResponse(200, updated, `Status updated to ${data.status}`));
-    }
-    throw new ApiError(400, 'Cannot fully update an entry in this state via this endpoint');
-  }
-
-  // validations...
-  if (data.status === 'SUBMITTED') {
-    let totalPackQty = 0;
-    if (data.packingList) {
-      data.packingList.forEach((pack: any) => {
-        totalPackQty += Number(pack.quantity) || 0;
-      });
-    }
-    if (totalPackQty === 0) {
-      throw new ApiError(400, 'Sum of packing list quantities must be > 0 to submit');
-    }
-  }
-
-  data.updatedBy = (req as any).user?._id;
-  const updated = await StoreInwardEntry.findByIdAndUpdate(id, data, { new: true });
-
-  if (updated && updated.status === 'SUBMITTED') {
-    await processInwardStockUpdate(updated._id.toString());
-  }
-
-  res.status(200).json(
-    new ApiResponse(200, updated, 'Entry updated successfully')
-  );
-});
 
 export const getInwardEntryById = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
@@ -1043,6 +996,137 @@ export const approveStoreReceipt = asyncHandler(async (req: Request, res: Respon
   );
 });
 
+export const updateInwardEntry = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const user = (req as any).user;
+  const isAdmin = user?.role?.name === "Admin" || user?.role?.name === "Super Admin" || user?.role?.permissions?.includes("*");
+  const payload = req.body;
+  const auditReason = req.body.auditReason;
+
+  const entry = await StoreInwardEntry.findById(id);
+  if (!entry) throw new ApiError(404, 'Store Inward Entry not found');
+  if (entry.status === 'VOIDED') throw new ApiError(400, 'Cannot edit a voided entry.');
+
+  const originalStatus = entry.status;
+
+  if (entry.status === 'APPROVED' || entry.status === 'VERIFIED') {
+    if (!isAdmin) {
+      throw new ApiError(403, 'Store Managers cannot edit approved entries. Please request an Admin.');
+    }
+    if (!auditReason) {
+      throw new ApiError(400, 'Audit reason is required when editing an approved entry.');
+    }
+    
+    // Check downstream consumption stock check
+    const summary = await buildStockSummaryData();
+    const itemStock = summary[entry.tempCode || ''];
+    if (itemStock) {
+      // Calculate drop in received quantity
+      const oldPackingQty = entry.packingList?.reduce((sum: number, p: any) => sum + p.quantity, 0) || 0;
+      const newPackingQty = payload.packingList?.reduce((sum: number, p: any) => sum + p.quantity, 0) || oldPackingQty;
+      const qtyDiff = oldPackingQty - newPackingQty;
+      
+      if (qtyDiff > 0 && itemStock.totalBalanceQty < qtyDiff) {
+        throw new ApiError(409, `Conflict: Cannot reduce stock by ${qtyDiff}. Only ${itemStock.totalBalanceQty} available. Line items may have already been issued.`);
+      }
+    }
+    
+    if (!entry.auditLogs) entry.auditLogs = [];
+    entry.auditLogs.push({
+      action: 'EDIT',
+      reason: auditReason,
+      user: user._id,
+      timestamp: new Date()
+    });
+  } else {
+    // For non-approved/verified states, check if it's a verification update
+    if (entry.status !== 'DRAFT' && entry.status !== 'PENDING_RECEIPT' && entry.status !== 'SUBMITTED') {
+      if (payload.status === 'VERIFIED' || payload.status === 'NEEDS_CORRECTION') {
+        const updated = await StoreInwardEntry.findByIdAndUpdate(id, { status: payload.status }, { new: true });
+        if (payload.status === 'VERIFIED' && updated && updated.purchaseInvoiceId) {
+          await processInwardStockUpdate(updated._id.toString());
+        }
+        return res.status(200).json(new ApiResponse(200, updated, `Status updated to ${payload.status}`));
+      }
+    }
+  }
+
+  // validations...
+  if (payload.status === 'SUBMITTED') {
+    let totalPackQty = 0;
+    if (payload.packingList) {
+      payload.packingList.forEach((pack: any) => {
+        totalPackQty += Number(pack.quantity) || 0;
+      });
+    }
+    if (totalPackQty === 0) {
+      throw new ApiError(400, 'Sum of packing list quantities must be > 0 to submit');
+    }
+  }
+
+  // Remove fields that shouldn't be overwritten directly or handle them carefully
+  delete payload.auditLogs;
+  if (payload.status && !isAdmin && (entry.status === 'APPROVED' || entry.status === 'VERIFIED')) {
+    delete payload.status;
+  }
+
+  payload.updatedBy = user._id;
+
+  Object.assign(entry, payload);
+  const updated = await entry.save();
+  
+  if (updated && updated.status === 'SUBMITTED' && originalStatus !== 'SUBMITTED') {
+    await processInwardStockUpdate(updated._id.toString());
+  }
+  
+  res.status(200).json(new ApiResponse(200, updated, 'Inward Entry updated successfully'));
+});
+
+export const voidInwardEntry = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const user = (req as any).user;
+  const isAdmin = user?.role?.name === "Admin" || user?.role?.name === "Super Admin" || user?.role?.permissions?.includes("*");
+  const { auditReason } = req.body;
+
+  const entry = await StoreInwardEntry.findById(id);
+  if (!entry) throw new ApiError(404, 'Store Inward Entry not found');
+  if (entry.status === 'VOIDED') throw new ApiError(400, 'Entry is already voided');
+
+  if (entry.status === 'APPROVED' || entry.status === 'VERIFIED') {
+    if (!isAdmin) {
+      throw new ApiError(403, 'Store Managers cannot void approved entries. Please request an Admin.');
+    }
+    if (!auditReason) {
+      throw new ApiError(400, 'Audit reason is required when voiding an approved entry.');
+    }
+    
+    // Check downstream consumption stock check
+    const summary = await buildStockSummaryData();
+    const itemStock = summary[entry.tempCode || ''];
+    if (itemStock) {
+      const oldPackingQty = entry.packingList?.reduce((sum: number, p: any) => sum + p.quantity, 0) || 0;
+      if (itemStock.totalBalanceQty < oldPackingQty) {
+         throw new ApiError(409, `Conflict: Cannot void GRN. Voiding removes ${oldPackingQty} from stock, but only ${itemStock.totalBalanceQty} available.`);
+      }
+    }
+  }
+
+  if (!entry.auditLogs) entry.auditLogs = [];
+  if (auditReason || isAdmin) {
+    entry.auditLogs.push({
+      action: 'VOID',
+      reason: auditReason || 'Voided unapproved entry',
+      user: user._id,
+      timestamp: new Date()
+    });
+  }
+
+  entry.status = 'VOIDED';
+  await entry.save();
+  
+  res.status(200).json(new ApiResponse(200, entry, 'Inward Entry voided successfully'));
+});
+
 async function processInwardStockUpdate(entryId: string) {
   const entry = await StoreInwardEntry.findById(entryId);
   if (!entry) return;
@@ -1412,6 +1496,149 @@ export const importStoreTransfers = asyncHandler(async (req: Request, res: Respo
 
   await session.commitTransaction();
   session.endSession();
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
+
+  res.status(200).json(
+    new ApiResponse(200, { successCount, errors }, 'Import process completed')
+  );
+});
+
+export const importReceivedStoreTransfers = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.file) {
+    throw new ApiError(400, 'Please upload a CSV file');
+  }
+
+  const parser = parseAndSanitizeCsv(req.file.buffer);
+  
+  const errors: string[] = [];
+  let successCount = 0;
+  
+  const transfersByDoc: Record<string, any> = {};
+  const user = (req as any).user;
+
+  for await (const row of parser) {
+    try {
+      const docKey = row['Challan No'] || row['ChallanNo'] || row['MIN No.'] || row['MIN No'] || '';
+      if (!docKey) {
+        errors.push(`Row missing Challan No or MIN No. (needed to group rows)`);
+        continue;
+      }
+
+      const itemName = row['Item Name'] || row['Description of Material'] || '';
+      const tempCode = row['Final Temp Code'] || '';
+      
+      if (!itemName && !tempCode) {
+        errors.push(`Row missing Item Name/Temp Code for Transfer ${docKey}`);
+        continue;
+      }
+
+      let item = null;
+      if (tempCode) {
+        item = await Item.findOne({ itemCode: tempCode });
+      }
+      if (!item && itemName) {
+        item = await Item.findOne({ description: { $regex: new RegExp(`^${itemName}$`, 'i') } });
+      }
+
+      if (!item) {
+         errors.push(`Item '${itemName || tempCode}' not found for Transfer ${docKey}`);
+         continue;
+      }
+
+      const receivedQty = Number(row['Received Qty'] || 0);
+
+      if (receivedQty <= 0) {
+        errors.push(`Row has zero Received Qty for Transfer ${docKey}`);
+        continue;
+      }
+
+      const unit = row['Unit'] || item?.unit || 'Nos';
+
+      const lineItem = {
+        itemId: item._id,
+        tempCode: item.itemCode || tempCode || '',
+        description: item.description || itemName || '',
+        unit,
+        requestedQty: receivedQty,
+        dispatchedQty: receivedQty,
+        receivedQty
+      };
+
+      if (!transfersByDoc[docKey]) {
+        transfersByDoc[docKey] = {
+          requestDate: row['Date of Received'] ? new Date(row['Date of Received']) : new Date(),
+          status: 'RECEIVED',
+          fromStore: row['From'] || 'Unknown Store',
+          toStore: row['To'] || 'Unknown Store',
+          requestedBy: user ? user._id : null,
+          vendorName: row['Name of Vendor'] || '',
+          
+          minBookNo: row['MIN BOOK No.'] || row['MIN BOOK No'] || '',
+          minNo: row['MIN No.'] || row['MIN No'] || '',
+          minDate: row['MIN Date'] ? new Date(row['MIN Date']) : undefined,
+          
+          challanNo: row['Challan No'] || '',
+          challanDate: row['Challan Date'] ? new Date(row['Challan Date']) : undefined,
+          
+          transportName: row['Transport'] || '',
+          truckNumber: row['Truck No'] || '',
+          grNumber: row['GR No'] || '',
+          grDate: row['Date'] ? new Date(row['Date']) : undefined,
+          driverName: row['Driver Name'] || '',
+          driverMobile: row['Mobile No.'] || '',
+          remarks: row['Remark'] || '',
+          
+          items: []
+        };
+      }
+
+      transfersByDoc[docKey].items.push(lineItem);
+    } catch (err: any) {
+      errors.push(`Row error: ${err.message}`);
+    }
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    for (const docKey of Object.keys(transfersByDoc)) {
+      const payload = transfersByDoc[docKey];
+      
+      const existing = await StoreTransfer.findOne({ 
+         $or: [
+           { challanNo: { $eq: payload.challanNo, $ne: '' } },
+           { minNo: { $eq: payload.minNo, $ne: '' } }
+         ]
+      });
+      
+      if (existing) {
+        errors.push(`Transfer ${payload.challanNo || payload.minNo} already exists. Skipping.`);
+        continue;
+      }
+
+      try {
+        await StoreTransfer.create([payload], { session });
+        successCount++;
+      } catch (err: any) {
+        errors.push(`Error saving Transfer ${docKey}: ${err.message}`);
+      }
+    }
+
+    if (errors.length > 0) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json(
+        new ApiResponse(400, { errors }, 'Import failed due to row errors. No data was imported.')
+      );
+    }
+
+    await session.commitTransaction();
+    session.endSession();
   } catch (error) {
     await session.abortTransaction();
     session.endSession();

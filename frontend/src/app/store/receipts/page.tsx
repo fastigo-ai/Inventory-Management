@@ -10,9 +10,12 @@ import {
   getStoreReceiptFilterOptions,
 } from "@/features/store/api/store.api";
 import Papa from "papaparse";
-import { Download, Upload } from "lucide-react";
+import { Download, Upload, Pencil, Trash2, Lock } from "lucide-react";
 import { DataTableBottomControls } from "@/shared/components/DataTableControls";
 import { useAuthStore } from "@/shared/store/auth.store";
+import { voidInwardEntry } from "@/features/store/api/store.api";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 export default function StoreReceiptsPage() {
   const router = useRouter();
@@ -35,6 +38,12 @@ export default function StoreReceiptsPage() {
   const [packageOptions, setPackageOptions] = useState<string[]>([]);
   const [circleOptions, setCircleOptions] = useState<string[]>([]);
   const [vendorOptions, setVendorOptions] = useState<string[]>([]);
+
+  // Void Modal State
+  const [isVoidModalOpen, setIsVoidModalOpen] = useState(false);
+  const [voidTargetId, setVoidTargetId] = useState<string | null>(null);
+  const [voidReason, setVoidReason] = useState("");
+  const [isVoiding, setIsVoiding] = useState(false);
 
   const [filters, setFilters] = useState({
     package: "All",
@@ -102,9 +111,30 @@ export default function StoreReceiptsPage() {
     try {
       await approveStoreReceipt(entryId);
       fetchReceipts();
-    } catch (error) {
-      console.error(error);
-      alert("Failed to approve receipt");
+    } catch (err: any) {
+      console.error(err);
+      alert(err.response?.data?.message || "Failed to approve receipt");
+    }
+  };
+
+  const handleVoid = async () => {
+    if (!voidTargetId) return;
+    if (isAdmin && !voidReason) {
+      alert("Please provide a reason for voiding.");
+      return;
+    }
+    
+    setIsVoiding(true);
+    try {
+      await voidInwardEntry(voidTargetId, voidReason);
+      setVoidTargetId(null);
+      setVoidReason("");
+      setIsVoidModalOpen(false);
+      fetchReceipts();
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Failed to void entry");
+    } finally {
+      setIsVoiding(false);
     }
   };
 
@@ -436,7 +466,7 @@ export default function StoreReceiptsPage() {
                               {entry.status === "APPROVED" ? "Approved" : "Pending Receipt"}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-right">
+                          <td className="px-6 py-4 text-right flex justify-end gap-2 items-center">
                             {entry.status === "PENDING_RECEIPT" ? (
                               <Button
                                 onClick={(e) => { e.stopPropagation(); handleApprove(entry._id); }}
@@ -444,13 +474,50 @@ export default function StoreReceiptsPage() {
                               >
                                 Approve Receipt
                               </Button>
-                            ) : (
+                            ) : entry.status !== "VOIDED" ? (
                               <Button
                                 onClick={(e) => { e.stopPropagation(); router.push(`/store/inventory/inward/entry/${entry._id}`); }}
                                 className="h-8 bg-blue-600 hover:bg-blue-700 text-white"
                               >
                                 Register Inward
                               </Button>
+                            ) : (
+                              <span className="text-xs text-red-500 font-medium px-2">VOIDED</span>
+                            )}
+                            
+                            {/* Action Icons */}
+                            {entry.status !== "VOIDED" && (
+                              <div className="flex items-center gap-1 ml-2 border-l border-slate-200 pl-2">
+                                {(entry.status === "APPROVED" || entry.status === "VERIFIED") && !isAdmin ? (
+                                  <div title="Approved entries require Admin override">
+                                    <Lock className="w-4 h-4 text-slate-300" />
+                                  </div>
+                                ) : (
+                                  <>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        router.push(`/store/inventory/inward/${entry._id}/edit`);
+                                      }}
+                                      className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors"
+                                      title={isAdmin && (entry.status === "APPROVED" || entry.status === "VERIFIED") ? "Admin Edit" : "Edit"}
+                                    >
+                                      <Pencil className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setVoidTargetId(entry._id);
+                                        setIsVoidModalOpen(true);
+                                      }}
+                                      className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
+                                      title={isAdmin && (entry.status === "APPROVED" || entry.status === "VERIFIED") ? "Admin Void" : "Void"}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
                             )}
                           </td>
                         </tr>
@@ -471,6 +538,33 @@ export default function StoreReceiptsPage() {
           )}
         </div>
       </div>
+
+      <Dialog open={isVoidModalOpen} onOpenChange={setIsVoidModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Void GRN</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to void this inward register entry? This action will set its status to VOIDED.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <label className="text-sm font-medium text-slate-700 block mb-1">
+              Audit Reason <span className="text-red-500">*</span>
+            </label>
+            <Input 
+              value={voidReason} 
+              onChange={(e) => setVoidReason(e.target.value)} 
+              placeholder="Reason for voiding..." 
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsVoidModalOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleVoid} disabled={isVoiding || !voidReason.trim()}>
+              {isVoiding ? "Voiding..." : "Confirm Void"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

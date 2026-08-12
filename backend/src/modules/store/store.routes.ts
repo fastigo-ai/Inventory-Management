@@ -13,6 +13,7 @@ import {
   getPurchaseInvoicePrefillData,
   createInwardEntry,
   updateInwardEntry,
+  voidInwardEntry,
   getInwardEntryById,
   queryInwardEntries,
   getAdminInwardEntries,
@@ -30,7 +31,8 @@ import {
   approveStoreReceipt,
   importStoreTransfers,
   bulkImportInwardEntries,
-  getStoreReceiptFilterOptions
+  getStoreReceiptFilterOptions,
+  importReceivedStoreTransfers
 } from './store.controller';
 
 const router = Router();
@@ -59,7 +61,8 @@ router.route('/inventory/stock-summary').get(getStockSummary);
 
 router.route('/inventory/inward/:id')
   .get(getInwardEntryById)
-  .put(updateInwardEntry);
+  .put(updateInwardEntry)
+  .delete(voidInwardEntry);
 
 // Inter-Store Transfer Routes
 router.route('/transfers')
@@ -79,6 +82,7 @@ router.route('/transfers/:id/receive')
   .put(receiveStoreTransfer);
 
 router.post('/transfers/outward/import', upload.single('file'), importStoreTransfers);
+router.post('/transfers/inward/import', upload.single('file'), importReceivedStoreTransfers);
 
 // Admin Routes (Note: in a real app, you might secure these with an admin role check)
 router.route('/admin/inventory/store-manager').get(getAdminInwardEntries);

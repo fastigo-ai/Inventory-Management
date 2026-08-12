@@ -95,3 +95,27 @@ export const createContractorReturn = async (payload: any) => {
   const response = await api.post('/contractors/returns', payload);
   return response.data;
 };
+
+export const getContractorReturnById = async (id: string) => {
+  const response = await api.get(`/contractors/returns/${id}`);
+  return response.data;
+};
+
+export const updateContractorReturn = async (id: string, payload: any) => {
+  const response = await api.put(`/contractors/returns/${id}`, payload);
+  return response.data;
+};
+
+export const deleteContractorReturn = async (id: string) => {
+  const response = await api.delete(`/contractors/returns/${id}`);
+  return response.data;
+};
+
+export const importContractorReturns = async (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post('/contractors/returns/import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return response.data;
+};

@@ -16,7 +16,11 @@ import {
   exportTemplate, 
   importContractors, 
   getContractorReturns, 
-  createContractorReturn, 
+  createContractorReturn,
+  getContractorReturnById,
+  updateContractorReturn,
+  deleteContractorReturn,
+  bulkImportContractorReturns,
   importContractorAssignments,
   getContractorTransactions
 } from './contractor.controller';
@@ -45,9 +49,16 @@ router.patch('/assignments/:id/cancel', cancelAssignment);
 
 router.post('/assignments/import', uploadCsv.single('file'), importContractorAssignments);
 
+router.post('/returns/import', uploadCsv.single('file'), bulkImportContractorReturns);
+
 router.route('/returns')
   .get(getContractorReturns)
   .post(createContractorReturn);
+
+router.route('/returns/:id')
+  .get(getContractorReturnById)
+  .put(updateContractorReturn)
+  .delete(deleteContractorReturn);
 
 router.route('/:id')
   .get(getContractorById)

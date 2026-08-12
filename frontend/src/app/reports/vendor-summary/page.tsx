@@ -17,7 +17,7 @@ export default function VendorSummary() {
       if (dateRange.start) query.append('startDate', dateRange.start);
       if (dateRange.end) query.append('endDate', dateRange.end);
       
-      const res = await api.get(`/reports/summary/vendor-summary?${query.toString()}`);
+      const res = await api.get(`/reports/vendor-summary?${query.toString()}`);
       setData(res.data.data || []);
     } catch (err) {
       console.error(err);

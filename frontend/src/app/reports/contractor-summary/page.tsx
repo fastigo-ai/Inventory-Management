@@ -17,7 +17,7 @@ export default function ContractorSummary() {
       if (dateRange.start) query.append('startDate', dateRange.start);
       if (dateRange.end) query.append('endDate', dateRange.end);
 
-      const res = await api.get(`/reports/summary/contractor-summary?${query.toString()}`);
+      const res = await api.get(`/reports/contractor-summary?${query.toString()}`);
       setData(res.data.data || []);
     } catch (err) {
       console.error(err);

@@ -52,9 +52,16 @@ export interface IStoreInwardEntry extends Document {
   package?: string;
   serialNumber?: string;
   
-  status: 'DRAFT' | 'SUBMITTED' | 'VERIFIED' | 'NEEDS_CORRECTION';
+  status: 'DRAFT' | 'PENDING_RECEIPT' | 'APPROVED' | 'SUBMITTED' | 'VERIFIED' | 'NEEDS_CORRECTION' | 'VOIDED';
   
   packingList: IStoreInwardPackingList[];
+  
+  auditLogs?: {
+    action: 'EDIT' | 'VOID';
+    reason: string;
+    user: mongoose.Types.ObjectId;
+    timestamp: Date;
+  }[];
   
   createdBy?: mongoose.Types.ObjectId;
   updatedBy?: mongoose.Types.ObjectId;
@@ -121,12 +128,19 @@ const storeInwardEntrySchema = new Schema<IStoreInwardEntry>(
     
     status: { 
       type: String, 
-      enum: ['DRAFT', 'PENDING_RECEIPT', 'APPROVED', 'SUBMITTED', 'VERIFIED', 'NEEDS_CORRECTION'], 
+      enum: ['DRAFT', 'PENDING_RECEIPT', 'APPROVED', 'SUBMITTED', 'VERIFIED', 'NEEDS_CORRECTION', 'VOIDED'], 
       default: 'DRAFT',
       index: true
     },
     
     packingList: [packingListSchema],
+    
+    auditLogs: [{
+      action: { type: String, enum: ['EDIT', 'VOID'], required: true },
+      reason: { type: String, required: true },
+      user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+      timestamp: { type: Date, default: Date.now }
+    }],
     
     createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
     updatedBy: { type: Schema.Types.ObjectId, ref: 'User' }

@@ -19,7 +19,7 @@ export default function StoreSummary() {
       if (dateRange.start) query.append('startDate', dateRange.start);
       if (dateRange.end) query.append('endDate', dateRange.end);
 
-      const res = await api.get(`/reports/summary/store-summary?${query.toString()}`);
+      const res = await api.get(`/reports/store-summary?${query.toString()}`);
       setData(res.data.data || []);
     } catch (err) {
       console.error(err);

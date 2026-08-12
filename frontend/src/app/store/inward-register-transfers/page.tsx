@@ -2,14 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { getStoreTransfers } from "@/features/store/api/store.api";
-import { Download } from "lucide-react";
+import { Download, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useClientTable } from "@/shared/hooks/useClientTable";
 import { DataTableTopControls, DataTableBottomControls } from "@/shared/components/DataTableControls";
+import { BulkImportModal } from "./BulkImportModal";
 
 export default function InwardRegisterTransfersPage() {
   const [transfers, setTransfers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   useEffect(() => {
     fetchTransfers();
@@ -86,13 +88,23 @@ export default function InwardRegisterTransfersPage() {
       <div className="max-w-[1400px] mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-slate-800">Received from Other Store (Inward Register)</h1>
-          <Button 
-            variant="outline"
-            className="text-slate-600"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
-          </Button>
+          <div className="flex gap-3">
+            <Button 
+              variant="outline"
+              className="text-slate-600 border-blue-200 hover:bg-blue-50"
+              onClick={() => setIsImportModalOpen(true)}
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Bulk Import
+            </Button>
+            <Button 
+              variant="outline"
+              className="text-slate-600"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </Button>
+          </div>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
@@ -179,6 +191,14 @@ export default function InwardRegisterTransfersPage() {
           />
         </div>
       </div>
+      
+      <BulkImportModal 
+        open={isImportModalOpen} 
+        onOpenChange={setIsImportModalOpen}
+        onSuccess={() => {
+          fetchTransfers();
+        }}
+      />
     </div>
   );
 }

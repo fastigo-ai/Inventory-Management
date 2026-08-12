@@ -2,21 +2,30 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Upload } from "lucide-react";
 import { getContractorReturns } from "@/features/contractors/api/contractors.api";
 import { useClientTable } from "@/shared/hooks/useClientTable";
 import { DataTableTopControls, DataTableBottomControls } from "@/shared/components/DataTableControls";
+import { BulkImportContractorReturnModal } from "./BulkImportContractorReturnModal";
 
 export default function StoreContractorReturnPage() {
+  const router = useRouter();
   const [returns, setReturns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  
+  const fetchReturns = () => {
+    setLoading(true);
     getContractorReturns()
       .then(res => setReturns(res.data || []))
       .catch(console.error)
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchReturns();
   }, []);
 
   const {
@@ -39,12 +48,22 @@ export default function StoreContractorReturnPage() {
             <h1 className="text-2xl font-semibold text-slate-900">Contractor Returns</h1>
             <p className="text-sm text-slate-500 mt-1">View and record items returned by contractors</p>
           </div>
-          <Link href="/store/contractor-return/new">
-            <Button className="bg-[#0076f2] hover:bg-blue-600">
-              <Plus className="w-4 h-4 mr-2" />
-              New Return
+          <div className="flex gap-3">
+            <Button 
+              variant="outline" 
+              className="text-slate-600 border-blue-200 hover:bg-blue-50"
+              onClick={() => setIsImportModalOpen(true)}
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Bulk Import
             </Button>
-          </Link>
+            <Link href="/store/contractor-return/new">
+              <Button className="bg-[#0076f2] hover:bg-blue-600">
+                <Plus className="w-4 h-4 mr-2" />
+                New Return
+              </Button>
+            </Link>
+          </div>
         </div>
 
         <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm flex flex-col">
@@ -89,7 +108,11 @@ export default function StoreContractorReturnPage() {
                       paginatedData.map(a => {
                         const totalItems = a.lineItems?.reduce((sum: number, item: any) => sum + (Number(item.quantity) || 0), 0) || 0;
                         return (
-                          <tr key={a._id} className="hover:bg-slate-50 transition-colors">
+                          <tr 
+                            key={a._id} 
+                            className="hover:bg-slate-50 transition-colors cursor-pointer"
+                            onClick={() => router.push(`/store/contractor-return/${a._id}`)}
+                          >
                             <td className="px-6 py-4 font-medium text-blue-600">{a.returnChallanNo}</td>
                             <td className="px-6 py-4">{new Date(a.returnChallanDate).toLocaleDateString()}</td>
                             <td className="px-6 py-4">{a.contractorId?.name || a.contractorId?.dynamicData?.displayName || 'Unknown'}</td>
@@ -120,6 +143,14 @@ export default function StoreContractorReturnPage() {
           )}
         </div>
       </div>
+      
+      <BulkImportContractorReturnModal 
+        open={isImportModalOpen} 
+        onOpenChange={setIsImportModalOpen}
+        onSuccess={() => {
+          fetchReturns();
+        }}
+      />
     </div>
   );
 }

@@ -45,6 +45,11 @@ export const updateInwardEntry = async (id: string, data: any) => {
   return response.data;
 };
 
+export const voidInwardEntry = async (id: string, auditReason?: string) => {
+  const response = await api.delete(`/store/inventory/inward/${id}`, { data: { auditReason } });
+  return response.data;
+};
+
 export const getInwardEntryById = async (id: string) => {
   const response = await api.get(`/store/inventory/inward/${id}`);
   return response.data;
@@ -119,6 +124,15 @@ export const importStoreTransfers = async (file: File) => {
   const formData = new FormData();
   formData.append('file', file);
   const response = await api.post('/store/transfers/outward/import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};
+
+export const importReceivedTransfers = async (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post('/store/transfers/inward/import', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
   return response.data;

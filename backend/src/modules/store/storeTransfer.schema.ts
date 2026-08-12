@@ -8,6 +8,8 @@ export interface ITransferItem {
   requestedQty: number;
   dispatchedQty: number; // Updated upon dispatch
   receivedQty: number; // Updated upon receipt
+  loaSerialNo?: string;
+  loaQty?: number;
 }
 
 export interface IStoreTransfer extends Document {
@@ -47,7 +49,9 @@ const transferItemSchema = new Schema<ITransferItem>({
   unit: { type: String, required: true },
   requestedQty: { type: Number, required: true, min: 0 },
   dispatchedQty: { type: Number, default: 0, min: 0 },
-  receivedQty: { type: Number, default: 0, min: 0 }
+  receivedQty: { type: Number, default: 0, min: 0 },
+  loaSerialNo: { type: String },
+  loaQty: { type: Number, min: 0 }
 }, { _id: true });
 
 const storeTransferSchema = new Schema<IStoreTransfer>({

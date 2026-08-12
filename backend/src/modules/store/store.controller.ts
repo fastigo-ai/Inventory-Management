@@ -1412,6 +1412,9 @@ export const importStoreTransfers = asyncHandler(async (req: Request, res: Respo
       }
 
       const unit = row['Unit'] || item?.unit || 'Nos';
+      const loaSerialNo = row['LOA Serial No'] || row['LOASerialNo'] || row['Loa Serial No'] || '';
+      const rawLoaQty = row['LOA Qty'] || row['LOA Quantity'] || row['LoaQty'];
+      const loaQty = rawLoaQty ? Number(rawLoaQty) : undefined;
 
       const lineItem = {
         itemId: item._id,
@@ -1420,7 +1423,9 @@ export const importStoreTransfers = asyncHandler(async (req: Request, res: Respo
         unit,
         requestedQty,
         dispatchedQty,
-        receivedQty
+        receivedQty,
+        loaSerialNo,
+        loaQty
       };
 
       if (!transfersByDoc[docKey]) {

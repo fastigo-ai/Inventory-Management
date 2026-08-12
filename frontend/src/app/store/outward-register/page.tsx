@@ -39,6 +39,8 @@ export default function OutwardRegisterPage() {
               date: t.requestDate,
               vendorName: t.vendorName || "-",
               description: item.description,
+              loaSerialNo: item.loaSerialNo || "-",
+              loaQty: item.loaQty !== undefined && item.loaQty !== null ? item.loaQty : "-",
               unit: item.unit,
               transferQty: item.dispatchedQty || item.requestedQty,
               minBookNo: t.minBookNo || "-",
@@ -136,6 +138,8 @@ export default function OutwardRegisterPage() {
                       <th className="px-4 py-3 border-r border-slate-200">Date</th>
                       <th className="px-4 py-3 border-r border-slate-200">Name of Vendor</th>
                       <th className="px-4 py-3 border-r border-slate-200">Description of Material</th>
+                      <th className="px-4 py-3 border-r border-slate-200">LOA Serial No</th>
+                      <th className="px-4 py-3 border-r border-slate-200">LOA Qty</th>
                       <th className="px-4 py-3 border-r border-slate-200">Unit</th>
                       <th className="px-4 py-3 border-r border-slate-200 bg-blue-50">Transfer Qty.</th>
                       <th className="px-4 py-3 border-r border-slate-200">MIN BOOK No.</th>

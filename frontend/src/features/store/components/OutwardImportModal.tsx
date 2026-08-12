@@ -58,10 +58,10 @@ export function OutwardImportModal({ isOpen, onClose, onSuccess }: OutwardImport
   };
 
   const downloadSampleCsv = () => {
-    const headers = "Date,Name of Vendor,Description of Material,TempCode,Unit,Transfer Qty,MIN BOOK No,MIN No,MIN Date,Challan No,Challan Date,From,To,Transport,Truck No,GR No,GR Date,Driver Name,Mobile No,Remark\n";
-    const sampleRow1 = "2026-07-24,Vendor A,Steel Pipes,TC-101,Nos,50,MB-1,MIN-100,2026-07-20,CH-201,2026-07-24,Central Store,Site A,Fast Trans,MH-12-AB-1234,GR-901,2026-07-24,John Doe,9876543210,Urgent delivery\n";
-    const sampleRow2 = "2026-07-24,Vendor A,Cement Bags,TC-102,Bags,200,MB-1,MIN-100,2026-07-20,CH-201,2026-07-24,Central Store,Site A,Fast Trans,MH-12-AB-1234,GR-901,2026-07-24,John Doe,9876543210,Handle with care\n";
-    const sampleRow3 = "2026-07-25,Vendor B,Copper Wire,TC-103,Meters,1000,MB-2,MIN-101,2026-07-21,CH-202,2026-07-25,Store B,Store C,Safe Move,DL-01-CD-5678,GR-902,2026-07-25,Jane Smith,8765432109,\n";
+    const headers = "Date,Name of Vendor,Description of Material,TempCode,Unit,LOA Serial No,LOA Qty,Transfer Qty,MIN BOOK No,MIN No,MIN Date,Challan No,Challan Date,From,To,Transport,Truck No,GR No,GR Date,Driver Name,Mobile No,Remark\n";
+    const sampleRow1 = "2026-07-24,Vendor A,Steel Pipes,TC-101,Nos,LOA-123,100,50,MB-1,MIN-100,2026-07-20,CH-201,2026-07-24,Central Store,Site A,Fast Trans,MH-12-AB-1234,GR-901,2026-07-24,John Doe,9876543210,Urgent delivery\n";
+    const sampleRow2 = "2026-07-24,Vendor A,Cement Bags,TC-102,Bags,,0,200,MB-1,MIN-100,2026-07-20,CH-201,2026-07-24,Central Store,Site A,Fast Trans,MH-12-AB-1234,GR-901,2026-07-24,John Doe,9876543210,Handle with care\n";
+    const sampleRow3 = "2026-07-25,Vendor B,Copper Wire,TC-103,Meters,LOA-456,2000,1000,MB-2,MIN-101,2026-07-21,CH-202,2026-07-25,Store B,Store C,Safe Move,DL-01-CD-5678,GR-902,2026-07-25,Jane Smith,8765432109,\n";
     const csvContent = headers + sampleRow1 + sampleRow2 + sampleRow3;
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });

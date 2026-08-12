@@ -1460,17 +1460,17 @@ export const importStoreTransfers = asyncHandler(async (req: Request, res: Respo
           requestedBy: user ? user._id : null,
           vendorName: row['Name of Vendor'] || row['VendorName'] || '',
           
-          minBookNo: row['MIN BOOK No'] || row['MinBookNo'] || '',
-          minNo: row['MIN No'] || row['MinNo'] || '',
+          minBookNo: row['MIN BOOK No.'] || row['MIN BOOK No'] || row['MinBookNo'] || '',
+          minNo: row['MIN No.'] || row['MIN No'] || row['MinNo'] || row['MINNo'] || '',
           minDate: parseCsvDate(row['MIN Date']),
           
-          challanNo: row['Challan No'] || row['ChallanNo'] || '',
+          challanNo: row['Challan No.'] || row['Challan No'] || row['ChallanNo'] || '',
           challanDate: parseCsvDate(row['Challan Date']),
           
           transportName: row['Transport'] || row['TransportName'] || '',
           truckNumber: row['Truck No'] || row['TruckNumber'] || '',
           grNumber: row['GR No'] || row['GrNumber'] || '',
-          grDate: row['GR Date'] ? new Date(row['GR Date']) : undefined,
+          grDate: parseCsvDate(row['GR Date']),
           driverName: row['Driver Name'] || row['DriverName'] || '',
           driverMobile: row['Mobile No'] || row['DriverMobile'] || '',
           remarks: row['Remark'] || row['Remarks'] || '',
@@ -1615,11 +1615,11 @@ export const importReceivedStoreTransfers = asyncHandler(async (req: Request, re
           requestedBy: user ? user._id : null,
           vendorName: row['Name of Vendor'] || '',
           
-          minBookNo: row['MIN BOOK No.'] || row['MIN BOOK No'] || '',
-          minNo: row['MIN No.'] || row['MIN No'] || '',
+          minBookNo: row['MIN BOOK No.'] || row['MIN BOOK No'] || row['MinBookNo'] || '',
+          minNo: row['MIN No.'] || row['MIN No'] || row['MinNo'] || row['MINNo'] || '',
           minDate: parseCsvDate(row['MIN Date']),
           
-          challanNo: row['Challan No'] || '',
+          challanNo: row['Challan No.'] || row['Challan No'] || row['ChallanNo'] || '',
           challanDate: parseCsvDate(row['Challan Date']),
           
           transportName: row['Transport'] || '',

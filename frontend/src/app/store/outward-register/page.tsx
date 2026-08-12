@@ -172,6 +172,8 @@ export default function OutwardRegisterPage() {
                           <td className="px-4 py-3 border-r border-slate-100">{formatDate(t.date)}</td>
                           <td className="px-4 py-3 border-r border-slate-100 font-medium text-slate-800">{t.vendorName}</td>
                           <td className="px-4 py-3 border-r border-slate-100">{t.description}</td>
+                          <td className="px-4 py-3 border-r border-slate-100 text-slate-500">{t.loaSerialNo}</td>
+                          <td className="px-4 py-3 border-r border-slate-100 font-medium text-slate-700">{t.loaQty}</td>
                           <td className="px-4 py-3 border-r border-slate-100 text-slate-500">{t.unit}</td>
                           <td className="px-4 py-3 border-r border-slate-100 font-bold text-blue-700 bg-blue-50/50">{t.transferQty}</td>
                           <td className="px-4 py-3 border-r border-slate-100">{t.minBookNo}</td>

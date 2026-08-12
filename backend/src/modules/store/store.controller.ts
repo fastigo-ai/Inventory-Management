@@ -1666,6 +1666,38 @@ export const importReceivedStoreTransfers = asyncHandler(async (req: Request, re
 
       try {
         await StoreTransfer.create([payload], { session });
+        
+        const fromStoreStr = payload.fromStore && payload.fromStore !== '-' ? payload.fromStore : '';
+        const toStoreStr = payload.toStore && payload.toStore !== '-' ? payload.toStore : '';
+        
+        const fromCircleKey = fromStoreStr ? `${fromStoreStr.toLowerCase().replace(/\s+/g, '')}LoaQuantity` : null;
+        const toCircleKey = toStoreStr ? `${toStoreStr.toLowerCase().replace(/\s+/g, '')}LoaQuantity` : null;
+
+        for (const lineItem of payload.items) {
+          if (lineItem.receivedQty > 0) {
+            const item = await Item.findById(lineItem.itemId).session(session);
+            if (item) {
+              const currentFromQty = fromCircleKey ? Number(item.dynamicData?.[fromCircleKey] || 0) : 0;
+              const currentToQty = toCircleKey ? Number(item.dynamicData?.[toCircleKey] || 0) : 0;
+              
+              const updateData: any = {};
+              if (fromCircleKey) updateData[fromCircleKey] = Math.max(0, currentFromQty - lineItem.receivedQty);
+              if (toCircleKey) updateData[toCircleKey] = currentToQty + lineItem.receivedQty;
+
+              if (Object.keys(updateData).length > 0) {
+                item.dynamicData = {
+                  ...item.dynamicData,
+                  ...updateData
+                };
+                item.markModified('dynamicData');
+                await item.save({ session });
+                
+                SummaryService.rebuildForItem(item._id.toString()).catch(console.error);
+              }
+            }
+          }
+        }
+        
         successCount++;
       } catch (err: any) {
         errors.push(`Error saving Transfer ${docKey}: ${err.message}`);

@@ -1394,7 +1394,8 @@ export const importStoreTransfers = asyncHandler(async (req: Request, res: Respo
         item = await Item.findOne({ itemCode: tempCode });
       }
       if (!item && itemName) {
-        item = await Item.findOne({ description: { $regex: new RegExp(`^${itemName}$`, 'i') } });
+        const escapedItemName = itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        item = await Item.findOne({ description: { $regex: new RegExp(`^\\s*${escapedItemName}\\s*$`, 'i') } });
       }
 
       if (!item) {
@@ -1546,7 +1547,8 @@ export const importReceivedStoreTransfers = asyncHandler(async (req: Request, re
         item = await Item.findOne({ itemCode: tempCode });
       }
       if (!item && itemName) {
-        item = await Item.findOne({ description: { $regex: new RegExp(`^${itemName}$`, 'i') } });
+        const escapedItemName = itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        item = await Item.findOne({ description: { $regex: new RegExp(`^\\s*${escapedItemName}\\s*$`, 'i') } });
       }
 
       if (!item) {

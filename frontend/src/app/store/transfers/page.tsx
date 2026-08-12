@@ -7,6 +7,7 @@ import { ArrowRightLeft, Send, Download, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useClientTable } from "@/shared/hooks/useClientTable";
 import { DataTableTopControls, DataTableBottomControls } from "@/shared/components/DataTableControls";
+import { useAuthStore } from "@/shared/store/auth.store";
 
 export default function StoreTransfersPage() {
   const router = useRouter();
@@ -21,9 +22,8 @@ export default function StoreTransfersPage() {
     else if (tab === 'incoming') setActiveTab('incoming');
   }, [searchParams]);
 
-  // In a real app we'd get this from auth context, assuming 'Circle A' for now to filter mock-wise if needed
-  // The backend currently fetches everything if no circle is provided.
-  const currentStoreCircle = 'Circle A'; 
+  const { user } = useAuthStore();
+  const currentStoreCircle = user?.assignedCircle || 'Unknown';
 
   useEffect(() => {
     fetchTransfers();
@@ -37,12 +37,10 @@ export default function StoreTransfersPage() {
       const allTransfers = res.data || [];
       
       if (activeTab === 'incoming') {
-        // Here we'd filter where toStore === currentStoreCircle if we had a strict context
-        // For demonstration, we'll show all pending/approved where toStore could be us
-        setTransfers(allTransfers.filter((t: any) => t.status !== 'REJECTED'));
+        setTransfers(allTransfers.filter((t: any) => t.status !== 'REJECTED' && t.toStore === currentStoreCircle));
       } else {
         // Outgoing transfers
-        setTransfers(allTransfers);
+        setTransfers(allTransfers.filter((t: any) => t.fromStore === currentStoreCircle));
       }
     } catch (error) {
       console.error(error);

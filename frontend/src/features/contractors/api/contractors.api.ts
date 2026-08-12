@@ -1,9 +1,11 @@
 import { api } from "@/shared/api/axios";
 
-export const getContractors = async (location?: string, search?: string) => {
+export const getContractors = async (location?: string, search?: string, page?: number, limit?: number) => {
   let url = '/contractors?';
   if (location) url += `location=${encodeURIComponent(location)}&`;
   if (search) url += `search=${encodeURIComponent(search)}&`;
+  if (page) url += `page=${page}&`;
+  if (limit) url += `limit=${limit}&`;
   const response = await api.get(url);
   return response.data;
 };

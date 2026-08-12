@@ -7,12 +7,18 @@ import { Plus, MapPin, Upload, Download } from "lucide-react";
 import { getContractors } from "@/features/contractors/api/contractors.api";
 import { AssignContractorModal } from "@/features/contractors/components/AssignContractorModal";
 import { ContractorImportModal } from "@/features/contractors/components/ContractorImportModal";
+import { DataTableBottomControls } from "@/shared/components/DataTableControls";
 
 export default function ContractorsPage() {
   const router = useRouter();
   
   const [contractors, setContractors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(30);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
 
   // Modal State
   const [assignModalOpen, setAssignModalOpen] = useState(false);
@@ -21,20 +27,34 @@ export default function ContractorsPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
 
-  const fetchContractors = (query = "") => {
+  const fetchContractors = (query = searchQuery, page = currentPage, limit = pageSize) => {
     setLoading(true);
-    getContractors(undefined, query)
-      .then(res => setContractors(res.data || []))
+    getContractors(undefined, query, page, limit)
+      .then(res => {
+        if (res.data && res.data.contractors) {
+          setContractors(res.data.contractors);
+          setTotalPages(res.data.totalPages);
+          setTotalItems(res.data.total);
+        } else {
+          setContractors(res.data || []);
+          setTotalPages(1);
+          setTotalItems((res.data || []).length);
+        }
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
-      fetchContractors(searchQuery);
+      fetchContractors(searchQuery, currentPage, pageSize);
     }, 500);
     return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery]);
+  }, [searchQuery, currentPage, pageSize]);
 
   const flattenObject = (obj: any, prefix = ''): Record<string, string> => {
     let flattened: Record<string, string> = {};
@@ -238,6 +258,16 @@ export default function ContractorsPage() {
                 ))}
               </tbody>
             </table>
+          )}
+          {!loading && contractors.length > 0 && (
+            <DataTableBottomControls
+              currentPage={currentPage}
+              setCurrentPage={setCurrentPage}
+              totalPages={totalPages}
+              pageSize={pageSize}
+              setPageSize={setPageSize}
+              totalItems={totalItems}
+            />
           )}
         </div>
       </div>

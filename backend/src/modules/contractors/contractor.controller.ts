@@ -577,6 +577,8 @@ export const bulkImportContractorReturns = asyncHandler(async (req: Request, res
     try {
       const challanNo = row['Return Challan No.'] || row['ReturnChallanNo'] || '';
       if (!challanNo) {
+        const isEmpty = Object.values(row).every(v => !v || String(v).trim() === '');
+        if (isEmpty) continue;
         errors.push(`Row missing Return Challan No.`);
         continue;
       }
@@ -743,6 +745,8 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
     try {
       const minNo = row['MinNo'] || row['MIN No'] || row['minNo'] || row['AssignmentNumber'] || '';
       if (!minNo) {
+        const isEmpty = Object.values(row).every(v => !v || String(v).trim() === '');
+        if (isEmpty) continue;
         errors.push(`Row missing MinNo/AssignmentNumber`);
         continue;
       }

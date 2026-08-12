@@ -1390,6 +1390,8 @@ export const importStoreTransfers = asyncHandler(async (req: Request, res: Respo
     try {
       const docKey = row['ChallanNo'] || row['Challan No'] || row['Challan No.'] || row['MinNo'] || row['MIN No'] || row['MIN No.'] || row['MINNo'] || '';
       if (!docKey) {
+        const isEmpty = Object.values(row).every(v => !v || String(v).trim() === '');
+        if (isEmpty) continue;
         errors.push(`Row missing ChallanNo or MinNo (needed to group rows)`);
         continue;
       }
@@ -1551,6 +1553,8 @@ export const importReceivedStoreTransfers = asyncHandler(async (req: Request, re
     try {
       const docKey = row['Challan No'] || row['ChallanNo'] || row['Challan No.'] || row['MIN No.'] || row['MIN No'] || row['MINNo'] || row['MinNo'] || '';
       if (!docKey) {
+        const isEmpty = Object.values(row).every(v => !v || String(v).trim() === '');
+        if (isEmpty) continue;
         errors.push(`Row missing Challan No or MIN No. (needed to group rows)`);
         continue;
       }

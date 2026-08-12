@@ -17,6 +17,7 @@ export function ContractorIssueImportModal({ isOpen, onClose, onSuccess }: Contr
   const [uploadProgress, setUploadProgress] = useState(0);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [overwriteExisting, setOverwriteExisting] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -45,7 +46,7 @@ export function ContractorIssueImportModal({ isOpen, onClose, onSuccess }: Contr
 
     try {
       // Execute the actual API call
-      const res = await importContractorAssignments(file);
+      const res = await importContractorAssignments(file, overwriteExisting);
       
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -99,6 +100,7 @@ export function ContractorIssueImportModal({ isOpen, onClose, onSuccess }: Contr
     setUploadProgress(0);
     setResult(null);
     setError(null);
+    setOverwriteExisting(false);
   };
 
   return (
@@ -146,6 +148,41 @@ export function ContractorIssueImportModal({ isOpen, onClose, onSuccess }: Contr
                   <p className="text-sm font-semibold text-slate-700">Click or drag CSV to upload</p>
                 </div>
               )}
+            </div>
+          )}
+
+          {!isUploading && !result && (
+            <div className="mt-6 border-t border-slate-200 pt-4">
+              <h4 className="text-sm font-medium text-slate-800 mb-3">Import Mode</h4>
+              <div className="space-y-3">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input 
+                    type="radio" 
+                    name="importMode" 
+                    className="mt-0.5" 
+                    checked={!overwriteExisting}
+                    onChange={() => setOverwriteExisting(false)}
+                  />
+                  <div>
+                    <span className="block text-sm font-medium text-slate-700">Add New Records Only</span>
+                    <span className="block text-xs text-slate-500">Skips any MINs that already exist in the system.</span>
+                  </div>
+                </label>
+                
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input 
+                    type="radio" 
+                    name="importMode" 
+                    className="mt-0.5" 
+                    checked={overwriteExisting}
+                    onChange={() => setOverwriteExisting(true)}
+                  />
+                  <div>
+                    <span className="block text-sm font-medium text-slate-700">Update Existing Records</span>
+                    <span className="block text-xs text-slate-500">Updates existing MINs with the latest data from your file.</span>
+                  </div>
+                </label>
+              </div>
             </div>
           )}
 
@@ -201,8 +238,8 @@ export function ContractorIssueImportModal({ isOpen, onClose, onSuccess }: Contr
                   style={{ width: `${uploadProgress}%` }}
                 ></div>
               </div>
-              </div>
-            )}
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-3 mt-4">

@@ -30,9 +30,10 @@ export const importContractors = async (file: File) => {
   return response.data;
 };
 
-export const importContractorAssignments = async (file: File, onUploadProgress?: (progressEvent: any) => void) => {
+export const importContractorAssignments = async (file: File, overwriteExisting: boolean, onUploadProgress?: (progressEvent: any) => void) => {
   const formData = new FormData();
   formData.append('file', file);
+  formData.append('overwriteExisting', String(overwriteExisting));
   const response = await api.post('/contractors/assignments/import', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
     timeout: 300000,
@@ -66,9 +67,13 @@ export const assignContractorLocations = async (id: string, locations: string[])
   return response.data;
 };
 
-export const getAssignments = async (contractorId?: string) => {
-  const url = contractorId ? `/contractors/assignments?contractorId=${contractorId}` : '/contractors/assignments';
-  const response = await api.get(url);
+export const getAssignments = async (params?: Record<string, any>) => {
+  const response = await api.get('/contractors/assignments', { params });
+  return response.data;
+};
+
+export const getAssignmentSummary = async (params?: Record<string, any>) => {
+  const response = await api.get('/contractors/assignments/summary', { params });
   return response.data;
 };
 

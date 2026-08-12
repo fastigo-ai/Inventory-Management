@@ -22,7 +22,8 @@ import {
   deleteContractorReturn,
   bulkImportContractorReturns,
   importContractorAssignments,
-  getContractorTransactions
+  getContractorTransactions,
+  getAssignmentSummary
 } from './contractor.controller';
 
 const router = Router();
@@ -40,6 +41,8 @@ router.route('/')
 router.route('/assignments')
   .get(getAssignments)
   .post(createAssignment);
+
+router.get('/assignments/summary', getAssignmentSummary);
 
 router.route('/assignments/:id')
   .get(getAssignmentById)

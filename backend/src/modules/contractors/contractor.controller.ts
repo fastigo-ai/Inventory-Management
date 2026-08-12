@@ -94,7 +94,7 @@ export const createContractor = asyncHandler(async (req: Request, res: Response)
 });
 
 export const getAssignments = asyncHandler(async (req: Request, res: Response) => {
-  const { contractorId } = req.query;
+  const { contractorId, page, limit, search, startDate, endDate } = req.query;
   const user = (req as any).user;
   const filter: any = {};
   
@@ -102,6 +102,12 @@ export const getAssignments = asyncHandler(async (req: Request, res: Response) =
     filter.contractorId = contractorId;
   }
   
+  if (startDate || endDate) {
+    filter.date = {};
+    if (startDate) filter.date.$gte = new Date(startDate as string);
+    if (endDate) filter.date.$lte = new Date(endDate as string);
+  }
+
   const SUB_STORE_MAP: Record<string, string[]> = {
     'Solan': ['Solan', 'Kumarhatti', 'Nalagarh'],
     'Nahan': ['Nahan'],
@@ -115,11 +121,100 @@ export const getAssignments = asyncHandler(async (req: Request, res: Response) =
       filter.location = { $regex: new RegExp(`^(${allowedCircles.join('|')})$`, 'i') };
     }
   }
+
+  // Handle Search inside assignments (by AssignmentNumber or MIN No)
+  if (search) {
+    filter.assignmentNumber = { $regex: new RegExp(String(search), 'i') };
+  }
   
+  if (page && limit) {
+    const pageNumber = parseInt(page as string, 10);
+    const limitNumber = parseInt(limit as string, 10);
+    const skip = (pageNumber - 1) * limitNumber;
+
+    const total = await ContractorAssignment.countDocuments(filter);
+    const assignments = await ContractorAssignment.find(filter)
+      .populate('contractorId', 'dynamicData.displayName name farmName companyName')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNumber);
+
+    return res.status(200).json(new ApiResponse(200, {
+      assignments,
+      total,
+      page: pageNumber,
+      totalPages: Math.ceil(total / limitNumber)
+    }, 'Assignments fetched successfully'));
+  }
+
   const assignments = await ContractorAssignment.find(filter)
     .populate('contractorId', 'dynamicData.displayName name farmName companyName')
     .sort({ createdAt: -1 });
   res.status(200).json(new ApiResponse(200, assignments, 'Assignments fetched successfully'));
+});
+
+export const getAssignmentSummary = asyncHandler(async (req: Request, res: Response) => {
+  const { startDate, endDate, contractorId, search } = req.query;
+  const user = (req as any).user;
+  const filter: any = {};
+  
+  if (contractorId) filter.contractorId = new mongoose.Types.ObjectId(contractorId as string);
+  
+  if (startDate || endDate) {
+    filter.date = {};
+    if (startDate) filter.date.$gte = new Date(startDate as string);
+    if (endDate) filter.date.$lte = new Date(endDate as string);
+  }
+
+  const SUB_STORE_MAP: Record<string, string[]> = {
+    'Solan': ['Solan', 'Kumarhatti', 'Nalagarh'],
+    'Nahan': ['Nahan'],
+    'Rohru': ['Rohru'],
+    'Rampur': ['Rampur'],
+  };
+
+  if (user && user.role?.name === 'Store Manager') {
+    if (user.assignedCircle) {
+      const allowedCircles = SUB_STORE_MAP[user.assignedCircle] || [user.assignedCircle];
+      filter.location = { $regex: new RegExp(`^(${allowedCircles.join('|')})$`, 'i') };
+    }
+  }
+
+  if (search) {
+    filter.assignmentNumber = { $regex: new RegExp(String(search), 'i') };
+  }
+
+  const summary = await ContractorAssignment.aggregate([
+    { $match: filter },
+    { $unwind: "$lineItems" },
+    { 
+      $group: {
+        _id: null,
+        totalMins: { $addToSet: "$_id" },
+        activeContractors: { $addToSet: "$contractorId" },
+        totalItemsIssued: { $sum: "$lineItems.quantity" },
+        totalValue: { $sum: "$lineItems.amount" }
+      }
+    },
+    {
+      $project: {
+        _id: 0,
+        totalMins: { $size: "$totalMins" },
+        activeContractors: { $size: "$activeContractors" },
+        totalItemsIssued: 1,
+        totalValue: 1
+      }
+    }
+  ]);
+
+  const result = summary[0] || {
+    totalMins: 0,
+    activeContractors: 0,
+    totalItemsIssued: 0,
+    totalValue: 0
+  };
+
+  res.status(200).json(new ApiResponse(200, result, 'Summary fetched successfully'));
 });
 
 export const getAssignmentById = asyncHandler(async (req: Request, res: Response) => {
@@ -795,6 +890,11 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
         item = itemCache.get(iNameKey);
       }
 
+      if (!item) {
+        errors.push(`Item '${itemName || tempCode}' not found in Item Master list for MIN ${minNo}`);
+        continue;
+      }
+
       const demandQty = Number(row['DemandQty'] || row['Demand Qty'] || 0);
       const quantity = Number(row['Quantity'] || row['IssuedQty'] || row['Issued Qty'] || 0);
       if (quantity <= 0) {
@@ -806,6 +906,7 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
       const amount = Number(row['Amount'] || (quantity * rate));
       const unit = row['Unit'] || item?.unit || 'Nos';
       const hsnCode = row['HsnCode'] || item?.hsnCode || '';
+      const activity = row['Activity'] || row['activity'] || item?.dynamicData?.activity || item?.dynamicData?.Activity || '';
 
       const lineItem = {
         itemId: item?._id,
@@ -816,7 +917,8 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
         demandQty,
         quantity,
         rate,
-        amount
+        amount,
+        activity
       };
 
       if (!assignmentsByMin[minNo]) {
@@ -862,28 +964,46 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
   try {
     // Save assignments
     const payloads = Object.values(assignmentsByMin);
-    const existingMins = await ContractorAssignment.find({
-      assignmentNumber: { $in: payloads.map((p: any) => p.assignmentNumber) }
-    }).select('assignmentNumber').lean();
-    
-    const existingMinSet = new Set(existingMins.map(e => e.assignmentNumber));
-    
-    const validPayloads = [];
-    for (const payload of payloads as any[]) {
-      if (existingMinSet.has(payload.assignmentNumber)) {
-        errors.push(`Assignment/MIN ${payload.assignmentNumber} already exists. Skipping.`);
-      } else {
-        validPayloads.push(payload);
-      }
-    }
+    const overwriteExisting = req.body.overwriteExisting === 'true';
 
     try {
-      if (validPayloads.length > 0) {
-        await ContractorAssignment.insertMany(validPayloads, { session });
-        successCount += validPayloads.length;
+      if (payloads.length > 0) {
+        if (overwriteExisting) {
+          const bulkOps = payloads.map((payload: any) => ({
+            updateOne: {
+              filter: { assignmentNumber: payload.assignmentNumber },
+              update: { $set: payload },
+              upsert: true
+            }
+          }));
+
+          const result = await ContractorAssignment.bulkWrite(bulkOps, { session });
+          successCount += payloads.length;
+        } else {
+          // If not overwriting, we need to filter out existing MINs
+          const existingMins = await ContractorAssignment.find({
+            assignmentNumber: { $in: payloads.map((p: any) => p.assignmentNumber) }
+          }).select('assignmentNumber').lean();
+          
+          const existingMinSet = new Set(existingMins.map(e => e.assignmentNumber));
+          
+          const validPayloads = [];
+          for (const payload of payloads as any[]) {
+            if (existingMinSet.has(payload.assignmentNumber)) {
+              errors.push(`Assignment/MIN ${payload.assignmentNumber} already exists. Skipping.`);
+            } else {
+              validPayloads.push(payload);
+            }
+          }
+
+          if (validPayloads.length > 0) {
+            await ContractorAssignment.insertMany(validPayloads, { session });
+            successCount += validPayloads.length;
+          }
+        }
       }
     } catch (err: any) {
-      errors.push(`Error saving MINs: ${err.message}`);
+      errors.push(`Error saving/updating MINs: ${err.message}`);
     }
 
   if (errors.length > 0) {

@@ -580,7 +580,10 @@ export const bulkImportContractorReturns = asyncHandler(async (req: Request, res
 
       let item = null;
       if (tempCode) item = await Item.findOne({ itemCode: tempCode });
-      if (!item && itemName) item = await Item.findOne({ description: { $regex: new RegExp(`^${itemName}$`, 'i') } });
+      if (!item && itemName) {
+        const escapedItemName = itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        item = await Item.findOne({ description: { $regex: new RegExp(`^\\s*${escapedItemName}\\s*$`, 'i') } });
+      }
 
       const lineItem = {
         itemId: item ? item._id : undefined,
@@ -714,7 +717,8 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
         item = await Item.findOne({ itemCode: tempCode });
       }
       if (!item && itemName) {
-        item = await Item.findOne({ description: { $regex: new RegExp(`^${itemName}$`, 'i') } });
+        const escapedItemName = itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        item = await Item.findOne({ description: { $regex: new RegExp(`^\\s*${escapedItemName}\\s*$`, 'i') } });
       }
 
       const demandQty = Number(row['DemandQty'] || row['Demand Qty'] || 0);

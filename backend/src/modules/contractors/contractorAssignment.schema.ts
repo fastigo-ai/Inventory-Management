@@ -73,10 +73,10 @@ const assignmentLineItemSchema = new Schema<IAssignmentLineItem>({
 const contractorAssignmentSchema = new Schema<IContractorAssignment>(
   {
     contractorId: { type: Schema.Types.ObjectId, ref: 'Contractor', required: true, index: true },
-    location: { type: String },
+    location: { type: String, index: true },
     assignmentNumber: { type: String, required: true, unique: true },
     orderNumber: { type: String },
-    date: { type: Date, required: true, default: Date.now },
+    date: { type: Date, required: true, default: Date.now, index: true },
 
     // MIN Specific Fields
     demandNo: { type: String },

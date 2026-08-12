@@ -118,7 +118,8 @@ export const getAssignments = asyncHandler(async (req: Request, res: Response) =
   if (user && user.role?.name === 'Store Manager') {
     if (user.assignedCircle) {
       const allowedCircles = SUB_STORE_MAP[user.assignedCircle] || [user.assignedCircle];
-      filter.location = { $regex: new RegExp(`^(${allowedCircles.join('|')})$`, 'i') };
+      // Use $in directly without regex for exact matches, much faster
+      filter.location = { $in: allowedCircles.map(c => new RegExp(`^${c}$`, 'i')) };
     }
   }
 
@@ -176,7 +177,8 @@ export const getAssignmentSummary = asyncHandler(async (req: Request, res: Respo
   if (user && user.role?.name === 'Store Manager') {
     if (user.assignedCircle) {
       const allowedCircles = SUB_STORE_MAP[user.assignedCircle] || [user.assignedCircle];
-      filter.location = { $regex: new RegExp(`^(${allowedCircles.join('|')})$`, 'i') };
+      // Use $in directly without regex for exact matches, much faster
+      filter.location = { $in: allowedCircles.map(c => new RegExp(`^${c}$`, 'i')) };
     }
   }
 
@@ -186,20 +188,19 @@ export const getAssignmentSummary = asyncHandler(async (req: Request, res: Respo
 
   const summary = await ContractorAssignment.aggregate([
     { $match: filter },
-    { $unwind: "$lineItems" },
     { 
       $group: {
         _id: null,
-        totalMins: { $addToSet: "$_id" },
+        totalMins: { $sum: 1 },
         activeContractors: { $addToSet: "$contractorId" },
-        totalItemsIssued: { $sum: "$lineItems.quantity" },
-        totalValue: { $sum: "$lineItems.amount" }
+        totalItemsIssued: { $sum: { $sum: "$lineItems.quantity" } },
+        totalValue: { $sum: "$total" }
       }
     },
     {
       $project: {
         _id: 0,
-        totalMins: { $size: "$totalMins" },
+        totalMins: 1,
         activeContractors: { $size: "$activeContractors" },
         totalItemsIssued: 1,
         totalValue: 1

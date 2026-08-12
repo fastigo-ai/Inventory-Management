@@ -1358,6 +1358,19 @@ export async function reverseInwardStockUpdate(entryId: string) {
 }
 
 
+const parseCsvDate = (dateStr: string): Date | undefined => {
+  if (!dateStr) return undefined;
+  let d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) {
+    const parts = dateStr.split(/[-/.]/);
+    if (parts.length === 3) {
+      if (parts[2].length === 4) d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+      else if (parts[2].length === 2) d = new Date(`20${parts[2]}-${parts[1]}-${parts[0]}`);
+    }
+  }
+  return Number.isNaN(d.getTime()) ? undefined : d;
+};
+
 export const importStoreTransfers = asyncHandler(async (req: Request, res: Response) => {
   if (!req.file) {
     throw new ApiError(400, 'Please upload a CSV file');
@@ -1438,7 +1451,7 @@ export const importStoreTransfers = asyncHandler(async (req: Request, res: Respo
 
       if (!transfersByDoc[docKey]) {
         transfersByDoc[docKey] = {
-          requestDate: row['Date'] ? new Date(row['Date']) : new Date(),
+          requestDate: parseCsvDate(row['Date']) || new Date(),
           status: 'IN_TRANSIT',
           fromStore: row['From'] || row['FromStore'] || 'Unknown Store',
           toStore: row['To'] || row['ToStore'] || 'Unknown Store',
@@ -1447,10 +1460,10 @@ export const importStoreTransfers = asyncHandler(async (req: Request, res: Respo
           
           minBookNo: row['MIN BOOK No'] || row['MinBookNo'] || '',
           minNo: row['MIN No'] || row['MinNo'] || '',
-          minDate: row['MIN Date'] ? new Date(row['MIN Date']) : undefined,
+          minDate: parseCsvDate(row['MIN Date']),
           
           challanNo: row['Challan No'] || row['ChallanNo'] || '',
-          challanDate: row['Challan Date'] ? new Date(row['Challan Date']) : undefined,
+          challanDate: parseCsvDate(row['Challan Date']),
           
           transportName: row['Transport'] || row['TransportName'] || '',
           truckNumber: row['Truck No'] || row['TruckNumber'] || '',
@@ -1591,7 +1604,7 @@ export const importReceivedStoreTransfers = asyncHandler(async (req: Request, re
 
       if (!transfersByDoc[docKey]) {
         transfersByDoc[docKey] = {
-          requestDate: row['Date of Received'] ? new Date(row['Date of Received']) : new Date(),
+          requestDate: parseCsvDate(row['Date of Received']) || new Date(),
           status: 'RECEIVED',
           fromStore: row['From'] || 'Unknown Store',
           toStore: row['To'] || 'Unknown Store',
@@ -1600,15 +1613,15 @@ export const importReceivedStoreTransfers = asyncHandler(async (req: Request, re
           
           minBookNo: row['MIN BOOK No.'] || row['MIN BOOK No'] || '',
           minNo: row['MIN No.'] || row['MIN No'] || '',
-          minDate: row['MIN Date'] ? new Date(row['MIN Date']) : undefined,
+          minDate: parseCsvDate(row['MIN Date']),
           
           challanNo: row['Challan No'] || '',
-          challanDate: row['Challan Date'] ? new Date(row['Challan Date']) : undefined,
+          challanDate: parseCsvDate(row['Challan Date']),
           
           transportName: row['Transport'] || '',
           truckNumber: row['Truck No'] || '',
           grNumber: row['GR No'] || '',
-          grDate: row['Date'] ? new Date(row['Date']) : undefined,
+          grDate: row['Date'] ? parseCsvDate(row['Date']) : undefined,
           driverName: row['Driver Name'] || '',
           driverMobile: row['Mobile No.'] || '',
           remarks: row['Remark'] || '',

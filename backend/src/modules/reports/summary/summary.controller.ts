@@ -10,7 +10,7 @@ import { asyncHandler } from '../../../core/utils/asyncHandler';
 import { ApiResponse } from '../../../core/utils/ApiResponse';
 
 export const getSummaries = asyncHandler(async (req: Request, res: Response) => {
-  const { circle, package: pkg, itemName, description, loaSerialNo, tempCode, page = '1', limit = '50', companyId } = req.query;
+  const { circle, package: pkg, itemName, description, loaSerialNo, tempCode, page = '1', limit = '50', companyId, sortField, sortOrder } = req.query;
 
   const filter: any = {};
   if (circle) filter.circle = circle;
@@ -25,6 +25,13 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
   const pageNum = parseInt(page as string);
   const limitNum = parseInt(limit as string);
   const skip = (pageNum - 1) * limitNum;
+
+  let sortObj: any = { itemName: 1, circle: 1, package: 1 };
+  if (sortField) {
+    const field = sortField as string;
+    const order = sortOrder === 'desc' ? -1 : 1;
+    sortObj = { [field]: order };
+  }
 
   const totalAggregation = await ItemSummary.aggregate([
     { $match: filter },
@@ -105,7 +112,29 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
         billedQty: 1
       }
     },
-    { $sort: { itemName: 1, circle: 1, package: 1 } },
+    { $addFields: {
+        balLoaBilled: { $subtract: [{ $ifNull: ["$loaQty", 0] }, { $ifNull: ["$billedQty", 0] }] },
+        balBomBilled: { $subtract: [{ $ifNull: ["$bomQty", 0] }, { $ifNull: ["$billedQty", 0] }] },
+        goodDispatch: { $ifNull: ["$actQty", 0] },
+        balDispatchVsDi: { $subtract: [{ $ifNull: ["$diQty", 0] }, { $ifNull: ["$actQty", 0] }] },
+        diBalAsPerLoa: { $subtract: [{ $ifNull: ["$loaQty", 0] }, { $ifNull: ["$bomQty", 0] }] },
+        diBalAsPerBom: { $subtract: [{ $ifNull: ["$bomQty", 0] }, { $ifNull: ["$diQty", 0] }] },
+        balDiIssuedAsPerLoa: { $subtract: [{ $ifNull: ["$loaQty", 0] }, { $ifNull: ["$diQty", 0] }] },
+        balDiIssuedAsPerBom: { $subtract: [{ $ifNull: ["$bomQty", 0] }, { $ifNull: ["$diQty", 0] }] },
+        pendingInvoice: { $subtract: [{ $ifNull: ["$actQty", 0] }, { $ifNull: ["$billedQty", 0] }] },
+        remainingLoa: { $subtract: [{ $ifNull: ["$loaQty", 0] }, { $ifNull: ["$billedQty", 0] }] },
+        remainingBom: { $subtract: [{ $ifNull: ["$bomQty", 0] }, { $ifNull: ["$actQty", 0] }] },
+        variance: { $subtract: [{ $ifNull: ["$diQty", 0] }, { $ifNull: ["$actQty", 0] }] },
+        completionPercent: { 
+          $cond: [
+            { $gt: ["$loaQty", 0] },
+            { $multiply: [{ $divide: [{ $ifNull: ["$actQty", 0] }, "$loaQty"] }, 100] },
+            0
+          ]
+        }
+      }
+    },
+    { $sort: sortObj },
     { $skip: skip },
     { $limit: limitNum }
   ]);

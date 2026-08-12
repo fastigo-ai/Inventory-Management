@@ -180,11 +180,10 @@ export default function ContractorBillingDashboard() {
         {activeTab === 'bills' && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
             <DataTableTopControls
-              searchQuery={invSearchQuery}
-              onSearchChange={setInvSearchQuery}
-              rowsPerPage={invRowsPerPage}
-              onRowsPerPageChange={setInvRowsPerPage}
-              searchPlaceholder="Search bills..."
+              searchTerm={invSearchQuery}
+              setSearchTerm={setInvSearchQuery}
+              pageSize={invRowsPerPage}
+              setPageSize={setInvRowsPerPage}
             />
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 text-sm">
@@ -263,9 +262,9 @@ export default function ContractorBillingDashboard() {
               <DataTableBottomControls
                 currentPage={invCurrentPage}
                 totalPages={invTotalPages}
-                onPageChange={setInvCurrentPage}
+                setCurrentPage={setInvCurrentPage}
                 totalItems={invTotalItems}
-                rowsPerPage={invRowsPerPage}
+                pageSize={invRowsPerPage}
               />
             )}
           </div>
@@ -274,11 +273,10 @@ export default function ContractorBillingDashboard() {
         {activeTab === 'handover' && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
             <DataTableTopControls
-              searchQuery={hoSearchQuery}
-              onSearchChange={setHoSearchQuery}
-              rowsPerPage={hoRowsPerPage}
-              onRowsPerPageChange={setHoRowsPerPage}
-              searchPlaceholder="Search certificates..."
+              searchTerm={hoSearchQuery}
+              setSearchTerm={setHoSearchQuery}
+              pageSize={hoRowsPerPage}
+              setPageSize={setHoRowsPerPage}
             />
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 text-sm">
@@ -356,9 +354,9 @@ export default function ContractorBillingDashboard() {
               <DataTableBottomControls
                 currentPage={hoCurrentPage}
                 totalPages={hoTotalPages}
-                onPageChange={setHoCurrentPage}
+                setCurrentPage={setHoCurrentPage}
                 totalItems={hoTotalItems}
-                rowsPerPage={hoRowsPerPage}
+                pageSize={hoRowsPerPage}
               />
             )}
           </div>

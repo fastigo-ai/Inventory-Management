@@ -10,6 +10,8 @@ export interface ItemSummaryFilter {
   companyId?: string;
   page?: number;
   limit?: number;
+  sortField?: string;
+  sortOrder?: string;
 }
 
 export const getItemSummaries = async (filters: ItemSummaryFilter) => {

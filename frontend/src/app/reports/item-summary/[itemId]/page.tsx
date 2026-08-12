@@ -12,7 +12,7 @@ export default function ItemDetail({ params }: { params: { itemId: string } }) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await api.get(`/reports/summary/item-summary/${itemId}`);
+        const res = await api.get(`/reports/item-summary/${itemId}`);
         setData(res.data.data || { pos: [], dis: [], invoices: [], mins: [] });
       } catch (err) {
         console.error(err);

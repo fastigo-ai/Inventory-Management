@@ -14,6 +14,7 @@ interface ContractorIssueImportModalProps {
 export function ContractorIssueImportModal({ isOpen, onClose, onSuccess }: ContractorIssueImportModalProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,23 +29,44 @@ export function ContractorIssueImportModal({ isOpen, onClose, onSuccess }: Contr
   const handleUpload = async () => {
     if (!file) return;
     setIsUploading(true);
+    setUploadProgress(0);
     setError(null);
     setResult(null);
 
+    // Simulate progress for the entire upload -> process -> save workflow
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev < 40) return prev + 10; // Uploading phase
+        if (prev < 70) return prev + 5;  // Processing phase
+        if (prev < 95) return prev + 1;  // Saving phase
+        return prev;
+      });
+    }, 300);
+
     try {
+      // Execute the actual API call
       const res = await importContractorAssignments(file);
       
-      if (res.data.successCount > 0) {
-        toast.success(`Imported successfully! ${res.data.successCount} Issues created.`);
-        onSuccess();
-        
-        if (!res.data.errors || res.data.errors.length === 0) {
-           onClose();
-           return;
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      
+      // Wait a tiny bit to show the 100% completion before showing results
+      setTimeout(() => {
+        if (res.data.successCount > 0) {
+          toast.success(`Imported successfully! ${res.data.successCount} Issues created.`);
+          onSuccess();
+          
+          if (!res.data.errors || res.data.errors.length === 0) {
+             onClose();
+             return;
+          }
         }
-      }
-      setResult(res.data);
+        setResult(res.data);
+        setIsUploading(false);
+      }, 500);
     } catch (err: any) {
+      clearInterval(progressInterval);
+      setIsUploading(false);
       const responseData = err.response?.data;
       if (responseData?.data?.errors) {
         setResult({ successCount: 0, errors: responseData.data.errors });
@@ -52,16 +74,14 @@ export function ContractorIssueImportModal({ isOpen, onClose, onSuccess }: Contr
       } else {
         setError(responseData?.message || err.message || "Failed to upload file");
       }
-    } finally {
-      setIsUploading(false);
     }
   };
 
   const downloadSampleCsv = () => {
-    const headers = "MinNo,Date,ContractorName,DemandNo,DemandBookNo,DemandDate,ContractorFarmName,SupervisorEngineer,Division,SubDivision,SubStation,Feeder,VehicleNo,MinBookNo,MinDate,IssuedTfsSrNo,Remarks,ItemName,TempCode,Unit,HsnCode,DemandQty,IssuedQty,Rate,Amount\n";
-    const sampleRow1 = "MIN-5001,2026-07-24,Contractor X,DMD-101,DB-1,2026-07-20,Farm A,Engr Smith,Div 1,Sub Div 1,Station Alpha,Feeder 1,MH-01-XX-1111,MB-1,2026-07-24,,Urgent issue,Optical Fiber,TC-1,Nos,8544,20,20,500,10000\n";
-    const sampleRow2 = "MIN-5001,2026-07-24,Contractor X,DMD-101,DB-1,2026-07-20,Farm A,Engr Smith,Div 1,Sub Div 1,Station Alpha,Feeder 1,MH-01-XX-1111,MB-1,2026-07-24,,Urgent issue,Router,TC-2,Nos,8517,5,5,2000,10000\n";
-    const sampleRow3 = "MIN-5002,2026-07-25,Contractor Y,DMD-102,DB-1,2026-07-21,Farm B,Engr Jones,Div 2,Sub Div 2,Station Beta,Feeder 2,MH-02-YY-2222,MB-1,2026-07-25,TFS-999,,Switch,TC-3,Nos,8517,2,2,1500,3000\n";
+    const headers = "MinNo,Date,ContractorName,Circle,DemandNo,DemandBookNo,DemandDate,ContractorFarmName,SupervisorEngineer,Division,SubDivision,SubStation,Feeder,VehicleNo,MinBookNo,MinDate,IssuedTfsSrNo,Remarks,ItemName,TempCode,Unit,HsnCode,DemandQty,IssuedQty,Rate,Amount\n";
+    const sampleRow1 = "MIN-5001,2026-07-24,Contractor X,Solan,DMD-101,DB-1,2026-07-20,Farm A,Engr Smith,Div 1,Sub Div 1,Station Alpha,Feeder 1,MH-01-XX-1111,MB-1,2026-07-24,,Urgent issue,GI STAY WIRE (7/3.15 MM),94,Kg,8544,20,20,500,10000\n";
+    const sampleRow2 = "MIN-5001,2026-07-24,Contractor X,Solan,DMD-101,DB-1,2026-07-20,Farm A,Engr Smith,Div 1,Sub Div 1,Station Alpha,Feeder 1,MH-01-XX-1111,MB-1,2026-07-24,,Urgent issue,Router,TC-2,Nos,8517,5,5,2000,10000\n";
+    const sampleRow3 = "MIN-5002,2026-07-25,Contractor Y,Nahan,DMD-102,DB-1,2026-07-21,Farm B,Engr Jones,Div 2,Sub Div 2,Station Beta,Feeder 2,MH-02-YY-2222,MB-1,2026-07-25,TFS-999,,Switch,TC-3,Nos,8517,2,2,1500,3000\n";
     const csvContent = headers + sampleRow1 + sampleRow2 + sampleRow3;
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -76,6 +96,7 @@ export function ContractorIssueImportModal({ isOpen, onClose, onSuccess }: Contr
 
   const reset = () => {
     setFile(null);
+    setUploadProgress(0);
     setResult(null);
     setError(null);
   };
@@ -163,23 +184,45 @@ export function ContractorIssueImportModal({ isOpen, onClose, onSuccess }: Contr
               )}
             </div>
           )}
+          
+          {isUploading && (
+            <div className="mt-4">
+                <div className="flex justify-between text-xs text-slate-500 mb-1 font-medium">
+                  <span>
+                    {uploadProgress < 40 ? 'Uploading file...' : 
+                     uploadProgress < 70 ? 'Validating data...' : 
+                     uploadProgress < 100 ? 'Saving to database...' : 'Complete!'}
+                  </span>
+                  <span>{uploadProgress}%</span>
+                </div>
+              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                <div 
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                ></div>
+              </div>
+              </div>
+            )}
         </div>
 
-        <div className="flex justify-end gap-3 mt-2">
-          {result ? (
-            <Button onClick={onClose} variant="outline" className="w-full">Close</Button>
-          ) : (
-            <>
-              <Button onClick={onClose} variant="outline" disabled={isUploading}>Cancel</Button>
-              <Button 
-                onClick={handleUpload} 
-                disabled={!file || isUploading}
-                className="bg-[#0076f2] hover:bg-[#0060c5] text-white"
-              >
-                {isUploading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Uploading...</> : 'Import Now'}
-              </Button>
-            </>
-          )}
+        <div className="flex justify-end gap-3 mt-4">
+          <Button variant="outline" onClick={onClose} disabled={isUploading}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleUpload} 
+            disabled={!file || isUploading}
+            className="bg-[#0076f2] hover:bg-[#0060c5] text-white"
+          >
+            {isUploading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Uploading...
+              </>
+            ) : (
+              "Import Now"
+            )}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

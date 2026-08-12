@@ -24,16 +24,19 @@ export const importContractors = async (file: File) => {
   const formData = new FormData();
   formData.append('file', file);
   const response = await api.post('/contractors/import', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 120000 // 2 minutes for bulk import
   });
   return response.data;
 };
 
-export const importContractorAssignments = async (file: File) => {
+export const importContractorAssignments = async (file: File, onUploadProgress?: (progressEvent: any) => void) => {
   const formData = new FormData();
   formData.append('file', file);
   const response = await api.post('/contractors/assignments/import', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 120000, // 2 minutes for bulk import
+    onUploadProgress
   });
   return response.data;
 };

@@ -56,7 +56,7 @@ export default function StoreContractorIssuePage() {
       <div className="px-8 py-6">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900">Contractor Issues</h1>
+            <h1 className="text-2xl font-semibold text-slate-900">MIN (Material Issue Notes)</h1>
             <p className="text-sm text-slate-500 mt-1">Issue stock to contractors from your local inventory</p>
           </div>
           <div className="flex gap-3">

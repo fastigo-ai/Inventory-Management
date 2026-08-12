@@ -126,23 +126,25 @@ export default function StoreInwardRegisterPage() {
               <table className="w-full text-sm text-left">
                 <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase">
                   <tr>
-                    <th className="px-6 py-4">Inward ID</th>
-                    <th className="px-6 py-4">Date</th>
-                    <th className="px-6 py-4">Vendor</th>
-                    <th className="px-6 py-4">PO Number</th>
-                    <th className="px-6 py-4">PI Number</th>
-                    <th className="px-6 py-4">Circle</th>
-                    <th className="px-6 py-4">Status</th>
+                    <th className="px-4 py-4">Inward ID</th>
+                    <th className="px-4 py-4">Date</th>
+                    <th className="px-4 py-4">Vendor & PI</th>
+                    <th className="px-4 py-4">Item Details</th>
+                    <th className="px-4 py-4 text-right">Challan Qty</th>
+                    <th className="px-4 py-4 text-right">Recv Qty</th>
+                    <th className="px-4 py-4 text-right">Accpt Qty</th>
+                    <th className="px-4 py-4 text-right">Amount</th>
+                    <th className="px-4 py-4">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {loading ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-8 text-center text-slate-500">Loading...</td>
+                      <td colSpan={9} className="px-6 py-8 text-center text-slate-500">Loading...</td>
                     </tr>
                   ) : paginatedData.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-12 text-center">
+                      <td colSpan={9} className="px-6 py-12 text-center">
                         <FileText className="w-8 h-8 text-slate-300 mx-auto mb-3" />
                         <p className="text-slate-500 font-medium">No inward entries found for your search.</p>
                       </td>
@@ -154,14 +156,24 @@ export default function StoreInwardRegisterPage() {
                         className="hover:bg-slate-50 transition-colors cursor-pointer"
                         onClick={() => window.location.href = `/store/inventory/inward/entry/${entry._id}`}
                       >
-                        <td className="px-6 py-4 font-medium text-blue-600">{entry.inwardId}</td>
-                        <td className="px-6 py-4">{new Date(entry.createdAt).toLocaleDateString()}</td>
-                        <td className="px-6 py-4">{entry.vendorName || '-'}</td>
-                        <td className="px-6 py-4">{entry.poNumber || '-'}</td>
-                        <td className="px-6 py-4 font-medium">{entry.purchaseInvoiceId?.invoiceNumber || '-'}</td>
-                        <td className="px-6 py-4">{entry.circle || '-'}</td>
-                        <td className="px-6 py-4">
-                          <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide ${
+                        <td className="px-4 py-4 font-medium text-blue-600 whitespace-nowrap">{entry.inwardId}</td>
+                        <td className="px-4 py-4 whitespace-nowrap text-slate-600">{new Date(entry.createdAt).toLocaleDateString()}</td>
+                        <td className="px-4 py-4 min-w-[200px]">
+                          <div className="font-semibold text-slate-800">{entry.vendorName || '-'}</div>
+                          <div className="text-xs text-slate-500 mt-0.5">PI: {entry.purchaseInvoiceId?.invoiceNumber || '-'}</div>
+                        </td>
+                        <td className="px-4 py-4 max-w-[250px] truncate" title={entry.description}>
+                          <div className="font-semibold text-slate-800">{entry.tempCode || '-'}</div>
+                          <div className="text-xs text-slate-500 truncate mt-0.5">{entry.description || '-'}</div>
+                        </td>
+                        <td className="px-4 py-4 text-right font-medium text-slate-700">{entry.challanQty || 0}</td>
+                        <td className="px-4 py-4 text-right font-medium text-slate-700">{entry.totalQty || 0}</td>
+                        <td className="px-4 py-4 text-right font-bold text-emerald-600">{entry.invoiceQty || 0}</td>
+                        <td className="px-4 py-4 text-right font-semibold text-slate-800 whitespace-nowrap">
+                          ₹{(entry.amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide whitespace-nowrap ${
                             entry.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-700' :
                             entry.status === 'INWARDED' ? 'bg-blue-100 text-blue-700' :
                             entry.status === 'APPROVED' ? 'bg-indigo-100 text-indigo-700' :

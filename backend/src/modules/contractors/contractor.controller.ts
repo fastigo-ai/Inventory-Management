@@ -670,6 +670,21 @@ export const bulkImportContractorReturns = asyncHandler(async (req: Request, res
   );
 });
 
+const parseCsvDate = (dateStr: string): Date | undefined => {
+  if (!dateStr) return undefined;
+  let d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) {
+    const parts = dateStr.split(/[-/]/);
+    if (parts.length === 3) {
+      // Handle DD-MM-YYYY or DD/MM/YYYY
+      if (parts[2].length === 4) {
+        d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+      }
+    }
+  }
+  return Number.isNaN(d.getTime()) ? undefined : d;
+};
+
 export const importContractorAssignments = asyncHandler(async (req: Request, res: Response) => {
   if (!req.file) {
     throw new ApiError(400, 'Please upload a CSV file');
@@ -683,6 +698,32 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
   // Group rows by MinNo or AssignmentNumber
   const assignmentsByMin: Record<string, any> = {};
   const itemCache = new Map();
+
+  // Caches to prevent massive DB query roundtrips
+  const contractorCache = new Map<string, any>();
+  const itemCache = new Map<string, any>();
+  
+  // Pre-fetch all Contractors
+  const allContractors = await Contractor.find({}).lean();
+  for (const c of allContractors) {
+    if (c.name) contractorCache.set(c.name.replace(/\s+/g, '').toLowerCase(), c);
+    if (c.dynamicData?.displayName) contractorCache.set(c.dynamicData.displayName.replace(/\s+/g, '').toLowerCase(), c);
+    if (c.dynamicData?.companyName) contractorCache.set(c.dynamicData.companyName.replace(/\s+/g, '').toLowerCase(), c);
+  }
+
+  // Pre-fetch all Items
+  const allItems = await Item.find({}).lean();
+  for (const i of allItems) {
+    if (!i.dynamicData) continue;
+    const tempCode = (i.dynamicData.tempCode || '').toString().trim().toLowerCase();
+    const name = (i.dynamicData.name || '').toString().trim().toLowerCase();
+    const desc = (i.dynamicData.description || '').toString().trim().toLowerCase();
+    const circle = (i.dynamicData.circle || '').toString().trim().toLowerCase();
+    
+    if (tempCode && circle) itemCache.set(`tc_${tempCode}_${circle}`, i);
+    if (name && circle) itemCache.set(`in_${name}_${circle}`, i);
+    if (desc && circle) itemCache.set(`in_${desc}_${circle}`, i);
+  }
 
   for await (const row of parser) {
     try {
@@ -699,12 +740,9 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
       }
 
       // Find Contractor
-      const contractor = await Contractor.findOne({ 
-        $or: [
-          { name: { $regex: new RegExp(`^${contractorName}$`, 'i') } },
-          { 'dynamicData.displayName': { $regex: new RegExp(`^${contractorName}$`, 'i') } }
-        ]
-      });
+      const cleanContractorName = contractorName.trim();
+      const contractorKey = cleanContractorName.replace(/\s+/g, '').toLowerCase();
+      let contractor = contractorCache.get(contractorKey);
 
       if (!contractor) {
         errors.push(`Contractor '${contractorName}' not found for MIN ${minNo}`);
@@ -713,26 +751,30 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
 
       const itemName = row['ItemName'] || row['Description of Material'] || '';
       const tempCode = row['TempCode'] || row['Temp Code'] || '';
+      const circle = row['Circle'] || row['circle'] || '';
       
       if (!itemName && !tempCode) {
         errors.push(`Row missing ItemName/TempCode for MIN ${minNo}`);
         continue;
       }
+      if (!circle) {
+        errors.push(`Row missing Circle for MIN ${minNo}`);
+        continue;
+      }
 
       // Find Item
       let item = null;
-      const cacheKey = `${tempCode}_${itemName}`;
-      if (itemCache.has(cacheKey)) {
-        item = itemCache.get(cacheKey);
-      } else {
-        if (tempCode) {
-          item = await Item.findOne({ itemCode: tempCode });
-        }
-        if (!item && itemName) {
-          const escapedItemName = itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          item = await Item.findOne({ description: { $regex: new RegExp(`^\\s*${escapedItemName}\\s*$`, 'i') } });
-        }
-        if (item) itemCache.set(cacheKey, item);
+      const cleanCircle = circle.trim();
+      if (tempCode) {
+        const cleanTempCode = tempCode.trim();
+        const tCodeKey = `tc_${cleanTempCode.toLowerCase()}_${cleanCircle.toLowerCase()}`;
+        item = itemCache.get(tCodeKey);
+      }
+      
+      if (!item && itemName) {
+        const cleanItemName = itemName.trim();
+        const iNameKey = `in_${cleanItemName.toLowerCase()}_${cleanCircle.toLowerCase()}`;
+        item = itemCache.get(iNameKey);
       }
 
       const demandQty = Number(row['DemandQty'] || row['Demand Qty'] || 0);
@@ -764,10 +806,10 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
           contractorId: contractor._id,
           location: 'Store',
           assignmentNumber: minNo,
-          date: row['Date'] ? new Date(row['Date']) : new Date(),
+          date: parseCsvDate(row['Date']) || new Date(),
           demandNo: row['DemandNo'] || '',
           demandBookNo: row['DemandBookNo'] || '',
-          demandDate: row['DemandDate'] ? new Date(row['DemandDate']) : undefined,
+          demandDate: parseCsvDate(row['DemandDate']),
           contractorFarmName: row['ContractorFarmName'] || '',
           supervisorEngineer: row['SupervisorEngineer'] || '',
           division: row['Division'] || '',
@@ -777,7 +819,7 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
           vehicleNo: row['VehicleNo'] || '',
           minNo: minNo,
           minBookNo: row['MinBookNo'] || '',
-          minDate: row['MinDate'] ? new Date(row['MinDate']) : new Date(),
+          minDate: parseCsvDate(row['MinDate']) || new Date(),
           issuedTfsSrNo: row['IssuedTfsSrNo'] || '',
           remarks: row['Remarks'] || '',
           subTotal: 0,
@@ -801,22 +843,30 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
 
   try {
     // Save assignments
-    for (const minNo of Object.keys(assignmentsByMin)) {
-    const payload = assignmentsByMin[minNo];
+    const payloads = Object.values(assignmentsByMin);
+    const existingMins = await ContractorAssignment.find({
+      assignmentNumber: { $in: payloads.map((p: any) => p.assignmentNumber) }
+    }).select('assignmentNumber').lean();
     
-    const existing = await ContractorAssignment.findOne({ assignmentNumber: payload.assignmentNumber });
-    if (existing) {
-      errors.push(`Assignment/MIN ${payload.assignmentNumber} already exists. Skipping.`);
-      continue;
+    const existingMinSet = new Set(existingMins.map(e => e.assignmentNumber));
+    
+    const validPayloads = [];
+    for (const payload of payloads as any[]) {
+      if (existingMinSet.has(payload.assignmentNumber)) {
+        errors.push(`Assignment/MIN ${payload.assignmentNumber} already exists. Skipping.`);
+      } else {
+        validPayloads.push(payload);
+      }
     }
 
     try {
-      await ContractorAssignment.create([payload], { session });
-      successCount++;
+      if (validPayloads.length > 0) {
+        await ContractorAssignment.insertMany(validPayloads, { session });
+        successCount += validPayloads.length;
+      }
     } catch (err: any) {
-      errors.push(`Error saving MIN ${minNo}: ${err.message}`);
+      errors.push(`Error saving MINs: ${err.message}`);
     }
-  }
 
   if (errors.length > 0) {
     await session.abortTransaction();

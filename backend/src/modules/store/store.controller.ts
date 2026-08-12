@@ -1587,7 +1587,7 @@ export const importReceivedStoreTransfers = asyncHandler(async (req: Request, re
          continue;
       }
 
-      const receivedQty = Number(row['Received Qty'] || 0);
+      const receivedQty = Number(row['Transfer Qty'] || row['Received Qty'] || 0);
 
       if (receivedQty <= 0) {
         errors.push(`Row has zero Received Qty for Transfer ${docKey}`);
@@ -1595,6 +1595,9 @@ export const importReceivedStoreTransfers = asyncHandler(async (req: Request, re
       }
 
       const unit = row['Unit'] || item?.unit || 'Nos';
+      const loaSerialNo = row['LOA Serial No'] || row['LOASerialNo'] || row['Loa Serial No'] || '';
+      const rawLoaQty = row['LOA Qty'] || row['LOA Quantity'] || row['LoaQty'];
+      const loaQty = rawLoaQty ? Number(rawLoaQty) : undefined;
 
       const lineItem = {
         itemId: item._id,
@@ -1603,7 +1606,9 @@ export const importReceivedStoreTransfers = asyncHandler(async (req: Request, re
         unit,
         requestedQty: receivedQty,
         dispatchedQty: receivedQty,
-        receivedQty
+        receivedQty,
+        loaSerialNo,
+        loaQty
       };
 
       if (!transfersByDoc[docKey]) {

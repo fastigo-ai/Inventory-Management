@@ -600,10 +600,10 @@ export const bulkImportContractorReturns = asyncHandler(async (req: Request, res
       if (itemCache.has(cacheKey)) {
         item = itemCache.get(cacheKey);
       } else {
-        if (tempCode) item = await Item.findOne({ itemCode: tempCode });
+        if (tempCode) item = await Item.findOne({ 'dynamicData.tempCode': tempCode });
         if (!item && itemName) {
           const escapedItemName = itemName.replace(new RegExp('[.*+?^${}()|\\\\[\\\\]\\\\\\\\]', 'g'), '\\$&');
-          item = await Item.findOne({ description: { $regex: new RegExp(`^\\s*${escapedItemName}\\s*$`, 'i') } });
+          item = await Item.findOne({ 'dynamicData.description': { $regex: new RegExp(`^\\s*${escapedItemName}\\s*$`, 'i') } });
         }
         if (item) itemCache.set(cacheKey, item);
       }

@@ -29,7 +29,9 @@
     "mongoose": "^9.7.4",
     "morgan": "^1.11.0",
     "multer": "^2.2.0",
-    "streamifier": "^0.1.1"
+    "streamifier": "^0.1.1",
+    "string-similarity": "^4.0.4",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
@@ -43,6 +45,7 @@
     "@types/multer": "^2.2.0",
     "@types/node": "^26.1.1",
     "@types/streamifier": "^0.1.2",
+    "@types/string-similarity": "^4.0.2",
     "@types/supertest": "^7.2.1",
     "cross-env": "^10.1.0",
     "eslint": "^10.7.0",

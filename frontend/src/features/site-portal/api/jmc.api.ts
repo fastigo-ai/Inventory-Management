@@ -19,3 +19,12 @@ export const updateJmc = async (id: string, data: any) => {
 export const deleteJmc = async (id: string) => {
   return api.delete(`/jmc/${id}`);
 };
+
+export const uploadJmcExcel = async (formData: FormData) => {
+  const response = await api.post('/jmc/upload', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};

@@ -7,10 +7,12 @@ import { useClientTable } from "@/shared/hooks/useClientTable";
 import { DataTableTopControls, DataTableBottomControls } from "@/shared/components/DataTableControls";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { JmcBulkUploadModal } from "@/features/site-portal/components/JmcBulkUploadModal";
 
 export default function JmcRegisterPage() {
   const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -47,13 +49,18 @@ export default function JmcRegisterPage() {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-slate-800">JMC Register</h1>
           
-          <Button 
-            onClick={() => router.push('/site-portal/jmc-register/new')}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            New JMC Entry
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setUploadModalOpen(true)}>
+              <FileText className="mr-2 h-4 w-4" /> Bulk Upload JMC
+            </Button>
+            <Button 
+              onClick={() => router.push('/site-portal/jmc-register/new')}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              New JMC Entry
+            </Button>
+          </div>
         </div>
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
           <DataTableTopControls
@@ -128,6 +135,12 @@ export default function JmcRegisterPage() {
             />
         </div>
       </div>
+
+      <JmcBulkUploadModal
+        open={uploadModalOpen}
+        onOpenChange={setUploadModalOpen}
+        onSuccess={fetchJmcs}
+      />
     </div>
   );
 }

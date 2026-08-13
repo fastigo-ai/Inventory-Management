@@ -23,6 +23,7 @@ export default function Home() {
   );
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [siteFilters, setSiteFilters] = useState<{ contractorId?: string; tempCode?: string }>({});
   
   const [summaryData, setSummaryData] = useState<any[]>([]);
   const [summaryLoading, setSummaryLoading] = useState(false);
@@ -35,7 +36,7 @@ export default function Home() {
           let res;
           if (isSitePortal) {
             const { getSitePortalDashboardSummary } = await import('@/features/dashboard/api/dashboard.api');
-            res = await getSitePortalDashboardSummary();
+            res = await getSitePortalDashboardSummary(siteFilters);
           } else {
             res = await getDashboardSummary();
           }
@@ -50,7 +51,7 @@ export default function Home() {
       };
       fetchData();
     }
-  }, [isStoreManager, isSitePortal]);
+  }, [isStoreManager, isSitePortal, siteFilters]);
 
   useEffect(() => {
     // Force active tab to 'stock' if the role resolves dynamically to Store Manager
@@ -124,7 +125,7 @@ export default function Home() {
       <div className="p-6 flex gap-6 flex-1 bg-slate-50/50">
         
         {isSitePortal ? (
-          <SitePortalDashboard data={data} />
+          <SitePortalDashboard data={data} onFilterChange={setSiteFilters} />
         ) : activeTab === 'dashboard' ? (
           <>
             {/* Dashboard Content */}

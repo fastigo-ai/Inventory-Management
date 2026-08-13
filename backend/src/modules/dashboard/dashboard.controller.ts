@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import { asyncHandler } from '../../core/utils/asyncHandler';
 import { ApiResponse } from '../../core/utils/ApiResponse';
 import { buildStockSummaryData } from '../store/store.controller';
@@ -99,57 +100,81 @@ export const getSitePortalDashboardSummary = asyncHandler(async (req: any, res: 
   }
 
   const { assignedPackage, assignedCircle } = user;
+  const { contractorId, tempCode } = req.query;
 
   // 1. Fetch JMC Data
-  const JmcRegister = (await import('../jmc/jmc.schema')).JmcRegister;
-  const WipRegister = (await import('../wip/wip.schema')).WipRegister;
-  const DemandNote = (await import('../demand-notes/demandNote.schema')).default;
-  const Mhrov = (await import('../mhrov/mhrov.schema')).default;
+  const JmcRegister = mongoose.model('JmcRegister');
+  const WipRegister = mongoose.model('WipRegister');
+  const DemandNote = mongoose.model('DemandNote');
+  const Mhrov = mongoose.model('Mhrov');
+  const Contractor = mongoose.model('Contractor');
 
-  const jmcs = await JmcRegister.find({ package: assignedPackage, circle: assignedCircle }).populate('contractorId', 'companyName');
-  const wips = await WipRegister.find({ package: assignedPackage, circle: assignedCircle }).populate('contractorId', 'companyName');
+  // Build query for JMC and WIP
+  const baseQuery: any = { package: assignedPackage, circle: assignedCircle };
+  if (contractorId) {
+    baseQuery.contractorId = contractorId;
+  }
+
+  const jmcs = await JmcRegister.find(baseQuery).populate('contractorId', 'dynamicData');
+  const wips = await WipRegister.find(baseQuery).populate('contractorId', 'dynamicData');
 
   // Metrics
   let totalJmcQty = 0;
   let totalWipQty = 0;
   const contractorStats: Record<string, { contractor: string, jmcQty: number, wipQty: number }> = {};
   const itemStats: Record<string, { item: string, jmcQty: number, wipQty: number }> = {};
+  const availableTempCodes = new Set<string>();
 
   jmcs.forEach(jmc => {
-    const cName = jmc.contractorId?.companyName || 'Unknown';
+    const cName = jmc.contractorId?.dynamicData?.displayName || 'Unknown';
     if (!contractorStats[cName]) contractorStats[cName] = { contractor: cName, jmcQty: 0, wipQty: 0 };
     
     jmc.items.forEach((item: any) => {
+      if (item.tempCode) availableTempCodes.add(item.tempCode);
+      if (tempCode && item.tempCode !== tempCode) return;
+
       const qty = (Number(item.claimedQty) || 0) + (Number(item.approvedQty) || 0);
       totalJmcQty += qty;
       contractorStats[cName].jmcQty += qty;
 
-      const itemName = item.description || item.activity || 'Unknown';
+      const itemName = item.description || item.activity || item.tempCode || 'Unknown';
       if (!itemStats[itemName]) itemStats[itemName] = { item: itemName, jmcQty: 0, wipQty: 0 };
       itemStats[itemName].jmcQty += qty;
     });
   });
 
   wips.forEach(wip => {
-    const cName = wip.contractorId?.companyName || 'Unknown';
+    const cName = wip.contractorId?.dynamicData?.displayName || 'Unknown';
     if (!contractorStats[cName]) contractorStats[cName] = { contractor: cName, jmcQty: 0, wipQty: 0 };
     
     wip.items.forEach((item: any) => {
+      if (item.tempCode) availableTempCodes.add(item.tempCode);
+      if (tempCode && item.tempCode !== tempCode) return;
+
       const qty = (Number(item.claimedQty) || 0) + (Number(item.approvedQty) || 0);
       totalWipQty += qty;
       contractorStats[cName].wipQty += qty;
 
-      const itemName = item.description || item.activity || 'Unknown';
+      const itemName = item.description || item.activity || item.tempCode || 'Unknown';
       if (!itemStats[itemName]) itemStats[itemName] = { item: itemName, jmcQty: 0, wipQty: 0 };
       itemStats[itemName].wipQty += qty;
     });
   });
 
-  // Demand Notes
-  const totalDemandNotes = await DemandNote.countDocuments({ package: assignedPackage, circle: assignedCircle });
-  const approvedDemandNotes = await DemandNote.countDocuments({ package: assignedPackage, circle: assignedCircle, status: 'Approved' });
+  // Demand Notes Filter
+  const dnQuery: any = { package: assignedPackage, circle: assignedCircle };
+  if (contractorId) {
+    const c = await Contractor.findById(contractorId);
+    if (c) dnQuery.contractorName = c.dynamicData?.displayName || c.dynamicData?.companyName;
+  }
+  if (tempCode) {
+    dnQuery['items.tempCode'] = tempCode;
+  }
 
-  // MHROV
+  const totalDemandNotes = await DemandNote.countDocuments(dnQuery);
+  const approvedDemandNotes = await DemandNote.countDocuments({ ...dnQuery, status: 'Approved' });
+
+  // MHROV Filter (Not filtering by contractor/tempCode to keep it general for the package, unless specified later)
   const totalMhrovs = await Mhrov.countDocuments({ package: assignedPackage, circle: assignedCircle });
 
   res.status(200).json(new ApiResponse(200, {
@@ -157,6 +182,7 @@ export const getSitePortalDashboardSummary = asyncHandler(async (req: any, res: 
     totalWipQty,
     contractorData: Object.values(contractorStats),
     itemData: Object.values(itemStats).sort((a, b) => (b.jmcQty + b.wipQty) - (a.jmcQty + a.wipQty)).slice(0, 10), // Top 10 items
+    availableTempCodes: Array.from(availableTempCodes),
     metrics: {
       totalDemandNotes,
       approvedDemandNotes,

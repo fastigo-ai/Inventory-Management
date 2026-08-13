@@ -23,7 +23,18 @@ function DemandNoteForm() {
   const [workOrderItems, setWorkOrderItems] = useState<any[]>([]);
   const [file, setFile] = useState<File | null>(null);
   
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    contractorId?: string;
+    contractorName: string;
+    division: string;
+    subDivision: string;
+    location: string;
+    remarks: string;
+    authorizedByEngineer: string;
+    package: string;
+    circle: string;
+    status: string;
+  }>({
     contractorName: '',
     division: '',
     subDivision: '',

@@ -249,9 +249,16 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
             }
           }
 
-          // Fallback to the first available contractor if no match is found, so we can save the Draft
-          if (!contractorId && allContractors.length > 0) {
-            contractorId = allContractors[0]._id;
+          // If still no contractorId, we must create one dynamically to prevent validation failure
+          if (!contractorId) {
+            const fallbackName = contractorNameStr || 'Unknown Contractor (Auto-created)';
+            let newContractor = allContractors.find(c => c.name === fallbackName);
+            if (!newContractor) {
+              newContractor = await Contractor.create({ name: fallbackName, vendorName: fallbackName });
+              allContractors.push(newContractor as any);
+              contractorNames.push(fallbackName);
+            }
+            contractorId = newContractor._id;
           }
           
           // Map Items

@@ -23,7 +23,7 @@ export default function WipRegisterFormPage() {
   const [submitting, setSubmitting] = useState(false);
   const [availableItems, setAvailableItems] = useState<any[]>([]);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<any>({
     date: new Date().toISOString().split('T')[0],
     contractorId: "",
     package: user?.assignedPackage || "",
@@ -118,14 +118,15 @@ export default function WipRegisterFormPage() {
         ...formData.items,
         {
           activity: "",
-        tempCode: "",
-        description: "",
+          tempCode: "",
+          description: "",
           unit: "",
+          prevQty: 0,
           claimedQty: 0,
           approvedQty: 0,
           rate: 0,
           amount: 0,
-        totalLoaQty: 0,
+          totalLoaQty: 0,
           remarks: ""
         }
       ]
@@ -327,15 +328,16 @@ export default function WipRegisterFormPage() {
                     if (!selected) return;
                     const activityItems = availableItems.filter(ai => ai.dynamicData?.activity === selected.value);
                     const newRows = activityItems.map(ai => ({
-                      loaSerialNo: ai.dynamicData?.loaSerialNo || '',
                       activity: ai.dynamicData?.activity || '',
                       tempCode: ai.dynamicData?.tempCode || '',
                       description: ai.dynamicData?.description || ai.dynamicData?.itemDescription || ai.dynamicData?.name || '',
                       unit: ai.dynamicData?.unit || ai.dynamicData?.uom || '',
                       prevQty: 0,
-                      totalLoaQty: Number(ai.dynamicData?.loaQty || ai.dynamicData?.totalLoaQuantity || ai.dynamicData?.qty || ai.dynamicData?.quantity || 0),
                       claimedQty: 0,
                       approvedQty: 0,
+                      rate: 0,
+                      amount: 0,
+                      totalLoaQty: Number(ai.dynamicData?.loaQty || ai.dynamicData?.totalLoaQuantity || ai.dynamicData?.qty || ai.dynamicData?.quantity || 0),
                       remarks: ''
                     }));
                     setFormData(prev => ({

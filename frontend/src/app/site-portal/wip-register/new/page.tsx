@@ -23,7 +23,7 @@ export default function WipRegisterFormPage() {
   const [submitting, setSubmitting] = useState(false);
   const [availableItems, setAvailableItems] = useState<any[]>([]);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<any>({
     date: new Date().toISOString().split('T')[0],
     contractorId: "",
     package: user?.assignedPackage || "",
@@ -271,10 +271,12 @@ export default function WipRegisterFormPage() {
                       tempCode: ai.dynamicData?.tempCode || '',
                       description: ai.dynamicData?.description || ai.dynamicData?.itemDescription || ai.dynamicData?.name || '',
                       unit: ai.dynamicData?.unit || ai.dynamicData?.uom || '',
-                      loaSerialNo: '',
+                      totalLoaQty: Number(ai.dynamicData?.loaQty || ai.dynamicData?.totalLoaQuantity || ai.dynamicData?.qty || ai.dynamicData?.quantity || 0),
                       prevQty: 0,
                       claimedQty: 0,
                       approvedQty: 0,
+                      rate: 0,
+                      amount: 0,
                       remarks: ''
                     }));
                     setFormData(prev => ({

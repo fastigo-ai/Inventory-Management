@@ -23,7 +23,7 @@ export default function JmcRegisterFormPage() {
   const [submitting, setSubmitting] = useState(false);
   const [availableItems, setAvailableItems] = useState<any[]>([]);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<any>({
     date: new Date().toISOString().split('T')[0],
     contractorId: "",
     package: user?.assignedPackage || "",
@@ -118,14 +118,15 @@ export default function JmcRegisterFormPage() {
         ...formData.items,
         {
           activity: "",
-        tempCode: "",
-        description: "",
+          tempCode: "",
+          description: "",
           unit: "",
+          prevQty: 0,
           claimedQty: 0,
           approvedQty: 0,
           rate: 0,
           amount: 0,
-        totalLoaQty: 0,
+          totalLoaQty: 0,
           remarks: ""
         }
       ]
@@ -332,6 +333,7 @@ export default function JmcRegisterFormPage() {
                       description: ai.dynamicData?.description || ai.dynamicData?.itemDescription || ai.dynamicData?.name || '',
                       unit: ai.dynamicData?.unit || ai.dynamicData?.uom || '',
                       totalLoaQty: Number(ai.dynamicData?.loaQty || ai.dynamicData?.totalLoaQuantity || ai.dynamicData?.qty || ai.dynamicData?.quantity || 0),
+                      prevQty: 0,
                       claimedQty: 0,
                       approvedQty: 0,
                       rate: 0,

@@ -18,7 +18,7 @@ export default function JmcRegisterFormPage() {
   const [loading, setLoading] = useState(!isNew);
   const [submitting, setSubmitting] = useState(false);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<any>({
     date: new Date().toISOString().split('T')[0],
     contractorId: "",
     package: "",
@@ -101,6 +101,7 @@ export default function JmcRegisterFormPage() {
           activity: "",
           description: "",
           unit: "",
+          prevQty: 0,
           claimedQty: 0,
           approvedQty: 0,
           rate: 0,

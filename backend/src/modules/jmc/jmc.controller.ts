@@ -119,7 +119,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
 
   // Pre-fetch all contractors and items for matching
   const allContractors = await Contractor.find({}).lean();
-  const contractorNames = allContractors.map((c: any) => c.name).filter(Boolean);
+  const contractorNames = allContractors.map((c: any) => c.name || c.dynamicData?.companyName || c.dynamicData?.displayName || c.dynamicData?.name).filter(Boolean);
   
   const allItems = await Item.find({}).lean();
   // We'll map by item name / description
@@ -244,7 +244,10 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
           if (contractorNameStr && contractorNames.length > 0) {
             const bestMatch = stringSimilarity.findBestMatch(contractorNameStr, contractorNames);
             if (bestMatch.bestMatch.rating > 0.4) {
-              const matchedContractor = allContractors.find(c => c.name === bestMatch.bestMatch.target);
+              const matchedContractor = allContractors.find((c: any) => {
+                const name = c.name || c.dynamicData?.companyName || c.dynamicData?.displayName || c.dynamicData?.name;
+                return name === bestMatch.bestMatch.target;
+              });
               if (matchedContractor) contractorId = matchedContractor._id;
             }
           }
@@ -252,9 +255,17 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
           // If still no contractorId, we must create one dynamically to prevent validation failure
           if (!contractorId) {
             const fallbackName = contractorNameStr || 'Unknown Contractor (Auto-created)';
-            let newContractor = allContractors.find(c => c.name === fallbackName);
+            let newContractor = allContractors.find((c: any) => {
+              const name = c.name || c.dynamicData?.companyName || c.dynamicData?.displayName || c.dynamicData?.name;
+              return name === fallbackName;
+            });
             if (!newContractor) {
-              newContractor = await Contractor.create({ name: fallbackName, vendorName: fallbackName });
+              const payload = { 
+                dynamicData: { companyName: fallbackName, name: fallbackName, vendorName: fallbackName },
+                isActive: true
+              };
+              console.log("CREATING CONTRACTOR WITH PAYLOAD:", JSON.stringify(payload));
+              newContractor = await Contractor.create(payload);
               allContractors.push(newContractor as any);
               contractorNames.push(fallbackName);
             }

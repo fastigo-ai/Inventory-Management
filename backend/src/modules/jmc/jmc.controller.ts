@@ -30,6 +30,18 @@ export const getJmcs = asyncHandler(async (req: Request, res: Response) => {
 
   if (user && user.role?.name === 'Contractor' && user.contractorId) {
     filter.contractorId = user.contractorId;
+  } else if (req.query.contractorId && req.query.contractorId !== 'All') {
+    filter.contractorId = req.query.contractorId;
+  }
+
+  if (req.query.startDate || req.query.endDate) {
+    filter.date = {};
+    if (req.query.startDate) {
+      filter.date.$gte = new Date(req.query.startDate as string);
+    }
+    if (req.query.endDate) {
+      filter.date.$lte = new Date(req.query.endDate as string);
+    }
   }
 
   const jmcs = await JmcRegister.find(filter)
@@ -105,7 +117,7 @@ const METADATA_LABELS: Record<string, string> = {
 
 function normLabel(v: any): string {
   if (!v) return "";
-  return String(v).trim().replace(/:$/, "").trim().toLowerCase();
+  return String(v).replace(/\s+/g, ' ').trim().replace(/:$/, "").trim().toLowerCase();
 }
 
 export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) => {
@@ -161,7 +173,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
           }
 
           const aCell = row[0];     // column A is index 0
-          if (aCell && String(aCell).trim().toUpperCase().startsWith("LOA SR")) {
+          if (aCell && String(aCell).replace(/\s+/g, ' ').trim().toUpperCase().startsWith("LOA SR")) {
             headerRowIdx = r;
             break;
           }
@@ -352,12 +364,18 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
               }
             }
 
+            if (!itemId) {
+              flagged.push({ sourceFile, sheetName, issue: `Item '${sr.description}' not found in Master Item List. Skipped.` });
+              continue; // Strict mapping: skip if not matched
+            }
+
             jmcItems.push({
               itemId,
               loaSerialNo: finalLoaSerialNo,
               activity: finalActivity,
               description: sr.description || '',
               unit: sr.unit || '',
+              prevQty: 0, // will be computed below
               claimedQty: sr.quantity,
               approvedQty: 0,
               rate: 0,
@@ -366,31 +384,67 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
             });
           }
 
+          if (jmcItems.length === 0) {
+             flagged.push({ sourceFile, sheetName, issue: `No valid matched items found for ${meta.Location || 'Unknown Location'}. Skipped.` });
+             continue;
+          }
+
           const pkg = (user as any).assignedPackage || meta.Location || meta.DrawingNo || '';
           const circ = (user as any).assignedCircle || meta.Circle || '';
           const div = meta.Division || '';
           const subDiv = meta.SubDivision || '';
+          const loc = meta.Location || '';
 
           const existingJmc = await JmcRegister.findOne({
             contractorId: contractorId || null,
             package: pkg,
+            location: loc,
             circle: circ,
             division: div,
             subDivision: subDiv
           });
 
+          // Compute prevQty by fetching all previous 'Approved' JMCs for this exact contractor, package, location
+          const pastApprovedJmcs = await JmcRegister.find({
+             contractorId: contractorId || null,
+             package: pkg,
+             location: loc,
+             circle: circ,
+             division: div,
+             subDivision: subDiv,
+             status: 'Approved'
+          }).lean();
+
+          // Sum up approvedQty for each itemId across all past approved JMCs
+          const prevQtyMap: Record<string, number> = {};
+          for (const pastJmc of pastApprovedJmcs) {
+             for (const item of pastJmc.items) {
+                if (item.itemId) {
+                   const idStr = item.itemId.toString();
+                   prevQtyMap[idStr] = (prevQtyMap[idStr] || 0) + (item.approvedQty || 0);
+                }
+             }
+          }
+
+          // Assign prevQty to the current items
+          for (const item of jmcItems) {
+             if (item.itemId) {
+                item.prevQty = prevQtyMap[item.itemId.toString()] || 0;
+             }
+          }
+
           const conflictStrategy = req.body.conflictStrategy || 'skip';
 
           if (existingJmc) {
             if (conflictStrategy === 'skip') {
-              flagged.push({ sourceFile, issue: `Skipped duplicate JMC for ${circ} - ${subDiv}` });
+              flagged.push({ sourceFile, issue: `Skipped duplicate JMC for ${circ} - ${subDiv} - ${loc}` });
               continue;
             } else if (conflictStrategy === 'replace') {
               if (existingJmc.status !== 'Approved') {
                 await JmcRegister.deleteOne({ _id: existingJmc._id });
                 // Fall through to create new
               } else {
-                flagged.push({ sourceFile, issue: `Cannot replace Approved JMC for ${circ} - ${subDiv}` });
+                flagged.push({ sourceFile, issue: `Cannot replace Approved JMC for ${circ} - ${subDiv} - ${loc}` });
                 continue;
               }
             } else if (conflictStrategy === 'update') {
@@ -400,7 +454,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
                 totalSaved++;
                 continue;
               } else {
-                flagged.push({ sourceFile, issue: `Cannot update Approved JMC for ${circ} - ${subDiv}` });
+                flagged.push({ sourceFile, issue: `Cannot update Approved JMC for ${circ} - ${subDiv} - ${loc}` });
                 continue;
               }
             }
@@ -414,13 +468,14 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
             date: new Date(),
             contractorId: contractorId || null,
             package: pkg,
+            location: loc,
             circle: circ,
             division: div,
             subDivision: subDiv,
             items: jmcItems,
             claimedAmount: 0,
             approvedAmount: 0,
-            status: 'Draft',
+            status: 'Submitted',
             remarks: `Uploaded from ${sourceFile} (${sheetName}). ${!meta.Contractor ? 'Warning: No contractor name found in sheet.' : ''}`.trim(),
             createdBy: user._id
           });

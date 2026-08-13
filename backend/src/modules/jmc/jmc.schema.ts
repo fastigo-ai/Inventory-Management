@@ -6,6 +6,7 @@ export interface IJmcItem {
   activity: string;
   description: string;
   unit: string;
+  prevQty: number;
   claimedQty: number;
   approvedQty: number;
   rate: number;
@@ -19,6 +20,7 @@ export interface IJmcRegister extends Document {
   contractorId: mongoose.Types.ObjectId;
   workOrderId?: mongoose.Types.ObjectId;
   package: string;
+  location: string;
   circle: string;
   division: string;
   subDivision: string;
@@ -38,6 +40,7 @@ const JmcItemSchema = new Schema<IJmcItem>({
   activity: { type: String, default: '' },
   description: { type: String, default: '' },
   unit: { type: String, default: '' },
+  prevQty: { type: Number, default: 0 },
   claimedQty: { type: Number, default: 0 },
   approvedQty: { type: Number, default: 0 },
   rate: { type: Number, default: 0 },
@@ -52,6 +55,7 @@ const JmcRegisterSchema = new Schema<IJmcRegister>(
     contractorId: { type: Schema.Types.ObjectId, ref: 'Contractor', required: true, index: true },
     workOrderId: { type: Schema.Types.ObjectId, ref: 'ContractorWorkOrder' },
     package: { type: String, default: '' },
+    location: { type: String, default: '' },
     circle: { type: String, default: '' },
     division: { type: String, default: '' },
     subDivision: { type: String, default: '' },

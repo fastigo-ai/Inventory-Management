@@ -301,8 +301,9 @@ export default function JmcRegisterFormPage() {
                   <th className="px-4 py-3 border-r">Activity</th>
                   <th className="px-4 py-3 border-r w-[250px]">Description</th>
                   <th className="px-4 py-3 border-r w-24">Unit</th>
-                  <th className="px-4 py-3 border-r w-28 bg-blue-50">Prev JMC Alloted Qty</th>
-                  <th className="px-4 py-3 border-r w-28 bg-green-50 text-green-800">New JMC Qty</th>
+                  <th className="px-4 py-3 border-r w-28 bg-slate-50">Prev JMC Alloted Qty</th>
+                  <th className="px-4 py-3 border-r w-28 bg-blue-50 text-blue-800">New JMC Qty</th>
+                  <th className="px-4 py-3 border-r w-28 bg-green-50 text-green-800">Approved Qty</th>
                   <th className="px-4 py-3 border-r w-28 bg-purple-50 text-purple-800">Total JMC Qty</th>
                   <th className="px-4 py-3 border-r w-32">Rate (₹)</th>
                   <th className="px-4 py-3 border-r w-32">Amount (₹)</th>
@@ -345,7 +346,10 @@ export default function JmcRegisterFormPage() {
                         placeholder="e.g. Mtr"
                       />
                     </td>
-                    <td className="px-4 py-2 border-r border-slate-100 bg-blue-50/30">
+                    <td className="px-4 py-2 border-r border-slate-100 bg-slate-50 text-center font-medium text-slate-700">
+                      {Number(item.prevQty || 0).toFixed(2)}
+                    </td>
+                    <td className="p-2 border-r border-slate-100 bg-blue-50/30">
                       <Input 
                         type="number"
                         value={item.claimedQty || ''}
@@ -362,8 +366,8 @@ export default function JmcRegisterFormPage() {
                         placeholder="0"
                       />
                     </td>
-                    <td className="p-2 border-r text-center font-medium bg-purple-50/30">
-                      {(Number(item.claimedQty || 0) + Number(item.approvedQty || 0)).toFixed(2)}
+                    <td className="p-2 border-r text-center font-medium bg-purple-50/30 text-purple-900">
+                      {(Number(item.prevQty || 0) + (Number(item.approvedQty) > 0 ? Number(item.approvedQty) : Number(item.claimedQty || 0))).toFixed(2)}
                     </td>
                     <td className="px-4 py-2 border-r border-slate-100">
                       <Input 

@@ -28,7 +28,12 @@ export const deleteDemandNote = async (id: string) => {
   return response.data;
 };
 
-export const getContextData = async (itemId: string) => {
-  const response = await api.get(`/demand-notes/context?itemId=${itemId}`);
+export const getContextData = async (itemId: string, contractorId?: string, activity?: string, description?: string, tempCode?: string) => {
+  let url = `/demand-notes/context?itemId=${itemId}`;
+  if (contractorId) url += `&contractorId=${encodeURIComponent(contractorId)}`;
+  if (activity) url += `&activity=${encodeURIComponent(activity)}`;
+  if (description) url += `&description=${encodeURIComponent(description)}`;
+  if (tempCode) url += `&tempCode=${encodeURIComponent(tempCode)}`;
+  const response = await api.get(url);
   return response.data;
 };

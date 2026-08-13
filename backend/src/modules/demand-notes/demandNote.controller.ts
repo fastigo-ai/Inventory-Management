@@ -87,7 +87,7 @@ export const createDemandNote = asyncHandler(async (req: AuthRequest, res: Respo
 // Endpoint to fetch real-time constraints for a specific item in the context of the user's package and circle
 export const getContextData = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = req.user as any;
-  const { itemId } = req.query;
+  const { itemId, contractorId, activity, description, tempCode } = req.query;
 
   if (!user.assignedPackage || !user.assignedCircle) {
     throw new ApiError(400, 'User is not assigned to a specific Package and Circle.');
@@ -123,13 +123,58 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
   let transferFromOther = 0;
   let transferToOther = 0;
 
+  // Calculate JMC and WIP Quantities based on contractor, package, circle and item match
+  let jmcQty = 0;
+  let wipQty = 0;
+
+  if (contractorId) {
+    const jmcRegisters = await mongoose.model('JmcRegister').find({
+      contractorId,
+      package: user.assignedPackage,
+      circle: user.assignedCircle
+    });
+    
+    jmcRegisters.forEach((jmc: any) => {
+      jmc.items.forEach((jmcItem: any) => {
+        // Match by activity, description, or tempCode
+        const matchActivity = activity ? jmcItem.activity === activity : true;
+        const matchDesc = description ? jmcItem.description === description : true;
+        const matchCode = tempCode ? jmcItem.tempCode === tempCode : true;
+
+        if (matchActivity && matchDesc && matchCode) {
+          jmcQty += (Number(jmcItem.claimedQty) || 0) + (Number(jmcItem.approvedQty) || 0);
+        }
+      });
+    });
+
+    const wipRegisters = await mongoose.model('WipRegister').find({
+      contractorId,
+      package: user.assignedPackage,
+      circle: user.assignedCircle
+    });
+    
+    wipRegisters.forEach((wip: any) => {
+      wip.items.forEach((wipItem: any) => {
+        const matchActivity = activity ? wipItem.activity === activity : true;
+        const matchDesc = description ? wipItem.description === description : true;
+        const matchCode = tempCode ? wipItem.tempCode === tempCode : true;
+
+        if (matchActivity && matchDesc && matchCode) {
+          wipQty += (Number(wipItem.claimedQty) || 0) + (Number(wipItem.approvedQty) || 0);
+        }
+      });
+    });
+  }
+
   res.status(200).json(new ApiResponse(200, {
     itemDescription: item.description,
     bomQty: item.bomQty || 0, // Fallback, normally BOM might be item-specific or project-specific
     stockBal: item.stockBalance || 0, // Assuming central stock balance
     alreadyIssuedQty,
     transferFromOther,
-    transferToOther
+    transferToOther,
+    jmcQty,
+    wipQty
   }, 'Context data fetched'));
 });
 

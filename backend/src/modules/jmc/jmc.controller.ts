@@ -119,11 +119,11 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
 
   // Pre-fetch all contractors and items for matching
   const allContractors = await Contractor.find({}).lean();
-  const contractorNames = allContractors.map((c: any) => c.name);
+  const contractorNames = allContractors.map((c: any) => c.name).filter(Boolean);
   
   const allItems = await Item.find({}).lean();
   // We'll map by item name / description
-  const itemNames = allItems.map((i: any) => i.name);
+  const itemNames = allItems.map((i: any) => i.name).filter(Boolean);
 
   let initialCount = await JmcRegister.countDocuments();
 

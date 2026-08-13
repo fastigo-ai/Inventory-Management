@@ -248,6 +248,11 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
               if (matchedContractor) contractorId = matchedContractor._id;
             }
           }
+
+          // Fallback to the first available contractor if no match is found, so we can save the Draft
+          if (!contractorId && allContractors.length > 0) {
+            contractorId = allContractors[0]._id;
+          }
           
           // Map Items
           const jmcItems = [];
@@ -289,7 +294,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
             claimedAmount: 0,
             approvedAmount: 0,
             status: 'Draft', // as per user request for mismatches/defaults
-            remarks: `Uploaded from ${sourceFile} (${sheetName})`,
+            remarks: `Uploaded from ${sourceFile} (${sheetName}). ${!meta.Contractor ? 'Warning: No contractor name found in sheet.' : ''}`.trim(),
             createdBy: user._id
           });
           

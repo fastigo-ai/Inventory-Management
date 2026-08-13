@@ -38,6 +38,7 @@ export default function WipRegisterFormPage() {
         tempCode: "",
         description: "",
         unit: "",
+        prevQty: 0,
         claimedQty: 0,
         approvedQty: 0,
         rate: 0,

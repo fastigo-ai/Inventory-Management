@@ -246,7 +246,7 @@ export default function WipRegisterFormPage() {
                 >
                   <option value="">Select Contractor</option>
                   {contractors.map((c: any) => (
-                    <option key={c._id} value={c._id}>{c.name || c.vendorName || c.dynamicData?.displayName || c.dynamicData?.name}</option>
+                    <option key={c._id} value={c._id}>{c.name || c.vendorName || c.dynamicData?.companyName || c.dynamicData?.displayName || c.dynamicData?.name}</option>
                   ))}
                 </select>
               </div>

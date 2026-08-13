@@ -237,6 +237,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
         }
 
         let originalSum = 0;
+        let currentActivityGroup = '';
         
         for (let r = headerRowIdx + 1; r < rows.length; r++) {
           const row = rows[r];
@@ -250,6 +251,10 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
           
           if (!loa && !sched && !activity && !desc) continue;
           
+          if (!unit || String(unit).trim() === '') {
+            if (desc) currentActivityGroup = String(desc).trim();
+          }
+          
           for (const c of siteCols) {
             const qty = row[c];
             if (qty === null || qty === undefined || qty === "") continue;
@@ -258,7 +263,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
             if (!isNaN(numQty)) {
               originalSum += numQty;
               recordsBySite[c].push({
-                loa, sched, activity, description: desc || activity, unit, quantity: numQty
+                loa, sched, activity: activity || currentActivityGroup, description: desc || activity, unit, quantity: numQty
               });
             }
           }

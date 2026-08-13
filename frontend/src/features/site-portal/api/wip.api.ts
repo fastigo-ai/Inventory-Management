@@ -20,11 +20,12 @@ export const deleteWip = async (id: string) => {
   return api.delete(`/wip/${id}`);
 };
 
-export const uploadWipExcel = async (formData: FormData) => {
+export const uploadWipExcel = async (formData: FormData, onUploadProgress?: (progressEvent: any) => void) => {
   const response = await api.post('/wip/upload', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
+    onUploadProgress,
   });
   return response.data;
 };

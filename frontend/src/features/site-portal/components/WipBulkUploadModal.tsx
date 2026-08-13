@@ -12,7 +12,8 @@ interface Props {
 
 export function WipBulkUploadModal({ open, onOpenChange, onSuccess }: Props) {
   const [files, setFiles] = useState<FileList | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'uploading' | 'processing' | 'complete'>('idle');
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
   const [result, setResult] = useState<any>(null);
 
@@ -20,7 +21,8 @@ export function WipBulkUploadModal({ open, onOpenChange, onSuccess }: Props) {
     if (!files || files.length === 0) return;
     
     try {
-      setUploading(true);
+      setStatus('uploading');
+      setProgress(0);
       setError('');
       setResult(null);
 
@@ -29,23 +31,39 @@ export function WipBulkUploadModal({ open, onOpenChange, onSuccess }: Props) {
         formData.append('files', files[i]);
       }
 
-      const res = await uploadWipExcel(formData);
+      const res = await uploadWipExcel(formData, (progressEvent: any) => {
+        const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
+        setProgress(percentCompleted);
+        if (percentCompleted >= 100) {
+          setStatus('processing');
+        }
+      });
+
+      setStatus('complete');
       setResult(res.data);
       if (res.data?.flagged?.length === 0) {
         onSuccess();
-        setTimeout(() => onOpenChange(false), 2000);
+        setTimeout(() => {
+          onOpenChange(false);
+          setStatus('idle');
+          setProgress(0);
+        }, 2000);
       } else {
         onSuccess(); // Still refresh list for saved records
       }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Error uploading files');
-    } finally {
-      setUploading(false);
+      setStatus('idle');
+      setProgress(0);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(val) => {
+      if (status !== 'uploading' && status !== 'processing') {
+        onOpenChange(val);
+      }
+    }}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Bulk Upload WIP/WIP Sheets</DialogTitle>
@@ -60,18 +78,37 @@ export function WipBulkUploadModal({ open, onOpenChange, onSuccess }: Props) {
             accept=".xlsx" 
             multiple 
             onChange={(e) => setFiles(e.target.files)} 
-            disabled={uploading}
+            disabled={status === 'uploading' || status === 'processing'}
           />
+
+          {(status === 'uploading' || status === 'processing' || status === 'complete') && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs font-medium text-slate-600">
+                <span>
+                  {status === 'uploading' && 'Uploading files...'}
+                  {status === 'processing' && 'Processing and importing data...'}
+                  {status === 'complete' && 'Complete!'}
+                </span>
+                <span>{status === 'uploading' ? `${progress}%` : '100%'}</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                <div 
+                  className={`h-2 rounded-full transition-all duration-300 ${status === 'complete' ? 'bg-green-500' : 'bg-blue-600'}`}
+                  style={{ width: status === 'uploading' ? `${progress}%` : '100%' }}
+                ></div>
+              </div>
+            </div>
+          )}
 
           {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-md">{error}</div>}
           
-          {result && (
-            <div className="p-3 bg-blue-50 text-blue-800 text-sm rounded-md space-y-2">
+          {result && status === 'complete' && (
+            <div className="p-3 bg-blue-50 border border-blue-100 text-blue-800 text-sm rounded-md space-y-2">
               <p className="font-semibold">Successfully imported {result.totalSaved} WIP records.</p>
               {result.flagged?.length > 0 && (
                 <div className="mt-2 text-orange-700">
                   <p className="font-semibold mb-1">Warnings ({result.flagged.length}):</p>
-                  <ul className="list-disc pl-4 space-y-1 max-h-32 overflow-y-auto">
+                  <ul className="list-disc pl-4 space-y-1 max-h-32 overflow-y-auto text-xs">
                     {result.flagged.map((f: any, i: number) => (
                       <li key={i}>{f.sourceFile} - {f.issue}</li>
                     ))}
@@ -83,11 +120,24 @@ export function WipBulkUploadModal({ open, onOpenChange, onSuccess }: Props) {
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={uploading}>
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              onOpenChange(false);
+              setStatus('idle');
+              setProgress(0);
+              setResult(null);
+            }} 
+            disabled={status === 'uploading' || status === 'processing'}
+          >
             Close
           </Button>
-          <Button onClick={handleUpload} disabled={!files || files.length === 0 || uploading}>
-            {uploading ? 'Uploading...' : 'Upload Files'}
+          <Button 
+            onClick={handleUpload} 
+            disabled={!files || files.length === 0 || status === 'uploading' || status === 'processing'}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            {status === 'uploading' ? 'Uploading...' : status === 'processing' ? 'Processing...' : 'Upload & Import'}
           </Button>
         </DialogFooter>
       </DialogContent>

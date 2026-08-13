@@ -60,7 +60,7 @@ export function DataTableBottomControls({
   return (
     <div className="h-16 px-6 border-t border-slate-200 bg-white flex items-center justify-between shrink-0 font-medium">
       <p className="text-sm text-slate-500">
-        Showing {pageSize} out of {totalItems}
+        Showing {totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, totalItems)} out of {totalItems}
       </p>
       
       <div className="flex items-center space-x-1">

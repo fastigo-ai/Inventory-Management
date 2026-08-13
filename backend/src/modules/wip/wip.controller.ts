@@ -33,7 +33,7 @@ export const getWips = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const wips = await WipRegister.find(filter)
-    .populate('contractorId', 'name vendorName')
+    .populate('contractorId', 'name vendorName dynamicData')
     .populate('workOrderId', 'workOrderNumber')
     .sort({ createdAt: -1 });
 
@@ -45,7 +45,7 @@ export const getWips = asyncHandler(async (req: Request, res: Response) => {
 export const getWipById = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const wip = await WipRegister.findById(id)
-    .populate('contractorId', 'name vendorName')
+    .populate('contractorId', 'name vendorName dynamicData')
     .populate('workOrderId', 'workOrderNumber');
 
   if (!wip) {
@@ -169,9 +169,29 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
 
         const maxCol = rows.reduce((max, r) => Math.max(max, r.length), 0);
 
-        // Determine site columns (from index 5 / Col F)
+        // Dynamically find columns based on the header row
+        const headerRow = rows[headerRowIdx];
+        let loaIdx = -1, schedIdx = -1, activityIdx = -1, descIdx = -1, unitIdx = -1;
+        
+        for (let c = 0; c < headerRow.length; c++) {
+          const h = normLabel(headerRow[c]);
+          if (!h) continue;
+          if (h.includes("loa") && loaIdx === -1) loaIdx = c;
+          else if (h.includes("sched") && schedIdx === -1) schedIdx = c;
+          else if (h.includes("activity") && activityIdx === -1) activityIdx = c;
+          else if (h.includes("desc") && descIdx === -1) descIdx = c;
+          else if (h.includes("unit") && unitIdx === -1) unitIdx = c;
+        }
+
+        let startSiteCol = Math.max(loaIdx, schedIdx, activityIdx, descIdx, unitIdx) + 1;
+        if (startSiteCol <= 0) {
+          startSiteCol = 5;
+          loaIdx = 0; schedIdx = 1; activityIdx = 2; descIdx = 3; unitIdx = 4;
+        }
+
+        // Determine site columns
         const siteCols: number[] = [];
-        for (let c = 5; c < maxCol; c++) {
+        for (let c = startSiteCol; c < maxCol; c++) {
           const headerVal = rows[headerRowIdx][c];
           const hasMeta = Object.keys(metaRows).some(rIdx => {
             const val = rows[Number(rIdx)][c];
@@ -199,18 +219,23 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
         }
 
         let originalSum = 0;
+        let currentActivityGroup = '';
         
         for (let r = headerRowIdx + 1; r < rows.length; r++) {
           const row = rows[r];
           if (!row) continue;
           
-          const loa = row[0];
-          const sched = row[1];
-          const activity = row[2];
-          const desc = row[3];
-          const unit = row[4];
+          const loa = loaIdx !== -1 ? row[loaIdx] : null;
+          const sched = schedIdx !== -1 ? row[schedIdx] : null;
+          const activity = activityIdx !== -1 ? row[activityIdx] : null;
+          const desc = descIdx !== -1 ? row[descIdx] : null;
+          const unit = unitIdx !== -1 ? row[unitIdx] : null;
           
           if (!loa && !sched && !activity && !desc) continue;
+          
+          if (!unit || String(unit).trim() === '') {
+            if (desc) currentActivityGroup = String(desc).trim();
+          }
           
           for (const c of siteCols) {
             const qty = row[c];
@@ -220,7 +245,7 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
             if (!isNaN(numQty)) {
               originalSum += numQty;
               recordsBySite[c].push({
-                loa, sched, activity, description: desc || activity, unit, quantity: numQty
+                loa, sched, activity: activity || currentActivityGroup, description: desc || activity, unit, quantity: numQty
               });
             }
           }
@@ -277,16 +302,49 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
           let claimedAmount = 0;
           for (const sr of siteRecords) {
             let itemId = null;
-            if (sr.activity && itemNames.length > 0) {
-              const bestMatch = stringSimilarity.findBestMatch(String(sr.activity), itemNames);
-              if (bestMatch.bestMatch.rating > 0.4) {
-                const matchedItem = allItems.find((i: any) => i.name === bestMatch.bestMatch.target);
-                if (matchedItem) itemId = matchedItem._id;
+            let finalActivity = sr.activity || '';
+            let finalLoaSerialNo = sr.loa || '';
+
+            // 1. Strict mapping by SKU / LOA Serial No
+            if (sr.loa && allItems.length > 0) {
+              const matchedItem = allItems.find((i: any) => String(i.dynamicData?.sku) === String(sr.loa));
+              if (matchedItem) {
+                itemId = matchedItem._id;
+                if (!finalActivity && matchedItem.dynamicData?.activity) {
+                   finalActivity = matchedItem.dynamicData.activity;
+                }
               }
             }
+
+            // 2. Fallback to Description matching
+            if (!itemId && sr.description && itemNames.length > 0) {
+              const bestMatch = stringSimilarity.findBestMatch(String(sr.description), itemNames);
+              if (bestMatch.bestMatch.rating > 0.6) {
+                const matchedItem = allItems.find((i: any) => {
+                  const desc = String(i.dynamicData?.description || i.dynamicData?.name || '');
+                  return desc === bestMatch.bestMatch.target;
+                });
+                if (matchedItem) {
+                  itemId = matchedItem._id;
+                  if (!finalActivity && matchedItem.dynamicData?.activity) {
+                     finalActivity = matchedItem.dynamicData.activity;
+                  }
+                  if (!finalLoaSerialNo && matchedItem.dynamicData?.sku) {
+                     finalLoaSerialNo = matchedItem.dynamicData.sku;
+                  }
+                }
+              }
+            }
+
+            if (!itemId) {
+              flagged.push({ sourceFile, sheetName, issue: `Item '${sr.description}' not found in Master Item List. Skipped.` });
+              continue; // Strict mapping: skip if not matched
+            }
+
             wipItems.push({
               itemId,
-              activity: sr.activity || '',
+              loaSerialNo: finalLoaSerialNo,
+              activity: finalActivity,
               description: sr.description || '',
               unit: sr.unit || '',
               claimedQty: sr.quantity,
@@ -297,6 +355,11 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
             });
           }
 
+          if (wipItems.length === 0) {
+             flagged.push({ sourceFile, sheetName, issue: `No valid matched items found for ${meta.Location || 'Unknown Location'}. Skipped.` });
+             continue;
+          }
+
           initialCount++;
           const wipNumber = `WIP/${new Date().getFullYear().toString().slice(-2)}/${initialCount.toString().padStart(4, '0')}`;
 
@@ -304,8 +367,8 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
             wipNumber,
             date: new Date(),
             contractorId: contractorId || null,
-            package: meta.Location || meta.DrawingNo || '',
-            circle: meta.Circle || '',
+            package: (user as any).assignedPackage || meta.Location || meta.DrawingNo || '',
+            circle: (user as any).assignedCircle || meta.Circle || '',
             division: meta.Division || '',
             subDivision: meta.SubDivision || '',
             items: wipItems,

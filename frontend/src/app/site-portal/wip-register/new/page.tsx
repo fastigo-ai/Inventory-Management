@@ -2,27 +2,32 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { createJmc, getJmcById, updateJmc } from "@/features/site-portal/api/jmc.api";
+import { createWip, getWipById, updateWip } from "@/features/site-portal/api/wip.api";
 import { getContractors } from "@/features/contractors/api/contractors.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Plus, Trash2, Save, Send } from "lucide-react";
+import Select from "react-select";
+import { getItems } from "@/features/items/api/items.api";
+import { useAuthStore } from "@/shared/store/auth.store";
 
-export default function JmcRegisterFormPage() {
+export default function WipRegisterFormPage() {
+  const { user } = useAuthStore();
   const router = useRouter();
   const params = useParams();
   const isNew = !params.id || params.id === 'new';
-  const jmcId = params.id as string;
+  const wipId = params.id as string;
 
   const [contractors, setContractors] = useState<any[]>([]);
   const [loading, setLoading] = useState(!isNew);
   const [submitting, setSubmitting] = useState(false);
+  const [availableItems, setAvailableItems] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     contractorId: "",
-    package: "",
-    circle: "",
+    package: user?.assignedPackage || "",
+    circle: user?.assignedCircle || "",
     division: "",
     subDivision: "",
     status: "Draft",
@@ -30,37 +35,53 @@ export default function JmcRegisterFormPage() {
     items: [
       {
         activity: "",
+        tempCode: "",
         description: "",
         unit: "",
         claimedQty: 0,
         approvedQty: 0,
         rate: 0,
         amount: 0,
+        totalLoaQty: 0,
         remarks: ""
       }
     ]
   });
 
   useEffect(() => {
+    if (formData.package && formData.circle) {
+      getItems({ filters: { package: formData.package, circle: formData.circle }, limit: 1000 }).then(res => {
+        const fetched = res?.items || res?.data?.items || (Array.isArray(res) ? res : res.data) || [];
+        setAvailableItems(fetched);
+      }).catch(console.error);
+    } else {
+      getItems({ limit: 1000 }).then(res => {
+        const fetched = res?.items || res?.data?.items || (Array.isArray(res) ? res : res.data) || [];
+        setAvailableItems(fetched);
+      }).catch(console.error);
+    }
+  }, [formData.package, formData.circle]);
+
+  useEffect(() => {
     fetchContractors();
     if (!isNew) {
-      fetchJmc();
+      fetchWip();
     }
-  }, [isNew, jmcId]);
+  }, [isNew, wipId]);
 
   const fetchContractors = async () => {
     try {
       const res = await getContractors();
-      setContractors(res.data?.data || []);
+      setContractors(res?.data || (Array.isArray(res) ? res : []));
     } catch (err) {
       console.error(err);
     }
   };
 
-  const fetchJmc = async () => {
+  const fetchWip = async () => {
     try {
       setLoading(true);
-      const res = await getJmcById(jmcId);
+      const res = await getWipById(wipId);
       const data = res.data?.data;
       if (data) {
         setFormData({
@@ -96,12 +117,14 @@ export default function JmcRegisterFormPage() {
         ...formData.items,
         {
           activity: "",
-          description: "",
+        tempCode: "",
+        description: "",
           unit: "",
           claimedQty: 0,
           approvedQty: 0,
           rate: 0,
           amount: 0,
+        totalLoaQty: 0,
           remarks: ""
         }
       ]
@@ -137,17 +160,17 @@ export default function JmcRegisterFormPage() {
       };
 
       if (isNew) {
-        await createJmc(payload);
-        alert(`JMC saved as ${statusToSave}`);
-        router.push('/site-portal/jmc-register');
+        await createWip(payload);
+        alert(`WIP saved as ${statusToSave}`);
+        router.push('/site-portal/wip-register');
       } else {
-        await updateJmc(jmcId, payload);
-        alert(`JMC updated and saved as ${statusToSave}`);
-        router.push('/site-portal/jmc-register');
+        await updateWip(wipId, payload);
+        alert(`WIP updated and saved as ${statusToSave}`);
+        router.push('/site-portal/wip-register');
       }
     } catch (err: any) {
       console.error(err);
-      alert(err?.response?.data?.message || "Failed to save JMC");
+      alert(err?.response?.data?.message || "Failed to save WIP");
     } finally {
       setSubmitting(false);
     }
@@ -170,7 +193,7 @@ export default function JmcRegisterFormPage() {
               <ArrowLeft className="w-5 h-5 text-slate-600" />
             </button>
             <h1 className="text-2xl font-bold text-slate-800">
-              {isNew ? 'New JMC Entry' : `Edit JMC ${(formData as any).jmcNumber || ''}`}
+              {isNew ? 'New WIP Entry' : `Edit WIP ${(formData as any).wipNumber || ''}`}
             </h1>
           </div>
           <div className="flex space-x-3">
@@ -188,7 +211,7 @@ export default function JmcRegisterFormPage() {
               className={formData.status === 'Submitted' ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"}
             >
               <Send className="w-4 h-4 mr-2" />
-              {formData.status === 'Submitted' ? 'Approve JMC' : 'Submit JMC'}
+              {formData.status === 'Submitted' ? 'Approve WIP' : 'Submit WIP'}
             </Button>
           </div>
         </div>
@@ -210,11 +233,20 @@ export default function JmcRegisterFormPage() {
                 <select 
                   className="w-full h-9 rounded-md border border-slate-200 px-3 text-sm focus:border-blue-500 focus:ring-blue-500 bg-white"
                   value={formData.contractorId}
-                  onChange={e => setFormData({...formData, contractorId: e.target.value})}
+                  onChange={e => {
+                    const selectedId = e.target.value;
+                    const selectedContractor = contractors.find(c => c._id === selectedId);
+                    setFormData(prev => ({
+                      ...prev, 
+                      contractorId: selectedId,
+                      package: selectedContractor?.dynamicData?.package || selectedContractor?.dynamicData?.assignedPackage || selectedContractor?.package || prev.package,
+                      circle: selectedContractor?.dynamicData?.circle || selectedContractor?.dynamicData?.assignedCircle || selectedContractor?.circle || selectedContractor?.location || prev.circle
+                    }));
+                  }}
                 >
                   <option value="">Select Contractor</option>
                   {contractors.map((c: any) => (
-                    <option key={c._id} value={c._id}>{c.name || c.vendorName}</option>
+                    <option key={c._id} value={c._id}>{c.name || c.vendorName || c.dynamicData?.displayName || c.dynamicData?.name}</option>
                   ))}
                 </select>
               </div>
@@ -284,21 +316,54 @@ export default function JmcRegisterFormPage() {
 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-            <h2 className="text-sm font-bold text-slate-700 uppercase">JMC Items</h2>
-            <Button onClick={addItem} variant="outline" size="sm" className="h-8">
+            <h2 className="text-sm font-bold text-slate-700 uppercase">WIP Items</h2>
+            <div className="flex items-center gap-4">
+              <div className="w-[300px]">
+                <Select
+                  options={Array.from(new Set(availableItems.map(ai => ai.dynamicData?.activity).filter(Boolean))).map(act => ({ value: act, label: act }))}
+                  placeholder="Add by Activity..."
+                  onChange={(selected: any) => {
+                    if (!selected) return;
+                    const activityItems = availableItems.filter(ai => ai.dynamicData?.activity === selected.value);
+                    const newRows = activityItems.map(ai => ({
+                      activity: ai.dynamicData?.activity || '',
+                      tempCode: ai.dynamicData?.tempCode || '',
+                      description: ai.dynamicData?.description || ai.dynamicData?.itemDescription || ai.dynamicData?.name || '',
+                      unit: ai.dynamicData?.unit || ai.dynamicData?.uom || '',
+                      totalLoaQty: Number(ai.dynamicData?.loaQty || ai.dynamicData?.totalLoaQuantity || ai.dynamicData?.qty || ai.dynamicData?.quantity || 0),
+                      claimedQty: 0,
+                      approvedQty: 0,
+                      rate: 0,
+                      amount: 0,
+                      remarks: ''
+                    }));
+                    setFormData(prev => ({
+                      ...prev,
+                      items: [...prev.items, ...newRows]
+                    }));
+                  }}
+                  styles={{
+                    control: (base) => ({ ...base, minHeight: '32px', height: '32px', fontSize: '13px', backgroundColor: 'white', border: '1px solid #cbd5e1', boxShadow: 'none' })
+                  }}
+                />
+              </div>
+              <Button onClick={addItem} variant="outline" size="sm" className="h-8">
               <Plus className="w-4 h-4 mr-2" /> Add Item
             </Button>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="bg-slate-100 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase">
                 <tr>
-                  <th className="px-4 py-3 border-r">Activity</th>
+                  <th className="px-4 py-3 border-r w-[200px]">Activity</th>
+                  <th className="px-4 py-3 border-r w-[150px]">Temp Code</th>
                   <th className="px-4 py-3 border-r w-[250px]">Description</th>
-                  <th className="px-4 py-3 border-r w-24">Unit</th>
-                  <th className="px-4 py-3 border-r w-28 bg-blue-50">Prev JMC Alloted Qty</th>
-                  <th className="px-4 py-3 border-r w-28 bg-green-50 text-green-800">New JMC Qty</th>
-                  <th className="px-4 py-3 border-r w-28 bg-purple-50 text-purple-800">Total JMC Qty</th>
+                  <th className="px-4 py-3 border-r w-20">Unit</th>
+                  <th className="px-4 py-3 border-r w-24">LOA Qty</th>
+                  <th className="px-4 py-3 border-r w-28 bg-blue-50">Prev WIP Alloted Qty</th>
+                  <th className="px-4 py-3 border-r w-28 bg-green-50 text-green-800">New WIP Qty</th>
+                  <th className="px-4 py-3 border-r w-28 bg-purple-50 text-purple-800">Total WIP Qty</th>
                   <th className="px-4 py-3 border-r w-32">Rate (₹)</th>
                   <th className="px-4 py-3 border-r w-32">Amount (₹)</th>
                   <th className="px-4 py-3 border-r">Remarks</th>
@@ -310,10 +375,17 @@ export default function JmcRegisterFormPage() {
                   <tr key={index} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-2 border-r border-slate-100">
                       <Input 
-                        value={item.activity} 
+                        value={item.activity || ''} 
                         onChange={e => handleItemChange(index, 'activity', e.target.value)} 
+                        className="h-8 text-sm bg-slate-50"
+                      />
+                    </td>
+                    <td className="px-4 py-2 border-r border-slate-100">
+                      <Input 
+                        value={item.tempCode || ''} 
+                        onChange={e => handleItemChange(index, 'tempCode', e.target.value)} 
                         className="h-8 text-sm"
-                        placeholder="Activity"
+                        placeholder="Code"
                       />
                     </td>
                     <td className="px-4 py-2 border-r border-slate-100">
@@ -326,30 +398,34 @@ export default function JmcRegisterFormPage() {
                     </td>
                     <td className="px-4 py-2 border-r border-slate-100">
                       <Input 
-                        value={item.unit} 
+                        value={item.unit || ''} 
                         onChange={e => handleItemChange(index, 'unit', e.target.value)} 
                         className="h-8 text-sm"
                         placeholder="e.g. Mtr"
                       />
                     </td>
+                    <td className="px-4 py-2 border-r border-slate-100 bg-slate-50 text-center font-medium text-slate-700">
+                      {item.totalLoaQty || 0}
+                    </td>
                     <td className="px-4 py-2 border-r border-slate-100 bg-blue-50/30">
                       <Input 
                         type="number"
-                        value={item.claimedQty || ''}
-                        onChange={(e) => handleItemChange(index, 'claimedQty', e.target.value)}
+                        value={item.claimedQty || ''} 
+                        onChange={e => handleItemChange(index, 'claimedQty', e.target.value)} 
                         placeholder="0"
+                        className="h-8 text-sm font-medium text-blue-700 bg-white"
                       />
                     </td>
                     <td className="p-2 border-r bg-green-50/30">
                       <Input 
                         type="number"
                         className="w-full h-9 bg-white"
-                        value={item.approvedQty || ''}
-                        onChange={(e) => handleItemChange(index, 'approvedQty', e.target.value)}
+                        value={item.approvedQty || ''} 
+                        onChange={e => handleItemChange(index, 'approvedQty', e.target.value)} 
                         placeholder="0"
                       />
                     </td>
-                    <td className="p-2 border-r text-center font-medium bg-purple-50/30">
+                    <td className="p-2 border-r text-center font-medium bg-purple-50/30 text-purple-900">
                       {(Number(item.claimedQty || 0) + Number(item.approvedQty || 0)).toFixed(2)}
                     </td>
                     <td className="px-4 py-2 border-r border-slate-100">
@@ -382,7 +458,7 @@ export default function JmcRegisterFormPage() {
                 ))}
                 {formData.items.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-6 py-8 text-center text-slate-500">
+                    <td colSpan={11} className="px-6 py-8 text-center text-slate-500">
                       No items added yet. Click "Add Item" to begin.
                     </td>
                   </tr>

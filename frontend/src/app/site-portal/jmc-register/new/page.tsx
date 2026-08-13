@@ -9,8 +9,10 @@ import { Input } from "@/components/ui/input";
 import { ArrowLeft, Plus, Trash2, Save, Send } from "lucide-react";
 import Select from "react-select";
 import { getItems } from "@/features/items/api/items.api";
+import { useAuthStore } from "@/shared/store/auth.store";
 
 export default function JmcRegisterFormPage() {
+  const { user } = useAuthStore();
   const router = useRouter();
   const params = useParams();
   const isNew = !params.id || params.id === 'new';
@@ -24,8 +26,8 @@ export default function JmcRegisterFormPage() {
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     contractorId: "",
-    package: "",
-    circle: "",
+    package: user?.assignedPackage || "",
+    circle: user?.assignedCircle || "",
     division: "",
     subDivision: "",
     status: "Draft",
@@ -262,19 +264,11 @@ export default function JmcRegisterFormPage() {
             <div className="space-y-4">
               <div>
                 <label className="text-xs font-medium text-slate-500 block mb-1">Package</label>
-                <Input 
-                  value={formData.package} 
-                  onChange={e => setFormData({...formData, package: e.target.value})} 
-                  placeholder="e.g. Package 1"
-                />
+                <Input value={formData.package} readOnly className="bg-slate-50 text-slate-500" placeholder="Auto-filled from your profile" />
               </div>
               <div>
                 <label className="text-xs font-medium text-slate-500 block mb-1">Circle</label>
-                <Input 
-                  value={formData.circle} 
-                  onChange={e => setFormData({...formData, circle: e.target.value})} 
-                  placeholder="e.g. Nahan"
-                />
+                <Input value={formData.circle} readOnly className="bg-slate-50 text-slate-500" placeholder="Auto-filled from your profile" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -367,8 +361,9 @@ export default function JmcRegisterFormPage() {
                   <th className="px-4 py-3 border-r w-[250px]">Description</th>
                   <th className="px-4 py-3 border-r w-20">Unit</th>
                   <th className="px-4 py-3 border-r w-24">LOA Qty</th>
-                  <th className="px-4 py-3 border-r w-28 bg-blue-50">Claimed Qty</th>
-                  <th className="px-4 py-3 border-r w-28 bg-green-50">Approved Qty</th>
+                  <th className="px-4 py-3 border-r w-28 bg-blue-50">Prev JMC Alloted Qty</th>
+                  <th className="px-4 py-3 border-r w-28 bg-green-50 text-green-800">New JMC Qty</th>
+                  <th className="px-4 py-3 border-r w-28 bg-purple-50 text-purple-800">Total JMC Qty</th>
                   <th className="px-4 py-3 border-r w-32">Rate (₹)</th>
                   <th className="px-4 py-3 border-r w-32">Amount (₹)</th>
                   <th className="px-4 py-3 border-r">Remarks</th>
@@ -417,16 +412,21 @@ export default function JmcRegisterFormPage() {
                         type="number"
                         value={item.claimedQty || ''} 
                         onChange={e => handleItemChange(index, 'claimedQty', e.target.value)} 
+                        placeholder="0"
                         className="h-8 text-sm font-medium text-blue-700 bg-white"
                       />
                     </td>
-                    <td className="px-4 py-2 border-r border-slate-100 bg-green-50/30">
+                    <td className="p-2 border-r bg-green-50/30">
                       <Input 
                         type="number"
+                        className="w-full h-9 bg-white"
                         value={item.approvedQty || ''} 
                         onChange={e => handleItemChange(index, 'approvedQty', e.target.value)} 
-                        className="h-8 text-sm font-medium text-green-700 bg-white"
+                        placeholder="0"
                       />
+                    </td>
+                    <td className="p-2 border-r text-center font-medium bg-purple-50/30 text-purple-900">
+                      {(Number(item.claimedQty || 0) + Number(item.approvedQty || 0)).toFixed(2)}
                     </td>
                     <td className="px-4 py-2 border-r border-slate-100">
                       <Input 

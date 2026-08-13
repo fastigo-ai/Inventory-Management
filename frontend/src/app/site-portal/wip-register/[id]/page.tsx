@@ -2,17 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { createJmc, getJmcById, updateJmc } from "@/features/site-portal/api/jmc.api";
+import { createWip, getWipById, updateWip } from "@/features/site-portal/api/wip.api";
 import { getContractors } from "@/features/contractors/api/contractors.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Plus, Trash2, Save, Send } from "lucide-react";
 
-export default function JmcRegisterFormPage() {
+export default function WipRegisterFormPage() {
   const router = useRouter();
   const params = useParams();
   const isNew = !params.id || params.id === 'new';
-  const jmcId = params.id as string;
+  const wipId = params.id as string;
 
   const [contractors, setContractors] = useState<any[]>([]);
   const [loading, setLoading] = useState(!isNew);
@@ -44,9 +44,9 @@ export default function JmcRegisterFormPage() {
   useEffect(() => {
     fetchContractors();
     if (!isNew) {
-      fetchJmc();
+      fetchWip();
     }
-  }, [isNew, jmcId]);
+  }, [isNew, wipId]);
 
   const fetchContractors = async () => {
     try {
@@ -57,10 +57,10 @@ export default function JmcRegisterFormPage() {
     }
   };
 
-  const fetchJmc = async () => {
+  const fetchWip = async () => {
     try {
       setLoading(true);
-      const res = await getJmcById(jmcId);
+      const res = await getWipById(wipId);
       const data = res.data?.data;
       if (data) {
         setFormData({
@@ -137,17 +137,17 @@ export default function JmcRegisterFormPage() {
       };
 
       if (isNew) {
-        await createJmc(payload);
-        alert(`JMC saved as ${statusToSave}`);
-        router.push('/site-portal/jmc-register');
+        await createWip(payload);
+        alert(`WIP saved as ${statusToSave}`);
+        router.push('/site-portal/wip-register');
       } else {
-        await updateJmc(jmcId, payload);
-        alert(`JMC updated and saved as ${statusToSave}`);
-        router.push('/site-portal/jmc-register');
+        await updateWip(wipId, payload);
+        alert(`WIP updated and saved as ${statusToSave}`);
+        router.push('/site-portal/wip-register');
       }
     } catch (err: any) {
       console.error(err);
-      alert(err?.response?.data?.message || "Failed to save JMC");
+      alert(err?.response?.data?.message || "Failed to save WIP");
     } finally {
       setSubmitting(false);
     }
@@ -170,7 +170,7 @@ export default function JmcRegisterFormPage() {
               <ArrowLeft className="w-5 h-5 text-slate-600" />
             </button>
             <h1 className="text-2xl font-bold text-slate-800">
-              {isNew ? 'New JMC Entry' : `Edit JMC ${(formData as any).jmcNumber || ''}`}
+              {isNew ? 'New WIP Entry' : `Edit WIP ${(formData as any).wipNumber || ''}`}
             </h1>
           </div>
           <div className="flex space-x-3">
@@ -188,7 +188,7 @@ export default function JmcRegisterFormPage() {
               className={formData.status === 'Submitted' ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"}
             >
               <Send className="w-4 h-4 mr-2" />
-              {formData.status === 'Submitted' ? 'Approve JMC' : 'Submit JMC'}
+              {formData.status === 'Submitted' ? 'Approve WIP' : 'Submit WIP'}
             </Button>
           </div>
         </div>
@@ -284,7 +284,7 @@ export default function JmcRegisterFormPage() {
 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-            <h2 className="text-sm font-bold text-slate-700 uppercase">JMC Items</h2>
+            <h2 className="text-sm font-bold text-slate-700 uppercase">WIP Items</h2>
             <Button onClick={addItem} variant="outline" size="sm" className="h-8">
               <Plus className="w-4 h-4 mr-2" /> Add Item
             </Button>
@@ -296,9 +296,9 @@ export default function JmcRegisterFormPage() {
                   <th className="px-4 py-3 border-r">Activity</th>
                   <th className="px-4 py-3 border-r w-[250px]">Description</th>
                   <th className="px-4 py-3 border-r w-24">Unit</th>
-                  <th className="px-4 py-3 border-r w-28 bg-blue-50">Prev JMC Alloted Qty</th>
-                  <th className="px-4 py-3 border-r w-28 bg-green-50 text-green-800">New JMC Qty</th>
-                  <th className="px-4 py-3 border-r w-28 bg-purple-50 text-purple-800">Total JMC Qty</th>
+                  <th className="px-4 py-3 border-r w-28 bg-blue-50">Prev WIP Alloted Qty</th>
+                  <th className="px-4 py-3 border-r w-28 bg-green-50 text-green-800">New WIP Qty</th>
+                  <th className="px-4 py-3 border-r w-28 bg-purple-50 text-purple-800">Total WIP Qty</th>
                   <th className="px-4 py-3 border-r w-32">Rate (₹)</th>
                   <th className="px-4 py-3 border-r w-32">Amount (₹)</th>
                   <th className="px-4 py-3 border-r">Remarks</th>

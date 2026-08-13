@@ -93,6 +93,7 @@ export default function InwardRegistrationForm() {
 
           setFormData({
             ...entry,
+            invoiceQty: entry.status === 'PENDING_RECEIPT' ? entry.totalQty : entry.invoiceQty,
             description: entry.itemDescription || entry.itemName || (entry.itemId?.dynamicData?.name) || '',
             unit: entry.unit || (entry.itemId?.dynamicData?.unit) || '',
             serialNumber: entry.serialNumber || (entry.itemId?.dynamicData?.sku) || '',

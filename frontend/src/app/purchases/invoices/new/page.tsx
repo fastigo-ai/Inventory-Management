@@ -489,8 +489,10 @@ export default function NewPurchaseInvoicePage() {
 
     const hasInvalidQuantity = lineItems.some(item => (Number(item.totalInvoiceQuantity) || 0) > (Number(item.invoiceQuantity) || 0));
     if (hasInvalidQuantity) {
-      alert("Total Invoice Quantity cannot be greater than Invoice Quantity");
-      return;
+      const confirmSave = window.confirm("Total Invoice Quantity is greater than Balance Quantity. Are you sure you want to save changes?");
+      if (!confirmSave) {
+        return;
+      }
     }
 
     const hasMissingMandatory = lineItems.some(item => !item.package || !item.circle);

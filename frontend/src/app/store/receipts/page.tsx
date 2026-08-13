@@ -449,7 +449,7 @@ export default function StoreReceiptsPage() {
                             <div className="text-xs font-mono text-slate-400 mt-0.5">Temp: {entry.tempCode || "-"}</div>
                           </td>
                           <td className="px-6 py-4 font-mono text-xs">{entry.serialNumber || "-"}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">{entry.invoiceQty || 0} {entry.unit || ""}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">{entry.totalQty || 0} {entry.unit || ""}</td>
                           <td className="px-6 py-4 text-xs">{entry.package || "-"}</td>
                           <td className="px-6 py-4 text-xs">
                             <div className="font-medium text-slate-700">{entry.circle || "-"}</div>

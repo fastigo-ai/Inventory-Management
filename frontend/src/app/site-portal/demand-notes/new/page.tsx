@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { createDemandNote, getContextData } from '@/features/site-portal/api/demand-notes.api';
 import { getItems } from '@/features/items/api/items.api';
 import { getContractorWorkOrderById } from '@/features/contractors/api/contractorWorkOrder.api';
+import { ItemSelectionModal } from '@/features/site-portal/components/ItemSelectionModal';
 
 function DemandNoteForm() {
   const router = useRouter();
@@ -28,44 +29,14 @@ function DemandNoteForm() {
     subDivision: '',
     location: '',
     remarks: '',
+    authorizedByEngineer: '',
     package: '',
     circle: '',
     status: 'Pending Approval'
   });
 
-  const [items, setItems] = useState<any[]>([
-    {
-      itemId: '',
-      itemName: '',
-      itemDescription: '',
-      activity: '',
-      tempCode: '',
-      loaSrNo: '',
-      unit: '',
-      totalPackageLoaQty: 0,
-      circleLoaQty: 0,
-      circleBomQty: 0,
-      loaQty: 0,
-      woQty: 0,
-      bomQty: 0,
-      alreadyIssuedQty: 0,
-      contractorErectionRate: 0,
-      amount: 0,
-      gstType: '',
-      gstAmount: 0,
-      totalAmount: 0,
-      transferFromOther: 0,
-      transferToOther: 0,
-      stockBal: 0,
-      jmcQty: 0,
-      wipQty: 0,
-      wipRequiredQty: 0,
-      miscellaneousQty: 0,
-      demandQty: 0,
-      balBomQty: 0,
-      isLoadingContext: false
-    }
-  ]);
+  const [isItemModalOpen, setIsItemModalOpen] = useState(false);
+  const [items, setItems] = useState<any[]>([]);
 
   useEffect(() => {
     fetchItemsList();
@@ -79,9 +50,11 @@ function DemandNoteForm() {
 
   const fetchItemsList = async () => {
     try {
-      const res = await getItems();
-      if (res.success) {
-        setItemsList(res.data.items || []);
+      const res = await getItems({ limit: 5000 });
+      if (res && res.items) {
+        setItemsList(res.items);
+      } else if (Array.isArray(res)) {
+        setItemsList(res);
       }
     } catch (error) {
       console.error('Failed to fetch items', error);
@@ -149,82 +122,89 @@ function DemandNoteForm() {
     }
   };
 
-  const addItemRow = () => {
-    setItems([
-      ...items,
-      {
-        itemId: '', itemName: '', itemDescription: '', activity: '', tempCode: '', loaSrNo: '',
-        unit: '', totalPackageLoaQty: 0, circleLoaQty: 0, circleBomQty: 0,
-        loaQty: 0, woQty: 0, bomQty: 0, alreadyIssuedQty: 0, contractorErectionRate: 0, amount: 0, gstType: '', gstAmount: 0, totalAmount: 0,
-        transferFromOther: 0, transferToOther: 0, stockBal: 0,
-        jmcQty: 0, wipQty: 0, wipRequiredQty: 0, miscellaneousQty: 0, demandQty: 0, balBomQty: 0, isLoadingContext: false
-      }
-    ]);
-  };
-
   const removeItemRow = (index: number) => {
     const newItems = [...items];
     newItems.splice(index, 1);
     setItems(newItems);
   };
 
-  const handleItemSelect = async (index: number, itemId: string) => {
-    let selectedWOItem = null;
-    let selectedGlobalItem = null;
+  const handleAddNewItem = async (selectedItems: any[]) => {
+    if (!selectedItems || selectedItems.length === 0) return;
 
-    if (workOrderId) {
-      selectedWOItem = workOrderItems.find(i => i.itemId === itemId);
-    } else {
-      selectedGlobalItem = itemsList.find(i => i._id === itemId);
-    }
-
-    const newItems = [...items];
+    let newRows: any[] = [];
     
-    if (selectedWOItem) {
-      newItems[index] = {
-        ...newItems[index],
-        ...selectedWOItem,
-        demandQty: 0,
-        jmcQty: 0,
-        wipQty: 0,
-        wipRequiredQty: 0,
-        miscellaneousQty: 0,
-        balBomQty: selectedWOItem.bomQty - selectedWOItem.alreadyIssuedQty,
+    selectedItems.forEach(selectedItem => {
+      const itemId = workOrderId ? selectedItem.itemId : selectedItem._id;
+      let newItem = {
+        itemId: '', itemName: '', itemDescription: '', activity: '', tempCode: '', loaSrNo: '',
+        unit: '', totalPackageLoaQty: 0, circleLoaQty: 0, circleBomQty: 0,
+        loaQty: 0, woQty: 0, bomQty: 0, alreadyIssuedQty: 0, contractorErectionRate: 0, amount: 0, gstType: '', gstAmount: 0, totalAmount: 0,
+        transferFromOther: 0, transferToOther: 0, stockBal: 0,
+        jmcQty: 0, wipQty: 0, wipRequiredQty: 0, miscellaneousQty: 0, demandQty: 0, balBomQty: 0, isLoadingContext: false
       };
-    } else if (selectedGlobalItem) {
-      newItems[index].itemId = itemId;
-      newItems[index].itemName = selectedGlobalItem.name || '';
-      newItems[index].activity = selectedGlobalItem.dynamicData?.activity || '';
-      newItems[index].tempCode = selectedGlobalItem.dynamicData?.tempCode || '';
-    } else {
-      newItems[index].itemId = itemId;
-    }
-    
-    if (!itemId) return setItems(newItems);
 
-    newItems[index].isLoadingContext = true;
-    setItems(newItems);
-
-    try {
-      const res = await getContextData(itemId);
-      if (res.success) {
-        const ctx = res.data;
-        newItems[index].itemDescription = ctx.itemDescription || '';
-        if (selectedGlobalItem) {
-          newItems[index].bomQty = ctx.bomQty || 0;
-          newItems[index].alreadyIssuedQty = ctx.alreadyIssuedQty || 0;
-        }
-        newItems[index].stockBal = ctx.stockBal || 0;
-        newItems[index].transferFromOther = ctx.transferFromOther || 0;
-        newItems[index].transferToOther = ctx.transferToOther || 0;
-        newItems[index].balBomQty = newItems[index].bomQty - newItems[index].alreadyIssuedQty - (newItems[index].demandQty || 0);
+      if (workOrderId) {
+        newItem = {
+          ...newItem,
+          ...selectedItem,
+          demandQty: 0,
+          jmcQty: 0,
+          wipQty: 0,
+          wipRequiredQty: 0,
+          miscellaneousQty: 0,
+          balBomQty: selectedItem.bomQty - selectedItem.alreadyIssuedQty,
+        };
+      } else {
+        newItem.itemId = itemId;
+        newItem.itemName = selectedItem.dynamicData?.itemName || selectedItem.dynamicData?.name || selectedItem.name || selectedItem.dynamicData?.description || '';
+        newItem.activity = selectedItem.dynamicData?.activity || '';
+        newItem.tempCode = selectedItem.dynamicData?.tempCode || '';
+        newItem.loaSrNo = selectedItem.dynamicData?.loaSrNo || selectedItem.dynamicData?.loaSerialNo || selectedItem.dynamicData?.loaSerialNumber || selectedItem.dynamicData?.sku || selectedItem.sku || '';
       }
-    } catch (error) {
-      toast.error('Failed to load item context constraints.');
-    } finally {
-      newItems[index].isLoadingContext = false;
-      setItems([...newItems]);
-    }
+      
+      newItem.isLoadingContext = true;
+      newRows.push(newItem);
+    });
+    
+    setItems(prev => [...prev, ...newRows]);
+    
+    const startIdx = items.length;
+
+    selectedItems.forEach(async (selectedItem, idx) => {
+      const itemId = workOrderId ? selectedItem.itemId : selectedItem._id;
+      const actualIndex = startIdx + idx;
+
+      try {
+        const res = await getContextData(itemId);
+        if (res.success) {
+          const ctx = res.data;
+          setItems(prev => {
+            const updated = [...prev];
+            const curr = updated[actualIndex];
+            if (!curr) return prev;
+            
+            curr.itemDescription = ctx.itemDescription || '';
+            if (!workOrderId) {
+              curr.bomQty = ctx.bomQty || 0;
+              curr.alreadyIssuedQty = ctx.alreadyIssuedQty || 0;
+            }
+            curr.stockBal = ctx.stockBal || 0;
+            curr.transferFromOther = ctx.transferFromOther || 0;
+            curr.transferToOther = ctx.transferToOther || 0;
+            curr.balBomQty = curr.bomQty - curr.alreadyIssuedQty - (curr.demandQty || 0);
+            curr.isLoadingContext = false;
+            return updated;
+          });
+        }
+      } catch (error) {
+        toast.error('Failed to load item context constraints.');
+        setItems(prev => {
+          const updated = [...prev];
+          if (updated[actualIndex]) updated[actualIndex].isLoadingContext = false;
+          return updated;
+        });
+      }
+    });
   };
 
   const handleItemChange = (index: number, field: string, value: any) => {
@@ -279,6 +259,9 @@ function DemandNoteForm() {
       data.append('package', formData.package);
       data.append('circle', formData.circle);
       data.append('status', formData.status);
+      if (formData.authorizedByEngineer) {
+        data.append('authorizedByEngineer', formData.authorizedByEngineer);
+      }
       data.append('items', JSON.stringify(itemsToSave));
       if (file) {
         data.append('file', file);
@@ -355,6 +338,10 @@ function DemandNoteForm() {
             <Input value={formData.remarks} onChange={e => setFormData({...formData, remarks: e.target.value})} />
           </div>
           <div>
+            <label className="text-sm font-medium text-slate-700 block mb-1">Authorized By Engineer</label>
+            <Input value={formData.authorizedByEngineer} onChange={e => setFormData({...formData, authorizedByEngineer: e.target.value})} />
+          </div>
+          <div>
             <label className="text-sm font-medium text-slate-700 block mb-1">Location Drawing / Document</label>
             <Input 
               type="file" 
@@ -371,7 +358,7 @@ function DemandNoteForm() {
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-slate-200 flex justify-between items-center">
           <h3 className="text-lg font-semibold text-slate-800">Requested Items</h3>
-          <Button onClick={addItemRow} variant="outline" size="sm" className="flex items-center gap-2">
+          <Button onClick={() => setIsItemModalOpen(true)} variant="outline" size="sm" className="flex items-center gap-2">
             <Plus className="w-4 h-4" /> Add Item
           </Button>
         </div>
@@ -421,18 +408,9 @@ function DemandNoteForm() {
                   {group.map(({ item, idx }: {item: any, idx: number}) => (
                     <tr key={idx} className="hover:bg-slate-50">
                       <td className="px-4 py-3">
-                        <select
-                          className="w-full h-9 rounded-md border border-slate-300 px-3 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 text-sm"
-                          value={item.itemId}
-                          onChange={(e) => handleItemSelect(idx, e.target.value)}
-                        >
-                          <option value="">Select Item</option>
-                          {(workOrderId ? workOrderItems : itemsList).map(i => (
-                            <option key={workOrderId ? i.itemId : i._id} value={workOrderId ? i.itemId : i._id}>
-                              {workOrderId ? i.itemName : i.name}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="font-medium text-slate-800 max-w-[200px] truncate" title={item.itemName || 'Unknown Item'}>
+                          {item.itemName || 'Unknown Item'}
+                        </div>
                         {item.isLoadingContext && <Loader2 className="w-4 h-4 animate-spin text-indigo-500 mt-2" />}
                       </td>
                       <td className="px-4 py-3 text-sm text-slate-600 truncate max-w-[150px]" title={item.activity}>{item.activity || 'N/A'}</td>
@@ -493,6 +471,14 @@ function DemandNoteForm() {
           </table>
         </div>
       </div>
+      
+      <ItemSelectionModal
+        isOpen={isItemModalOpen}
+        onClose={() => setIsItemModalOpen(false)}
+        items={workOrderId ? workOrderItems : itemsList}
+        onSelect={handleAddNewItem}
+        isWorkOrderContext={!!workOrderId}
+      />
     </div>
   );
 }

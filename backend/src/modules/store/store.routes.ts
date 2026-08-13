@@ -16,12 +16,15 @@ import {
   voidInwardEntry,
   getInwardEntryById,
   queryInwardEntries,
+  getInwardFilterOptions,
   getAdminInwardEntries,
   getStockSummary,
   getAdminStockSummary,
   createStoreTransfer,
   getStoreTransfers,
   getStoreTransferById,
+  updateStoreTransfer,
+  deleteStoreTransfer,
   updateStoreTransferStatus,
   dispatchStoreTransfer,
   receiveStoreTransfer,
@@ -53,6 +56,8 @@ router.route('/inventory/inward')
   .post(createInwardEntry)
   .get(queryInwardEntries);
 
+router.get('/inventory/inward/filter-options', getInwardFilterOptions);
+
 router.route('/inventory/inward/bulk-import').post(bulkImportInwardEntries);
 
 router.post('/inventory/inward/import', upload.single('file'), importInwardRegistrations);
@@ -70,7 +75,9 @@ router.route('/transfers')
   .get(getStoreTransfers);
 
 router.route('/transfers/:id')
-  .get(getStoreTransferById);
+  .get(getStoreTransferById)
+  .put(updateStoreTransfer)
+  .delete(deleteStoreTransfer);
 
 router.route('/transfers/:id/status')
   .put(updateStoreTransferStatus);

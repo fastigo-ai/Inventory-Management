@@ -41,6 +41,7 @@ export interface IDemandNote extends Document {
   subDivision?: string;
   location?: string;
   status: 'Draft' | 'Pending Approval' | 'Approved' | 'Rejected' | 'Fulfilled';
+  authorizedByEngineer?: string;
   remarks?: string;
   locationDrawingUrl?: string;
   items: IDemandNoteItem[];
@@ -95,6 +96,7 @@ const demandNoteSchema = new Schema<IDemandNote>(
       default: 'Draft',
       index: true
     },
+    authorizedByEngineer: { type: String },
     remarks: { type: String },
     locationDrawingUrl: { type: String },
     items: [demandNoteItemSchema],

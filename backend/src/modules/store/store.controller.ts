@@ -272,17 +272,59 @@ export const getInwardEntryById = asyncHandler(async (req: Request, res: Respons
 });
 
 export const queryInwardEntries = asyncHandler(async (req: Request, res: Response) => {
-  const { diId, status } = req.query;
+  const { diId, status, diNo, vendor, invoiceNo, dateFrom, dateTo, itemName, page = 1, limit = 50 } = req.query;
   const filter: any = {};
+  
   if (diId) filter.diId = diId;
   if (status) filter.status = status;
   
+  if (diNo && diNo !== 'all') filter.diRefNo = diNo;
+  if (vendor && vendor !== 'all') filter.vendorName = vendor;
+  if (invoiceNo && invoiceNo !== 'all') filter.invoiceNumber = invoiceNo;
+  if (itemName) filter.itemName = { $regex: itemName, $options: 'i' };
+  
+  if (dateFrom || dateTo) {
+    filter.invoiceDate = {};
+    if (dateFrom) filter.invoiceDate.$gte = new Date(dateFrom as string);
+    if (dateTo) filter.invoiceDate.$lte = new Date(dateTo as string);
+  }
+  
+  const pageNum = parseInt(page as string, 10) || 1;
+  const limitNum = parseInt(limit as string, 10) || 50;
+  const skip = (pageNum - 1) * limitNum;
+  
   const entries = await StoreInwardEntry.find(filter)
     .populate('diId', 'diNumber')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limitNum);
+
+  const total = await StoreInwardEntry.countDocuments(filter);
 
   res.status(200).json(
-    new ApiResponse(200, entries, 'Entries fetched successfully')
+    new ApiResponse(200, {
+      entries,
+      total,
+      page: pageNum,
+      totalPages: Math.ceil(total / limitNum),
+      limit: limitNum
+    }, 'Entries fetched successfully')
+  );
+});
+
+export const getInwardFilterOptions = asyncHandler(async (req: Request, res: Response) => {
+  const [diNos, vendors, invoiceNos] = await Promise.all([
+    StoreInwardEntry.distinct('diRefNo'),
+    StoreInwardEntry.distinct('vendorName'),
+    StoreInwardEntry.distinct('invoiceNumber')
+  ]);
+
+  res.status(200).json(
+    new ApiResponse(200, {
+      diNos: diNos.filter(Boolean),
+      vendors: vendors.filter(Boolean),
+      invoiceNos: invoiceNos.filter(Boolean)
+    }, 'Filter options fetched successfully')
   );
 });
 
@@ -546,9 +588,19 @@ export const createStoreTransfer = asyncHandler(async (req: Request, res: Respon
 
 export const getStoreTransfers = asyncHandler(async (req: Request, res: Response) => {
   const { circle, registerType } = req.query;
+  const user = (req as any).user;
   
   let filter: any = {};
-  if (circle) {
+
+  if (user && user.role?.name === 'Store Manager' && user.assignedCircle) {
+    if (registerType === 'OUTWARD') {
+      filter.fromStore = user.assignedCircle;
+    } else if (registerType === 'INWARD') {
+      filter.toStore = user.assignedCircle;
+    } else {
+      filter = { $or: [{ fromStore: user.assignedCircle }, { toStore: user.assignedCircle }] };
+    }
+  } else if (circle) {
     filter = { $or: [{ fromStore: circle }, { toStore: circle }] };
   }
 
@@ -568,6 +620,82 @@ export const getStoreTransferById = asyncHandler(async (req: Request, res: Respo
   const transfer = await StoreTransfer.findById(id).populate('requestedBy', 'firstName lastName');
   if (!transfer) throw new ApiError(404, 'Transfer not found');
   res.status(200).json(new ApiResponse(200, transfer, 'Transfer fetched successfully'));
+});
+
+export const updateStoreTransfer = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const user = (req as any).user;
+  const isAdmin = user?.role?.name === "Admin" || user?.role?.name === "Super Admin" || user?.role?.permissions?.includes("*");
+  const payload = req.body;
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const transfer = await StoreTransfer.findById(id).session(session);
+    if (!transfer) {
+      throw new ApiError(404, 'Transfer not found');
+    }
+
+    if (transfer.status !== 'PENDING') {
+      if (!isAdmin) {
+        throw new ApiError(403, 'Only Admins can edit transfers that have already been dispatched or received.');
+      }
+    } else {
+      if (!isAdmin && user.assignedCircle && user.assignedCircle !== transfer.fromStore) {
+        throw new ApiError(403, 'You can only edit transfers originating from your assigned store.');
+      }
+    }
+
+    Object.assign(transfer, payload);
+    const updated = await transfer.save({ session });
+    
+    await session.commitTransaction();
+    session.endSession();
+    
+    res.status(200).json(new ApiResponse(200, updated, 'Transfer updated successfully'));
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
+});
+
+export const deleteStoreTransfer = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const user = (req as any).user;
+  const isAdmin = user?.role?.name === "Admin" || user?.role?.name === "Super Admin" || user?.role?.permissions?.includes("*");
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const transfer = await StoreTransfer.findById(id).session(session);
+    if (!transfer) {
+      throw new ApiError(404, 'Transfer not found');
+    }
+
+    if (transfer.status !== 'PENDING') {
+      if (!isAdmin) {
+        throw new ApiError(403, 'Only Admins can delete transfers that have already been dispatched or received.');
+      }
+    } else {
+      if (!isAdmin && user.assignedCircle && user.assignedCircle !== transfer.fromStore) {
+        throw new ApiError(403, 'You can only delete transfers originating from your assigned store.');
+      }
+    }
+
+    await StoreTransfer.findByIdAndDelete(id).session(session);
+    
+    await session.commitTransaction();
+    session.endSession();
+    
+    res.status(200).json(new ApiResponse(200, null, 'Transfer deleted successfully'));
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
 });
 
 export const updateStoreTransferStatus = asyncHandler(async (req: Request, res: Response) => {

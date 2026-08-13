@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import { createMhrov, queryInwardEntries } from "@/features/store/api/store.api";
+import { createMhrov, queryInwardEntries, getInwardFilterOptions } from "@/features/store/api/store.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Save, UploadCloud } from "lucide-react";
+import { ArrowLeft, Save, ShoppingCart, Trash2, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -24,20 +24,66 @@ export default function NewMhrovPage() {
   });
 
   const [inwardEntries, setInwardEntries] = useState<any[]>([]);
-  const [selectedEntries, setSelectedEntries] = useState<string[]>([]);
+  // selectedIds is used just for checkboxes in the current search view
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  // selectedCartItems is the actual list of items attached to the MHROV
+  const [selectedCartItems, setSelectedCartItems] = useState<any[]>([]);
+  
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [filters, setFilters] = useState({
+    diNo: "all",
+    vendor: "all",
+    invoiceNo: "all",
+    dateFrom: "",
+    dateTo: "",
+    itemName: ""
+  });
+
+  const [filterOptions, setFilterOptions] = useState({ diNos: [], vendors: [], invoiceNos: [] });
+  const [pagination, setPagination] = useState({ page: 1, limit: 50, totalPages: 1, total: 0 });
+
+  useEffect(() => {
+    fetchFilterOptions();
+  }, []);
+
   useEffect(() => {
     fetchInwardEntries();
-  }, []);
+  }, [filters, pagination.page]);
+
+  const fetchFilterOptions = async () => {
+    try {
+      const res = await getInwardFilterOptions();
+      if (res.data) setFilterOptions(res.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const fetchInwardEntries = async () => {
     try {
       setLoading(true);
-      // Fetch inward registrations (removed status: "VERIFIED" filter to ensure data shows up)
-      const res = await queryInwardEntries({ limit: 1000 });
-      setInwardEntries(Array.isArray(res.data) ? res.data : (res.data?.entries || []));
+      const res = await queryInwardEntries({
+        page: pagination.page,
+        limit: pagination.limit,
+        diNo: filters.diNo,
+        vendor: filters.vendor,
+        invoiceNo: filters.invoiceNo,
+        dateFrom: filters.dateFrom,
+        dateTo: filters.dateTo,
+        itemName: filters.itemName
+      });
+      
+      const data = res.data;
+      if (data) {
+        setInwardEntries(data.entries || []);
+        setPagination(prev => ({
+          ...prev,
+          totalPages: data.totalPages,
+          total: data.total
+        }));
+      }
     } catch (error) {
       console.error(error);
       toast.error("Failed to load Inward Registrations");
@@ -47,18 +93,35 @@ export default function NewMhrovPage() {
   };
 
   const toggleSelection = (id: string) => {
-    let newSelection = [...selectedEntries];
+    let newSelection = [...selectedIds];
     if (newSelection.includes(id)) {
       newSelection = newSelection.filter(e => e !== id);
     } else {
       newSelection.push(id);
     }
-    setSelectedEntries(newSelection);
+    setSelectedIds(newSelection);
+  };
+
+  const handleAddSelected = () => {
+    const itemsToAdd = inwardEntries.filter(entry => selectedIds.includes(entry._id));
+    const newItems = itemsToAdd.filter(newItem => !selectedCartItems.find(item => item._id === newItem._id));
+    
+    if (newItems.length > 0) {
+      setSelectedCartItems(prev => [...prev, ...newItems]);
+      setSelectedIds([]);
+      toast.success(`${newItems.length} items added to MHROV`);
+    } else {
+      toast.error("Items are already added or no items selected");
+    }
+  };
+
+  const handleRemoveFromCart = (id: string) => {
+    setSelectedCartItems(prev => prev.filter(item => item._id !== id));
   };
 
   const onSubmit = async (data: any) => {
-    if (selectedEntries.length === 0) {
-      toast.error("Please select at least one item for the MHROV.");
+    if (selectedCartItems.length === 0) {
+      toast.error("Please add at least one item to the MHROV.");
       return;
     }
 
@@ -68,7 +131,7 @@ export default function NewMhrovPage() {
       formData.append("mhrovNumber", data.mhrovNumber);
       formData.append("mhrovDate", data.mhrovDate);
       formData.append("status", data.status);
-      formData.append("inwardEntries", JSON.stringify(selectedEntries));
+      formData.append("inwardEntries", JSON.stringify(selectedCartItems.map(i => i._id)));
       
       if (data.document) {
         formData.append("document", data.document);
@@ -83,6 +146,11 @@ export default function NewMhrovPage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleFilterChange = (field: string, value: string) => {
+    setFilters(prev => ({ ...prev, [field]: value }));
+    setPagination(prev => ({ ...prev, page: 1 }));
   };
 
   return (
@@ -175,26 +243,161 @@ export default function NewMhrovPage() {
           </CardContent>
         </Card>
 
+        {/* Selected Items Cart */}
+        <Card className="border-indigo-200 shadow-sm overflow-hidden bg-indigo-50/10">
+          <CardHeader className="border-b border-indigo-100 bg-indigo-50/50 pb-4 flex flex-row items-center justify-between">
+            <CardTitle className="text-base font-medium text-indigo-900 flex items-center">
+              <ShoppingCart className="w-4 h-4 mr-2" />
+              Selected Items for MHROV
+            </CardTitle>
+            <span className="text-[13px] text-indigo-600 font-bold bg-indigo-100 px-3 py-1 rounded-full">
+              {selectedCartItems.length} items
+            </span>
+          </CardHeader>
+          <div className="overflow-x-auto max-h-[300px]">
+            <table className="w-full text-sm text-left">
+              <thead className="text-[13px] text-indigo-600 font-medium bg-indigo-50/80 border-b border-indigo-100 sticky top-0 z-10">
+                <tr>
+                  <th className="px-4 py-3">DI No</th>
+                  <th className="px-4 py-3">Vendor</th>
+                  <th className="px-4 py-3">Invoice No</th>
+                  <th className="px-4 py-3">Item Name</th>
+                  <th className="px-4 py-3 text-right">Qty</th>
+                  <th className="px-4 py-3 w-16 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-indigo-50 bg-white/60 text-[13px] text-slate-700">
+                {selectedCartItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center text-indigo-400">
+                      No items added yet. Search below and click "Add Selected".
+                    </td>
+                  </tr>
+                ) : (
+                  selectedCartItems.map((entry) => (
+                    <tr key={entry._id} className="hover:bg-indigo-50/40">
+                      <td className="px-4 py-3">{entry.diId?.diNumber || entry.diRefNo || "N/A"}</td>
+                      <td className="px-4 py-3 font-medium text-slate-900">{entry.vendorName}</td>
+                      <td className="px-4 py-3">{entry.invoiceNumber}</td>
+                      <td className="px-4 py-3 max-w-[200px] truncate" title={entry.itemName}>
+                        {entry.itemName}
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium">{entry.totalQty}</td>
+                      <td className="px-4 py-3 text-center">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveFromCart(entry._id)}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0 rounded-full"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
+        {/* Search and Add Inward Items */}
         <Card className="border-slate-200 shadow-sm overflow-hidden">
           <CardHeader className="border-b border-slate-100 bg-slate-50/50 pb-4 flex flex-row items-center justify-between">
-            <CardTitle className="text-base font-medium text-slate-800">
-              Select Inward Items
+            <CardTitle className="text-base font-medium text-slate-800 flex items-center">
+              <Search className="w-4 h-4 mr-2 text-slate-500" />
+              Search Inward Items
             </CardTitle>
-            <span className="text-[13px] text-slate-500 font-medium">
-              {selectedEntries.length} items selected
-            </span>
+            <div className="flex items-center space-x-4">
+              <span className="text-[13px] text-slate-500 font-medium">
+                {selectedIds.length} checked on this page
+              </span>
+              <Button
+                type="button"
+                onClick={handleAddSelected}
+                disabled={selectedIds.length === 0}
+                className="h-8 bg-slate-800 hover:bg-slate-900 text-white text-xs"
+              >
+                Add Selected Items
+              </Button>
+            </div>
           </CardHeader>
           <div className="overflow-x-auto max-h-[500px]">
             <table className="w-full text-sm text-left">
               <thead className="text-[13px] text-slate-500 font-medium bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
                 <tr>
-                  <th className="px-4 py-3 w-12 text-center"></th>
-                  <th className="px-4 py-3">DI No</th>
-                  <th className="px-4 py-3">Vendor</th>
-                  <th className="px-4 py-3">Invoice No</th>
-                  <th className="px-4 py-3">Invoice Date</th>
-                  <th className="px-4 py-3">Item Name</th>
-                  <th className="px-4 py-3 text-right">Qty</th>
+                  <th className="px-4 py-3 w-12 text-center align-top pt-5">
+                  </th>
+                  <th className="px-4 py-3 align-top min-w-[120px]">
+                    <div className="mb-2">DI No</div>
+                    <select
+                      className="w-full h-8 px-2 py-1 text-xs font-normal border rounded bg-white"
+                      value={filters.diNo}
+                      onChange={(e) => handleFilterChange("diNo", e.target.value)}
+                    >
+                      <option value="all">All</option>
+                      {filterOptions.diNos.map((di, i) => (
+                        <option key={i} value={di}>{di}</option>
+                      ))}
+                    </select>
+                  </th>
+                  <th className="px-4 py-3 align-top min-w-[150px]">
+                    <div className="mb-2">Vendor</div>
+                    <select
+                      className="w-full h-8 px-2 py-1 text-xs font-normal border rounded bg-white"
+                      value={filters.vendor}
+                      onChange={(e) => handleFilterChange("vendor", e.target.value)}
+                    >
+                      <option value="all">All</option>
+                      {filterOptions.vendors.map((vendor, i) => (
+                        <option key={i} value={vendor}>{vendor}</option>
+                      ))}
+                    </select>
+                  </th>
+                  <th className="px-4 py-3 align-top min-w-[120px]">
+                    <div className="mb-2">Invoice No</div>
+                    <select
+                      className="w-full h-8 px-2 py-1 text-xs font-normal border rounded bg-white"
+                      value={filters.invoiceNo}
+                      onChange={(e) => handleFilterChange("invoiceNo", e.target.value)}
+                    >
+                      <option value="all">All</option>
+                      {filterOptions.invoiceNos.map((inv, i) => (
+                        <option key={i} value={inv}>{inv}</option>
+                      ))}
+                    </select>
+                  </th>
+                  <th className="px-4 py-3 align-top min-w-[200px]">
+                    <div className="mb-2">Invoice Date</div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="date"
+                        placeholder="From"
+                        value={filters.dateFrom}
+                        onChange={(e) => handleFilterChange("dateFrom", e.target.value)}
+                        className="h-8 text-[11px] px-2 font-normal"
+                      />
+                      <span className="text-xs">-</span>
+                      <Input
+                        type="date"
+                        placeholder="To"
+                        value={filters.dateTo}
+                        onChange={(e) => handleFilterChange("dateTo", e.target.value)}
+                        className="h-8 text-[11px] px-2 font-normal"
+                      />
+                    </div>
+                  </th>
+                  <th className="px-4 py-3 align-top min-w-[150px]">
+                    <div className="mb-2">Item Name</div>
+                    <Input
+                      placeholder="Search..."
+                      value={filters.itemName}
+                      onChange={(e) => handleFilterChange("itemName", e.target.value)}
+                      className="h-8 text-xs font-normal"
+                    />
+                  </th>
+                  <th className="px-4 py-3 text-right align-top pt-5">Qty</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white text-[13px] text-slate-700">
@@ -207,38 +410,69 @@ export default function NewMhrovPage() {
                 ) : inwardEntries.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
-                      No Inward Registrations found for this store.
+                      No matching items found.
                     </td>
                   </tr>
                 ) : (
-                  inwardEntries.map((entry) => (
-                    <tr
-                      key={entry._id}
-                      className={`hover:bg-slate-50 cursor-pointer transition-colors ${
-                        selectedEntries.includes(entry._id) ? "bg-indigo-50/50" : ""
-                      }`}
-                      onClick={() => toggleSelection(entry._id)}
-                    >
-                      <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                        <Checkbox
-                          checked={selectedEntries.includes(entry._id)}
-                          onCheckedChange={() => toggleSelection(entry._id)}
-                          className="border-slate-300"
-                        />
-                      </td>
-                      <td className="px-4 py-3">{entry.diId?.diNumber || "N/A"}</td>
-                      <td className="px-4 py-3 font-medium text-slate-900">{entry.vendorName}</td>
-                      <td className="px-4 py-3">{entry.invoiceNumber}</td>
-                      <td className="px-4 py-3">{entry.invoiceDate ? new Date(entry.invoiceDate).toLocaleDateString() : ""}</td>
-                      <td className="px-4 py-3 max-w-[200px] truncate" title={entry.itemName}>
-                        {entry.itemName}
-                      </td>
-                      <td className="px-4 py-3 text-right font-medium">{entry.totalQty}</td>
-                    </tr>
-                  ))
+                  inwardEntries.map((entry) => {
+                    const isAlreadyInCart = selectedCartItems.some(i => i._id === entry._id);
+                    return (
+                      <tr
+                        key={entry._id}
+                        className={`hover:bg-slate-50 transition-colors ${
+                          selectedIds.includes(entry._id) ? "bg-slate-50/50" : ""
+                        } ${isAlreadyInCart ? "opacity-50 bg-slate-50" : "cursor-pointer"}`}
+                        onClick={() => !isAlreadyInCart && toggleSelection(entry._id)}
+                      >
+                        <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={selectedIds.includes(entry._id) || isAlreadyInCart}
+                            disabled={isAlreadyInCart}
+                            onCheckedChange={() => !isAlreadyInCart && toggleSelection(entry._id)}
+                            className="border-slate-300"
+                          />
+                        </td>
+                        <td className="px-4 py-3">{entry.diId?.diNumber || entry.diRefNo || "N/A"}</td>
+                        <td className="px-4 py-3 font-medium text-slate-900">{entry.vendorName}</td>
+                        <td className="px-4 py-3">{entry.invoiceNumber}</td>
+                        <td className="px-4 py-3">{entry.invoiceDate ? new Date(entry.invoiceDate).toLocaleDateString() : ""}</td>
+                        <td className="px-4 py-3 max-w-[200px] truncate" title={entry.itemName}>
+                          {entry.itemName}
+                        </td>
+                        <td className="px-4 py-3 text-right font-medium">{entry.totalQty}</td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
+          </div>
+          <div className="bg-slate-50 p-3 border-t border-slate-200 flex items-center justify-between">
+            <span className="text-xs text-slate-500 font-medium ml-4">
+              Showing page {pagination.page} of {pagination.totalPages} ({pagination.total} total items)
+            </span>
+            <div className="flex space-x-2 mr-4">
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                className="h-8 px-2 text-xs"
+                disabled={pagination.page <= 1}
+                onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+              >
+                <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+              </Button>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                className="h-8 px-2 text-xs"
+                disabled={pagination.page >= pagination.totalPages}
+                onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+              >
+                Next <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            </div>
           </div>
         </Card>
       </div>

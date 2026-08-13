@@ -8,11 +8,20 @@ import Link from "next/link";
 import { OutwardImportModal } from "@/features/store/components/OutwardImportModal";
 import { useClientTable } from "@/shared/hooks/useClientTable";
 import { DataTableTopControls, DataTableBottomControls } from "@/shared/components/DataTableControls";
+import { TransferDetailModal } from "@/features/store/components/TransferDetailModal";
+import { TransferEditModal } from "@/features/store/components/TransferEditModal";
+import { deleteStoreTransfer } from "@/features/store/api/store.api";
+import { toast } from "sonner";
+import { Eye, Trash2, Edit } from "lucide-react";
 
 export default function OutwardRegisterPage() {
   const [transfers, setTransfers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  
+  const [selectedTransferId, setSelectedTransferId] = useState<string | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
   useEffect(() => {
     fetchTransfers();
@@ -83,6 +92,27 @@ export default function OutwardRegisterPage() {
     totalPages,
     totalItems
   } = useClientTable(transfers);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this transfer? This action cannot be undone.")) return;
+    try {
+      await deleteStoreTransfer(id);
+      toast.success("Transfer deleted successfully");
+      fetchTransfers();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to delete transfer");
+    }
+  };
+
+  const handleView = (id: string) => {
+    setSelectedTransferId(id);
+    setIsDetailOpen(true);
+  };
+
+  const handleEdit = (id: string) => {
+    setSelectedTransferId(id);
+    setIsEditOpen(true);
+  };
 
   return (
     <div className="flex-1 bg-white min-h-screen p-6">
@@ -155,7 +185,8 @@ export default function OutwardRegisterPage() {
                       <th className="px-4 py-3 border-r border-slate-200">GR Date</th>
                       <th className="px-4 py-3 border-r border-slate-200">Driver Name</th>
                       <th className="px-4 py-3 border-r border-slate-200">Mobile No.</th>
-                      <th className="px-4 py-3">Remark</th>
+                      <th className="px-4 py-3 border-r border-slate-200">Remark</th>
+                      <th className="px-4 py-3 text-center sticky right-0 bg-slate-50 z-10 shadow-[-4px_0_12px_rgba(0,0,0,0.05)]">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -189,7 +220,32 @@ export default function OutwardRegisterPage() {
                           <td className="px-4 py-3 border-r border-slate-100 text-slate-500">{formatDate(t.grDate)}</td>
                           <td className="px-4 py-3 border-r border-slate-100">{t.driverName}</td>
                           <td className="px-4 py-3 border-r border-slate-100">{t.driverMobile}</td>
-                          <td className="px-4 py-3 text-slate-500">{t.remarks}</td>
+                          <td className="px-4 py-3 border-r border-slate-100 text-slate-500">{t.remarks}</td>
+                          <td className="px-4 py-3 text-center sticky right-0 bg-white group-hover:bg-slate-50 transition-colors z-10 shadow-[-4px_0_12px_rgba(0,0,0,0.02)]">
+                            <div className="flex items-center justify-center gap-2">
+                              <button 
+                                onClick={() => handleView(t.id)}
+                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                                title="View Details"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={() => handleEdit(t.id)}
+                                className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+                                title="Edit"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={() => handleDelete(t.id)}
+                                className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       ))
                     )}
@@ -211,6 +267,17 @@ export default function OutwardRegisterPage() {
       <OutwardImportModal 
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
+        onSuccess={fetchTransfers}
+      />
+      <TransferDetailModal
+        isOpen={isDetailOpen}
+        onClose={() => setIsDetailOpen(false)}
+        transferId={selectedTransferId}
+      />
+      <TransferEditModal
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        transferId={selectedTransferId}
         onSuccess={fetchTransfers}
       />
     </div>

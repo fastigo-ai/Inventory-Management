@@ -65,6 +65,11 @@ export const queryInwardEntries = async (params: any) => {
   return response.data;
 };
 
+export const getInwardFilterOptions = async () => {
+  const response = await api.get('/store/inventory/inward/filter-options');
+  return response.data;
+};
+
 export const getAdminInwardEntries = async (params: any) => {
   const response = await api.get('/store/admin/inventory/store-manager', { params });
   return response.data;
@@ -94,6 +99,16 @@ export const getStoreTransfers = async (params?: any) => {
 
 export const getStoreTransferById = async (id: string) => {
   const response = await api.get(`/store/transfers/${id}`);
+  return response.data;
+};
+
+export const updateStoreTransfer = async (id: string, data: any) => {
+  const response = await api.put(`/store/transfers/${id}`, data);
+  return response.data;
+};
+
+export const deleteStoreTransfer = async (id: string) => {
+  const response = await api.delete(`/store/transfers/${id}`);
   return response.data;
 };
 

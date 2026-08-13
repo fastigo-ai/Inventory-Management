@@ -89,6 +89,7 @@ export default function PurchaseInvoicesPage() {
       minAmount: '', maxAmount: ''
     };
     setFilters(emptyFilters);
+    setSearch(""); // Also clear the local search bar text
     updateUrl({ ...emptyFilters, page: '1' });
     setIsFilterOpen(false);
   };
@@ -97,12 +98,13 @@ export default function PurchaseInvoicesPage() {
     (Array.isArray(v) ? v.length > 0 : v !== '')
   ).length;
 
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [search, setSearch] = useState(searchParams.get("invoiceNumber") || "");
 
   useEffect(() => {
     const handler = setTimeout(() => {
-      setDebouncedSearch(search);
+      if (search !== (searchParams.get('invoiceNumber') || '')) {
+        updateUrl({ invoiceNumber: search, page: '1' });
+      }
     }, 500);
     return () => clearTimeout(handler);
   }, [search]);

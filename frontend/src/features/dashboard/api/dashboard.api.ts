@@ -5,7 +5,7 @@ export const getDashboardSummary = async () => {
   return response.data;
 };
 
-export const getSitePortalDashboardSummary = async () => {
-  const response = await api.get('/dashboard/site-portal-summary');
+export const getSitePortalDashboardSummary = async (params?: { contractorId?: string; tempCode?: string }) => {
+  const response = await api.get('/dashboard/site-portal-summary', { params });
   return response.data;
 };

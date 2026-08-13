@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getDemandNoteById } from "@/features/demand-notes/api/demandNotes.api";
+import { getDemandNoteById } from "@/features/site-portal/api/demand-notes.api";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 

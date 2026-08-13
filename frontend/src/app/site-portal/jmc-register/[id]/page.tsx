@@ -29,6 +29,7 @@ export default function JmcRegisterFormPage() {
     remarks: "",
     items: [
       {
+        loaSerialNo: "",
         activity: "",
         description: "",
         unit: "",
@@ -51,7 +52,7 @@ export default function JmcRegisterFormPage() {
   const fetchContractors = async () => {
     try {
       const res = await getContractors();
-      setContractors(res.data?.data || []);
+      setContractors(res.data || []);
     } catch (err) {
       console.error(err);
     }
@@ -95,6 +96,7 @@ export default function JmcRegisterFormPage() {
       items: [
         ...formData.items,
         {
+          loaSerialNo: "",
           activity: "",
           description: "",
           unit: "",
@@ -214,7 +216,9 @@ export default function JmcRegisterFormPage() {
                 >
                   <option value="">Select Contractor</option>
                   {contractors.map((c: any) => (
-                    <option key={c._id} value={c._id}>{c.name || c.vendorName}</option>
+                    <option key={c._id} value={c._id}>
+                      {c.name || c.vendorName || c.dynamicData?.companyName || c.dynamicData?.displayName || c.dynamicData?.name || 'Unknown Contractor'}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -293,6 +297,7 @@ export default function JmcRegisterFormPage() {
             <table className="w-full text-sm text-left">
               <thead className="bg-slate-100 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase">
                 <tr>
+                  <th className="px-4 py-3 border-r w-24">LOA SR.NO.</th>
                   <th className="px-4 py-3 border-r">Activity</th>
                   <th className="px-4 py-3 border-r w-[250px]">Description</th>
                   <th className="px-4 py-3 border-r w-24">Unit</th>
@@ -308,6 +313,14 @@ export default function JmcRegisterFormPage() {
               <tbody className="divide-y divide-slate-100">
                 {formData.items.map((item, index) => (
                   <tr key={index} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-2 border-r border-slate-100">
+                      <Input 
+                        value={item.loaSerialNo || ''} 
+                        onChange={e => handleItemChange(index, 'loaSerialNo', e.target.value)} 
+                        className="h-8 text-sm"
+                        placeholder="LOA SR.NO."
+                      />
+                    </td>
                     <td className="px-4 py-2 border-r border-slate-100">
                       <Input 
                         value={item.activity} 

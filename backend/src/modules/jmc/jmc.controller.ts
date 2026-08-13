@@ -33,7 +33,7 @@ export const getJmcs = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const jmcs = await JmcRegister.find(filter)
-    .populate('contractorId', 'name vendorName')
+    .populate('contractorId', 'name vendorName dynamicData')
     .populate('workOrderId', 'workOrderNumber')
     .sort({ createdAt: -1 });
 
@@ -45,7 +45,7 @@ export const getJmcs = asyncHandler(async (req: Request, res: Response) => {
 export const getJmcById = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const jmc = await JmcRegister.findById(id)
-    .populate('contractorId', 'name vendorName')
+    .populate('contractorId', 'name vendorName dynamicData')
     .populate('workOrderId', 'workOrderNumber');
 
   if (!jmc) {
@@ -144,18 +144,23 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
           const row = rows[r];
           if (!row) continue;
           
-          const labelCell = row[3]; // column D is index 3
-          const aCell = row[0];     // column A is index 0
-
-          if (labelCell) {
-            const norm = normLabel(labelCell);
-            for (const [knownLabel, field] of Object.entries(METADATA_LABELS)) {
-              if (normLabel(knownLabel) === norm) {
-                metaRows[r] = field;
-                break;
-              }
+          let labelFound = false;
+          for (let c = 0; c < 5; c++) { // Search first 5 columns for labels
+            const cell = row[c];
+            if (cell) {
+               const norm = normLabel(cell);
+               for (const [knownLabel, field] of Object.entries(METADATA_LABELS)) {
+                 if (normLabel(knownLabel) === norm) {
+                   metaRows[r] = field;
+                   labelFound = true;
+                   break;
+                 }
+               }
             }
+            if (labelFound) break;
           }
+
+          const aCell = row[0];     // column A is index 0
           if (aCell && String(aCell).trim().toUpperCase().startsWith("LOA SR")) {
             headerRowIdx = r;
             break;
@@ -169,9 +174,30 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
 
         const maxCol = rows.reduce((max, r) => Math.max(max, r.length), 0);
 
-        // Determine site columns (from index 5 / Col F)
+        // Dynamically find columns based on the header row
+        const headerRow = rows[headerRowIdx];
+        let loaIdx = -1, schedIdx = -1, activityIdx = -1, descIdx = -1, unitIdx = -1;
+        
+        for (let c = 0; c < headerRow.length; c++) {
+          const h = normLabel(headerRow[c]);
+          if (!h) continue;
+          if (h.includes("loa") && loaIdx === -1) loaIdx = c;
+          else if (h.includes("sched") && schedIdx === -1) schedIdx = c;
+          else if (h.includes("activity") && activityIdx === -1) activityIdx = c;
+          else if (h.includes("desc") && descIdx === -1) descIdx = c;
+          else if (h.includes("unit") && unitIdx === -1) unitIdx = c;
+        }
+
+        let startSiteCol = Math.max(loaIdx, schedIdx, activityIdx, descIdx, unitIdx) + 1;
+        if (startSiteCol <= 0) {
+          // Fallback if none found
+          startSiteCol = 5;
+          loaIdx = 0; schedIdx = 1; activityIdx = 2; descIdx = 3; unitIdx = 4;
+        }
+
+        // Determine site columns
         const siteCols: number[] = [];
-        for (let c = 5; c < maxCol; c++) {
+        for (let c = startSiteCol; c < maxCol; c++) {
           const headerVal = rows[headerRowIdx][c];
           const hasMeta = Object.keys(metaRows).some(rIdx => {
             const val = rows[Number(rIdx)][c];
@@ -204,11 +230,11 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
           const row = rows[r];
           if (!row) continue;
           
-          const loa = row[0];
-          const sched = row[1];
-          const activity = row[2];
-          const desc = row[3];
-          const unit = row[4];
+          const loa = loaIdx !== -1 ? row[loaIdx] : null;
+          const sched = schedIdx !== -1 ? row[schedIdx] : null;
+          const activity = activityIdx !== -1 ? row[activityIdx] : null;
+          const desc = descIdx !== -1 ? row[descIdx] : null;
+          const unit = unitIdx !== -1 ? row[unitIdx] : null;
           
           if (!loa && !sched && !activity && !desc) continue;
           
@@ -275,18 +301,61 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
           // Map Items
           const jmcItems = [];
           let claimedAmount = 0;
+          
+          const uploadedPackage = (user as any).assignedPackage || meta.Location || meta.DrawingNo || '';
+          const uploadedCircle = (user as any).assignedCircle || meta.Circle || '';
+
           for (const sr of siteRecords) {
             let itemId = null;
-            if (sr.activity && itemNames.length > 0) {
-              const bestMatch = stringSimilarity.findBestMatch(String(sr.activity), itemNames);
-              if (bestMatch.bestMatch.rating > 0.4) {
-                const matchedItem = allItems.find((i: any) => i.name === bestMatch.bestMatch.target);
-                if (matchedItem) itemId = matchedItem._id;
+            let finalActivity = sr.activity || '';
+            let finalLoaSerialNo = '';
+            
+            // If we have a description, try to find a matching item in the master list
+            if (sr.description && allItems.length > 0) {
+              // We try to match description, package, and circle
+              // Filter items by package and circle first (if provided)
+              let candidateItems = allItems;
+              if (uploadedCircle) {
+                candidateItems = candidateItems.filter((i: any) => {
+                   const c = i.dynamicData?.circle || '';
+                   return c.toLowerCase() === uploadedCircle.toLowerCase() || 
+                          c.toLowerCase().includes(uploadedCircle.toLowerCase()) ||
+                          uploadedCircle.toLowerCase().includes(c.toLowerCase());
+                });
+              }
+              
+              if (candidateItems.length === 0) {
+                 // fallback to all items if circle filtering removed everything
+                 candidateItems = allItems;
+              }
+              
+              const descriptions = candidateItems.map((i: any) => String(i.dynamicData?.description || i.dynamicData?.name || '')).filter(Boolean);
+              
+              if (descriptions.length > 0) {
+                const bestMatch = stringSimilarity.findBestMatch(String(sr.description), descriptions);
+                if (bestMatch.bestMatch.rating > 0.4) {
+                  const matchedItem = candidateItems.find((i: any) => {
+                    const desc = String(i.dynamicData?.description || i.dynamicData?.name || '');
+                    return desc === bestMatch.bestMatch.target;
+                  });
+                  
+                  if (matchedItem) {
+                    itemId = matchedItem._id;
+                    if (!finalActivity && matchedItem.dynamicData?.activity) {
+                       finalActivity = matchedItem.dynamicData.activity;
+                    }
+                    if (matchedItem.dynamicData?.sku) {
+                       finalLoaSerialNo = matchedItem.dynamicData.sku;
+                    }
+                  }
+                }
               }
             }
+
             jmcItems.push({
               itemId,
-              activity: sr.activity || '',
+              loaSerialNo: finalLoaSerialNo,
+              activity: finalActivity,
               description: sr.description || '',
               unit: sr.unit || '',
               claimedQty: sr.quantity,
@@ -297,6 +366,46 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
             });
           }
 
+          const pkg = (user as any).assignedPackage || meta.Location || meta.DrawingNo || '';
+          const circ = (user as any).assignedCircle || meta.Circle || '';
+          const div = meta.Division || '';
+          const subDiv = meta.SubDivision || '';
+
+          const existingJmc = await JmcRegister.findOne({
+            contractorId: contractorId || null,
+            package: pkg,
+            circle: circ,
+            division: div,
+            subDivision: subDiv
+          });
+
+          const conflictStrategy = req.body.conflictStrategy || 'skip';
+
+          if (existingJmc) {
+            if (conflictStrategy === 'skip') {
+              flagged.push({ sourceFile, issue: `Skipped duplicate JMC for ${circ} - ${subDiv}` });
+              continue;
+            } else if (conflictStrategy === 'replace') {
+              if (existingJmc.status !== 'Approved') {
+                await JmcRegister.deleteOne({ _id: existingJmc._id });
+                // Fall through to create new
+              } else {
+                flagged.push({ sourceFile, issue: `Cannot replace Approved JMC for ${circ} - ${subDiv}` });
+                continue;
+              }
+            } else if (conflictStrategy === 'update') {
+              if (existingJmc.status !== 'Approved') {
+                existingJmc.items.push(...jmcItems);
+                await existingJmc.save();
+                totalSaved++;
+                continue;
+              } else {
+                flagged.push({ sourceFile, issue: `Cannot update Approved JMC for ${circ} - ${subDiv}` });
+                continue;
+              }
+            }
+          }
+
           initialCount++;
           const jmcNumber = `JMC/${new Date().getFullYear().toString().slice(-2)}/${initialCount.toString().padStart(4, '0')}`;
 
@@ -304,14 +413,14 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
             jmcNumber,
             date: new Date(),
             contractorId: contractorId || null,
-            package: meta.Location || meta.DrawingNo || '',
-            circle: meta.Circle || '',
-            division: meta.Division || '',
-            subDivision: meta.SubDivision || '',
+            package: pkg,
+            circle: circ,
+            division: div,
+            subDivision: subDiv,
             items: jmcItems,
             claimedAmount: 0,
             approvedAmount: 0,
-            status: 'Draft', // as per user request for mismatches/defaults
+            status: 'Draft',
             remarks: `Uploaded from ${sourceFile} (${sheetName}). ${!meta.Contractor ? 'Warning: No contractor name found in sheet.' : ''}`.trim(),
             createdBy: user._id
           });

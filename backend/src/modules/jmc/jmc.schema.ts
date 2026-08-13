@@ -2,6 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IJmcItem {
   itemId?: mongoose.Types.ObjectId;
+  loaSerialNo?: string;
   activity: string;
   description: string;
   unit: string;
@@ -33,6 +34,7 @@ export interface IJmcRegister extends Document {
 
 const JmcItemSchema = new Schema<IJmcItem>({
   itemId: { type: Schema.Types.ObjectId, ref: 'Item' },
+  loaSerialNo: { type: String, default: '' },
   activity: { type: String, default: '' },
   description: { type: String, default: '' },
   unit: { type: String, default: '' },

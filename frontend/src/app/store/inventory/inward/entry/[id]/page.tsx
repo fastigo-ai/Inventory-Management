@@ -93,7 +93,7 @@ export default function InwardRegistrationForm() {
 
           setFormData({
             ...entry,
-            invoiceQty: entry.status === 'PENDING_RECEIPT' ? entry.totalQty : entry.invoiceQty,
+            invoiceQty: (entry.status === 'PENDING_RECEIPT' || (entry.invoiceQty ?? 0) < 0) ? entry.totalQty : entry.invoiceQty,
             description: entry.itemDescription || entry.itemName || (entry.itemId?.dynamicData?.name) || '',
             unit: entry.unit || (entry.itemId?.dynamicData?.unit) || '',
             serialNumber: entry.serialNumber || (entry.itemId?.dynamicData?.sku) || '',
@@ -107,9 +107,9 @@ export default function InwardRegistrationForm() {
             igstRate,
             gst: (cgstRate + sgstRate + igstRate).toString(),
             taxableAmount,
-            cgst: cgstAmount,
-            sgst: sgstAmount,
-            igst: igstAmount,
+            cgstAmount,
+            sgstAmount,
+            igstAmount,
             amount,
           });
         }
@@ -134,10 +134,10 @@ export default function InwardRegistrationForm() {
       const taxableAmount = qty * rate;
       
       updated.taxableAmount = taxableAmount;
-      updated.cgst = (taxableAmount * (updated.cgstRate || 0)) / 100;
-      updated.sgst = (taxableAmount * (updated.sgstRate || 0)) / 100;
-      updated.igst = (taxableAmount * (updated.igstRate || 0)) / 100; 
-      updated.amount = taxableAmount + updated.cgst + updated.sgst + updated.igst;
+      updated.cgstAmount = (taxableAmount * (updated.cgstRate || 0)) / 100;
+      updated.sgstAmount = (taxableAmount * (updated.sgstRate || 0)) / 100;
+      updated.igstAmount = (taxableAmount * (updated.igstRate || 0)) / 100; 
+      updated.amount = taxableAmount + updated.cgstAmount + updated.sgstAmount + updated.igstAmount;
 
       return updated;
     });
@@ -327,7 +327,6 @@ export default function InwardRegistrationForm() {
                   <th className="px-4 py-3 border-r bg-blue-50">Pack Unit</th>
                   <th className="px-4 py-3 border-r bg-blue-50">Pack Qty</th>
                   <th className="px-4 py-3 border-r bg-blue-50">Rate (₹)</th>
-                  <th className="px-4 py-3 border-r bg-blue-50">GST %</th>
                   <th className="px-4 py-3 border-r bg-slate-50 text-slate-500">Taxable Amt (₹)</th>
                   <th className="px-4 py-3 border-r bg-slate-50 text-slate-500">CGST (₹)</th>
                   <th className="px-4 py-3 border-r bg-slate-50 text-slate-500">SGST (₹)</th>
@@ -396,7 +395,15 @@ export default function InwardRegistrationForm() {
                     <select 
                       className="h-8 rounded-md border border-slate-200 bg-white px-2 text-sm focus:border-blue-500 focus:ring-blue-500"
                       value={formData.packType}
-                      onChange={e => handleItemChange('packType', e.target.value)}
+                      onChange={e => {
+                        const val = e.target.value;
+                        handleItemChange('packType', val);
+                        if (val !== 'OTHER') {
+                          handleItemChange('packUnit', val.charAt(0) + val.slice(1).toLowerCase());
+                        } else {
+                          handleItemChange('packUnit', '');
+                        }
+                      }}
                     >
                       {packOptions.map(o => <option key={o} value={o}>{o}</option>)}
                     </select>
@@ -405,7 +412,8 @@ export default function InwardRegistrationForm() {
                     <Input 
                       value={formData.packUnit || ''} 
                       onChange={e => handleItemChange('packUnit', e.target.value)} 
-                      className="h-8 w-16 text-sm"
+                      disabled={formData.packType !== 'OTHER'}
+                      className={`h-8 w-20 text-sm ${formData.packType !== 'OTHER' ? 'bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed' : ''}`}
                     />
                   </td>
                   <td className="px-4 py-3 border-r border-slate-100">
@@ -426,36 +434,18 @@ export default function InwardRegistrationForm() {
                       className="h-8 w-24 text-sm"
                     />
                   </td>
-                  <td className="px-4 py-3 border-r border-slate-100">
-                    <Input 
-                      type="text"
-                      value={formData.gst || ''} 
-                      onChange={e => {
-                        handleItemChange('gst', e.target.value);
-                        // Also roughly estimate rates if it's a number
-                        const val = parseFloat(e.target.value) || 0;
-                        handleItemChange('igstRate', val);
-                        if (val > 0) {
-                          handleItemChange('cgstRate', val / 2);
-                          handleItemChange('sgstRate', val / 2);
-                        }
-                      }}
-                      className="h-8 w-16 text-sm"
-                    />
-                  </td>
-
                   {/* Read Only Calcs */}
                   <td className="px-4 py-3 border-r border-slate-100 bg-slate-50/50 font-medium text-slate-600 text-right">
                     {(formData.taxableAmount || 0).toFixed(2)}
                   </td>
                   <td className="px-4 py-3 border-r border-slate-100 bg-slate-50/50 text-slate-500 text-right">
-                    {(formData.cgst || 0).toFixed(2)}
+                    {(formData.cgstAmount || 0).toFixed(2)}
                   </td>
                   <td className="px-4 py-3 border-r border-slate-100 bg-slate-50/50 text-slate-500 text-right">
-                    {(formData.sgst || 0).toFixed(2)}
+                    {(formData.sgstAmount || 0).toFixed(2)}
                   </td>
                   <td className="px-4 py-3 border-r border-slate-100 bg-slate-50/50 text-slate-500 text-right">
-                    {(formData.igst || 0).toFixed(2)}
+                    {(formData.igstAmount || 0).toFixed(2)}
                   </td>
                   <td className="px-4 py-3 bg-slate-50/80 font-bold text-slate-800 text-right">
                     {(formData.amount || 0).toFixed(2)}

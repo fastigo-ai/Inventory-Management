@@ -5,11 +5,9 @@ import Image from 'next/image';
 import { Building, Package, Tag, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { getDashboardSummary } from '@/features/dashboard/api/dashboard.api';
-
-import { TopStockedItems } from '@/features/dashboard/components/TopStockedItems';
-import { RecentActivity } from '@/features/dashboard/components/RecentActivity';
 import { PendingActions } from '@/features/dashboard/components/PendingActions';
 import { ExecutiveFinancials } from '@/features/dashboard/components/ExecutiveFinancials';
+import { SitePortalDashboard } from '@/features/dashboard/components/SitePortalDashboard';
 import { StockSummaryTable } from "@/features/store/components/StockSummaryTable";
 import { getStockSummary } from "@/features/store/api/store.api";
 import { useAuthStore } from '@/shared/store/auth.store';
@@ -17,6 +15,8 @@ import { useAuthStore } from '@/shared/store/auth.store';
 export default function Home() {
   const { user } = useAuthStore();
   const isStoreManager = user?.role?.name === 'Store Manager';
+  const permissions = user?.role?.permissions || [];
+  const isSitePortal = user?.role?.name === 'Site Portal' || permissions.includes('Site Portal');
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'stock'>(
     isStoreManager ? 'stock' : 'dashboard'
@@ -32,7 +32,13 @@ export default function Home() {
     if (!isStoreManager) {
       const fetchData = async () => {
         try {
-          const res = await getDashboardSummary();
+          let res;
+          if (isSitePortal) {
+            const { getSitePortalDashboardSummary } = await import('@/features/dashboard/api/dashboard.api');
+            res = await getSitePortalDashboardSummary();
+          } else {
+            res = await getDashboardSummary();
+          }
           if (res.success) {
             setData(res.data);
           }
@@ -44,7 +50,7 @@ export default function Home() {
       };
       fetchData();
     }
-  }, [isStoreManager]);
+  }, [isStoreManager, isSitePortal]);
 
   useEffect(() => {
     // Force active tab to 'stock' if the role resolves dynamically to Store Manager
@@ -89,50 +95,46 @@ export default function Home() {
         </div>
         
         {/* Tabs */}
-        <div className="px-8 flex gap-8">
-          {!isStoreManager && (
+        {!isSitePortal && (
+          <div className="px-8 flex gap-8">
+            {!isStoreManager && (
+              <button 
+                onClick={() => setActiveTab('dashboard')}
+                className={`pb-3 text-sm font-semibold transition-colors ${
+                  activeTab === 'dashboard' ? 'text-blue-600 border-b-[3px] border-blue-600' : 'text-slate-500 hover:text-slate-700 border-b-[3px] border-transparent'
+                }`}
+              >
+                Dashboard
+              </button>
+            )}
+            
             <button 
-              onClick={() => setActiveTab('dashboard')}
+              onClick={() => setActiveTab('stock')}
               className={`pb-3 text-sm font-semibold transition-colors ${
-                activeTab === 'dashboard' ? 'text-blue-600 border-b-[3px] border-blue-600' : 'text-slate-500 hover:text-slate-700 border-b-[3px] border-transparent'
+                activeTab === 'stock' ? 'text-blue-600 border-b-[3px] border-blue-600' : 'text-slate-500 hover:text-slate-700 border-b-[3px] border-transparent'
               }`}
             >
-              Dashboard
+              {isStoreManager ? 'Your Stock Ledger' : 'Stock Summary'}
             </button>
-          )}
-          
-          <button 
-            onClick={() => setActiveTab('stock')}
-            className={`pb-3 text-sm font-semibold transition-colors ${
-              activeTab === 'stock' ? 'text-blue-600 border-b-[3px] border-blue-600' : 'text-slate-500 hover:text-slate-700 border-b-[3px] border-transparent'
-            }`}
-          >
-            {isStoreManager ? 'Your Stock Ledger' : 'Stock Summary'}
-          </button>
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Main Content Area */}
       <div className="p-6 flex gap-6 flex-1 bg-slate-50/50">
         
-        {activeTab === 'dashboard' ? (
+        {isSitePortal ? (
+          <SitePortalDashboard data={data} />
+        ) : activeTab === 'dashboard' ? (
           <>
-            {/* Left Column */}
-            <div className="flex-1 flex flex-col gap-6 min-w-0">
-              <div className="flex gap-6">
-                <div className="flex-1 min-w-0">
-                  <TopStockedItems items={data?.topStockedItems || []} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <RecentActivity activities={data?.recentActivities || []} />
-                </div>
+            {/* Dashboard Content */}
+            <div className="flex-1 flex gap-6">
+              <div className="flex-1 min-w-[300px]">
+                <ExecutiveFinancials summary={data?.summary || {}} />
               </div>
-            </div>
-            
-            {/* Right Column (Sidebar of dashboard) */}
-            <div className="w-[340px] shrink-0 flex flex-col gap-6">
-              <ExecutiveFinancials summary={data?.summary || {}} />
-              <PendingActions summary={data?.summary || {}} />
+              <div className="flex-1 min-w-[300px]">
+                <PendingActions summary={data?.summary || {}} />
+              </div>
             </div>
           </>
         ) : (

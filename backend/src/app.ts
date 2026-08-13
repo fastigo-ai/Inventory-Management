@@ -27,6 +27,7 @@ import relationsRoutes from './core/document-engine/relations/relations.routes';
 import contractorWorkOrderRoutes from './modules/contractors/contractorWorkOrder.routes';
 import jmcRoutes from './modules/jmc/jmc.routes';
 import wipRoutes from './modules/wip/wip.routes';
+import wipRequiredRoutes from './modules/wip-required/wipRequired.routes';
 import billingRoutes from './modules/contractor-billing/billing.routes';
 import { errorHandler } from './core/middlewares/error.middleware';
 
@@ -96,6 +97,7 @@ apiRouter.use('/relations', relationsRoutes);
 apiRouter.use('/ho-billing/contractor-work-orders', contractorWorkOrderRoutes);
 apiRouter.use('/jmc', jmcRoutes);
 apiRouter.use('/wip', wipRoutes);
+apiRouter.use('/wip-required', wipRequiredRoutes);
 apiRouter.use('/contractor-billing', billingRoutes);
 
 // Mount API routes on both / and /api to handle DigitalOcean path stripping

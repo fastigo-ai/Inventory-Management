@@ -126,6 +126,7 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
   // Calculate JMC and WIP Quantities based on contractor, package, circle and item match
   let jmcQty = 0;
   let wipQty = 0;
+  let wipRequiredQty = 0;
 
   if (contractorId) {
     const jmcRegisters = await mongoose.model('JmcRegister').find({
@@ -164,6 +165,24 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
         }
       });
     });
+
+    const wipRequiredRegisters = await mongoose.model('WipRequiredRegister').find({
+      contractorId,
+      package: user.assignedPackage,
+      circle: user.assignedCircle
+    });
+    
+    wipRequiredRegisters.forEach((wipReq: any) => {
+      wipReq.items.forEach((wipReqItem: any) => {
+        const matchActivity = activity ? wipReqItem.activity === activity : true;
+        const matchDesc = description ? wipReqItem.description === description : true;
+        const matchCode = tempCode ? wipReqItem.tempCode === tempCode : true;
+
+        if (matchActivity && matchDesc && matchCode) {
+          wipRequiredQty += (Number(wipReqItem.claimedQty) || 0) + (Number(wipReqItem.approvedQty) || 0);
+        }
+      });
+    });
   }
 
   res.status(200).json(new ApiResponse(200, {
@@ -174,7 +193,8 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
     transferFromOther,
     transferToOther,
     jmcQty,
-    wipQty
+    wipQty,
+    wipRequiredQty
   }, 'Context data fetched'));
 });
 

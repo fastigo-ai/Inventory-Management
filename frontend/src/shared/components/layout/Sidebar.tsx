@@ -127,7 +127,8 @@ const navItems: NavItem[] = [
       { title: 'Demand Notes', href: '/site-portal/demand-notes' },
       { title: 'MHROV', href: '/site-portal/mhrov' },
       { title: 'JMC Register', href: '/site-portal/jmc-register' },
-      { title: 'WIP Register', href: '/site-portal/wip-register' },
+      { title: 'WIP Consumed', href: '/site-portal/wip-register' },
+      { title: 'WIP To Be Required', href: '/site-portal/wip-required' },
       { title: 'Contractor Billing', href: '/site-portal/contractor-billing' }
     ]
   }

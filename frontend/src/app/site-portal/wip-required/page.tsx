@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getWips } from "@/features/site-portal/api/wip.api";
+import { getWipRequireds } from "@/features/site-portal/api/wipRequired.api";
 import { FileText, Plus } from "lucide-react";
 import { useClientTable } from "@/shared/hooks/useClientTable";
 import { DataTableTopControls, DataTableBottomControls } from "@/shared/components/DataTableControls";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { WipBulkUploadModal } from "@/features/site-portal/components/WipBulkUploadModal";
+import { WipRequiredBulkUploadModal } from "@/features/site-portal/components/WipRequiredBulkUploadModal";
 
 export default function WipRegisterPage() {
   const [entries, setEntries] = useState<any[]>([]);
@@ -22,7 +22,7 @@ export default function WipRegisterPage() {
   const fetchWips = async () => {
     try {
       setLoading(true);
-      const res = await getWips();
+      const res = await getWipRequireds();
       setEntries(res.data?.data || []);
     } catch (error) {
       console.error(error);
@@ -47,14 +47,14 @@ export default function WipRegisterPage() {
     <div className="flex-1 bg-white min-h-screen p-6">
       <div className="max-w-[1200px] mx-auto">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-slate-800">WIP Consumed</h1>
+          <h1 className="text-2xl font-bold text-slate-800">WIP To Be Required</h1>
           
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setUploadModalOpen(true)}>
               <FileText className="mr-2 h-4 w-4" /> Bulk Upload WIP
             </Button>
             <Button 
-              onClick={() => router.push('/site-portal/wip-register/new')}
+              onClick={() => router.push('/site-portal/wip-required/new')}
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -101,9 +101,9 @@ export default function WipRegisterPage() {
                       <tr 
                         key={entry._id} 
                         className="hover:bg-slate-50 transition-colors cursor-pointer"
-                        onClick={() => router.push(`/site-portal/wip-register/${entry._id}`)}
+                        onClick={() => router.push(`/site-portal/wip-required/${entry._id}`)}
                       >
-                        <td className="px-6 py-4 font-medium text-blue-600">{entry.wipNumber}</td>
+                        <td className="px-6 py-4 font-medium text-blue-600">{entry.wipRequiredNumber}</td>
                         <td className="px-6 py-4">{new Date(entry.date).toLocaleDateString()}</td>
                         <td className="px-6 py-4">{entry.contractorId?.name || entry.contractorId?.vendorName || '-'}</td>
                         <td className="px-6 py-4">{entry.package || '-'}</td>
@@ -136,7 +136,7 @@ export default function WipRegisterPage() {
         </div>
       </div>
 
-      <WipBulkUploadModal
+      <WipRequiredBulkUploadModal
         open={uploadModalOpen}
         onOpenChange={setUploadModalOpen}
         onSuccess={fetchWips}

@@ -293,14 +293,13 @@ export default function WipRegisterFormPage() {
             <table className="w-full text-sm text-left">
               <thead className="bg-slate-100 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase">
                 <tr>
+                  <th className="px-4 py-3 border-r w-24">LOA SR.NO.</th>
                   <th className="px-4 py-3 border-r">Activity</th>
                   <th className="px-4 py-3 border-r w-[250px]">Description</th>
                   <th className="px-4 py-3 border-r w-24">Unit</th>
-                  <th className="px-4 py-3 border-r w-28 bg-blue-50">Prev WIP Alloted Qty</th>
+                  <th className="px-4 py-3 border-r w-28 bg-blue-50">Prev WIP Qty</th>
                   <th className="px-4 py-3 border-r w-28 bg-green-50 text-green-800">New WIP Qty</th>
                   <th className="px-4 py-3 border-r w-28 bg-purple-50 text-purple-800">Total WIP Qty</th>
-                  <th className="px-4 py-3 border-r w-32">Rate (₹)</th>
-                  <th className="px-4 py-3 border-r w-32">Amount (₹)</th>
                   <th className="px-4 py-3 border-r">Remarks</th>
                   <th className="px-4 py-3 w-12 text-center">Act</th>
                 </tr>
@@ -308,6 +307,14 @@ export default function WipRegisterFormPage() {
               <tbody className="divide-y divide-slate-100">
                 {formData.items.map((item, index) => (
                   <tr key={index} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-2 border-r border-slate-100">
+                      <Input 
+                        value={item.loaSerialNo || ''} 
+                        onChange={e => handleItemChange(index, 'loaSerialNo', e.target.value)} 
+                        className="h-8 text-sm"
+                        placeholder="LOA No."
+                      />
+                    </td>
                     <td className="px-4 py-2 border-r border-slate-100">
                       <Input 
                         value={item.activity} 
@@ -332,42 +339,27 @@ export default function WipRegisterFormPage() {
                         placeholder="e.g. Mtr"
                       />
                     </td>
-                    <td className="px-4 py-2 border-r border-slate-100 bg-blue-50/30">
-                      <Input 
-                        type="number"
-                        value={item.claimedQty || ''}
-                        onChange={(e) => handleItemChange(index, 'claimedQty', e.target.value)}
-                        placeholder="0"
-                      />
+                    <td className="px-4 py-2 border-r border-slate-100 bg-blue-50/30 text-center font-medium text-slate-700">
+                      {item.prevQty || 0}
                     </td>
                     <td className="p-2 border-r bg-green-50/30">
                       <Input 
                         type="number"
                         className="w-full h-9 bg-white"
-                        value={item.approvedQty || ''}
-                        onChange={(e) => handleItemChange(index, 'approvedQty', e.target.value)}
+                        value={item.claimedQty || ''}
+                        onChange={(e) => handleItemChange(index, 'claimedQty', e.target.value)}
                         placeholder="0"
                       />
                     </td>
-                    <td className="p-2 border-r text-center font-medium bg-purple-50/30">
-                      {(Number(item.claimedQty || 0) + Number(item.approvedQty || 0)).toFixed(2)}
-                    </td>
-                    <td className="px-4 py-2 border-r border-slate-100">
-                      <Input 
-                        type="number"
-                        value={item.rate || ''} 
-                        onChange={e => handleItemChange(index, 'rate', e.target.value)} 
-                        className="h-8 text-sm text-right"
-                      />
-                    </td>
-                    <td className="px-4 py-2 border-r border-slate-100 bg-slate-50 font-bold text-slate-700 text-right">
-                      {((Number(item.approvedQty) > 0 ? Number(item.approvedQty) : Number(item.claimedQty)) * Number(item.rate)).toFixed(2)}
+                    <td className="px-4 py-2 border-r border-slate-100 bg-purple-50/30 text-center font-bold text-purple-700">
+                      {((Number(item.prevQty) || 0) + (Number(item.claimedQty) || 0)).toFixed(2)}
                     </td>
                     <td className="px-4 py-2 border-r border-slate-100">
                       <Input 
                         value={item.remarks} 
                         onChange={e => handleItemChange(index, 'remarks', e.target.value)} 
                         className="h-8 text-sm"
+                        placeholder="Remarks"
                       />
                     </td>
                     <td className="px-4 py-2 text-center">

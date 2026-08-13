@@ -2,9 +2,11 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IWipItem {
   itemId?: mongoose.Types.ObjectId;
+  loaSerialNo: string;
   activity: string;
   description: string;
   unit: string;
+  prevQty: number;
   claimedQty: number;
   approvedQty: number;
   rate: number;
@@ -31,11 +33,13 @@ export interface IWipRegister extends Document {
   updatedAt: Date;
 }
 
-const WipItemSchema = new Schema<IWipItem>({
+const WipItemSchema = new Schema<IWipItem & { prevQty: number, loaSerialNo: string }>({
   itemId: { type: Schema.Types.ObjectId, ref: 'Item' },
+  loaSerialNo: { type: String, default: '' },
   activity: { type: String, default: '' },
   description: { type: String, default: '' },
   unit: { type: String, default: '' },
+  prevQty: { type: Number, default: 0 },
   claimedQty: { type: Number, default: 0 },
   approvedQty: { type: Number, default: 0 },
   rate: { type: Number, default: 0 },

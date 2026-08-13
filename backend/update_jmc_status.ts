@@ -5,8 +5,11 @@ import mongoose from 'mongoose';
 
 async function run() {
   await connectDB();
-  const docs = await JmcRegister.find({ subDivision: 'KALA AMB' }).select('package circle subDivision').lean();
-  console.log('KALA AMB Docs:', docs);
+  const res = await JmcRegister.updateMany(
+    { status: 'Draft' },
+    { $set: { status: 'Submitted' } }
+  );
+  console.log(`Updated ${res.modifiedCount} Draft JMCs to Submitted.`);
   mongoose.connection.close();
 }
 run();

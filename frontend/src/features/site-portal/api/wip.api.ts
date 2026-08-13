@@ -1,7 +1,8 @@
 import { api } from '@/shared/api/axios';
 
-export const getWips = async () => {
-  return api.get('/wip');
+export const getWips = async (params?: any) => {
+  const response = await api.get('/wip', { params });
+  return response.data;
 };
 
 export const getWipById = async (id: string) => {

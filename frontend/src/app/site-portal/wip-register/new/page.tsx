@@ -116,15 +116,14 @@ export default function WipRegisterFormPage() {
       items: [
         ...formData.items,
         {
+          loaSerialNo: "",
           activity: "",
-        tempCode: "",
-        description: "",
+          tempCode: "",
+          description: "",
           unit: "",
+          prevQty: 0,
           claimedQty: 0,
           approvedQty: 0,
-          rate: 0,
-          amount: 0,
-        totalLoaQty: 0,
           remarks: ""
         }
       ]
@@ -144,19 +143,9 @@ export default function WipRegisterFormPage() {
 
     setSubmitting(true);
     try {
-      // Calculate totals
-      let claimedTotal = 0;
-      let approvedTotal = 0;
-      formData.items.forEach((item: any) => {
-        claimedTotal += (Number(item.claimedQty) * Number(item.rate));
-        approvedTotal += (Number(item.approvedQty) * Number(item.rate));
-      });
-
       const payload = {
         ...formData,
         status: statusToSave,
-        claimedAmount: claimedTotal,
-        approvedAmount: approvedTotal
       };
 
       if (isNew) {
@@ -177,9 +166,6 @@ export default function WipRegisterFormPage() {
   };
 
   if (loading) return <div className="p-8 text-center text-slate-500">Loading...</div>;
-
-  const totalClaimed = formData.items.reduce((sum, item) => sum + (Number(item.claimedQty) * Number(item.rate)), 0);
-  const totalApproved = formData.items.reduce((sum, item) => sum + (Number(item.approvedQty) * Number(item.rate)), 0);
 
   return (
     <div className="flex-1 bg-slate-50 min-h-screen p-6">
@@ -216,7 +202,7 @@ export default function WipRegisterFormPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
             <h2 className="text-sm font-bold text-slate-700 uppercase mb-4">General Details</h2>
             <div className="space-y-4">
@@ -250,12 +236,6 @@ export default function WipRegisterFormPage() {
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="text-xs font-medium text-slate-500 block mb-1">Status</label>
-                <div className="h-9 px-3 py-2 bg-slate-100 rounded-md text-sm font-medium text-slate-700 border border-slate-200">
-                  {formData.status}
-                </div>
-              </div>
             </div>
           </div>
 
@@ -269,46 +249,6 @@ export default function WipRegisterFormPage() {
               <div>
                 <label className="text-xs font-medium text-slate-500 block mb-1">Circle</label>
                 <Input value={formData.circle} readOnly className="bg-slate-50 text-slate-500" placeholder="Auto-filled from your profile" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-medium text-slate-500 block mb-1">Division</label>
-                  <Input 
-                    value={formData.division} 
-                    onChange={e => setFormData({...formData, division: e.target.value})} 
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-slate-500 block mb-1">Sub Division</label>
-                  <Input 
-                    value={formData.subDivision} 
-                    onChange={e => setFormData({...formData, subDivision: e.target.value})} 
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-            <h2 className="text-sm font-bold text-slate-700 uppercase mb-4">Summary</h2>
-            <div className="space-y-4">
-              <div className="p-4 bg-slate-50 rounded-lg border border-slate-100">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-slate-500">Total Claimed</span>
-                  <span className="text-lg font-bold text-slate-800">₹ {totalClaimed.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-500">Total Approved</span>
-                  <span className="text-lg font-bold text-green-700">₹ {totalApproved.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-slate-500 block mb-1">Remarks</label>
-                <Input 
-                  value={formData.remarks} 
-                  onChange={e => setFormData({...formData, remarks: e.target.value})} 
-                  placeholder="Any additional notes..."
-                />
               </div>
             </div>
           </div>
@@ -330,11 +270,10 @@ export default function WipRegisterFormPage() {
                       tempCode: ai.dynamicData?.tempCode || '',
                       description: ai.dynamicData?.description || ai.dynamicData?.itemDescription || ai.dynamicData?.name || '',
                       unit: ai.dynamicData?.unit || ai.dynamicData?.uom || '',
-                      totalLoaQty: Number(ai.dynamicData?.loaQty || ai.dynamicData?.totalLoaQuantity || ai.dynamicData?.qty || ai.dynamicData?.quantity || 0),
+                      loaSerialNo: '',
+                      prevQty: 0,
                       claimedQty: 0,
                       approvedQty: 0,
-                      rate: 0,
-                      amount: 0,
                       remarks: ''
                     }));
                     setFormData(prev => ({
@@ -356,16 +295,14 @@ export default function WipRegisterFormPage() {
             <table className="w-full text-sm text-left">
               <thead className="bg-slate-100 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase">
                 <tr>
-                  <th className="px-4 py-3 border-r w-[200px]">Activity</th>
                   <th className="px-4 py-3 border-r w-[150px]">Temp Code</th>
+                  <th className="px-4 py-3 border-r w-24">LOA SR.NO.</th>
+                  <th className="px-4 py-3 border-r">Activity</th>
                   <th className="px-4 py-3 border-r w-[250px]">Description</th>
-                  <th className="px-4 py-3 border-r w-20">Unit</th>
-                  <th className="px-4 py-3 border-r w-24">LOA Qty</th>
-                  <th className="px-4 py-3 border-r w-28 bg-blue-50">Prev WIP Alloted Qty</th>
+                  <th className="px-4 py-3 border-r w-24">Unit</th>
+                  <th className="px-4 py-3 border-r w-28 bg-blue-50">Prev WIP Qty</th>
                   <th className="px-4 py-3 border-r w-28 bg-green-50 text-green-800">New WIP Qty</th>
                   <th className="px-4 py-3 border-r w-28 bg-purple-50 text-purple-800">Total WIP Qty</th>
-                  <th className="px-4 py-3 border-r w-32">Rate (₹)</th>
-                  <th className="px-4 py-3 border-r w-32">Amount (₹)</th>
                   <th className="px-4 py-3 border-r">Remarks</th>
                   <th className="px-4 py-3 w-12 text-center">Act</th>
                 </tr>
@@ -375,17 +312,26 @@ export default function WipRegisterFormPage() {
                   <tr key={index} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-2 border-r border-slate-100">
                       <Input 
-                        value={item.activity || ''} 
-                        onChange={e => handleItemChange(index, 'activity', e.target.value)} 
-                        className="h-8 text-sm bg-slate-50"
-                      />
-                    </td>
-                    <td className="px-4 py-2 border-r border-slate-100">
-                      <Input 
                         value={item.tempCode || ''} 
                         onChange={e => handleItemChange(index, 'tempCode', e.target.value)} 
                         className="h-8 text-sm"
                         placeholder="Code"
+                      />
+                    </td>
+                    <td className="px-4 py-2 border-r border-slate-100">
+                      <Input 
+                        value={item.loaSerialNo || ''} 
+                        onChange={e => handleItemChange(index, 'loaSerialNo', e.target.value)} 
+                        className="h-8 text-sm"
+                        placeholder="LOA No."
+                      />
+                    </td>
+                    <td className="px-4 py-2 border-r border-slate-100">
+                      <Input 
+                        value={item.activity} 
+                        onChange={e => handleItemChange(index, 'activity', e.target.value)} 
+                        className="h-8 text-sm"
+                        placeholder="Activity"
                       />
                     </td>
                     <td className="px-4 py-2 border-r border-slate-100">
@@ -398,46 +344,32 @@ export default function WipRegisterFormPage() {
                     </td>
                     <td className="px-4 py-2 border-r border-slate-100">
                       <Input 
-                        value={item.unit || ''} 
+                        value={item.unit} 
                         onChange={e => handleItemChange(index, 'unit', e.target.value)} 
                         className="h-8 text-sm"
                         placeholder="e.g. Mtr"
                       />
                     </td>
-                    <td className="px-4 py-2 border-r border-slate-100 bg-slate-50 text-center font-medium text-slate-700">
-                      {item.totalLoaQty || 0}
-                    </td>
                     <td className="px-4 py-2 border-r border-slate-100 bg-blue-50/30">
                       <Input 
                         type="number"
-                        value={item.claimedQty || ''} 
-                        onChange={e => handleItemChange(index, 'claimedQty', e.target.value)} 
+                        value={item.prevQty || ''}
+                        onChange={(e) => handleItemChange(index, 'prevQty', e.target.value)}
                         placeholder="0"
-                        className="h-8 text-sm font-medium text-blue-700 bg-white"
+                        className="h-8 text-sm bg-transparent border-transparent focus:bg-white"
                       />
                     </td>
-                    <td className="p-2 border-r bg-green-50/30">
+                    <td className="px-4 py-2 border-r border-slate-100 bg-green-50/30">
                       <Input 
                         type="number"
-                        className="w-full h-9 bg-white"
-                        value={item.approvedQty || ''} 
-                        onChange={e => handleItemChange(index, 'approvedQty', e.target.value)} 
+                        value={item.claimedQty || ''}
+                        onChange={(e) => handleItemChange(index, 'claimedQty', e.target.value)}
                         placeholder="0"
+                        className="h-8 text-sm bg-transparent border-transparent focus:bg-white"
                       />
                     </td>
-                    <td className="p-2 border-r text-center font-medium bg-purple-50/30 text-purple-900">
-                      {(Number(item.claimedQty || 0) + Number(item.approvedQty || 0)).toFixed(2)}
-                    </td>
-                    <td className="px-4 py-2 border-r border-slate-100">
-                      <Input 
-                        type="number"
-                        value={item.rate || ''} 
-                        onChange={e => handleItemChange(index, 'rate', e.target.value)} 
-                        className="h-8 text-sm text-right"
-                      />
-                    </td>
-                    <td className="px-4 py-2 border-r border-slate-100 bg-slate-50 font-bold text-slate-700 text-right">
-                      {((Number(item.approvedQty) > 0 ? Number(item.approvedQty) : Number(item.claimedQty)) * Number(item.rate)).toFixed(2)}
+                    <td className="px-4 py-2 border-r border-slate-100 font-semibold text-purple-700 bg-purple-50/30 text-center">
+                      {(Number(item.prevQty || 0) + Number(item.claimedQty || 0)).toFixed(2)}
                     </td>
                     <td className="px-4 py-2 border-r border-slate-100">
                       <Input 

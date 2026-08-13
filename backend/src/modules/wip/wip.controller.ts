@@ -26,10 +26,23 @@ export const createWip = asyncHandler(async (req: Request, res: Response) => {
 
 export const getWips = asyncHandler(async (req: Request, res: Response) => {
   const user = (req as any).user;
+  const { contractorId, startDate, endDate } = req.query;
   const filter: any = {};
 
   if (user && user.role?.name === 'Contractor' && user.contractorId) {
     filter.contractorId = user.contractorId;
+  } else if (contractorId) {
+    filter.contractorId = contractorId;
+  }
+
+  if (startDate || endDate) {
+    filter.date = {};
+    if (startDate) filter.date.$gte = new Date(startDate as string);
+    if (endDate) {
+      const end = new Date(endDate as string);
+      end.setHours(23, 59, 59, 999);
+      filter.date.$lte = end;
+    }
   }
 
   const wips = await WipRegister.find(filter)
@@ -144,18 +157,22 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
           const row = rows[r];
           if (!row) continue;
           
-          const labelCell = row[3]; // column D is index 3
-          const aCell = row[0];     // column A is index 0
-
-          if (labelCell) {
-            const norm = normLabel(labelCell);
-            for (const [knownLabel, field] of Object.entries(METADATA_LABELS)) {
-              if (normLabel(knownLabel) === norm) {
-                metaRows[r] = field;
-                break;
-              }
+          let labelFound = false;
+          for (let c = 0; c < 5; c++) {
+            const cell = row[c];
+            if (cell) {
+               const norm = normLabel(cell);
+               for (const [knownLabel, field] of Object.entries(METADATA_LABELS)) {
+                 if (normLabel(knownLabel) === norm) {
+                   metaRows[r] = field;
+                   labelFound = true;
+                   break;
+                 }
+               }
             }
+            if (labelFound) break;
           }
+          const aCell = row[0];
           if (aCell && String(aCell).trim().toUpperCase().startsWith("LOA SR")) {
             headerRowIdx = r;
             break;
@@ -251,8 +268,12 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
           }
         }
 
+        let sheetHasErrors = false;
+        const sheetWipsToCreate: any[] = [];
+
         // For each site column, create a WipRegister
         for (const c of siteCols) {
+          if (sheetHasErrors) break;
           const siteRecords = recordsBySite[c];
           if (siteRecords.length === 0) continue;
 
@@ -337,8 +358,9 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
             }
 
             if (!itemId) {
-              flagged.push({ sourceFile, sheetName, issue: `Item '${sr.description}' not found in Master Item List. Skipped.` });
-              continue; // Strict mapping: skip if not matched
+              flagged.push({ sourceFile, sheetName, issue: `Item '${sr.description}' not found in Master Item List. Entire sheet skipped.` });
+              sheetHasErrors = true;
+              break; // Strict mapping: skip if not matched
             }
 
             wipItems.push({
@@ -347,23 +369,54 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
               activity: finalActivity,
               description: sr.description || '',
               unit: sr.unit || '',
+              prevQty: 0,
               claimedQty: sr.quantity,
               approvedQty: 0,
-              rate: 0,
-              amount: 0,
               remarks: ''
             });
           }
+
+          if (sheetHasErrors) break;
 
           if (wipItems.length === 0) {
              flagged.push({ sourceFile, sheetName, issue: `No valid matched items found for ${meta.Location || 'Unknown Location'}. Skipped.` });
              continue;
           }
 
+          const pkg = (user as any).assignedPackage || meta.Location || meta.DrawingNo || '';
+          const circ = (user as any).assignedCircle || meta.Circle || '';
+          const div = meta.Division || '';
+          const subDiv = meta.SubDivision || '';
+
+          const pastApprovedWips = await WipRegister.find({
+             contractorId: contractorId || null,
+             package: pkg,
+             circle: circ,
+             division: div,
+             subDivision: subDiv,
+             status: 'Approved'
+          }).lean();
+
+          const prevQtyMap: Record<string, number> = {};
+          for (const pastWip of pastApprovedWips) {
+             for (const item of pastWip.items) {
+                if (item.itemId) {
+                   const idStr = item.itemId.toString();
+                   prevQtyMap[idStr] = (prevQtyMap[idStr] || 0) + (item.approvedQty || 0);
+                }
+             }
+          }
+
+          for (const item of wipItems) {
+             if (item.itemId) {
+                item.prevQty = prevQtyMap[item.itemId.toString()] || 0;
+             }
+          }
+
           initialCount++;
           const wipNumber = `WIP/${new Date().getFullYear().toString().slice(-2)}/${initialCount.toString().padStart(4, '0')}`;
 
-          await WipRegister.create({
+          sheetWipsToCreate.push({
             wipNumber,
             date: new Date(),
             contractorId: contractorId || null,
@@ -374,12 +427,15 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
             items: wipItems,
             claimedAmount: 0,
             approvedAmount: 0,
-            status: 'Draft', // as per user request for mismatches/defaults
+            status: 'Draft',
             remarks: `Uploaded from ${sourceFile} (${sheetName}). ${!meta.Contractor ? 'Warning: No contractor name found in sheet.' : ''}`.trim(),
             createdBy: user._id
           });
-          
-          totalSaved++;
+        }
+
+        if (!sheetHasErrors && sheetWipsToCreate.length > 0) {
+          await WipRegister.insertMany(sheetWipsToCreate);
+          totalSaved += sheetWipsToCreate.length;
         }
       }
     } catch (e: any) {

@@ -471,16 +471,16 @@ function DemandNoteForm() {
                       
                       {/* New JMC and WIP inputs */}
                       <td className="px-4 py-3 bg-indigo-50">
-                        <Input type="number" className="w-20 h-9" value={item.jmcQty || ''} onChange={(e) => handleItemChange(idx, 'jmcQty', e.target.value)} />
+                        <Input type="number" className="w-20 h-9" value={item.jmcQty !== undefined ? item.jmcQty : ''} onChange={(e) => handleItemChange(idx, 'jmcQty', e.target.value)} />
                       </td>
                       <td className="px-4 py-3 bg-blue-50">
-                        <Input type="number" className="w-20 h-9" value={item.wipQty || ''} onChange={(e) => handleItemChange(idx, 'wipQty', e.target.value)} />
+                        <Input type="number" className="w-20 h-9" value={item.wipQty !== undefined ? item.wipQty : ''} onChange={(e) => handleItemChange(idx, 'wipQty', e.target.value)} />
                       </td>
                       <td className="px-4 py-3 bg-blue-50">
-                        <Input type="number" className="w-20 h-9" value={item.wipRequiredQty || ''} onChange={(e) => handleItemChange(idx, 'wipRequiredQty', e.target.value)} />
+                        <Input type="number" className="w-20 h-9" value={item.wipRequiredQty !== undefined ? item.wipRequiredQty : ''} onChange={(e) => handleItemChange(idx, 'wipRequiredQty', e.target.value)} />
                       </td>
                       <td className="px-4 py-3 bg-orange-50">
-                        <Input type="number" className="w-20 h-9" value={item.miscellaneousQty || ''} onChange={(e) => handleItemChange(idx, 'miscellaneousQty', e.target.value)} />
+                        <Input type="number" className="w-20 h-9" value={item.miscellaneousQty !== undefined ? item.miscellaneousQty : ''} onChange={(e) => handleItemChange(idx, 'miscellaneousQty', e.target.value)} />
                       </td>
                       
                       {/* Balance Calculation */}

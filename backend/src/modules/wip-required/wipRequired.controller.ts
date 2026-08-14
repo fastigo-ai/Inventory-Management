@@ -33,7 +33,7 @@ export const getWipRequireds = asyncHandler(async (req: Request, res: Response) 
   }
 
   const wips = await WipRequiredRegister.find(filter)
-    .populate('contractorId', 'name vendorName')
+    .populate('contractorId', 'name vendorName dynamicData')
     .populate('workOrderId', 'workOrderNumber')
     .sort({ createdAt: -1 });
 
@@ -45,7 +45,7 @@ export const getWipRequireds = asyncHandler(async (req: Request, res: Response) 
 export const getWipRequiredById = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const wip = await WipRequiredRegister.findById(id)
-    .populate('contractorId', 'name vendorName')
+    .populate('contractorId', 'name vendorName dynamicData')
     .populate('workOrderId', 'workOrderNumber');
 
   if (!wip) {

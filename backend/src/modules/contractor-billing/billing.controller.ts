@@ -195,7 +195,7 @@ export const getInvoices = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const invoices = await ContractorInvoice.find(filter)
-    .populate('contractorId', 'name vendorName')
+    .populate('contractorId', 'name vendorName dynamicData')
     .populate('workOrderId', 'workOrderNumber')
     .sort({ createdAt: -1 });
 
@@ -205,7 +205,7 @@ export const getInvoices = asyncHandler(async (req: Request, res: Response) => {
 export const getInvoiceById = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const invoice = await ContractorInvoice.findById(id)
-    .populate('contractorId', 'name vendorName')
+    .populate('contractorId', 'name vendorName dynamicData')
     .populate('workOrderId', 'workOrderNumber')
     .populate('mhrovId', 'mhrovNumber')
     .populate('jmcId', 'jmcNumber')

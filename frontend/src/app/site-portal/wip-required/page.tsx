@@ -105,7 +105,7 @@ export default function WipRegisterPage() {
                       >
                         <td className="px-6 py-4 font-medium text-blue-600">{entry.wipRequiredNumber}</td>
                         <td className="px-6 py-4">{new Date(entry.date).toLocaleDateString()}</td>
-                        <td className="px-6 py-4">{entry.contractorId?.name || entry.contractorId?.vendorName || '-'}</td>
+                        <td className="px-6 py-4">{entry.contractorId?.dynamicData?.companyName || entry.contractorId?.dynamicData?.displayName || entry.contractorId?.name || entry.contractorId?.vendorName || '-'}</td>
                         <td className="px-6 py-4">{entry.package || '-'}</td>
                         <td className="px-6 py-4">{entry.circle || '-'}</td>
                         <td className="px-6 py-4 font-medium text-slate-700">{(entry.claimedAmount || 0).toFixed(2)}</td>

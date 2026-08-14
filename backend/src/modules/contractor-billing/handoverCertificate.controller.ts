@@ -26,7 +26,7 @@ export const getHandoverCertificates = asyncHandler(async (req: Request, res: Re
   }
 
   const certificates = await HandoverCertificate.find(filter)
-    .populate('contractorId', 'name vendorName')
+    .populate('contractorId', 'name vendorName dynamicData')
     .populate('workOrderId', 'workOrderNumber')
     .sort({ createdAt: -1 });
 
@@ -36,7 +36,7 @@ export const getHandoverCertificates = asyncHandler(async (req: Request, res: Re
 export const getHandoverCertificateById = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const certificate = await HandoverCertificate.findById(id)
-    .populate('contractorId', 'name vendorName')
+    .populate('contractorId', 'name vendorName dynamicData')
     .populate('workOrderId', 'workOrderNumber');
 
   if (!certificate) throw new ApiError(404, 'Handover Certificate not found');

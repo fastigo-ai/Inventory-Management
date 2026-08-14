@@ -160,8 +160,15 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
             }
             if (labelFound) break;
           }
-          const aCell = row[0];
-          if (aCell && String(aCell).trim().toUpperCase().startsWith("LOA SR")) {
+          let isHeader = false;
+          for (let c = 0; c < row.length; c++) {
+            const h = normLabel(row[c]);
+            if (h && (h.includes("loa") || h.includes("sched") || h.includes("activity") || h.includes("desc") || h.includes("unit") || h.includes("sr no") || h.includes("sr.no"))) {
+              isHeader = true;
+              break;
+            }
+          }
+          if (isHeader) {
             headerRowIdx = r;
             break;
           }

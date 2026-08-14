@@ -92,16 +92,17 @@ export const deleteWipRequired = asyncHandler(async (req: Request, res: Response
 });
 
 
-const METADATA_LABELS: Record<string, string> = {
-  "Name Of Circle :": "Circle",
-  "Name Of Division :": "Division",
-  "Name Of Sub/Division :": "SubDivision",
-  "Name Of Sub/Station :": "SubStation",
-  "Name Of Feeder :": "Feeder",
-  "Location :": "Location",
-  "Drawing No :": "DrawingNo",
-  "Name of Contractor": "Contractor",
-};
+function matchMetadataField(norm: string): string | null {
+  if (norm.includes("circle")) return "Circle";
+  if (norm.includes("division") && !norm.includes("sub")) return "Division";
+  if (norm.includes("sub") && (norm.includes("div") || norm.includes("division"))) return "SubDivision";
+  if (norm.includes("sub") && (norm.includes("station") || norm.includes("stn"))) return "SubStation";
+  if (norm.includes("feeder")) return "Feeder";
+  if (norm.includes("location") || norm.includes("site")) return "Location";
+  if (norm.includes("drawing")) return "DrawingNo";
+  if (norm.includes("contractor") || norm.includes("agency")) return "Contractor";
+  return null;
+}
 
 function normLabel(v: any): string {
   if (!v) return "";
@@ -150,12 +151,11 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
             const cell = row[c];
             if (cell) {
                const norm = normLabel(cell);
-               for (const [knownLabel, field] of Object.entries(METADATA_LABELS)) {
-                 if (normLabel(knownLabel) === norm) {
-                   metaRows[r] = field;
-                   labelFound = true;
-                   break;
-                 }
+               const field = matchMetadataField(norm);
+               if (field) {
+                 metaRows[r] = field;
+                 labelFound = true;
+                 break;
                }
             }
             if (labelFound) break;

@@ -23,7 +23,7 @@ export default function JmcRegisterFormPage() {
   const [submitting, setSubmitting] = useState(false);
   const [availableItems, setAvailableItems] = useState<any[]>([]);
 
-  const [formData, setFormData] = useState<any>({
+  const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     contractorId: "",
     package: user?.assignedPackage || "",
@@ -46,7 +46,7 @@ export default function JmcRegisterFormPage() {
         totalLoaQty: 0,
         remarks: ""
       }
-    ]
+    ] as any[]
   });
 
   useEffect(() => {

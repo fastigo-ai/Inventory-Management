@@ -93,10 +93,10 @@ export default function ItemSummaryReportPage() {
     { name: 'balBomBilled', label: '6. Bal. (BOM - Billed)', type: 'number', order: 11, active: true, visible: true },
     { name: 'goodDispatch', label: '7. Dispatch', type: 'number', order: 12, active: true, visible: true },
     { name: 'balDispatchVsDi', label: '8. Bal. Dispatch (DI - Dispatch)', type: 'number', order: 13, active: true, visible: true },
-    { name: 'diBalAsPerLoa', label: '9. DI Bal. Qty (as per LOA)', type: 'number', order: 14, active: true, visible: true },
-    { name: 'diBalAsPerBom', label: '10. DI Bal. Qty (as per BOM)', type: 'number', order: 15, active: true, visible: true },
-    { name: 'balDiIssuedAsPerLoa', label: '11. Bal. for DI Issued (as per LOA)', type: 'number', order: 16, active: true, visible: true },
-    { name: 'balDiIssuedAsPerBom', label: '12. Bal. for DI Issued (as per BOM)', type: 'number', order: 17, active: true, visible: true }
+    { name: 'diBalAsPerLoa', label: '9. Bal. Dispatch (as per LOA)', type: 'number', order: 14, active: true, visible: true },
+    { name: 'diBalAsPerBom', label: '10. Bal. Dispatch (as per BOM)', type: 'number', order: 15, active: true, visible: true },
+    { name: 'balDiIssuedAsPerLoa', label: '11. Bal. DI to Issue (as per LOA)', type: 'number', order: 16, active: true, visible: true },
+    { name: 'balDiIssuedAsPerBom', label: '12. Bal. DI to Issue (as per BOM)', type: 'number', order: 17, active: true, visible: true }
   ];
 
   const handleExport = () => {

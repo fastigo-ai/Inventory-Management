@@ -614,26 +614,40 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
       const itemChunks = chunkArray(validItems, 1000);
     
     for (const chunk of itemChunks) {
-      const orConditions = chunk.map((item: any) => ({
-        'dynamicData.sku': item.dynamicData.sku,
-        'dynamicData.package': item.dynamicData.package,
-        'dynamicData.circle': item.dynamicData.circle
-      })).filter((c: any) => c['dynamicData.sku']);
+      const orConditions = chunk.map((item: any) => {
+        const identifier = item.dynamicData.sku || item.dynamicData.tempCode || item.dynamicData.name;
+        if (!identifier) return null;
+        
+        const cond: any = {
+          'dynamicData.package': item.dynamicData.package,
+          'dynamicData.circle': item.dynamicData.circle
+        };
+        
+        if (item.dynamicData.sku) cond['dynamicData.sku'] = item.dynamicData.sku;
+        else if (item.dynamicData.tempCode) cond['dynamicData.tempCode'] = item.dynamicData.tempCode;
+        else if (item.dynamicData.name) cond['dynamicData.name'] = item.dynamicData.name;
+        
+        return cond;
+      }).filter(Boolean);
       
-      const existingItemsMap = new Map();
+      let existingItems: any[] = [];
       if (orConditions.length > 0) {
-        const existingItems = await Item.find({ $or: orConditions }).lean();
-        for (const existing of existingItems) {
-          const ext = existing;
-          const key = `${ext.dynamicData?.package || ''}|${ext.dynamicData?.circle || ''}|${ext.dynamicData?.sku || ''}`;
-          existingItemsMap.set(key, existing);
-        }
+        existingItems = await Item.find({ $or: orConditions }).lean();
       }
 
       const chunkOps: any[] = [];
       for (const item of chunk) {
-        const key = `${item.dynamicData.package || ''}|${item.dynamicData.circle || ''}|${item.dynamicData.sku || ''}`;
-        const matchedExisting = existingItemsMap.get(key);
+        const matchedExisting = existingItems.find((ext: any) => {
+          const pkgMatch = (ext.dynamicData?.package || '') === (item.dynamicData.package || '');
+          const circleMatch = (ext.dynamicData?.circle || '') === (item.dynamicData.circle || '');
+          if (!pkgMatch || !circleMatch) return false;
+          
+          if (item.dynamicData.sku && ext.dynamicData?.sku === item.dynamicData.sku) return true;
+          if (item.dynamicData.tempCode && ext.dynamicData?.tempCode === item.dynamicData.tempCode) return true;
+          if (item.dynamicData.name && ext.dynamicData?.name === item.dynamicData.name) return true;
+          
+          return false;
+        });
 
         if (matchedExisting) {
            chunkOps.push({

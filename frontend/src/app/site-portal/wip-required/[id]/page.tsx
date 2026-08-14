@@ -52,7 +52,7 @@ export default function WipRegisterFormPage() {
   const fetchContractors = async () => {
     try {
       const res = await getContractors();
-      setContractors(res.data?.data || []);
+      setContractors(res.data || []);
     } catch (err) {
       console.error(err);
     }

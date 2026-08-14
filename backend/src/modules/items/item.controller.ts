@@ -538,8 +538,15 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
       dynamicData.loaQuantity = calculateLoaQuantity(dynamicData);
 
       const rowErrors: string[] = [];
-      const packageVal = dynamicData['package'] || '';
-      const circleVal = dynamicData['circle'] || '';
+      
+      let packageVal = String(dynamicData['package'] || '').trim();
+      // Normalize 'Package 2 (R/R)' to 'Package 2(R/R)'
+      packageVal = packageVal.replace(/Package\s+(\d+)\s*\(/i, 'Package $1(');
+      dynamicData['package'] = packageVal;
+      
+      const circleVal = String(dynamicData['circle'] || '').trim();
+      dynamicData['circle'] = circleVal;
+      
       const skuVal = dynamicData['sku'] || '';
       
       // Check uniqueness within the CSV file itself using Composite Key
@@ -614,47 +621,95 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
       const itemChunks = chunkArray(validItems, 1000);
     
     for (const chunk of itemChunks) {
-      const orConditions = chunk.map((item: any) => ({
-        'dynamicData.sku': item.dynamicData.sku,
-        'dynamicData.package': item.dynamicData.package,
-        'dynamicData.circle': item.dynamicData.circle
-      })).filter((c: any) => c['dynamicData.sku']);
+      const orConditions = chunk.flatMap((item: any) => {
+        const conds: any[] = [];
+        const base = {
+          'dynamicData.package': item.dynamicData.package,
+          'dynamicData.circle': item.dynamicData.circle
+        };
+        
+        if (item.dynamicData.sku) conds.push({ ...base, 'dynamicData.sku': item.dynamicData.sku });
+        if (item.dynamicData.tempCode) conds.push({ ...base, 'dynamicData.tempCode': item.dynamicData.tempCode });
+        if (item.dynamicData.name) conds.push({ ...base, 'dynamicData.name': item.dynamicData.name });
+        
+        return conds;
+      });
       
-      const existingItemsMap = new Map();
+      let existingItems: any[] = [];
       if (orConditions.length > 0) {
-        const existingItems = await Item.find({ $or: orConditions }).lean();
-        for (const existing of existingItems) {
-          const ext = existing;
-          const key = `${ext.dynamicData?.package || ''}|${ext.dynamicData?.circle || ''}|${ext.dynamicData?.sku || ''}`;
-          existingItemsMap.set(key, existing);
-        }
+        existingItems = await Item.find({ $or: orConditions }).lean();
       }
+
+      // Convert DB items to a Map for O(1) lookup
+      const dbItemsMap = new Map();
+      for (const ext of existingItems) {
+        const pkg = ext.dynamicData?.package || '';
+        const circle = ext.dynamicData?.circle || '';
+        if (ext.dynamicData?.sku) dbItemsMap.set(`${pkg}|${circle}|sku|${ext.dynamicData.sku}`, ext);
+        if (ext.dynamicData?.tempCode) dbItemsMap.set(`${pkg}|${circle}|tempCode|${ext.dynamicData.tempCode}`, ext);
+        if (ext.dynamicData?.name) dbItemsMap.set(`${pkg}|${circle}|name|${ext.dynamicData.name}`, ext);
+      }
+
+      // Track items we are inserting/updating in this chunk to handle duplicates within the CSV itself
+      const inMemoryProcessedMap = new Map();
 
       const chunkOps: any[] = [];
       for (const item of chunk) {
-        const key = `${item.dynamicData.package || ''}|${item.dynamicData.circle || ''}|${item.dynamicData.sku || ''}`;
-        const matchedExisting = existingItemsMap.get(key);
+        const pkg = item.dynamicData?.package || '';
+        const circle = item.dynamicData?.circle || '';
+        
+        let matchedExisting = null;
+        let matchedInMemory = null;
 
-        if (matchedExisting) {
-           chunkOps.push({
+        // Try to find a match using available identifiers (prioritize memory over DB to apply latest merged state)
+        if (item.dynamicData?.sku) {
+           matchedInMemory = matchedInMemory || inMemoryProcessedMap.get(`${pkg}|${circle}|sku|${item.dynamicData.sku}`);
+           matchedExisting = matchedExisting || dbItemsMap.get(`${pkg}|${circle}|sku|${item.dynamicData.sku}`);
+        }
+        if (item.dynamicData?.tempCode) {
+           matchedInMemory = matchedInMemory || inMemoryProcessedMap.get(`${pkg}|${circle}|tempCode|${item.dynamicData.tempCode}`);
+           matchedExisting = matchedExisting || dbItemsMap.get(`${pkg}|${circle}|tempCode|${item.dynamicData.tempCode}`);
+        }
+        if (item.dynamicData?.name) {
+           matchedInMemory = matchedInMemory || inMemoryProcessedMap.get(`${pkg}|${circle}|name|${item.dynamicData.name}`);
+           matchedExisting = matchedExisting || dbItemsMap.get(`${pkg}|${circle}|name|${item.dynamicData.name}`);
+        }
+
+        if (matchedInMemory) {
+           // We already processed this item in this chunk (duplicate row in CSV). Merge it in memory!
+           matchedInMemory.dynamicData = { ...matchedInMemory.dynamicData, ...item.dynamicData };
+           if (matchedInMemory._opRef.updateOne) {
+              matchedInMemory._opRef.updateOne.update.$set.dynamicData = matchedInMemory.dynamicData;
+           } else if (matchedInMemory._opRef.insertOne) {
+              matchedInMemory._opRef.insertOne.document.dynamicData = matchedInMemory.dynamicData;
+           }
+        } else if (matchedExisting) {
+           // Exists in DB
+           const updatedDynamicData = { ...matchedExisting.dynamicData, ...item.dynamicData };
+           const op = {
               updateOne: {
                  filter: { _id: matchedExisting._id },
                  update: {
-                    $set: {
-                       dynamicData: { ...matchedExisting.dynamicData, ...item.dynamicData }
-                    },
-                    $push: {
-                       history: { action: 'Updated via Import', performedBy: (req as any).user?._id || 'system', date: new Date() }
-                    }
+                    $set: { dynamicData: updatedDynamicData },
+                    $push: { history: { action: 'Updated via Import', performedBy: (req as any).user?._id || 'system', date: new Date() } }
                  }
               }
-           });
+           };
+           chunkOps.push(op);
+           
+           const memoryRef = { dynamicData: updatedDynamicData, _opRef: op };
+           if (item.dynamicData?.sku) inMemoryProcessedMap.set(`${pkg}|${circle}|sku|${item.dynamicData.sku}`, memoryRef);
+           if (item.dynamicData?.tempCode) inMemoryProcessedMap.set(`${pkg}|${circle}|tempCode|${item.dynamicData.tempCode}`, memoryRef);
+           if (item.dynamicData?.name) inMemoryProcessedMap.set(`${pkg}|${circle}|name|${item.dynamicData.name}`, memoryRef);
         } else {
-           chunkOps.push({
-              insertOne: {
-                 document: item
-              }
-           });
+           // Completely new item
+           const op = { insertOne: { document: item } };
+           chunkOps.push(op);
+           
+           const memoryRef = { dynamicData: item.dynamicData, _opRef: op };
+           if (item.dynamicData?.sku) inMemoryProcessedMap.set(`${pkg}|${circle}|sku|${item.dynamicData.sku}`, memoryRef);
+           if (item.dynamicData?.tempCode) inMemoryProcessedMap.set(`${pkg}|${circle}|tempCode|${item.dynamicData.tempCode}`, memoryRef);
+           if (item.dynamicData?.name) inMemoryProcessedMap.set(`${pkg}|${circle}|name|${item.dynamicData.name}`, memoryRef);
         }
       }
       

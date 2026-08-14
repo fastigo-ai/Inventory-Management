@@ -73,8 +73,8 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
     balBomBilled: totalAggregation[0].totalBomQty - totalAggregation[0].totalBilledQty,
     goodDispatch: totalAggregation[0].totalActQty,
     balDispatchVsDi: totalAggregation[0].totalDiQty - totalAggregation[0].totalActQty,
-    diBalAsPerLoa: totalAggregation[0].totalLoaQty - totalAggregation[0].totalBomQty,
-    diBalAsPerBom: totalAggregation[0].totalBomQty - totalAggregation[0].totalDiQty,
+    diBalAsPerLoa: totalAggregation[0].totalLoaQty - totalAggregation[0].totalActQty,
+    diBalAsPerBom: totalAggregation[0].totalBomQty - totalAggregation[0].totalActQty,
     balDiIssuedAsPerLoa: totalAggregation[0].totalLoaQty - totalAggregation[0].totalDiQty,
     balDiIssuedAsPerBom: totalAggregation[0].totalBomQty - totalAggregation[0].totalDiQty
   } : null;
@@ -117,8 +117,8 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
         balBomBilled: { $subtract: [{ $ifNull: ["$bomQty", 0] }, { $ifNull: ["$billedQty", 0] }] },
         goodDispatch: { $ifNull: ["$actQty", 0] },
         balDispatchVsDi: { $subtract: [{ $ifNull: ["$diQty", 0] }, { $ifNull: ["$actQty", 0] }] },
-        diBalAsPerLoa: { $subtract: [{ $ifNull: ["$loaQty", 0] }, { $ifNull: ["$bomQty", 0] }] },
-        diBalAsPerBom: { $subtract: [{ $ifNull: ["$bomQty", 0] }, { $ifNull: ["$diQty", 0] }] },
+        diBalAsPerLoa: { $subtract: [{ $ifNull: ["$loaQty", 0] }, { $ifNull: ["$actQty", 0] }] },
+        diBalAsPerBom: { $subtract: [{ $ifNull: ["$bomQty", 0] }, { $ifNull: ["$actQty", 0] }] },
         balDiIssuedAsPerLoa: { $subtract: [{ $ifNull: ["$loaQty", 0] }, { $ifNull: ["$diQty", 0] }] },
         balDiIssuedAsPerBom: { $subtract: [{ $ifNull: ["$bomQty", 0] }, { $ifNull: ["$diQty", 0] }] },
         pendingInvoice: { $subtract: [{ $ifNull: ["$actQty", 0] }, { $ifNull: ["$billedQty", 0] }] },
@@ -147,10 +147,10 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
     const balBomBilled = (doc.bomQty || 0) - (doc.billedQty || 0);               // Column 6: BOM - Billed (2 - 4 = 6)
     const goodDispatch = doc.actQty || 0;                                        // Column 7: Good Dispatch
     const balDispatchVsDi = (doc.diQty || 0) - (doc.actQty || 0);                 // Column 8: DI - Good Dispatch (3 - 7 = 8)
-    const diBalAsPerLoa = (doc.loaQty || 0) - (doc.bomQty || 0);                  // Column 9: DI Bal. Qty (as per LOA) (1 - 2 = 9)
-    const diBalAsPerBom = (doc.bomQty || 0) - (doc.diQty || 0);                   // Column 10: DI Bal. Qty (as per BOM) (2 - 3 = 10)
-    const balDiIssuedAsPerLoa = (doc.loaQty || 0) - (doc.diQty || 0);             // Column 11: Bal. for DI Issued (as per LOA) (1 - 3 = 11)
-    const balDiIssuedAsPerBom = (doc.bomQty || 0) - (doc.diQty || 0);             // Column 12: Bal. for DI Issued (as per BOM) (2 - 3 = 12)
+    const diBalAsPerLoa = (doc.loaQty || 0) - (doc.actQty || 0);                  // Column 9: Dispatch Bal. Qty (as per LOA) (1 - 7 = 9)
+    const diBalAsPerBom = (doc.bomQty || 0) - (doc.actQty || 0);                  // Column 10: Dispatch Bal. Qty (as per BOM) (2 - 7 = 10)
+    const balDiIssuedAsPerLoa = (doc.loaQty || 0) - (doc.diQty || 0);             // Column 11: Bal. DI to Issue (as per LOA) (1 - 3 = 11)
+    const balDiIssuedAsPerBom = (doc.bomQty || 0) - (doc.diQty || 0);             // Column 12: Bal. DI to Issue (as per BOM) (2 - 3 = 12)
 
     // Keep legacy calculations for compatibility if used elsewhere
     const remainingLoa = balLoaBilled;

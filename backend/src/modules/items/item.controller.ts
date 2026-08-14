@@ -187,16 +187,13 @@ const buildItemQueryAndSort = (queryParams: any) => {
       
       const escapedValue = String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       
-      let regexStr = escapedValue;
-      // Use exact match for identifier fields and dropdowns to prevent partial matches (e.g. searching '1' returning '12')
-      if (['sku', 'tempCode', 'activity', 'package', 'circle'].includes(fieldName)) {
-          regexStr = `^${escapedValue}$`;
-      }
-
+      const exactMatchFields = ['sku', 'tempCode', 'activity', 'package', 'circle', 'loaSrNo', 'loaSerialNo'];
+      const isExact = exactMatchFields.includes(fieldName);
+      
       exprFilters.push({
         $regexMatch: {
           input: { $toString: `$dynamicData.${fieldName}` },
-          regex: regexStr,
+          regex: isExact ? `^${escapedValue}$` : escapedValue,
           options: "i"
         }
       });

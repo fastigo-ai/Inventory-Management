@@ -175,7 +175,9 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
         }
 
         if (headerRowIdx === -1) {
-          flagged.push({ sourceFile, sheetName, issue: "Could not find 'LOA SR.NO.' header row - skipped" });
+          console.log(`Failed to find header row in sheet ${sheetName}. Dump of first 30 rows:`);
+          console.log(JSON.stringify(rows.slice(0, 30), null, 2));
+          flagged.push({ sourceFile, sheetName, issue: "Could not find 'LOA SR.NO.' header row (v2) - skipped" });
           continue;
         }
 

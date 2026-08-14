@@ -365,9 +365,8 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
             }
 
             if (!itemId) {
-              flagged.push({ sourceFile, sheetName, issue: `Item '${sr.description}' not found in Master Item List. Entire sheet skipped.` });
-              sheetHasErrors = true;
-              break; // Strict mapping: skip if not matched
+              flagged.push({ sourceFile, sheetName, issue: `Item '${sr.description}' not found in Master Item List. Saving without Item ID.` });
+              // We don't skip the entire sheet or the item anymore. We allow it to save without itemId.
             }
 
             wipItems.push({

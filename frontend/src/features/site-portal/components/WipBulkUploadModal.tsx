@@ -108,9 +108,9 @@ export function WipBulkUploadModal({ open, onOpenChange, onSuccess }: Props) {
               {result.flagged?.length > 0 && (
                 <div className="mt-2 text-orange-700">
                   <p className="font-semibold mb-1">Warnings ({result.flagged.length}):</p>
-                  <ul className="list-disc pl-4 space-y-1 max-h-32 overflow-y-auto text-xs">
+                  <ul className="list-disc pl-4 space-y-1 max-h-32 overflow-y-auto">
                     {result.flagged.map((f: any, i: number) => (
-                      <li key={i}>{f.sourceFile} - {f.issue}</li>
+                      <li key={i}>{f.sourceFile}{f.sheetName ? ` (${f.sheetName})` : ''} - {f.issue}</li>
                     ))}
                   </ul>
                 </div>

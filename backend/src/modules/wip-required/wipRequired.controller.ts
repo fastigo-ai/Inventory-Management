@@ -138,6 +138,9 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
         const worksheet = workbook.Sheets[sheetName];
         const rows = xlsx.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: null });
         
+        // Silently skip empty sheets or sheets without enough rows to have headers
+        if (!rows || rows.length < 2) continue;
+        
         const metaRows: Record<number, string> = {};
         let headerRowIdx = -1;
 
@@ -355,9 +358,7 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
             }
 
             if (!itemId) {
-              flagged.push({ sourceFile, sheetName, issue: `Item '${sr.description}' not found in Master Item List. Entire sheet skipped.` });
-              sheetHasErrors = true;
-              break; // Strict mapping: skip if not matched
+              flagged.push({ sourceFile, sheetName, issue: `Item '${sr.description}' not found in Master Item List. Saving without Item ID.` });
             }
 
             wipItems.push({

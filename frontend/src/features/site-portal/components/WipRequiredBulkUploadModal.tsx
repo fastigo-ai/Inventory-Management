@@ -73,7 +73,7 @@ export function WipRequiredBulkUploadModal({ open, onOpenChange, onSuccess }: Pr
                   <p className="font-semibold mb-1">Warnings ({result.flagged.length}):</p>
                   <ul className="list-disc pl-4 space-y-1 max-h-32 overflow-y-auto">
                     {result.flagged.map((f: any, i: number) => (
-                      <li key={i}>{f.sourceFile} - {f.issue}</li>
+                      <li key={i}>{f.sourceFile}{f.sheetName ? ` (${f.sheetName})` : ''} - {f.issue}</li>
                     ))}
                   </ul>
                 </div>

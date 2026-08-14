@@ -161,12 +161,20 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
             const cell = row[c];
             if (cell) {
                const norm = normLabel(cell);
-               for (const [knownLabel, field] of Object.entries(METADATA_LABELS)) {
-                 if (normLabel(knownLabel) === norm) {
-                   metaRows[r] = field;
-                   labelFound = true;
-                   break;
-                 }
+               let field = null;
+               if (norm.includes("circle")) field = "Circle";
+               else if (norm.includes("division") && !norm.includes("sub")) field = "Division";
+               else if (norm.includes("sub") && (norm.includes("div") || norm.includes("division"))) field = "SubDivision";
+               else if (norm.includes("sub") && (norm.includes("station") || norm.includes("stn"))) field = "SubStation";
+               else if (norm.includes("feeder")) field = "Feeder";
+               else if (norm.includes("location") || norm.includes("site")) field = "Location";
+               else if (norm.includes("drawing")) field = "DrawingNo";
+               else if (norm.includes("contractor") || norm.includes("agency")) field = "Contractor";
+               
+               if (field) {
+                 metaRows[r] = field;
+                 labelFound = true;
+                 break;
                }
             }
             if (labelFound) break;
@@ -388,8 +396,8 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
             }
 
             if (!itemId) {
-              flagged.push({ sourceFile, sheetName, issue: `Item '${sr.description}' not found in Master Item List. Skipped.` });
-              continue; // Strict mapping: skip if not matched
+              flagged.push({ sourceFile, sheetName, issue: `Item '${sr.description}' not found in Master Item List. Saving without Item ID.` });
+              // We don't continue/skip here anymore. We allow it to save without itemId.
             }
 
             jmcItems.push({

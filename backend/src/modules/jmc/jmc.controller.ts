@@ -152,7 +152,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
         let headerRowIdx = -1;
 
         // Find metadata and header row (rows 0-14)
-        for (let r = 0; r < Math.min(15, rows.length); r++) {
+        for (let r = 0; r < Math.min(50, rows.length); r++) {
           const row = rows[r];
           if (!row) continue;
           
@@ -175,7 +175,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
           let isHeader = false;
           for (let c = 0; c < row.length; c++) {
             const h = normLabel(row[c]);
-            if (h && (h.includes("loa") || h.includes("sched") || h.includes("activity") || h.includes("desc") || h.includes("unit") || h.includes("sr no") || h.includes("sr.no"))) {
+            if (h && (h.includes("loa") || h.includes("sched") || h.includes("activity") || h.includes("desc") || h.includes("unit") || h.includes("sr no") || h.includes("sr.") || h.includes("s.no") || h.includes("item") || h.includes("qty") || h.includes("quantity"))) {
               isHeader = true;
               break;
             }

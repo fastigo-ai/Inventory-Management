@@ -614,21 +614,19 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
       const itemChunks = chunkArray(validItems, 1000);
     
     for (const chunk of itemChunks) {
-      const orConditions = chunk.map((item: any) => {
-        const identifier = item.dynamicData.sku || item.dynamicData.tempCode || item.dynamicData.name;
-        if (!identifier) return null;
-        
-        const cond: any = {
+      const orConditions = chunk.flatMap((item: any) => {
+        const conds: any[] = [];
+        const base = {
           'dynamicData.package': item.dynamicData.package,
           'dynamicData.circle': item.dynamicData.circle
         };
         
-        if (item.dynamicData.sku) cond['dynamicData.sku'] = item.dynamicData.sku;
-        else if (item.dynamicData.tempCode) cond['dynamicData.tempCode'] = item.dynamicData.tempCode;
-        else if (item.dynamicData.name) cond['dynamicData.name'] = item.dynamicData.name;
+        if (item.dynamicData.sku) conds.push({ ...base, 'dynamicData.sku': item.dynamicData.sku });
+        if (item.dynamicData.tempCode) conds.push({ ...base, 'dynamicData.tempCode': item.dynamicData.tempCode });
+        if (item.dynamicData.name) conds.push({ ...base, 'dynamicData.name': item.dynamicData.name });
         
-        return cond;
-      }).filter(Boolean);
+        return conds;
+      });
       
       let existingItems: any[] = [];
       if (orConditions.length > 0) {

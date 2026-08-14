@@ -25,7 +25,7 @@ export default function WipRegisterFormPage() {
     circle: "",
     division: "",
     subDivision: "",
-    status: "Draft",
+    status: "Submitted",
     remarks: "",
     items: [
       {
@@ -177,15 +177,7 @@ export default function WipRegisterFormPage() {
           </div>
           <div className="flex space-x-3">
             <Button 
-              variant="outline" 
-              onClick={() => handleSubmit('Draft')}
-              disabled={submitting || formData.status === 'Approved'}
-            >
-              <Save className="w-4 h-4 mr-2" />
-              Save Draft
-            </Button>
-            <Button 
-              onClick={() => handleSubmit(formData.status === 'Draft' ? 'Submitted' : 'Approved')}
+              onClick={() => handleSubmit(formData.status === 'Submitted' ? 'Approved' : 'Submitted')}
               disabled={submitting}
               className={formData.status === 'Submitted' ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"}
             >

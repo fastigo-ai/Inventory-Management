@@ -154,7 +154,16 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
             const cell = row[c];
             if (cell) {
                const norm = normLabel(cell);
-               const field = matchMetadataField(norm);
+               let field = null;
+               if (norm.includes("circle")) field = "Circle";
+               else if (norm.includes("division") && !norm.includes("sub")) field = "Division";
+               else if (norm.includes("sub") && (norm.includes("div") || norm.includes("division"))) field = "SubDivision";
+               else if (norm.includes("sub") && (norm.includes("station") || norm.includes("stn"))) field = "SubStation";
+               else if (norm.includes("feeder")) field = "Feeder";
+               else if (norm.includes("location") || norm.includes("site")) field = "Location";
+               else if (norm.includes("drawing")) field = "DrawingNo";
+               else if (norm.includes("contractor") || norm.includes("agency") || norm.includes("name of contractor")) field = "Contractor";
+               
                if (field) {
                  metaRows[r] = field;
                  labelFound = true;
@@ -425,7 +434,7 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
             items: wipItems,
             claimedAmount: 0,
             approvedAmount: 0,
-            status: 'Draft',
+            status: 'Submitted',
             remarks: `Uploaded from ${sourceFile} (${sheetName}). ${!meta.Contractor ? 'Warning: No contractor name found in sheet.' : ''}`.trim(),
             createdBy: user._id
           });

@@ -60,7 +60,7 @@ const WipRegisterSchema = new Schema<IWipRegister>(
     items: [WipItemSchema],
     claimedAmount: { type: Number, default: 0 },
     approvedAmount: { type: Number, default: 0 },
-    status: { type: String, enum: ['Draft', 'Submitted', 'Approved', 'Rejected'], default: 'Draft', index: true },
+    status: { type: String, enum: ['Draft', 'Submitted', 'Approved', 'Rejected'], default: 'Submitted', index: true },
     remarks: { type: String, default: '' },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true }
   },

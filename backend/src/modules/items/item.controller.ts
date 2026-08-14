@@ -183,10 +183,17 @@ export const getItems = asyncHandler(async (req: Request, res: Response) => {
       const fieldName = key.replace('filter_', '');
       
       const escapedValue = String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      
+      let regexStr = escapedValue;
+      // Use exact match for identifier fields and dropdowns to prevent partial matches (e.g. searching '1' returning '12')
+      if (['tempCode', 'activity', 'package', 'circle'].includes(fieldName)) {
+          regexStr = `^${escapedValue}$`;
+      }
+
       exprFilters.push({
         $regexMatch: {
           input: { $toString: `$dynamicData.${fieldName}` },
-          regex: escapedValue,
+          regex: regexStr,
           options: "i"
         }
       });

@@ -538,8 +538,15 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
       dynamicData.loaQuantity = calculateLoaQuantity(dynamicData);
 
       const rowErrors: string[] = [];
-      const packageVal = dynamicData['package'] || '';
-      const circleVal = dynamicData['circle'] || '';
+      
+      let packageVal = String(dynamicData['package'] || '').trim();
+      // Normalize 'Package 2 (R/R)' to 'Package 2(R/R)'
+      packageVal = packageVal.replace(/Package\s+(\d+)\s*\(/i, 'Package $1(');
+      dynamicData['package'] = packageVal;
+      
+      const circleVal = String(dynamicData['circle'] || '').trim();
+      dynamicData['circle'] = circleVal;
+      
       const skuVal = dynamicData['sku'] || '';
       
       // Check uniqueness within the CSV file itself using Composite Key

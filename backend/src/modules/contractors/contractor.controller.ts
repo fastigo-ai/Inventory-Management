@@ -11,6 +11,10 @@ import { ContractorReturn } from './contractorReturn.schema';
 import Metadata from '../metadata/metadata.model';
 import Item from '../items/item.model';
 import mongoose from 'mongoose';
+import { JmcRegister } from "../jmc/jmc.schema";
+import { WipRegister } from "../wip/wip.schema";
+import { WipRequiredRegister } from "../wip-required/wipRequired.schema";
+
 
 export const getContractors = asyncHandler(async (req: Request, res: Response) => {
   const { location, search } = req.query;
@@ -1051,4 +1055,48 @@ export const getContractorTransactions = asyncHandler(async (req: Request, res: 
     assignments,
     returns
   }, 'Contractor transactions fetched successfully'));
+});
+
+export const getContractorAggregatedQuantities = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  const [jmcRecords, wipRecords, wipReqRecords] = await Promise.all([
+    JmcRegister.find({ contractorId: id }).lean(),
+    WipRegister.find({ contractorId: id }).lean(),
+    WipRequiredRegister.find({ contractorId: id }).lean()
+  ]);
+
+  const map: Record<string, { jmcQty: number; wipQty: number; wipRequiredQty: number }> = {};
+
+  const getKey = (activity: string, loaSrNo: string) => {
+    return `${(activity || '').trim().toLowerCase()}_${(loaSrNo || '').trim().toLowerCase()}`;
+  };
+
+  jmcRecords.forEach(record => {
+    record.items?.forEach((item: any) => {
+      const key = getKey(item.activity, item.loaSerialNo || item.loaSrNo);
+      if (!map[key]) map[key] = { jmcQty: 0, wipQty: 0, wipRequiredQty: 0 };
+      map[key].jmcQty += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
+    });
+  });
+
+  wipRecords.forEach(record => {
+    record.items?.forEach((item: any) => {
+      const key = getKey(item.activity, item.loaSerialNo || item.loaSrNo);
+      if (!map[key]) map[key] = { jmcQty: 0, wipQty: 0, wipRequiredQty: 0 };
+      map[key].wipQty += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
+    });
+  });
+
+  wipReqRecords.forEach(record => {
+    record.items?.forEach((item: any) => {
+      const key = getKey(item.activity, item.loaSerialNo || item.loaSrNo);
+      if (!map[key]) map[key] = { jmcQty: 0, wipQty: 0, wipRequiredQty: 0 };
+      map[key].wipRequiredQty += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
+    });
+  });
+
+  res.status(200).json(
+    new ApiResponse(200, map, 'Aggregated quantities fetched successfully')
+  );
 });

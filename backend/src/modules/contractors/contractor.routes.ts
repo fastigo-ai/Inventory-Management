@@ -23,7 +23,8 @@ import {
   bulkImportContractorReturns,
   importContractorAssignments,
   getContractorTransactions,
-  getAssignmentSummary
+  getAssignmentSummary,
+  getContractorAggregatedQuantities
 } from './contractor.controller';
 
 const router = Router();
@@ -42,7 +43,8 @@ router.route('/assignments')
   .get(getAssignments)
   .post(createAssignment);
 
-router.get('/assignments/summary', getAssignmentSummary);
+router.get('/assignments/summary', getAssignmentSummary,
+  getContractorAggregatedQuantities);
 
 router.route('/assignments/:id')
   .get(getAssignmentById)

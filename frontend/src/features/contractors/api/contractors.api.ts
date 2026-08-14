@@ -132,3 +132,9 @@ export const importContractorReturns = async (file: File) => {
   });
   return response.data;
 };
+
+export const getContractorAggregatedQuantities = async (id: string) => {
+  const response = await api.get(`/contractors/${id}/aggregated-quantities`);
+  return response.data;
+};
+

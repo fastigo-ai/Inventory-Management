@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { createDemandNote, getContextData } from '@/features/site-portal/api/demand-notes.api';
 import { getItems } from '@/features/items/api/items.api';
 import { getContractorWorkOrderById } from '@/features/contractors/api/contractorWorkOrder.api';
+import { getContractorAggregatedQuantities } from '@/features/contractors/api/contractors.api';
 import { ItemSelectionModal } from '@/features/site-portal/components/ItemSelectionModal';
 
 function DemandNoteForm() {
@@ -89,37 +90,57 @@ function DemandNoteForm() {
         }));
 
         if (wo.items && wo.items.length > 0) {
-          const mappedItems = wo.items.map((i: any) => ({
-            itemId: i.itemId,
-            itemName: i.itemName || i.description || '',
-            itemDescription: i.itemDescription || '',
-            activity: i.activity || '',
-            tempCode: i.tempCode || '',
-            loaSrNo: i.loaSrNo || '',
-            unit: i.unit || '',
-            totalPackageLoaQty: i.totalPackageLoaQty || 0,
-            circleLoaQty: i.circleLoaQty || 0,
-            circleBomQty: i.circleBomQty || 0,
-            loaQty: i.loaQty || i.circleLoaQty || 0,
-            woQty: i.woQty || i.issuedQty || 0,
-            bomQty: i.bomQty || i.circleBomQty || 0,
-            alreadyIssuedQty: i.alreadyIssuedQty || i.issuedQty || 0,
-            contractorErectionRate: i.contractorErectionRate || 0,
-            amount: i.amount || 0,
-            gstType: i.gstType || '',
-            gstAmount: i.gstAmount || 0,
-            totalAmount: i.totalAmount || 0,
-            transferFromOther: i.transferFromOther || 0,
-            transferToOther: i.transferToOther || 0,
-            stockBal: i.stockBal || 0,
-            jmcQty: 0,
-            wipQty: 0,
-            wipRequiredQty: 0,
-            miscellaneousQty: 0,
-            demandQty: 0,
-            balBomQty: (i.bomQty || i.circleBomQty || 0) - (i.alreadyIssuedQty || i.issuedQty || 0),
-            isLoadingContext: false
-          }));
+          let aggData: any = {};
+          const cId = wo.contractorId?._id || wo.contractorId;
+          if (cId) {
+            try {
+              const aggRes = await getContractorAggregatedQuantities(cId);
+              if (aggRes && aggRes.success && aggRes.data) {
+                aggData = aggRes.data;
+              }
+            } catch (err) {
+              console.error("Failed to fetch aggregated quantities", err);
+            }
+          }
+
+          const mappedItems = wo.items.map((i: any) => {
+            const act = String(i.activity || '').trim().toLowerCase();
+            const loaSr = String(i.loaSrNo || '').trim().toLowerCase();
+            const key = `${act}_${loaSr}`;
+            const agg = aggData[key] || { jmcQty: 0, wipQty: 0, wipRequiredQty: 0 };
+
+            return {
+              itemId: i.itemId,
+              itemName: i.itemName || i.description || '',
+              itemDescription: i.itemDescription || '',
+              activity: i.activity || '',
+              tempCode: i.tempCode || '',
+              loaSrNo: i.loaSrNo || '',
+              unit: i.unit || '',
+              totalPackageLoaQty: i.totalPackageLoaQty || 0,
+              circleLoaQty: i.circleLoaQty || 0,
+              circleBomQty: i.circleBomQty || 0,
+              loaQty: i.loaQty || i.circleLoaQty || 0,
+              woQty: i.woQty || i.issuedQty || 0,
+              bomQty: i.bomQty || i.circleBomQty || 0,
+              alreadyIssuedQty: i.alreadyIssuedQty || i.issuedQty || 0,
+              contractorErectionRate: i.contractorErectionRate || 0,
+              amount: i.amount || 0,
+              gstType: i.gstType || '',
+              gstAmount: i.gstAmount || 0,
+              totalAmount: i.totalAmount || 0,
+              transferFromOther: i.transferFromOther || 0,
+              transferToOther: i.transferToOther || 0,
+              stockBal: i.stockBal || 0,
+              jmcQty: agg.jmcQty || 0,
+              wipQty: agg.wipQty || 0,
+              wipRequiredQty: agg.wipRequiredQty || 0,
+              miscellaneousQty: 0,
+              demandQty: 0,
+              balBomQty: (i.bomQty || i.circleBomQty || 0) - (i.alreadyIssuedQty || i.issuedQty || 0),
+              isLoadingContext: false
+            };
+          });
           setWorkOrderItems(mappedItems);
           setItems(mappedItems);
         } else {

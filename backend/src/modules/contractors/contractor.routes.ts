@@ -43,8 +43,7 @@ router.route('/assignments')
   .get(getAssignments)
   .post(createAssignment);
 
-router.get('/assignments/summary', getAssignmentSummary,
-  getContractorAggregatedQuantities);
+router.get('/assignments/summary', getAssignmentSummary);
 
 router.route('/assignments/:id')
   .get(getAssignmentById)
@@ -64,6 +63,8 @@ router.route('/returns/:id')
   .get(getContractorReturnById)
   .put(updateContractorReturn)
   .delete(deleteContractorReturn);
+
+router.get('/:id/aggregated-quantities', getContractorAggregatedQuantities);
 
 router.route('/:id')
   .get(getContractorById)

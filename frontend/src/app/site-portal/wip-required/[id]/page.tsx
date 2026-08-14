@@ -207,16 +207,18 @@ export default function WipRegisterFormPage() {
                   onChange={e => setFormData({...formData, date: e.target.value})} 
                 />
               </div>
-              <div>
-                <label className="text-xs font-medium text-slate-500 block mb-1">Contractor *</label>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700">Contractor *</label>
                 <select 
-                  className="w-full h-9 rounded-md border border-slate-200 px-3 text-sm focus:border-blue-500 focus:ring-blue-500 bg-white"
+                  className="w-full h-10 rounded-md border border-slate-200 px-3 text-sm focus:border-blue-500 focus:ring-blue-500 bg-white"
                   value={formData.contractorId}
                   onChange={e => setFormData({...formData, contractorId: e.target.value})}
                 >
                   <option value="">Select Contractor</option>
                   {contractors.map((c: any) => (
-                    <option key={c._id} value={c._id}>{c.name || c.vendorName}</option>
+                    <option key={c._id} value={c._id}>
+                      {c.dynamicData?.companyName || c.dynamicData?.displayName || c.name || c.vendorName || 'Unknown'}
+                    </option>
                   ))}
                 </select>
               </div>

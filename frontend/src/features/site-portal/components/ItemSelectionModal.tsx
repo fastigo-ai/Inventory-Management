@@ -49,12 +49,15 @@ export function ItemSelectionModal({
       const tempCode = (i.tempCode || i.dynamicData?.tempCode || '').toLowerCase();
       const loaSrNo = (i.loaSrNo || i.dynamicData?.loaSrNo || i.dynamicData?.loaSerialNo || i.dynamicData?.loaSerialNumber || i.dynamicData?.sku || i.sku || '').toLowerCase();
       
-      const matchName = name.includes(searchFilters.name.toLowerCase());
-      const matchActivity = activity.includes(searchFilters.activity.toLowerCase());
-      const matchTempCode = tempCode.includes(searchFilters.tempCode.toLowerCase());
-      const matchLoaSrNo = loaSrNo.includes(searchFilters.loaSrNo.toLowerCase());
+      const matchesTempCode = searchFilters.tempCode ? tempCode === searchFilters.tempCode.toLowerCase() : true;
+      const matchesLoaSrNo = searchFilters.loaSrNo ? loaSrNo === searchFilters.loaSrNo.toLowerCase() : true;
 
-      return matchName && matchActivity && matchTempCode && matchLoaSrNo;
+      return (
+        name.includes(searchFilters.name.toLowerCase()) &&
+        activity.includes(searchFilters.activity.toLowerCase()) &&
+        matchesTempCode &&
+        matchesLoaSrNo
+      );
     });
   }, [items, searchFilters, isWorkOrderContext]);
 

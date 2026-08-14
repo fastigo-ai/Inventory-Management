@@ -332,10 +332,21 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
           for (const sr of siteRecords) {
             let itemId = null;
             let finalActivity = sr.activity || '';
-            let finalLoaSerialNo = '';
+            let finalLoaSerialNo = sr.loa || '';
             
-            // If we have a description, try to find a matching item in the master list
-            if (sr.description && allItems.length > 0) {
+            // 1. Strict mapping by SKU / LOA Serial No
+            if (sr.loa && allItems.length > 0) {
+              const matchedItem = allItems.find((i: any) => String(i.dynamicData?.sku) === String(sr.loa));
+              if (matchedItem) {
+                itemId = matchedItem._id;
+                if (!finalActivity && matchedItem.dynamicData?.activity) {
+                   finalActivity = matchedItem.dynamicData.activity;
+                }
+              }
+            }
+
+            // 2. Fallback to Description matching
+            if (!itemId && sr.description && allItems.length > 0) {
               // We try to match description, package, and circle
               // Filter items by package and circle first (if provided)
               let candidateItems = allItems;
@@ -368,7 +379,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
                     if (!finalActivity && matchedItem.dynamicData?.activity) {
                        finalActivity = matchedItem.dynamicData.activity;
                     }
-                    if (matchedItem.dynamicData?.sku) {
+                    if (!finalLoaSerialNo && matchedItem.dynamicData?.sku) {
                        finalLoaSerialNo = matchedItem.dynamicData.sku;
                     }
                   }

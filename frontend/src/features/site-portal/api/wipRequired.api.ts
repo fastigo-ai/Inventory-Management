@@ -5,7 +5,7 @@ export const getWipRequireds = async () => {
 };
 
 export const getWipRequiredById = async (id: string) => {
-  return api.get(`/wip/${id}`);
+  return api.get(`/wip-required/${id}`);
 };
 
 export const createWipRequired = async (data: any) => {
@@ -13,11 +13,11 @@ export const createWipRequired = async (data: any) => {
 };
 
 export const updateWipRequired = async (id: string, data: any) => {
-  return api.put(`/wip/${id}`, data);
+  return api.put(`/wip-required/${id}`, data);
 };
 
 export const deleteWipRequired = async (id: string) => {
-  return api.delete(`/wip/${id}`);
+  return api.delete(`/wip-required/${id}`);
 };
 
 export const uploadWipRequiredExcel = async (formData: FormData) => {

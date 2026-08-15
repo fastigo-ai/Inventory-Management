@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Save, ShoppingCart, Trash2, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Save, ShoppingCart, Trash2, Search, ChevronLeft, ChevronRight, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -51,14 +51,14 @@ export default function EditMhrovPage() {
   }, []);
 
   useEffect(() => {
-    fetchInwardEntries();
-  }, [filters, pagination.page]);
-
-  useEffect(() => {
     if (id) {
       fetchMhrovDetails();
     }
   }, [id]);
+
+  useEffect(() => {
+    fetchInwardEntries();
+  }, [filters, pagination.page, id]);
 
   const fetchMhrovDetails = async () => {
     try {
@@ -69,10 +69,14 @@ export default function EditMhrovPage() {
       setValue("mhrovDate", data.mhrovDate ? new Date(data.mhrovDate).toISOString().split("T")[0] : "");
       setValue("status", data.status);
       
-      // Assume getMhrovById populates inwardEntries
       if (data.inwardEntries && Array.isArray(data.inwardEntries)) {
-        // filter out any that aren't populated objects (just in case)
-        setSelectedCartItems(data.inwardEntries.filter((e: any) => e && e._id));
+        const items = data.inwardEntries
+          .filter((e: any) => e && e._id)
+          .map((e: any) => ({
+            ...e,
+            mhrovDoneQty: e.mhrovDoneQty !== undefined ? e.mhrovDoneQty : (e.totalQty || e.invoiceQty || 0)
+          }));
+        setSelectedCartItems(items);
       }
     } catch (error) {
       console.error(error);
@@ -102,7 +106,8 @@ export default function EditMhrovPage() {
         invoiceNo: filters.invoiceNo,
         dateFrom: filters.dateFrom,
         dateTo: filters.dateTo,
-        itemName: filters.itemName
+        itemName: filters.itemName,
+        excludeMhrovId: id || undefined
       });
       
       const data = res.data;
@@ -122,19 +127,38 @@ export default function EditMhrovPage() {
     }
   };
 
-  const toggleSelection = (id: string) => {
+  const toggleSelection = (entryId: string) => {
     let newSelection = [...selectedIds];
-    if (newSelection.includes(id)) {
-      newSelection = newSelection.filter(e => e !== id);
+    if (newSelection.includes(entryId)) {
+      newSelection = newSelection.filter(e => e !== entryId);
     } else {
-      newSelection.push(id);
+      newSelection.push(entryId);
     }
     setSelectedIds(newSelection);
   };
 
+  // Select all items on current page that are not already in cart
+  const availableEntriesOnPage = inwardEntries.filter(e => !selectedCartItems.some(c => c._id === e._id));
+  const isAllSelected = availableEntriesOnPage.length > 0 && availableEntriesOnPage.every(e => selectedIds.includes(e._id));
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      const pageIds = new Set(availableEntriesOnPage.map(e => e._id));
+      setSelectedIds(prev => prev.filter(entryId => !pageIds.has(entryId)));
+    } else {
+      const pageIds = availableEntriesOnPage.map(e => e._id);
+      setSelectedIds(prev => Array.from(new Set([...prev, ...pageIds])));
+    }
+  };
+
   const handleAddSelected = () => {
     const itemsToAdd = inwardEntries.filter(entry => selectedIds.includes(entry._id));
-    const newItems = itemsToAdd.filter(newItem => !selectedCartItems.find(item => item._id === newItem._id));
+    const newItems = itemsToAdd
+      .filter(newItem => !selectedCartItems.find(item => item._id === newItem._id))
+      .map(item => ({
+        ...item,
+        mhrovDoneQty: item.remainingQty !== undefined ? item.remainingQty : item.totalQty
+      }));
     
     if (newItems.length > 0) {
       setSelectedCartItems(prev => [...prev, ...newItems]);
@@ -145,8 +169,22 @@ export default function EditMhrovPage() {
     }
   };
 
-  const handleRemoveFromCart = (id: string) => {
-    setSelectedCartItems(prev => prev.filter(item => item._id !== id));
+  const handleQtyChange = (itemId: string, val: string) => {
+    const num = parseFloat(val);
+    setSelectedCartItems(prev => prev.map(item => {
+      if (item._id === itemId) {
+        const maxQty = item.remainingQty !== undefined ? item.remainingQty : (item.totalQty || item.invoiceQty || 0);
+        return {
+          ...item,
+          mhrovDoneQty: isNaN(num) ? '' : Math.min(maxQty, Math.max(0, num))
+        };
+      }
+      return item;
+    }));
+  };
+
+  const handleRemoveFromCart = (itemId: string) => {
+    setSelectedCartItems(prev => prev.filter(item => item._id !== itemId));
   };
 
   const onSubmit = async (data: any) => {
@@ -155,13 +193,24 @@ export default function EditMhrovPage() {
       return;
     }
 
+    for (const item of selectedCartItems) {
+      const qty = Number(item.mhrovDoneQty);
+      if (isNaN(qty) || qty <= 0) {
+        toast.error(`Please enter a valid MHROV Done Quantity greater than 0 for item "${item.itemName}".`);
+        return;
+      }
+    }
+
     try {
       setIsSubmitting(true);
       const formData = new FormData();
       formData.append("mhrovNumber", data.mhrovNumber);
       formData.append("mhrovDate", data.mhrovDate);
       formData.append("status", data.status);
-      formData.append("inwardEntries", JSON.stringify(selectedCartItems.map(i => i._id)));
+      formData.append("inwardEntries", JSON.stringify(selectedCartItems.map(i => ({
+        inwardEntryId: i._id,
+        mhrovDoneQty: Number(i.mhrovDoneQty)
+      }))));
       
       if (data.document) {
         formData.append("document", data.document);
@@ -197,7 +246,7 @@ export default function EditMhrovPage() {
           </Button>
           <div>
             <h1 className="text-2xl font-semibold text-slate-900">Edit MHROV</h1>
-            <p className="text-sm text-slate-500 mt-1">Edit an existing Material Handover Receipt Voucher</p>
+            <p className="text-sm text-slate-500 mt-1">Update Material Handover Receipt Voucher details</p>
           </div>
         </div>
         <div className="flex space-x-3">
@@ -215,7 +264,7 @@ export default function EditMhrovPage() {
             className="h-9 bg-indigo-600 hover:bg-indigo-700"
           >
             <Save className="w-4 h-4 mr-2" />
-            {isSubmitting ? "Saving..." : "Save MHROV"}
+            {isSubmitting ? "Saving..." : "Update MHROV"}
           </Button>
         </div>
       </div>
@@ -284,7 +333,7 @@ export default function EditMhrovPage() {
               {selectedCartItems.length} items
             </span>
           </CardHeader>
-          <div className="overflow-x-auto max-h-[300px]">
+          <div className="overflow-x-auto max-h-[350px]">
             <table className="w-full text-sm text-left">
               <thead className="text-[13px] text-indigo-600 font-medium bg-indigo-50/80 border-b border-indigo-100 sticky top-0 z-10">
                 <tr>
@@ -292,40 +341,56 @@ export default function EditMhrovPage() {
                   <th className="px-4 py-3">Vendor</th>
                   <th className="px-4 py-3">Invoice No</th>
                   <th className="px-4 py-3">Item Name</th>
-                  <th className="px-4 py-3 text-right">Qty</th>
+                  <th className="px-4 py-3 text-right">Available Qty</th>
+                  <th className="px-4 py-3 text-right w-40 bg-indigo-100/60 font-bold">MHROV Done Qty</th>
                   <th className="px-4 py-3 w-16 text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-indigo-50 bg-white/60 text-[13px] text-slate-700">
                 {selectedCartItems.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-indigo-400">
+                    <td colSpan={7} className="px-6 py-8 text-center text-indigo-400">
                       No items added yet. Search below and click "Add Selected".
                     </td>
                   </tr>
                 ) : (
-                  selectedCartItems.map((entry) => (
-                    <tr key={entry._id} className="hover:bg-indigo-50/40">
-                      <td className="px-4 py-3">{entry.diId?.diNumber || entry.diRefNo || "N/A"}</td>
-                      <td className="px-4 py-3 font-medium text-slate-900">{entry.vendorName}</td>
-                      <td className="px-4 py-3">{entry.invoiceNumber}</td>
-                      <td className="px-4 py-3 max-w-[200px] truncate" title={entry.itemName}>
-                        {entry.itemName}
-                      </td>
-                      <td className="px-4 py-3 text-right font-medium">{entry.totalQty}</td>
-                      <td className="px-4 py-3 text-center">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveFromCart(entry._id)}
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0 rounded-full"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))
+                  selectedCartItems.map((entry) => {
+                    const maxQty = entry.remainingQty !== undefined ? entry.remainingQty : (entry.totalQty || entry.invoiceQty || 0);
+                    return (
+                      <tr key={entry._id} className="hover:bg-indigo-50/40">
+                        <td className="px-4 py-3">{entry.diId?.diNumber || entry.diRefNo || "N/A"}</td>
+                        <td className="px-4 py-3 font-medium text-slate-900">{entry.vendorName}</td>
+                        <td className="px-4 py-3">{entry.invoiceNumber}</td>
+                        <td className="px-4 py-3 max-w-[200px] truncate" title={entry.itemName}>
+                          {entry.itemName}
+                        </td>
+                        <td className="px-4 py-3 text-right font-medium text-slate-600">{maxQty}</td>
+                        <td className="px-4 py-2 text-right bg-indigo-50/30">
+                          <Input
+                            type="number"
+                            step="any"
+                            min="0.0001"
+                            max={maxQty}
+                            value={entry.mhrovDoneQty ?? ''}
+                            onChange={(e) => handleQtyChange(entry._id, e.target.value)}
+                            className="h-8 text-xs font-bold text-slate-900 bg-white border-indigo-300 text-right focus-visible:ring-indigo-500"
+                            placeholder="Qty..."
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveFromCart(entry._id)}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0 rounded-full"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -347,7 +412,7 @@ export default function EditMhrovPage() {
                 type="button"
                 onClick={handleAddSelected}
                 disabled={selectedIds.length === 0}
-                className="h-8 bg-slate-800 hover:bg-slate-900 text-white text-xs"
+                className="h-8 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold"
               >
                 Add Selected Items
               </Button>
@@ -357,7 +422,17 @@ export default function EditMhrovPage() {
             <table className="w-full text-sm text-left">
               <thead className="text-[13px] text-slate-500 font-medium bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
                 <tr>
-                  <th className="px-4 py-3 w-12 text-center align-top pt-5">
+                  <th className="px-4 py-3 w-12 text-center align-top pt-4">
+                    <div className="flex flex-col items-center gap-1.5">
+                      <span className="text-[10px] uppercase font-bold text-slate-400">All</span>
+                      <Checkbox
+                        checked={isAllSelected}
+                        onCheckedChange={toggleSelectAll}
+                        disabled={availableEntriesOnPage.length === 0}
+                        className="border-slate-400 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
+                        title="Select All on this page"
+                      />
+                    </div>
                   </th>
                   <th className="px-4 py-3 align-top min-w-[120px]">
                     <div className="mb-2">DI No</div>
@@ -427,7 +502,7 @@ export default function EditMhrovPage() {
                       className="h-8 text-xs font-normal"
                     />
                   </th>
-                  <th className="px-4 py-3 text-right align-top pt-5">Qty</th>
+                  <th className="px-4 py-3 text-right align-top pt-5">Available Qty</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white text-[13px] text-slate-700">
@@ -446,11 +521,13 @@ export default function EditMhrovPage() {
                 ) : (
                   inwardEntries.map((entry) => {
                     const isAlreadyInCart = selectedCartItems.some(i => i._id === entry._id);
+                    const availableQty = entry.remainingQty !== undefined ? entry.remainingQty : (entry.totalQty || entry.invoiceQty || 0);
+
                     return (
                       <tr
                         key={entry._id}
                         className={`hover:bg-slate-50 transition-colors ${
-                          selectedIds.includes(entry._id) ? "bg-slate-50/50" : ""
+                          selectedIds.includes(entry._id) ? "bg-indigo-50/30" : ""
                         } ${isAlreadyInCart ? "opacity-50 bg-slate-50" : "cursor-pointer"}`}
                         onClick={() => !isAlreadyInCart && toggleSelection(entry._id)}
                       >
@@ -459,7 +536,7 @@ export default function EditMhrovPage() {
                             checked={selectedIds.includes(entry._id) || isAlreadyInCart}
                             disabled={isAlreadyInCart}
                             onCheckedChange={() => !isAlreadyInCart && toggleSelection(entry._id)}
-                            className="border-slate-300"
+                            className="border-slate-300 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
                           />
                         </td>
                         <td className="px-4 py-3">{entry.diId?.diNumber || entry.diRefNo || "N/A"}</td>
@@ -469,7 +546,9 @@ export default function EditMhrovPage() {
                         <td className="px-4 py-3 max-w-[200px] truncate" title={entry.itemName}>
                           {entry.itemName}
                         </td>
-                        <td className="px-4 py-3 text-right font-medium">{entry.totalQty}</td>
+                        <td className="px-4 py-3 text-right font-bold text-slate-800">
+                          {availableQty}
+                        </td>
                       </tr>
                     );
                   })

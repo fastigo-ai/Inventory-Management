@@ -272,7 +272,7 @@ export const getInwardEntryById = asyncHandler(async (req: Request, res: Respons
 });
 
 export const queryInwardEntries = asyncHandler(async (req: Request, res: Response) => {
-  const { diId, status, diNo, vendor, invoiceNo, dateFrom, dateTo, itemName, page = 1, limit = 50 } = req.query;
+  const { diId, status, diNo, vendor, invoiceNo, dateFrom, dateTo, itemName, page = 1, limit = 50, excludeMhrovId, forMhrov } = req.query;
   const filter: any = {};
   
   if (diId) filter.diId = diId;
@@ -289,24 +289,66 @@ export const queryInwardEntries = asyncHandler(async (req: Request, res: Respons
     if (dateTo) filter.invoiceDate.$lte = new Date(dateTo as string);
   }
   
-  const pageNum = parseInt(page as string, 10) || 1;
-  const limitNum = parseInt(limit as string, 10) || 50;
-  const skip = (pageNum - 1) * limitNum;
-  
-  const entries = await StoreInwardEntry.find(filter)
+  // Find all existing MHROVs to compute already completed quantities
+  const mhrovFilter: any = {};
+  if (excludeMhrovId) {
+    mhrovFilter._id = { $ne: new mongoose.Types.ObjectId(excludeMhrovId as string) };
+  }
+  const existingMhrovs = await Mhrov.find(mhrovFilter).lean();
+
+  const doneQtyMap = new Map<string, number>();
+  existingMhrovs.forEach((m: any) => {
+    if (m.items && Array.isArray(m.items) && m.items.length > 0) {
+      m.items.forEach((it: any) => {
+        const idStr = it.inwardEntryId?.toString();
+        if (idStr) {
+          doneQtyMap.set(idStr, (doneQtyMap.get(idStr) || 0) + Number(it.mhrovDoneQty || 0));
+        }
+      });
+    } else if (m.inwardEntries && Array.isArray(m.inwardEntries)) {
+      m.inwardEntries.forEach((id: any) => {
+        const idStr = id?.toString();
+        if (idStr) {
+          doneQtyMap.set(idStr, doneQtyMap.get(idStr) || 0);
+        }
+      });
+    }
+  });
+
+  const allEntries = await StoreInwardEntry.find(filter)
     .populate('diId', 'diNumber')
     .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limitNum);
+    .lean();
 
-  const total = await StoreInwardEntry.countDocuments(filter);
+  // Attach remainingQty and doneQty
+  let entriesWithRemaining = allEntries.map(entry => {
+    const doneQty = doneQtyMap.get(entry._id.toString()) || 0;
+    const totalQty = Number(entry.totalQty || entry.invoiceQty || 0);
+    const remainingQty = Math.max(0, totalQty - doneQty);
+    return {
+      ...entry,
+      doneQty,
+      remainingQty
+    };
+  });
+
+  // Filter out exhausted items when querying for MHROV
+  if (forMhrov === 'true' || forMhrov === true || forMhrov === undefined) {
+    entriesWithRemaining = entriesWithRemaining.filter(e => e.remainingQty > 0);
+  }
+
+  const pageNum = parseInt(page as string, 10) || 1;
+  const limitNum = parseInt(limit as string, 10) || 50;
+  const total = entriesWithRemaining.length;
+  const skip = (pageNum - 1) * limitNum;
+  const paginatedEntries = entriesWithRemaining.slice(skip, skip + limitNum);
 
   res.status(200).json(
     new ApiResponse(200, {
-      entries,
+      entries: paginatedEntries,
       total,
       page: pageNum,
-      totalPages: Math.ceil(total / limitNum),
+      totalPages: Math.ceil(total / limitNum) || 1,
       limit: limitNum
     }, 'Entries fetched successfully')
   );
@@ -1875,10 +1917,31 @@ const uploadToCloudinary = (buffer: Buffer, folder: string): Promise<any> => {
 };
 
 export const createMhrov = asyncHandler(async (req: Request, res: Response) => {
-  const { mhrovNumber, mhrovDate, status, inwardEntries } = req.body;
+  const { mhrovNumber, mhrovDate, status, inwardEntries, items } = req.body;
   const user = (req as any).user;
   
-  const parsedInwardEntries = inwardEntries ? (typeof inwardEntries === 'string' ? JSON.parse(inwardEntries) : inwardEntries) : [];
+  let parsedItems: any[] = [];
+  let parsedInwardEntries: any[] = [];
+
+  const rawItems = items || inwardEntries;
+  if (rawItems) {
+    const arr = typeof rawItems === 'string' ? JSON.parse(rawItems) : rawItems;
+    if (Array.isArray(arr)) {
+      arr.forEach((it: any) => {
+        if (typeof it === 'object' && it !== null) {
+          const entryId = it.inwardEntryId || it._id;
+          const qty = Number(it.mhrovDoneQty !== undefined ? it.mhrovDoneQty : (it.remainingQty || it.totalQty || it.invoiceQty || 0));
+          if (entryId) {
+            parsedInwardEntries.push(entryId);
+            parsedItems.push({ inwardEntryId: entryId, mhrovDoneQty: qty });
+          }
+        } else {
+          parsedInwardEntries.push(it);
+          parsedItems.push({ inwardEntryId: it, mhrovDoneQty: 0 });
+        }
+      });
+    }
+  }
 
   let documentUrl = undefined;
   if (req.file) {
@@ -1892,6 +1955,7 @@ export const createMhrov = asyncHandler(async (req: Request, res: Response) => {
     status,
     documentUrl,
     inwardEntries: parsedInwardEntries,
+    items: parsedItems,
     package: user?.assignedPackage,
     circle: user?.assignedCircle,
     createdBy: user?._id
@@ -1911,13 +1975,13 @@ export const getMhrovs = asyncHandler(async (req: Request, res: Response) => {
     if (user.assignedCircle) filter.circle = user.assignedCircle;
   }
 
-  const mhrovs = await Mhrov.find(filter).populate("inwardEntries", "invoiceNumber").sort({ createdAt: -1 });
+  const mhrovs = await Mhrov.find(filter).populate("inwardEntries", "invoiceNumber itemName totalQty").sort({ createdAt: -1 });
 
   res.status(200).json(new ApiResponse(200, mhrovs, 'MHROVs fetched successfully'));
 });
 
 export const updateMhrov = asyncHandler(async (req: Request, res: Response) => {
-  const { mhrovNumber, mhrovDate, status, inwardEntries } = req.body;
+  const { mhrovNumber, mhrovDate, status, inwardEntries, items } = req.body;
   const mhrovId = req.params.id;
 
   const mhrov = await Mhrov.findById(mhrovId);
@@ -1931,7 +1995,30 @@ export const updateMhrov = asyncHandler(async (req: Request, res: Response) => {
     throw new Error('Cannot edit a completed MHROV');
   }
 
-  const parsedInwardEntries = inwardEntries ? (typeof inwardEntries === 'string' ? JSON.parse(inwardEntries) : inwardEntries) : mhrov.inwardEntries;
+  let parsedItems: any[] = mhrov.items || [];
+  let parsedInwardEntries: any[] = mhrov.inwardEntries || [];
+
+  const rawItems = items || inwardEntries;
+  if (rawItems) {
+    const arr = typeof rawItems === 'string' ? JSON.parse(rawItems) : rawItems;
+    if (Array.isArray(arr)) {
+      parsedItems = [];
+      parsedInwardEntries = [];
+      arr.forEach((it: any) => {
+        if (typeof it === 'object' && it !== null) {
+          const entryId = it.inwardEntryId || it._id;
+          const qty = Number(it.mhrovDoneQty !== undefined ? it.mhrovDoneQty : (it.remainingQty || it.totalQty || it.invoiceQty || 0));
+          if (entryId) {
+            parsedInwardEntries.push(entryId);
+            parsedItems.push({ inwardEntryId: entryId, mhrovDoneQty: qty });
+          }
+        } else {
+          parsedInwardEntries.push(it);
+          parsedItems.push({ inwardEntryId: it, mhrovDoneQty: 0 });
+        }
+      });
+    }
+  }
 
   let documentUrl = mhrov.documentUrl;
   if (req.file) {
@@ -1944,6 +2031,7 @@ export const updateMhrov = asyncHandler(async (req: Request, res: Response) => {
   mhrov.status = status || mhrov.status;
   mhrov.documentUrl = documentUrl;
   mhrov.inwardEntries = parsedInwardEntries;
+  mhrov.items = parsedItems;
 
   await mhrov.save();
 
@@ -1955,13 +2043,37 @@ export const getMhrovById = asyncHandler(async (req: Request, res: Response) => 
   const mhrov = await Mhrov.findById(id).populate({
     path: 'inwardEntries',
     populate: { path: 'diId' }
-  });
+  }).lean();
 
   if (!mhrov) {
     throw new ApiError(404, 'MHROV not found');
   }
 
-  res.status(200).json(new ApiResponse(200, mhrov, 'MHROV fetched successfully'));
+  const itemsMap = new Map<string, number>();
+  if (mhrov.items && Array.isArray(mhrov.items)) {
+    mhrov.items.forEach((it: any) => {
+      if (it.inwardEntryId) {
+        itemsMap.set(it.inwardEntryId.toString(), it.mhrovDoneQty);
+      }
+    });
+  }
+
+  const populatedEntries = (mhrov.inwardEntries || []).map((entry: any) => {
+    if (entry && entry._id) {
+      const idStr = entry._id.toString();
+      const doneQty = itemsMap.has(idStr) ? itemsMap.get(idStr) : entry.totalQty;
+      return {
+        ...entry,
+        mhrovDoneQty: doneQty
+      };
+    }
+    return entry;
+  });
+
+  res.status(200).json(new ApiResponse(200, {
+    ...mhrov,
+    inwardEntries: populatedEntries
+  }, 'MHROV fetched successfully'));
 });
 
 

@@ -84,6 +84,11 @@ export default function NewDIRegistrationPage() {
       if (po) {
         setPoNumber(po.purchaseOrderNumber || "");
         setVendorName(po.vendorName || "");
+        const poPkg = po.package || po.package1 || "";
+        const poCircle = po.circle || "";
+        if (poPkg) setDiPackage(poPkg);
+        if (poCircle) setDiCircle(poCircle);
+
         if (po.lineItems) {
           setLineItems(po.lineItems
             .filter((item: any) => !item.isCanceled)
@@ -94,8 +99,8 @@ export default function NewDIRegistrationPage() {
                 itemName: item.itemName,
                 sku: item.loaSerialNo || masterItem?.dynamicData?.loaSerialNo || masterItem?.dynamicData?.loaSerialNumber || masterItem?.dynamicData?.['LOA Serial No.'] || masterItem?.dynamicData?.loa || masterItem?.dynamicData?.sku || masterItem?.dynamicData?.tempCode || '',
                 tempCode: item.tempCode || '',
-                package: item.package || po.package1 || '',
-                circle: item.circle || po.circle || '',
+                package: item.package || poPkg || '',
+                circle: item.circle || poCircle || '',
                 unit: item.unit || masterItem?.dynamicData?.unit || masterItem?.unit || 'Nos',
                 orderedQuantity: item.quantity || 0,
                 quantity: item.quantity || 0, // Default to full quantity for inspection
@@ -142,8 +147,8 @@ export default function NewDIRegistrationPage() {
         loaSerialNo: item.sku || item.loaSerialNo,
         itemName: item.itemName,
         tempCode: item.tempCode,
-        package: item.package,
-        circle: item.circle,
+        package: item.package || '',
+        circle: item.circle || '',
         unit: item.unit || 'Nos',
         quantity: Number(item.quantity) || 0
       })).filter(i => i.quantity > 0);
@@ -153,6 +158,8 @@ export default function NewDIRegistrationPage() {
       if (purchaseOrderId) formData.append('purchaseOrderId', purchaseOrderId);
       if (poNumber) formData.append('poNumber', poNumber);
       if (vendorName) formData.append('vendorName', vendorName);
+      if (diPackage) formData.append('package', diPackage);
+      if (diCircle) formData.append('circle', diCircle);
       formData.append('date', date);
       formData.append('status', status === 'Draft' ? 'Draft' : 'Active');
       if (notes) formData.append('notes', notes);
@@ -308,19 +315,68 @@ export default function NewDIRegistrationPage() {
             <table className="w-full min-w-[1000px]">
               <thead className="bg-[#f8f9fc] border-b border-slate-200">
                 <tr>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-[15%] whitespace-nowrap">PACKAGE</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-[14%] whitespace-nowrap">CIRCLE</th>
                   <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-[18%] whitespace-nowrap">LOA SERIAL NO</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">TEMP CODE</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-[12%] whitespace-nowrap">TEMP CODE</th>
                   <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-[22%] whitespace-nowrap">ITEM NAME</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">PACKAGE</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">CIRCLE</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-[10%] whitespace-nowrap">UNIT</th>
-                  <th className="px-4 py-2 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider w-[12%] whitespace-nowrap">DI QUANTITY</th>
-                  <th className="px-4 py-2 w-12"></th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-[8%] whitespace-nowrap">UNIT</th>
+                  <th className="px-4 py-2 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider w-[11%] whitespace-nowrap">DI QUANTITY</th>
+                  <th className="px-4 py-2 w-10"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
               {lineItems.map((item, index) => (
                 <tr key={index} className="group hover:bg-slate-50 transition-colors">
+                  {/* 1. PACKAGE */}
+                  <td className="px-4 py-3">
+                    <select
+                      value={item.package || ''}
+                      onChange={(e) => {
+                        updateLineItem(index, 'package', e.target.value);
+                        updateLineItem(index, 'circle', ''); 
+                      }}
+                      className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-slate-950"
+                    >
+                      <option value="" disabled>Select Package</option>
+                      <option value="Package 1 (S/N)">Package 1 (S/N)</option>
+                      <option value="Package 2 (R/R)">Package 2 (R/R)</option>
+                    </select>
+                  </td>
+
+                  {/* 2. CIRCLE */}
+                  <td className="px-4 py-3">
+                    <select
+                      value={item.circle || ''}
+                      onChange={(e) => updateLineItem(index, 'circle', e.target.value)}
+                      className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-slate-950 disabled:bg-slate-50 disabled:text-slate-400"
+                      disabled={!item.package}
+                    >
+                      <option value="" disabled>Select Circle</option>
+                      {(item.package || '').includes("Package 1") && (
+                        <>
+                          <option value="Solan">Solan</option>
+                          <option value="Nahan">Nahan</option>
+                        </>
+                      )}
+                      {(item.package || '').includes("Package 2") && (
+                        <>
+                          <option value="Rohru">Rohru</option>
+                          <option value="Rampur">Rampur</option>
+                        </>
+                      )}
+                      {!item.package?.includes("Package 1") && !item.package?.includes("Package 2") && (
+                        <>
+                          <option value="Solan">Solan</option>
+                          <option value="Nahan">Nahan</option>
+                          <option value="Rohru">Rohru</option>
+                          <option value="Rampur">Rampur</option>
+                        </>
+                      )}
+                    </select>
+                  </td>
+
+                  {/* 3. LOA SERIAL NO */}
                   <td className="px-4 py-3 relative item-dropdown-container">
                     {item.readOnly ? (
                       <Input 
@@ -359,6 +415,19 @@ export default function NewDIRegistrationPage() {
                             <div className="max-h-60 overflow-y-auto py-1">
                               {items
                                 .filter(it => {
+                                  const effectivePkg = item.package;
+                                  const effectiveCircle = item.circle;
+
+                                  if (effectivePkg) {
+                                    const itPkg = String(it.dynamicData?.package || it.package || '').trim();
+                                    const normPkg = effectivePkg.includes("Package 1") ? "Package 1" : "Package 2";
+                                    if (itPkg && !itPkg.includes(normPkg)) return false;
+                                  }
+                                  if (effectiveCircle) {
+                                    const itCircle = String(it.dynamicData?.circle || it.circle || '').trim();
+                                    if (itCircle && !itCircle.toLowerCase().includes(effectiveCircle.toLowerCase())) return false;
+                                  }
+
                                   const val = (item.searchQuery ?? '').toLowerCase();
                                   const sku = String(it.dynamicData?.loaSerialNo || it.dynamicData?.loaSerialNumber || it.dynamicData?.['LOA Serial No.'] || it.dynamicData?.loa || it.dynamicData?.sku || it.dynamicData?.tempCode || '').toLowerCase();
                                   const tempCode = String(it.dynamicData?.tempCode || it.tempCode || '').toLowerCase();
@@ -380,8 +449,8 @@ export default function NewDIRegistrationPage() {
                                         updateLineItem(index, 'itemName', name);
                                         updateLineItem(index, 'sku', sku);
                                         updateLineItem(index, 'tempCode', tempCode);
-                                        updateLineItem(index, 'package', it.dynamicData?.package || poLineItem?.package1 || '');
-                                        updateLineItem(index, 'circle', it.dynamicData?.circle || poLineItem?.circle || '');
+                                        updateLineItem(index, 'package', it.dynamicData?.package || item.package || poLineItem?.package1 || poLineItem?.package || '');
+                                        updateLineItem(index, 'circle', it.dynamicData?.circle || item.circle || poLineItem?.circle || '');
                                         updateLineItem(index, 'orderedQuantity', poLineItem ? (poLineItem.quantity || 0) : 0);
                                         updateLineItem(index, 'searchQuery', sku);
                                         setOpenDropdownId(null);
@@ -398,6 +467,8 @@ export default function NewDIRegistrationPage() {
                       </div>
                     )}
                   </td>
+
+                  {/* 4. TEMP CODE */}
                   <td className="px-4 py-3 item-dropdown-container">
                     {item.readOnly ? (
                       <Input 
@@ -436,6 +507,19 @@ export default function NewDIRegistrationPage() {
                             <div className="max-h-60 overflow-y-auto py-1">
                               {items
                                 .filter(it => {
+                                  const effectivePkg = item.package;
+                                  const effectiveCircle = item.circle;
+
+                                  if (effectivePkg) {
+                                    const itPkg = String(it.dynamicData?.package || it.package || '').trim();
+                                    const normPkg = effectivePkg.includes("Package 1") ? "Package 1" : "Package 2";
+                                    if (itPkg && !itPkg.includes(normPkg)) return false;
+                                  }
+                                  if (effectiveCircle) {
+                                    const itCircle = String(it.dynamicData?.circle || it.circle || '').trim();
+                                    if (itCircle && !itCircle.toLowerCase().includes(effectiveCircle.toLowerCase())) return false;
+                                  }
+
                                   const val = (item.tempCode ?? '').toLowerCase();
                                   const tempCode = String(it.dynamicData?.tempCode || it.tempCode || '').toLowerCase();
                                   return tempCode.includes(val);
@@ -456,8 +540,8 @@ export default function NewDIRegistrationPage() {
                                         updateLineItem(index, 'itemName', name);
                                         updateLineItem(index, 'sku', sku);
                                         updateLineItem(index, 'tempCode', tempCode);
-                                        updateLineItem(index, 'package', it.dynamicData?.package || poLineItem?.package1 || '');
-                                        updateLineItem(index, 'circle', it.dynamicData?.circle || poLineItem?.circle || '');
+                                        updateLineItem(index, 'package', it.dynamicData?.package || item.package || poLineItem?.package1 || poLineItem?.package || '');
+                                        updateLineItem(index, 'circle', it.dynamicData?.circle || item.circle || poLineItem?.circle || '');
                                         updateLineItem(index, 'orderedQuantity', poLineItem ? (poLineItem.quantity || 0) : 0);
                                         updateLineItem(index, 'searchQuery', sku);
                                         setOpenTempCodeDropdownId(null);
@@ -474,6 +558,8 @@ export default function NewDIRegistrationPage() {
                       </div>
                     )}
                   </td>
+
+                  {/* 5. ITEM NAME */}
                   <td className="px-4 py-3 item-dropdown-container">
                     {item.readOnly ? (
                       <Input 
@@ -512,6 +598,19 @@ export default function NewDIRegistrationPage() {
                             <div className="max-h-60 overflow-y-auto py-1">
                               {items
                                 .filter(it => {
+                                  const effectivePkg = item.package;
+                                  const effectiveCircle = item.circle;
+
+                                  if (effectivePkg) {
+                                    const itPkg = String(it.dynamicData?.package || it.package || '').trim();
+                                    const normPkg = effectivePkg.includes("Package 1") ? "Package 1" : "Package 2";
+                                    if (itPkg && !itPkg.includes(normPkg)) return false;
+                                  }
+                                  if (effectiveCircle) {
+                                    const itCircle = String(it.dynamicData?.circle || it.circle || '').trim();
+                                    if (itCircle && !itCircle.toLowerCase().includes(effectiveCircle.toLowerCase())) return false;
+                                  }
+
                                   const val = (item.itemName ?? '').toLowerCase();
                                   const name = String(it.dynamicData?.name || it.name || '').toLowerCase();
                                   return name.includes(val);
@@ -532,8 +631,8 @@ export default function NewDIRegistrationPage() {
                                         updateLineItem(index, 'itemName', name);
                                         updateLineItem(index, 'sku', sku);
                                         updateLineItem(index, 'tempCode', tempCode);
-                                        updateLineItem(index, 'package', it.dynamicData?.package || poLineItem?.package1 || '');
-                                        updateLineItem(index, 'circle', it.dynamicData?.circle || poLineItem?.circle || '');
+                                        updateLineItem(index, 'package', it.dynamicData?.package || item.package || poLineItem?.package1 || poLineItem?.package || '');
+                                        updateLineItem(index, 'circle', it.dynamicData?.circle || item.circle || poLineItem?.circle || '');
                                         updateLineItem(index, 'orderedQuantity', poLineItem ? (poLineItem.quantity || 0) : 0);
                                         updateLineItem(index, 'searchQuery', sku);
                                         setOpenNameDropdownId(null);
@@ -550,50 +649,8 @@ export default function NewDIRegistrationPage() {
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-3">
-                    <select
-                      value={item.package}
-                      onChange={(e) => {
-                        updateLineItem(index, 'package', e.target.value);
-                        updateLineItem(index, 'circle', ''); 
-                      }}
-                      className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-slate-950"
-                    >
-                      <option value="" disabled>Select Package</option>
-                      <option value="Package 1 (S/N)">Package 1 (S/N)</option>
-                      <option value="Package 2 (R/R)">Package 2 (R/R)</option>
-                    </select>
-                  </td>
-                  <td className="px-4 py-3">
-                    <select
-                      value={item.circle}
-                      onChange={(e) => updateLineItem(index, 'circle', e.target.value)}
-                      className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-slate-950 disabled:bg-slate-50 disabled:text-slate-400"
-                      disabled={!item.package}
-                    >
-                      <option value="" disabled>Select Circle</option>
-                      {(item.package || '').includes("Package 1") && (
-                        <>
-                          <option value="Solan">Solan</option>
-                          <option value="Nahan">Nahan</option>
-                        </>
-                      )}
-                      {(item.package || '').includes("Package 2") && (
-                        <>
-                          <option value="Rohru">Rohru</option>
-                          <option value="Rampur">Rampur</option>
-                        </>
-                      )}
-                      {!item.package?.includes("Package 1") && !item.package?.includes("Package 2") && (
-                        <>
-                          <option value="Solan">Solan</option>
-                          <option value="Nahan">Nahan</option>
-                          <option value="Rohru">Rohru</option>
-                          <option value="Rampur">Rampur</option>
-                        </>
-                      )}
-                    </select>
-                  </td>
+
+                  {/* 6. UNIT */}
                   <td className="px-4 py-3">
                     <input
                       type="text"
@@ -604,6 +661,8 @@ export default function NewDIRegistrationPage() {
                       className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-slate-950"
                     />
                   </td>
+
+                  {/* 7. DI QUANTITY */}
                   <td className="px-4 py-3">
                     <Input 
                       type="number" 
@@ -612,6 +671,8 @@ export default function NewDIRegistrationPage() {
                       className="h-8 shadow-none text-right"
                     />
                   </td>
+
+                  {/* 8. DELETE */}
                   <td className="px-4 py-3">
                     <button 
                       onClick={() => removeLineItem(index)}
@@ -658,7 +719,16 @@ export default function NewDIRegistrationPage() {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setIsBulkModalOpen(true)}
+              onClick={() => {
+                setBulkFilters({
+                  sku: '',
+                  tempCode: '',
+                  name: '',
+                  package: diPackage || '',
+                  circle: diCircle || ''
+                });
+                setIsBulkModalOpen(true);
+              }}
               className="text-[#3b82f6] border-[#bfdbfe] bg-white hover:bg-blue-50"
             >
               <Plus className="w-4 h-4 mr-1.5" /> Add Items in Bulk
@@ -705,6 +775,7 @@ export default function NewDIRegistrationPage() {
                         />
                       </label>
                     </div>
+                    <p className="text-xs leading-5 text-slate-500">Only .pdf supported (up to 10MB)</p>
                   </div>
                 </div>
                 {diLetterCopy && (
@@ -745,6 +816,7 @@ export default function NewDIRegistrationPage() {
                         />
                       </label>
                     </div>
+                    <p className="text-xs leading-5 text-slate-500">Only .pdf supported (up to 10MB)</p>
                   </div>
                 </div>
                 {inspectionReportCopy && (
@@ -955,8 +1027,8 @@ export default function NewDIRegistrationPage() {
                         tempCode: item.dynamicData?.tempCode || '',
                         sku: sku,
                         searchQuery: sku,
-                        package: item.dynamicData?.package || poLineItem?.package1 || '',
-                        circle: item.dynamicData?.circle || poLineItem?.circle || '',
+                        package: item.dynamicData?.package || diPackage || poLineItem?.package1 || poLineItem?.package || '',
+                        circle: item.dynamicData?.circle || diCircle || poLineItem?.circle || '',
                         unit: item.dynamicData?.unit || item.unit || poLineItem?.unit || 'Nos',
                         orderedQuantity: poLineItem ? (poLineItem.quantity || 0) : 0,
                         quantity: 0,

@@ -27,8 +27,8 @@ export default function ReportsDashboard() {
       color: "bg-amber-50 border-amber-100 group-hover:border-amber-300"
     },
     {
-      title: "Store Summary",
-      description: "View total inventory valuation and stock movement broken down by store/circle.",
+      title: "Store Itemised Summary",
+      description: "FROM CIRCLE STORE (Item Wise): Track real-time Total Receipts, MIN Issues, Returns, Transfers, and Net Balance at Store per item.",
       icon: <Store className="w-8 h-8 text-blue-500" />,
       href: "/reports/store-summary",
       color: "bg-blue-50 border-blue-100 group-hover:border-blue-300"

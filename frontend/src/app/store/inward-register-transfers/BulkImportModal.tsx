@@ -22,10 +22,12 @@ interface BulkImportModalProps {
 export function BulkImportModal({ open, onOpenChange, onSuccess }: BulkImportModalProps) {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setFile(e.target.files[0]);
+      setUploadProgress(0);
     }
   };
 
@@ -103,23 +105,41 @@ export function BulkImportModal({ open, onOpenChange, onSuccess }: BulkImportMod
     }
 
     setLoading(true);
+    setUploadProgress(0);
+
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev < 35) return prev + 7;
+        if (prev < 70) return prev + 4;
+        if (prev < 95) return prev + 1;
+        return prev;
+      });
+    }, 250);
+
     try {
       await importReceivedTransfers(file);
-      toast.success("Data imported successfully");
-      setFile(null);
-      onSuccess();
-      onOpenChange(false);
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      setTimeout(() => {
+        toast.success("Data imported successfully");
+        setFile(null);
+        setLoading(false);
+        onSuccess();
+        onOpenChange(false);
+      }, 300);
     } catch (error: any) {
+      clearInterval(progressInterval);
+      setUploadProgress(0);
+      setLoading(false);
       console.error("Import error:", error);
       toast.error(error.response?.data?.message || "Failed to import data");
-    } finally {
-      setLoading(false);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md bg-white">
         <DialogHeader>
           <DialogTitle>Bulk Import Received Transfers</DialogTitle>
           <DialogDescription>
@@ -164,6 +184,25 @@ export function BulkImportModal({ open, onOpenChange, onSuccess }: BulkImportMod
                   disabled={loading}
                 />
               </div>
+
+              {loading && (
+                <div className="w-full max-w-[85%] mt-4 pt-3 border-t border-slate-200">
+                  <div className="flex justify-between text-xs text-slate-600 mb-1">
+                    <span>
+                      {uploadProgress < 35 ? 'Uploading file...' :
+                       uploadProgress < 70 ? 'Validating data & headers...' :
+                       uploadProgress < 100 ? 'Saving transfers to database...' : 'Completed!'}
+                    </span>
+                    <span className="font-semibold text-slate-700">{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                    <div 
+                      className="bg-[#0076f2] h-2 rounded-full transition-all duration-300 ease-out" 
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           

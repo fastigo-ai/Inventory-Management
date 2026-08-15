@@ -142,9 +142,25 @@ const handleColumnFilterChange = (columnName: string, value: string) => {
   const handleExport = async () => {
     try {
       setIsExporting(true);
-      await exportItemsToCsv();
+      const urlFilters: Record<string, string> = {};
+      searchParams.forEach((value, key) => {
+        if (key.startsWith('filter_')) {
+          urlFilters[key.replace('filter_', '')] = value;
+        }
+      });
+      const search = searchParams.get('search') || undefined;
+
+      await exportItemsToCsv({
+        sortBy: sortBy || undefined,
+        sortOrder,
+        isDeleted,
+        filters: urlFilters,
+        search
+      });
+      toast.success("Items exported successfully.");
     } catch (error) {
       console.error("Export failed", error);
+      toast.error("Failed to export items.");
     } finally {
       setIsExporting(false);
     }
@@ -272,10 +288,16 @@ const handleColumnFilterChange = (columnName: string, value: string) => {
           </div>
 
           {(() => {
-            const processedStats = metrics.activityStats.map((d: any) => ({
-              ...d,
-              _id: (!d._id || (typeof d._id === 'string' && d._id.trim() === '')) ? 'Unbillable' : d._id
-            }));
+            const processedStatsMap = new Map();
+            metrics.activityStats.forEach((d: any) => {
+              const id = (!d._id || (typeof d._id === 'string' && d._id.trim() === '')) ? 'Unbillable' : d._id;
+              if (processedStatsMap.has(id)) {
+                processedStatsMap.get(id).count += d.count;
+              } else {
+                processedStatsMap.set(id, { ...d, _id: id });
+              }
+            });
+            const processedStats = Array.from(processedStatsMap.values());
             
             const sortedActivities = [...processedStats].sort((a: any, b: any) => b.count - a.count);
             

@@ -17,12 +17,14 @@ export function ImportWOModal({ isOpen, onClose, onSuccess }: ImportWOModalProps
   const [isUploading, setIsUploading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setFile(e.target.files[0]);
       setResult(null);
       setError(null);
+      setUploadProgress(0);
     }
   };
 
@@ -31,6 +33,16 @@ export function ImportWOModal({ isOpen, onClose, onSuccess }: ImportWOModalProps
     setIsUploading(true);
     setError(null);
     setResult(null);
+    setUploadProgress(0);
+
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev < 35) return prev + 7;
+        if (prev < 70) return prev + 4;
+        if (prev < 95) return prev + 1;
+        return prev;
+      });
+    }, 250);
 
     Papa.parse(file, {
       header: true,
@@ -40,24 +52,33 @@ export function ImportWOModal({ isOpen, onClose, onSuccess }: ImportWOModalProps
           const data = results.data;
           const res = await importContractorWorkOrders(data);
           
-          if (res.data?.created > 0) {
-            toast.success(`Imported successfully! ${res.data.created} Work Orders added.`);
-            onSuccess();
-            
-            if (!res.data.errors || res.data.errors.length === 0) {
-               onClose();
-               setIsUploading(false);
-               return;
+          clearInterval(progressInterval);
+          setUploadProgress(100);
+
+          setTimeout(() => {
+            if (res.data?.created > 0) {
+              toast.success(`Imported successfully! ${res.data.created} Work Orders added.`);
+              onSuccess();
+              
+              if (!res.data.errors || res.data.errors.length === 0) {
+                 onClose();
+                 setIsUploading(false);
+                 return;
+              }
             }
-          }
-          setResult({ successCount: res.data?.created || 0, errors: res.data?.errors || [] });
+            setResult({ successCount: res.data?.created || 0, errors: res.data?.errors || [] });
+            setIsUploading(false);
+          }, 300);
         } catch (err: any) {
+          clearInterval(progressInterval);
+          setUploadProgress(0);
           setError(err.response?.data?.message || err.message || "Failed to import work orders");
-        } finally {
           setIsUploading(false);
         }
       },
       error: (err) => {
+        clearInterval(progressInterval);
+        setUploadProgress(0);
         setError("Failed to parse CSV file: " + err.message);
         setIsUploading(false);
       }
@@ -130,13 +151,35 @@ export function ImportWOModal({ isOpen, onClose, onSuccess }: ImportWOModalProps
               />
               
               {file ? (
-                <div className="flex flex-col items-center">
+                <div className="flex flex-col items-center w-full">
                   <FileText className="w-10 h-10 text-[#0076f2] mb-3" />
                   <p className="text-sm font-medium text-slate-700">{file.name}</p>
                   <p className="text-xs text-slate-500 mt-1">{(file.size / 1024).toFixed(1)} KB</p>
-                  <Button type="button" variant="link" className="text-xs text-red-500 mt-2 z-10 relative" onClick={(e) => { e.stopPropagation(); setFile(null); }}>
-                    Remove
-                  </Button>
+
+                  {isUploading && (
+                    <div className="w-full max-w-[80%] mt-4">
+                      <div className="flex justify-between text-xs text-slate-600 mb-1">
+                        <span>
+                          {uploadProgress < 35 ? 'Uploading file...' :
+                           uploadProgress < 70 ? 'Validating data & headers...' :
+                           uploadProgress < 100 ? 'Saving work orders to database...' : 'Completed!'}
+                        </span>
+                        <span className="font-semibold text-slate-700">{uploadProgress}%</span>
+                      </div>
+                      <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                        <div 
+                          className="bg-[#0076f2] h-2 rounded-full transition-all duration-300 ease-out" 
+                          style={{ width: `${uploadProgress}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {!isUploading && (
+                    <Button type="button" variant="link" className="text-xs text-red-500 mt-2 z-10 relative" onClick={(e) => { e.stopPropagation(); setFile(null); }}>
+                      Remove
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <div className="flex flex-col items-center">

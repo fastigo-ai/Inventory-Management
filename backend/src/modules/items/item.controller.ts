@@ -47,18 +47,25 @@ const validateDynamicData = async (data: any, metadataFields: any[], currentItem
   }
 };
 
+const parseNum = (val: any) => {
+  if (typeof val === 'number') return val;
+  if (!val) return 0;
+  const num = Number(String(val).replace(/,/g, '').trim());
+  return isNaN(num) ? 0 : num;
+};
+
 const calculateLoaQuantity = (dynamicData: any) => {
-  const solan = Number(dynamicData.solanLoaQuantity) || 0;
-  const nahan = Number(dynamicData.nahanLoaQuantity) || 0;
-  const rampur = Number(dynamicData.rampurLoaQuantity) || 0;
-  const rohru = Number(dynamicData.rohruLoaQuantity) || 0;
+  const solan = parseNum(dynamicData.solanLoaQuantity);
+  const nahan = parseNum(dynamicData.nahanLoaQuantity);
+  const rampur = parseNum(dynamicData.rampurLoaQuantity);
+  const rohru = parseNum(dynamicData.rohruLoaQuantity);
 
   const pkg1Sum = solan + nahan;
   const pkg2Sum = rampur + rohru;
 
   if (pkg1Sum > 0) return pkg1Sum;
   if (pkg2Sum > 0) return pkg2Sum;
-  return Number(dynamicData.loaQuantity) || 0;
+  return parseNum(dynamicData.loaQuantity);
 };
 
 export const createItem = asyncHandler(async (req: Request, res: Response) => {
@@ -134,20 +141,16 @@ export const updateItem = asyncHandler(async (req: Request, res: Response) => {
   res.status(200).json(new ApiResponse(200, item, 'Item updated successfully'));
 });
 
-export const getItems = asyncHandler(async (req: Request, res: Response) => {
-  const page = parseInt(req.query.page as string) || 1;
-  const limit = parseInt(req.query.limit as string) || 50;
-  const sortBy = req.query.sortBy as string;
-  const sortOrder = (req.query.sortOrder as string) === 'desc' ? -1 : 1;
-  const isDeleted = req.query.isDeleted === 'true';
-  const search = req.query.search as string;
+const buildItemQueryAndSort = (queryParams: any) => {
+  const sortBy = queryParams.sortBy as string;
+  const sortOrder = (queryParams.sortOrder as string) === 'desc' ? -1 : 1;
+  const isDeleted = queryParams.isDeleted === 'true';
+  const search = queryParams.search as string;
 
   let sortObject: any = { createdAt: -1 };
   if (sortBy) {
     sortObject = { [`dynamicData.${sortBy}`]: sortOrder };
   }
-
-  const skip = (page - 1) * limit;
 
   let queryCondition: any = isDeleted ? { isDeleted: true } : { isDeleted: { $ne: true } };
   
@@ -178,7 +181,7 @@ export const getItems = asyncHandler(async (req: Request, res: Response) => {
   }
 
   // Apply column filters
-  for (const [key, value] of Object.entries(req.query)) {
+  for (const [key, value] of Object.entries(queryParams)) {
     if (key.startsWith('filter_') && value) {
       const fieldName = key.replace('filter_', '');
       
@@ -186,7 +189,7 @@ export const getItems = asyncHandler(async (req: Request, res: Response) => {
       
       let regexStr = escapedValue;
       // Use exact match for identifier fields and dropdowns to prevent partial matches (e.g. searching '1' returning '12')
-      if (['tempCode', 'activity', 'package', 'circle'].includes(fieldName)) {
+      if (['sku', 'tempCode', 'activity', 'package', 'circle'].includes(fieldName)) {
           regexStr = `^${escapedValue}$`;
       }
 
@@ -213,6 +216,16 @@ export const getItems = asyncHandler(async (req: Request, res: Response) => {
       queryCondition.$expr = { $and: exprFilters };
     }
   }
+
+  return { queryCondition, sortObject };
+};
+
+export const getItems = asyncHandler(async (req: Request, res: Response) => {
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 50;
+  const skip = (page - 1) * limit;
+
+  const { queryCondition, sortObject } = buildItemQueryAndSort(req.query);
 
   let query = Item.find(queryCondition);
   const filter = query.getFilter();
@@ -431,7 +444,12 @@ export const exportItems = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(500, 'Item metadata configuration missing');
   }
 
-  const items = await Item.find({}).sort({ createdAt: -1 });
+  const { queryCondition, sortObject } = buildItemQueryAndSort(req.query);
+
+  const items = await Item.find(queryCondition)
+    .sort(sortObject)
+    .collation({ locale: 'en', numericOrdering: true })
+    .lean();
   
   // Headers based on metadata labels
   const headers = metadata.fields.map((f: any) => f.label);
@@ -483,14 +501,27 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
     'itemdesc': 'description',
     'itemdescription': 'description',
     'loaserialno': 'sku',
-    'totalloarampur': 'rampurloaqty',
-    'totalbomrampur': 'rampurbomqty',
-    'totalloanahan': 'nahanloaqty',
-    'totalbomnahan': 'nahanbomqty',
-    'totalloasolan': 'solanloaqty',
-    'totalbomsolan': 'solanbomqty',
-    'totalloarohru': 'rohruloaqty',
-    'totalbomrohru': 'rohrubomqty',
+    'tempcod': 'tempCode',
+    'totalloarampur': 'rampurLoaQuantity',
+    'totalbomrampur': 'rampurBomQuantity',
+    'totalloanahan': 'nahanLoaQuantity',
+    'totalbomnahan': 'nahanBomQuantity',
+    'totalloasolan': 'solanLoaQuantity',
+    'totalbomsolan': 'solanBomQuantity',
+    'totalloarohru': 'rohruLoaQuantity',
+    'totalbomrohru': 'rohruBomQuantity',
+    'solanloa': 'solanLoaQuantity',
+    'solanbom': 'solanBomQuantity',
+    'nahanloa': 'nahanLoaQuantity',
+    'nahanbom': 'nahanBomQuantity',
+    'nahanboi': 'nahanBomQuantity',
+    'rampurloa': 'rampurLoaQuantity',
+    'rampurlo': 'rampurLoaQuantity',
+    'rampurbom': 'rampurBomQuantity',
+    'rampurbo': 'rampurBomQuantity',
+    'rohruloa': 'rohruLoaQuantity',
+    'rohrubom': 'rohruBomQuantity',
+    'rohrubomqty': 'rohruBomQuantity',
   };
 
   let rowIndex = 1;
@@ -529,7 +560,7 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
       for (const field of metadata.fields) {
         if (dynamicData[field.name]) {
            if (['number', 'decimal', 'amount'].includes(field.type)) {
-              dynamicData[field.name] = Number(dynamicData[field.name]);
+              dynamicData[field.name] = parseNum(dynamicData[field.name]);
            } else if (field.type === 'boolean') {
               const val = String(dynamicData[field.name]).toLowerCase();
               dynamicData[field.name] = val === 'yes' || val === 'true' || val === '1';
@@ -547,8 +578,11 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
       const rowErrors: string[] = [];
       
       let packageVal = String(dynamicData['package'] || '').trim();
-      // Normalize 'Package 2 (R/R)' to 'Package 2(R/R)'
-      packageVal = packageVal.replace(/Package\s+(\d+)\s*\(/i, 'Package $1(');
+      if (/^Package\s*1/i.test(packageVal)) {
+         packageVal = 'Package 1(S/N)';
+      } else if (/^Package\s*2/i.test(packageVal)) {
+         packageVal = 'Package 2(R/R)';
+      }
       dynamicData['package'] = packageVal;
       
       const circleVal = String(dynamicData['circle'] || '').trim();
@@ -573,10 +607,6 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
         rowErrors.push(`Invalid Circle '${circleVal}' for Package 2(R/R). Must be Rampur or Rohru.`);
       }
 
-      if (rowErrors.length > 0) {
-        throw new ApiError(400, 'Validation failed', rowErrors);
-      }
-
       // Check required constraints synchronously
       for (const field of metadata.fields) {
          if (field.required) {
@@ -585,6 +615,10 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
                rowErrors.push(`${field.label} is required.`);
             }
          }
+      }
+      
+      if (rowErrors.length > 0) {
+        throw new ApiError(400, 'Validation failed', rowErrors);
       }
       
       // If validation passed, push to valid items array
@@ -635,9 +669,13 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
           'dynamicData.circle': item.dynamicData.circle
         };
         
-        if (item.dynamicData.sku) conds.push({ ...base, 'dynamicData.sku': item.dynamicData.sku });
-        if (item.dynamicData.tempCode) conds.push({ ...base, 'dynamicData.tempCode': item.dynamicData.tempCode });
-        if (item.dynamicData.name) conds.push({ ...base, 'dynamicData.name': item.dynamicData.name });
+        if (item.dynamicData.sku) {
+          conds.push({ ...base, 'dynamicData.sku': item.dynamicData.sku });
+        } else if (item.dynamicData.tempCode && item.dynamicData.tempCode !== '0') {
+          conds.push({ ...base, 'dynamicData.tempCode': item.dynamicData.tempCode });
+        } else if (item.dynamicData.name) {
+          conds.push({ ...base, 'dynamicData.name': item.dynamicData.name });
+        }
         
         return conds;
       });
@@ -652,9 +690,13 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
       for (const ext of existingItems) {
         const pkg = ext.dynamicData?.package || '';
         const circle = ext.dynamicData?.circle || '';
-        if (ext.dynamicData?.sku) dbItemsMap.set(`${pkg}|${circle}|sku|${ext.dynamicData.sku}`, ext);
-        if (ext.dynamicData?.tempCode) dbItemsMap.set(`${pkg}|${circle}|tempCode|${ext.dynamicData.tempCode}`, ext);
-        if (ext.dynamicData?.name) dbItemsMap.set(`${pkg}|${circle}|name|${ext.dynamicData.name}`, ext);
+        if (ext.dynamicData?.sku) {
+          dbItemsMap.set(`${pkg}|${circle}|sku|${ext.dynamicData.sku}`, ext);
+        } else if (ext.dynamicData?.tempCode && ext.dynamicData.tempCode !== '0') {
+          dbItemsMap.set(`${pkg}|${circle}|tempCode|${ext.dynamicData.tempCode}`, ext);
+        } else if (ext.dynamicData?.name) {
+          dbItemsMap.set(`${pkg}|${circle}|name|${ext.dynamicData.name}`, ext);
+        }
       }
 
       // Track items we are inserting/updating in this chunk to handle duplicates within the CSV itself
@@ -668,18 +710,16 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
         let matchedExisting = null;
         let matchedInMemory = null;
 
-        // Try to find a match using available identifiers (prioritize memory over DB to apply latest merged state)
+        // Strictly prioritize SKU if available so items sharing the same name or tempCode are NOT wrongly merged/overwritten
         if (item.dynamicData?.sku) {
-           matchedInMemory = matchedInMemory || inMemoryProcessedMap.get(`${pkg}|${circle}|sku|${item.dynamicData.sku}`);
-           matchedExisting = matchedExisting || dbItemsMap.get(`${pkg}|${circle}|sku|${item.dynamicData.sku}`);
-        }
-        if (item.dynamicData?.tempCode) {
-           matchedInMemory = matchedInMemory || inMemoryProcessedMap.get(`${pkg}|${circle}|tempCode|${item.dynamicData.tempCode}`);
-           matchedExisting = matchedExisting || dbItemsMap.get(`${pkg}|${circle}|tempCode|${item.dynamicData.tempCode}`);
-        }
-        if (item.dynamicData?.name) {
-           matchedInMemory = matchedInMemory || inMemoryProcessedMap.get(`${pkg}|${circle}|name|${item.dynamicData.name}`);
-           matchedExisting = matchedExisting || dbItemsMap.get(`${pkg}|${circle}|name|${item.dynamicData.name}`);
+           matchedInMemory = inMemoryProcessedMap.get(`${pkg}|${circle}|sku|${item.dynamicData.sku}`);
+           matchedExisting = dbItemsMap.get(`${pkg}|${circle}|sku|${item.dynamicData.sku}`);
+        } else if (item.dynamicData?.tempCode && item.dynamicData.tempCode !== '0') {
+           matchedInMemory = inMemoryProcessedMap.get(`${pkg}|${circle}|tempCode|${item.dynamicData.tempCode}`);
+           matchedExisting = dbItemsMap.get(`${pkg}|${circle}|tempCode|${item.dynamicData.tempCode}`);
+        } else if (item.dynamicData?.name) {
+           matchedInMemory = inMemoryProcessedMap.get(`${pkg}|${circle}|name|${item.dynamicData.name}`);
+           matchedExisting = dbItemsMap.get(`${pkg}|${circle}|name|${item.dynamicData.name}`);
         }
 
         if (matchedInMemory) {
@@ -706,8 +746,8 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
            
            const memoryRef = { dynamicData: updatedDynamicData, _opRef: op };
            if (item.dynamicData?.sku) inMemoryProcessedMap.set(`${pkg}|${circle}|sku|${item.dynamicData.sku}`, memoryRef);
-           if (item.dynamicData?.tempCode) inMemoryProcessedMap.set(`${pkg}|${circle}|tempCode|${item.dynamicData.tempCode}`, memoryRef);
-           if (item.dynamicData?.name) inMemoryProcessedMap.set(`${pkg}|${circle}|name|${item.dynamicData.name}`, memoryRef);
+           else if (item.dynamicData?.tempCode && item.dynamicData.tempCode !== '0') inMemoryProcessedMap.set(`${pkg}|${circle}|tempCode|${item.dynamicData.tempCode}`, memoryRef);
+           else if (item.dynamicData?.name) inMemoryProcessedMap.set(`${pkg}|${circle}|name|${item.dynamicData.name}`, memoryRef);
         } else {
            // Completely new item
            const op = { insertOne: { document: item } };
@@ -715,8 +755,8 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
            
            const memoryRef = { dynamicData: item.dynamicData, _opRef: op };
            if (item.dynamicData?.sku) inMemoryProcessedMap.set(`${pkg}|${circle}|sku|${item.dynamicData.sku}`, memoryRef);
-           if (item.dynamicData?.tempCode) inMemoryProcessedMap.set(`${pkg}|${circle}|tempCode|${item.dynamicData.tempCode}`, memoryRef);
-           if (item.dynamicData?.name) inMemoryProcessedMap.set(`${pkg}|${circle}|name|${item.dynamicData.name}`, memoryRef);
+           else if (item.dynamicData?.tempCode && item.dynamicData.tempCode !== '0') inMemoryProcessedMap.set(`${pkg}|${circle}|tempCode|${item.dynamicData.tempCode}`, memoryRef);
+           else if (item.dynamicData?.name) inMemoryProcessedMap.set(`${pkg}|${circle}|name|${item.dynamicData.name}`, memoryRef);
         }
       }
       

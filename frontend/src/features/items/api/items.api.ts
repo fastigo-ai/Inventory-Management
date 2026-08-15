@@ -62,8 +62,25 @@ export const bulkDeleteItems = async (ids: string[]) => {
   return response.data;
 };
 
-export const exportItemsToCsv = async () => {
-  const response = await api.get('/items/export', { responseType: 'blob' });
+export const exportItemsToCsv = async (params: { sortBy?: string, sortOrder?: string, isDeleted?: boolean, filters?: Record<string, string>, search?: string } = {}) => {
+  const queryParams: Record<string, any> = {};
+  if (params.sortBy) queryParams.sortBy = params.sortBy;
+  if (params.sortOrder) queryParams.sortOrder = params.sortOrder;
+  if (params.isDeleted) queryParams.isDeleted = params.isDeleted;
+  if (params.search) queryParams.search = params.search;
+
+  if (params.filters) {
+    Object.entries(params.filters).forEach(([key, value]) => {
+      if (value) {
+        queryParams[`filter_${key}`] = value;
+      }
+    });
+  }
+
+  const response = await api.get('/items/export', { 
+    params: queryParams,
+    responseType: 'blob' 
+  });
   const url = window.URL.createObjectURL(new Blob([response.data]));
   const link = document.createElement('a');
   link.href = url;

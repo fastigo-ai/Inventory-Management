@@ -16,12 +16,14 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setFile(e.target.files[0]);
       setResult(null);
       setError(null);
+      setUploadProgress(0);
     }
   };
 
@@ -30,29 +32,43 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
     setIsUploading(true);
     setError(null);
     setResult(null);
+    setUploadProgress(0);
+
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev < 35) return prev + 7;
+        if (prev < 70) return prev + 4;
+        if (prev < 95) return prev + 1;
+        return prev;
+      });
+    }, 250);
 
     try {
       const res = await importVendorsFromCsv(file);
       
-      if (res.successCount > 0) {
-        toast.success(`Imported successfully! ${res.successCount} vendors added.`);
-        onSuccess();
-        
-        // If there are zero errors, close the modal immediately since it's perfectly successful
-        if (!res.errors || res.errors.length === 0) {
-           onClose();
-           return; // Stop here, so we don't set result which keeps it open
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      
+      setTimeout(() => {
+        if (res.successCount > 0) {
+          toast.success(`Imported successfully! ${res.successCount} vendors added.`);
+          onSuccess();
+          
+          if (!res.errors || res.errors.length === 0) {
+             onClose();
+             return;
+          }
         }
-      }
-      setResult(res);
+        setResult(res);
+      }, 300);
     } catch (err: any) {
+      clearInterval(progressInterval);
+      setUploadProgress(0);
       const responseData = err.response?.data;
       if (responseData?.data?.errors) {
-        // Detailed row errors were returned
         setResult({ successCount: 0, errors: responseData.data.errors });
         setError(responseData.message || "Import failed due to validation errors.");
       } else {
-        // Generic error
         setError(responseData?.message || err.message || "Failed to upload file");
       }
     } finally {
@@ -87,13 +103,35 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
               />
               
               {file ? (
-                <div className="flex flex-col items-center">
+                <div className="flex flex-col items-center w-full">
                   <FileText className="w-10 h-10 text-[#0076f2] mb-3" />
                   <p className="text-sm font-medium text-slate-700">{file.name}</p>
                   <p className="text-xs text-slate-500 mt-1">{(file.size / 1024).toFixed(1)} KB</p>
-                  <Button type="button" variant="link" className="text-xs text-red-500 mt-2 z-10 relative" onClick={(e) => { e.stopPropagation(); setFile(null); }}>
-                    Remove
-                  </Button>
+
+                  {isUploading && (
+                    <div className="w-full max-w-[80%] mt-4">
+                      <div className="flex justify-between text-xs text-slate-600 mb-1">
+                        <span>
+                          {uploadProgress < 35 ? 'Uploading file...' :
+                           uploadProgress < 70 ? 'Validating data & headers...' :
+                           uploadProgress < 100 ? 'Saving vendors to database...' : 'Completed!'}
+                        </span>
+                        <span className="font-semibold text-slate-700">{uploadProgress}%</span>
+                      </div>
+                      <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                        <div 
+                          className="bg-[#0076f2] h-2 rounded-full transition-all duration-300 ease-out" 
+                          style={{ width: `${uploadProgress}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {!isUploading && (
+                    <Button type="button" variant="link" className="text-xs text-red-500 mt-2 z-10 relative" onClick={(e) => { e.stopPropagation(); setFile(null); }}>
+                      Remove
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <div className="flex flex-col items-center">

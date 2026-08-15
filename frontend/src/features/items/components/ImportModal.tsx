@@ -46,28 +46,40 @@ export function ImportModal({ isOpen, onClose, onSuccess, fields = [] }: ImportM
     setIsUploading(true);
     setError(null);
     setResult(null);
+    setUploadProgress(0);
+
+    // Staged progress simulation across Upload -> Validate -> Database Save phases
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev < 35) return prev + 7;   // Uploading phase
+        if (prev < 70) return prev + 4;   // Validating data phase
+        if (prev < 95) return prev + 1;   // Saving & Upserting phase
+        return prev;
+      });
+    }, 250);
 
     try {
-      setUploadProgress(0);
-      const res = await importItemsFromCsv(file, (progressEvent: any) => {
-        if (progressEvent.total) {
-          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          setUploadProgress(percentCompleted);
-        }
-      });
+      const res = await importItemsFromCsv(file);
       
-      if (res.successCount > 0) {
-        toast.success(`Imported successfully! ${res.successCount} items added.`);
-        onSuccess();
-        
-        // If there are zero errors, close the modal immediately since it's perfectly successful
-        if (!res.errors || res.errors.length === 0) {
-           onClose();
-           return; // Stop here, so we don't set result which keeps it open
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      
+      setTimeout(() => {
+        if (res.successCount > 0) {
+          toast.success(`Imported successfully! ${res.successCount} items added.`);
+          onSuccess();
+          
+          // If there are zero errors, close the modal immediately since it's perfectly successful
+          if (!res.errors || res.errors.length === 0) {
+             onClose();
+             return;
+          }
         }
-      }
-      setResult(res);
+        setResult(res);
+      }, 300);
     } catch (err: any) {
+      clearInterval(progressInterval);
+      setUploadProgress(0);
       const responseData = err.response?.data;
       if (responseData?.data?.errors) {
         // Detailed row errors were returned
@@ -158,12 +170,16 @@ export function ImportModal({ isOpen, onClose, onSuccess, fields = [] }: ImportM
                   {isUploading && (
                     <div className="w-full max-w-[80%] mt-4">
                       <div className="flex justify-between text-xs text-slate-600 mb-1">
-                        <span>Uploading...</span>
-                        <span>{uploadProgress}%</span>
+                        <span>
+                          {uploadProgress < 35 ? 'Uploading file...' :
+                           uploadProgress < 70 ? 'Validating data & headers...' :
+                           uploadProgress < 100 ? 'Saving & updating items in database...' : 'Completed!'}
+                        </span>
+                        <span className="font-semibold text-slate-700">{uploadProgress}%</span>
                       </div>
-                      <div className="w-full bg-slate-200 rounded-full h-2">
+                      <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
                         <div 
-                          className="bg-[#0076f2] h-2 rounded-full transition-all duration-300" 
+                          className="bg-[#0076f2] h-2 rounded-full transition-all duration-300 ease-out" 
                           style={{ width: `${uploadProgress}%` }}
                         ></div>
                       </div>

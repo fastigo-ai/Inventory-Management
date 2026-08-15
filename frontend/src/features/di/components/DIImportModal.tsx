@@ -16,12 +16,14 @@ export function DIImportModal({ isOpen, onClose, onSuccess }: DIImportModalProps
   const [isUploading, setIsUploading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setFile(e.target.files[0]);
       setResult(null);
       setError(null);
+      setUploadProgress(0);
     }
   };
 
@@ -30,21 +32,38 @@ export function DIImportModal({ isOpen, onClose, onSuccess }: DIImportModalProps
     setIsUploading(true);
     setError(null);
     setResult(null);
+    setUploadProgress(0);
+
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev < 35) return prev + 7;
+        if (prev < 70) return prev + 4;
+        if (prev < 95) return prev + 1;
+        return prev;
+      });
+    }, 250);
 
     try {
       const res = await importDIsFromCsv(file);
       
-      if (res.data.successCount > 0) {
-        toast.success(`Imported successfully! ${res.data.successCount} DI registrations added.`);
-        onSuccess();
-        
-        if (!res.data.errors || res.data.errors.length === 0) {
-           onClose();
-           return;
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      
+      setTimeout(() => {
+        if (res.data.successCount > 0) {
+          toast.success(`Imported successfully! ${res.data.successCount} DI registrations added.`);
+          onSuccess();
+          
+          if (!res.data.errors || res.data.errors.length === 0) {
+             onClose();
+             return;
+          }
         }
-      }
-      setResult(res.data);
+        setResult(res.data);
+      }, 300);
     } catch (err: any) {
+      clearInterval(progressInterval);
+      setUploadProgress(0);
       const responseData = err.response?.data;
       if (responseData?.data?.errors) {
         setResult({ successCount: 0, errors: responseData.data.errors });
@@ -113,19 +132,42 @@ export function DIImportModal({ isOpen, onClose, onSuccess }: DIImportModalProps
               <p className="text-xs text-slate-500 mt-1">Maximum file size 5MB</p>
             </div>
           ) : (
-            <div className="border border-slate-200 rounded-lg p-4 flex items-center justify-between bg-slate-50">
-              <div className="flex items-center gap-3 overflow-hidden">
-                <div className="bg-blue-100 p-2 rounded text-blue-600 shrink-0">
-                  <FileText className="w-5 h-5" />
+            <div className="border border-slate-200 rounded-lg p-4 bg-slate-50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <div className="bg-blue-100 p-2 rounded text-blue-600 shrink-0">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div className="truncate">
+                    <p className="text-sm font-medium text-slate-700 truncate">{file.name}</p>
+                    <p className="text-xs text-slate-500">{(file.size / 1024).toFixed(1)} KB</p>
+                  </div>
                 </div>
-                <div className="truncate">
-                  <p className="text-sm font-medium text-slate-700 truncate">{file.name}</p>
-                  <p className="text-xs text-slate-500">{(file.size / 1024).toFixed(1)} KB</p>
-                </div>
+                {!isUploading && (
+                  <Button variant="ghost" size="sm" onClick={reset} className="text-slate-500 hover:text-slate-700 shrink-0">
+                    Remove
+                  </Button>
+                )}
               </div>
-              <Button variant="ghost" size="sm" onClick={reset} className="text-slate-500 hover:text-slate-700 shrink-0">
-                Remove
-              </Button>
+
+              {isUploading && (
+                <div className="w-full mt-4 pt-3 border-t border-slate-200">
+                  <div className="flex justify-between text-xs text-slate-600 mb-1">
+                    <span>
+                      {uploadProgress < 35 ? 'Uploading file...' :
+                       uploadProgress < 70 ? 'Validating data & headers...' :
+                       uploadProgress < 100 ? 'Saving DI registrations to database...' : 'Completed!'}
+                    </span>
+                    <span className="font-semibold text-slate-700">{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                    <div 
+                      className="bg-[#0076f2] h-2 rounded-full transition-all duration-300 ease-out" 
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

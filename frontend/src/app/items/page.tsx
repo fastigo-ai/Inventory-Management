@@ -308,8 +308,12 @@ const handleColumnFilterChange = (columnName: string, value: string) => {
               const originalId = act._id === 'Unbillable' ? '' : act._id;
               
               circleNames.forEach(c => {
-                const stat = metrics.circleActivityStats.find((s: any) => s._id?.circle === c && (s._id?.activity === originalId || (!s._id?.activity && originalId === '')));
-                row[c] = stat ? stat.count : 0;
+                const matchingStats = metrics.circleActivityStats.filter((s: any) => {
+                  if (s._id?.circle !== c) return false;
+                  const sActivity = (!s._id?.activity || (typeof s._id?.activity === 'string' && s._id.activity.trim() === '')) ? 'Unbillable' : s._id.activity;
+                  return sActivity === act._id;
+                });
+                row[c] = matchingStats.reduce((sum: number, s: any) => sum + s.count, 0);
               });
               return row;
             });

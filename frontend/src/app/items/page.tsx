@@ -361,7 +361,7 @@ const handleColumnFilterChange = (columnName: string, value: string) => {
                       </thead>
                       <tbody>
                         {activityTableData.map((row, i) => (
-                          <tr key={row.activity} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                          <tr key={`${row.activity}-${i}`} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                             <td className="px-3 py-2 font-medium max-w-[120px] truncate" title={row.activity}>{row.activity}</td>
                             {circleNames.map(c => (
                               <td key={c} className="px-3 py-2 text-center">{row[c] || '-'}</td>

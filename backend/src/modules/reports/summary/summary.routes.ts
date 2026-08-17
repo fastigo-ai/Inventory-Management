@@ -28,5 +28,8 @@ router.get('/vendor-summary/:vendorName', getVendorDetails);
 router.get('/contractor-summary/:contractorName', getContractorDetails);
 router.get('/item-summary/:itemId', getItemDetails);
 
+import { getSiteContractorSummary } from '../siteContractorSummary.controller';
+router.get('/site-contractor-summary', getSiteContractorSummary);
+
 export default router;
 

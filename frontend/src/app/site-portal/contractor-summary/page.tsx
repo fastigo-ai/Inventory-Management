@@ -7,11 +7,18 @@ import { getContractors } from '@/features/contractors/api/contractors.api';
 import { Button } from '@/components/ui/button';
 import { Download, Loader2, Search } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuthStore } from '@/shared/store/auth.store';
 
 export default function SiteContractorSummaryPage() {
   const router = useRouter();
+  const { user } = useAuthStore();
+  
   const [contractors, setContractors] = useState<any[]>([]);
-  const [filters, setFilters] = useState({ contractorId: '', package: '', circle: '' });
+  const [filters, setFilters] = useState({ 
+    contractorId: '', 
+    package: user?.assignedPackage || '', 
+    circle: user?.assignedCircle || '' 
+  });
   const [data, setData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [contractorName, setContractorName] = useState('');
@@ -20,7 +27,7 @@ export default function SiteContractorSummaryPage() {
     const fetchInitial = async () => {
       try {
         const cRes = await getContractors(undefined, undefined, 1, 1000);
-        setContractors(cRes.items || cRes);
+        setContractors(cRes?.data?.contractors || cRes?.contractors || []);
       } catch (err) {
         console.error('Error fetching contractors', err);
       }
@@ -109,18 +116,18 @@ export default function SiteContractorSummaryPage() {
           <label className="block text-sm font-medium text-slate-700 mb-1">Package</label>
           <input 
             value={filters.package} 
-            onChange={(e) => setFilters(f => ({ ...f, package: e.target.value }))}
-            className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            placeholder="e.g. Package 1 (S/N)"
+            readOnly
+            className="w-full h-10 px-3 py-2 bg-slate-50 border border-slate-300 rounded-md text-slate-500 cursor-not-allowed"
+            placeholder="No package assigned"
           />
         </div>
         <div className="w-64">
           <label className="block text-sm font-medium text-slate-700 mb-1">Circle</label>
           <input 
             value={filters.circle} 
-            onChange={(e) => setFilters(f => ({ ...f, circle: e.target.value }))}
-            className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            placeholder="e.g. Nahan"
+            readOnly
+            className="w-full h-10 px-3 py-2 bg-slate-50 border border-slate-300 rounded-md text-slate-500 cursor-not-allowed"
+            placeholder="No circle assigned"
           />
         </div>
         <Button onClick={fetchReport} disabled={isLoading} className="h-10 px-6 flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white">

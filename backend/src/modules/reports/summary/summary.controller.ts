@@ -516,9 +516,9 @@ async function computeStoreItemisedSummary(params: {
     }
     const assignments = await ContractorAssignment.find(assignFilter).lean();
     assignments.forEach(doc => {
-      (doc.lineItems || []).forEach(li => {
+      (doc.lineItems || []).forEach((li: any) => {
         const idStr = li.itemId ? li.itemId.toString() : null;
-        const qty = Number(li.quantity || 0);
+        const qty = Number(li.acceptedQuantity || 0);
         const temp = String(li.tempCode || '').trim();
         const name = String(li.itemName || li.name || '').trim().toLowerCase();
 
@@ -540,7 +540,7 @@ async function computeStoreItemisedSummary(params: {
     returns.forEach(doc => {
       (doc.lineItems || doc.items || []).forEach((li: any) => {
         const idStr = li.itemId ? li.itemId.toString() : null;
-        const qty = Number(li.quantity || 0);
+        const qty = Number(li.acceptedQuantity || 0);
         const temp = String(li.tempCode || '').trim();
         const name = String(li.itemName || li.name || '').trim().toLowerCase();
 
@@ -560,7 +560,7 @@ async function computeStoreItemisedSummary(params: {
     }
     const transfersOut = await StoreTransfer.find(transferOutFilter).lean();
     transfersOut.forEach(doc => {
-      (doc.items || []).forEach(it => {
+      (doc.items || []).forEach((it: any) => {
         const idStr = it.itemId ? it.itemId.toString() : null;
         const qty = Number(it.dispatchedQty || it.quantity || it.requestedQty || it.receivedQty || 0);
         const temp = String(it.tempCode || '').trim();
@@ -582,7 +582,7 @@ async function computeStoreItemisedSummary(params: {
     }
     const transfersIn = await StoreTransfer.find(transferInFilter).lean();
     transfersIn.forEach(doc => {
-      (doc.items || []).forEach(it => {
+      (doc.items || []).forEach((it: any) => {
         const idStr = it.itemId ? it.itemId.toString() : null;
         const qty = Number(it.receivedQty || it.dispatchedQty || it.quantity || it.requestedQty || 0);
         const temp = String(it.tempCode || '').trim();
@@ -685,9 +685,9 @@ async function computeStoreItemisedSummary(params: {
     }
     const assignments = await ContractorAssignment.find(assignFilter).lean();
     assignments.forEach(doc => {
-      (doc.lineItems || []).forEach(li => {
+      (doc.lineItems || []).forEach((li: any) => {
         const idStr = li.itemId ? li.itemId.toString() : null;
-        const qty = Number(li.quantity || 0);
+        const qty = Number(li.acceptedQuantity || 0);
         if (idStr && itemMap.has(idStr)) {
           itemMap.get(idStr)!.issuedQty += qty;
         }
@@ -702,7 +702,7 @@ async function computeStoreItemisedSummary(params: {
     returns.forEach(doc => {
       (doc.lineItems || doc.items || []).forEach((li: any) => {
         const idStr = li.itemId ? li.itemId.toString() : null;
-        const qty = Number(li.quantity || 0);
+        const qty = Number(li.acceptedQuantity || 0);
         if (idStr && itemMap.has(idStr)) {
           itemMap.get(idStr)!.returnedQty += qty;
         }
@@ -715,7 +715,7 @@ async function computeStoreItemisedSummary(params: {
     }
     const transfersOut = await StoreTransfer.find(transferOutFilter).lean();
     transfersOut.forEach(doc => {
-      (doc.items || []).forEach(it => {
+      (doc.items || []).forEach((it: any) => {
         const idStr = it.itemId ? it.itemId.toString() : null;
         const qty = Number(it.dispatchedQty || it.quantity || it.requestedQty || it.receivedQty || 0);
         if (idStr && itemMap.has(idStr)) {
@@ -730,7 +730,7 @@ async function computeStoreItemisedSummary(params: {
     }
     const transfersIn = await StoreTransfer.find(transferInFilter).lean();
     transfersIn.forEach(doc => {
-      (doc.items || []).forEach(it => {
+      (doc.items || []).forEach((it: any) => {
         const idStr = it.itemId ? it.itemId.toString() : null;
         const qty = Number(it.receivedQty || it.dispatchedQty || it.quantity || it.requestedQty || 0);
         if (idStr && itemMap.has(idStr)) {

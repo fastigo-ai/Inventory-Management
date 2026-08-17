@@ -18,9 +18,16 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
     throw new ApiError(400, 'Contractor ID is required');
   }
 
+  // Create a regex to match package name ignoring spaces and case
+  let pkgRegex: RegExp | undefined = undefined;
+  if (pkg) {
+    const escapedPkg = String(pkg).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s*');
+    pkgRegex = new RegExp(`^${escapedPkg}$`, 'i');
+  }
+
   // Pre-fetch all items to build a mapping of SKU -> Temp Code & Name
   const itemQuery: any = { isDeleted: false };
-  if (pkg) itemQuery['dynamicData.package'] = pkg;
+  if (pkgRegex) itemQuery['dynamicData.package'] = { $regex: pkgRegex };
   if (circle) itemQuery['dynamicData.circle'] = circle;
   const allItems = await Item.find(itemQuery).lean();
   
@@ -36,7 +43,7 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
 
   // Find the relevant work orders to get the baseline items and quantities
   const woQuery: any = { contractorId: new mongoose.Types.ObjectId(contractorId as string) };
-  if (pkg) woQuery.package = pkg;
+  if (pkgRegex) woQuery.package = { $regex: pkgRegex };
   if (circle) woQuery.circle = circle;
 
   const workOrders = await ContractorWorkOrder.find(woQuery).populate('items.itemId');
@@ -102,7 +109,7 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
 
   // Query conditions for registers
   const regQuery: any = { contractorId: new mongoose.Types.ObjectId(contractorId as string), status: 'Approved' };
-  if (pkg) regQuery.package = pkg;
+  if (pkgRegex) regQuery.package = { $regex: pkgRegex };
   if (circle) regQuery.circle = circle;
 
   const [jmcRecords, wipRecords, wipReqRecords, assignments, returns] = await Promise.all([

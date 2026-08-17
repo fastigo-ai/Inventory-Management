@@ -335,7 +335,7 @@ export default function ItemSummaryMatrixPage() {
                 {/* Sub Header Row 2 */}
                 <tr className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200 divide-x divide-slate-200 sticky top-[33px] z-20">
                   <th className="p-2 min-w-[40px] text-center bg-slate-100">Sr. No.</th>
-                  <th className="p-2 min-w-[70px] bg-slate-100">Temp Code</th>
+                  <th className="p-2 min-w-[80px] bg-slate-100">LOA Sr. No.</th>
                   <th className="p-2 min-w-[220px] bg-slate-100">Item Name</th>
 
                   {/* LOA & BOM */}
@@ -418,7 +418,9 @@ export default function ItemSummaryMatrixPage() {
                   data.map((r, i) => (
                     <tr key={r.itemId || r._id || i} className="hover:bg-slate-100/80 transition-colors divide-x divide-slate-100">
                       <td className="p-2 text-center text-slate-500 font-sans">{r.srNo}</td>
-                      <td className="p-2 font-bold text-slate-800">{r.tempCode}</td>
+                      <td className="p-2 font-bold text-slate-800" title={r.tempCode ? `Temp Code: ${r.tempCode}` : undefined}>
+                        {r.loaSerialNo || r.tempCode}
+                      </td>
                       <td className="p-2 font-sans font-medium text-slate-900 truncate max-w-[250px]" title={r.itemName}>
                         {r.itemName}
                       </td>

@@ -32,6 +32,13 @@ export default function ReportsDashboard() {
       icon: <Store className="w-8 h-8 text-blue-500" />,
       href: "/reports/store-summary",
       color: "bg-blue-50 border-blue-100 group-hover:border-blue-300"
+    },
+    {
+      title: "Store Contractor Summary",
+      description: "FROM CIRCLE STORE (Contractor Wise): Track Total Issued Qty, Total Return Qty, and Total Balance Qty in contractor custody.",
+      icon: <Users className="w-8 h-8 text-indigo-500" />,
+      href: "/reports/store-contractor-summary",
+      color: "bg-indigo-50 border-indigo-100 group-hover:border-indigo-300"
     }
   ];
 

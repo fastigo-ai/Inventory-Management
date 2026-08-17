@@ -6,6 +6,7 @@ import {
   getContractorSummary, 
   getStoreSummary, 
   getStoreItemisedSummary,
+  getStoreContractorSummary,
   exportStoreItemisedSummary,
   getVendorDetails, 
   getContractorDetails, 
@@ -20,6 +21,7 @@ router.get('/vendor-summary', getVendorSummary);
 router.get('/contractor-summary', getContractorSummary);
 router.get('/store-summary', getStoreSummary);
 router.get('/store-itemised-summary', getStoreItemisedSummary);
+router.get('/store-contractor-summary', getStoreContractorSummary);
 router.get('/store-itemised-summary/export', exportStoreItemisedSummary);
 
 router.get('/vendor-summary/:vendorName', getVendorDetails);

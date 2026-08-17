@@ -55,3 +55,17 @@ export const exportStoreItemisedSummary = async (filters: StoreItemisedFilter) =
   return res.data;
 };
 
+export interface StoreContractorFilter {
+  contractorName?: string;
+  circle?: string;
+  package?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+export const getStoreContractorSummary = async (filters: StoreContractorFilter) => {
+  const { data } = await api.get('/reports/store-contractor-summary', { params: filters });
+  return data;
+};
+

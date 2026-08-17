@@ -1300,3 +1300,184 @@ export const getItemMatrixSummary = asyncHandler(async (req: Request, res: Respo
   }, 'Item matrix summary fetched successfully'));
 });
 
+/**
+ * Store Contractor Summary (FROM CIRCLE STORE - Contractor Wise)
+ */
+export const getStoreContractorSummary = asyncHandler(async (req: Request, res: Response) => {
+  const { contractorName, circle, package: pkg, search, page = '1', limit = '50' } = req.query;
+
+  const pageNum = parseInt(page as string, 10) || 1;
+  const limitNum = parseInt(limit as string, 10) || 50;
+
+  // 1. Fetch distinct contractors list for dropdown
+  const assignContractors = await ContractorAssignment.distinct('contractorFarmName');
+  const returnContractors = await ContractorReturn.distinct('contractorName');
+  const contractorList = Array.from(new Set([...assignContractors, ...returnContractors]))
+    .filter(Boolean)
+    .sort((a, b) => (a as string).localeCompare(b as string));
+
+  // 2. Filter master items
+  const itemFilter: any = { isDeleted: { $ne: true } };
+
+  if (circle && circle !== 'all') {
+    itemFilter['dynamicData.circle'] = { $regex: new RegExp(`^${circle}$`, 'i') };
+  }
+  if (pkg && pkg !== 'all') {
+    itemFilter['dynamicData.package'] = { $regex: new RegExp(pkg.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') };
+  }
+  if (search) {
+    const s = search.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    itemFilter.$or = [
+      { 'dynamicData.name': { $regex: s, $options: 'i' } },
+      { 'dynamicData.tempCode': { $regex: s, $options: 'i' } },
+      { 'dynamicData.sku': { $regex: s, $options: 'i' } },
+      { 'dynamicData.loaSerialNo': { $regex: s, $options: 'i' } }
+    ];
+  }
+
+  const items = await Item.find(itemFilter).lean();
+
+  // Group master items by LOA Sr No / SKU / TempCode
+  const groupMap = new Map<string, any>();
+  const itemIdToKeyMap = new Map<string, string>();
+
+  items.forEach(it => {
+    const d = it.dynamicData || {};
+    const loaSr = String(d.loaSerialNo || d.loaSrNo || d.sku || d.tempCode || it.sku || it.tempCode || '').trim() || it._id.toString();
+    const tc = String(d.tempCode || it.tempCode || '').trim();
+    const name = String(d.name || d.itemName || d.description || it.name || '').trim();
+    const unit = String(d.unit || it.unit || 'NOS').trim();
+    const pkgVal = String(d.package || it.package || '').trim();
+    const circVal = String(d.circle || it.circle || '').trim();
+
+    if (!groupMap.has(loaSr)) {
+      const tempNum = Number(tc);
+      groupMap.set(loaSr, {
+        loaSerialNo: loaSr,
+        tempCode: tc || '-',
+        tempNum: !isNaN(tempNum) && tempNum > 0 ? tempNum : 999999,
+        itemName: name,
+        unit,
+        package: pkgVal,
+        circle: circVal,
+        itemIds: new Set<string>(),
+        totalIssuedQty: 0,
+        totalReturnQty: 0,
+        totalBalanceQty: 0,
+      });
+    }
+
+    const grp = groupMap.get(loaSr)!;
+    grp.itemIds.add(it._id.toString());
+    itemIdToKeyMap.set(it._id.toString(), loaSr);
+
+    if (!grp.itemName && name) grp.itemName = name;
+    if (!grp.tempCode && tc) grp.tempCode = tc;
+  });
+
+  const getTargetKeys = (lineItemId: any, lineTempCode: any, lineLoaSrNo?: any): string[] => {
+    const keys = new Set<string>();
+    const idStr = lineItemId ? lineItemId.toString() : '';
+    if (idStr && itemIdToKeyMap.has(idStr)) {
+      keys.add(itemIdToKeyMap.get(idStr)!);
+    }
+    const loaSr = String(lineLoaSrNo || '').trim();
+    if (loaSr && groupMap.has(loaSr)) keys.add(loaSr);
+    const tc = String(lineTempCode || '').trim();
+    if (tc && groupMap.has(tc)) keys.add(tc);
+    return Array.from(keys);
+  };
+
+  // 3. Aggregate Contractor Assignments (Issued Qty)
+  const assignFilter: any = { status: { $ne: 'Cancelled' } };
+  if (contractorName && contractorName !== 'all') {
+    assignFilter.contractorFarmName = { $regex: new RegExp(`^${contractorName.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') };
+  }
+  if (circle && circle !== 'all') {
+    assignFilter.$or = [
+      { circle: { $regex: new RegExp(circle.toString(), 'i') } },
+      { 'lineItems.circle': { $regex: new RegExp(circle.toString(), 'i') } }
+    ];
+  }
+
+  const assignments = await ContractorAssignment.find(assignFilter).lean();
+  assignments.forEach(doc => {
+    (doc.lineItems || []).forEach((line: any) => {
+      const qty = Number(line.quantity || line.demandQty || 0);
+      if (qty > 0) {
+        const targetKeys = getTargetKeys(line.itemId, line.tempCode, line.loaSerialNo || line.sku);
+        targetKeys.forEach(key => {
+          if (groupMap.has(key)) {
+            groupMap.get(key)!.totalIssuedQty += qty;
+          }
+        });
+      }
+    });
+  });
+
+  // 4. Aggregate Contractor Returns (Returned Qty)
+  const returnFilter: any = {};
+  if (contractorName && contractorName !== 'all') {
+    returnFilter.contractorName = { $regex: new RegExp(`^${contractorName.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') };
+  }
+  if (circle && circle !== 'all') {
+    returnFilter.circle = { $regex: new RegExp(circle.toString(), 'i') };
+  }
+
+  const returns = await ContractorReturn.find(returnFilter).lean();
+  returns.forEach(doc => {
+    (doc.lineItems || doc.items || []).forEach((line: any) => {
+      const qty = Number(line.quantity || 0);
+      if (qty > 0) {
+        const targetKeys = getTargetKeys(line.itemId, line.tempCode, line.loaSerialNo || line.sku);
+        targetKeys.forEach(key => {
+          if (groupMap.has(key)) {
+            groupMap.get(key)!.totalReturnQty += qty;
+          }
+        });
+      }
+    });
+  });
+
+  // Compute Balance Qty per item
+  let rows = Array.from(groupMap.values()).map(r => {
+    r.totalBalanceQty = r.totalIssuedQty - r.totalReturnQty;
+    return r;
+  });
+
+  rows.sort((a, b) => {
+    if (a.tempNum !== b.tempNum) return a.tempNum - b.tempNum;
+    return a.itemName.localeCompare(b.itemName);
+  });
+
+  const totals = rows.reduce((acc, curr) => {
+    acc.totalIssuedQty += curr.totalIssuedQty;
+    acc.totalReturnQty += curr.totalReturnQty;
+    acc.totalBalanceQty += curr.totalBalanceQty;
+    return acc;
+  }, {
+    totalIssuedQty: 0,
+    totalReturnQty: 0,
+    totalBalanceQty: 0
+  });
+
+  const totalItemsCount = rows.length;
+  const totalPages = Math.ceil(totalItemsCount / limitNum) || 1;
+  const paginatedRows = rows.slice((pageNum - 1) * limitNum, pageNum * limitNum).map((r, i) => ({
+    srNo: (pageNum - 1) * limitNum + i + 1,
+    ...r
+  }));
+
+  res.status(200).json(new ApiResponse(200, {
+    items: paginatedRows,
+    totals,
+    contractors: contractorList,
+    pagination: {
+      currentPage: pageNum,
+      totalPages,
+      totalItems: totalItemsCount,
+      limit: limitNum
+    }
+  }, 'Store Contractor Summary fetched successfully'));
+});
+

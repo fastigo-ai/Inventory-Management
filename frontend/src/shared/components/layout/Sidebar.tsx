@@ -137,7 +137,8 @@ const navItems: NavItem[] = [
     title: 'Store Portal',
     icon: <Store className="w-5 h-5" />,
     children: [
-      { title: 'Store Itemised Summary', href: '/reports/store-summary' }
+      { title: 'Store Itemised Summary', href: '/reports/store-summary' },
+      { title: 'Store Contractor Summary', href: '/reports/store-contractor-summary' }
     ]
   }
 ];

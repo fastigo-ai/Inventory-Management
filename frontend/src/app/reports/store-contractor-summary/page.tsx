@@ -36,6 +36,7 @@ export default function StoreContractorSummaryPage() {
   const [circle, setCircle] = useState<string>(user?.assignedCircle || '');
   const [pkg, setPkg] = useState<string>('');
   const [search, setSearch] = useState<string>('');
+  const [hideZero, setHideZero] = useState<boolean>(true);
 
   // Pagination States
   const [page, setPage] = useState(1);
@@ -50,6 +51,7 @@ export default function StoreContractorSummaryPage() {
         circle: circle || undefined,
         package: pkg || undefined,
         search: search || undefined,
+        hideZero,
         page,
         limit
       });
@@ -76,11 +78,11 @@ export default function StoreContractorSummaryPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [contractorName, circle, pkg, search, limit]);
+  }, [contractorName, circle, pkg, search, hideZero, limit]);
 
   useEffect(() => {
     fetchData();
-  }, [contractorName, circle, pkg, search, page, limit]);
+  }, [contractorName, circle, pkg, search, hideZero, page, limit]);
 
   const handleExportCSV = () => {
     if (data.length === 0) return;
@@ -263,6 +265,21 @@ export default function StoreContractorSummaryPage() {
               />
             </div>
           </div>
+
+          {/* Row 2: Non-Zero Items Filter Toggle */}
+          <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+            <label className="flex items-center gap-2 cursor-pointer select-none text-slate-700 font-semibold bg-amber-50/60 px-3 py-1 rounded-lg border border-amber-200/80 hover:bg-amber-100/80 transition-colors">
+              <input
+                type="checkbox"
+                checked={hideZero}
+                onChange={(e) => setHideZero(e.target.checked)}
+                className="rounded border-amber-400 text-amber-600 focus:ring-amber-500 w-3.5 h-3.5"
+              />
+              <span>Show Non-Zero Activity Items Only (Filter out zero-quantity rows)</span>
+            </label>
+            <span className="text-[11px] text-slate-400 italic">Showing {data.length} active items with non-zero stock/assignments</span>
+          </div>
+        </div>
         </div>
 
         {/* Data Spreadsheet Table */}

@@ -60,6 +60,7 @@ export interface StoreContractorFilter {
   circle?: string;
   package?: string;
   search?: string;
+  hideZero?: boolean;
   page?: number;
   limit?: number;
 }

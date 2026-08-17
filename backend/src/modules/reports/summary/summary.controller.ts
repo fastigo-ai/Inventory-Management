@@ -1304,7 +1304,7 @@ export const getItemMatrixSummary = asyncHandler(async (req: Request, res: Respo
  * Store Contractor Summary (FROM CIRCLE STORE - Contractor Wise)
  */
 export const getStoreContractorSummary = asyncHandler(async (req: Request, res: Response) => {
-  const { contractorName, circle, package: pkg, search, page = '1', limit = '50' } = req.query;
+  const { contractorName, circle, package: pkg, search, hideZero, page = '1', limit = '50' } = req.query;
 
   const pageNum = parseInt(page as string, 10) || 1;
   const limitNum = parseInt(limit as string, 10) || 50;
@@ -1444,6 +1444,11 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
     r.totalBalanceQty = r.totalIssuedQty - r.totalReturnQty;
     return r;
   });
+
+  // Filter out items where all quantities are 0 by default (unless hideZero === 'false')
+  if (hideZero !== 'false') {
+    rows = rows.filter(r => r.totalIssuedQty !== 0 || r.totalReturnQty !== 0 || r.totalBalanceQty !== 0);
+  }
 
   rows.sort((a, b) => {
     if (a.tempNum !== b.tempNum) return a.tempNum - b.tempNum;

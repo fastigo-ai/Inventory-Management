@@ -27,28 +27,36 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
   // Build the baseline report from Work Order Items
   const reportMap: Record<string, any> = {};
 
-  const getOrAddRow = (itemIdStr: string, tempCode: string, activity: string, itemName: string) => {
-    // 1. Try to find by itemId and activity (best for JMC/WIP)
+  const getOrAddRow = (itemIdStr: string, loaSrNo: string, tempCode: string, activity: string, itemName: string) => {
+    // 1. Try to find by itemId and loaSrNo (best for JMC/WIP/WIP Req)
     let key = Object.keys(reportMap).find(k => {
       const parts = k.split('_');
-      return parts[0] === itemIdStr && parts[2] === (activity || '').trim().toLowerCase() && parts[2] !== '';
+      return parts[0] === itemIdStr && parts[1] === (loaSrNo || '').trim().toLowerCase() && parts[1] !== '';
     });
 
-    // 2. If not found, try by itemId and tempCode (best for Store Issues/Returns)
-    if (!key && tempCode) {
+    // 2. Try to find by itemId and activity (fallback for JMC/WIP)
+    if (!key && activity) {
       key = Object.keys(reportMap).find(k => {
         const parts = k.split('_');
-        return parts[0] === itemIdStr && parts[1] === tempCode.trim().toLowerCase();
+        return parts[0] === itemIdStr && parts[3] === (activity || '').trim().toLowerCase() && parts[3] !== '';
       });
     }
 
-    // 3. If not found, just match by itemId (fallback)
+    // 3. Try to find by itemId and tempCode (best for Store Issues/Returns)
+    if (!key && tempCode) {
+      key = Object.keys(reportMap).find(k => {
+        const parts = k.split('_');
+        return parts[0] === itemIdStr && parts[2] === (tempCode || '').trim().toLowerCase() && parts[2] !== '';
+      });
+    }
+
+    // 4. Just match by itemId
     if (!key) {
       key = Object.keys(reportMap).find(k => k.startsWith(`${itemIdStr}_`));
     }
 
     if (!key) {
-      key = `${itemIdStr}_${(tempCode || '').trim().toLowerCase()}_${(activity || '').trim().toLowerCase()}`;
+      key = `${itemIdStr}_${(loaSrNo || '').trim().toLowerCase()}_${(tempCode || '').trim().toLowerCase()}_${(activity || '').trim().toLowerCase()}`;
       reportMap[key] = {
         itemId: itemIdStr,
         tempCode: tempCode || '',
@@ -68,9 +76,8 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
   workOrders.forEach(wo => {
     wo.items.forEach((item: any) => {
       const itemIdStr = item.itemId?._id?.toString() || item.itemId?.toString();
-      const key = getOrAddRow(itemIdStr, item.tempCode, item.activity, item.description || (item.itemId as any)?.name || '');
+      const key = getOrAddRow(itemIdStr, item.loaSrNo, item.tempCode, item.activity, item.description || (item.itemId as any)?.name || '');
       reportMap[key].bomQty += (item.circleBomQty || 0);
-      // Ensure tempCode and activity are populated from baseline
       if (item.tempCode && !reportMap[key].tempCode) reportMap[key].tempCode = item.tempCode;
       if (item.activity && !reportMap[key].activity) reportMap[key].activity = item.activity;
     });
@@ -94,7 +101,7 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
     record.items?.forEach((item: any) => {
       const itemIdStr = item.itemId?.toString();
       if (!itemIdStr) return;
-      const key = getOrAddRow(itemIdStr, item.tempCode, item.activity, item.description);
+      const key = getOrAddRow(itemIdStr, item.loaSerialNo || item.loaSrNo, item.tempCode, item.activity, item.description);
       reportMap[key].jmcDone += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
     });
   });
@@ -104,7 +111,7 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
     record.items?.forEach((item: any) => {
       const itemIdStr = item.itemId?.toString();
       if (!itemIdStr) return;
-      const key = getOrAddRow(itemIdStr, item.tempCode, item.activity, item.description);
+      const key = getOrAddRow(itemIdStr, item.loaSerialNo || item.loaSrNo, item.tempCode, item.activity, item.description);
       reportMap[key].wipConsumed += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
     });
   });
@@ -114,7 +121,7 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
     record.items?.forEach((item: any) => {
       const itemIdStr = item.itemId?.toString();
       if (!itemIdStr) return;
-      const key = getOrAddRow(itemIdStr, item.tempCode, item.activity, item.description);
+      const key = getOrAddRow(itemIdStr, item.loaSerialNo || item.loaSrNo, item.tempCode, item.activity, item.description);
       reportMap[key].wipRequired += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
     });
   });
@@ -124,7 +131,7 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
     assignment.lineItems?.forEach((item: any) => {
       const itemIdStr = item.itemId?.toString();
       if (!itemIdStr) return;
-      const key = getOrAddRow(itemIdStr, item.tempCode, item.activity, item.itemName);
+      const key = getOrAddRow(itemIdStr, '', item.tempCode, item.activity, item.itemName);
       reportMap[key].totalIssued += (Number(item.quantity) || 0);
     });
   });
@@ -134,7 +141,7 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
     ret.lineItems?.forEach((item: any) => {
       const itemIdStr = item.itemId?.toString();
       if (!itemIdStr) return;
-      const key = getOrAddRow(itemIdStr, item.tempCode, item.activity, item.itemName);
+      const key = getOrAddRow(itemIdStr, '', item.tempCode, item.activity, item.itemName);
       reportMap[key].totalReturned += (Number(item.quantity) || 0);
     });
   });

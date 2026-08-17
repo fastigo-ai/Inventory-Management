@@ -130,6 +130,7 @@ const navItems: NavItem[] = [
       { title: 'JMC Register', href: '/site-portal/jmc-register' },
       { title: 'WIP Consumed', href: '/site-portal/wip-register' },
       { title: 'WIP To Be Required', href: '/site-portal/wip-required' },
+      { title: 'Site Contractor Summary', href: '/site-portal/contractor-summary' },
       { title: 'Contractor Billing', href: '/site-portal/contractor-billing' }
     ]
   },

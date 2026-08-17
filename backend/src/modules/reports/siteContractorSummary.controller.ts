@@ -9,6 +9,7 @@ import { ContractorAssignment } from '../contractors/contractorAssignment.schema
 import { ContractorReturn } from '../contractors/contractorReturn.schema';
 import { ContractorWorkOrder } from '../contractors/contractorWorkOrder.schema';
 import mongoose from 'mongoose';
+import Item from '../items/item.model';
 
 export const getSiteContractorSummary = asyncHandler(async (req: Request, res: Response) => {
   const { contractorId, package: pkg, circle } = req.query;
@@ -16,6 +17,22 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
   if (!contractorId) {
     throw new ApiError(400, 'Contractor ID is required');
   }
+
+  // Pre-fetch all items to build a mapping of SKU -> Temp Code & Name
+  const itemQuery: any = { isDeleted: false };
+  if (pkg) itemQuery['dynamicData.package'] = pkg;
+  if (circle) itemQuery['dynamicData.circle'] = circle;
+  const allItems = await Item.find(itemQuery).lean();
+  
+  const skuMap: Record<string, { tempCode: string, name: string }> = {};
+  allItems.forEach(item => {
+    if (item.dynamicData?.sku) {
+      skuMap[item.dynamicData.sku] = {
+        tempCode: item.dynamicData.tempCode || '',
+        name: item.dynamicData.name || item.dynamicData.description || ''
+      };
+    }
+  });
 
   // Find the relevant work orders to get the baseline items and quantities
   const woQuery: any = { contractorId: new mongoose.Types.ObjectId(contractorId as string) };
@@ -101,7 +118,11 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
     record.items?.forEach((item: any) => {
       const itemIdStr = item.itemId?.toString();
       if (!itemIdStr) return;
-      const key = getOrAddRow(itemIdStr, item.loaSerialNo || item.loaSrNo, item.tempCode, item.activity, item.description);
+      const sku = String(item.loaSerialNo || item.loaSrNo || '');
+      const mapped = skuMap[sku];
+      const tempCode = item.tempCode || mapped?.tempCode || '';
+      const name = item.description || mapped?.name || '';
+      const key = getOrAddRow(itemIdStr, sku, tempCode, item.activity, name);
       reportMap[key].jmcDone += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
     });
   });
@@ -111,7 +132,11 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
     record.items?.forEach((item: any) => {
       const itemIdStr = item.itemId?.toString();
       if (!itemIdStr) return;
-      const key = getOrAddRow(itemIdStr, item.loaSerialNo || item.loaSrNo, item.tempCode, item.activity, item.description);
+      const sku = String(item.loaSerialNo || item.loaSrNo || '');
+      const mapped = skuMap[sku];
+      const tempCode = item.tempCode || mapped?.tempCode || '';
+      const name = item.description || mapped?.name || '';
+      const key = getOrAddRow(itemIdStr, sku, tempCode, item.activity, name);
       reportMap[key].wipConsumed += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
     });
   });
@@ -121,7 +146,11 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
     record.items?.forEach((item: any) => {
       const itemIdStr = item.itemId?.toString();
       if (!itemIdStr) return;
-      const key = getOrAddRow(itemIdStr, item.loaSerialNo || item.loaSrNo, item.tempCode, item.activity, item.description);
+      const sku = String(item.loaSerialNo || item.loaSrNo || '');
+      const mapped = skuMap[sku];
+      const tempCode = item.tempCode || mapped?.tempCode || '';
+      const name = item.description || mapped?.name || '';
+      const key = getOrAddRow(itemIdStr, sku, tempCode, item.activity, name);
       reportMap[key].wipRequired += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
     });
   });

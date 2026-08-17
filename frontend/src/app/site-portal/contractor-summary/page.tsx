@@ -19,7 +19,7 @@ export default function SiteContractorSummaryPage() {
   useEffect(() => {
     const fetchInitial = async () => {
       try {
-        const cRes = await getContractors({ limit: 1000 });
+        const cRes = await getContractors(undefined, undefined, 1, 1000);
         setContractors(cRes.items || cRes);
       } catch (err) {
         console.error('Error fetching contractors', err);

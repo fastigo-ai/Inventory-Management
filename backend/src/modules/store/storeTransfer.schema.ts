@@ -10,6 +10,9 @@ export interface ITransferItem {
   receivedQty: number; // Updated upon receipt
   loaSerialNo?: string;
   loaQty?: number;
+  itemName?: string;
+  name?: string;
+  quantity?: number;
 }
 
 export interface IStoreTransfer extends Document {

@@ -333,7 +333,7 @@ export const queryInwardEntries = asyncHandler(async (req: Request, res: Respons
   });
 
   // Filter out exhausted items when querying for MHROV
-  if (forMhrov === 'true' || forMhrov === "true" || forMhrov === undefined) {
+  if (forMhrov === 'true' || String(forMhrov) === 'true' || forMhrov === undefined) {
     entriesWithRemaining = entriesWithRemaining.filter(e => e.remainingQty > 0);
   }
 

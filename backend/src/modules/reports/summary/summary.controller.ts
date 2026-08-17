@@ -1316,15 +1316,9 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
     .filter(Boolean)
     .sort((a, b) => (a as string).localeCompare(b as string));
 
-  // 2. Filter master items
+  // 2. Filter master items (only search filter, so master items map properly across all transaction circles)
   const itemFilter: any = { isDeleted: { $ne: true } };
 
-  if (circle && circle !== 'all') {
-    itemFilter['dynamicData.circle'] = { $regex: new RegExp(`^${circle}$`, 'i') };
-  }
-  if (pkg && pkg !== 'all') {
-    itemFilter['dynamicData.package'] = { $regex: new RegExp(pkg.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') };
-  }
   if (search) {
     const s = search.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     itemFilter.$or = [
@@ -1394,21 +1388,36 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
     assignFilter.contractorFarmName = { $regex: new RegExp(`^${contractorName.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') };
   }
   if (circle && circle !== 'all') {
+    const cRegex = new RegExp(circle.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
     assignFilter.$or = [
-      { circle: { $regex: new RegExp(circle.toString(), 'i') } },
-      { 'lineItems.circle': { $regex: new RegExp(circle.toString(), 'i') } }
+      { location: cRegex },
+      { circle: cRegex },
+      { division: cRegex },
+      { 'lineItems.circle': cRegex }
     ];
+  }
+  if (pkg && pkg !== 'all') {
+    const pRegex = new RegExp(pkg.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    assignFilter.package = pRegex;
   }
 
   const assignments = await ContractorAssignment.find(assignFilter).lean();
   assignments.forEach(doc => {
+    const docCirc = doc.location || doc.circle;
+    const docPkg = doc.package;
+
     (doc.lineItems || []).forEach((line: any) => {
       const qty = Number(line.quantity || line.demandQty || 0);
       if (qty > 0) {
         const targetKeys = getTargetKeys(line.itemId, line.tempCode, line.loaSerialNo || line.sku);
         targetKeys.forEach(key => {
           if (groupMap.has(key)) {
-            groupMap.get(key)!.totalIssuedQty += qty;
+            const grp = groupMap.get(key)!;
+            grp.totalIssuedQty += qty;
+            if (docCirc) grp.circle = docCirc;
+            else if (line.circle) grp.circle = line.circle;
+            if (docPkg) grp.package = docPkg;
+            else if (line.package) grp.package = line.package;
           }
         });
       }
@@ -1421,7 +1430,12 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
     returnFilter.contractorName = { $regex: new RegExp(`^${contractorName.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') };
   }
   if (circle && circle !== 'all') {
-    returnFilter.circle = { $regex: new RegExp(circle.toString(), 'i') };
+    const cRegex = new RegExp(circle.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    returnFilter.$or = [
+      { circle: cRegex },
+      { store: cRegex },
+      { location: cRegex }
+    ];
   }
 
   const returns = await ContractorReturn.find(returnFilter).lean();
@@ -1448,6 +1462,12 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
   // Filter out items where all quantities are 0 by default (unless hideZero === 'false')
   if (hideZero !== 'false') {
     rows = rows.filter(r => r.totalIssuedQty !== 0 || r.totalReturnQty !== 0 || r.totalBalanceQty !== 0);
+  }
+
+  // Filter by selected circle if provided
+  if (circle && circle !== 'all') {
+    const cFilter = circle.toString().toLowerCase();
+    rows = rows.filter(r => (r.circle || '').toLowerCase().includes(cFilter));
   }
 
   rows.sort((a, b) => {

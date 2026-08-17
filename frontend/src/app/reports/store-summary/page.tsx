@@ -367,6 +367,7 @@ export default function StoreSummaryPage() {
                   <th className="py-3.5 px-4 w-24 text-center border-r border-slate-200/60">Temp Code</th>
                   <th className="py-3.5 px-5 min-w-[260px] border-r border-slate-200/60">Item Name</th>
                   <th className="py-3.5 px-4 w-28 text-center border-r border-slate-200/60">Circle</th>
+                  <th className="py-3.5 px-4 w-32 text-center border-r border-slate-200/60">Package</th>
                   <th className="py-3.5 px-4 w-20 text-center border-r border-slate-200/60">Unit</th>
                   <th className="py-3.5 px-4 text-right bg-emerald-50/50 text-emerald-900 border-r border-slate-200/60 font-extrabold">Total Receipt Qty</th>
                   <th className="py-3.5 px-4 text-right bg-amber-50/50 text-amber-900 border-r border-slate-200/60 font-extrabold">Total Issued to Contractor</th>
@@ -379,7 +380,7 @@ export default function StoreSummaryPage() {
               <tbody className="divide-y divide-slate-100 text-slate-800 font-medium">
                 {loading ? (
                   <tr>
-                    <td colSpan={11} className="py-16 text-center text-slate-400">
+                    <td colSpan={12} className="py-16 text-center text-slate-400">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <RefreshCw className="w-6 h-6 animate-spin text-blue-600" />
                         <span className="text-xs font-semibold text-slate-600">Calculating store summary in real-time...</span>
@@ -388,7 +389,7 @@ export default function StoreSummaryPage() {
                   </tr>
                 ) : data.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="py-16 text-center text-slate-400">
+                    <td colSpan={12} className="py-16 text-center text-slate-400">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <Boxes className="w-8 h-8 text-slate-300" />
                         <span className="text-sm font-semibold text-slate-600">No items found matching the selected filters.</span>
@@ -401,6 +402,7 @@ export default function StoreSummaryPage() {
                     const isPositive = (item.balAtStore || 0) > 0;
                     const isNegative = (item.balAtStore || 0) < 0;
                     const itemCircle = item.circle || circle || 'All Circles';
+                    const itemPkg = item.package || pkg || 'All Packages';
 
                     return (
                       <tr 
@@ -418,7 +420,7 @@ export default function StoreSummaryPage() {
                             {item.name || 'Unnamed Item'}
                           </div>
                           <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                            {item.sku ? `LOA Sr No: ${item.sku}` : ''} {item.package ? `| ${item.package}` : ''}
+                            {item.sku ? `LOA Sr No: ${item.sku}` : ''}
                           </div>
                         </td>
                         <td className="py-3 px-4 text-center border-r border-slate-100">
@@ -431,6 +433,9 @@ export default function StoreSummaryPage() {
                           }`}>
                             {itemCircle}
                           </span>
+                        </td>
+                        <td className="py-3 px-4 text-center text-xs font-medium text-slate-700 border-r border-slate-100">
+                          {itemPkg}
                         </td>
                         <td className="py-3 px-4 text-center text-slate-600 font-semibold border-r border-slate-100">
                           {item.unit || 'Nos'}
@@ -466,7 +471,7 @@ export default function StoreSummaryPage() {
               {!loading && data.length > 0 && (
                 <tfoot>
                   <tr className="bg-slate-900 text-white font-extrabold text-xs">
-                    <td colSpan={5} className="py-3.5 px-5 text-right tracking-wider uppercase">
+                    <td colSpan={6} className="py-3.5 px-5 text-right tracking-wider uppercase">
                       Grand Totals ({totalItems.toLocaleString()} items):
                     </td>
                     <td className="py-3.5 px-4 text-right font-mono text-emerald-300">

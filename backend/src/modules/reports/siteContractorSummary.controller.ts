@@ -18,17 +18,23 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
     throw new ApiError(400, 'Contractor ID is required');
   }
 
+  const cIdStr = String(contractorId).trim();
+  const cIdObj = mongoose.Types.ObjectId.isValid(cIdStr) ? new mongoose.Types.ObjectId(cIdStr) : cIdStr;
+  const contractorFilter = { $in: [cIdStr, cIdObj] };
+
   // Create a regex to match package name ignoring spaces and case
   let pkgRegex: RegExp | undefined = undefined;
-  if (pkg) {
+  if (pkg && pkg !== 'All Packages' && pkg !== 'All' && pkg !== 'all') {
     const escapedPkg = String(pkg).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s*');
     pkgRegex = new RegExp(`^${escapedPkg}$`, 'i');
   }
 
+  const circleFilter = (circle && circle !== 'All Circles' && circle !== 'All' && circle !== 'all') ? String(circle) : undefined;
+
   // Pre-fetch all items to build a mapping of SKU -> Temp Code & Name
   const itemQuery: any = { isDeleted: false };
   if (pkgRegex) itemQuery['dynamicData.package'] = { $regex: pkgRegex };
-  if (circle) itemQuery['dynamicData.circle'] = circle;
+  if (circleFilter) itemQuery['dynamicData.circle'] = circleFilter;
   const allItems = await Item.find(itemQuery).lean();
   
   const skuMap: Record<string, { tempCode: string, name: string }> = {};
@@ -42,9 +48,9 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
   });
 
   // Find the relevant work orders to get the baseline items and quantities
-  const woQuery: any = { contractorId: new mongoose.Types.ObjectId(contractorId as string) };
+  const woQuery: any = { contractorId: contractorFilter };
   if (pkgRegex) woQuery.package = { $regex: pkgRegex };
-  if (circle) woQuery.circle = circle;
+  if (circleFilter) woQuery.circle = circleFilter;
 
   const workOrders = await ContractorWorkOrder.find(woQuery).populate('items.itemId');
 
@@ -100,6 +106,7 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
   workOrders.forEach(wo => {
     wo.items.forEach((item: any) => {
       const itemIdStr = item.itemId?._id?.toString() || item.itemId?.toString();
+      if (!itemIdStr) return;
       const key = getOrAddRow(itemIdStr, item.loaSrNo, item.tempCode, item.activity, item.description || (item.itemId as any)?.name || '');
       reportMap[key].bomQty += (item.circleBomQty || 0);
       if (item.tempCode && !reportMap[key].tempCode) reportMap[key].tempCode = item.tempCode;
@@ -108,22 +115,24 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
   });
 
   // Query conditions for registers
-  const regQuery: any = { contractorId: new mongoose.Types.ObjectId(contractorId as string), status: 'Approved' };
+  const regQuery: any = { contractorId: contractorFilter, status: { $ne: 'Rejected' } };
   if (pkgRegex) regQuery.package = { $regex: pkgRegex };
-  if (circle) regQuery.circle = circle;
+  if (circleFilter) regQuery.circle = circleFilter;
+
+  const assignQuery: any = { contractorId: contractorFilter, status: { $ne: 'Cancelled' } };
 
   const [jmcRecords, wipRecords, wipReqRecords, assignments, returns] = await Promise.all([
     JmcRegister.find(regQuery).lean(),
     WipRegister.find(regQuery).lean(),
     WipRequiredRegister.find(regQuery).lean(),
-    ContractorAssignment.find({ contractorId: new mongoose.Types.ObjectId(contractorId as string) }).lean(),
-    ContractorReturn.find({ contractorId: new mongoose.Types.ObjectId(contractorId as string) }).lean()
+    ContractorAssignment.find(assignQuery).lean(),
+    ContractorReturn.find({ contractorId: contractorFilter, status: { $ne: 'Cancelled' } }).lean()
   ]);
 
   // Aggregate JMC
   jmcRecords.forEach(record => {
     record.items?.forEach((item: any) => {
-      const itemIdStr = item.itemId?.toString();
+      const itemIdStr = item.itemId?._id?.toString() || item.itemId?.toString();
       if (!itemIdStr) return;
       const sku = String(item.loaSerialNo || item.loaSrNo || '');
       const mapped = skuMap[sku];
@@ -137,7 +146,7 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
   // Aggregate WIP Consumed
   wipRecords.forEach(record => {
     record.items?.forEach((item: any) => {
-      const itemIdStr = item.itemId?.toString();
+      const itemIdStr = item.itemId?._id?.toString() || item.itemId?.toString();
       if (!itemIdStr) return;
       const sku = String(item.loaSerialNo || item.loaSrNo || '');
       const mapped = skuMap[sku];
@@ -151,7 +160,7 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
   // Aggregate WIP Required
   wipReqRecords.forEach(record => {
     record.items?.forEach((item: any) => {
-      const itemIdStr = item.itemId?.toString();
+      const itemIdStr = item.itemId?._id?.toString() || item.itemId?.toString();
       if (!itemIdStr) return;
       const sku = String(item.loaSerialNo || item.loaSrNo || '');
       const mapped = skuMap[sku];
@@ -165,7 +174,7 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
   // Aggregate Issued from Store
   assignments.forEach(assignment => {
     assignment.lineItems?.forEach((item: any) => {
-      const itemIdStr = item.itemId?.toString();
+      const itemIdStr = item.itemId?._id?.toString() || item.itemId?.toString();
       if (!itemIdStr) return;
       const key = getOrAddRow(itemIdStr, '', item.tempCode, item.activity, item.itemName);
       reportMap[key].totalIssued += (Number(item.quantity) || 0);
@@ -175,7 +184,7 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
   // Aggregate Returned to Store
   returns.forEach(ret => {
     ret.lineItems?.forEach((item: any) => {
-      const itemIdStr = item.itemId?.toString();
+      const itemIdStr = item.itemId?._id?.toString() || item.itemId?.toString();
       if (!itemIdStr) return;
       const key = getOrAddRow(itemIdStr, '', item.tempCode, item.activity, item.itemName);
       reportMap[key].totalReturned += (Number(item.quantity) || 0);
@@ -199,7 +208,7 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
   });
 
   // Sort by itemName or tempCode
-  summaryData.sort((a, b) => a.itemName.localeCompare(b.itemName));
+  summaryData.sort((a, b) => (a.itemName || '').localeCompare(b.itemName || ''));
 
   res.status(200).json(
     new ApiResponse(200, summaryData, 'Site contractor summary fetched successfully')

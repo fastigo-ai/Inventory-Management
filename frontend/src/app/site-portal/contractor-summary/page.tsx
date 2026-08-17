@@ -60,6 +60,12 @@ export default function SiteContractorSummaryPage() {
     fetchInitial();
   }, []);
 
+  useEffect(() => {
+    if (filters.contractorId) {
+      fetchReport();
+    }
+  }, [filters.contractorId, filters.package, filters.circle]);
+
   const fetchReport = async () => {
     if (!filters.contractorId) {
       toast.error('Please select a contractor');
@@ -249,13 +255,15 @@ export default function SiteContractorSummaryPage() {
                 Package
               </label>
               <div className="relative">
-                <PackageIcon className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                <input 
-                  value={filters.package || 'All Packages'} 
-                  readOnly
-                  className="w-full h-10 pl-9 pr-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-600 font-medium cursor-not-allowed shadow-2xs"
-                  placeholder="No package assigned"
-                />
+                <select 
+                  value={filters.package} 
+                  onChange={(e) => setFilters(f => ({ ...f, package: e.target.value }))}
+                  className="w-full h-10 pl-3 pr-8 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-2xs cursor-pointer"
+                >
+                  <option value="">All Packages</option>
+                  <option value="Package 1(S/N)">Package 1(S/N)</option>
+                  <option value="Package 2(R/R)">Package 2(R/R)</option>
+                </select>
               </div>
             </div>
 
@@ -264,13 +272,17 @@ export default function SiteContractorSummaryPage() {
                 Circle
               </label>
               <div className="relative">
-                <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                <input 
-                  value={filters.circle || 'All Circles'} 
-                  readOnly
-                  className="w-full h-10 pl-9 pr-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-600 font-medium cursor-not-allowed shadow-2xs"
-                  placeholder="No circle assigned"
-                />
+                <select 
+                  value={filters.circle} 
+                  onChange={(e) => setFilters(f => ({ ...f, circle: e.target.value }))}
+                  className="w-full h-10 pl-3 pr-8 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-2xs cursor-pointer"
+                >
+                  <option value="">All Circles</option>
+                  <option value="Nahan">Nahan</option>
+                  <option value="Solan">Solan</option>
+                  <option value="Rampur">Rampur</option>
+                  <option value="Rohru">Rohru</option>
+                </select>
               </div>
             </div>
 

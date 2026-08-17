@@ -288,7 +288,8 @@ export default function StoreContractorSummaryPage() {
               <thead>
                 <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-extrabold uppercase tracking-wider text-[11px] divide-x divide-slate-200">
                   <th className="py-3 px-4 w-14 text-center bg-slate-200">Sr No</th>
-                  <th className="py-3 px-4 w-28 text-center bg-slate-200">Temp Code</th>
+                  <th className="py-3 px-4 w-28 text-center bg-blue-100/70 text-blue-950 font-extrabold">LOA Sr. No.</th>
+                  <th className="py-3 px-4 w-24 text-center bg-slate-200">Temp Code</th>
                   <th className="py-3 px-5 min-w-[280px] bg-slate-200">Item Name</th>
                   <th className="py-3 px-4 w-20 text-center bg-slate-200">Unit</th>
                   <th className="py-3 px-4 text-right bg-amber-100 text-amber-950 font-extrabold">Total Issued Qty</th>
@@ -299,7 +300,7 @@ export default function StoreContractorSummaryPage() {
               <tbody className="divide-y divide-slate-200 text-slate-800 font-medium font-mono text-[11px]">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="py-16 text-center text-slate-400">
+                    <td colSpan={8} className="py-16 text-center text-slate-400">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <RefreshCw className="w-6 h-6 animate-spin text-amber-600" />
                         <span className="text-xs font-semibold text-slate-600">Loading store contractor summary...</span>
@@ -308,7 +309,7 @@ export default function StoreContractorSummaryPage() {
                   </tr>
                 ) : data.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-16 text-center text-slate-400">
+                    <td colSpan={8} className="py-16 text-center text-slate-400">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <Boxes className="w-8 h-8 text-slate-300" />
                         <span className="text-sm font-semibold text-slate-600">No contractor item assignments found.</span>
@@ -318,10 +319,13 @@ export default function StoreContractorSummaryPage() {
                   </tr>
                 ) : (
                   data.map((r, i) => (
-                    <tr key={r.loaSerialNo || i} className="hover:bg-slate-100/80 transition-colors divide-x divide-slate-100">
+                    <tr key={r.loaSerialNo || r.tempCode || i} className="hover:bg-slate-100/80 transition-colors divide-x divide-slate-100">
                       <td className="py-2.5 px-4 text-center text-slate-500 font-sans">{r.srNo}</td>
-                      <td className="py-2.5 px-4 text-center font-bold text-slate-900 bg-slate-50/50">
-                        {r.loaSerialNo || r.tempCode}
+                      <td className="py-2.5 px-4 text-center font-bold text-blue-900 bg-blue-50/40">
+                        {r.loaSerialNo && r.loaSerialNo !== '-' ? r.loaSerialNo : (r.sku || r.tempCode)}
+                      </td>
+                      <td className="py-2.5 px-4 text-center font-bold text-slate-700 bg-slate-50/50">
+                        {r.tempCode && r.tempCode !== '0' ? r.tempCode : '-'}
                       </td>
                       <td className="py-2.5 px-5 font-sans font-medium text-slate-900 truncate max-w-[300px]" title={r.itemName}>
                         {r.itemName}
@@ -353,7 +357,7 @@ export default function StoreContractorSummaryPage() {
               {!loading && data.length > 0 && (
                 <tfoot>
                   <tr className="bg-slate-900 text-white font-extrabold text-xs divide-x divide-slate-800">
-                    <td colSpan={4} className="py-3 px-5 text-right font-sans tracking-wider uppercase">
+                    <td colSpan={5} className="py-3 px-5 text-right font-sans tracking-wider uppercase">
                       Total ({totalItems.toLocaleString()} items):
                     </td>
                     <td className="py-3 px-4 text-right font-mono text-amber-300">

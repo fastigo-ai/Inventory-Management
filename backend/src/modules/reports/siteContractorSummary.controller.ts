@@ -27,30 +27,52 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
   // Build the baseline report from Work Order Items
   const reportMap: Record<string, any> = {};
 
-  const getKey = (itemId: string, tempCode: string, activity: string) => {
-    return `${itemId}_${(tempCode || '').trim().toLowerCase()}_${(activity || '').trim().toLowerCase()}`;
+  const getOrAddRow = (itemIdStr: string, tempCode: string, activity: string, itemName: string) => {
+    // 1. Try to find by itemId and activity (best for JMC/WIP)
+    let key = Object.keys(reportMap).find(k => {
+      const parts = k.split('_');
+      return parts[0] === itemIdStr && parts[2] === (activity || '').trim().toLowerCase() && parts[2] !== '';
+    });
+
+    // 2. If not found, try by itemId and tempCode (best for Store Issues/Returns)
+    if (!key && tempCode) {
+      key = Object.keys(reportMap).find(k => {
+        const parts = k.split('_');
+        return parts[0] === itemIdStr && parts[1] === tempCode.trim().toLowerCase();
+      });
+    }
+
+    // 3. If not found, just match by itemId (fallback)
+    if (!key) {
+      key = Object.keys(reportMap).find(k => k.startsWith(`${itemIdStr}_`));
+    }
+
+    if (!key) {
+      key = `${itemIdStr}_${(tempCode || '').trim().toLowerCase()}_${(activity || '').trim().toLowerCase()}`;
+      reportMap[key] = {
+        itemId: itemIdStr,
+        tempCode: tempCode || '',
+        itemName: itemName || '',
+        activity: activity || '',
+        jmcDone: 0,
+        wipConsumed: 0,
+        wipRequired: 0,
+        totalIssued: 0,
+        totalReturned: 0,
+        bomQty: 0
+      };
+    }
+    return key;
   };
 
   workOrders.forEach(wo => {
     wo.items.forEach((item: any) => {
       const itemIdStr = item.itemId?._id?.toString() || item.itemId?.toString();
-      const key = getKey(itemIdStr, item.tempCode, item.activity);
-      
-      if (!reportMap[key]) {
-        reportMap[key] = {
-          itemId: itemIdStr,
-          tempCode: item.tempCode || '',
-          itemName: item.description || (item.itemId as any)?.name || '',
-          activity: item.activity || '',
-          jmcDone: 0,
-          wipConsumed: 0,
-          wipRequired: 0,
-          totalIssued: 0,
-          totalReturned: 0,
-          bomQty: 0
-        };
-      }
+      const key = getOrAddRow(itemIdStr, item.tempCode, item.activity, item.description || (item.itemId as any)?.name || '');
       reportMap[key].bomQty += (item.circleBomQty || 0);
+      // Ensure tempCode and activity are populated from baseline
+      if (item.tempCode && !reportMap[key].tempCode) reportMap[key].tempCode = item.tempCode;
+      if (item.activity && !reportMap[key].activity) reportMap[key].activity = item.activity;
     });
   });
 
@@ -71,10 +93,8 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
   jmcRecords.forEach(record => {
     record.items?.forEach((item: any) => {
       const itemIdStr = item.itemId?.toString();
-      const key = getKey(itemIdStr, item.tempCode, item.activity);
-      if (!reportMap[key]) {
-        reportMap[key] = { itemId: itemIdStr, tempCode: item.tempCode || '', itemName: item.description || '', activity: item.activity || '', jmcDone: 0, wipConsumed: 0, wipRequired: 0, totalIssued: 0, totalReturned: 0, bomQty: 0 };
-      }
+      if (!itemIdStr) return;
+      const key = getOrAddRow(itemIdStr, item.tempCode, item.activity, item.description);
       reportMap[key].jmcDone += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
     });
   });
@@ -83,10 +103,8 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
   wipRecords.forEach(record => {
     record.items?.forEach((item: any) => {
       const itemIdStr = item.itemId?.toString();
-      const key = getKey(itemIdStr, item.tempCode, item.activity);
-      if (!reportMap[key]) {
-        reportMap[key] = { itemId: itemIdStr, tempCode: item.tempCode || '', itemName: item.description || '', activity: item.activity || '', jmcDone: 0, wipConsumed: 0, wipRequired: 0, totalIssued: 0, totalReturned: 0, bomQty: 0 };
-      }
+      if (!itemIdStr) return;
+      const key = getOrAddRow(itemIdStr, item.tempCode, item.activity, item.description);
       reportMap[key].wipConsumed += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
     });
   });
@@ -95,10 +113,8 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
   wipReqRecords.forEach(record => {
     record.items?.forEach((item: any) => {
       const itemIdStr = item.itemId?.toString();
-      const key = getKey(itemIdStr, item.tempCode, item.activity);
-      if (!reportMap[key]) {
-        reportMap[key] = { itemId: itemIdStr, tempCode: item.tempCode || '', itemName: item.description || '', activity: item.activity || '', jmcDone: 0, wipConsumed: 0, wipRequired: 0, totalIssued: 0, totalReturned: 0, bomQty: 0 };
-      }
+      if (!itemIdStr) return;
+      const key = getOrAddRow(itemIdStr, item.tempCode, item.activity, item.description);
       reportMap[key].wipRequired += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
     });
   });
@@ -107,20 +123,9 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
   assignments.forEach(assignment => {
     assignment.lineItems?.forEach((item: any) => {
       const itemIdStr = item.itemId?.toString();
-      const key = getKey(itemIdStr, item.tempCode, item.activity);
-      if (reportMap[key]) {
-        reportMap[key].totalIssued += (Number(item.quantity) || 0);
-      } else {
-        // If issued item is not in BOM, we might still want to show it.
-        // But Store Assignment doesn't have `activity` reliably, so it might not match perfectly.
-        // Let's try matching by itemId and tempCode if activity is missing.
-        const fallbackKey = Object.keys(reportMap).find(k => k.startsWith(`${itemIdStr}_${(item.tempCode || '').trim().toLowerCase()}`));
-        if (fallbackKey) {
-          reportMap[fallbackKey].totalIssued += (Number(item.quantity) || 0);
-        } else {
-          reportMap[key] = { itemId: itemIdStr, tempCode: item.tempCode || '', itemName: item.itemName || '', activity: item.activity || '', jmcDone: 0, wipConsumed: 0, wipRequired: 0, totalIssued: Number(item.quantity) || 0, totalReturned: 0, bomQty: 0 };
-        }
-      }
+      if (!itemIdStr) return;
+      const key = getOrAddRow(itemIdStr, item.tempCode, item.activity, item.itemName);
+      reportMap[key].totalIssued += (Number(item.quantity) || 0);
     });
   });
 
@@ -128,17 +133,9 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
   returns.forEach(ret => {
     ret.lineItems?.forEach((item: any) => {
       const itemIdStr = item.itemId?.toString();
-      const key = getKey(itemIdStr, item.tempCode, item.activity); // Returns don't usually have activity
-      if (reportMap[key]) {
-        reportMap[key].totalReturned += (Number(item.quantity) || 0);
-      } else {
-        const fallbackKey = Object.keys(reportMap).find(k => k.startsWith(`${itemIdStr}_${(item.tempCode || '').trim().toLowerCase()}`));
-        if (fallbackKey) {
-          reportMap[fallbackKey].totalReturned += (Number(item.quantity) || 0);
-        } else {
-          reportMap[key] = { itemId: itemIdStr, tempCode: item.tempCode || '', itemName: item.itemName || '', activity: item.activity || '', jmcDone: 0, wipConsumed: 0, wipRequired: 0, totalIssued: 0, totalReturned: Number(item.quantity) || 0, bomQty: 0 };
-        }
-      }
+      if (!itemIdStr) return;
+      const key = getOrAddRow(itemIdStr, item.tempCode, item.activity, item.itemName);
+      reportMap[key].totalReturned += (Number(item.quantity) || 0);
     });
   });
 

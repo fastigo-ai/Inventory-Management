@@ -17,7 +17,8 @@ import {
   ChevronDown,
   Circle,
   Plus,
-  Shield
+  Shield,
+  Store
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -131,6 +132,13 @@ const navItems: NavItem[] = [
       { title: 'WIP To Be Required', href: '/site-portal/wip-required' },
       { title: 'Contractor Billing', href: '/site-portal/contractor-billing' }
     ]
+  },
+  {
+    title: 'Store Portal',
+    icon: <Store className="w-5 h-5" />,
+    children: [
+      { title: 'Store Itemised Summary', href: '/reports/store-summary' }
+    ]
   }
 ];
 
@@ -174,7 +182,7 @@ export function Sidebar() {
 
     // Backward compatibility for existing hardcoded Store Manager logic
     if (isStoreManager) {
-      return item.title === 'Home' || item.title === 'Stock Inward' || item.title === 'Stock Outward';
+      return item.title === 'Home' || item.title === 'Stock Inward' || item.title === 'Stock Outward' || item.title === 'Store Portal';
     }
 
     // Role-based filtering based on module names

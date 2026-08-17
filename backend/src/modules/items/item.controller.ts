@@ -737,7 +737,7 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
               updateOne: {
                  filter: { _id: matchedExisting._id },
                  update: {
-                    $set: { dynamicData: updatedDynamicData },
+                    $set: { dynamicData: updatedDynamicData, isDeleted: false },
                     $push: { history: { action: 'Updated via Import', performedBy: (req as any).user?._id || 'system', date: new Date() } }
                  }
               }

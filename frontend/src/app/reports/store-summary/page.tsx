@@ -18,8 +18,12 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { getStoreItemisedSummary, exportStoreItemisedSummary } from '@/features/reports/api/reports.api';
+import { useAuthStore } from '@/shared/store/auth.store';
 
 export default function StoreSummaryPage() {
+  const { user } = useAuthStore();
+  const isStoreManager = user?.role?.name === 'Store Manager';
+  
   const [data, setData] = useState<any[]>([]);
   const [totals, setTotals] = useState<any>({
     receiptQty: 0,
@@ -33,7 +37,7 @@ export default function StoreSummaryPage() {
   const [exporting, setExporting] = useState(false);
 
   // Filter States
-  const [circle, setCircle] = useState<string>(''); // Default to All Circles
+  const [circle, setCircle] = useState<string>(user?.assignedCircle || ''); // Default to assigned circle
   const [store, setStore] = useState<string>('');
   const [pkg, setPkg] = useState<string>('');
   const [search, setSearch] = useState<string>('');
@@ -296,7 +300,8 @@ export default function StoreSummaryPage() {
               <select
                 value={circle}
                 onChange={(e) => setCircle(e.target.value)}
-                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer pr-1"
+                disabled={isStoreManager && !!user?.assignedCircle}
+                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer pr-1 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <option value="">All Circles</option>
                 {circles.map(c => (

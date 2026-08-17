@@ -19,6 +19,18 @@ export const getItemSummaries = async (filters: ItemSummaryFilter) => {
   return data;
 };
 
+export const getItemMatrixSummary = async (params: {
+  package?: string;
+  circle?: string;
+  targetCircle?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}) => {
+  const { data } = await api.get('/reports/item-matrix-summary', { params });
+  return data;
+};
+
 export interface StoreItemisedFilter {
   circle?: string;
   store?: string;

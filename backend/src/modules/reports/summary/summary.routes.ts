@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { 
   getSummaries, 
+  getItemMatrixSummary,
   getVendorSummary, 
   getContractorSummary, 
   getStoreSummary, 
@@ -14,6 +15,7 @@ import {
 const router = Router();
 
 router.get('/item-summary', getSummaries);
+router.get('/item-matrix-summary', getItemMatrixSummary);
 router.get('/vendor-summary', getVendorSummary);
 router.get('/contractor-summary', getContractorSummary);
 router.get('/store-summary', getStoreSummary);

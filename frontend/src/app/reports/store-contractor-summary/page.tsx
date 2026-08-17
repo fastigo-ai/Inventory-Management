@@ -280,7 +280,6 @@ export default function StoreContractorSummaryPage() {
             <span className="text-[11px] text-slate-400 italic">Showing {data.length} active items with non-zero stock/assignments</span>
           </div>
         </div>
-        </div>
 
         {/* Data Spreadsheet Table */}
         <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">

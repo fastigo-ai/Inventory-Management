@@ -1774,6 +1774,17 @@ export const importStoreTransfers = asyncHandler(async (req: Request, res: Respo
 
   await session.commitTransaction();
   session.endSession();
+
+  // Rebuild summary cache for imported items
+  const affectedItemIds = new Set<string>();
+  Object.values(transfersByDoc).forEach((t: any) => {
+    (t.items || []).forEach((it: any) => {
+      if (it.itemId) affectedItemIds.add(it.itemId.toString());
+    });
+  });
+  affectedItemIds.forEach(id => {
+    SummaryService.rebuildForItem(id).catch(console.error);
+  });
   } catch (error) {
     await session.abortTransaction();
     session.endSession();

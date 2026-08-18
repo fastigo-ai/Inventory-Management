@@ -114,5 +114,7 @@ const contractorAssignmentSchema = new Schema<IContractorAssignment>(
 );
 
 contractorAssignmentSchema.index({ createdAt: -1 });
+contractorAssignmentSchema.index({ contractorId: 1, status: 1 });
+contractorAssignmentSchema.index({ location: 1, status: 1 });
 
 export const ContractorAssignment = mongoose.models.ContractorAssignment || mongoose.model<IContractorAssignment>('ContractorAssignment', contractorAssignmentSchema);

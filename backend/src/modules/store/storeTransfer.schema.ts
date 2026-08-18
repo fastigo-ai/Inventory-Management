@@ -94,5 +94,8 @@ const storeTransferSchema = new Schema<IStoreTransfer>({
 });
 
 storeTransferSchema.index({ createdAt: -1 });
+storeTransferSchema.index({ fromStore: 1, registerType: 1 });
+storeTransferSchema.index({ toStore: 1, registerType: 1 });
+storeTransferSchema.index({ registerType: 1, status: 1 });
 
 export const StoreTransfer = mongoose.model<IStoreTransfer>('StoreTransfer', storeTransferSchema);

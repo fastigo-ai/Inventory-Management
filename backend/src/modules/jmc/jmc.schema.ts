@@ -70,5 +70,7 @@ const JmcRegisterSchema = new Schema<IJmcRegister>(
 );
 
 JmcRegisterSchema.index({ createdAt: -1 });
+JmcRegisterSchema.index({ contractorId: 1, circle: 1, status: 1 });
+JmcRegisterSchema.index({ circle: 1, status: 1 });
 
 export const JmcRegister = mongoose.models.JmcRegister || mongoose.model<IJmcRegister>('JmcRegister', JmcRegisterSchema);

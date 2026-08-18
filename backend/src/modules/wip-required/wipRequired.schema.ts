@@ -68,5 +68,7 @@ const WipRequiredRegisterSchema = new Schema<IWipRequiredRegister>(
 );
 
 WipRequiredRegisterSchema.index({ createdAt: -1 });
+WipRequiredRegisterSchema.index({ contractorId: 1, circle: 1, status: 1 });
+WipRequiredRegisterSchema.index({ circle: 1, status: 1 });
 
 export const WipRequiredRegister = mongoose.models.WipRequiredRegister || mongoose.model<IWipRequiredRegister>('WipRequiredRegister', WipRequiredRegisterSchema);

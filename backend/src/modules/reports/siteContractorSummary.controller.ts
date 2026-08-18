@@ -52,42 +52,37 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
   if (pkgRegex) woQuery.package = { $regex: pkgRegex };
   if (circleFilter) woQuery.circle = circleFilter;
 
-  const workOrders = await ContractorWorkOrder.find(woQuery).populate('items.itemId');
+  const workOrders = await ContractorWorkOrder.find(woQuery).populate('items.itemId').lean();
 
   // Build the baseline report from Work Order Items
   const reportMap: Record<string, any> = {};
+  const rowByLoaSrNo = new Map<string, any>();
+  const rowByTempCode = new Map<string, any>();
+  const rowByActivity = new Map<string, any>();
+  const rowByItemId = new Map<string, any>();
 
   const getOrAddRow = (itemIdStr: string, loaSrNo: string, tempCode: string, activity: string, itemName: string) => {
-    // 1. Try to find by itemId and loaSrNo (best for JMC/WIP/WIP Req)
-    let key = Object.keys(reportMap).find(k => {
-      const parts = k.split('_');
-      return parts[0] === itemIdStr && parts[1] === (loaSrNo || '').trim().toLowerCase() && parts[1] !== '';
-    });
+    const cleanLoa = (loaSrNo || '').trim().toLowerCase();
+    const cleanTemp = (tempCode || '').trim().toLowerCase();
+    const cleanAct = (activity || '').trim().toLowerCase();
 
-    // 2. Try to find by itemId and activity (fallback for JMC/WIP)
-    if (!key && activity) {
-      key = Object.keys(reportMap).find(k => {
-        const parts = k.split('_');
-        return parts[0] === itemIdStr && parts[3] === (activity || '').trim().toLowerCase() && parts[3] !== '';
-      });
+    let rowObj = cleanLoa ? rowByLoaSrNo.get(`${itemIdStr}_${cleanLoa}`) : undefined;
+
+    if (!rowObj && cleanAct) {
+      rowObj = rowByActivity.get(`${itemIdStr}_${cleanAct}`);
     }
 
-    // 3. Try to find by itemId and tempCode (best for Store Issues/Returns)
-    if (!key && tempCode) {
-      key = Object.keys(reportMap).find(k => {
-        const parts = k.split('_');
-        return parts[0] === itemIdStr && parts[2] === (tempCode || '').trim().toLowerCase() && parts[2] !== '';
-      });
+    if (!rowObj && cleanTemp) {
+      rowObj = rowByTempCode.get(`${itemIdStr}_${cleanTemp}`);
     }
 
-    // 4. Just match by itemId
-    if (!key) {
-      key = Object.keys(reportMap).find(k => k.startsWith(`${itemIdStr}_`));
+    if (!rowObj) {
+      rowObj = rowByItemId.get(itemIdStr);
     }
 
-    if (!key) {
-      key = `${itemIdStr}_${(loaSrNo || '').trim().toLowerCase()}_${(tempCode || '').trim().toLowerCase()}_${(activity || '').trim().toLowerCase()}`;
-      reportMap[key] = {
+    if (!rowObj) {
+      const key = `${itemIdStr}_${cleanLoa}_${cleanTemp}_${cleanAct}`;
+      rowObj = {
         itemId: itemIdStr,
         tempCode: tempCode || '',
         itemName: itemName || '',
@@ -99,18 +94,25 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
         totalReturned: 0,
         bomQty: 0
       };
+      reportMap[key] = rowObj;
+
+      if (cleanLoa) rowByLoaSrNo.set(`${itemIdStr}_${cleanLoa}`, rowObj);
+      if (cleanTemp) rowByTempCode.set(`${itemIdStr}_${cleanTemp}`, rowObj);
+      if (cleanAct) rowByActivity.set(`${itemIdStr}_${cleanAct}`, rowObj);
+      if (!rowByItemId.has(itemIdStr)) rowByItemId.set(itemIdStr, rowObj);
     }
-    return key;
+
+    return rowObj;
   };
 
   workOrders.forEach(wo => {
     wo.items.forEach((item: any) => {
       const itemIdStr = item.itemId?._id?.toString() || item.itemId?.toString();
       if (!itemIdStr) return;
-      const key = getOrAddRow(itemIdStr, item.loaSrNo, item.tempCode, item.activity, item.description || (item.itemId as any)?.name || '');
-      reportMap[key].bomQty += (item.circleBomQty || 0);
-      if (item.tempCode && !reportMap[key].tempCode) reportMap[key].tempCode = item.tempCode;
-      if (item.activity && !reportMap[key].activity) reportMap[key].activity = item.activity;
+      const row = getOrAddRow(itemIdStr, item.loaSrNo, item.tempCode, item.activity, item.description || (item.itemId as any)?.name || '');
+      row.bomQty += (item.circleBomQty || 0);
+      if (item.tempCode && !row.tempCode) row.tempCode = item.tempCode;
+      if (item.activity && !row.activity) row.activity = item.activity;
     });
   });
 
@@ -138,8 +140,8 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
       const mapped = skuMap[sku];
       const tempCode = item.tempCode || mapped?.tempCode || '';
       const name = item.description || mapped?.name || '';
-      const key = getOrAddRow(itemIdStr, sku, tempCode, item.activity, name);
-      reportMap[key].jmcDone += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
+      const row = getOrAddRow(itemIdStr, sku, tempCode, item.activity, name);
+      row.jmcDone += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
     });
   });
 
@@ -152,8 +154,8 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
       const mapped = skuMap[sku];
       const tempCode = item.tempCode || mapped?.tempCode || '';
       const name = item.description || mapped?.name || '';
-      const key = getOrAddRow(itemIdStr, sku, tempCode, item.activity, name);
-      reportMap[key].wipConsumed += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
+      const row = getOrAddRow(itemIdStr, sku, tempCode, item.activity, name);
+      row.wipConsumed += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
     });
   });
 
@@ -166,8 +168,8 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
       const mapped = skuMap[sku];
       const tempCode = item.tempCode || mapped?.tempCode || '';
       const name = item.description || mapped?.name || '';
-      const key = getOrAddRow(itemIdStr, sku, tempCode, item.activity, name);
-      reportMap[key].wipRequired += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
+      const row = getOrAddRow(itemIdStr, sku, tempCode, item.activity, name);
+      row.wipRequired += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
     });
   });
 
@@ -176,8 +178,8 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
     assignment.lineItems?.forEach((item: any) => {
       const itemIdStr = item.itemId?._id?.toString() || item.itemId?.toString();
       if (!itemIdStr) return;
-      const key = getOrAddRow(itemIdStr, '', item.tempCode, item.activity, item.itemName);
-      reportMap[key].totalIssued += (Number(item.quantity) || 0);
+      const row = getOrAddRow(itemIdStr, '', item.tempCode, item.activity, item.itemName);
+      row.totalIssued += (Number(item.quantity) || 0);
     });
   });
 
@@ -186,8 +188,8 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
     ret.lineItems?.forEach((item: any) => {
       const itemIdStr = item.itemId?._id?.toString() || item.itemId?.toString();
       if (!itemIdStr) return;
-      const key = getOrAddRow(itemIdStr, '', item.tempCode, item.activity, item.itemName);
-      reportMap[key].totalReturned += (Number(item.quantity) || 0);
+      const row = getOrAddRow(itemIdStr, '', item.tempCode, item.activity, item.itemName);
+      row.totalReturned += (Number(item.quantity) || 0);
     });
   });
 

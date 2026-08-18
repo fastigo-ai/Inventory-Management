@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 
 export function useClientTable<T extends Record<string, any>>(data: T[]) {
   const [searchTerm, setSearchTerm] = useState('');

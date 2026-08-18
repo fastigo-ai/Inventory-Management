@@ -19,6 +19,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ImportModal } from "@/features/items/components/ImportModal";
 
+// Module level cache for instant zero-delay page navigation
+let itemsPageCache: {
+  fields: any[];
+  items: any[];
+  pagination: any;
+  metrics: any;
+  cacheKey: string;
+} | null = null;
+
 export default function ItemsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -30,11 +39,13 @@ export default function ItemsPage() {
   const limit = parseInt(searchParams.get('limit') || '50');
   const isDeleted = searchParams.get('isDeleted') === 'true';
 
-  const [fields, setFields] = useState<FieldMetadata[]>([]);
-  const [items, setItems] = useState<any[]>([]);
-  const [pagination, setPagination] = useState<any>(null);
-  const [metrics, setMetrics] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const cacheKey = `${page}_${sortBy}_${sortOrder}_${limit}_${isDeleted}_${searchParams.toString()}`;
+
+  const [fields, setFields] = useState<FieldMetadata[]>(() => itemsPageCache?.fields || []);
+  const [items, setItems] = useState<any[]>(() => itemsPageCache?.items || []);
+  const [pagination, setPagination] = useState<any>(() => itemsPageCache?.pagination || null);
+  const [metrics, setMetrics] = useState<any>(() => itemsPageCache?.metrics || null);
+  const [isLoading, setIsLoading] = useState<boolean>(() => !itemsPageCache);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -71,7 +82,10 @@ const handleColumnFilterChange = (columnName: string, value: string) => {
   };
 
   const fetchItemsData = async () => {
-    setIsLoading(true);
+    // Only show loading spinner if we have no cached data at all
+    if (!itemsPageCache) {
+      setIsLoading(true);
+    }
     try {
       const urlFilters: Record<string, string> = {};
       searchParams.forEach((value, key) => {
@@ -94,10 +108,22 @@ const handleColumnFilterChange = (columnName: string, value: string) => {
         }
         return f;
       });
+      const itemsList = itemsRes.items || itemsRes;
+      const paginationData = itemsRes.pagination || null;
+
       setFields(modifiedFields);
-      setItems(itemsRes.items || itemsRes);
-      setPagination(itemsRes.pagination || null);
+      setItems(itemsList);
+      setPagination(paginationData);
       setMetrics(metricsRes);
+
+      // Save to memory cache for zero-delay instant future loads
+      itemsPageCache = {
+        fields: modifiedFields,
+        items: itemsList,
+        pagination: paginationData,
+        metrics: metricsRes,
+        cacheKey
+      };
     } catch (error) {
       console.error("Failed to load items data", error);
     } finally {

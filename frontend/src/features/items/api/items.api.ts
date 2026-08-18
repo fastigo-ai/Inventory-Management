@@ -1,7 +1,13 @@
 import { api } from "@/shared/api/axios";
 
+let metadataCache: Record<string, any> = {};
+
 export const getEntityMetadata = async (entityName: string) => {
+  if (metadataCache[entityName]) {
+    return metadataCache[entityName];
+  }
   const response = await api.get(`/metadata/${entityName}`);
+  metadataCache[entityName] = response.data.data;
   return response.data.data; // Returns IMetadata
 };
 

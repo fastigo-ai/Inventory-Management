@@ -133,14 +133,6 @@ const navItems: NavItem[] = [
       { title: 'Site Contractor Summary', href: '/site-portal/contractor-summary' },
       { title: 'Contractor Billing', href: '/site-portal/contractor-billing' }
     ]
-  },
-  {
-    title: 'Store Portal',
-    icon: <Store className="w-5 h-5" />,
-    children: [
-      { title: 'Store Itemised Summary', href: '/reports/store-summary' },
-      { title: 'Store Contractor Summary', href: '/reports/store-contractor-summary' }
-    ]
   }
 ];
 
@@ -184,7 +176,7 @@ export function Sidebar() {
 
     // Backward compatibility for existing hardcoded Store Manager logic
     if (isStoreManager) {
-      return item.title === 'Home' || item.title === 'Stock Inward' || item.title === 'Stock Outward' || item.title === 'Store Portal';
+      return item.title === 'Home' || item.title === 'Stock Inward' || item.title === 'Stock Outward';
     }
 
     // Role-based filtering based on module names

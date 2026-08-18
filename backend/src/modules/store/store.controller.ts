@@ -660,9 +660,46 @@ export const getStoreTransfers = asyncHandler(async (req: Request, res: Response
 
   const transfers = await StoreTransfer.find(filter)
     .populate('requestedBy', 'firstName lastName')
-    .sort({ createdAt: -1 });
+    .populate('items.itemId')
+    .sort({ createdAt: -1 })
+    .lean();
 
-  res.status(200).json(new ApiResponse(200, transfers, 'Transfers fetched successfully'));
+  const formattedTransfers = transfers.map((t: any) => {
+    const circle = t.fromStore || t.toStore || cleanStoreName || 'Nahan';
+    const cStr = circle.toLowerCase().replace(/store|circle/gi, '').trim();
+
+    t.items = (t.items || []).map((item: any) => {
+      const itemDynamic = item.itemId?.dynamicData || {};
+      
+      if (!item.loaSerialNo || item.loaSerialNo === '-' || item.loaSerialNo === '') {
+        item.loaSerialNo = itemDynamic.sku || itemDynamic.loaSerialNo || itemDynamic.loaSrNo || itemDynamic.srNo || itemDynamic['LOA Serial No'] || itemDynamic['LOA Sr. No.'] || '-';
+      }
+
+      if (item.loaQty === undefined || item.loaQty === null || item.loaQty === '-') {
+        if (cStr && itemDynamic[`${cStr}LoaQuantity`]) {
+          item.loaQty = Number(itemDynamic[`${cStr}LoaQuantity`]);
+        } else if (itemDynamic.loaQuantity !== undefined && itemDynamic.loaQuantity !== '') {
+          item.loaQty = Number(itemDynamic.loaQuantity);
+        } else if (itemDynamic.nahanLoaQuantity) {
+          item.loaQty = Number(itemDynamic.nahanLoaQuantity);
+        } else if (itemDynamic.solanLoaQuantity) {
+          item.loaQty = Number(itemDynamic.solanLoaQuantity);
+        } else if (itemDynamic.rampurLoaQuantity) {
+          item.loaQty = Number(itemDynamic.rampurLoaQuantity);
+        } else if (itemDynamic.rohruLoaQuantity) {
+          item.loaQty = Number(itemDynamic.rohruLoaQuantity);
+        } else if (itemDynamic.circleLoaQuantity) {
+          item.loaQty = Number(itemDynamic.circleLoaQuantity);
+        }
+      }
+
+      return item;
+    });
+
+    return t;
+  });
+
+  res.status(200).json(new ApiResponse(200, formattedTransfers, 'Transfers fetched successfully'));
 });
 
 export const getStoreTransferById = asyncHandler(async (req: Request, res: Response) => {
@@ -1616,10 +1653,40 @@ export const importStoreTransfers = asyncHandler(async (req: Request, res: Respo
         continue;
       }
 
-      const unit = row['Unit'] || item?.unit || 'Nos';
-      const loaSerialNo = row['LOA Serial No'] || row['LOASerialNo'] || row['Loa Serial No'] || '';
-      const rawLoaQty = row['LOA Qty'] || row['LOA Quantity'] || row['LoaQty'];
-      const loaQty = rawLoaQty ? Number(rawLoaQty) : undefined;
+      const unit = row['Unit'] || item?.unit || item?.dynamicData?.unit || 'Nos';
+      
+      const itemDynamic = item?.dynamicData || {};
+      const csvLoaSrNo = row['LOA Serial No'] || row['LOASerialNo'] || row['Loa Serial No'] || row['LoaSrNo'];
+      const itemLoaSrNo = itemDynamic.sku || itemDynamic.loaSerialNo || itemDynamic.loaSrNo || itemDynamic.srNo || itemDynamic['LOA Serial No'] || itemDynamic['LOA Sr. No.'] || '';
+      const loaSerialNo = (csvLoaSrNo && String(csvLoaSrNo).trim() !== '') ? String(csvLoaSrNo).trim() : (itemLoaSrNo ? String(itemLoaSrNo).trim() : '');
+
+      const csvLoaQty = row['LOA Qty'] || row['LOA Quantity'] || row['LoaQty'];
+      let loaQty: number | undefined = undefined;
+      if (csvLoaQty !== undefined && csvLoaQty !== '' && !isNaN(Number(csvLoaQty))) {
+        loaQty = Number(csvLoaQty);
+      } else {
+        const fromStr = String(row['From'] || row['FromStore'] || '').toLowerCase().replace(/store|circle/gi, '').trim();
+        const toStr = String(row['To'] || row['ToStore'] || '').toLowerCase().replace(/store|circle/gi, '').trim();
+        if (fromStr && itemDynamic[`${fromStr}LoaQuantity`]) {
+          loaQty = Number(itemDynamic[`${fromStr}LoaQuantity`]);
+        } else if (toStr && itemDynamic[`${toStr}LoaQuantity`]) {
+          loaQty = Number(itemDynamic[`${toStr}LoaQuantity`]);
+        } else if (itemDynamic.loaQuantity !== undefined && itemDynamic.loaQuantity !== '') {
+          loaQty = Number(itemDynamic.loaQuantity);
+        } else if (itemDynamic.nahanLoaQuantity) {
+          loaQty = Number(itemDynamic.nahanLoaQuantity);
+        } else if (itemDynamic.solanLoaQuantity) {
+          loaQty = Number(itemDynamic.solanLoaQuantity);
+        } else if (itemDynamic.rampurLoaQuantity) {
+          loaQty = Number(itemDynamic.rampurLoaQuantity);
+        } else if (itemDynamic.rohruLoaQuantity) {
+          loaQty = Number(itemDynamic.rohruLoaQuantity);
+        } else if (itemDynamic.circleLoaQuantity) {
+          loaQty = Number(itemDynamic.circleLoaQuantity);
+        } else if (itemDynamic.totalPackageLoaQty) {
+          loaQty = Number(itemDynamic.totalPackageLoaQty);
+        }
+      }
 
       const lineItem = {
         itemId: item._id,
@@ -1777,10 +1844,40 @@ export const importReceivedStoreTransfers = asyncHandler(async (req: Request, re
         continue;
       }
 
-      const unit = row['Unit'] || item?.unit || 'Nos';
-      const loaSerialNo = row['LOA Serial No'] || row['LOASerialNo'] || row['Loa Serial No'] || '';
-      const rawLoaQty = row['LOA Qty'] || row['LOA Quantity'] || row['LoaQty'];
-      const loaQty = rawLoaQty ? Number(rawLoaQty) : undefined;
+      const unit = row['Unit'] || item?.unit || item?.dynamicData?.unit || 'Nos';
+      
+      const itemDynamic = item?.dynamicData || {};
+      const csvLoaSrNo = row['LOA Serial No'] || row['LOASerialNo'] || row['Loa Serial No'] || row['LoaSrNo'];
+      const itemLoaSrNo = itemDynamic.sku || itemDynamic.loaSerialNo || itemDynamic.loaSrNo || itemDynamic.srNo || itemDynamic['LOA Serial No'] || itemDynamic['LOA Sr. No.'] || '';
+      const loaSerialNo = (csvLoaSrNo && String(csvLoaSrNo).trim() !== '') ? String(csvLoaSrNo).trim() : (itemLoaSrNo ? String(itemLoaSrNo).trim() : '');
+
+      const csvLoaQty = row['LOA Qty'] || row['LOA Quantity'] || row['LoaQty'];
+      let loaQty: number | undefined = undefined;
+      if (csvLoaQty !== undefined && csvLoaQty !== '' && !isNaN(Number(csvLoaQty))) {
+        loaQty = Number(csvLoaQty);
+      } else {
+        const fromStr = String(row['From'] || '').toLowerCase().replace(/store|circle/gi, '').trim();
+        const toStr = String(row['To'] || '').toLowerCase().replace(/store|circle/gi, '').trim();
+        if (fromStr && itemDynamic[`${fromStr}LoaQuantity`]) {
+          loaQty = Number(itemDynamic[`${fromStr}LoaQuantity`]);
+        } else if (toStr && itemDynamic[`${toStr}LoaQuantity`]) {
+          loaQty = Number(itemDynamic[`${toStr}LoaQuantity`]);
+        } else if (itemDynamic.loaQuantity !== undefined && itemDynamic.loaQuantity !== '') {
+          loaQty = Number(itemDynamic.loaQuantity);
+        } else if (itemDynamic.nahanLoaQuantity) {
+          loaQty = Number(itemDynamic.nahanLoaQuantity);
+        } else if (itemDynamic.solanLoaQuantity) {
+          loaQty = Number(itemDynamic.solanLoaQuantity);
+        } else if (itemDynamic.rampurLoaQuantity) {
+          loaQty = Number(itemDynamic.rampurLoaQuantity);
+        } else if (itemDynamic.rohruLoaQuantity) {
+          loaQty = Number(itemDynamic.rohruLoaQuantity);
+        } else if (itemDynamic.circleLoaQuantity) {
+          loaQty = Number(itemDynamic.circleLoaQuantity);
+        } else if (itemDynamic.totalPackageLoaQty) {
+          loaQty = Number(itemDynamic.totalPackageLoaQty);
+        }
+      }
 
       const lineItem = {
         itemId: item._id,

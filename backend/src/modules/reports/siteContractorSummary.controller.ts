@@ -22,11 +22,13 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
   const cIdObj = mongoose.Types.ObjectId.isValid(cIdStr) ? new mongoose.Types.ObjectId(cIdStr) : cIdStr;
   const contractorFilter = { $in: [cIdStr, cIdObj] };
 
-  // Create a regex to match package name ignoring spaces and case
   let pkgRegex: RegExp | undefined = undefined;
   if (pkg && pkg !== 'All Packages' && pkg !== 'All' && pkg !== 'all') {
-    const escapedPkg = String(pkg).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s*');
-    pkgRegex = new RegExp(`^${escapedPkg}$`, 'i');
+    let flexiblePkg = String(pkg).replace(/\s+/g, ' ').trim();
+    flexiblePkg = flexiblePkg.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&');
+    flexiblePkg = flexiblePkg.replace(/(\\s|\s)+/g, '\\s*');
+    flexiblePkg = flexiblePkg.replace(/\\([()[\]{}|\/?.*+^$])/g, '\\s*\\$1\\s*');
+    pkgRegex = new RegExp(`^\\s*${flexiblePkg}\\s*$`, 'i');
   }
 
   const circleFilter = (circle && circle !== 'All Circles' && circle !== 'All' && circle !== 'all') ? String(circle) : undefined;

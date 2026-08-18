@@ -82,7 +82,7 @@ export function TransferDetailModal({
               <div>
                 <span className="block text-xs font-semibold text-slate-500 uppercase">Requested By</span>
                 <span className="block text-sm font-medium text-slate-800 mt-1">
-                  {transfer.requestedBy ? `${transfer.requestedBy.firstName} ${transfer.requestedBy.lastName}` : (transfer.fromStore ? `${transfer.fromStore} Store Manager` : 'System Import')}
+                  {transfer.requestedBy?.email || (transfer.requestedBy ? `${transfer.requestedBy.firstName} ${transfer.requestedBy.lastName}` : (transfer.fromStore ? `${transfer.fromStore} Store Manager` : 'System Import'))}
                 </span>
               </div>
             </div>

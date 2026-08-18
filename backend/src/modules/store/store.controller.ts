@@ -659,7 +659,7 @@ export const getStoreTransfers = asyncHandler(async (req: Request, res: Response
   }
 
   const transfers = await StoreTransfer.find(filter)
-    .populate('requestedBy', 'firstName lastName')
+    .populate('requestedBy', 'firstName lastName email')
     .populate('items.itemId')
     .sort({ createdAt: -1 })
     .lean();
@@ -704,7 +704,7 @@ export const getStoreTransfers = asyncHandler(async (req: Request, res: Response
 
 export const getStoreTransferById = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const transfer = await StoreTransfer.findById(id).populate('requestedBy', 'firstName lastName');
+  const transfer = await StoreTransfer.findById(id).populate('requestedBy', 'firstName lastName email');
   if (!transfer) throw new ApiError(404, 'Transfer not found');
   res.status(200).json(new ApiResponse(200, transfer, 'Transfer fetched successfully'));
 });

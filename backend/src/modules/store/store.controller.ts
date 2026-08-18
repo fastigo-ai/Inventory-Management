@@ -634,20 +634,28 @@ export const getStoreTransfers = asyncHandler(async (req: Request, res: Response
   
   let filter: any = {};
 
-  if (user && user.role?.name === 'Store Manager' && user.assignedCircle) {
-    if (registerType === 'OUTWARD') {
-      filter.fromStore = user.assignedCircle;
-    } else if (registerType === 'INWARD') {
-      filter.toStore = user.assignedCircle;
-    } else {
-      filter = { $or: [{ fromStore: user.assignedCircle }, { toStore: user.assignedCircle }] };
-    }
-  } else if (circle) {
-    filter = { $or: [{ fromStore: circle }, { toStore: circle }] };
-  }
+  const storeNameRaw = circle || (user && user.role?.name === 'Store Manager' ? user.assignedCircle : '');
+  const cleanStoreName = storeNameRaw ? String(storeNameRaw).replace(/store/i, '').trim() : '';
 
-  if (registerType) {
-    filter.registerType = registerType;
+  if (cleanStoreName) {
+    const storeRegex = new RegExp(cleanStoreName, 'i');
+    if (registerType === 'OUTWARD') {
+      filter.$or = [
+        { fromStore: storeRegex },
+        { registerType: 'OUTWARD' }
+      ];
+    } else if (registerType === 'INWARD') {
+      filter.$or = [
+        { toStore: storeRegex },
+        { registerType: 'INWARD' }
+      ];
+    } else {
+      filter = { $or: [{ fromStore: storeRegex }, { toStore: storeRegex }] };
+    }
+  } else {
+    if (registerType) {
+      filter.registerType = registerType;
+    }
   }
 
   const transfers = await StoreTransfer.find(filter)
@@ -1628,7 +1636,7 @@ export const importStoreTransfers = asyncHandler(async (req: Request, res: Respo
       if (!transfersByDoc[docKey]) {
         transfersByDoc[docKey] = {
           requestDate: parseCsvDate(row['Date']) || new Date(),
-          registerType: 'INWARD',
+          registerType: 'OUTWARD',
           status: 'IN_TRANSIT',
           fromStore: row['From'] || row['FromStore'] || 'Unknown Store',
           toStore: row['To'] || row['ToStore'] || 'Unknown Store',
@@ -1789,7 +1797,7 @@ export const importReceivedStoreTransfers = asyncHandler(async (req: Request, re
       if (!transfersByDoc[docKey]) {
         transfersByDoc[docKey] = {
           requestDate: parseCsvDate(row['Date of Received']) || new Date(),
-          registerType: 'OUTWARD',
+          registerType: 'INWARD',
           status: 'RECEIVED',
           fromStore: row['From'] || 'Unknown Store',
           toStore: row['To'] || 'Unknown Store',

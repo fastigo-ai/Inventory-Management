@@ -7,7 +7,6 @@ import {
   Plus, 
   Users, 
   Bell, 
-  Settings, 
   Grid,
   Package,
   User,
@@ -154,9 +153,6 @@ export function TopBar() {
             )}
           </div>
 
-          <Link href="/settings/preferences/items" className="w-9 h-9 flex items-center justify-center hover:bg-white/10 rounded-md transition-colors">
-            <Settings className="w-5 h-5" />
-          </Link>
           
           {/* User Profile */}
           <div className="relative">

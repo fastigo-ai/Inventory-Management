@@ -859,8 +859,8 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
       const rejectedQty = Number(row['RejectedQty'] || row['rejectedQty'] || 0);
       const acceptedQty = Number(row['AcceptedQty'] || row['acceptedQty'] || row['ReceivedQty'] || 0);
       
-      if (acceptedQty <= 0) {
-        errors.push(`Accepted Qty must be > 0 for Invoice ${invoiceNumber}`);
+      if (acceptedQty < 0) {
+        errors.push(`Accepted Qty cannot be negative for Invoice ${invoiceNumber}`);
         continue;
       }
 
@@ -1603,8 +1603,8 @@ export const importStoreTransfers = asyncHandler(async (req: Request, res: Respo
       const dispatchedQty = Number(row['DispatchedQty'] || row['Transfer Qty'] || row['TransferQty'] || requestedQty);
       const receivedQty = Number(row['ReceivedQty'] || dispatchedQty);
 
-      if (dispatchedQty <= 0) {
-        errors.push(`Row has zero Transfer Qty for Transfer ${docKey}`);
+      if (dispatchedQty < 0) {
+        errors.push(`Row has negative Transfer Qty for Transfer ${docKey}`);
         continue;
       }
 
@@ -1764,8 +1764,8 @@ export const importReceivedStoreTransfers = asyncHandler(async (req: Request, re
 
       const receivedQty = Number(row['Transfer Qty'] || row['Received Qty'] || 0);
 
-      if (receivedQty <= 0) {
-        errors.push(`Row has zero Received Qty for Transfer ${docKey}`);
+      if (receivedQty < 0) {
+        errors.push(`Row has negative Received Qty for Transfer ${docKey}`);
         continue;
       }
 

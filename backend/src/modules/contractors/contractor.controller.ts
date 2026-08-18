@@ -902,8 +902,8 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
 
       const demandQty = Number(row['DemandQty'] || row['Demand Qty'] || 0);
       const quantity = Number(row['Quantity'] || row['IssuedQty'] || row['Issued Qty'] || 0);
-      if (quantity <= 0) {
-        errors.push(`Row has zero IssuedQty for MIN ${minNo}`);
+      if (quantity < 0) {
+        errors.push(`Row has negative IssuedQty for MIN ${minNo}`);
         continue;
       }
 

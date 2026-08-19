@@ -155,16 +155,21 @@ export default function StoreTransfersPage() {
                                 <Send className="w-4 h-4" />
                                 Dispatch
                               </button>
-                            ) : activeTab === 'outgoing' && t.status === 'IN_TRANSIT' ? (
+                            ) : t.status === 'IN_TRANSIT' ? (
                               <button
                                 onClick={() => router.push(`/store/transfers/receive/${t._id}`)}
-                                className="text-green-600 hover:text-green-800 font-medium text-sm flex items-center justify-center gap-1 w-full"
+                                className="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center justify-center gap-1 w-full"
                               >
                                 <ArrowRightLeft className="w-4 h-4" />
-                                Register Receipt
+                                View / Receive
                               </button>
                             ) : (
-                              <span className="text-slate-400 text-sm">View</span>
+                              <button
+                                onClick={() => router.push(`/store/transfers/receive/${t._id}`)}
+                                className="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center justify-center gap-1 w-full"
+                              >
+                                View
+                              </button>
                             )}
                           </td>
                         </tr>

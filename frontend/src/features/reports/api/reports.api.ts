@@ -36,6 +36,8 @@ export interface StoreItemisedFilter {
   store?: string;
   package?: string;
   search?: string;
+  tempCode?: string;
+  itemName?: string;
   hideZeroBalance?: boolean;
   viewMode?: 'item' | 'loa';
   page?: number;

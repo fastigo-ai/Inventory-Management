@@ -423,10 +423,12 @@ async function computeStoreItemisedSummary(params: {
   store?: string;
   package?: string;
   search?: string;
+  tempCode?: string;
+  itemName?: string;
   hideZeroBalance?: boolean;
   viewMode?: 'item' | 'loa';
 }) {
-  const { circle, store, package: pkg, search, hideZeroBalance, viewMode = 'item' } = params;
+  const { circle, store, package: pkg, search, tempCode, itemName, hideZeroBalance, viewMode = 'item' } = params;
 
   // Filter items
   const itemFilter: any = { isDeleted: { $ne: true } };
@@ -437,8 +439,16 @@ async function computeStoreItemisedSummary(params: {
   if (pkg && pkg !== 'all') {
     itemFilter['dynamicData.package'] = { $regex: new RegExp(pkg.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') };
   }
-  if (search) {
-    const s = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if (tempCode && tempCode.trim() !== '') {
+    const t = tempCode.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    itemFilter['dynamicData.tempCode'] = { $regex: t, $options: 'i' };
+  }
+  if (itemName && itemName.trim() !== '') {
+    const n = itemName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    itemFilter['dynamicData.name'] = { $regex: n, $options: 'i' };
+  }
+  if (search && search.trim() !== '') {
+    const s = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     itemFilter.$or = [
       { 'dynamicData.name': { $regex: s, $options: 'i' } },
       { 'dynamicData.tempCode': { $regex: s, $options: 'i' } },
@@ -786,13 +796,15 @@ async function computeStoreItemisedSummary(params: {
  * GET /api/v1/reports/store-itemised-summary
  */
 export const getStoreItemisedSummary = asyncHandler(async (req: Request, res: Response) => {
-  const { circle, store, package: pkg, search, hideZeroBalance, viewMode, page, limit } = req.query;
+  const { circle, store, package: pkg, search, tempCode, itemName, hideZeroBalance, viewMode, page, limit } = req.query;
 
   const { rows, totals } = await computeStoreItemisedSummary({
     circle: circle as string,
     store: store as string,
     package: pkg as string,
     search: search as string,
+    tempCode: tempCode as string,
+    itemName: itemName as string,
     hideZeroBalance: hideZeroBalance === 'true',
     viewMode: (viewMode as any) || 'item'
   });
@@ -822,13 +834,15 @@ export const getStoreItemisedSummary = asyncHandler(async (req: Request, res: Re
  * GET /api/v1/reports/store-itemised-summary/export
  */
 export const exportStoreItemisedSummary = asyncHandler(async (req: Request, res: Response) => {
-  const { circle, store, package: pkg, search, hideZeroBalance, viewMode } = req.query;
+  const { circle, store, package: pkg, search, tempCode, itemName, hideZeroBalance, viewMode } = req.query;
 
   const { rows } = await computeStoreItemisedSummary({
     circle: circle as string,
     store: store as string,
     package: pkg as string,
     search: search as string,
+    tempCode: tempCode as string,
+    itemName: itemName as string,
     hideZeroBalance: hideZeroBalance === 'true',
     viewMode: (viewMode as any) || 'item'
   });

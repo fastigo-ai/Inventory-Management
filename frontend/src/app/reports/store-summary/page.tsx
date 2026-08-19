@@ -41,6 +41,8 @@ export default function StoreSummaryPage() {
   const [store, setStore] = useState<string>('');
   const [pkg, setPkg] = useState<string>('');
   const [search, setSearch] = useState<string>('');
+  const [tempCode, setTempCode] = useState<string>('');
+  const [itemName, setItemName] = useState<string>('');
   const [hideZeroBalance, setHideZeroBalance] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'item' | 'loa'>('item');
 
@@ -58,6 +60,8 @@ export default function StoreSummaryPage() {
         store: store || undefined,
         package: pkg || undefined,
         search: search || undefined,
+        tempCode: tempCode || undefined,
+        itemName: itemName || undefined,
         hideZeroBalance,
         viewMode,
         page,
@@ -81,11 +85,11 @@ export default function StoreSummaryPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [circle, store, pkg, search, hideZeroBalance, viewMode, limit]);
+  }, [circle, store, pkg, search, tempCode, itemName, hideZeroBalance, viewMode, limit]);
 
   useEffect(() => {
     fetchData();
-  }, [circle, store, pkg, search, hideZeroBalance, viewMode, page, limit]);
+  }, [circle, store, pkg, search, tempCode, itemName, hideZeroBalance, viewMode, page, limit]);
 
   const handleExport = async () => {
     try {
@@ -95,6 +99,8 @@ export default function StoreSummaryPage() {
         store: store || undefined,
         package: pkg || undefined,
         search: search || undefined,
+        tempCode: tempCode || undefined,
+        itemName: itemName || undefined,
         hideZeroBalance,
         viewMode
       });
@@ -281,14 +287,26 @@ export default function StoreSummaryPage() {
         {/* Filter Controls Bar */}
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3 flex-1 min-w-[280px]">
-            {/* Search */}
-            <div className="relative min-w-[220px] max-w-[320px] flex-1">
+            {/* Temp Code Search */}
+            <div className="relative min-w-[150px] max-w-[200px] flex-1">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search Item Name or Temp Code..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search Temp Code..."
+                value={tempCode}
+                onChange={(e) => setTempCode(e.target.value)}
+                className="w-full pl-9 pr-3 py-1.5 text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-800 placeholder-slate-400"
+              />
+            </div>
+
+            {/* Item Name Search */}
+            <div className="relative min-w-[200px] max-w-[320px] flex-1">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search Item Name..."
+                value={itemName}
+                onChange={(e) => setItemName(e.target.value)}
                 className="w-full pl-9 pr-3 py-1.5 text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-800 placeholder-slate-400"
               />
             </div>

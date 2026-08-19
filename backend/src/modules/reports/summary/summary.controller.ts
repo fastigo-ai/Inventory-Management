@@ -13,6 +13,17 @@ import { asyncHandler } from '../../../core/utils/asyncHandler';
 import { ApiResponse } from '../../../core/utils/ApiResponse';
 import { stringify } from 'csv-stringify/sync';
 
+const getCirclePackage = (circ?: string, fallbackPkg?: string): string => {
+  const c = (circ || '').toLowerCase();
+  if (c.includes('nahan') || c.includes('solan')) {
+    return 'Package 1(S/N)';
+  }
+  if (c.includes('rampur') || c.includes('rohru')) {
+    return 'Package 2(R/R)';
+  }
+  return fallbackPkg || 'All Packages';
+};
+
 export const getSummaries = asyncHandler(async (req: Request, res: Response) => {
   const { circle, package: pkg, itemName, description, loaSerialNo, tempCode, page = '1', limit = '50', companyId, sortField, sortOrder } = req.query;
 
@@ -603,6 +614,11 @@ async function computeStoreItemisedSummary(params: {
 
     let rows = Array.from(groupMap.values()).map(r => {
       r.balAtStore = r.receiptQty - r.issuedQty + r.returnedQty - r.transferOutQty + r.transferInQty;
+      if (circle && circle !== 'all') {
+        const cStr = circle.toString();
+        r.circle = cStr.toUpperCase();
+        r.package = getCirclePackage(cStr, r.package);
+      }
       return r;
     });
 
@@ -1464,6 +1480,11 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
   // Compute Balance Qty per item
   let rows = Array.from(groupMap.values()).map(r => {
     r.totalBalanceQty = r.totalIssuedQty - r.totalReturnQty;
+    if (circle && circle !== 'all') {
+      const cStr = circle.toString();
+      r.circle = cStr.toUpperCase();
+      r.package = getCirclePackage(cStr, r.package);
+    }
     return r;
   });
 

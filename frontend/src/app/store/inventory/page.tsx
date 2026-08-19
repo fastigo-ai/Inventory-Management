@@ -156,7 +156,9 @@ export default function StoreInwardRegisterPage() {
                         className="hover:bg-slate-50 transition-colors cursor-pointer"
                         onClick={() => window.location.href = `/store/inventory/inward/entry/${entry._id}`}
                       >
-                        <td className="px-4 py-4 font-medium text-blue-600 whitespace-nowrap">{entry.inwardId}</td>
+                        <td className="px-4 py-4 font-medium text-blue-600 whitespace-nowrap">
+                          {entry.inwardId || (entry._id ? `INW-${entry._id.toString().slice(-6).toUpperCase()}` : '-')}
+                        </td>
                         <td className="px-4 py-4 whitespace-nowrap text-slate-600">{new Date(entry.createdAt).toLocaleDateString()}</td>
                         <td className="px-4 py-4 min-w-[200px]">
                           <div className="font-semibold text-slate-800">{entry.vendorName || '-'}</div>

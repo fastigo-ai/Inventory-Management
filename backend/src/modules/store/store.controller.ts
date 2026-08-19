@@ -239,6 +239,10 @@ export const createInwardEntry = asyncHandler(async (req: Request, res: Response
   
   data.createdBy = (req as any).user?._id;
   
+  if (!data.inwardId) {
+    data.inwardId = `INW-${Math.floor(10000 + Math.random() * 90000)}`;
+  }
+
   if (entry) {
     entry = await StoreInwardEntry.findByIdAndUpdate(entry._id, data, { new: true });
   } else {
@@ -929,6 +933,7 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
       const amount = row['Amount'] !== undefined && row['Amount'] !== '' ? Number(row['Amount']) : (taxableAmount + cgst + sgst + igst);
 
       const payload = {
+        inwardId: row['InwardId'] || row['Inward ID'] || row['inwardId'] || `INW-${Math.floor(10000 + Math.random() * 90000)}`,
         purchaseInvoiceId: invoice._id,
         purchaseOrderId: po?._id,
         poNumber: row['PoNumber'] || po?.purchaseOrderNumber || '',
@@ -2342,6 +2347,7 @@ export const bulkImportInwardEntries = asyncHandler(async (req: Request, res: Re
       const amount = taxableAmount + cgst + sgst + igst;
 
       const updateData = {
+        inwardId: row['Inward ID'] || existingEntry.inwardId || `INW-${existingEntry._id.toString().slice(-6).toUpperCase()}`,
         challanQty: Number(row['Challan Qty']) || existingEntry.challanQty || invoiceQty,
         rejectedQty,
         invoiceQty,

@@ -557,8 +557,8 @@ async function computeStoreItemisedSummary(params: {
       });
     });
 
-    // 4. Store Transfers Out
-    const transferOutFilter: any = { status: { $ne: 'Cancelled' } };
+    // 4. Store Transfers Out (Outward Register)
+    const transferOutFilter: any = { registerType: 'OUTWARD', status: { $nin: ['Cancelled', 'REJECTED', 'CANCELLED'] } };
     if (locRegex) {
       transferOutFilter.fromStore = locRegex;
     }
@@ -579,8 +579,8 @@ async function computeStoreItemisedSummary(params: {
       });
     });
 
-    // 5. Store Transfers In
-    const transferInFilter: any = { status: { $ne: 'Cancelled' } };
+    // 5. Store Transfers In (Inward Register)
+    const transferInFilter: any = { registerType: 'INWARD', status: { $nin: ['Cancelled', 'REJECTED', 'CANCELLED'] } };
     if (locRegex) {
       transferInFilter.toStore = locRegex;
     }
@@ -713,7 +713,7 @@ async function computeStoreItemisedSummary(params: {
       });
     });
 
-    const transferOutFilter: any = { status: { $ne: 'Cancelled' } };
+    const transferOutFilter: any = { registerType: 'OUTWARD', status: { $nin: ['Cancelled', 'REJECTED', 'CANCELLED'] } };
     if (locRegex) {
       transferOutFilter.fromStore = locRegex;
     }
@@ -728,7 +728,7 @@ async function computeStoreItemisedSummary(params: {
       });
     });
 
-    const transferInFilter: any = { status: { $ne: 'Cancelled' } };
+    const transferInFilter: any = { registerType: 'INWARD', status: { $nin: ['Cancelled', 'REJECTED', 'CANCELLED'] } };
     if (locRegex) {
       transferInFilter.toStore = locRegex;
     }

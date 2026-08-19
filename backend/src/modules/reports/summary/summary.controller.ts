@@ -430,15 +430,9 @@ async function computeStoreItemisedSummary(params: {
 }) {
   const { circle, store, package: pkg, search, tempCode, itemName, hideZeroBalance, viewMode = 'item' } = params;
 
-  // Filter items
+  // Filter items (only match name, tempCode, search)
   const itemFilter: any = { isDeleted: { $ne: true } };
 
-  if (circle && circle !== 'all') {
-    itemFilter['dynamicData.circle'] = { $regex: new RegExp(`^${circle}$`, 'i') };
-  }
-  if (pkg && pkg !== 'all') {
-    itemFilter['dynamicData.package'] = { $regex: new RegExp(pkg.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') };
-  }
   if (tempCode && tempCode.trim() !== '') {
     const t = tempCode.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     itemFilter['dynamicData.tempCode'] = { $regex: t, $options: 'i' };
@@ -612,7 +606,7 @@ async function computeStoreItemisedSummary(params: {
       return r;
     });
 
-    if (hideZeroBalance) {
+    if (hideZeroBalance || locRegex || (pkg && pkg !== 'all')) {
       rows = rows.filter(r => r.receiptQty > 0 || r.issuedQty > 0 || r.returnedQty > 0 || r.transferOutQty > 0 || r.transferInQty > 0 || r.balAtStore !== 0);
     }
 
@@ -754,7 +748,7 @@ async function computeStoreItemisedSummary(params: {
       return row;
     });
 
-    if (hideZeroBalance) {
+    if (hideZeroBalance || locRegex || (pkg && pkg !== 'all')) {
       rows = rows.filter(r => r.receiptQty > 0 || r.issuedQty > 0 || r.returnedQty > 0 || r.transferOutQty > 0 || r.transferInQty > 0 || r.balAtStore !== 0);
     }
 

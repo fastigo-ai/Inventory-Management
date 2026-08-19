@@ -579,8 +579,8 @@ async function computeStoreItemisedSummary(params: {
       });
     });
 
-    // 5. Store Transfers In (Inward Register)
-    const transferInFilter: any = { registerType: 'INWARD', status: { $nin: ['Cancelled', 'REJECTED', 'CANCELLED'] } };
+    // 5. Store Transfers In (Incoming / Received at Store)
+    const transferInFilter: any = { status: { $in: ['RECEIVED', 'IN_TRANSIT'] } };
     if (locRegex) {
       transferInFilter.toStore = locRegex;
     }
@@ -728,7 +728,7 @@ async function computeStoreItemisedSummary(params: {
       });
     });
 
-    const transferInFilter: any = { registerType: 'INWARD', status: { $nin: ['Cancelled', 'REJECTED', 'CANCELLED'] } };
+    const transferInFilter: any = { status: { $in: ['RECEIVED', 'IN_TRANSIT'] } };
     if (locRegex) {
       transferInFilter.toStore = locRegex;
     }

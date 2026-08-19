@@ -502,17 +502,17 @@ async function computeStoreItemisedSummary(params: {
     // 1. Inward Receipts
     const inwardFilter: any = {};
     if (locRegex) {
-      inwardFilter.$or = [{ circle: locRegex }, { subcircle: locRegex }, { billingFrom: locRegex }];
+      inwardFilter.$or = [{ circle: locRegex }, { subcircle: locRegex }, { billingFrom: locRegex }, { store: locRegex }];
     }
     const inwards = await StoreInwardEntry.find(inwardFilter).lean();
     inwards.forEach(doc => {
       const idStr = doc.itemId ? doc.itemId.toString() : null;
-      const qty = Number(doc.invoiceQty || doc.totalQty || doc.receivedQty || 0);
+      const qty = Number(doc.totalQty || doc.invoiceQty || doc.acceptedQty || doc.receivedQty || 0);
       const temp = String(doc.tempCode || '').trim();
-      const name = String(doc.itemName || doc.name || '').trim().toLowerCase();
+      const name = String(doc.itemName || doc.name || doc.description || '').trim().toLowerCase();
 
       for (const grp of groupMap.values()) {
-        if ((idStr && grp.itemIds.has(idStr)) || (temp && grp.tempCode === temp) || (name && grp.name.toLowerCase() === name)) {
+        if ((idStr && grp.itemIds.has(idStr)) || (temp && temp !== '-' && grp.tempCode === temp) || (name && grp.name.toLowerCase() === name)) {
           grp.receiptQty += qty;
           break;
         }
@@ -528,12 +528,12 @@ async function computeStoreItemisedSummary(params: {
     assignments.forEach(doc => {
       (doc.lineItems || []).forEach((li: any) => {
         const idStr = li.itemId ? li.itemId.toString() : null;
-        const qty = Number(li.acceptedQuantity || 0);
+        const qty = Number(li.quantity || li.acceptedQuantity || li.issuedQty || 0);
         const temp = String(li.tempCode || '').trim();
-        const name = String(li.itemName || li.name || '').trim().toLowerCase();
+        const name = String(li.itemName || li.name || li.description || '').trim().toLowerCase();
 
         for (const grp of groupMap.values()) {
-          if ((idStr && grp.itemIds.has(idStr)) || (temp && grp.tempCode === temp) || (name && grp.name.toLowerCase() === name)) {
+          if ((idStr && grp.itemIds.has(idStr)) || (temp && temp !== '-' && grp.tempCode === temp) || (name && grp.name.toLowerCase() === name)) {
             grp.issuedQty += qty;
             break;
           }
@@ -550,12 +550,12 @@ async function computeStoreItemisedSummary(params: {
     returns.forEach(doc => {
       (doc.lineItems || doc.items || []).forEach((li: any) => {
         const idStr = li.itemId ? li.itemId.toString() : null;
-        const qty = Number(li.acceptedQuantity || 0);
+        const qty = Number(li.quantity || li.acceptedQuantity || li.returnedQty || 0);
         const temp = String(li.tempCode || '').trim();
-        const name = String(li.itemName || li.name || '').trim().toLowerCase();
+        const name = String(li.itemName || li.name || li.description || '').trim().toLowerCase();
 
         for (const grp of groupMap.values()) {
-          if ((idStr && grp.itemIds.has(idStr)) || (temp && grp.tempCode === temp) || (name && grp.name.toLowerCase() === name)) {
+          if ((idStr && grp.itemIds.has(idStr)) || (temp && temp !== '-' && grp.tempCode === temp) || (name && grp.name.toLowerCase() === name)) {
             grp.returnedQty += qty;
             break;
           }
@@ -678,12 +678,12 @@ async function computeStoreItemisedSummary(params: {
 
     const inwardFilter: any = {};
     if (locRegex) {
-      inwardFilter.$or = [{ circle: locRegex }, { subcircle: locRegex }, { billingFrom: locRegex }];
+      inwardFilter.$or = [{ circle: locRegex }, { subcircle: locRegex }, { billingFrom: locRegex }, { store: locRegex }];
     }
     const inwards = await StoreInwardEntry.find(inwardFilter).lean();
     inwards.forEach(doc => {
       const idStr = doc.itemId ? doc.itemId.toString() : null;
-      const qty = Number(doc.invoiceQty || doc.totalQty || doc.receivedQty || 0);
+      const qty = Number(doc.totalQty || doc.invoiceQty || doc.acceptedQty || doc.receivedQty || 0);
       if (idStr && itemMap.has(idStr)) {
         itemMap.get(idStr)!.receiptQty += qty;
       }
@@ -697,7 +697,7 @@ async function computeStoreItemisedSummary(params: {
     assignments.forEach(doc => {
       (doc.lineItems || []).forEach((li: any) => {
         const idStr = li.itemId ? li.itemId.toString() : null;
-        const qty = Number(li.acceptedQuantity || 0);
+        const qty = Number(li.quantity || li.acceptedQuantity || li.issuedQty || 0);
         if (idStr && itemMap.has(idStr)) {
           itemMap.get(idStr)!.issuedQty += qty;
         }
@@ -712,7 +712,7 @@ async function computeStoreItemisedSummary(params: {
     returns.forEach(doc => {
       (doc.lineItems || doc.items || []).forEach((li: any) => {
         const idStr = li.itemId ? li.itemId.toString() : null;
-        const qty = Number(li.acceptedQuantity || 0);
+        const qty = Number(li.quantity || li.acceptedQuantity || li.returnedQty || 0);
         if (idStr && itemMap.has(idStr)) {
           itemMap.get(idStr)!.returnedQty += qty;
         }

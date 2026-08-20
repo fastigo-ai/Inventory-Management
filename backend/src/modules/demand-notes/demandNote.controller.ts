@@ -272,7 +272,7 @@ export const deleteDemandNote = asyncHandler(async (req: AuthRequest, res: Respo
   const existing = await DemandNote.findById(req.params.id);
   if (!existing) throw new ApiError(404, 'Demand Note not found');
 
-  if (existing.status !== 'Draft' && existing.status !== 'Pending Approval' && existing.status !== 'Pending PM Approval') {
+  if ((existing.status as string) !== 'Draft' && (existing.status as string) !== 'Pending Approval' && (existing.status as string) !== 'Pending PM Approval') {
     throw new ApiError(403, 'Only Draft or Pending Demand Notes can be deleted.');
   }
 

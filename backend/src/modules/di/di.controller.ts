@@ -184,7 +184,7 @@ export const getDIs = asyncHandler(async (req: Request, res: Response) => {
     const [dis, total] = await Promise.all([
       DI.find(filter)
         .populate('purchaseOrderId', 'purchaseOrderNumber vendorName')
-        .sort({ createdAt: -1 })
+        .sort({ createdAt: 1 })
         .skip(skip)
         .limit(limit)
         .lean(),
@@ -232,7 +232,7 @@ export const getDIs = asyncHandler(async (req: Request, res: Response) => {
   } else {
     const dis = await DI.find(filter)
       .populate('purchaseOrderId', 'purchaseOrderNumber vendorName')
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: 1 })
       .lean();
 
     const enhancedDIs = await Promise.all(dis.map(async (diObj: any) => {

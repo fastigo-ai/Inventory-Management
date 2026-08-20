@@ -197,7 +197,7 @@ export const getInvoices = asyncHandler(async (req: Request, res: Response) => {
   const invoices = await ContractorInvoice.find(filter)
     .populate('contractorId', 'name vendorName dynamicData')
     .populate('workOrderId', 'workOrderNumber')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: 1 });
 
   res.status(200).json(new ApiResponse(200, invoices, 'Invoices fetched successfully'));
 });

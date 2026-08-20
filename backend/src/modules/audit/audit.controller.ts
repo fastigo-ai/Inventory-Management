@@ -32,7 +32,7 @@ export const getAuditLogs = asyncHandler(async (req: Request, res: Response) => 
         select: 'name'
       }
     })
-    .sort({ createdAt: -1 })
+    .sort({ createdAt: 1 })
     .skip(skip)
     .limit(limit);
 

@@ -35,7 +35,7 @@ export const getWipRequireds = asyncHandler(async (req: Request, res: Response) 
   const wips = await WipRequiredRegister.find(filter)
     .populate('contractorId', 'name vendorName dynamicData')
     .populate('workOrderId', 'workOrderNumber')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: 1 });
 
   res.status(200).json(
     new ApiResponse(200, wips, 'WIP Required register entries fetched successfully')

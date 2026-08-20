@@ -39,7 +39,7 @@ export const getPendingDIs = asyncHandler(async (req: Request, res: Response) =>
   // Get all DIs matching the filter
   const dis = await DI.find(filter)
     .populate('purchaseOrderId', 'purchaseOrderNumber vendorName')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: 1 });
 
   // Filter out DIs that already have a SUBMITTED or VERIFIED inward entry
   const pendingDIs = [];
@@ -131,7 +131,7 @@ export const getDIPrefillData = asyncHandler(async (req: Request, res: Response)
   // If no PO is linked, we just proceed with what we have in DI.
 
   // Find if there's any matching Purchase Invoice for this PO (only if PO exists)
-  const invoice = po ? await PurchaseInvoice.findOne({ purchaseOrderId: po._id }).sort({ createdAt: -1 }) : null;
+  const invoice = po ? await PurchaseInvoice.findOne({ purchaseOrderId: po._id }).sort({ createdAt: 1 }) : null;
 
   // Get the first item from DI to map properties (assuming 1 item per DI typically, or sum them)
   const item = di.lineItems[0];
@@ -202,19 +202,20 @@ export const createInwardEntry = asyncHandler(async (req: Request, res: Response
   }
 
   // Packing list validation
-  if (data.status === 'SUBMITTED' && (!data.packingList || data.packingList.length === 0)) {
-    throw new ApiError(400, 'Packing list must contain at least one item to submit');
-  }
-
-  let totalPackQty = 0;
-  if (data.packingList) {
+  if (data.status === 'SUBMITTED') {
+    if (!data.packingList || data.packingList.length === 0) {
+      throw new ApiError(400, 'Packing list must contain at least one item to submit');
+    }
+    let totalPackQty = 0;
     data.packingList.forEach((pack: any) => {
       totalPackQty += Number(pack.quantity) || 0;
     });
-  }
-
-  if (data.status === 'SUBMITTED' && totalPackQty === 0) {
-    throw new ApiError(400, 'Sum of packing list quantities must be > 0 to submit');
+    if (totalPackQty === 0) {
+      throw new ApiError(400, 'Sum of packing list quantities must be > 0 to submit');
+    }
+    
+    // Auto-approve upon submission
+    data.status = 'APPROVED';
   }
 
   // If a Purchase Invoice matches another PO
@@ -247,6 +248,11 @@ export const createInwardEntry = asyncHandler(async (req: Request, res: Response
     entry = await StoreInwardEntry.findByIdAndUpdate(entry._id, data, { new: true });
   } else {
     entry = await StoreInwardEntry.create(data);
+  }
+
+  // If status is APPROVED (auto-approved from SUBMITTED), update stock
+  if (data.status === 'APPROVED') {
+    await processInwardStockUpdate(entry._id.toString());
   }
 
   res.status(201).json(
@@ -321,7 +327,7 @@ export const queryInwardEntries = asyncHandler(async (req: Request, res: Respons
 
   const allEntries = await StoreInwardEntry.find(filter)
     .populate('diId', 'diNumber')
-    .sort({ createdAt: -1 })
+    .sort({ createdAt: 1 })
     .lean();
 
   // Attach remainingQty and doneQty
@@ -391,7 +397,7 @@ export const getAdminInwardEntries = asyncHandler(async (req: Request, res: Resp
 
   const entries = await StoreInwardEntry.find(filter)
     .populate('createdBy', 'firstName lastName')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: 1 });
 
   res.status(200).json(
     new ApiResponse(200, entries, 'Admin entries fetched successfully')
@@ -665,7 +671,7 @@ export const getStoreTransfers = asyncHandler(async (req: Request, res: Response
   const transfers = await StoreTransfer.find(filter)
     .populate('requestedBy', 'firstName lastName email')
     .populate('items.itemId')
-    .sort({ createdAt: -1 })
+    .sort({ createdAt: 1 })
     .lean();
 
   const formattedTransfers = transfers.map((t: any) => {
@@ -1101,7 +1107,7 @@ export const getPendingStoreReceipts = asyncHandler(async (req: Request, res: Re
     filter.$or = filter.$or || [];
     filter.$or.push(
       { itemName: { $regex: searchStr, $options: 'i' } },
-      { tempCode: { $regex: searchStr, $options: 'i' } }
+      { tempCode: searchStr }
     );
   }
 
@@ -1143,7 +1149,7 @@ export const getPendingStoreReceipts = asyncHandler(async (req: Request, res: Re
 
   let query = StoreInwardEntry.find(filter)
     .populate('purchaseInvoiceId')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: 1 });
 
   if (exportAll !== 'true') {
     const pageNum = parseInt(page as string, 10);
@@ -1191,7 +1197,7 @@ export const getInwardRegister = asyncHandler(async (req: Request, res: Response
 
   const entries = await StoreInwardEntry.find(filter)
     .populate('purchaseInvoiceId')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: 1 });
 
   res.status(200).json(
     new ApiResponse(200, {
@@ -1275,7 +1281,6 @@ export const updateInwardEntry = asyncHandler(async (req: Request, res: Response
     }
   }
 
-  // validations...
   if (payload.status === 'SUBMITTED') {
     let totalPackQty = 0;
     if (payload.packingList) {
@@ -1286,6 +1291,9 @@ export const updateInwardEntry = asyncHandler(async (req: Request, res: Response
     if (totalPackQty === 0) {
       throw new ApiError(400, 'Sum of packing list quantities must be > 0 to submit');
     }
+    
+    // Auto-approve upon submission
+    payload.status = 'APPROVED';
   }
 
   // Remove fields that shouldn't be overwritten directly or handle them carefully
@@ -1299,7 +1307,7 @@ export const updateInwardEntry = asyncHandler(async (req: Request, res: Response
   Object.assign(entry, payload);
   const updated = await entry.save();
   
-  if (updated && updated.status === 'SUBMITTED' && originalStatus !== 'SUBMITTED') {
+  if (updated && (updated.status === 'SUBMITTED' || updated.status === 'APPROVED') && originalStatus !== 'SUBMITTED' && originalStatus !== 'APPROVED') {
     await processInwardStockUpdate(updated._id.toString());
   }
   
@@ -2096,7 +2104,7 @@ export const getMhrovs = asyncHandler(async (req: Request, res: Response) => {
     if (user.assignedCircle) filter.circle = user.assignedCircle;
   }
 
-  const mhrovs = await Mhrov.find(filter).populate("inwardEntries", "invoiceNumber itemName totalQty").sort({ createdAt: -1 });
+  const mhrovs = await Mhrov.find(filter).populate("inwardEntries", "invoiceNumber itemName totalQty").sort({ createdAt: 1 });
 
   res.status(200).json(new ApiResponse(200, mhrovs, 'MHROVs fetched successfully'));
 });
@@ -2217,7 +2225,7 @@ export const getMhrovDashboardData = asyncHandler(async (req: Request, res: Resp
   // 1. Fetch all VERIFIED Inward Entries
   const inwardEntries = await StoreInwardEntry.find(filter)
     .populate('diId', 'diNumber')
-    .sort({ createdAt: -1 })
+    .sort({ createdAt: 1 })
     .lean();
 
   // 2. Fetch all MHROVs to cross-reference

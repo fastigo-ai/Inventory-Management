@@ -140,7 +140,7 @@ export const getAssignments = asyncHandler(async (req: Request, res: Response) =
     const total = await ContractorAssignment.countDocuments(filter);
     const assignments = await ContractorAssignment.find(filter)
       .populate('contractorId', 'dynamicData.displayName name farmName companyName')
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: 1 })
       .skip(skip)
       .limit(limitNumber);
 
@@ -154,7 +154,7 @@ export const getAssignments = asyncHandler(async (req: Request, res: Response) =
 
   const assignments = await ContractorAssignment.find(filter)
     .populate('contractorId', 'dynamicData.displayName name farmName companyName')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: 1 });
   res.status(200).json(new ApiResponse(200, assignments, 'Assignments fetched successfully'));
 });
 
@@ -609,7 +609,7 @@ export const importContractors = asyncHandler(async (req: Request, res: Response
 export const getContractorReturns = asyncHandler(async (req: Request, res: Response) => {
   const returns = await ContractorReturn.find()
     .populate('contractorId', 'dynamicData')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: 1 });
 
   res.status(200).json(
     new ApiResponse(200, returns, 'Contractor returns fetched successfully')
@@ -1043,11 +1043,11 @@ export const getContractorTransactions = asyncHandler(async (req: Request, res: 
   const [assignments, returns] = await Promise.all([
     ContractorAssignment.find({ contractorId: id })
       .select('_id assignmentNumber minNo date status total lineItems')
-      .sort({ date: -1 })
+      .sort({ date: 1 })
       .lean(),
     ContractorReturn.find({ contractorId: id })
       .select('_id returnNumber mrvNo date status total lineItems')
-      .sort({ date: -1 })
+      .sort({ date: 1 })
       .lean()
   ]);
 

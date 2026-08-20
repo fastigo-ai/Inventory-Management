@@ -43,6 +43,14 @@ export default function StoreContractorSummaryPage() {
   const [limit, setLimit] = useState(50);
   const [totalItems, setTotalItems] = useState(0);
 
+  // Selection State
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+
+  // Reset selection when data changes
+  useEffect(() => {
+    setSelectedItems(new Set());
+  }, [data]);
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -168,24 +176,38 @@ export default function StoreContractorSummaryPage() {
 
             {/* Quick Stat Pill Badges */}
             <div className="flex items-center gap-3">
-              <div className="bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg text-right">
-                <div className="text-[10px] uppercase font-bold text-amber-800">Total Issued</div>
-                <div className="text-sm font-extrabold text-amber-950 font-mono">
-                  {Number(totals.totalIssuedQty || 0).toLocaleString('en-IN')}
-                </div>
-              </div>
-              <div className="bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg text-right">
-                <div className="text-[10px] uppercase font-bold text-blue-800">Total Returned</div>
-                <div className="text-sm font-extrabold text-blue-950 font-mono">
-                  {Number(totals.totalReturnQty || 0).toLocaleString('en-IN')}
-                </div>
-              </div>
-              <div className="bg-indigo-600 text-white px-3.5 py-1.5 rounded-lg text-right shadow-xs">
-                <div className="text-[10px] uppercase font-bold text-indigo-200">Balance in Custody</div>
-                <div className="text-sm font-extrabold text-white font-mono">
-                  {Number(totals.totalBalanceQty || 0).toLocaleString('en-IN')}
-                </div>
-              </div>
+              {(() => {
+                const selectedRows = data.filter((r, i) => selectedItems.has(r.loaSerialNo || r.tempCode || String(i)));
+                const activeTotals = selectedRows.length > 0 ? selectedRows.reduce((acc, r) => ({
+                  totalIssuedQty: acc.totalIssuedQty + (r.totalIssuedQty || 0),
+                  totalReturnQty: acc.totalReturnQty + (r.totalReturnQty || 0),
+                  totalBalanceQty: acc.totalBalanceQty + (r.totalBalanceQty || 0),
+                }), { totalIssuedQty: 0, totalReturnQty: 0, totalBalanceQty: 0 }) : totals;
+                
+                return (
+                  <>
+                    <div className="bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg text-right relative">
+                      {selectedRows.length > 0 && <span className="absolute -top-2 -left-2 bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">Selected</span>}
+                      <div className="text-[10px] uppercase font-bold text-amber-800">Total Issued</div>
+                      <div className="text-sm font-extrabold text-amber-950 font-mono">
+                        {Number(activeTotals.totalIssuedQty || 0).toLocaleString('en-IN')}
+                      </div>
+                    </div>
+                    <div className="bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg text-right">
+                      <div className="text-[10px] uppercase font-bold text-blue-800">Total Returned</div>
+                      <div className="text-sm font-extrabold text-blue-950 font-mono">
+                        {Number(activeTotals.totalReturnQty || 0).toLocaleString('en-IN')}
+                      </div>
+                    </div>
+                    <div className="bg-indigo-600 text-white px-3.5 py-1.5 rounded-lg text-right shadow-xs">
+                      <div className="text-[10px] uppercase font-bold text-indigo-200">Balance in Custody</div>
+                      <div className="text-sm font-extrabold text-white font-mono">
+                        {Number(activeTotals.totalBalanceQty || 0).toLocaleString('en-IN')}
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -287,6 +309,20 @@ export default function StoreContractorSummaryPage() {
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-extrabold uppercase tracking-wider text-[11px] divide-x divide-slate-200">
+                  <th className="py-3 px-3 w-10 text-center bg-slate-200">
+                    <input 
+                      type="checkbox"
+                      checked={data.length > 0 && selectedItems.size === data.length}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedItems(new Set(data.map((r, i) => r.loaSerialNo || r.tempCode || String(i))));
+                        } else {
+                          setSelectedItems(new Set());
+                        }
+                      }}
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer"
+                    />
+                  </th>
                   <th className="py-3 px-4 w-14 text-center bg-slate-200">Sr No</th>
                   <th className="py-3 px-4 w-28 text-center bg-blue-100/70 text-blue-950 font-extrabold">LOA Sr. No.</th>
                   <th className="py-3 px-4 w-24 text-center bg-slate-200">Temp Code</th>
@@ -302,7 +338,7 @@ export default function StoreContractorSummaryPage() {
               <tbody className="divide-y divide-slate-200 text-slate-800 font-medium font-mono text-[11px]">
                 {loading ? (
                   <tr>
-                    <td colSpan={10} className="py-16 text-center text-slate-400">
+                    <td colSpan={11} className="py-16 text-center text-slate-400">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <RefreshCw className="w-6 h-6 animate-spin text-amber-600" />
                         <span className="text-xs font-semibold text-slate-600">Loading store contractor summary...</span>
@@ -311,7 +347,7 @@ export default function StoreContractorSummaryPage() {
                   </tr>
                 ) : data.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="py-16 text-center text-slate-400">
+                    <td colSpan={11} className="py-16 text-center text-slate-400">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <Boxes className="w-8 h-8 text-slate-300" />
                         <span className="text-sm font-semibold text-slate-600">No contractor item assignments found.</span>
@@ -324,8 +360,24 @@ export default function StoreContractorSummaryPage() {
                     const rowCircle = r.circle || circle || 'All Circles';
                     const rowPkg = r.package || pkg || 'All Packages';
 
+                    const rowKey = r.loaSerialNo || r.tempCode || String(i);
+                    const isSelected = selectedItems.has(rowKey);
+
                     return (
-                      <tr key={r.loaSerialNo || r.tempCode || i} className="hover:bg-slate-100/80 transition-colors divide-x divide-slate-100">
+                      <tr key={rowKey} className={`${isSelected ? 'bg-blue-50/50' : 'hover:bg-slate-100/80'} transition-colors divide-x divide-slate-100`}>
+                        <td className="py-2.5 px-3 text-center">
+                          <input 
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              const newSet = new Set(selectedItems);
+                              if (e.target.checked) newSet.add(rowKey);
+                              else newSet.delete(rowKey);
+                              setSelectedItems(newSet);
+                            }}
+                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer"
+                          />
+                        </td>
                         <td className="py-2.5 px-4 text-center text-slate-500 font-sans">{r.srNo}</td>
                         <td className="py-2.5 px-4 text-center font-bold text-blue-900 bg-blue-50/40">
                           {r.loaSerialNo && r.loaSerialNo !== '-' ? r.loaSerialNo : (r.sku || r.tempCode)}
@@ -376,21 +428,32 @@ export default function StoreContractorSummaryPage() {
 
               {/* Grand Totals Footer */}
               {!loading && data.length > 0 && (
-                <tfoot>
-                  <tr className="bg-slate-900 text-white font-extrabold text-xs divide-x divide-slate-800">
-                    <td colSpan={7} className="py-3 px-5 text-right font-sans tracking-wider uppercase">
-                      Total ({totalItems.toLocaleString()} items):
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono text-amber-300">
-                      {Number(totals.totalIssuedQty || 0).toLocaleString('en-IN')}
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono text-blue-300">
-                      {Number(totals.totalReturnQty || 0).toLocaleString('en-IN')}
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono text-white bg-indigo-600 font-extrabold">
-                      {Number(totals.totalBalanceQty || 0).toLocaleString('en-IN')}
-                    </td>
-                  </tr>
+                <tfoot className="bg-slate-900 text-white font-extrabold text-xs divide-x divide-slate-800">
+                  {(() => {
+                    const selectedRows = data.filter((r, i) => selectedItems.has(r.loaSerialNo || r.tempCode || String(i)));
+                    const activeTotals = selectedRows.length > 0 ? selectedRows.reduce((acc, r) => ({
+                      totalIssuedQty: acc.totalIssuedQty + (r.totalIssuedQty || 0),
+                      totalReturnQty: acc.totalReturnQty + (r.totalReturnQty || 0),
+                      totalBalanceQty: acc.totalBalanceQty + (r.totalBalanceQty || 0),
+                    }), { totalIssuedQty: 0, totalReturnQty: 0, totalBalanceQty: 0 }) : totals;
+                    
+                    return (
+                      <tr>
+                        <td colSpan={8} className="py-3 px-5 text-right font-sans tracking-wider uppercase">
+                          {selectedRows.length > 0 ? `Selected (${selectedRows.length} items):` : `Total (${totalItems.toLocaleString()} items):`}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono text-amber-300">
+                          {Number(activeTotals.totalIssuedQty || 0).toLocaleString('en-IN')}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono text-blue-300">
+                          {Number(activeTotals.totalReturnQty || 0).toLocaleString('en-IN')}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono text-white bg-indigo-600 font-extrabold">
+                          {Number(activeTotals.totalBalanceQty || 0).toLocaleString('en-IN')}
+                        </td>
+                      </tr>
+                    );
+                  })()}
                 </tfoot>
               )}
             </table>

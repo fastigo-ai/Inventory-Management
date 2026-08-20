@@ -25,6 +25,14 @@ export default function ItemSummaryMatrixPage() {
   const [limit, setLimit] = useState(50);
   const [totalItems, setTotalItems] = useState(0);
 
+  // Selection State
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+
+  // Reset selection when data changes
+  useEffect(() => {
+    setSelectedItems(new Set());
+  }, [data]);
+
   const fetchReport = async () => {
     try {
       setLoading(true);
@@ -53,7 +61,11 @@ export default function ItemSummaryMatrixPage() {
 
   // Totals for current page
   const totals = useMemo(() => {
-    return data.reduce((acc, r) => {
+    const selectedRows = selectedItems.size > 0 
+      ? data.filter((r, i) => selectedItems.has(r.tempCode || String(i)))
+      : data;
+
+    return selectedRows.reduce((acc, r) => {
       acc.solanLoa += (r.solanLoaQty || 0);
       acc.solanBom += (r.solanBomQty || 0);
       acc.nahanLoa += (r.nahanLoaQty || 0);
@@ -111,7 +123,7 @@ export default function ItemSummaryMatrixPage() {
       erecSolan: 0, erecNahan: 0, erecRampur: 0, erecRohru: 0,
       balDiLoa: 0, balDiBom: 0, balMrn: 0, balImc: 0, balSupplyBill: 0, balErectionBill: 0
     });
-  }, [data]);
+  }, [data, selectedItems]);
 
   const handleExportCSV = () => {
     if (data.length === 0) return;
@@ -316,10 +328,9 @@ export default function ItemSummaryMatrixPage() {
         ) : (
           <div className="overflow-x-auto max-h-[70vh]">
             <table className="w-full text-left border-collapse text-[11px]">
-              {/* Grouping Header Row 1 */}
               <thead>
                 <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-300 divide-x divide-slate-200">
-                  <th colSpan={3} className="p-2 text-center bg-slate-200 sticky top-0 z-20">Item Master Info</th>
+                  <th colSpan={4} className="p-2 text-center bg-slate-200 sticky top-0 z-20">Item Master Info</th>
                   <th colSpan={8} className="p-2 text-center bg-amber-100 text-amber-900 sticky top-0 z-20">LOA & BOM Quantities</th>
                   <th colSpan={6} className="p-2 text-center bg-orange-100 text-orange-900 sticky top-0 z-20">
                     Balances for {targetCircle}
@@ -332,13 +343,25 @@ export default function ItemSummaryMatrixPage() {
                   {showErectionBill && <th colSpan={4} className="p-2 text-center bg-teal-100 text-teal-900 sticky top-0 z-20">Erection Billed</th>}
                 </tr>
 
-                {/* Sub Header Row 2 */}
                 <tr className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200 divide-x divide-slate-200 sticky top-[33px] z-20">
+                  <th className="p-2 min-w-[40px] text-center bg-slate-100">
+                    <input 
+                      type="checkbox"
+                      checked={data.length > 0 && selectedItems.size === data.length}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedItems(new Set(data.map((r, i) => r.tempCode || String(i))));
+                        } else {
+                          setSelectedItems(new Set());
+                        }
+                      }}
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer"
+                    />
+                  </th>
                   <th className="p-2 min-w-[40px] text-center bg-slate-100">Sr. No.</th>
                   <th className="p-2 min-w-[80px] bg-slate-100">LOA Sr. No.</th>
                   <th className="p-2 min-w-[220px] bg-slate-100">Item Name</th>
 
-                  {/* LOA & BOM */}
                   <th className="p-2 min-w-[75px] bg-amber-50 text-right font-bold text-amber-900">Solan LOA</th>
                   <th className="p-2 min-w-[75px] bg-amber-50 text-right font-bold text-amber-900">Solan BOM</th>
                   <th className="p-2 min-w-[75px] bg-amber-50/70 text-right">Nahan LOA</th>
@@ -348,7 +371,6 @@ export default function ItemSummaryMatrixPage() {
                   <th className="p-2 min-w-[75px] bg-amber-50/70 text-right">Rohru LOA</th>
                   <th className="p-2 min-w-[75px] bg-amber-50/70 text-right">Rohru BOM</th>
 
-                  {/* Balances */}
                   <th className="p-2 min-w-[90px] bg-orange-50 text-right font-bold text-orange-950">Bal for DI vs LOA</th>
                   <th className="p-2 min-w-[90px] bg-orange-50 text-right font-bold text-orange-950">Bal for Dispatch vs BOM</th>
                   <th className="p-2 min-w-[90px] bg-orange-50 text-right font-bold text-orange-950">Bal for MRN/SRV</th>
@@ -406,7 +428,6 @@ export default function ItemSummaryMatrixPage() {
                 </tr>
               </thead>
 
-              {/* Body */}
               <tbody className="divide-y divide-slate-200 font-mono text-[11px]">
                 {data.length === 0 ? (
                   <tr>
@@ -415,15 +436,32 @@ export default function ItemSummaryMatrixPage() {
                     </td>
                   </tr>
                 ) : (
-                  data.map((r, i) => (
-                    <tr key={r.itemId || r._id || i} className="hover:bg-slate-100/80 transition-colors divide-x divide-slate-100">
-                      <td className="p-2 text-center text-slate-500 font-sans">{r.srNo}</td>
-                      <td className="p-2 font-bold text-slate-800" title={r.tempCode ? `Temp Code: ${r.tempCode}` : undefined}>
-                        {r.loaSerialNo || r.tempCode}
-                      </td>
-                      <td className="p-2 font-sans font-medium text-slate-900 truncate max-w-[250px]" title={r.itemName}>
-                        {r.itemName}
-                      </td>
+                  data.map((r, i) => {
+                    const rowKey = r.tempCode || String(i);
+                    const isSelected = selectedItems.has(rowKey);
+
+                    return (
+                      <tr key={r.itemId || r._id || i} className={`${isSelected ? 'bg-blue-50/50' : 'hover:bg-slate-100/80'} transition-colors divide-x divide-slate-100`}>
+                        <td className="p-2 text-center">
+                          <input 
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              const newSet = new Set(selectedItems);
+                              if (e.target.checked) newSet.add(rowKey);
+                              else newSet.delete(rowKey);
+                              setSelectedItems(newSet);
+                            }}
+                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer"
+                          />
+                        </td>
+                        <td className="p-2 text-center text-slate-500 font-sans">{r.srNo}</td>
+                        <td className="p-2 font-bold text-slate-800" title={r.tempCode ? `Temp Code: ${r.tempCode}` : undefined}>
+                          {r.loaSerialNo || r.tempCode}
+                        </td>
+                        <td className="p-2 font-sans font-medium text-slate-900 truncate max-w-[250px]" title={r.itemName}>
+                          {r.itemName}
+                        </td>
 
                       {/* LOA & BOM */}
                       <td className="p-2 text-right font-semibold text-amber-900 bg-amber-50/30">{r.solanLoaQty || (r.loaQuantities && r.loaQuantities.solan) || 0}</td>
@@ -495,81 +533,76 @@ export default function ItemSummaryMatrixPage() {
                         <td className="p-2 text-right text-slate-600">{r.erectionBilledRohru || (r.erectionBilled && r.erectionBilled.rohru) || 0}</td>
                       </>}
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
-
-              {/* Footer Totals */}
               <tfoot>
-                <tr className="bg-slate-800 text-white font-bold divide-x divide-slate-700 text-[11px]">
-                  <td colSpan={3} className="p-2 text-center font-sans">TOTAL (Current Page)</td>
-                  
-                  {/* LOA/BOM */}
-                  <td className="p-2 text-right text-amber-300">{totals.solanLoa}</td>
-                  <td className="p-2 text-right text-amber-300">{totals.solanBom}</td>
-                  <td className="p-2 text-right">{totals.nahanLoa}</td>
-                  <td className="p-2 text-right">{totals.nahanBom}</td>
-                  <td className="p-2 text-right">{totals.rampurLoa}</td>
-                  <td className="p-2 text-right">{totals.rampurBom}</td>
-                  <td className="p-2 text-right">{totals.rohruLoa}</td>
-                  <td className="p-2 text-right">{totals.rohruBom}</td>
+                {!loading && data.length > 0 && (
+                  <tr className="bg-slate-800 text-white font-bold divide-x divide-slate-700 text-[11px]">
+                    <td colSpan={4} className="p-2 text-right font-sans">
+                      {selectedItems.size > 0 ? `TOTAL (Selected ${selectedItems.size} items)` : 'TOTAL (Current Page)'}
+                    </td>
+                    
+                    <td className="p-2 text-right text-amber-300">{totals.solanLoa}</td>
+                    <td className="p-2 text-right text-amber-300">{totals.solanBom}</td>
+                    <td className="p-2 text-right">{totals.nahanLoa}</td>
+                    <td className="p-2 text-right">{totals.nahanBom}</td>
+                    <td className="p-2 text-right">{totals.rampurLoa}</td>
+                    <td className="p-2 text-right">{totals.rampurBom}</td>
+                    <td className="p-2 text-right">{totals.rohruLoa}</td>
+                    <td className="p-2 text-right">{totals.rohruBom}</td>
 
-                  {/* Balances */}
-                  <td className="p-2 text-right text-orange-300">{totals.balDiLoa}</td>
-                  <td className="p-2 text-right text-orange-300">{totals.balDiBom}</td>
-                  <td className="p-2 text-right text-orange-300">{totals.balMrn}</td>
-                  <td className="p-2 text-right text-orange-300">{totals.balImc}</td>
-                  <td className="p-2 text-right text-orange-300">{totals.balSupplyBill}</td>
-                  <td className="p-2 text-right text-orange-300">{totals.balErectionBill}</td>
+                    <td className="p-2 text-right text-orange-300">{totals.balDiLoa}</td>
+                    <td className="p-2 text-right text-orange-300">{totals.balDiBom}</td>
+                    <td className="p-2 text-right text-orange-300">{totals.balMrn}</td>
+                    <td className="p-2 text-right text-orange-300">{totals.balImc}</td>
+                    <td className="p-2 text-right text-orange-300">{totals.balSupplyBill}</td>
+                    <td className="p-2 text-right text-orange-300">{totals.balErectionBill}</td>
 
-                  {/* DI */}
-                  {showDi && <>
-                    <td className="p-2 text-right">{totals.dispatchedNahan}</td>
-                    <td className="p-2 text-right text-blue-300">{totals.dispatchedSolan}</td>
-                    <td className="p-2 text-right">{totals.dispatchedRampur}</td>
-                    <td className="p-2 text-right">{totals.dispatchedRohru}</td>
-                  </>}
+                    {showDi && <>
+                      <td className="p-2 text-right">{totals.dispatchedNahan}</td>
+                      <td className="p-2 text-right text-blue-300">{totals.dispatchedSolan}</td>
+                      <td className="p-2 text-right">{totals.dispatchedRampur}</td>
+                      <td className="p-2 text-right">{totals.dispatchedRohru}</td>
+                    </>}
 
-                  {/* MRN */}
-                  {showMrn && <>
-                    <td className="p-2 text-right">{totals.inwardNahan}</td>
-                    <td className="p-2 text-right text-emerald-300">{totals.inwardSolan}</td>
-                    <td className="p-2 text-right">{totals.inwardRampur}</td>
-                    <td className="p-2 text-right">{totals.inwardRohru}</td>
-                  </>}
+                    {showMrn && <>
+                      <td className="p-2 text-right">{totals.inwardNahan}</td>
+                      <td className="p-2 text-right text-emerald-300">{totals.inwardSolan}</td>
+                      <td className="p-2 text-right">{totals.inwardRampur}</td>
+                      <td className="p-2 text-right">{totals.inwardRohru}</td>
+                    </>}
 
-                  {/* MIN */}
-                  {showImc && <>
-                    <td className="p-2 text-right">{totals.minNahan}</td>
-                    <td className="p-2 text-right text-purple-300">{totals.minSolan}</td>
-                    <td className="p-2 text-right">{totals.minRampur}</td>
-                    <td className="p-2 text-right">{totals.minRohru}</td>
-                  </>}
+                    {showImc && <>
+                      <td className="p-2 text-right">{totals.minNahan}</td>
+                      <td className="p-2 text-right text-purple-300">{totals.minSolan}</td>
+                      <td className="p-2 text-right">{totals.minRampur}</td>
+                      <td className="p-2 text-right">{totals.minRohru}</td>
+                    </>}
 
-                  {/* IMC */}
-                  {showImc && <>
-                    <td className="p-2 text-right">{totals.imcNahan}</td>
-                    <td className="p-2 text-right text-indigo-300">{totals.imcSolan}</td>
-                    <td className="p-2 text-right">{totals.imcRampur}</td>
-                    <td className="p-2 text-right">{totals.imcRohru}</td>
-                  </>}
+                    {showImc && <>
+                      <td className="p-2 text-right">{totals.imcNahan}</td>
+                      <td className="p-2 text-right text-indigo-300">{totals.imcSolan}</td>
+                      <td className="p-2 text-right">{totals.imcRampur}</td>
+                      <td className="p-2 text-right">{totals.imcRohru}</td>
+                    </>}
 
-                  {/* Supply Billed */}
-                  {showSupplyBill && <>
-                    <td className="p-2 text-right">{totals.supNahan}</td>
-                    <td className="p-2 text-right text-sky-300">{totals.supSolan}</td>
-                    <td className="p-2 text-right">{totals.supRampur}</td>
-                    <td className="p-2 text-right">{totals.supRohru}</td>
-                  </>}
+                    {showSupplyBill && <>
+                      <td className="p-2 text-right">{totals.supNahan}</td>
+                      <td className="p-2 text-right text-sky-300">{totals.supSolan}</td>
+                      <td className="p-2 text-right">{totals.supRampur}</td>
+                      <td className="p-2 text-right">{totals.supRohru}</td>
+                    </>}
 
-                  {/* Erection Billed */}
-                  {showErectionBill && <>
-                    <td className="p-2 text-right">{totals.erecNahan}</td>
-                    <td className="p-2 text-right text-teal-300">{totals.erecSolan}</td>
-                    <td className="p-2 text-right">{totals.erecRampur}</td>
-                    <td className="p-2 text-right">{totals.erecRohru}</td>
-                  </>}
-                </tr>
+                    {showErectionBill && <>
+                      <td className="p-2 text-right">{totals.erecNahan}</td>
+                      <td className="p-2 text-right text-teal-300">{totals.erecSolan}</td>
+                      <td className="p-2 text-right">{totals.erecRampur}</td>
+                      <td className="p-2 text-right">{totals.erecRohru}</td>
+                    </>}
+                  </tr>
+                )}
               </tfoot>
             </table>
           </div>

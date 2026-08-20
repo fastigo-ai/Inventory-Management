@@ -49,7 +49,7 @@ export const getDashboardSummary = asyncHandler(async (req: Request, res: Respon
 
   // 3. Recent Activity (Latest 5 GRNs/Inwards)
   const recentActivities = await StoreInwardEntry.find()
-    .sort({ createdAt: -1 })
+    .sort({ createdAt: 1 })
     .limit(5)
     .populate('createdBy', 'firstName lastName')
     .select('diId status createdAt createdBy');

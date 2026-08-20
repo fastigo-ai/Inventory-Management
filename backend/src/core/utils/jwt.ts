@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { IUser } from '../../modules/users/user.model';
 
-const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'super_secret_access_jwt_key';
+const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET || 'super_secret_access_jwt_key';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'super_secret_refresh_jwt_key';
 
 export const generateAccessToken = (user: IUser) => {

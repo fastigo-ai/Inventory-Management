@@ -251,7 +251,7 @@ export const getPurchaseInvoices = async (req: Request, res: Response): Promise<
     }
 
     const [prs, total] = await Promise.all([
-      PurchaseInvoice.find(filter).sort({ date: -1, createdAt: -1 }).skip(skip).limit(limit).lean(),
+      PurchaseInvoice.find(filter).sort({ date: 1, createdAt: 1 }).skip(skip).limit(limit).lean(),
       PurchaseInvoice.countDocuments(filter)
     ]);
 
@@ -392,7 +392,7 @@ export const getPurchaseInvoiceById = async (req: Request, res: Response): Promi
 export const getNextPurchaseInvoiceNumber = async (req: Request, res: Response): Promise<void> => {
   try {
     const lastPr = await PurchaseInvoice.findOne({ invoiceNumber: { $regex: /^INV-/i } })
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: 1 })
       .lean();
       
     let nextNumber = 1;
@@ -639,7 +639,7 @@ export const deletePurchaseInvoice = async (req: Request, res: Response): Promis
 
 export const exportPurchaseInvoices = async (req: Request, res: Response): Promise<void> => {
   try {
-    const receives = await PurchaseInvoice.find().sort({ createdAt: -1 }).lean();
+    const receives = await PurchaseInvoice.find().sort({ createdAt: 1 }).lean();
 
     const csvData = receives.flatMap(r => 
       r.lineItems && r.lineItems.length > 0 ? r.lineItems.map((item: any) => ({

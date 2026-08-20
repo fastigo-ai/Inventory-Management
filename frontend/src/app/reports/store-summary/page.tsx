@@ -52,6 +52,14 @@ export default function StoreSummaryPage() {
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
+  // Selection State
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+
+  // Reset selection when data changes
+  useEffect(() => {
+    setSelectedItems(new Set());
+  }, [data]);
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -217,71 +225,93 @@ export default function StoreSummaryPage() {
         
         {/* KPI Metrics Dashboard */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col">
-            <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
-              <span>Total Receipts</span>
-              <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
-            </div>
-            <div className="text-xl font-bold text-slate-900 mt-2">
-              {Number(totals.receiptQty || 0).toLocaleString()}
-            </div>
-            <div className="text-[10px] text-emerald-600 font-medium mt-1">Inward Receipts</div>
-          </div>
+          {(() => {
+            const selectedRows = data.filter((r, i) => selectedItems.has(r.itemId || r.tempCode || String(i)));
+            const activeTotals = selectedRows.length > 0 ? selectedRows.reduce((acc, r) => ({
+              receiptQty: acc.receiptQty + (r.receiptQty || 0),
+              issuedQty: acc.issuedQty + (r.issuedQty || 0),
+              returnedQty: acc.returnedQty + (r.returnedQty || 0),
+              transferOutQty: acc.transferOutQty + (r.transferOutQty || 0),
+              transferInQty: acc.transferInQty + (r.transferInQty || 0),
+              balAtStore: acc.balAtStore + (r.balAtStore || 0),
+            }), { receiptQty: 0, issuedQty: 0, returnedQty: 0, transferOutQty: 0, transferInQty: 0, balAtStore: 0 }) : totals;
 
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col">
-            <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
-              <span>Issued to Contractor</span>
-              <TrendingDown className="w-3.5 h-3.5 text-amber-500" />
-            </div>
-            <div className="text-xl font-bold text-slate-900 mt-2">
-              {Number(totals.issuedQty || 0).toLocaleString()}
-            </div>
-            <div className="text-[10px] text-amber-600 font-medium mt-1">MIN Assignments</div>
-          </div>
+            return (
+              <>
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col relative">
+                  {selectedRows.length > 0 && <span className="absolute -top-2 -left-2 bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm z-10">Selected</span>}
+                  <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                    <span>Total Receipts</span>
+                    <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+                  </div>
+                  <div className="text-xl font-bold text-slate-900 mt-2">
+                    {Number(activeTotals.receiptQty || 0).toLocaleString()}
+                  </div>
+                  <div className="text-[10px] text-emerald-600 font-medium mt-1">Inward Receipts</div>
+                </div>
 
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col">
-            <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
-              <span>Returned by Cont.</span>
-              <RotateCcw className="w-3.5 h-3.5 text-blue-500" />
-            </div>
-            <div className="text-xl font-bold text-slate-900 mt-2">
-              {Number(totals.returnedQty || 0).toLocaleString()}
-            </div>
-            <div className="text-[10px] text-blue-600 font-medium mt-1">Store Returns</div>
-          </div>
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col relative">
+                  {selectedRows.length > 0 && <span className="absolute -top-2 -left-2 bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm z-10">Selected</span>}
+                  <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                    <span>Issued to Contractor</span>
+                    <TrendingDown className="w-3.5 h-3.5 text-amber-500" />
+                  </div>
+                  <div className="text-xl font-bold text-slate-900 mt-2">
+                    {Number(activeTotals.issuedQty || 0).toLocaleString()}
+                  </div>
+                  <div className="text-[10px] text-amber-600 font-medium mt-1">MIN Assignments</div>
+                </div>
 
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col">
-            <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
-              <span>Transfer Out</span>
-              <ArrowRightLeft className="w-3.5 h-3.5 text-orange-500" />
-            </div>
-            <div className="text-xl font-bold text-slate-900 mt-2">
-              {Number(totals.transferOutQty || 0).toLocaleString()}
-            </div>
-            <div className="text-[10px] text-orange-600 font-medium mt-1">To Other Stores</div>
-          </div>
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col relative">
+                  {selectedRows.length > 0 && <span className="absolute -top-2 -left-2 bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm z-10">Selected</span>}
+                  <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                    <span>Returned by Cont.</span>
+                    <RotateCcw className="w-3.5 h-3.5 text-blue-500" />
+                  </div>
+                  <div className="text-xl font-bold text-slate-900 mt-2">
+                    {Number(activeTotals.returnedQty || 0).toLocaleString()}
+                  </div>
+                  <div className="text-[10px] text-blue-600 font-medium mt-1">Store Returns</div>
+                </div>
 
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col">
-            <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
-              <span>Transfer In</span>
-              <ArrowRightLeft className="w-3.5 h-3.5 text-indigo-500" />
-            </div>
-            <div className="text-xl font-bold text-slate-900 mt-2">
-              {Number(totals.transferInQty || 0).toLocaleString()}
-            </div>
-            <div className="text-[10px] text-indigo-600 font-medium mt-1">From Other Stores</div>
-          </div>
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col relative">
+                  {selectedRows.length > 0 && <span className="absolute -top-2 -left-2 bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm z-10">Selected</span>}
+                  <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                    <span>Transfer Out</span>
+                    <ArrowRightLeft className="w-3.5 h-3.5 text-orange-500" />
+                  </div>
+                  <div className="text-xl font-bold text-slate-900 mt-2">
+                    {Number(activeTotals.transferOutQty || 0).toLocaleString()}
+                  </div>
+                  <div className="text-[10px] text-orange-600 font-medium mt-1">To Other Stores</div>
+                </div>
 
-          <div className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white p-4 rounded-xl border border-blue-700 shadow-sm flex flex-col">
-            <div className="flex items-center justify-between text-blue-100 text-xs font-semibold">
-              <span>Bal at Store</span>
-              <Store className="w-3.5 h-3.5 text-blue-200" />
-            </div>
-            <div className="text-xl font-bold text-white mt-2">
-              {Number(totals.balAtStore || 0).toLocaleString()}
-            </div>
-            <div className="text-[10px] text-blue-200 font-medium mt-1">Current Physical Stock</div>
-          </div>
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col relative">
+                  {selectedRows.length > 0 && <span className="absolute -top-2 -left-2 bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm z-10">Selected</span>}
+                  <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                    <span>Transfer In</span>
+                    <ArrowRightLeft className="w-3.5 h-3.5 text-indigo-500" />
+                  </div>
+                  <div className="text-xl font-bold text-slate-900 mt-2">
+                    {Number(activeTotals.transferInQty || 0).toLocaleString()}
+                  </div>
+                  <div className="text-[10px] text-indigo-600 font-medium mt-1">From Other Stores</div>
+                </div>
+
+                <div className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white p-4 rounded-xl border border-blue-700 shadow-sm flex flex-col relative">
+                  {selectedRows.length > 0 && <span className="absolute -top-2 -left-2 bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm z-10">Selected</span>}
+                  <div className="flex items-center justify-between text-blue-100 text-xs font-semibold">
+                    <span>Bal at Store</span>
+                    <Store className="w-3.5 h-3.5 text-blue-200" />
+                  </div>
+                  <div className="text-xl font-bold text-white mt-2">
+                    {Number(activeTotals.balAtStore || 0).toLocaleString()}
+                  </div>
+                  <div className="text-[10px] text-blue-200 font-medium mt-1">Current Physical Stock</div>
+                </div>
+              </>
+            );
+          })()}
         </div>
 
         {/* Filter Controls Bar */}
@@ -381,6 +411,20 @@ export default function StoreSummaryPage() {
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-100/80 border-b border-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[11px]">
+                  <th className="py-3.5 px-3 w-10 text-center border-r border-slate-200/60">
+                    <input 
+                      type="checkbox"
+                      checked={data.length > 0 && selectedItems.size === data.length}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedItems(new Set(data.map((r, i) => r.itemId || r.tempCode || String(i))));
+                        } else {
+                          setSelectedItems(new Set());
+                        }
+                      }}
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer"
+                    />
+                  </th>
                   <th className="py-3.5 px-4 w-14 text-center border-r border-slate-200/60">Sr No</th>
                   <th className="py-3.5 px-4 w-24 text-center border-r border-slate-200/60">Temp Code</th>
                   <th className="py-3.5 px-5 min-w-[260px] border-r border-slate-200/60">Item Name</th>
@@ -398,7 +442,7 @@ export default function StoreSummaryPage() {
               <tbody className="divide-y divide-slate-100 text-slate-800 font-medium">
                 {loading ? (
                   <tr>
-                    <td colSpan={12} className="py-16 text-center text-slate-400">
+                    <td colSpan={13} className="py-16 text-center text-slate-400">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <RefreshCw className="w-6 h-6 animate-spin text-blue-600" />
                         <span className="text-xs font-semibold text-slate-600">Calculating store summary in real-time...</span>
@@ -407,7 +451,7 @@ export default function StoreSummaryPage() {
                   </tr>
                 ) : data.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="py-16 text-center text-slate-400">
+                    <td colSpan={13} className="py-16 text-center text-slate-400">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <Boxes className="w-8 h-8 text-slate-300" />
                         <span className="text-sm font-semibold text-slate-600">No items found matching the selected filters.</span>
@@ -421,12 +465,28 @@ export default function StoreSummaryPage() {
                     const isNegative = (item.balAtStore || 0) < 0;
                     const itemCircle = item.circle || circle || 'All Circles';
                     const itemPkg = item.package || pkg || 'All Packages';
+                    
+                    const rowKey = item.itemId || item.tempCode || String(idx);
+                    const isSelected = selectedItems.has(rowKey);
 
                     return (
                       <tr 
-                        key={item.itemId || item.tempCode || idx}
-                        className="hover:bg-blue-50/40 transition-colors group"
+                        key={rowKey}
+                        className={`${isSelected ? 'bg-blue-50/50' : 'hover:bg-blue-50/40'} transition-colors group`}
                       >
+                        <td className="py-3 px-3 text-center border-r border-slate-100">
+                          <input 
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              const newSet = new Set(selectedItems);
+                              if (e.target.checked) newSet.add(rowKey);
+                              else newSet.delete(rowKey);
+                              setSelectedItems(newSet);
+                            }}
+                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer"
+                          />
+                        </td>
                         <td className="py-3 px-4 text-center text-slate-500 font-semibold border-r border-slate-100">
                           {item.srNo}
                         </td>
@@ -487,30 +547,44 @@ export default function StoreSummaryPage() {
               </tbody>
               {/* Grand Totals Footer */}
               {!loading && data.length > 0 && (
-                <tfoot>
-                  <tr className="bg-slate-900 text-white font-extrabold text-xs">
-                    <td colSpan={6} className="py-3.5 px-5 text-right tracking-wider uppercase">
-                      Grand Totals ({totalItems.toLocaleString()} items):
-                    </td>
-                    <td className="py-3.5 px-4 text-right font-mono text-emerald-300">
-                      {Number(totals.receiptQty || 0).toLocaleString()}
-                    </td>
-                    <td className="py-3.5 px-4 text-right font-mono text-amber-300">
-                      {Number(totals.issuedQty || 0).toLocaleString()}
-                    </td>
-                    <td className="py-3.5 px-4 text-right font-mono text-blue-300">
-                      {Number(totals.returnedQty || 0).toLocaleString()}
-                    </td>
-                    <td className="py-3.5 px-4 text-right font-mono text-orange-300">
-                      {Number(totals.transferOutQty || 0).toLocaleString()}
-                    </td>
-                    <td className="py-3.5 px-4 text-right font-mono text-indigo-300">
-                      {Number(totals.transferInQty || 0).toLocaleString()}
-                    </td>
-                    <td className="py-3.5 px-4 text-right font-mono text-white bg-blue-600 font-extrabold">
-                      {Number(totals.balAtStore || 0).toLocaleString()}
-                    </td>
-                  </tr>
+                <tfoot className="bg-slate-900 text-white font-extrabold text-xs">
+                  {(() => {
+                    const selectedRows = data.filter((r, i) => selectedItems.has(r.itemId || r.tempCode || String(i)));
+                    const activeTotals = selectedRows.length > 0 ? selectedRows.reduce((acc, r) => ({
+                      receiptQty: acc.receiptQty + (r.receiptQty || 0),
+                      issuedQty: acc.issuedQty + (r.issuedQty || 0),
+                      returnedQty: acc.returnedQty + (r.returnedQty || 0),
+                      transferOutQty: acc.transferOutQty + (r.transferOutQty || 0),
+                      transferInQty: acc.transferInQty + (r.transferInQty || 0),
+                      balAtStore: acc.balAtStore + (r.balAtStore || 0),
+                    }), { receiptQty: 0, issuedQty: 0, returnedQty: 0, transferOutQty: 0, transferInQty: 0, balAtStore: 0 }) : totals;
+
+                    return (
+                      <tr>
+                        <td colSpan={7} className="py-3.5 px-5 text-right tracking-wider uppercase">
+                          {selectedRows.length > 0 ? `Selected (${selectedRows.length} items):` : `Grand Totals (${totalItems.toLocaleString()} items):`}
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-mono text-emerald-300">
+                          {Number(activeTotals.receiptQty || 0).toLocaleString()}
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-mono text-amber-300">
+                          {Number(activeTotals.issuedQty || 0).toLocaleString()}
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-mono text-blue-300">
+                          {Number(activeTotals.returnedQty || 0).toLocaleString()}
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-mono text-orange-300">
+                          {Number(activeTotals.transferOutQty || 0).toLocaleString()}
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-mono text-indigo-300">
+                          {Number(activeTotals.transferInQty || 0).toLocaleString()}
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-mono text-white bg-blue-600 font-extrabold">
+                          {Number(activeTotals.balAtStore || 0).toLocaleString()}
+                        </td>
+                      </tr>
+                    );
+                  })()}
                 </tfoot>
               )}
             </table>

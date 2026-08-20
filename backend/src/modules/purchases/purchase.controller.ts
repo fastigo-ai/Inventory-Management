@@ -152,7 +152,7 @@ export const getPurchaseOrders = async (req: Request, res: Response) => {
     if (req.query.vendorName) {
       filter.vendorName = req.query.vendorName;
     }
-    const orders = await PurchaseOrder.find(filter).sort({ createdAt: -1 });
+    const orders = await PurchaseOrder.find(filter).sort({ createdAt: 1 });
     res.status(200).json({
       success: true,
       data: orders,
@@ -462,7 +462,7 @@ export const deletePurchaseOrder = async (req: Request, res: Response) => {
 export const getNextPurchaseOrderNumber = async (req: Request, res: Response) => {
   try {
     const lastOrder = await PurchaseOrder.findOne({ purchaseOrderNumber: { $regex: /^PO-/i } })
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: 1 })
       .lean();
       
     let nextNumber = 1;
@@ -491,7 +491,7 @@ export const getNextPurchaseOrderNumber = async (req: Request, res: Response) =>
 
 export const exportPurchaseOrders = async (req: Request, res: Response) => {
   try {
-    const orders = await PurchaseOrder.find().sort({ createdAt: -1 }).lean();
+    const orders = await PurchaseOrder.find().sort({ createdAt: 1 }).lean();
     
     const rows: any[] = [];
     for (const order of orders) {

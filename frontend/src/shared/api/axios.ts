@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/auth.store';
 
-// Use the relative path to go through Next.js rewrites, ensuring no CORS/binding issues
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
+// Use the relative path in the browser to go through Next.js rewrites, ensuring no CORS/binding issues
+export const API_BASE_URL = typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_API_URL || '');
 
 export const api = axios.create({
   baseURL: `${API_BASE_URL}/api`,
@@ -76,7 +76,7 @@ api.interceptors.response.use(
 
       try {
         const response = await axios.post(
-          `${API_BASE_URL}/api/auth/refresh-token`,
+          '/auth/refresh-token',
           {},
           { baseURL: `${API_BASE_URL}/api`, withCredentials: true }
         );

@@ -67,7 +67,7 @@ export const getVendors = asyncHandler(async (req: Request, res: Response) => {
 
   const search = req.query.search as string;
 
-  let sortObject: any = { createdAt: -1 };
+  let sortObject: any = { createdAt: 1 };
   if (sortBy) {
     sortObject = { [`dynamicData.${sortBy}`]: sortOrder };
   }
@@ -214,7 +214,7 @@ export const exportVendors = asyncHandler(async (req: Request, res: Response) =>
     throw new ApiError(500, 'Vendor metadata configuration missing');
   }
 
-  const vendors = await Vendor.find({}).sort({ createdAt: -1 });
+  const vendors = await Vendor.find({}).sort({ createdAt: 1 });
   
   // Headers based on metadata labels, expanding compound fields
   const headers: string[] = [];
@@ -649,9 +649,9 @@ export const getVendorTransactions = asyncHandler(async (req: Request, res: Resp
   const vendorNameRegex = new RegExp(`^${escapeRegex(searchPrefix)}`, 'i');
 
   const [purchaseOrders, purchaseInvoices, rawDis] = await Promise.all([
-    PurchaseOrder.find({ vendorName: vendorNameRegex }).select('_id purchaseOrderNumber date status total').sort({ date: -1 }).lean(),
-    PurchaseInvoice.find({ vendorName: vendorNameRegex }).select('_id invoiceNumber date status total rate quantity amount').sort({ date: -1 }).lean(),
-    DI.find({ vendorName: vendorNameRegex }).select('_id diNumber date status lineItems').sort({ date: -1 }).lean()
+    PurchaseOrder.find({ vendorName: vendorNameRegex }).select('_id purchaseOrderNumber date status total').sort({ date: 1 }).lean(),
+    PurchaseInvoice.find({ vendorName: vendorNameRegex }).select('_id invoiceNumber date status total rate quantity amount').sort({ date: 1 }).lean(),
+    DI.find({ vendorName: vendorNameRegex }).select('_id diNumber date status lineItems').sort({ date: 1 }).lean()
   ]);
 
 

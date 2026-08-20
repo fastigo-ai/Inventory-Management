@@ -48,7 +48,7 @@ export const createBillingCompany = async (req: Request, res: Response) => {
 
 export const getBillingCompanies = async (req: Request, res: Response) => {
   try {
-    const billingCompanies = await BillingCompany.find().sort({ createdAt: -1 });
+    const billingCompanies = await BillingCompany.find().sort({ createdAt: 1 });
     res.status(200).json({ success: true, data: billingCompanies });
   } catch (error: any) {
     console.error('Error getting billing companies:', error);

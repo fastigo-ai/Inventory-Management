@@ -24,7 +24,7 @@ export const createLocation = async (req: Request, res: Response) => {
 
 export const getLocations = async (req: Request, res: Response) => {
   try {
-    const locations = await Location.find().populate('parentLocation').sort({ createdAt: -1 });
+    const locations = await Location.find().populate('parentLocation').sort({ createdAt: 1 });
     res.status(200).json({
       success: true,
       data: locations,

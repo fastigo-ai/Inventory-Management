@@ -47,7 +47,7 @@ export const getJmcs = asyncHandler(async (req: Request, res: Response) => {
   const jmcs = await JmcRegister.find(filter)
     .populate('contractorId', 'name vendorName dynamicData')
     .populate('workOrderId', 'workOrderNumber')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: 1 });
 
   res.status(200).json(
     new ApiResponse(200, jmcs, 'JMC Register entries fetched successfully')

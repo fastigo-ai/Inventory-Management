@@ -40,6 +40,7 @@ app.use(contextMiddleware);
 app.use(helmet());
 const allowedOrigins = [
   'http://localhost:3000',
+  'http://127.0.0.1:3000',
   'seashell-app-r36uj.ondigitalocean.app',
   'fastigo.co',
   process.env.CLIENT_URL

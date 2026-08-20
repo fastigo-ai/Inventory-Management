@@ -33,7 +33,7 @@ const generateNextDemandNoteNumber = async () => {
   const prefix = `DN-${year}${month}-`;
   
   const lastNote = await DemandNote.findOne({ demandNoteNumber: new RegExp(`^${prefix}`) })
-    .sort({ demandNoteNumber: -1 })
+    .sort({ demandNoteNumber: 1 })
     .limit(1);
 
   let sequence = 1;
@@ -210,7 +210,7 @@ export const getDemandNotes = asyncHandler(async (req: AuthRequest, res: Respons
 
   const demandNotes = await DemandNote.find(filter)
     .populate('createdBy', 'firstName lastName email')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: 1 });
     
   res.status(200).json(new ApiResponse(200, { demandNotes }, 'Demand Notes fetched'));
 });

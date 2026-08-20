@@ -384,8 +384,8 @@ export const getStoreSummary = asyncHandler(async (req: Request, res: Response) 
 export const getVendorDetails = asyncHandler(async (req: Request, res: Response) => {
   const { vendorName } = req.params;
   
-  const pos = await PurchaseOrder.find({ vendorName, status: { $ne: 'Cancelled' } }).sort({ date: -1 });
-  const invoices = await PurchaseInvoice.find({ vendorName, status: { $ne: 'Cancelled' } }).sort({ receiveDate: -1 });
+  const pos = await PurchaseOrder.find({ vendorName, status: { $ne: 'Cancelled' } }).sort({ date: 1 });
+  const invoices = await PurchaseInvoice.find({ vendorName, status: { $ne: 'Cancelled' } }).sort({ receiveDate: 1 });
 
   res.status(200).json(new ApiResponse(200, { pos, invoices }, 'Vendor details fetched successfully'));
 });
@@ -393,7 +393,7 @@ export const getVendorDetails = asyncHandler(async (req: Request, res: Response)
 export const getContractorDetails = asyncHandler(async (req: Request, res: Response) => {
   const { contractorName } = req.params;
   
-  const mins = await ContractorAssignment.find({ contractorFarmName: contractorName }).sort({ assignmentDate: -1 });
+  const mins = await ContractorAssignment.find({ contractorFarmName: contractorName }).sort({ assignmentDate: 1 });
   
   // We need to match ContractorInvoice by the actual contractor name.
   // Since ContractorInvoice only has contractorId, we can either look up or if we pass the contractorId from frontend.
@@ -418,10 +418,10 @@ export const getContractorDetails = asyncHandler(async (req: Request, res: Respo
 export const getItemDetails = asyncHandler(async (req: Request, res: Response) => {
   const { itemId } = req.params;
   
-  const pos = await PurchaseOrder.find({ "lineItems.itemId": itemId, status: { $ne: 'Cancelled' } }).sort({ date: -1 });
-  const dis = await DI.find({ "lineItems.itemId": itemId, status: { $ne: 'Cancelled' } }).sort({ date: -1 });
-  const invoices = await PurchaseInvoice.find({ "lineItems.itemId": itemId, status: { $ne: 'Cancelled' } }).sort({ receiveDate: -1 });
-  const mins = await ContractorAssignment.find({ "lineItems.itemId": itemId }).sort({ assignmentDate: -1 });
+  const pos = await PurchaseOrder.find({ "lineItems.itemId": itemId, status: { $ne: 'Cancelled' } }).sort({ date: 1 });
+  const dis = await DI.find({ "lineItems.itemId": itemId, status: { $ne: 'Cancelled' } }).sort({ date: 1 });
+  const invoices = await PurchaseInvoice.find({ "lineItems.itemId": itemId, status: { $ne: 'Cancelled' } }).sort({ receiveDate: 1 });
+  const mins = await ContractorAssignment.find({ "lineItems.itemId": itemId }).sort({ assignmentDate: 1 });
 
   res.status(200).json(new ApiResponse(200, { pos, dis, invoices, mins }, 'Item details fetched successfully'));
 });
@@ -446,18 +446,18 @@ async function computeStoreItemisedSummary(params: {
 
   if (tempCode && tempCode.trim() !== '') {
     const t = tempCode.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    itemFilter['dynamicData.tempCode'] = { $regex: t, $options: 'i' };
+    itemFilter['dynamicData.tempCode'] = { $regex: `^${t}$`, $options: 'i' };
   }
   if (itemName && itemName.trim() !== '') {
     const n = itemName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    itemFilter['dynamicData.name'] = { $regex: n, $options: 'i' };
+    itemFilter['dynamicData.name'] = { $regex: `^${n}$`, $options: 'i' };
   }
   if (search && search.trim() !== '') {
     const s = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     itemFilter.$or = [
-      { 'dynamicData.name': { $regex: s, $options: 'i' } },
-      { 'dynamicData.tempCode': { $regex: s, $options: 'i' } },
-      { 'dynamicData.sku': { $regex: s, $options: 'i' } }
+      { 'dynamicData.name': { $regex: `^${s}$`, $options: 'i' } },
+      { 'dynamicData.tempCode': { $regex: `^${s}$`, $options: 'i' } },
+      { 'dynamicData.sku': { $regex: `^${s}$`, $options: 'i' } }
     ];
   }
 
@@ -729,7 +729,7 @@ async function computeStoreItemisedSummary(params: {
       });
     });
 
-    const transferOutFilter: any = { registerType: 'OUTWARD', status: { $nin: ['Cancelled', 'REJECTED', 'CANCELLED'] } };
+    const transferOutFilter: any = { status: { $nin: ['Cancelled', 'REJECTED', 'CANCELLED'] } };
     if (locRegex) {
       transferOutFilter.fromStore = locRegex;
     }
@@ -744,7 +744,7 @@ async function computeStoreItemisedSummary(params: {
       });
     });
 
-    const transferInFilter: any = { status: { $in: ['RECEIVED', 'IN_TRANSIT'] } };
+    const transferInFilter: any = { status: { $nin: ['Cancelled', 'REJECTED', 'CANCELLED'] } };
     if (locRegex) {
       transferInFilter.toStore = locRegex;
     }
@@ -914,7 +914,7 @@ async function computeItemMatrixSummary(params: {
     const s = search.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     itemFilter.$or = [
       { 'dynamicData.name': { $regex: s, $options: 'i' } },
-      { 'dynamicData.tempCode': { $regex: s, $options: 'i' } },
+      { 'dynamicData.tempCode': search.toString().trim() },
       { 'dynamicData.sku': { $regex: s, $options: 'i' } },
       { 'dynamicData.loaSerialNo': { $regex: s, $options: 'i' } }
     ];
@@ -1347,7 +1347,7 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
     const s = search.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     itemFilter.$or = [
       { 'dynamicData.name': { $regex: s, $options: 'i' } },
-      { 'dynamicData.tempCode': { $regex: s, $options: 'i' } },
+      { 'dynamicData.tempCode': search.toString().trim() },
       { 'dynamicData.sku': { $regex: s, $options: 'i' } },
       { 'dynamicData.loaSerialNo': { $regex: s, $options: 'i' } }
     ];
@@ -1420,10 +1420,7 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
       { 'lineItems.circle': cRegex }
     ];
   }
-  if (pkg && pkg !== 'all') {
-    const pRegex = new RegExp(pkg.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-    assignFilter.package = pRegex;
-  }
+  // Package filter moved to end to filter master items instead of DB querying (since DB might lack package field)
 
   const assignments = await ContractorAssignment.find(assignFilter).lean();
   assignments.forEach(doc => {
@@ -1493,10 +1490,15 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
     rows = rows.filter(r => r.totalIssuedQty !== 0 || r.totalReturnQty !== 0 || r.totalBalanceQty !== 0);
   }
 
-  // Filter by selected circle if provided
   if (circle && circle !== 'all') {
     const cFilter = circle.toString().toLowerCase();
     rows = rows.filter(r => (r.circle || '').toLowerCase().includes(cFilter));
+  }
+
+  // Filter by selected package if provided
+  if (pkg && pkg !== 'all') {
+    const pFilter = pkg.toString().toLowerCase();
+    rows = rows.filter(r => (r.package || '').toLowerCase().includes(pFilter));
   }
 
   rows.sort((a, b) => {

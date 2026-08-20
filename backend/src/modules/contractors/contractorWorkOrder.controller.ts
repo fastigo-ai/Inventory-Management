@@ -16,7 +16,7 @@ const generateNextWoNumber = async () => {
   const prefix = `WO-${year}${month}-`;
   
   const lastWo = await ContractorWorkOrder.findOne({ workOrderNumber: new RegExp(`^${prefix}`) })
-    .sort({ workOrderNumber: -1 })
+    .sort({ workOrderNumber: 1 })
     .limit(1);
 
   let sequence = 1;
@@ -69,7 +69,7 @@ export const getWorkOrders = asyncHandler(async (req: AuthRequest, res: Response
   const workOrders = await ContractorWorkOrder.find(filter)
     .populate('contractorId', 'dynamicData.contractorName dynamicData.companyName dynamicData.displayName')
     .populate('createdBy', 'firstName lastName')
-    .sort({ createdAt: -1 })
+    .sort({ createdAt: 1 })
     .skip(skip)
     .limit(Number(limit));
 

@@ -73,7 +73,7 @@ export const getDocuments = async (req: Request, res: Response): Promise<void> =
 
     const documents = await AppDocument.find(filter)
       .populate('uploadedBy', 'firstName lastName name email')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: 1 });
 
     res.status(200).json({
       success: true,

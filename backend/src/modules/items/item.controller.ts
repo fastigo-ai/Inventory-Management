@@ -147,7 +147,7 @@ const buildItemQueryAndSort = (queryParams: any) => {
   const isDeleted = queryParams.isDeleted === 'true';
   const search = queryParams.search as string;
 
-  let sortObject: any = { createdAt: -1 };
+  let sortObject: any = { createdAt: 1 };
   if (sortBy) {
     sortObject = { [`dynamicData.${sortBy}`]: sortOrder };
   }
@@ -166,11 +166,26 @@ const buildItemQueryAndSort = (queryParams: any) => {
               input: { $objectToArray: "$dynamicData" },
               as: "field",
               cond: {
-                $regexMatch: {
-                  input: { $toString: "$$field.v" },
-                  regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
-                  options: "i"
-                }
+                $or: [
+                  {
+                    $and: [
+                      { $eq: ["$$field.k", "tempCode"] },
+                      { $eq: [{ $toString: "$$field.v" }, search] }
+                    ]
+                  },
+                  {
+                    $and: [
+                      { $ne: ["$$field.k", "tempCode"] },
+                      {
+                        $regexMatch: {
+                          input: { $toString: "$$field.v" },
+                          regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+                          options: "i"
+                        }
+                      }
+                    ]
+                  }
+                ]
               }
             }
           }
@@ -303,7 +318,7 @@ export const getItemUsage = asyncHandler(async (req: Request, res: Response) => 
   // 1. Purchase Orders
   const poDocs = await PurchaseOrder.find({ $or: orConditions })
     .select('_id purchaseOrderNumber date vendorName status lineItems')
-    .sort({ date: -1 })
+    .sort({ date: 1 })
     .lean();
     
   const purchaseOrders = poDocs.map(po => {
@@ -325,7 +340,7 @@ export const getItemUsage = asyncHandler(async (req: Request, res: Response) => 
   // 2. DI Registrations
   const diDocs = await DI.find({ $or: orConditions })
     .select('_id diNumber date status vendorName lineItems')
-    .sort({ date: -1 })
+    .sort({ date: 1 })
     .lean();
 
   const dis = diDocs.map(di => {
@@ -344,7 +359,7 @@ export const getItemUsage = asyncHandler(async (req: Request, res: Response) => 
   // 3. Purchase Invoices
   const piDocs = await PurchaseInvoice.find({ $or: orConditions })
     .select('_id invoiceNumber date vendorName status lineItems')
-    .sort({ date: -1 })
+    .sort({ date: 1 })
     .lean();
     
   const purchaseInvoices = piDocs.map(pi => {
@@ -365,7 +380,7 @@ export const getItemUsage = asyncHandler(async (req: Request, res: Response) => 
   // 4. Purchase Receives (Store Inwards)
   const prDocs = await Pr.find({ $or: orConditions })
     .select('_id purchaseReceiveNumber receiveDate vendorName status lineItems')
-    .sort({ receiveDate: -1 })
+    .sort({ receiveDate: 1 })
     .lean();
     
   const purchaseReceives = prDocs.map(pr => {
@@ -387,7 +402,7 @@ export const getItemUsage = asyncHandler(async (req: Request, res: Response) => 
   const assignmentDocs = await ContractorAssignment.find({ $or: orConditions })
     .populate('contractorId', 'name companyName')
     .select('_id assignmentNumber minNo date status lineItems contractorId')
-    .sort({ date: -1 })
+    .sort({ date: 1 })
     .lean();
     
   const contractorAssignments = assignmentDocs.map((ca: any) => {

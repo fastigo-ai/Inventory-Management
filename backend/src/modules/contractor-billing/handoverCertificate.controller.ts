@@ -28,7 +28,7 @@ export const getHandoverCertificates = asyncHandler(async (req: Request, res: Re
   const certificates = await HandoverCertificate.find(filter)
     .populate('contractorId', 'name vendorName dynamicData')
     .populate('workOrderId', 'workOrderNumber')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: 1 });
 
   res.status(200).json(new ApiResponse(200, certificates, 'Handover Certificates fetched successfully'));
 });

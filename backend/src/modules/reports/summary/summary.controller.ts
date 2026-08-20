@@ -940,13 +940,14 @@ async function computeItemMatrixSummary(params: {
 
   const items = await Item.find(itemFilter, { dynamicData: 1, tempCode: 1, sku: 1, name: 1, unit: 1, circle: 1, package: 1 }).lean();
 
-  // Group master items by unique Temp Code
+  // Group master items by unique Circle + LOA Sr No
   const groupedItemsMap = new Map<string, {
     loaSerialNo: string;
     tempCode: string;
     itemName: string;
     unit: string;
     package: string;
+    circle: string;
     itemIds: string[];
     nahanLoaQty: number;
     nahanBomQty: number;
@@ -970,8 +971,8 @@ async function computeItemMatrixSummary(params: {
     const pkgVal = String(d.package || it.package || '').trim();
     const circleVal = String(d.circle || it.circle || '').trim();
 
-    // Key must differentiate between Package 1 and Package 2
-    const groupKey = `${pkgVal ? pkgVal + '___' : ''}${loaSrNo}`;
+    // Grouping by Package + Circle + LOA Sr No ensures an item only belongs to its own circle
+    const groupKey = `${pkgVal ? pkgVal + '___' : ''}${circleVal ? circleVal + '___' : ''}${loaSrNo}`;
 
     if (!groupedItemsMap.has(groupKey)) {
       groupedItemsMap.set(groupKey, {
@@ -980,6 +981,7 @@ async function computeItemMatrixSummary(params: {
         itemName: name,
         unit,
         package: pkgVal,
+        circle: circleVal,
         itemIds: [],
         nahanLoaQty: 0,
         nahanBomQty: 0,
@@ -995,7 +997,7 @@ async function computeItemMatrixSummary(params: {
     const grp = groupedItemsMap.get(groupKey)!;
     grp.itemIds.push(it._id.toString());
     itemIdToKeyMap.set(it._id.toString(), groupKey);
-    if (tc) tempCodeToKeyMap.set(`${pkgVal ? pkgVal + '___' : ''}${tc}`, groupKey);
+    if (tc) tempCodeToKeyMap.set(`${pkgVal ? pkgVal + '___' : ''}${circleVal ? circleVal + '___' : ''}${tc}`, groupKey);
 
     if (!grp.itemName && name) grp.itemName = name;
     if (!grp.tempCode && tc) grp.tempCode = tc;
@@ -1005,46 +1007,48 @@ async function computeItemMatrixSummary(params: {
     const loaQty = Number(d.loaQuantity || d.quantity || 0);
     const bomQty = Number(d.bomQuantity || d.bomQty || 0);
 
-    const solanLoa = Number(d.solanLoaQuantity) || (circleLower.includes('solan') ? loaQty : 0);
-    const solanBom = Number(d.solanBomQuantity) || (circleLower.includes('solan') ? bomQty : 0);
-
-    const nahanLoa = Number(d.nahanLoaQuantity) || (circleLower.includes('nahan') ? loaQty : 0);
-    const nahanBom = Number(d.nahanBomQuantity) || (circleLower.includes('nahan') ? bomQty : 0);
-
-    const rampurLoa = Number(d.rampurLoaQuantity) || (circleLower.includes('rampur') ? loaQty : 0);
-    const rampurBom = Number(d.rampurBomQuantity) || (circleLower.includes('rampur') ? bomQty : 0);
-
-    const rohruLoa = Number(d.rohruLoaQuantity) || (circleLower.includes('rohru') ? loaQty : 0);
-    const rohruBom = Number(d.rohruBomQuantity) || (circleLower.includes('rohru') ? bomQty : 0);
-
-    grp.solanLoaQty += solanLoa;
-    grp.solanBomQty += solanBom;
-    grp.nahanLoaQty += nahanLoa;
-    grp.nahanBomQty += nahanBom;
-    grp.rampurLoaQty += rampurLoa;
-    grp.rampurBomQty += rampurBom;
-    grp.rohruLoaQty += rohruLoa;
-    grp.rohruBomQty += rohruBom;
+    // Each item strictly belongs to ONE circle
+    if (circleLower.includes('solan')) {
+      grp.solanLoaQty += loaQty || Number(d.solanLoaQuantity || 0);
+      grp.solanBomQty += bomQty || Number(d.solanBomQuantity || 0);
+    } else if (circleLower.includes('nahan')) {
+      grp.nahanLoaQty += loaQty || Number(d.nahanLoaQuantity || 0);
+      grp.nahanBomQty += bomQty || Number(d.nahanBomQuantity || 0);
+    } else if (circleLower.includes('rampur')) {
+      grp.rampurLoaQty += loaQty || Number(d.rampurLoaQuantity || 0);
+      grp.rampurBomQty += bomQty || Number(d.rampurBomQuantity || 0);
+    } else if (circleLower.includes('rohru')) {
+      grp.rohruLoaQty += loaQty || Number(d.rohruLoaQuantity || 0);
+      grp.rohruBomQty += bomQty || Number(d.rohruBomQuantity || 0);
+    }
   });
 
-  const getTargetTempCodes = (lineItemId: any, lineTempCode: any, lineLoaSrNo?: any, linePkg?: any): string[] => {
+  const getTargetTempCodes = (lineItemId: any, lineTempCode: any, lineLoaSrNo?: any, linePkg?: any, lineCircle?: any): string[] => {
     const idStr = lineItemId ? lineItemId.toString() : '';
     if (idStr && itemIdToKeyMap.has(idStr)) {
       return [itemIdToKeyMap.get(idStr)!];
     }
     const loaSr = String(lineLoaSrNo || '').trim();
+    const circ = String(lineCircle || '').trim().toLowerCase();
+
+    if (loaSr && circ) {
+      for (const [k, grp] of groupedItemsMap.entries()) {
+        if (grp.loaSerialNo === loaSr && grp.circle.toLowerCase().includes(circ)) {
+          return [k];
+        }
+      }
+    }
     if (loaSr) {
-      if (groupedItemsMap.has(loaSr)) return [loaSr];
-      for (const k of groupedItemsMap.keys()) {
-        if (k.endsWith(`___${loaSr}`)) {
+      for (const [k, grp] of groupedItemsMap.entries()) {
+        if (grp.loaSerialNo === loaSr) {
           return [k];
         }
       }
     }
     const tc = String(lineTempCode || '').trim();
-    if (tc) {
+    if (tc && circ) {
       for (const [k, grp] of groupedItemsMap.entries()) {
-        if (grp.tempCode === tc) {
+        if (grp.tempCode === tc && grp.circle.toLowerCase().includes(circ)) {
           return [k];
         }
       }
@@ -1084,13 +1088,12 @@ async function computeItemMatrixSummary(params: {
   const diMap = new Map<string, Record<string, number>>();
   dis.forEach(d => {
     const docCircle = (d.circle || '').toLowerCase();
-    const docPkg = (d.package || '').toLowerCase();
     (d.lineItems || []).forEach((line: any) => {
       const qty = Number(line.quantity || 0);
       if (qty > 0) {
-        const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku, line.package || d.package);
+        const lineCirc = (line.circle || docCircle || '').toLowerCase();
+        const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku, line.package || d.package, lineCirc);
         targetTCs.forEach(tc => {
-          const lineCirc = (line.circle || docCircle || '').toLowerCase();
           if (!diMap.has(tc)) diMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
           const obj = diMap.get(tc)!;
           if (lineCirc.includes('solan')) obj.solan += qty;
@@ -1108,9 +1111,9 @@ async function computeItemMatrixSummary(params: {
   inwards.forEach(doc => {
     const qty = Number(doc.invoiceQty || doc.acceptedQty || doc.totalQty || 0);
     if (qty > 0) {
-      const targetTCs = getTargetTempCodes(doc.itemId, doc.tempCode, doc.loaSerialNo || doc.loaSrNo || doc.sku, (doc as any).package);
+      const circ = (doc.circle || doc.subcircle || doc.billingFrom || '').toLowerCase();
+      const targetTCs = getTargetTempCodes(doc.itemId, doc.tempCode, doc.loaSerialNo || doc.loaSrNo || doc.sku, (doc as any).package, circ);
       targetTCs.forEach(tc => {
-        const circ = (doc.circle || doc.subcircle || doc.billingFrom || '').toLowerCase();
         if (!inwardMap.has(tc)) inwardMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
         const obj = inwardMap.get(tc)!;
         if (circ.includes('solan')) obj.solan += qty;
@@ -1129,9 +1132,9 @@ async function computeItemMatrixSummary(params: {
     (doc.lineItems || []).forEach((line: any) => {
       const qty = Number(line.quantity || 0);
       if (qty > 0) {
-        const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku, line.package || (doc as any).package);
+        const lineCirc = (line.circle || docCirc || '').toLowerCase();
+        const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku, line.package || (doc as any).package, lineCirc);
         targetTCs.forEach(tc => {
-          const lineCirc = (line.circle || docCirc || '').toLowerCase();
           if (!minMap.has(tc)) minMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
           const obj = minMap.get(tc)!;
           if (lineCirc.includes('solan')) obj.solan += qty;
@@ -1151,9 +1154,9 @@ async function computeItemMatrixSummary(params: {
     ((doc as any).items || []).forEach((line: any) => {
       const qty = Number(line.approvedQty || line.claimedQty || 0);
       if (qty > 0) {
-        const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku, line.package || (doc as any).package);
+        const lineCirc = (line.circle || docCirc || '').toLowerCase();
+        const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku, line.package || (doc as any).package, lineCirc);
         targetTCs.forEach(tc => {
-          const lineCirc = (line.circle || docCirc || '').toLowerCase();
           if (!imcMap.has(tc)) imcMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
           const imcObj = imcMap.get(tc)!;
           if (lineCirc.includes('solan')) imcObj.solan += qty;
@@ -1173,9 +1176,9 @@ async function computeItemMatrixSummary(params: {
     ((doc as any).lineItems || []).forEach((line: any) => {
       const qty = Number(line.quantity || line.installedQty || 0);
       if (qty > 0) {
-        const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku, line.package || (doc as any).package);
+        const lineCirc = (line.circle || docCirc || '').toLowerCase();
+        const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku, line.package || (doc as any).package, lineCirc);
         targetTCs.forEach(tc => {
-          const lineCirc = (line.circle || docCirc || '').toLowerCase();
           if (!erectionMap.has(tc)) erectionMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
           const erecObj = erectionMap.get(tc)!;
           if (lineCirc.includes('solan')) erecObj.solan += qty;
@@ -1195,9 +1198,9 @@ async function computeItemMatrixSummary(params: {
     (doc.lineItems || []).forEach((line: any) => {
       const qty = Number(line.quantity || line.act || 0);
       if (qty > 0) {
-        const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku, line.package || (doc as any).package);
+        const lineCirc = (line.circle || docCirc || '').toLowerCase();
+        const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku, line.package || (doc as any).package, lineCirc);
         targetTCs.forEach(tc => {
-          const lineCirc = (line.circle || docCirc || '').toLowerCase();
           if (!supplyBilledMap.has(tc)) supplyBilledMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
           const obj = supplyBilledMap.get(tc)!;
           if (lineCirc.includes('solan')) obj.solan += qty;
@@ -1215,6 +1218,7 @@ async function computeItemMatrixSummary(params: {
     const tc = grp.tempCode;
     const tempNum = Number(tc);
     const itemName = grp.itemName || 'Unnamed Item';
+    const itemCircle = (grp.circle || '').toUpperCase();
 
     const nahanLoaQty = grp.nahanLoaQty;
     const nahanBomQty = grp.nahanBomQty;
@@ -1233,30 +1237,25 @@ async function computeItemMatrixSummary(params: {
     const erecObj = erectionMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
 
     const tCirc = (targetCircle as string).toUpperCase();
-    let targetLoa = solanLoaQty;
-    let targetBom = solanBomQty;
-    let targetDi = diObj.solan;
-    let targetInward = invObj.solan;
-    let targetMin = minObj.solan;
-    let targetImc = imcObj.solan;
-    let targetSupBilled = supObj.solan;
-    let targetErecBilled = erecObj.solan;
+    const evalCircle = (tCirc === 'ALL' || !tCirc) ? itemCircle : tCirc;
 
-    if (tCirc.includes('NAHAN')) {
+    let targetLoa = 0;
+    let targetBom = 0;
+    let targetDi = 0;
+    let targetInward = 0;
+    let targetMin = 0;
+    let targetImc = 0;
+    let targetSupBilled = 0;
+    let targetErecBilled = 0;
+
+    if (evalCircle.includes('SOLAN')) {
+      targetLoa = solanLoaQty; targetBom = solanBomQty; targetDi = diObj.solan; targetInward = invObj.solan; targetMin = minObj.solan; targetImc = imcObj.solan; targetSupBilled = supObj.solan; targetErecBilled = erecObj.solan;
+    } else if (evalCircle.includes('NAHAN')) {
       targetLoa = nahanLoaQty; targetBom = nahanBomQty; targetDi = diObj.nahan; targetInward = invObj.nahan; targetMin = minObj.nahan; targetImc = imcObj.nahan; targetSupBilled = supObj.nahan; targetErecBilled = erecObj.nahan;
-    } else if (tCirc.includes('RAMPUR')) {
+    } else if (evalCircle.includes('RAMPUR')) {
       targetLoa = rampurLoaQty; targetBom = rampurBomQty; targetDi = diObj.rampur; targetInward = invObj.rampur; targetMin = minObj.rampur; targetImc = imcObj.rampur; targetSupBilled = supObj.rampur; targetErecBilled = erecObj.rampur;
-    } else if (tCirc.includes('ROHRU')) {
+    } else if (evalCircle.includes('ROHRU')) {
       targetLoa = rohruLoaQty; targetBom = rohruBomQty; targetDi = diObj.rohru; targetInward = invObj.rohru; targetMin = minObj.rohru; targetImc = imcObj.rohru; targetSupBilled = supObj.rohru; targetErecBilled = erecObj.rohru;
-    } else if (tCirc === 'ALL') {
-      targetLoa = nahanLoaQty + solanLoaQty + rampurLoaQty + rohruLoaQty;
-      targetBom = nahanBomQty + solanBomQty + rampurBomQty + rohruBomQty;
-      targetDi = diObj.nahan + diObj.solan + diObj.rampur + diObj.rohru;
-      targetInward = invObj.nahan + invObj.solan + invObj.rampur + invObj.rohru;
-      targetMin = minObj.nahan + minObj.solan + minObj.rampur + minObj.rohru;
-      targetImc = imcObj.nahan + imcObj.solan + imcObj.rampur + imcObj.rohru;
-      targetSupBilled = supObj.nahan + supObj.solan + supObj.rampur + supObj.rohru;
-      targetErecBilled = erecObj.nahan + erecObj.solan + erecObj.rampur + erecObj.rohru;
     }
 
     const balDiLoa = targetLoa - targetDi;

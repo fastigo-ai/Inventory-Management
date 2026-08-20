@@ -66,29 +66,22 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
   const getOrAddRow = (itemIdStr: string, loaSrNo: string, tempCode: string, activity: string, itemName: string) => {
     const cleanLoa = (loaSrNo || '').trim().toLowerCase();
     const cleanTemp = (tempCode || '').trim().toLowerCase();
-    const cleanAct = (activity || '').trim().toLowerCase();
 
     let primaryKey = '';
     if (cleanTemp) {
-      primaryKey = cleanAct ? `${cleanTemp}_${cleanAct}` : cleanTemp;
+      primaryKey = cleanTemp;
     } else if (cleanLoa) {
-      primaryKey = cleanAct ? `${cleanLoa}_${cleanAct}` : cleanLoa;
+      primaryKey = cleanLoa;
     } else {
       primaryKey = itemIdStr;
     }
 
     let rowObj = reportMap[primaryKey];
 
-    if (!rowObj && cleanTemp && cleanAct) {
-      rowObj = reportMap[cleanTemp];
-    }
-    if (!rowObj && cleanTemp && !cleanAct) {
+    if (!rowObj && cleanTemp) {
       rowObj = rowByTempCode.get(cleanTemp);
     }
-    if (!rowObj && cleanLoa && cleanAct) {
-      rowObj = reportMap[cleanLoa];
-    }
-    if (!rowObj && cleanLoa && !cleanAct) {
+    if (!rowObj && cleanLoa) {
       rowObj = rowByLoaSrNo.get(cleanLoa);
     }
     if (!rowObj) {
@@ -115,6 +108,8 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
       if (!rowByItemId.has(itemIdStr)) rowByItemId.set(itemIdStr, rowObj);
     }
 
+    // Keep the first item name encountered if it was generic like "Steel Tubular Poles" but a better one "STP 9 MTR" comes in?
+    // Usually we just keep the first one. We don't overwrite.
     return rowObj;
   };
 

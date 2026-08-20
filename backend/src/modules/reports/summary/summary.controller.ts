@@ -1161,6 +1161,7 @@ async function computeItemMatrixSummary(params: {
     const tc = grp.tempCode;
     const tempNum = Number(tc);
     const itemName = grp.itemName || 'Unnamed Item';
+    const groupKey = grp.loaSerialNo;
 
     const nahanLoaQty = grp.nahanLoaQty;
     const nahanBomQty = grp.nahanBomQty;
@@ -1171,12 +1172,12 @@ async function computeItemMatrixSummary(params: {
     const rohruLoaQty = grp.rohruLoaQty;
     const rohruBomQty = grp.rohruBomQty;
 
-    const diObj = diMap.get(tc) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
-    const invObj = inwardMap.get(tc) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
-    const minObj = minMap.get(tc) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
-    const imcObj = imcMap.get(tc) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
-    const supObj = supplyBilledMap.get(tc) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
-    const erecObj = erectionMap.get(tc) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
+    const diObj = diMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
+    const invObj = inwardMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
+    const minObj = minMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
+    const imcObj = imcMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
+    const supObj = supplyBilledMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
+    const erecObj = erectionMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
 
     const tCirc = (targetCircle as string).toUpperCase();
     let targetLoa = solanLoaQty;

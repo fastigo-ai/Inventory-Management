@@ -2,12 +2,14 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, FileText, ChevronRight, Upload } from 'lucide-react';
+import { FileText, ChevronRight, MapPin, Package, UserCheck, ShieldAlert } from 'lucide-react';
 import { getDemandNotes } from '@/features/site-portal/api/demand-notes.api';
+import { useAuthStore } from '@/shared/store/auth.store';
 import { toast } from 'sonner';
 import ImportDNModal from './ImportDNModal';
 
 export default function DemandNotesList() {
+  const { user } = useAuthStore();
   const [demandNotes, setDemandNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -45,17 +47,44 @@ export default function DemandNotesList() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-6">
-      <div className="flex justify-between items-center bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+      {/* Header with Assigned Package & Circle Info */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <FileText className="w-6 h-6 text-indigo-500" /> Demand Notes (PM Portal)
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">Review and approve material requisitions for your assigned package and circle.</p>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+              <FileText className="w-6 h-6 text-indigo-500" /> Demand Notes (PM Portal)
+            </h1>
+          </div>
+          <p className="text-slate-500 text-sm mt-1">Review and approve material requisitions for your assigned jurisdiction.</p>
+        </div>
+
+        {/* Assigned Package & Circle Badges */}
+        <div className="flex flex-wrap items-center gap-2.5 bg-slate-50 border border-slate-200/80 p-2.5 rounded-xl">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-lg border border-slate-200 shadow-xs text-xs font-semibold text-slate-700">
+            <Package className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+            <span className="text-slate-400 font-normal">Package:</span>
+            <span className="text-indigo-900 font-bold">{user?.assignedPackage || 'Not Assigned (All)'}</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-lg border border-slate-200 shadow-xs text-xs font-semibold text-slate-700">
+            <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span className="text-slate-400 font-normal">Circle:</span>
+            <span className="text-emerald-900 font-bold">{user?.assignedCircle || 'Not Assigned (All)'}</span>
+          </div>
+
+          {user && (
+            <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50/70 rounded-lg border border-indigo-100 text-xs font-medium text-indigo-700">
+              <UserCheck className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+              <span>{user.firstName} {user.lastName}</span>
+            </div>
+          )}
         </div>
       </div>
 
       {loading ? (
-        <div className="text-center py-10 text-slate-500">Loading demand notes...</div>
+        <div className="text-center py-12 text-slate-500 bg-white rounded-xl border border-slate-200">
+          <div className="animate-pulse">Loading demand notes...</div>
+        </div>
       ) : (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <table className="w-full text-sm text-left">
@@ -72,7 +101,15 @@ export default function DemandNotesList() {
             <tbody className="divide-y divide-slate-100">
               {demandNotes.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-slate-500">No demand notes found.</td>
+                  <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                    <div className="flex flex-col items-center justify-center gap-2 max-w-md mx-auto">
+                      <FileText className="w-10 h-10 text-slate-300" />
+                      <p className="font-semibold text-slate-700">No pending demand notes found</p>
+                      <p className="text-xs text-slate-400">
+                        There are currently no demand notes pending PM approval for <span className="font-semibold text-slate-600">{user?.assignedPackage || 'All Packages'}</span> / <span className="font-semibold text-slate-600">{user?.assignedCircle || 'All Circles'}</span>.
+                      </p>
+                    </div>
+                  </td>
                 </tr>
               ) : (
                 demandNotes.map((dn) => (
@@ -117,3 +154,4 @@ export default function DemandNotesList() {
     </div>
   );
 }
+

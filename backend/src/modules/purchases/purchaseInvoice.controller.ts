@@ -426,13 +426,17 @@ export const updatePurchaseInvoice = async (req: Request, res: Response): Promis
     const { id } = req.params;
     const updateData = req.body;
     
-    // 1. Check if it is locked
     const lockedEntries = await StoreInwardEntry.countDocuments({
       purchaseInvoiceId: id,
       status: { $nin: ['PENDING_RECEIPT', 'DRAFT'] }
     });
 
-    if (lockedEntries > 0) {
+    // If they are trying to modify line items or core details on a locked invoice, block it.
+    // If they are just updating the status (e.g., to 'Received'), allow it.
+    const isStatusOnlyUpdate = Object.keys(updateData).length === 1 && updateData.status;
+    const isNotesUpdate = Object.keys(updateData).every(k => ['status', 'notes', 'remarks'].includes(k));
+    
+    if (lockedEntries > 0 && !isStatusOnlyUpdate && !isNotesUpdate) {
       res.status(400).json({
         success: false,
         message: 'Cannot edit this Purchase Invoice because the Store Manager has already begun processing it.'
@@ -518,8 +522,8 @@ export const updatePurchaseInvoice = async (req: Request, res: Response): Promis
       await RelationsService.linkDocuments(updatedPr.purchaseOrderId.toString(), 'PurchaseOrder', updatedPr._id.toString(), 'PurchaseInvoice');
     }
 
-    // 2. Synchronize StoreInwardEntry records
-    if (updatedPr.lineItems && updatedPr.lineItems.length > 0) {
+    // 2. Synchronize StoreInwardEntry records ONLY if lineItems were modified
+    if (updateData.lineItems && updatedPr.lineItems && updatedPr.lineItems.length > 0) {
       // Delete existing pending entries
       await StoreInwardEntry.deleteMany({
         purchaseInvoiceId: updatedPr._id,

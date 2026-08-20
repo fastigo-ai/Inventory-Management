@@ -958,9 +958,13 @@ async function computeItemMatrixSummary(params: {
     const name = String(d.name || d.itemName || d.description || it.name || '').trim();
     const unit = String(d.unit || it.unit || '').trim();
     const pkgVal = String(d.package || it.package || '').trim();
+    const circleVal = String(d.circle || it.circle || '').trim();
 
-    if (!groupedItemsMap.has(loaSrNo)) {
-      groupedItemsMap.set(loaSrNo, {
+    // Key must differentiate between Package 1 and Package 2
+    const groupKey = `${pkgVal ? pkgVal + '___' : ''}${loaSrNo}`;
+
+    if (!groupedItemsMap.has(groupKey)) {
+      groupedItemsMap.set(groupKey, {
         loaSerialNo: loaSrNo,
         tempCode: tc,
         itemName: name,
@@ -978,16 +982,16 @@ async function computeItemMatrixSummary(params: {
       });
     }
 
-    const grp = groupedItemsMap.get(loaSrNo)!;
+    const grp = groupedItemsMap.get(groupKey)!;
     grp.itemIds.push(it._id.toString());
-    itemIdToKeyMap.set(it._id.toString(), loaSrNo);
-    if (tc) tempCodeToKeyMap.set(tc, loaSrNo);
+    itemIdToKeyMap.set(it._id.toString(), groupKey);
+    if (tc) tempCodeToKeyMap.set(`${pkgVal ? pkgVal + '___' : ''}${tc}`, groupKey);
 
     if (!grp.itemName && name) grp.itemName = name;
     if (!grp.tempCode && tc) grp.tempCode = tc;
     if (!grp.unit && unit) grp.unit = unit;
 
-    const circleLower = String(d.circle || it.circle || '').toLowerCase();
+    const circleLower = circleVal.toLowerCase();
     const loaQty = Number(d.loaQuantity || d.quantity || 0);
     const bomQty = Number(d.bomQuantity || d.bomQty || 0);
 
@@ -1013,26 +1017,26 @@ async function computeItemMatrixSummary(params: {
     grp.rohruBomQty += rohruBom;
   });
 
-  const getTargetTempCodes = (lineItemId: any, lineTempCode: any, lineLoaSrNo?: any): string[] => {
-    const keys = new Set<string>();
+  const getTargetTempCodes = (lineItemId: any, lineTempCode: any, lineLoaSrNo?: any, linePkg?: any): string[] => {
     const idStr = lineItemId ? lineItemId.toString() : '';
     if (idStr && itemIdToKeyMap.has(idStr)) {
-      keys.add(itemIdToKeyMap.get(idStr)!);
+      return [itemIdToKeyMap.get(idStr)!];
     }
     const loaSr = String(lineLoaSrNo || '').trim();
+    const pkg = String(linePkg || '').trim();
+    const pkgLoaKey = `${pkg ? pkg + '___' : ''}${loaSr}`;
+    if (loaSr && groupedItemsMap.has(pkgLoaKey)) {
+      return [pkgLoaKey];
+    }
     if (loaSr && groupedItemsMap.has(loaSr)) {
-      keys.add(loaSr);
+      return [loaSr];
     }
     const tc = String(lineTempCode || '').trim();
-    if (tc) {
-      if (tempCodeToKeyMap.has(tc)) {
-        keys.add(tempCodeToKeyMap.get(tc)!);
-      }
-      if (groupedItemsMap.has(tc)) {
-        keys.add(tc);
-      }
+    const pkgTcKey = `${pkg ? pkg + '___' : ''}${tc}`;
+    if (tc && tempCodeToKeyMap.has(pkgTcKey)) {
+      return [tempCodeToKeyMap.get(pkgTcKey)!];
     }
-    return Array.from(keys);
+    return [];
   };
 
   // 1-5. Run all 6 transaction queries concurrently in parallel with tight field projection
@@ -1067,10 +1071,11 @@ async function computeItemMatrixSummary(params: {
   const diMap = new Map<string, Record<string, number>>();
   dis.forEach(d => {
     const docCircle = (d.circle || '').toLowerCase();
+    const docPkg = (d.package || '').toLowerCase();
     (d.lineItems || []).forEach((line: any) => {
       const qty = Number(line.quantity || 0);
       if (qty > 0) {
-        const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku);
+        const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku, line.package || d.package);
         targetTCs.forEach(tc => {
           const lineCirc = (line.circle || docCircle || '').toLowerCase();
           if (!diMap.has(tc)) diMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
@@ -1090,7 +1095,7 @@ async function computeItemMatrixSummary(params: {
   inwards.forEach(doc => {
     const qty = Number(doc.invoiceQty || doc.acceptedQty || doc.totalQty || 0);
     if (qty > 0) {
-      const targetTCs = getTargetTempCodes(doc.itemId, doc.tempCode, doc.loaSerialNo || doc.loaSrNo || doc.sku);
+      const targetTCs = getTargetTempCodes(doc.itemId, doc.tempCode, doc.loaSerialNo || doc.loaSrNo || doc.sku, (doc as any).package);
       targetTCs.forEach(tc => {
         const circ = (doc.circle || doc.subcircle || doc.billingFrom || '').toLowerCase();
         if (!inwardMap.has(tc)) inwardMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
@@ -1111,7 +1116,7 @@ async function computeItemMatrixSummary(params: {
     (doc.lineItems || []).forEach((line: any) => {
       const qty = Number(line.quantity || 0);
       if (qty > 0) {
-        const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku);
+        const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku, line.package || (doc as any).package);
         targetTCs.forEach(tc => {
           const lineCirc = (line.circle || docCirc || '').toLowerCase();
           if (!minMap.has(tc)) minMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
@@ -1133,7 +1138,7 @@ async function computeItemMatrixSummary(params: {
     ((doc as any).items || []).forEach((line: any) => {
       const qty = Number(line.approvedQty || line.claimedQty || 0);
       if (qty > 0) {
-        const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku);
+        const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku, line.package || (doc as any).package);
         targetTCs.forEach(tc => {
           const lineCirc = (line.circle || docCirc || '').toLowerCase();
           if (!imcMap.has(tc)) imcMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
@@ -1155,7 +1160,7 @@ async function computeItemMatrixSummary(params: {
     ((doc as any).lineItems || []).forEach((line: any) => {
       const qty = Number(line.quantity || line.installedQty || 0);
       if (qty > 0) {
-        const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku);
+        const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku, line.package || (doc as any).package);
         targetTCs.forEach(tc => {
           const lineCirc = (line.circle || docCirc || '').toLowerCase();
           if (!erectionMap.has(tc)) erectionMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
@@ -1177,7 +1182,7 @@ async function computeItemMatrixSummary(params: {
     (doc.lineItems || []).forEach((line: any) => {
       const qty = Number(line.quantity || line.act || 0);
       if (qty > 0) {
-        const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku);
+        const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku, line.package || (doc as any).package);
         targetTCs.forEach(tc => {
           const lineCirc = (line.circle || docCirc || '').toLowerCase();
           if (!supplyBilledMap.has(tc)) supplyBilledMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });

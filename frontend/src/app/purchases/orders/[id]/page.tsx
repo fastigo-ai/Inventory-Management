@@ -416,7 +416,14 @@ export default function PurchaseOrderDetailPage() {
               </>
             )}
             
-            <button onClick={() => window.print()} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 transition-colors rounded border border-transparent hover:border-slate-200">
+            <button onClick={() => {
+              if (!isPdfView) {
+                setIsPdfView(true);
+                setTimeout(() => window.print(), 100);
+              } else {
+                window.print();
+              }
+            }} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 transition-colors rounded border border-transparent hover:border-slate-200">
               <FileText className="w-3.5 h-3.5" /> PDF/Print <span className="text-[9px] ml-1">▼</span>
             </button>
             <div className="w-px h-4 bg-slate-300 mx-1"></div>

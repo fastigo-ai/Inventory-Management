@@ -295,8 +295,15 @@ export default function PurchaseInvoiceDetailPage() {
               PDF View
             </button>
           </div>
-          <Button variant="outline" className="h-9 border-slate-300 text-slate-700 hover:bg-slate-50" onClick={() => window.print()}>
-            <Printer className="w-4 h-4 mr-2" /> Print
+          <Button variant="outline" className="h-9 border-slate-300 text-slate-700 hover:bg-slate-50" onClick={() => {
+            if (!isPdfView) {
+              setIsPdfView(true);
+              setTimeout(() => window.print(), 100);
+            } else {
+              window.print();
+            }
+          }}>
+            <FileText className="w-4 h-4 mr-2" /> PDF/Print
           </Button>
           <Button 
             variant="outline" 

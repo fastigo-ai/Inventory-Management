@@ -75,6 +75,28 @@ export const createDI = asyncHandler(async (req: Request, res: Response) => {
   const diLetterCopyUrl = files?.['diLetterCopyUrl']?.[0]?.filename ? `/uploads/dis/${files['diLetterCopyUrl'][0].filename}` : undefined;
   const inspectionReportCopyUrl = files?.['inspectionReportCopyUrl']?.[0]?.filename ? `/uploads/dis/${files['inspectionReportCopyUrl'][0].filename}` : undefined;
   
+  // Auto-populate unit from Master Item if unit is missing
+  const itemIdsToFetch = parsedLineItems.filter((li: any) => li.itemId && !li.unit).map((li: any) => li.itemId);
+  if (itemIdsToFetch.length > 0) {
+    const fetchedItems = await Item.find({ _id: { $in: itemIdsToFetch } });
+    for (const li of parsedLineItems) {
+      if (li.itemId && !li.unit) {
+        const found = fetchedItems.find((it: any) => it._id.toString() === li.itemId.toString());
+        if (found?.dynamicData) {
+          li.unit = found.dynamicData.unit || 
+                    found.dynamicData.Unit || 
+                    found.dynamicData.uom || 
+                    found.dynamicData.UOM || 
+                    found.dynamicData.unitName || 
+                    found.dynamicData['Unit Name'] || 
+                    found.dynamicData.unitOfMeasurement || 
+                    found.dynamicData['Unit of Measurement'] || 
+                    '';
+        }
+      }
+    }
+  }
+
   const diData = {
     ...data,
     lineItems: parsedLineItems,
@@ -610,23 +632,41 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
       const loaSerialNo = row['LoaSerialNo'] || row['loaSerialNo'];
       const itemPackage = row['ItemPackage'] || row['itemPackage'] || row['Package'] || row['package'];
       const itemCircle = row['ItemCircle'] || row['itemCircle'] || row['Circle'] || row['circle'];
-      const unit = row['Unit'] || row['unit'] || row['Unit Name'];
+      let unit = row['Unit'] || row['unit'] || row['Unit Name'] || row['unitName'] || row['UOM'] || row['uom'];
 
-      if (itemName) {
+      if (itemName || tempCode || loaSerialNo) {
         const item = findItemInMemory(tempCode, loaSerialNo, itemName, itemPackage, itemCircle);
         const itemId = item ? item._id : null;
 
-        if (!itemId) {
+        if (!itemId && itemName) {
           errors.push(`Row error in DI ${diNumber}: Item '${itemName}' (TempCode: '${tempCode}', LoaSerialNo: '${loaSerialNo}') was not found in the master item list.`);
         }
 
-        const finalUnit = item ? (item.dynamicData?.unit || item.unit || unit || 'Nos') : (unit || 'Nos');
+        // Auto-fetch unit from master item if unit is missing or empty in the CSV row
+        if (!unit && item?.dynamicData) {
+          unit = item.dynamicData.unit || 
+                 item.dynamicData.Unit || 
+                 item.dynamicData.uom || 
+                 item.dynamicData.UOM || 
+                 item.dynamicData.unitName || 
+                 item.dynamicData['Unit Name'] || 
+                 item.dynamicData.unitOfMeasurement || 
+                 item.dynamicData['Unit of Measurement'] || 
+                 item.dynamicData.measurementUnit ||
+                 item.dynamicData['Measurement Unit'] ||
+                 '';
+        }
+
+        const finalUnit = unit || (item ? (item.dynamicData?.unit || item.unit || 'Nos') : 'Nos');
+        const resolvedItemName = item ? (item.dynamicData?.name || item.name || itemName) : (itemName || 'Unknown Item');
+        const resolvedTempCode = tempCode || item?.dynamicData?.tempCode || '';
+        const resolvedLoaSerialNo = loaSerialNo || item?.dynamicData?.loaSerialNo || item?.dynamicData?.loaSerialNumber || item?.dynamicData?.sku || '';
 
         disMap[diNumber].lineItems.push({
           itemId,
-          itemName: item ? (item.dynamicData?.name || item.name || itemName) : itemName,
-          tempCode: item ? (item.dynamicData?.tempCode || tempCode) : tempCode,
-          loaSerialNo: item ? (item.dynamicData?.loaSerialNo || item.dynamicData?.loaSerialNumber || loaSerialNo) : loaSerialNo,
+          itemName: resolvedItemName,
+          tempCode: resolvedTempCode,
+          loaSerialNo: resolvedLoaSerialNo,
           package: itemPackage,
           circle: itemCircle,
           unit: finalUnit,

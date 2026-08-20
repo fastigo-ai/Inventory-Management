@@ -89,45 +89,25 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
   const user = req.user as any;
   const { itemId, contractorId, contractorName, activity, description, tempCode, loaSrNo } = req.query;
 
-  if (!user.assignedPackage || !user.assignedCircle) {
-    throw new ApiError(400, 'User is not assigned to a specific Package and Circle.');
-  }
-  if (!itemId) {
-    throw new ApiError(400, 'Item ID is required.');
-  }
+  const pkg = user?.assignedPackage || req.query.package;
+  const circle = user?.assignedCircle || req.query.circle;
 
-  // Fetch the item
-  const item = await Item.findById(itemId);
-  if (!item) {
-    throw new ApiError(404, 'Item not found');
+  let item = itemId ? await Item.findById(itemId) : null;
+  if (!item && tempCode) {
+    item = await Item.findOne({ 'dynamicData.tempCode': String(tempCode).trim(), isDeleted: false });
   }
-
-  // Calculate "Already Issued Qty" from past approved demand notes for this package and circle
-  const pastDemandNotes = await DemandNote.find({
-    package: user.assignedPackage,
-    circle: user.assignedCircle,
-    status: { $in: ['Approved', 'Fulfilled'] }
-  });
-
-  let alreadyIssuedQty = 0;
-  for (const dn of pastDemandNotes) {
-    for (const dnItem of dn.items) {
-      if (dnItem.itemId?.toString() === itemId.toString()) {
-        alreadyIssuedQty += dnItem.demandQty || 0;
-      }
-    }
+  if (!item && loaSrNo) {
+    item = await Item.findOne({
+      $or: [
+        { 'dynamicData.sku': String(loaSrNo).trim() },
+        { 'dynamicData.loaSerialNo': String(loaSrNo).trim() },
+        { 'dynamicData.loaSerialNumber': String(loaSrNo).trim() }
+      ],
+      isDeleted: false
+    });
   }
 
-  // Example: Transfer from / Transfer to could be derived here by querying MINs or other Store Outward logs.
-  // For now, keeping placeholders as discussed with user.
-  let transferFromOther = 0;
-  let transferToOther = 0;
-
-  // Calculate JMC and WIP Quantities based on contractor, package, circle and item match
-  let jmcQty = 0;
-  let wipQty = 0;
-  let wipRequiredQty = 0;
-
+  // Resolve contractor ID and filter
   let resolvedContractorId = contractorId;
   if (!resolvedContractorId && contractorName) {
     const assignment = await mongoose.model('ContractorAssignment').findOne({
@@ -138,22 +118,128 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
     }
   }
 
-  if (resolvedContractorId) {
-    const jmcRegisters = await mongoose.model('JmcRegister').find({
-      contractorId: resolvedContractorId,
-      package: user.assignedPackage,
-      circle: user.assignedCircle
+  const cIdStr = resolvedContractorId ? String(resolvedContractorId).trim() : '';
+  const cIdObj = mongoose.Types.ObjectId.isValid(cIdStr) ? new mongoose.Types.ObjectId(cIdStr) : cIdStr;
+  const contractorFilter = cIdStr ? { $in: [cIdStr, cIdObj] } : undefined;
+
+  let pkgRegex: RegExp | undefined = undefined;
+  if (pkg && pkg !== 'All Packages' && pkg !== 'All' && pkg !== 'all') {
+    let flexiblePkg = String(pkg).replace(/\s+/g, ' ').trim();
+    flexiblePkg = flexiblePkg.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&');
+    flexiblePkg = flexiblePkg.replace(/(\\s|\s)+/g, '\\s*');
+    flexiblePkg = flexiblePkg.replace(/\\([()[\]{}|\/?.*+^$])/g, '\\s*\\$1\\s*');
+    pkgRegex = new RegExp(`^\\s*${flexiblePkg}\\s*$`, 'i');
+  }
+
+  const circleFilter = (circle && circle !== 'All Circles' && circle !== 'All' && circle !== 'all') ? String(circle) : undefined;
+
+  // 1. Fetch ItemSummary for central stock & BOM
+  let summary: any = null;
+  if (item?._id) {
+    const summaryQuery: any = { itemId: item._id };
+    if (circleFilter) summaryQuery.circle = circleFilter;
+    if (pkgRegex) summaryQuery.package = { $regex: pkgRegex };
+    summary = await mongoose.model('ItemSummary').findOne(summaryQuery).lean();
+    if (!summary) {
+      summary = await mongoose.model('ItemSummary').findOne({ itemId: item._id }).lean();
+    }
+  }
+
+  // 2. Fetch Work Order for this contractor to get WO Qty, Rate, GST, Circle LOA, BOM Qty
+  let woItem: any = null;
+  if (contractorFilter) {
+    const woQuery: any = { contractorId: contractorFilter };
+    if (pkgRegex) woQuery.package = { $regex: pkgRegex };
+    if (circleFilter) woQuery.circle = circleFilter;
+    const workOrders = await mongoose.model('ContractorWorkOrder').find(woQuery).lean() as any[];
+
+    for (const wo of workOrders) {
+      for (const wi of wo.items || []) {
+        const matches = (item?._id && wi.itemId && String(wi.itemId) === String(item._id)) ||
+                        (tempCode && wi.tempCode && String(wi.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase()) ||
+                        (loaSrNo && wi.loaSrNo && String(wi.loaSrNo).trim().toLowerCase() === String(loaSrNo).trim().toLowerCase()) ||
+                        (activity && wi.activity && String(wi.activity).trim().toLowerCase() === String(activity).trim().toLowerCase());
+        if (matches) {
+          woItem = wi;
+          break;
+        }
+      }
+      if (woItem) break;
+    }
+  }
+
+  // 3. Calculate Store Issued Quantity from ContractorAssignment (MIN / Store Issue)
+  let storeIssuedQty = 0;
+  if (contractorFilter) {
+    const assignments = await mongoose.model('ContractorAssignment').find({
+      contractorId: contractorFilter,
+      status: { $ne: 'Cancelled' }
+    }).lean() as any[];
+
+    assignments.forEach(asg => {
+      asg.lineItems?.forEach((li: any) => {
+        const matches = (item?._id && li.itemId && String(li.itemId) === String(item._id)) ||
+                        (tempCode && li.tempCode && String(li.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase()) ||
+                        (loaSrNo && li.hsnCode && String(li.hsnCode).trim().toLowerCase() === String(loaSrNo).trim().toLowerCase()) ||
+                        (activity && li.activity && String(li.activity).trim().toLowerCase() === String(activity).trim().toLowerCase()) ||
+                        (description && li.itemName && String(li.itemName).trim().toLowerCase() === String(description).trim().toLowerCase());
+        if (matches) {
+          storeIssuedQty += (Number(li.quantity) || 0);
+        }
+      });
     });
-    
+  }
+
+  // Also check past approved demand notes
+  let pastDemandQty = 0;
+  const dnQuery: any = { status: { $in: ['Approved', 'Fulfilled'] } };
+  if (pkgRegex) dnQuery.package = { $regex: pkgRegex };
+  if (circleFilter) dnQuery.circle = circleFilter;
+  const pastDemandNotes = await DemandNote.find(dnQuery).lean();
+
+  for (const dn of pastDemandNotes) {
+    for (const dnItem of dn.items || []) {
+      const matches = (item?._id && dnItem.itemId && String(dnItem.itemId) === String(item._id)) ||
+                      (tempCode && dnItem.tempCode && String(dnItem.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase());
+      if (matches) {
+        pastDemandQty += dnItem.demandQty || 0;
+      }
+    }
+  }
+  const alreadyIssuedQty = Math.max(storeIssuedQty, pastDemandQty);
+
+  // 4. Calculate Stock Balance in store
+  let stockBal = 0;
+  if (summary) {
+    stockBal = Math.max(0, (summary.actQty || 0) - (summary.billedQty || 0) - (summary.srtQty || 0));
+  }
+  if (!stockBal && item?.dynamicData) {
+    stockBal = Number(item.dynamicData.stockBal || item.dynamicData.stockBalance || item.dynamicData.quantity || 0);
+  }
+
+  let transferFromOther = 0;
+  let transferToOther = 0;
+
+  // 5. Calculate JMC and WIP Quantities based on contractor, package, circle and item match
+  let jmcQty = 0;
+  let wipQty = 0;
+  let wipRequiredQty = 0;
+
+  if (contractorFilter) {
+    const regQuery: any = { contractorId: contractorFilter };
+    if (pkgRegex) regQuery.package = { $regex: pkgRegex };
+    if (circleFilter) regQuery.circle = circleFilter;
+
+    const jmcRegisters = await mongoose.model('JmcRegister').find(regQuery).lean() as any[];
     jmcRegisters.forEach((jmc: any) => {
-      jmc.items.forEach((jmcItem: any) => {
+      jmc.items?.forEach((jmcItem: any) => {
         let isMatch = false;
         if (tempCode && jmcItem.tempCode) {
           isMatch = String(jmcItem.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase();
         } else if (loaSrNo && jmcItem.loaSerialNo) {
           isMatch = String(jmcItem.loaSerialNo).trim().toLowerCase() === String(loaSrNo).trim().toLowerCase();
-        } else if (itemId && jmcItem.itemId) {
-          isMatch = String(jmcItem.itemId) === String(itemId);
+        } else if (item?._id && jmcItem.itemId) {
+          isMatch = String(jmcItem.itemId) === String(item._id);
         } else {
           const matchActivity = activity ? jmcItem.activity === activity : true;
           const matchDesc = description ? jmcItem.description === description : true;
@@ -166,21 +252,16 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
       });
     });
 
-    const wipRegisters = await mongoose.model('WipRegister').find({
-      contractorId: resolvedContractorId,
-      package: user.assignedPackage,
-      circle: user.assignedCircle
-    });
-    
+    const wipRegisters = await mongoose.model('WipRegister').find(regQuery).lean() as any[];
     wipRegisters.forEach((wip: any) => {
-      wip.items.forEach((wipItem: any) => {
+      wip.items?.forEach((wipItem: any) => {
         let isMatch = false;
         if (tempCode && wipItem.tempCode) {
           isMatch = String(wipItem.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase();
         } else if (loaSrNo && wipItem.loaSerialNo) {
           isMatch = String(wipItem.loaSerialNo).trim().toLowerCase() === String(loaSrNo).trim().toLowerCase();
-        } else if (itemId && wipItem.itemId) {
-          isMatch = String(wipItem.itemId) === String(itemId);
+        } else if (item?._id && wipItem.itemId) {
+          isMatch = String(wipItem.itemId) === String(item._id);
         } else {
           const matchActivity = activity ? wipItem.activity === activity : true;
           const matchDesc = description ? wipItem.description === description : true;
@@ -193,21 +274,16 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
       });
     });
 
-    const wipRequiredRegisters = await mongoose.model('WipRequiredRegister').find({
-      contractorId: resolvedContractorId,
-      package: user.assignedPackage,
-      circle: user.assignedCircle
-    });
-    
+    const wipRequiredRegisters = await mongoose.model('WipRequiredRegister').find(regQuery).lean() as any[];
     wipRequiredRegisters.forEach((wipReq: any) => {
-      wipReq.items.forEach((wipReqItem: any) => {
+      wipReq.items?.forEach((wipReqItem: any) => {
         let isMatch = false;
         if (tempCode && wipReqItem.tempCode) {
           isMatch = String(wipReqItem.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase();
         } else if (loaSrNo && wipReqItem.loaSerialNo) {
           isMatch = String(wipReqItem.loaSerialNo).trim().toLowerCase() === String(loaSrNo).trim().toLowerCase();
-        } else if (itemId && wipReqItem.itemId) {
-          isMatch = String(wipReqItem.itemId) === String(itemId);
+        } else if (item?._id && wipReqItem.itemId) {
+          isMatch = String(wipReqItem.itemId) === String(item._id);
         } else {
           const matchActivity = activity ? wipReqItem.activity === activity : true;
           const matchDesc = description ? wipReqItem.description === description : true;
@@ -221,10 +297,30 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
     });
   }
 
+  // 6. Compute commercial and master fields
+  const circleLoaQty = Number(woItem?.circleLoaQty || summary?.loaQty || item?.dynamicData?.circleLoaQty || item?.dynamicData?.loaQty || 0);
+  const totalPackageLoaQty = Number(item?.dynamicData?.totalPackageLoaQty || item?.dynamicData?.totalLoaQty || 0);
+  const woQty = Number(woItem?.woQty || 0);
+  const bomQty = Number(woItem?.circleBomQty || summary?.bomQty || item?.dynamicData?.circleBomQty || item?.dynamicData?.bomQty || 0);
+  const contractorErectionRate = Number(woItem?.contractorErectionRate || item?.dynamicData?.contractorErectionRate || item?.dynamicData?.rate || 0);
+  const amount = Number(woItem?.amount || (woQty * contractorErectionRate) || 0);
+  const gstType = woItem?.gstType || item?.dynamicData?.gstType || 'Intra';
+  const gstAmount = Number(woItem?.gstAmount || (amount * 0.18) || 0);
+  const totalAmount = Number(woItem?.totalAmount || (amount + gstAmount) || 0);
+
   res.status(200).json(new ApiResponse(200, {
-    itemDescription: item.description,
-    bomQty: item.bomQty || 0, // Fallback, normally BOM might be item-specific or project-specific
-    stockBal: item.stockBalance || 0, // Assuming central stock balance
+    itemDescription: item?.dynamicData?.itemDescription || item?.dynamicData?.description || item?.description || description || '',
+    unit: item?.dynamicData?.unit || item?.dynamicData?.uom || woItem?.unit || '',
+    circleLoaQty,
+    totalPackageLoaQty,
+    woQty,
+    bomQty,
+    contractorErectionRate,
+    amount,
+    gstType,
+    gstAmount,
+    totalAmount,
+    stockBal,
     alreadyIssuedQty,
     transferFromOther,
     transferToOther,

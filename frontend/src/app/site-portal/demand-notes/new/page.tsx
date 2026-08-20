@@ -24,6 +24,14 @@ function DemandNoteForm() {
   const circleParam = searchParams.get('circle');
   const tempCodeParam = searchParams.get('tempCode');
   const itemIdParam = searchParams.get('itemId');
+  const itemNameParam = searchParams.get('itemName');
+  const activityParam = searchParams.get('activity');
+  const finalBalQtyParam = searchParams.get('finalBalQty');
+  const wipConsumedParam = searchParams.get('wipConsumed') || searchParams.get('wipQty');
+  const wipRequiredParam = searchParams.get('wipRequired') || searchParams.get('wipRequiredQty');
+  const jmcDoneParam = searchParams.get('jmcDone') || searchParams.get('jmcQty');
+  const alreadyIssuedParam = searchParams.get('alreadyIssuedQty') || searchParams.get('totalIssued');
+  const stockBalParam = searchParams.get('stockBal');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFetchingWO, setIsFetchingWO] = useState(false);
@@ -60,7 +68,7 @@ function DemandNoteForm() {
 
   useEffect(() => {
     // If URL params are present, auto-fill formData
-    if (contractorIdParam || contractorNameParam) {
+    if (contractorIdParam || contractorNameParam || packageParam || circleParam) {
       setFormData(prev => ({
         ...prev,
         contractorId: contractorIdParam || prev.contractorId,
@@ -73,24 +81,56 @@ function DemandNoteForm() {
     if (hasAutoPopulated.current) return;
 
     fetchItemsList().then((fetchedItems) => {
-      if ((itemIdParam || tempCodeParam) && fetchedItems && fetchedItems.length > 0) {
-        let itemToSelect;
-        if (itemIdParam) {
+      if ((itemIdParam || tempCodeParam || itemNameParam) && !hasAutoPopulated.current) {
+        let itemToSelect: any = null;
+
+        // 1. Match by Item ID
+        if (itemIdParam && fetchedItems && fetchedItems.length > 0) {
           itemToSelect = fetchedItems.find((i: any) => String(i._id) === itemIdParam || String(i.itemId) === itemIdParam);
         }
-        if (!itemToSelect && tempCodeParam) {
-          itemToSelect = fetchedItems.find((i: any) => 
-            String(i.dynamicData?.tempCode) === tempCodeParam || String(i.tempCode) === tempCodeParam
-          );
+
+        // 2. Match by Temp Code (case-insensitive & trimmed)
+        if (!itemToSelect && tempCodeParam && fetchedItems && fetchedItems.length > 0) {
+          const cleanTemp = tempCodeParam.trim().toLowerCase();
+          itemToSelect = fetchedItems.find((i: any) => {
+            const iTemp = String(i.dynamicData?.tempCode || i.tempCode || '').trim().toLowerCase();
+            return iTemp === cleanTemp;
+          });
         }
-        
-        if (itemToSelect && !hasAutoPopulated.current) {
+
+        // 3. Match by Item Name / Description
+        if (!itemToSelect && itemNameParam && fetchedItems && fetchedItems.length > 0) {
+          const cleanName = itemNameParam.trim().toLowerCase();
+          itemToSelect = fetchedItems.find((i: any) => {
+            const iName = String(i.dynamicData?.itemName || i.dynamicData?.name || i.name || i.dynamicData?.description || '').trim().toLowerCase();
+            return iName === cleanName || (cleanName.length > 5 && (iName.includes(cleanName) || cleanName.includes(iName)));
+          });
+        }
+
+        const initialDemandQty = finalBalQtyParam && Number(finalBalQtyParam) > 0 ? Number(finalBalQtyParam) : 0;
+
+        if (itemToSelect) {
           hasAutoPopulated.current = true;
-          handleAddNewItem([itemToSelect], contractorIdParam || undefined);
+          handleAddNewItem([itemToSelect], contractorIdParam || undefined, initialDemandQty);
+        } else if (tempCodeParam || itemNameParam) {
+          // Fallback: If not matched in catalog list, create row from parameters directly
+          hasAutoPopulated.current = true;
+          const syntheticItem = {
+            _id: itemIdParam || '',
+            itemId: itemIdParam || '',
+            name: itemNameParam || tempCodeParam || '',
+            dynamicData: {
+              name: itemNameParam || '',
+              itemName: itemNameParam || '',
+              tempCode: tempCodeParam || '',
+              activity: activityParam || '',
+            }
+          };
+          handleAddNewItem([syntheticItem], contractorIdParam || undefined, initialDemandQty);
         }
       }
     });
-  }, [contractorIdParam, contractorNameParam, packageParam, circleParam, itemIdParam, tempCodeParam]);
+  }, [contractorIdParam, contractorNameParam, packageParam, circleParam, itemIdParam, tempCodeParam, itemNameParam, activityParam, finalBalQtyParam, wipConsumedParam, wipRequiredParam, jmcDoneParam, alreadyIssuedParam, stockBalParam]);
 
   useEffect(() => {
     if (workOrderId) {
@@ -202,38 +242,60 @@ function DemandNoteForm() {
     setItems(newItems);
   };
 
-  const handleAddNewItem = async (selectedItems: any[], overrideContractorId?: string) => {
+  const handleAddNewItem = async (selectedItems: any[], overrideContractorId?: string, initialDemandQty?: number) => {
     if (!selectedItems || selectedItems.length === 0) return;
 
     let newRows: any[] = [];
     
     selectedItems.forEach(selectedItem => {
-      const itemId = workOrderId ? selectedItem.itemId : selectedItem._id;
+      const itemId = workOrderId ? selectedItem.itemId : (selectedItem._id || selectedItem.itemId || '');
+      const dynamic = selectedItem.dynamicData || {};
+
       let newItem = {
         itemId: '', itemName: '', itemDescription: '', activity: '', tempCode: '', loaSrNo: '',
         unit: '', totalPackageLoaQty: 0, circleLoaQty: 0, circleBomQty: 0,
-        loaQty: 0, woQty: 0, bomQty: 0, alreadyIssuedQty: 0, contractorErectionRate: 0, amount: 0, gstType: '', gstAmount: 0, totalAmount: 0,
-        transferFromOther: 0, transferToOther: 0, stockBal: 0,
-        jmcQty: 0, wipQty: 0, wipRequiredQty: 0, miscellaneousQty: 0, demandQty: 0, balBomQty: 0, isLoadingContext: false
+        loaQty: 0, woQty: 0, bomQty: 0, 
+        alreadyIssuedQty: Number(alreadyIssuedParam || 0), 
+        contractorErectionRate: 0, amount: 0, gstType: '', gstAmount: 0, totalAmount: 0,
+        transferFromOther: 0, transferToOther: 0, 
+        stockBal: Number(stockBalParam || 0),
+        jmcQty: Number(jmcDoneParam || 0), 
+        wipQty: Number(wipConsumedParam || 0), 
+        wipRequiredQty: Number(wipRequiredParam || 0), 
+        miscellaneousQty: 0, demandQty: initialDemandQty || 0, balBomQty: 0, isLoadingContext: false
       };
 
       if (workOrderId) {
         newItem = {
           ...newItem,
           ...selectedItem,
-          demandQty: 0,
-          jmcQty: 0,
-          wipQty: 0,
-          wipRequiredQty: 0,
+          demandQty: initialDemandQty || 0,
+          jmcQty: Number(jmcDoneParam || 0),
+          wipQty: Number(wipConsumedParam || 0),
+          wipRequiredQty: Number(wipRequiredParam || 0),
           miscellaneousQty: 0,
-          balBomQty: selectedItem.bomQty - selectedItem.alreadyIssuedQty,
+          balBomQty: selectedItem.bomQty - selectedItem.alreadyIssuedQty - (initialDemandQty || 0),
         };
       } else {
         newItem.itemId = itemId;
-        newItem.itemName = selectedItem.dynamicData?.itemName || selectedItem.dynamicData?.name || selectedItem.name || selectedItem.dynamicData?.description || '';
-        newItem.activity = selectedItem.dynamicData?.activity || '';
-        newItem.tempCode = selectedItem.dynamicData?.tempCode || '';
-        newItem.loaSrNo = selectedItem.dynamicData?.loaSrNo || selectedItem.dynamicData?.loaSerialNo || selectedItem.dynamicData?.loaSerialNumber || selectedItem.dynamicData?.sku || selectedItem.sku || '';
+        newItem.itemName = dynamic.itemName || dynamic.name || selectedItem.name || dynamic.description || itemNameParam || '';
+        newItem.itemDescription = dynamic.itemDescription || dynamic.description || selectedItem.description || '';
+        newItem.activity = dynamic.activity || selectedItem.activity || activityParam || '';
+        newItem.tempCode = dynamic.tempCode || selectedItem.tempCode || tempCodeParam || '';
+        newItem.loaSrNo = dynamic.loaSrNo || dynamic.loaSerialNo || dynamic.loaSerialNumber || dynamic.sku || selectedItem.sku || '';
+        newItem.unit = dynamic.unit || dynamic.Unit || dynamic.uom || dynamic.UOM || dynamic.unitName || dynamic['Unit Name'] || dynamic.unitOfMeasurement || selectedItem.unit || '';
+        
+        newItem.totalPackageLoaQty = Number(dynamic.totalPackageLoaQty || selectedItem.totalPackageLoaQty || 0);
+        newItem.circleLoaQty = Number(dynamic.circleLoaQty || selectedItem.circleLoaQty || 0);
+        newItem.circleBomQty = Number(dynamic.circleBomQty || selectedItem.circleBomQty || 0);
+        newItem.loaQty = Number(dynamic.loaQty || selectedItem.loaQty || 0);
+        newItem.woQty = Number(dynamic.woQty || selectedItem.woQty || 0);
+        newItem.bomQty = Number(dynamic.bomQty || selectedItem.bomQty || 0);
+        newItem.contractorErectionRate = Number(dynamic.contractorErectionRate || selectedItem.contractorErectionRate || 0);
+        newItem.amount = Number(dynamic.amount || selectedItem.amount || 0);
+        newItem.gstType = dynamic.gstType || selectedItem.gstType || '';
+        newItem.gstAmount = Number(dynamic.gstAmount || selectedItem.gstAmount || 0);
+        newItem.totalAmount = Number(dynamic.totalAmount || selectedItem.totalAmount || 0);
       }
       
       newItem.isLoadingContext = true;
@@ -245,19 +307,22 @@ function DemandNoteForm() {
     const startIdx = items.length;
 
     selectedItems.forEach(async (selectedItem, idx) => {
-      const itemId = workOrderId ? selectedItem.itemId : selectedItem._id;
+      const itemId = workOrderId ? selectedItem.itemId : (selectedItem._id || selectedItem.itemId || '');
       const actualIndex = startIdx + idx;
+      const dynamic = selectedItem.dynamicData || {};
 
       try {
         // Fetch context including BOM and aggregated JMC/WIP qty
-        const contractorId = overrideContractorId || formData.contractorId;
-        const contractorName = formData.contractorName;
-        const activity = selectedItem.dynamicData?.activity || '';
-        const description = selectedItem.dynamicData?.itemName || selectedItem.dynamicData?.name || selectedItem.name || selectedItem.dynamicData?.description || '';
-        const tempCode = selectedItem.dynamicData?.tempCode || '';
-        const loaSrNo = selectedItem.dynamicData?.loaSrNo || selectedItem.dynamicData?.loaSerialNo || selectedItem.dynamicData?.loaSerialNumber || selectedItem.dynamicData?.sku || selectedItem.sku || '';
+        const contractorId = overrideContractorId || formData.contractorId || contractorIdParam;
+        const contractorName = formData.contractorName || contractorNameParam;
+        const currentPkg = formData.package || packageParam;
+        const currentCircle = formData.circle || circleParam;
+        const activity = dynamic.activity || selectedItem.activity || activityParam || '';
+        const description = dynamic.itemName || dynamic.name || selectedItem.name || dynamic.description || itemNameParam || '';
+        const tempCode = dynamic.tempCode || selectedItem.tempCode || tempCodeParam || '';
+        const loaSrNo = dynamic.loaSrNo || dynamic.loaSerialNo || dynamic.loaSerialNumber || dynamic.sku || selectedItem.sku || '';
 
-        const res = await getContextData(itemId, contractorId, contractorName, activity, description, tempCode, loaSrNo);
+        const res = await getContextData(itemId, contractorId || undefined, contractorName || undefined, activity, description, tempCode, loaSrNo, currentPkg || undefined, currentCircle || undefined);
         if (res.success) {
           const ctx = res.data;
           setItems(prev => {
@@ -265,24 +330,36 @@ function DemandNoteForm() {
             const curr = updated[actualIndex];
             if (!curr) return prev;
             
-            curr.itemDescription = ctx.itemDescription || '';
+            if (ctx.itemDescription) curr.itemDescription = ctx.itemDescription;
+            if (ctx.unit && !curr.unit) curr.unit = ctx.unit;
+            if (ctx.circleLoaQty !== undefined && ctx.circleLoaQty > 0) curr.circleLoaQty = ctx.circleLoaQty;
+            if (ctx.totalPackageLoaQty !== undefined && ctx.totalPackageLoaQty > 0) curr.totalPackageLoaQty = ctx.totalPackageLoaQty;
+            if (ctx.woQty !== undefined && ctx.woQty > 0) curr.woQty = ctx.woQty;
+            if (ctx.bomQty !== undefined && ctx.bomQty > 0) curr.bomQty = ctx.bomQty;
+            if (ctx.contractorErectionRate !== undefined && ctx.contractorErectionRate > 0) curr.contractorErectionRate = ctx.contractorErectionRate;
+            if (ctx.amount !== undefined && ctx.amount > 0) curr.amount = ctx.amount;
+            if (ctx.gstType) curr.gstType = ctx.gstType;
+            if (ctx.gstAmount !== undefined && ctx.gstAmount > 0) curr.gstAmount = ctx.gstAmount;
+            if (ctx.totalAmount !== undefined && ctx.totalAmount > 0) curr.totalAmount = ctx.totalAmount;
+            
             if (!workOrderId) {
-              curr.bomQty = ctx.bomQty || 0;
-              curr.alreadyIssuedQty = ctx.alreadyIssuedQty || 0;
+              curr.bomQty = ctx.bomQty || curr.bomQty || 0;
+              if (ctx.alreadyIssuedQty !== undefined && ctx.alreadyIssuedQty > 0) {
+                curr.alreadyIssuedQty = ctx.alreadyIssuedQty;
+              }
             }
-            curr.stockBal = ctx.stockBal || 0;
+            if (ctx.stockBal !== undefined && ctx.stockBal > 0) curr.stockBal = ctx.stockBal;
             curr.transferFromOther = ctx.transferFromOther || 0;
             curr.transferToOther = ctx.transferToOther || 0;
-            curr.jmcQty = ctx.jmcQty || 0;
-            curr.wipQty = ctx.wipQty || 0;
-            curr.wipRequiredQty = ctx.wipRequiredQty || 0;
+            if (ctx.jmcQty !== undefined && ctx.jmcQty > 0) curr.jmcQty = ctx.jmcQty;
+            if (ctx.wipQty !== undefined && ctx.wipQty > 0) curr.wipQty = ctx.wipQty;
+            if (ctx.wipRequiredQty !== undefined && ctx.wipRequiredQty > 0) curr.wipRequiredQty = ctx.wipRequiredQty;
             curr.balBomQty = curr.bomQty - curr.alreadyIssuedQty - (curr.demandQty || 0);
             curr.isLoadingContext = false;
             return updated;
           });
         }
       } catch (error) {
-        toast.error('Failed to load item context constraints.');
         setItems(prev => {
           const updated = [...prev];
           if (updated[actualIndex]) updated[actualIndex].isLoadingContext = false;

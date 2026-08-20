@@ -143,16 +143,45 @@ export default function SiteContractorSummaryPage() {
       const qs = new URLSearchParams();
       if (row.tempCode) qs.set('tempCode', row.tempCode);
       if (row.itemId) qs.set('itemId', row.itemId);
+      if (row.itemName) qs.set('itemName', row.itemName);
+      if (row.activity) qs.set('activity', row.activity);
       if (filters.contractorId) qs.set('contractorId', filters.contractorId);
       if (contractorName) qs.set('contractorName', contractorName);
       if (filters.package) qs.set('package', filters.package);
       if (filters.circle) qs.set('circle', filters.circle);
+      if (row.finalBalQty !== undefined && row.finalBalQty !== null) {
+        qs.set('finalBalQty', String(row.finalBalQty));
+      }
+      if (row.wipConsumed !== undefined && row.wipConsumed !== null) {
+        qs.set('wipConsumed', String(row.wipConsumed));
+      }
+      if (row.wipRequired !== undefined && row.wipRequired !== null) {
+        qs.set('wipRequired', String(row.wipRequired));
+      }
+      if (row.jmcDone !== undefined && row.jmcDone !== null) {
+        qs.set('jmcDone', String(row.jmcDone));
+      }
+      if (row.totalIssued !== undefined && row.totalIssued !== null) {
+        qs.set('alreadyIssuedQty', String(row.totalIssued));
+      }
+      if (row.todayTotalBalance !== undefined && row.todayTotalBalance !== null) {
+        qs.set('todayTotalBalance', String(row.todayTotalBalance));
+      }
       
       router.push(`/site-portal/demand-notes/new?${qs.toString()}`);
     } else if (action === 'demand-return') {
       const qs = new URLSearchParams();
       if (row.tempCode) qs.set('tempCode', row.tempCode);
+      if (row.itemId) qs.set('itemId', row.itemId);
+      if (row.itemName) qs.set('itemName', row.itemName);
+      if (row.activity) qs.set('activity', row.activity);
       if (filters.contractorId) qs.set('contractorId', filters.contractorId);
+      if (contractorName) qs.set('contractorName', contractorName);
+      if (filters.package) qs.set('package', filters.package);
+      if (filters.circle) qs.set('circle', filters.circle);
+      if (row.todayTotalBalance !== undefined && row.todayTotalBalance !== null) {
+        qs.set('returnQty', String(row.todayTotalBalance));
+      }
       
       router.push(`/store/contractor-return/new?${qs.toString()}`);
     }

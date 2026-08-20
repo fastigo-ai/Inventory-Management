@@ -473,23 +473,27 @@ export default function InwardRegistrationForm() {
             {existingId ? "Editing Draft Registration" : "New Inward Registration"}
           </div>
           <div className="flex gap-3">
-            <Button 
-              variant="outline" 
-              onClick={() => handleSubmit('DRAFT')}
-              disabled={submitting}
-              className="border-blue-200 text-blue-700 hover:bg-blue-50"
-            >
-              <Save className="w-4 h-4 mr-2" />
-              Save as Draft
-            </Button>
-            <Button 
-              onClick={() => handleSubmit('SUBMITTED')}
-              disabled={submitting}
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              <Send className="w-4 h-4 mr-2" />
-              Submit GRN
-            </Button>
+            {(formData.status !== 'APPROVED' && formData.status !== 'VERIFIED') && (
+              <>
+                <Button 
+                  variant="outline" 
+                  onClick={() => handleSubmit('DRAFT')}
+                  disabled={submitting}
+                  className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  Save as Draft
+                </Button>
+                <Button 
+                  onClick={() => handleSubmit('SUBMITTED')}
+                  disabled={submitting}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  Submit GRN
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>

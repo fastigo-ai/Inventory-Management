@@ -473,19 +473,20 @@ export default function StoreReceiptsPage() {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-right flex justify-end gap-2 items-center">
-                            {entry.status === "PENDING_RECEIPT" ? (
+                            {entry.status === "PENDING_RECEIPT" && (
                               <Button
                                 onClick={(e) => { e.stopPropagation(); handleApprove(entry._id); }}
                                 className="h-8 bg-green-600 hover:bg-green-700 text-white"
                               >
-                                Approve Receipt
+                                Approve
                               </Button>
-                            ) : entry.status !== "VOIDED" ? (
+                            )}
+                            {entry.status !== "VOIDED" ? (
                               <Button
                                 onClick={(e) => { e.stopPropagation(); router.push(`/store/inventory/inward/entry/${entry._id}`); }}
-                                className="h-8 bg-blue-600 hover:bg-blue-700 text-white"
+                                className={`h-8 text-white ${entry.status === 'APPROVED' ? 'bg-slate-600 hover:bg-slate-700' : 'bg-blue-600 hover:bg-blue-700'}`}
                               >
-                                Register Inward
+                                {entry.status === 'APPROVED' ? 'View Details' : 'Register GRN'}
                               </Button>
                             ) : (
                               <span className="text-xs text-red-500 font-medium px-2">VOIDED</span>

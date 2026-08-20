@@ -5,6 +5,7 @@ import { PurchaseInvoice } from '../../purchases/purchaseInvoice.schema';
 import { ContractorAssignment } from '../../contractors/contractorAssignment.schema';
 import { ContractorInvoice } from '../../contractor-billing/contractorInvoice.schema';
 import { ContractorReturn } from '../../contractors/contractorReturn.schema';
+import { JmcRegister } from '../../jmc/jmc.schema';
 import { DI } from '../../di/di.schema';
 import { StoreInwardEntry } from '../../store/storeInwardEntry.schema';
 import { StoreTransfer } from '../../store/storeTransfer.schema';
@@ -1105,9 +1106,32 @@ async function computeItemMatrixSummary(params: {
     });
   });
 
-  // 4. IMC & Erection Billed
-  const contractorInvoices = await ContractorInvoice.find({ status: { $ne: 'Cancelled' as any } }).lean();
+  // 4a. JMC Work (formerly IMC Work)
+  const jmcs = await JmcRegister.find({ status: { $nin: ['Rejected', 'Cancelled'] } }).lean();
   const imcMap = new Map<string, Record<string, number>>();
+
+  jmcs.forEach(doc => {
+    const docCirc = ((doc as any).circle || '').toLowerCase();
+    ((doc as any).items || []).forEach((line: any) => {
+      const qty = Number(line.approvedQty || line.claimedQty || 0);
+      if (qty > 0) {
+        const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku);
+        targetTCs.forEach(tc => {
+          const lineCirc = (line.circle || docCirc || '').toLowerCase();
+          if (!imcMap.has(tc)) imcMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
+          const imcObj = imcMap.get(tc)!;
+          if (lineCirc.includes('solan')) imcObj.solan += qty;
+          else if (lineCirc.includes('nahan')) imcObj.nahan += qty;
+          else if (lineCirc.includes('rampur')) imcObj.rampur += qty;
+          else if (lineCirc.includes('rohru')) imcObj.rohru += qty;
+          else imcObj.nahan += qty;
+        });
+      }
+    });
+  });
+
+  // 4b. Erection Billed
+  const contractorInvoices = await ContractorInvoice.find({ status: { $ne: 'Cancelled' as any } }).lean();
   const erectionMap = new Map<string, Record<string, number>>();
 
   contractorInvoices.forEach(doc => {
@@ -1118,15 +1142,13 @@ async function computeItemMatrixSummary(params: {
         const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku);
         targetTCs.forEach(tc => {
           const lineCirc = (line.circle || docCirc || '').toLowerCase();
-          if (!imcMap.has(tc)) imcMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
           if (!erectionMap.has(tc)) erectionMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
-          const imcObj = imcMap.get(tc)!;
           const erecObj = erectionMap.get(tc)!;
-          if (lineCirc.includes('solan')) { imcObj.solan += qty; erecObj.solan += qty; }
-          else if (lineCirc.includes('nahan')) { imcObj.nahan += qty; erecObj.nahan += qty; }
-          else if (lineCirc.includes('rampur')) { imcObj.rampur += qty; erecObj.rampur += qty; }
-          else if (lineCirc.includes('rohru')) { imcObj.rohru += qty; erecObj.rohru += qty; }
-          else { imcObj.nahan += qty; erecObj.nahan += qty; }
+          if (lineCirc.includes('solan')) erecObj.solan += qty;
+          else if (lineCirc.includes('nahan')) erecObj.nahan += qty;
+          else if (lineCirc.includes('rampur')) erecObj.rampur += qty;
+          else if (lineCirc.includes('rohru')) erecObj.rohru += qty;
+          else erecObj.nahan += qty;
         });
       }
     });

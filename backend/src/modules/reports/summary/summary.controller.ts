@@ -1033,18 +1033,21 @@ async function computeItemMatrixSummary(params: {
       return [itemIdToKeyMap.get(idStr)!];
     }
     const loaSr = String(lineLoaSrNo || '').trim();
-    const pkg = String(linePkg || '').trim();
-    const pkgLoaKey = `${pkg ? pkg + '___' : ''}${loaSr}`;
-    if (loaSr && groupedItemsMap.has(pkgLoaKey)) {
-      return [pkgLoaKey];
-    }
-    if (loaSr && groupedItemsMap.has(loaSr)) {
-      return [loaSr];
+    if (loaSr) {
+      if (groupedItemsMap.has(loaSr)) return [loaSr];
+      for (const k of groupedItemsMap.keys()) {
+        if (k.endsWith(`___${loaSr}`)) {
+          return [k];
+        }
+      }
     }
     const tc = String(lineTempCode || '').trim();
-    const pkgTcKey = `${pkg ? pkg + '___' : ''}${tc}`;
-    if (tc && tempCodeToKeyMap.has(pkgTcKey)) {
-      return [tempCodeToKeyMap.get(pkgTcKey)!];
+    if (tc) {
+      for (const [k, grp] of groupedItemsMap.entries()) {
+        if (grp.tempCode === tc) {
+          return [k];
+        }
+      }
     }
     return [];
   };
@@ -1208,11 +1211,10 @@ async function computeItemMatrixSummary(params: {
   });
 
   // Build matrix rows for grouped items
-  const matrixRows = Array.from(groupedItemsMap.values()).map((grp, idx) => {
+  const matrixRows = Array.from(groupedItemsMap.entries()).map(([groupKey, grp], idx) => {
     const tc = grp.tempCode;
     const tempNum = Number(tc);
     const itemName = grp.itemName || 'Unnamed Item';
-    const groupKey = grp.loaSerialNo;
 
     const nahanLoaQty = grp.nahanLoaQty;
     const nahanBomQty = grp.nahanBomQty;

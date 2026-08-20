@@ -69,6 +69,7 @@ export default function NewPurchaseInvoicePage() {
   // Extra fields
   const [diNo, setDiNo] = useState("");
   const [diDate, setDiDate] = useState("");
+  const [paymentTerms, setPaymentTerms] = useState("Paid");
   const [notes, setNotes] = useState("");
   
   const [lineItems, setLineItems] = useState<any[]>([]);
@@ -511,9 +512,10 @@ export default function NewPurchaseInvoicePage() {
         receiveDate,
         billingFrom,
         diNo, diDate, 
+        paymentTerms,
         notes,
         lineItems,
-        status: status === 'Draft' ? 'Draft' : 'Unpaid',
+        status: 'Paid',
         receiptStatus: status === 'Received' ? 'Received' : 'Pending Receipt',
         attachments: uploadedDocs.map(doc => ({ name: doc.fileName, url: doc.url }))
       };
@@ -709,6 +711,27 @@ export default function NewPurchaseInvoicePage() {
                   value={diDate} 
                   onChange={e => setDiDate(e.target.value)} 
                 />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-x-8 gap-y-6 mb-12 border-b border-slate-100 pb-8">
+              <div className="col-span-1">
+                <label className="block text-[13px] font-medium text-slate-700 mb-2">Payment Terms</label>
+                <div className="relative">
+                  <select 
+                    className="w-full h-10 rounded-md text-[13px] border border-slate-300 px-3 bg-white focus:outline-none focus:border-[#0076f2] focus:ring-1 focus:ring-[#0076f2] appearance-none"
+                    value={paymentTerms}
+                    onChange={(e) => setPaymentTerms(e.target.value)}
+                  >
+                    <option value="Paid">Paid</option>
+                    <option value="Unpaid">Unpaid</option>
+                    <option value="Lcterm">LC Term</option>
+                    <option value="Credit">Credit</option>
+                  </select>
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                    <ChevronDown className="h-4 w-4 text-slate-400" />
+                  </div>
+                </div>
               </div>
             </div>
 

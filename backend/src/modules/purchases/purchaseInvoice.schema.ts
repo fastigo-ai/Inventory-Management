@@ -66,6 +66,7 @@ export interface IPurchaseInvoice extends Document {
   amountPaid: number;
   balanceDue: number;
   
+  paymentTerms?: 'Paid' | 'Unpaid' | 'Lcterm' | 'Credit';
   status: 'Draft' | 'Sent' | 'Unpaid' | 'Overdue' | 'Partially Paid' | 'Paid' | 'Void' | 'Cancelled';
   receiptStatus: 'Pending Receipt' | 'Partially Received' | 'Received';
   billed?: boolean;
@@ -147,6 +148,10 @@ const purchaseInvoiceSchema = new Schema<IPurchaseInvoice>(
     amountPaid: { type: Number, default: 0 },
     balanceDue: { type: Number, default: 0 },
     
+    paymentTerms: { 
+      type: String, 
+      enum: ['Paid', 'Unpaid', 'Lcterm', 'Credit']
+    },
     status: { 
       type: String, 
       enum: ['Draft', 'Sent', 'Unpaid', 'Overdue', 'Partially Paid', 'Paid', 'Void', 'Cancelled'], 

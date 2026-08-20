@@ -25,6 +25,9 @@ export const createPurchaseInvoice = async (req: Request, res: Response): Promis
     }
     prData.date = prData.date || prData.receiveDate || new Date();
     
+    // Always set invoice status to Paid
+    prData.status = 'Paid';
+    
     if (prData.billingFrom) {
       prData.billingCompany = { name: prData.billingFrom };
     }
@@ -451,6 +454,9 @@ export const updatePurchaseInvoice = async (req: Request, res: Response): Promis
       updateData.billingCompany = { name: updateData.billingFrom };
     }
     
+    // Always set status to Paid as requested
+    invoiceData.status = 'Paid';
+
     if (updateData.lineItems) {
       updateData.lineItems = updateData.lineItems.map((item: any) => {
         const qty = Number(item.quantity || item.invoiceQuantity || item.act || 0);

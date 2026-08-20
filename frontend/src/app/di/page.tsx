@@ -132,30 +132,32 @@ export default function DIPage() {
       const rows: any[] = [];
       
       data.forEach((di: any) => {
-        const baseInfo = {
-          'DINumber': di.diNumber || '',
-          'PurchaseOrderNumber': di.poNumber || di.purchaseOrderId?.purchaseOrderNumber || '',
-          'VendorName': di.vendorName || di.purchaseOrderId?.vendorName || '',
-          'Date': di.date ? new Date(di.date).toISOString().split('T')[0] : '',
-          'Circle': di.circle || '',
-          'Package': di.package || '',
-          'Notes': di.notes || ''
-        };
-        
         if (di.lineItems && di.lineItems.length > 0) {
           di.lineItems.forEach((li: any) => {
             rows.push({
-              ...baseInfo,
+              'DINumber': di.diNumber || '',
+              'PurchaseOrderNumber': di.poNumber || di.purchaseOrderId?.purchaseOrderNumber || '',
+              'VendorName': di.vendorName || di.purchaseOrderId?.vendorName || '',
+              'Date': di.date ? new Date(di.date).toISOString().split('T')[0] : '',
+              'Circle': li.circle || di.circle || '',
+              'Package': li.package || di.package || '',
+              'Notes': di.notes || '',
               'ItemName': li.itemName || '',
               'TempCode': li.tempCode || '',
               'LoaSerialNo': li.loaSerialNo || '',
               'Unit': li.unit || '',
-              'Quantity': li.quantity || 0
+              'Quantity': li.quantity !== undefined ? li.quantity : 0
             });
           });
         } else {
           rows.push({
-            ...baseInfo,
+            'DINumber': di.diNumber || '',
+            'PurchaseOrderNumber': di.poNumber || di.purchaseOrderId?.purchaseOrderNumber || '',
+            'VendorName': di.vendorName || di.purchaseOrderId?.vendorName || '',
+            'Date': di.date ? new Date(di.date).toISOString().split('T')[0] : '',
+            'Circle': di.circle || '',
+            'Package': di.package || '',
+            'Notes': di.notes || '',
             'ItemName': '',
             'TempCode': '',
             'LoaSerialNo': '',

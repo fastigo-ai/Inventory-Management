@@ -180,8 +180,8 @@ export class SummaryService {
       for (const di of dis) {
         for (const line of di.lineItems) {
           if (line.itemId?.toString() === itemIdStr) {
-            let cName = item.dynamicData?.circle || line.circle || di.circle || '';
-            let pName = item.dynamicData?.package || line.package || di.package || '';
+            let cName = line.circle || di.circle || item.dynamicData?.circle || '';
+            let pName = line.package || di.package || item.dynamicData?.package || '';
             
             if (cName.toLowerCase().includes('package')) {
               pName = cName;
@@ -204,8 +204,8 @@ export class SummaryService {
       for (const pr of prs) {
         for (const line of pr.lineItems) {
           if (line.itemId?.toString() === itemIdStr) {
-            let cName = item.dynamicData?.circle || line.circle || '';
-            let pName = item.dynamicData?.package || line.package || '';
+            let cName = line.circle || pr.circle || item.dynamicData?.circle || '';
+            let pName = line.package || pr.package || item.dynamicData?.package || '';
             
             if (cName.toLowerCase().includes('package')) {
               pName = cName;

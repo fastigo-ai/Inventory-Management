@@ -757,7 +757,7 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
 
           const allAffectedItemIds = Array.from(new Set([
             ...oldItemIds,
-            ...mergedItems.map((li: any) => li.itemId?.toString()).filter(Boolean)
+            ...diData.lineItems.map((li: any) => li.itemId?.toString()).filter(Boolean)
           ]));
           allAffectedItemIds.forEach(id => globalAffectedItemIds.add(id));
 

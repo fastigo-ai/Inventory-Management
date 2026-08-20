@@ -735,9 +735,6 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
           }
 
           const oldItemIds = existing.lineItems.map((li: any) => li.itemId?.toString()).filter(Boolean);
-          
-          // Full replacement of lines to ensure if a user removes a line in CSV, it's removed from DB
-          const mergedItems = diData.lineItems;
 
           bulkUpdateOps.push({
             updateOne: {
@@ -751,7 +748,7 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
                   ...(diData.notes !== undefined && { notes: diData.notes }),
                   ...(diData.vendorName && { vendorName: diData.vendorName }),
                   ...(diData.purchaseOrderId && { purchaseOrderId: diData.purchaseOrderId }),
-                  lineItems: mergedItems
+                  lineItems: diData.lineItems
                 }
               }
             }

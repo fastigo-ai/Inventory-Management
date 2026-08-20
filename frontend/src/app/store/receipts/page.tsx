@@ -10,7 +10,7 @@ import {
   getStoreReceiptFilterOptions,
 } from "@/features/store/api/store.api";
 import Papa from "papaparse";
-import { Download, Upload, Pencil, Trash2, Lock } from "lucide-react";
+import { Download, Upload, Pencil, Trash2, Lock, Search, FileText, XCircle } from "lucide-react";
 import { DataTableBottomControls } from "@/shared/components/DataTableControls";
 import { useAuthStore } from "@/shared/store/auth.store";
 import { voidInwardEntry } from "@/features/store/api/store.api";

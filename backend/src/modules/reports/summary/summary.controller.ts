@@ -1402,6 +1402,7 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
   // Group master items by LOA Sr No / SKU / TempCode
   const groupMap = new Map<string, any>();
   const itemIdToKeyMap = new Map<string, string>();
+  const tempCodeToKeyMap = new Map<string, string>();
 
   items.forEach(it => {
     const d = it.dynamicData || {};
@@ -1432,6 +1433,7 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
     const grp = groupMap.get(loaSr)!;
     grp.itemIds.add(it._id.toString());
     itemIdToKeyMap.set(it._id.toString(), loaSr);
+    if (tc) tempCodeToKeyMap.set(tc, loaSr);
 
     if (!grp.itemName && name) grp.itemName = name;
     if (!grp.tempCode && tc) grp.tempCode = tc;
@@ -1446,7 +1448,14 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
     const loaSr = String(lineLoaSrNo || '').trim();
     if (loaSr && groupMap.has(loaSr)) keys.add(loaSr);
     const tc = String(lineTempCode || '').trim();
-    if (tc && groupMap.has(tc)) keys.add(tc);
+    if (tc) {
+      if (tempCodeToKeyMap.has(tc)) {
+        keys.add(tempCodeToKeyMap.get(tc)!);
+      }
+      if (groupMap.has(tc)) {
+        keys.add(tc);
+      }
+    }
     return Array.from(keys);
   };
 

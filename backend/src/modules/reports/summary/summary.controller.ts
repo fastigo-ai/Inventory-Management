@@ -1025,11 +1025,22 @@ async function computeItemMatrixSummary(params: {
 
   const getTargetTempCodes = (lineItemId: any, lineTempCode: any, lineLoaSrNo?: any, linePkg?: any, lineCircle?: any): string[] => {
     const idStr = lineItemId ? lineItemId.toString() : '';
+    const circ = String(lineCircle || '').trim().toLowerCase();
+
     if (idStr && itemIdToKeyMap.has(idStr)) {
-      return [itemIdToKeyMap.get(idStr)!];
+      const mappedKey = itemIdToKeyMap.get(idStr)!;
+      const grp = groupedItemsMap.get(mappedKey);
+      
+      // Validation: If the circle is specified in the transaction (e.g. MIN was for Rohru)
+      // but the master item we got by ID belongs to Solan, the ID is an erroneous cross-circle 
+      // assignment from the UI. We should ignore it and rely on the fallback logic below.
+      if (grp && circ && !grp.circle.toLowerCase().includes(circ)) {
+         // Cross-circle mismatch, ignore this itemId
+      } else {
+         return [mappedKey];
+      }
     }
     const loaSr = String(lineLoaSrNo || '').trim();
-    const circ = String(lineCircle || '').trim().toLowerCase();
 
     if (loaSr && circ) {
       for (const [k, grp] of groupedItemsMap.entries()) {
@@ -1047,11 +1058,13 @@ async function computeItemMatrixSummary(params: {
     }
     const tc = String(lineTempCode || '').trim();
     if (tc && circ) {
+      const matches: string[] = [];
       for (const [k, grp] of groupedItemsMap.entries()) {
         if (grp.tempCode === tc && grp.circle.toLowerCase().includes(circ)) {
-          return [k];
+          matches.push(k);
         }
       }
+      if (matches.length > 0) return matches; // Return ALL matches for proportional distribution
     }
     return [];
   };
@@ -1064,7 +1077,7 @@ async function computeItemMatrixSummary(params: {
     ).lean(),
     StoreInwardEntry.find(
       {},
-      { circle: 1, subcircle: 1, billingFrom: 1, invoiceQty: 1, acceptedQty: 1, totalQty: 1, itemId: 1, tempCode: 1, loaSerialNo: 1 }
+      { circle: 1, subcircle: 1, billingFrom: 1, invoiceQty: 1, acceptedQty: 1, totalQty: 1, itemId: 1, tempCode: 1, loaSerialNo: 1, serialNumber: 1, package: 1 }
     ).lean(),
     ContractorAssignment.find(
       {},
@@ -1093,35 +1106,98 @@ async function computeItemMatrixSummary(params: {
       if (qty > 0) {
         const lineCirc = (line.circle || docCircle || '').toLowerCase();
         const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku, line.package || d.package, lineCirc);
-        targetTCs.forEach(tc => {
-          if (!diMap.has(tc)) diMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
-          const obj = diMap.get(tc)!;
-          if (lineCirc.includes('solan')) obj.solan += qty;
-          else if (lineCirc.includes('nahan')) obj.nahan += qty;
-          else if (lineCirc.includes('rampur')) obj.rampur += qty;
-          else if (lineCirc.includes('rohru')) obj.rohru += qty;
-          else obj.nahan += qty;
-        });
+        if (targetTCs.length === 1) {
+           const tc = targetTCs[0];
+           if (!diMap.has(tc)) diMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
+           const obj = diMap.get(tc)!;
+           if (lineCirc.includes('solan')) obj.solan += qty;
+           else if (lineCirc.includes('nahan')) obj.nahan += qty;
+           else if (lineCirc.includes('rampur')) obj.rampur += qty;
+           else if (lineCirc.includes('rohru')) obj.rohru += qty;
+           else obj.nahan += qty;
+        } else if (targetTCs.length > 1) {
+           let totalLoaQty = 0;
+           targetTCs.forEach(tc => {
+              const grp = groupedItemsMap.get(tc);
+              if (grp) {
+                 if (lineCirc.includes('solan')) totalLoaQty += grp.solanLoaQty;
+                 else if (lineCirc.includes('nahan')) totalLoaQty += grp.nahanLoaQty;
+                 else if (lineCirc.includes('rampur')) totalLoaQty += grp.rampurLoaQty;
+                 else if (lineCirc.includes('rohru')) totalLoaQty += grp.rohruLoaQty;
+              }
+           });
+           targetTCs.forEach(tc => {
+              const grp = groupedItemsMap.get(tc);
+              if (grp) {
+                 let myLoaQty = 0;
+                 if (lineCirc.includes('solan')) myLoaQty = grp.solanLoaQty;
+                 else if (lineCirc.includes('nahan')) myLoaQty = grp.nahanLoaQty;
+                 else if (lineCirc.includes('rampur')) myLoaQty = grp.rampurLoaQty;
+                 else if (lineCirc.includes('rohru')) myLoaQty = grp.rohruLoaQty;
+                 
+                 const distributedQty = totalLoaQty > 0 ? (qty * (myLoaQty / totalLoaQty)) : (qty / targetTCs.length);
+                 if (!diMap.has(tc)) diMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
+                 const obj = diMap.get(tc)!;
+                 if (lineCirc.includes('solan')) obj.solan += distributedQty;
+                 else if (lineCirc.includes('nahan')) obj.nahan += distributedQty;
+                 else if (lineCirc.includes('rampur')) obj.rampur += distributedQty;
+                 else if (lineCirc.includes('rohru')) obj.rohru += distributedQty;
+                 else obj.nahan += distributedQty;
+              }
+           });
+        }
       }
     });
   });
 
-  // 2. Inward (Store Receipts / MRN / SRV)
+  // 2. Inward (Store Receipts / MRHOV / SRV)
   const inwardMap = new Map<string, Record<string, number>>();
   inwards.forEach(doc => {
     const qty = Number(doc.invoiceQty || doc.acceptedQty || doc.totalQty || 0);
     if (qty > 0) {
       const circ = (doc.circle || doc.subcircle || doc.billingFrom || '').toLowerCase();
-      const targetTCs = getTargetTempCodes(doc.itemId, doc.tempCode, doc.loaSerialNo || doc.loaSrNo || doc.sku, (doc as any).package, circ);
-      targetTCs.forEach(tc => {
-        if (!inwardMap.has(tc)) inwardMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
-        const obj = inwardMap.get(tc)!;
-        if (circ.includes('solan')) obj.solan += qty;
-        else if (circ.includes('nahan')) obj.nahan += qty;
-        else if (circ.includes('rampur')) obj.rampur += qty;
-        else if (circ.includes('rohru')) obj.rohru += qty;
-        else obj.nahan += qty;
-      });
+      const targetTCs = getTargetTempCodes(doc.itemId, doc.tempCode, doc.serialNumber || doc.loaSerialNo || (doc as any).loaSrNo || (doc as any).sku, (doc as any).package, circ);
+      
+      if (targetTCs.length === 1) {
+         const tc = targetTCs[0];
+         if (!inwardMap.has(tc)) inwardMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
+         const m = inwardMap.get(tc)!;
+         if (circ.includes('solan')) m.solan += qty;
+         else if (circ.includes('nahan')) m.nahan += qty;
+         else if (circ.includes('rampur')) m.rampur += qty;
+         else if (circ.includes('rohru')) m.rohru += qty;
+         else m.nahan += qty;
+      } else if (targetTCs.length > 1) {
+         let totalLoaQty = 0;
+         targetTCs.forEach(tc => {
+            const grp = groupedItemsMap.get(tc);
+            if (grp) {
+               if (circ.includes('solan')) totalLoaQty += grp.solanLoaQty;
+               else if (circ.includes('nahan')) totalLoaQty += grp.nahanLoaQty;
+               else if (circ.includes('rampur')) totalLoaQty += grp.rampurLoaQty;
+               else if (circ.includes('rohru')) totalLoaQty += grp.rohruLoaQty;
+            }
+         });
+         targetTCs.forEach(tc => {
+            const grp = groupedItemsMap.get(tc);
+            if (grp) {
+               let myLoaQty = 0;
+               if (circ.includes('solan')) myLoaQty = grp.solanLoaQty;
+               else if (circ.includes('nahan')) myLoaQty = grp.nahanLoaQty;
+               else if (circ.includes('rampur')) myLoaQty = grp.rampurLoaQty;
+               else if (circ.includes('rohru')) myLoaQty = grp.rohruLoaQty;
+               
+               const distributedQty = totalLoaQty > 0 ? (qty * (myLoaQty / totalLoaQty)) : (qty / targetTCs.length);
+               if (!inwardMap.has(tc)) inwardMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
+               const m = inwardMap.get(tc)!;
+               if (circ.includes('solan')) m.solan += distributedQty;
+               else if (circ.includes('nahan')) m.nahan += distributedQty;
+               else if (circ.includes('rampur')) m.rampur += distributedQty;
+               else if (circ.includes('rohru')) m.rohru += distributedQty;
+               else m.nahan += distributedQty;
+            }
+         });
+      }
     }
   });
 
@@ -1134,15 +1210,47 @@ async function computeItemMatrixSummary(params: {
       if (qty > 0) {
         const lineCirc = (line.circle || docCirc || '').toLowerCase();
         const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku, line.package || (doc as any).package, lineCirc);
-        targetTCs.forEach(tc => {
-          if (!minMap.has(tc)) minMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
-          const obj = minMap.get(tc)!;
-          if (lineCirc.includes('solan')) obj.solan += qty;
-          else if (lineCirc.includes('nahan')) obj.nahan += qty;
-          else if (lineCirc.includes('rampur')) obj.rampur += qty;
-          else if (lineCirc.includes('rohru')) obj.rohru += qty;
-          else obj.nahan += qty;
-        });
+        
+        if (targetTCs.length === 1) {
+           const tc = targetTCs[0];
+           if (!minMap.has(tc)) minMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
+           const m = minMap.get(tc)!;
+           if (lineCirc.includes('solan')) m.solan += qty;
+           else if (lineCirc.includes('nahan')) m.nahan += qty;
+           else if (lineCirc.includes('rampur')) m.rampur += qty;
+           else if (lineCirc.includes('rohru')) m.rohru += qty;
+           else m.nahan += qty;
+        } else if (targetTCs.length > 1) {
+           let totalLoaQty = 0;
+           targetTCs.forEach(tc => {
+              const grp = groupedItemsMap.get(tc);
+              if (grp) {
+                 if (lineCirc.includes('solan')) totalLoaQty += grp.solanLoaQty;
+                 else if (lineCirc.includes('nahan')) totalLoaQty += grp.nahanLoaQty;
+                 else if (lineCirc.includes('rampur')) totalLoaQty += grp.rampurLoaQty;
+                 else if (lineCirc.includes('rohru')) totalLoaQty += grp.rohruLoaQty;
+              }
+           });
+           targetTCs.forEach(tc => {
+              const grp = groupedItemsMap.get(tc);
+              if (grp) {
+                 let myLoaQty = 0;
+                 if (lineCirc.includes('solan')) myLoaQty = grp.solanLoaQty;
+                 else if (lineCirc.includes('nahan')) myLoaQty = grp.nahanLoaQty;
+                 else if (lineCirc.includes('rampur')) myLoaQty = grp.rampurLoaQty;
+                 else if (lineCirc.includes('rohru')) myLoaQty = grp.rohruLoaQty;
+                 
+                 const distributedQty = totalLoaQty > 0 ? (qty * (myLoaQty / totalLoaQty)) : (qty / targetTCs.length);
+                 if (!minMap.has(tc)) minMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
+                 const m = minMap.get(tc)!;
+                 if (lineCirc.includes('solan')) m.solan += distributedQty;
+                 else if (lineCirc.includes('nahan')) m.nahan += distributedQty;
+                 else if (lineCirc.includes('rampur')) m.rampur += distributedQty;
+                 else if (lineCirc.includes('rohru')) m.rohru += distributedQty;
+                 else m.nahan += distributedQty;
+              }
+           });
+        }
       }
     });
   });
@@ -1156,15 +1264,46 @@ async function computeItemMatrixSummary(params: {
       if (qty > 0) {
         const lineCirc = (line.circle || docCirc || '').toLowerCase();
         const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku, line.package || (doc as any).package, lineCirc);
-        targetTCs.forEach(tc => {
-          if (!imcMap.has(tc)) imcMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
-          const imcObj = imcMap.get(tc)!;
-          if (lineCirc.includes('solan')) imcObj.solan += qty;
-          else if (lineCirc.includes('nahan')) imcObj.nahan += qty;
-          else if (lineCirc.includes('rampur')) imcObj.rampur += qty;
-          else if (lineCirc.includes('rohru')) imcObj.rohru += qty;
-          else imcObj.nahan += qty;
-        });
+        if (targetTCs.length === 1) {
+           const tc = targetTCs[0];
+           if (!imcMap.has(tc)) imcMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
+           const imcObj = imcMap.get(tc)!;
+           if (lineCirc.includes('solan')) imcObj.solan += qty;
+           else if (lineCirc.includes('nahan')) imcObj.nahan += qty;
+           else if (lineCirc.includes('rampur')) imcObj.rampur += qty;
+           else if (lineCirc.includes('rohru')) imcObj.rohru += qty;
+           else imcObj.nahan += qty;
+        } else if (targetTCs.length > 1) {
+           let totalLoaQty = 0;
+           targetTCs.forEach(tc => {
+              const grp = groupedItemsMap.get(tc);
+              if (grp) {
+                 if (lineCirc.includes('solan')) totalLoaQty += grp.solanLoaQty;
+                 else if (lineCirc.includes('nahan')) totalLoaQty += grp.nahanLoaQty;
+                 else if (lineCirc.includes('rampur')) totalLoaQty += grp.rampurLoaQty;
+                 else if (lineCirc.includes('rohru')) totalLoaQty += grp.rohruLoaQty;
+              }
+           });
+           targetTCs.forEach(tc => {
+              const grp = groupedItemsMap.get(tc);
+              if (grp) {
+                 let myLoaQty = 0;
+                 if (lineCirc.includes('solan')) myLoaQty = grp.solanLoaQty;
+                 else if (lineCirc.includes('nahan')) myLoaQty = grp.nahanLoaQty;
+                 else if (lineCirc.includes('rampur')) myLoaQty = grp.rampurLoaQty;
+                 else if (lineCirc.includes('rohru')) myLoaQty = grp.rohruLoaQty;
+                 
+                 const distributedQty = totalLoaQty > 0 ? (qty * (myLoaQty / totalLoaQty)) : (qty / targetTCs.length);
+                 if (!imcMap.has(tc)) imcMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
+                 const imcObj = imcMap.get(tc)!;
+                 if (lineCirc.includes('solan')) imcObj.solan += distributedQty;
+                 else if (lineCirc.includes('nahan')) imcObj.nahan += distributedQty;
+                 else if (lineCirc.includes('rampur')) imcObj.rampur += distributedQty;
+                 else if (lineCirc.includes('rohru')) imcObj.rohru += distributedQty;
+                 else imcObj.nahan += distributedQty;
+              }
+           });
+        }
       }
     });
   });
@@ -1178,15 +1317,46 @@ async function computeItemMatrixSummary(params: {
       if (qty > 0) {
         const lineCirc = (line.circle || docCirc || '').toLowerCase();
         const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku, line.package || (doc as any).package, lineCirc);
-        targetTCs.forEach(tc => {
-          if (!erectionMap.has(tc)) erectionMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
-          const erecObj = erectionMap.get(tc)!;
-          if (lineCirc.includes('solan')) erecObj.solan += qty;
-          else if (lineCirc.includes('nahan')) erecObj.nahan += qty;
-          else if (lineCirc.includes('rampur')) erecObj.rampur += qty;
-          else if (lineCirc.includes('rohru')) erecObj.rohru += qty;
-          else erecObj.nahan += qty;
-        });
+        if (targetTCs.length === 1) {
+           const tc = targetTCs[0];
+           if (!erectionMap.has(tc)) erectionMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
+           const erecObj = erectionMap.get(tc)!;
+           if (lineCirc.includes('solan')) erecObj.solan += qty;
+           else if (lineCirc.includes('nahan')) erecObj.nahan += qty;
+           else if (lineCirc.includes('rampur')) erecObj.rampur += qty;
+           else if (lineCirc.includes('rohru')) erecObj.rohru += qty;
+           else erecObj.nahan += qty;
+        } else if (targetTCs.length > 1) {
+           let totalLoaQty = 0;
+           targetTCs.forEach(tc => {
+              const grp = groupedItemsMap.get(tc);
+              if (grp) {
+                 if (lineCirc.includes('solan')) totalLoaQty += grp.solanLoaQty;
+                 else if (lineCirc.includes('nahan')) totalLoaQty += grp.nahanLoaQty;
+                 else if (lineCirc.includes('rampur')) totalLoaQty += grp.rampurLoaQty;
+                 else if (lineCirc.includes('rohru')) totalLoaQty += grp.rohruLoaQty;
+              }
+           });
+           targetTCs.forEach(tc => {
+              const grp = groupedItemsMap.get(tc);
+              if (grp) {
+                 let myLoaQty = 0;
+                 if (lineCirc.includes('solan')) myLoaQty = grp.solanLoaQty;
+                 else if (lineCirc.includes('nahan')) myLoaQty = grp.nahanLoaQty;
+                 else if (lineCirc.includes('rampur')) myLoaQty = grp.rampurLoaQty;
+                 else if (lineCirc.includes('rohru')) myLoaQty = grp.rohruLoaQty;
+                 
+                 const distributedQty = totalLoaQty > 0 ? (qty * (myLoaQty / totalLoaQty)) : (qty / targetTCs.length);
+                 if (!erectionMap.has(tc)) erectionMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
+                 const erecObj = erectionMap.get(tc)!;
+                 if (lineCirc.includes('solan')) erecObj.solan += distributedQty;
+                 else if (lineCirc.includes('nahan')) erecObj.nahan += distributedQty;
+                 else if (lineCirc.includes('rampur')) erecObj.rampur += distributedQty;
+                 else if (lineCirc.includes('rohru')) erecObj.rohru += distributedQty;
+                 else erecObj.nahan += distributedQty;
+              }
+           });
+        }
       }
     });
   });
@@ -1200,15 +1370,46 @@ async function computeItemMatrixSummary(params: {
       if (qty > 0) {
         const lineCirc = (line.circle || docCirc || '').toLowerCase();
         const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku, line.package || (doc as any).package, lineCirc);
-        targetTCs.forEach(tc => {
-          if (!supplyBilledMap.has(tc)) supplyBilledMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
-          const obj = supplyBilledMap.get(tc)!;
-          if (lineCirc.includes('solan')) obj.solan += qty;
-          else if (lineCirc.includes('nahan')) obj.nahan += qty;
-          else if (lineCirc.includes('rampur')) obj.rampur += qty;
-          else if (lineCirc.includes('rohru')) obj.rohru += qty;
-          else obj.nahan += qty;
-        });
+        if (targetTCs.length === 1) {
+           const tc = targetTCs[0];
+           if (!supplyBilledMap.has(tc)) supplyBilledMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
+           const supObj = supplyBilledMap.get(tc)!;
+           if (lineCirc.includes('solan')) supObj.solan += qty;
+           else if (lineCirc.includes('nahan')) supObj.nahan += qty;
+           else if (lineCirc.includes('rampur')) supObj.rampur += qty;
+           else if (lineCirc.includes('rohru')) supObj.rohru += qty;
+           else supObj.nahan += qty;
+        } else if (targetTCs.length > 1) {
+           let totalLoaQty = 0;
+           targetTCs.forEach(tc => {
+              const grp = groupedItemsMap.get(tc);
+              if (grp) {
+                 if (lineCirc.includes('solan')) totalLoaQty += grp.solanLoaQty;
+                 else if (lineCirc.includes('nahan')) totalLoaQty += grp.nahanLoaQty;
+                 else if (lineCirc.includes('rampur')) totalLoaQty += grp.rampurLoaQty;
+                 else if (lineCirc.includes('rohru')) totalLoaQty += grp.rohruLoaQty;
+              }
+           });
+           targetTCs.forEach(tc => {
+              const grp = groupedItemsMap.get(tc);
+              if (grp) {
+                 let myLoaQty = 0;
+                 if (lineCirc.includes('solan')) myLoaQty = grp.solanLoaQty;
+                 else if (lineCirc.includes('nahan')) myLoaQty = grp.nahanLoaQty;
+                 else if (lineCirc.includes('rampur')) myLoaQty = grp.rampurLoaQty;
+                 else if (lineCirc.includes('rohru')) myLoaQty = grp.rohruLoaQty;
+                 
+                 const distributedQty = totalLoaQty > 0 ? (qty * (myLoaQty / totalLoaQty)) : (qty / targetTCs.length);
+                 if (!supplyBilledMap.has(tc)) supplyBilledMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
+                 const supObj = supplyBilledMap.get(tc)!;
+                 if (lineCirc.includes('solan')) supObj.solan += distributedQty;
+                 else if (lineCirc.includes('nahan')) supObj.nahan += distributedQty;
+                 else if (lineCirc.includes('rampur')) supObj.rampur += distributedQty;
+                 else if (lineCirc.includes('rohru')) supObj.rohru += distributedQty;
+                 else supObj.nahan += distributedQty;
+              }
+           });
+        }
       }
     });
   });
@@ -1265,6 +1466,41 @@ async function computeItemMatrixSummary(params: {
     const balSupplyBill = targetInward - targetSupBilled;
     const balErectionBill = targetImc - targetErecBilled;
 
+    const allBalances = {
+      solan: {
+        diVsLoa: solanLoaQty - diObj.solan,
+        diVsBom: solanBomQty - diObj.solan,
+        mrn: diObj.solan - invObj.solan,
+        imc: invObj.solan - minObj.solan,
+        supplyBill: invObj.solan - supObj.solan,
+        erectionBill: imcObj.solan - erecObj.solan
+      },
+      nahan: {
+        diVsLoa: nahanLoaQty - diObj.nahan,
+        diVsBom: nahanBomQty - diObj.nahan,
+        mrn: diObj.nahan - invObj.nahan,
+        imc: invObj.nahan - minObj.nahan,
+        supplyBill: invObj.nahan - supObj.nahan,
+        erectionBill: imcObj.nahan - erecObj.nahan
+      },
+      rampur: {
+        diVsLoa: rampurLoaQty - diObj.rampur,
+        diVsBom: rampurBomQty - diObj.rampur,
+        mrn: diObj.rampur - invObj.rampur,
+        imc: invObj.rampur - minObj.rampur,
+        supplyBill: invObj.rampur - supObj.rampur,
+        erectionBill: imcObj.rampur - erecObj.rampur
+      },
+      rohru: {
+        diVsLoa: rohruLoaQty - diObj.rohru,
+        diVsBom: rohruBomQty - diObj.rohru,
+        mrn: diObj.rohru - invObj.rohru,
+        imc: invObj.rohru - minObj.rohru,
+        supplyBill: invObj.rohru - supObj.rohru,
+        erectionBill: imcObj.rohru - erecObj.rohru
+      }
+    };
+
     return {
       _id: grp.itemIds[0],
       itemId: grp.itemIds[0],
@@ -1275,7 +1511,7 @@ async function computeItemMatrixSummary(params: {
       itemName,
       unit: grp.unit || 'NOS',
       package: grp.package,
-      circle: tCirc,
+      circle: grp.circle,
 
       // Flat LOA & BOM
       solanLoaQty,
@@ -1347,7 +1583,8 @@ async function computeItemMatrixSummary(params: {
         imc: balImc,
         supplyBill: balSupplyBill,
         erectionBill: balErectionBill
-      }
+      },
+      allBalances
     };
   });
 

@@ -227,7 +227,29 @@ export class SummaryService {
         }
       }
 
-      // 5. Rebuild from PIs
+      // 5. Rebuild from StoreInwardEntry (MRHOV / Store Receipts)
+      const { StoreInwardEntry } = await import('../../store/storeInwardEntry.schema');
+      const storeInwards = await StoreInwardEntry.find({ itemId });
+      for (const inward of storeInwards) {
+        let cName = inward.circle || inward.subcircle || inward.billingFrom || item.dynamicData?.circle || '';
+        let pName = inward.package || item.dynamicData?.package || '';
+        if (cName.toLowerCase().includes('package')) {
+          pName = cName;
+          cName = '';
+        }
+        const qty = Number(inward.invoiceQty || inward.acceptedQty || inward.totalQty || 0);
+        if (qty > 0) {
+          await SummaryService.updateSummary({
+            itemId,
+            circle: cName,
+            package: pName,
+            increments: { invQty: qty },
+            companyId: item.companyId?.toString()
+          });
+        }
+      }
+
+      // 6. Rebuild from PIs
       const invoices = await PurchaseInvoice.find({ 'lineItems.itemId': itemId });
       for (const invoice of invoices) {
         for (const line of invoice.lineItems) {

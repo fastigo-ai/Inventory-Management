@@ -222,8 +222,24 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
     };
   });
 
-  // Sort by itemName or tempCode
-  summaryData.sort((a, b) => (a.itemName || '').localeCompare(b.itemName || ''));
+  // Sort by tempCode ascending
+  summaryData.sort((a, b) => {
+    const numA = Number(a.tempCode);
+    const numB = Number(b.tempCode);
+    const isNumA = !isNaN(numA) && a.tempCode !== '';
+    const isNumB = !isNaN(numB) && b.tempCode !== '';
+
+    if (isNumA && isNumB) {
+      return numA - numB;
+    } else if (isNumA) {
+      return -1; // Numbers come before strings
+    } else if (isNumB) {
+      return 1;
+    }
+    
+    // Fallback to alphabetical sorting if both are strings or empty
+    return (a.tempCode || '').localeCompare(b.tempCode || '') || (a.itemName || '').localeCompare(b.itemName || '');
+  });
 
   res.status(200).json(
     new ApiResponse(200, summaryData, 'Site contractor summary fetched successfully')

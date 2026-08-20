@@ -84,7 +84,7 @@ const prSchema = new Schema<IPr>(
     purchaseOrderNumber: { type: String },
     purchaseReceiveNumber: { type: String, required: true, unique: true },
     receiveDate: { type: Date, required: true },
-    diNo: { type: String },
+    diNo: { type: String, index: true },
     diDate: { type: Date },
     billingFrom: { type: String },
     

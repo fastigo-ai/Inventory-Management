@@ -525,8 +525,8 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
 
     const findItemInMemory = (tCode?: string, lSerial?: string, name?: string, pkg?: string, circle?: string) => {
       const matchCriteria = (i: any) => {
-        if (pkg && i.dynamicData?.package && i.dynamicData.package !== pkg) return false;
-        if (circle && i.dynamicData?.circle && i.dynamicData.circle !== circle) return false;
+        if (pkg && i.dynamicData?.package && i.dynamicData.package.toLowerCase() !== pkg.toLowerCase()) return false;
+        if (circle && i.dynamicData?.circle && i.dynamicData.circle.toLowerCase() !== circle.toLowerCase()) return false;
         return true;
       };
 
@@ -543,7 +543,25 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
         if (found) return found;
       }
       if (name) {
-        const found = existingItems.find(i => i.dynamicData?.name === name && matchCriteria(i));
+        const found = existingItems.find(i => i.dynamicData?.name?.toLowerCase() === name.toLowerCase() && matchCriteria(i));
+        if (found) return found;
+      }
+
+      // Fallback matching without strict package/circle requirement
+      if (tCode) {
+        const found = existingItems.find(i => i.dynamicData?.tempCode === tCode);
+        if (found) return found;
+      }
+      if (lSerial) {
+        const found = existingItems.find(i => 
+          i.dynamicData?.loaSerialNo === lSerial || 
+          i.dynamicData?.loaSerialNumber === lSerial || 
+          i.dynamicData?.sku === lSerial
+        );
+        if (found) return found;
+      }
+      if (name) {
+        const found = existingItems.find(i => i.dynamicData?.name?.toLowerCase() === name.toLowerCase());
         if (found) return found;
       }
       return null;
@@ -557,19 +575,19 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
       const diNumber = row['DINumber'] || row['diNumber'] || row['DI Number'];
       if (!diNumber) continue;
 
-      const parseCsvDate = (dStr?: string) => {
-        if (!dStr) return new Date().toISOString().split('T')[0];
-        let cleaned = dStr.replace(/\.+/g, '.').trim(); // fix double dots
+      const parseCsvDate = (dStr?: string): Date => {
+        if (!dStr) return new Date();
+        let cleaned = dStr.replace(/\.+/g, '.').trim();
         const parts = cleaned.split(/[.\-\/]/);
         if (parts.length === 3) {
-          // If DD.MM.YYYY
           if (parts[0].length <= 2 && parts[1].length <= 2 && parts[2].length === 4) {
-            return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+            const d = new Date(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`);
+            if (!isNaN(d.getTime())) return d;
           }
         }
         const p = new Date(dStr);
-        if (!isNaN(p.getTime())) return p.toISOString().split('T')[0];
-        return new Date().toISOString().split('T')[0];
+        if (!isNaN(p.getTime())) return p;
+        return new Date();
       };
 
       if (!disMap[diNumber]) {
@@ -636,6 +654,9 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
     session.startTransaction();
 
     try {
+    const docsToInsert: any[] = [];
+    const bulkUpdateOps: any[] = [];
+
     for (const diNumber of diNumbers) {
       const diData = disMap[diNumber];
       try {
@@ -648,8 +669,6 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
             if (!diData.vendorName) {
               diData.vendorName = po.vendorName;
             }
-          } else {
-            errors.push(`Purchase Order ${diData._poNumber} not found for DI ${diData.diNumber}. It will be created without PO link.`);
           }
         }
         delete diData._poNumber;
@@ -663,14 +682,6 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
           }
 
           const oldItemIds = existing.lineItems.map((li: any) => li.itemId?.toString()).filter(Boolean);
-
-          existing.date = diData.date;
-          if (diData.circle) existing.circle = diData.circle;
-          if (diData.package) existing.package = diData.package;
-          if (diData.status) existing.status = diData.status;
-          if (diData.notes !== undefined) existing.notes = diData.notes;
-          if (diData.vendorName) existing.vendorName = diData.vendorName;
-          if (diData.purchaseOrderId) existing.purchaseOrderId = diData.purchaseOrderId;
           const mergedItems = [...existing.lineItems];
           for (const newItem of diData.lineItems) {
             const matchIdx = mergedItems.findIndex((li: any) => 
@@ -688,22 +699,37 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
               mergedItems.push(newItem);
             }
           }
-          existing.lineItems = mergedItems;
 
-          const updated = await existing.save({ session });
+          bulkUpdateOps.push({
+            updateOne: {
+              filter: { _id: existing._id },
+              update: {
+                $set: {
+                  date: diData.date,
+                  ...(diData.circle && { circle: diData.circle }),
+                  ...(diData.package && { package: diData.package }),
+                  ...(diData.status && { status: diData.status }),
+                  ...(diData.notes !== undefined && { notes: diData.notes }),
+                  ...(diData.vendorName && { vendorName: diData.vendorName }),
+                  ...(diData.purchaseOrderId && { purchaseOrderId: diData.purchaseOrderId }),
+                  lineItems: mergedItems
+                }
+              }
+            }
+          });
           successCount++;
 
           const allAffectedItemIds = Array.from(new Set([
             ...oldItemIds,
-            ...updated.lineItems.map((li: any) => li.itemId?.toString()).filter(Boolean)
+            ...mergedItems.map((li: any) => li.itemId?.toString()).filter(Boolean)
           ]));
           allAffectedItemIds.forEach(id => globalAffectedItemIds.add(id));
 
         } else {
-          const createdDI = (await DI.create([diData], { session }))[0];
+          docsToInsert.push(diData);
           successCount++;
           
-          for (const line of createdDI.lineItems) {
+          for (const line of diData.lineItems) {
             if (line.itemId) globalAffectedItemIds.add(line.itemId.toString());
           }
         }
@@ -718,6 +744,25 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
       return res.status(400).json({
         success: false,
         message: 'Import failed due to row errors. No data was imported.',
+        data: { errors },
+        errors
+      });
+    }
+
+    if (docsToInsert.length > 0) {
+      await DI.insertMany(docsToInsert, { session });
+    }
+    if (bulkUpdateOps.length > 0) {
+      await DI.bulkWrite(bulkUpdateOps, { session });
+    }
+
+    if (errors.length > 0) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({
+        success: false,
+        message: 'Import failed due to row errors. No data was imported.',
+        data: { errors },
         errors
       });
     }
@@ -751,9 +796,10 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
       }
     });
   } catch (error: any) {
-    res.status(500).json({
+    res.status(400).json({
       success: false,
-      message: 'Failed to import DI Registrations',
+      message: error.message || 'Failed to import DI Registrations',
+      data: { errors: [error.message] },
       error: error.message,
     });
   }

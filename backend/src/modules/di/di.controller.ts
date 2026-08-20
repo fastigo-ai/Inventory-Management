@@ -662,16 +662,27 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
         const resolvedTempCode = tempCode || item?.dynamicData?.tempCode || '';
         const resolvedLoaSerialNo = loaSerialNo || item?.dynamicData?.loaSerialNo || item?.dynamicData?.loaSerialNumber || item?.dynamicData?.sku || '';
 
-        disMap[diNumber].lineItems.push({
-          itemId,
-          itemName: resolvedItemName,
-          tempCode: resolvedTempCode,
-          loaSerialNo: resolvedLoaSerialNo,
-          package: itemPackage,
-          circle: itemCircle,
-          unit: finalUnit,
-          quantity
-        });
+        const existingLineIndex = disMap[diNumber].lineItems.findIndex((li: any) => 
+          ((itemId && li.itemId && itemId.toString() === li.itemId.toString()) ||
+           (resolvedItemName === li.itemName && resolvedLoaSerialNo === li.loaSerialNo)) &&
+          (itemCircle === li.circle) &&
+          (itemPackage === li.package)
+        );
+
+        if (existingLineIndex > -1) {
+          disMap[diNumber].lineItems[existingLineIndex].quantity += quantity;
+        } else {
+          disMap[diNumber].lineItems.push({
+            itemId,
+            itemName: resolvedItemName,
+            tempCode: resolvedTempCode,
+            loaSerialNo: resolvedLoaSerialNo,
+            package: itemPackage,
+            circle: itemCircle,
+            unit: finalUnit,
+            quantity
+          });
+        }
       }
     }
 
@@ -724,23 +735,9 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
           }
 
           const oldItemIds = existing.lineItems.map((li: any) => li.itemId?.toString()).filter(Boolean);
-          const mergedItems = [...existing.lineItems];
-          for (const newItem of diData.lineItems) {
-            const matchIdx = mergedItems.findIndex((li: any) => 
-              ((newItem.itemId && li.itemId && newItem.itemId.toString() === li.itemId.toString()) ||
-               (li.itemName === newItem.itemName && li.loaSerialNo === newItem.loaSerialNo)) &&
-              (li.circle === newItem.circle) &&
-              (li.package === newItem.package)
-            );
-
-            if (matchIdx > -1) {
-              mergedItems[matchIdx].quantity = newItem.quantity;
-              if (newItem.tempCode) mergedItems[matchIdx].tempCode = newItem.tempCode;
-              if (newItem.unit) mergedItems[matchIdx].unit = newItem.unit;
-            } else {
-              mergedItems.push(newItem);
-            }
-          }
+          
+          // Full replacement of lines to ensure if a user removes a line in CSV, it's removed from DB
+          const mergedItems = diData.lineItems;
 
           bulkUpdateOps.push({
             updateOne: {

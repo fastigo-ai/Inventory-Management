@@ -948,6 +948,7 @@ async function computeItemMatrixSummary(params: {
   }>();
 
   const itemIdToKeyMap = new Map<string, string>();
+  const tempCodeToKeyMap = new Map<string, string>();
 
   items.forEach(it => {
     const d = it.dynamicData || {};
@@ -979,6 +980,7 @@ async function computeItemMatrixSummary(params: {
     const grp = groupedItemsMap.get(loaSrNo)!;
     grp.itemIds.push(it._id.toString());
     itemIdToKeyMap.set(it._id.toString(), loaSrNo);
+    if (tc) tempCodeToKeyMap.set(tc, loaSrNo);
 
     if (!grp.itemName && name) grp.itemName = name;
     if (!grp.tempCode && tc) grp.tempCode = tc;
@@ -1021,8 +1023,13 @@ async function computeItemMatrixSummary(params: {
       keys.add(loaSr);
     }
     const tc = String(lineTempCode || '').trim();
-    if (tc && groupedItemsMap.has(tc)) {
-      keys.add(tc);
+    if (tc) {
+      if (tempCodeToKeyMap.has(tc)) {
+        keys.add(tempCodeToKeyMap.get(tc)!);
+      }
+      if (groupedItemsMap.has(tc)) {
+        keys.add(tc);
+      }
     }
     return Array.from(keys);
   };

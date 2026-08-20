@@ -338,7 +338,7 @@ export default function ItemSummaryMatrixPage() {
                   {showDi && <th colSpan={4} className="p-2 text-center bg-blue-100 text-blue-900 sticky top-0 z-20">Total Dispatched (DI)</th>}
                   {showMrn && <th colSpan={4} className="p-2 text-center bg-emerald-100 text-emerald-900 sticky top-0 z-20">Total Inward (MRN / SRV)</th>}
                   {showImc && <th colSpan={4} className="p-2 text-center bg-purple-100 text-purple-900 sticky top-0 z-20">Total MIN / Issue (IMC)</th>}
-                  {showImc && <th colSpan={4} className="p-2 text-center bg-indigo-100 text-indigo-900 sticky top-0 z-20">Total IMC Work</th>}
+                  {showImc && <th colSpan={4} className="p-2 text-center bg-indigo-100 text-indigo-900 sticky top-0 z-20">Total JMC Work</th>}
                   {showSupplyBill && <th colSpan={4} className="p-2 text-center bg-sky-100 text-sky-900 sticky top-0 z-20">Supply Billed</th>}
                   {showErectionBill && <th colSpan={4} className="p-2 text-center bg-teal-100 text-teal-900 sticky top-0 z-20">Erection Billed</th>}
                 </tr>

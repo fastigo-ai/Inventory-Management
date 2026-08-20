@@ -56,6 +56,7 @@ function DemandNoteForm() {
 
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [items, setItems] = useState<any[]>([]);
+  const hasAutoPopulated = React.useRef(false);
 
   useEffect(() => {
     // If URL params are present, auto-fill formData
@@ -69,6 +70,8 @@ function DemandNoteForm() {
       }));
     }
 
+    if (hasAutoPopulated.current) return;
+
     fetchItemsList().then((fetchedItems) => {
       if ((itemIdParam || tempCodeParam) && fetchedItems && fetchedItems.length > 0) {
         let itemToSelect;
@@ -81,7 +84,8 @@ function DemandNoteForm() {
           );
         }
         
-        if (itemToSelect) {
+        if (itemToSelect && !hasAutoPopulated.current) {
+          hasAutoPopulated.current = true;
           handleAddNewItem([itemToSelect], contractorIdParam || undefined);
         }
       }

@@ -137,12 +137,18 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
     
     jmcRegisters.forEach((jmc: any) => {
       jmc.items.forEach((jmcItem: any) => {
-        // Match by activity, description, or tempCode
-        const matchActivity = activity ? jmcItem.activity === activity : true;
-        const matchDesc = description ? jmcItem.description === description : true;
-        const matchCode = tempCode ? jmcItem.tempCode === tempCode : true;
+        let isMatch = false;
+        if (tempCode && jmcItem.tempCode) {
+          isMatch = String(jmcItem.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase();
+        } else if (itemId && jmcItem.itemId) {
+          isMatch = String(jmcItem.itemId) === String(itemId);
+        } else {
+          const matchActivity = activity ? jmcItem.activity === activity : true;
+          const matchDesc = description ? jmcItem.description === description : true;
+          isMatch = matchActivity && matchDesc;
+        }
 
-        if (matchActivity && matchDesc && matchCode) {
+        if (isMatch) {
           jmcQty += (Number(jmcItem.claimedQty) || 0) + (Number(jmcItem.approvedQty) || 0);
         }
       });
@@ -156,11 +162,18 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
     
     wipRegisters.forEach((wip: any) => {
       wip.items.forEach((wipItem: any) => {
-        const matchActivity = activity ? wipItem.activity === activity : true;
-        const matchDesc = description ? wipItem.description === description : true;
-        const matchCode = tempCode ? wipItem.tempCode === tempCode : true;
+        let isMatch = false;
+        if (tempCode && wipItem.tempCode) {
+          isMatch = String(wipItem.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase();
+        } else if (itemId && wipItem.itemId) {
+          isMatch = String(wipItem.itemId) === String(itemId);
+        } else {
+          const matchActivity = activity ? wipItem.activity === activity : true;
+          const matchDesc = description ? wipItem.description === description : true;
+          isMatch = matchActivity && matchDesc;
+        }
 
-        if (matchActivity && matchDesc && matchCode) {
+        if (isMatch) {
           wipQty += (Number(wipItem.claimedQty) || 0) + (Number(wipItem.approvedQty) || 0);
         }
       });
@@ -174,11 +187,18 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
     
     wipRequiredRegisters.forEach((wipReq: any) => {
       wipReq.items.forEach((wipReqItem: any) => {
-        const matchActivity = activity ? wipReqItem.activity === activity : true;
-        const matchDesc = description ? wipReqItem.description === description : true;
-        const matchCode = tempCode ? wipReqItem.tempCode === tempCode : true;
+        let isMatch = false;
+        if (tempCode && wipReqItem.tempCode) {
+          isMatch = String(wipReqItem.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase();
+        } else if (itemId && wipReqItem.itemId) {
+          isMatch = String(wipReqItem.itemId) === String(itemId);
+        } else {
+          const matchActivity = activity ? wipReqItem.activity === activity : true;
+          const matchDesc = description ? wipReqItem.description === description : true;
+          isMatch = matchActivity && matchDesc;
+        }
 
-        if (matchActivity && matchDesc && matchCode) {
+        if (isMatch) {
           wipRequiredQty += (Number(wipReqItem.claimedQty) || 0) + (Number(wipReqItem.approvedQty) || 0);
         }
       });

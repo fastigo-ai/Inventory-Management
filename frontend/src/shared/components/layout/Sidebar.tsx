@@ -133,6 +133,20 @@ const navItems: NavItem[] = [
       { title: 'Site Contractor Summary', href: '/site-portal/contractor-summary' },
       { title: 'Contractor Billing', href: '/site-portal/contractor-billing' }
     ]
+  },
+  {
+    title: 'Project Manager Portal',
+    icon: <Layers className="w-5 h-5" />,
+    children: [
+      { title: 'Demand Notes (PM)', href: '/pm-portal/demand-notes' },
+    ]
+  },
+  {
+    title: 'Project Director Portal',
+    icon: <Shield className="w-5 h-5" />,
+    children: [
+      { title: 'Demand Notes (PD)', href: '/pd-portal/demand-notes' },
+    ]
   }
 ];
 
@@ -177,6 +191,14 @@ export function Sidebar() {
     // Backward compatibility for existing hardcoded Store Manager logic
     if (isStoreManager) {
       return item.title === 'Home' || item.title === 'Stock Inward' || item.title === 'Stock Outward';
+    }
+
+    if (user?.role?.name === 'Project Manager') {
+      return item.title === 'Home' || item.title === 'Project Manager Portal';
+    }
+
+    if (user?.role?.name === 'Project Director') {
+      return item.title === 'Home' || item.title === 'Project Director Portal';
     }
 
     // Role-based filtering based on module names

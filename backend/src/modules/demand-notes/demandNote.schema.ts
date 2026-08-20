@@ -40,10 +40,14 @@ export interface IDemandNote extends Document {
   division?: string;
   subDivision?: string;
   location?: string;
-  status: 'Draft' | 'Pending Approval' | 'Approved' | 'Rejected' | 'Fulfilled';
+  status: 'Draft' | 'Pending PM Approval' | 'Pending PD Approval' | 'Approved' | 'Rejected' | 'Fulfilled';
   authorizedByEngineer?: string;
   remarks?: string;
   locationDrawingUrl?: string;
+  pmApprovedBy?: mongoose.Types.ObjectId;
+  pmApprovedAt?: Date;
+  pdApprovedBy?: mongoose.Types.ObjectId;
+  pdApprovedAt?: Date;
   items: IDemandNoteItem[];
   createdAt: Date;
   updatedAt: Date;
@@ -92,13 +96,17 @@ const demandNoteSchema = new Schema<IDemandNote>(
     location: { type: String },
     status: {
       type: String,
-      enum: ['Draft', 'Pending Approval', 'Approved', 'Rejected', 'Fulfilled'],
+      enum: ['Draft', 'Pending PM Approval', 'Pending PD Approval', 'Approved', 'Rejected', 'Fulfilled'],
       default: 'Draft',
       index: true
     },
     authorizedByEngineer: { type: String },
     remarks: { type: String },
     locationDrawingUrl: { type: String },
+    pmApprovedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    pmApprovedAt: { type: Date },
+    pdApprovedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    pdApprovedAt: { type: Date },
     items: [demandNoteItemSchema],
   },
   { timestamps: true }

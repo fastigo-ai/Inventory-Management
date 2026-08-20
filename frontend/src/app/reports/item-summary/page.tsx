@@ -129,7 +129,7 @@ export default function ItemSummaryMatrixPage() {
     if (data.length === 0) return;
 
     const headers = [
-      'Sr. No.', 'Temp Code', 'Item Name', 'Package', 'Circle',
+      'Sr. No.', 'LOA Sr. No.', 'Temp Code', 'Item Name', 'Package', 'Circle',
       'Nahan LOA Qty', 'Nahan BOM Qty', 'Solan LOA Qty', 'Solan BOM Qty', 'Rampur LOA Qty', 'Rampur BOM Qty', 'Rohru LOA Qty', 'Rohru BOM Qty',
       'Total Dispatched Nahan', 'Total Dispatched Solan', 'Total Dispatched Rampur', 'Total Dispatched Rohru',
       'Total Inward Qty Nahan', 'Total Inward Qty Solan', 'Total Inward Qty Rampur', 'Total Inward Qty Rohru',
@@ -143,7 +143,7 @@ export default function ItemSummaryMatrixPage() {
     ];
 
     const rows = data.map(r => [
-      r.srNo, `"${r.tempCode || ''}"`, `"${(r.itemName || '').replace(/"/g, '""')}"`, `"${r.package || ''}"`, `"${r.circle || ''}"`,
+      r.srNo, `"${r.loaSerialNo || r.tempCode || ''}"`, `"${r.tempCode || ''}"`, `"${(r.itemName || '').replace(/"/g, '""')}"`, `"${r.package || ''}"`, `"${r.circle || ''}"`,
       r.nahanLoaQty, r.nahanBomQty, r.solanLoaQty, r.solanBomQty, r.rampurLoaQty, r.rampurBomQty, r.rohruLoaQty, r.rohruBomQty,
       r.dispatchedNahan, r.dispatchedSolan, r.dispatchedRampur, r.dispatchedRohru,
       r.inwardNahan, r.inwardSolan, r.inwardRampur, r.inwardRohru,
@@ -626,6 +626,8 @@ export default function ItemSummaryMatrixPage() {
               <option value={50}>50 items per page</option>
               <option value={100}>100 items per page</option>
               <option value={250}>250 items per page</option>
+              <option value={500}>500 items per page</option>
+              <option value={1000}>1000 items per page</option>
             </select>
 
             <button

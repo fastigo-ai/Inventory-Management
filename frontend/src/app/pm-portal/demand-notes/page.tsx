@@ -48,23 +48,9 @@ export default function DemandNotesList() {
       <div className="flex justify-between items-center bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <FileText className="w-6 h-6 text-indigo-500" /> Demand Notes (Site Portal)
+            <FileText className="w-6 h-6 text-indigo-500" /> Demand Notes (PM Portal)
           </h1>
-          <p className="text-slate-500 text-sm mt-1">Manage and track material requisitions for your assigned package and circle.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setIsImportModalOpen(true)}
-            className="bg-white hover:bg-slate-50 text-indigo-600 border border-indigo-200 px-4 py-2 rounded-md flex items-center gap-2 font-medium transition-colors"
-          >
-            <Upload className="w-4 h-4" /> Import CSV
-          </button>
-          <Link
-            href="/site-portal/demand-notes/new"
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md flex items-center gap-2 font-medium transition-colors"
-          >
-            <Plus className="w-4 h-4" /> Create Demand Note
-          </Link>
+          <p className="text-slate-500 text-sm mt-1">Review and approve material requisitions for your assigned package and circle.</p>
         </div>
       </div>
 
@@ -92,7 +78,7 @@ export default function DemandNotesList() {
                 demandNotes.map((dn) => (
                   <tr key={dn._id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4 font-medium text-indigo-600">
-                      <Link href={`/site-portal/demand-notes/${dn._id}`}>
+                      <Link href={`/pm-portal/demand-notes/${dn._id}`}>
                         {dn.demandNoteNumber}
                       </Link>
                     </td>
@@ -106,7 +92,7 @@ export default function DemandNotesList() {
                     <td className="px-6 py-4 text-slate-600">{dn.createdBy?.firstName} {dn.createdBy?.lastName}</td>
                     <td className="px-6 py-4 text-center">
                       <Link
-                        href={`/site-portal/demand-notes/${dn._id}`}
+                        href={`/pm-portal/demand-notes/${dn._id}`}
                         className="text-slate-400 hover:text-indigo-600 transition-colors p-2"
                       >
                         <ChevronRight className="w-5 h-5 inline" />

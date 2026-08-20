@@ -202,14 +202,25 @@ export const getDemandNotes = asyncHandler(async (req: AuthRequest, res: Respons
   const user = req.user as any;
   const filter: any = {};
 
-  // If user is not an admin, restrict to their assigned areas
-  if (user.role?.name === 'Site Manager' || user.role?.name === 'Store Manager') {
+  // If user is not an admin or PD, restrict to their assigned areas
+  if (user.role?.name === 'Site Manager' || user.role?.name === 'Store Manager' || user.role?.name === 'Project Manager') {
     if (user.assignedPackage) filter.package = user.assignedPackage;
     if (user.assignedCircle) filter.circle = user.assignedCircle;
   }
 
+  // Filter based on roles
+  if (user.role?.name === 'Project Manager') {
+    filter.status = { $in: ['Pending PM Approval', 'Pending Approval'] };
+  } else if (user.role?.name === 'Project Director') {
+    filter.status = 'Pending PD Approval';
+  } else if (user.role?.name === 'Store Manager') {
+    filter.status = { $in: ['Approved', 'Fulfilled'] };
+  }
+
   const demandNotes = await DemandNote.find(filter)
     .populate('createdBy', 'firstName lastName email')
+    .populate('pmApprovedBy', 'firstName lastName email')
+    .populate('pdApprovedBy', 'firstName lastName email')
     .sort({ createdAt: 1 });
     
   res.status(200).json(new ApiResponse(200, { demandNotes }, 'Demand Notes fetched'));
@@ -232,8 +243,8 @@ export const updateDemandNote = asyncHandler(async (req: AuthRequest, res: Respo
   const existing = await DemandNote.findById(req.params.id);
   if (!existing) throw new ApiError(404, 'Demand Note not found');
   
-  if (user.role?.name === 'Site Manager' && !['Draft', 'Pending Approval'].includes(existing.status)) {
-    throw new ApiError(403, 'Cannot edit an approved or fulfilled demand note.');
+  if (user.role?.name === 'Site Manager' && !['Draft', 'Pending Approval', 'Pending PM Approval'].includes(existing.status)) {
+    throw new ApiError(403, 'Cannot edit an approved or pending PD demand note.');
   }
 
   // Prevent changing package/circle by dropping from payload
@@ -243,6 +254,16 @@ export const updateDemandNote = asyncHandler(async (req: AuthRequest, res: Respo
   delete updateData.demandNoteNumber;
   delete updateData.createdBy;
 
+  if (updateData.status === 'Pending PD Approval' && existing.status !== 'Pending PD Approval') {
+    updateData.pmApprovedBy = user._id;
+    updateData.pmApprovedAt = new Date();
+  }
+  
+  if (updateData.status === 'Approved' && existing.status !== 'Approved') {
+    updateData.pdApprovedBy = user._id;
+    updateData.pdApprovedAt = new Date();
+  }
+
   const demandNote = await DemandNote.findByIdAndUpdate(req.params.id, updateData, { new: true });
   res.status(200).json(new ApiResponse(200, { demandNote }, 'Demand Note updated successfully'));
 });
@@ -251,7 +272,7 @@ export const deleteDemandNote = asyncHandler(async (req: AuthRequest, res: Respo
   const existing = await DemandNote.findById(req.params.id);
   if (!existing) throw new ApiError(404, 'Demand Note not found');
 
-  if (existing.status !== 'Draft' && existing.status !== 'Pending Approval') {
+  if (existing.status !== 'Draft' && existing.status !== 'Pending Approval' && existing.status !== 'Pending PM Approval') {
     throw new ApiError(403, 'Only Draft or Pending Demand Notes can be deleted.');
   }
 

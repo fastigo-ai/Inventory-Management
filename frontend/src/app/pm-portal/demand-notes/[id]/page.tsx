@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Loader2, FileText, CheckCircle, AlertCircle, Edit, Printer } from 'lucide-react';
-import { getDemandNoteById } from '@/features/site-portal/api/demand-notes.api';
+import { getDemandNoteById, updateDemandNote } from '@/features/site-portal/api/demand-notes.api';
 import { toast } from 'sonner';
 
 export default function DemandNoteDetailPage() {
@@ -14,24 +14,38 @@ export default function DemandNoteDetailPage() {
   const [demandNote, setDemandNote] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchDN = async () => {
-      try {
-        setIsLoading(true);
-        const res = await getDemandNoteById(id as string);
-        if (res.success && res.data?.demandNote) {
-          setDemandNote(res.data.demandNote);
-        } else {
-          toast.error('Failed to fetch Demand Note details');
-        }
-      } catch (error) {
-        toast.error('Failed to fetch Demand Note details');
-      } finally {
-        setIsLoading(false);
+  const fetchDemandNote = async () => {
+    try {
+      setIsLoading(true);
+      const res = await getDemandNoteById(id as string);
+      if (res.success && res.data?.demandNote) {
+        setDemandNote(res.data.demandNote);
+      } else {
       }
-    };
-    if (id) fetchDN();
+    } catch (error) {
+      toast.error('Failed to fetch Demand Note details');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (id) fetchDemandNote();
   }, [id]);
+
+  const handleApprove = async () => {
+    try {
+      setIsLoading(true);
+      const res = await updateDemandNote(demandNote._id, { status: 'Pending PD Approval' });
+      if (res.success) {
+        toast.success('Demand Note approved successfully');
+        fetchDemandNote();
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to approve demand note');
+      setIsLoading(false);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     const baseStyle = "px-2.5 py-1 text-xs font-semibold rounded-full border flex items-center gap-1.5";
@@ -91,6 +105,14 @@ export default function DemandNoteDetailPage() {
           </div>
         </div>
         <div className="flex space-x-3">
+          {(demandNote.status === 'Pending Approval' || demandNote.status === 'Pending PM Approval') && (
+            <button
+              onClick={handleApprove}
+              className="flex items-center px-4 py-2 bg-emerald-600 rounded-lg text-sm font-medium text-white hover:bg-emerald-700 transition-colors shadow-sm"
+            >
+              <CheckCircle className="w-4 h-4 mr-2" /> Approve
+            </button>
+          )}
           <button
             onClick={() => window.open(`/site-portal/demand-notes/${demandNote._id}/print`, '_blank')}
             className="flex items-center px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"

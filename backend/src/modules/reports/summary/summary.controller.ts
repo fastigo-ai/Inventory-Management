@@ -911,13 +911,20 @@ async function computeItemMatrixSummary(params: {
     itemFilter['dynamicData.circle'] = { $regex: new RegExp(`^${circle}$`, 'i') };
   }
   if (search) {
-    const s = search.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    itemFilter.$or = [
-      { 'dynamicData.name': { $regex: s, $options: 'i' } },
-      { 'dynamicData.tempCode': search.toString().trim() },
-      { 'dynamicData.sku': { $regex: s, $options: 'i' } },
-      { 'dynamicData.loaSerialNo': { $regex: s, $options: 'i' } }
-    ];
+    const searchTerm = search.toString().trim();
+    const isNumeric = !isNaN(Number(searchTerm)) && searchTerm !== '';
+
+    if (isNumeric) {
+      itemFilter['dynamicData.tempCode'] = searchTerm;
+    } else {
+      const s = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      itemFilter.$or = [
+        { 'dynamicData.name': { $regex: s, $options: 'i' } },
+        { 'dynamicData.tempCode': searchTerm },
+        { 'dynamicData.sku': { $regex: s, $options: 'i' } },
+        { 'dynamicData.loaSerialNo': { $regex: s, $options: 'i' } }
+      ];
+    }
   }
 
   const items = await Item.find(itemFilter).lean();
@@ -1344,13 +1351,20 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
   const itemFilter: any = { isDeleted: { $ne: true } };
 
   if (search) {
-    const s = search.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    itemFilter.$or = [
-      { 'dynamicData.name': { $regex: s, $options: 'i' } },
-      { 'dynamicData.tempCode': search.toString().trim() },
-      { 'dynamicData.sku': { $regex: s, $options: 'i' } },
-      { 'dynamicData.loaSerialNo': { $regex: s, $options: 'i' } }
-    ];
+    const searchTerm = search.toString().trim();
+    const isNumeric = !isNaN(Number(searchTerm)) && searchTerm !== '';
+
+    if (isNumeric) {
+      itemFilter['dynamicData.tempCode'] = searchTerm;
+    } else {
+      const s = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      itemFilter.$or = [
+        { 'dynamicData.name': { $regex: s, $options: 'i' } },
+        { 'dynamicData.tempCode': searchTerm },
+        { 'dynamicData.sku': { $regex: s, $options: 'i' } },
+        { 'dynamicData.loaSerialNo': { $regex: s, $options: 'i' } }
+      ];
+    }
   }
 
   const items = await Item.find(itemFilter).lean();

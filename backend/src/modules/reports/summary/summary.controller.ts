@@ -928,7 +928,7 @@ async function computeItemMatrixSummary(params: {
     }
   }
 
-  const items = await Item.find(itemFilter).lean();
+  const items = await Item.find(itemFilter, { dynamicData: 1, tempCode: 1, sku: 1, name: 1, unit: 1, circle: 1, package: 1 }).lean();
 
   // Group master items by unique Temp Code
   const groupedItemsMap = new Map<string, {
@@ -1035,10 +1035,36 @@ async function computeItemMatrixSummary(params: {
     return Array.from(keys);
   };
 
-  // 1. Dispatched (DI)
-  const dis = await DI.find({ status: { $ne: 'Cancelled' } }).lean();
-  const diMap = new Map<string, Record<string, number>>();
+  // 1-5. Run all 6 transaction queries concurrently in parallel with tight field projection
+  const [dis, inwards, mins, jmcs, contractorInvoices, pis] = await Promise.all([
+    DI.find(
+      { status: { $ne: 'Cancelled' } },
+      { circle: 1, 'lineItems.quantity': 1, 'lineItems.itemId': 1, 'lineItems.tempCode': 1, 'lineItems.loaSerialNo': 1, 'lineItems.circle': 1 }
+    ).lean(),
+    StoreInwardEntry.find(
+      {},
+      { circle: 1, subcircle: 1, billingFrom: 1, invoiceQty: 1, acceptedQty: 1, totalQty: 1, itemId: 1, tempCode: 1, loaSerialNo: 1 }
+    ).lean(),
+    ContractorAssignment.find(
+      {},
+      { circle: 1, 'lineItems.quantity': 1, 'lineItems.itemId': 1, 'lineItems.tempCode': 1, 'lineItems.loaSerialNo': 1, 'lineItems.circle': 1 }
+    ).lean(),
+    JmcRegister.find(
+      { status: { $nin: ['Rejected', 'Cancelled'] } },
+      { circle: 1, 'items.approvedQty': 1, 'items.claimedQty': 1, 'items.itemId': 1, 'items.tempCode': 1, 'items.loaSerialNo': 1, 'items.circle': 1 }
+    ).lean(),
+    ContractorInvoice.find(
+      { status: { $ne: 'Cancelled' as any } },
+      { circle: 1, 'lineItems.quantity': 1, 'lineItems.installedQty': 1, 'lineItems.itemId': 1, 'lineItems.tempCode': 1, 'lineItems.loaSerialNo': 1, 'lineItems.circle': 1 }
+    ).lean(),
+    PurchaseInvoice.find(
+      { status: { $ne: 'Cancelled' } },
+      { circle: 1, 'lineItems.quantity': 1, 'lineItems.act': 1, 'lineItems.itemId': 1, 'lineItems.tempCode': 1, 'lineItems.loaSerialNo': 1, 'lineItems.circle': 1 }
+    ).lean()
+  ]);
 
+  // 1. Dispatched (DI)
+  const diMap = new Map<string, Record<string, number>>();
   dis.forEach(d => {
     const docCircle = (d.circle || '').toLowerCase();
     (d.lineItems || []).forEach((line: any) => {
@@ -1046,9 +1072,7 @@ async function computeItemMatrixSummary(params: {
       if (qty > 0) {
         const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku);
         targetTCs.forEach(tc => {
-          const idStr = line.itemId ? line.itemId.toString() : '';
-          const masterCircle = (itemIdToKeyMap.has(idStr) ? '' : '').toLowerCase();
-          const lineCirc = (line.circle || docCircle || masterCircle || '').toLowerCase();
+          const lineCirc = (line.circle || docCircle || '').toLowerCase();
           if (!diMap.has(tc)) diMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
           const obj = diMap.get(tc)!;
           if (lineCirc.includes('solan')) obj.solan += qty;
@@ -1062,9 +1086,7 @@ async function computeItemMatrixSummary(params: {
   });
 
   // 2. Inward (Store Receipts / MRN / SRV)
-  const inwards = await StoreInwardEntry.find({}).lean();
   const inwardMap = new Map<string, Record<string, number>>();
-
   inwards.forEach(doc => {
     const qty = Number(doc.invoiceQty || doc.acceptedQty || doc.totalQty || 0);
     if (qty > 0) {
@@ -1083,9 +1105,7 @@ async function computeItemMatrixSummary(params: {
   });
 
   // 3. MIN / Issue (Contractor Assignment)
-  const mins = await ContractorAssignment.find({}).lean();
   const minMap = new Map<string, Record<string, number>>();
-
   mins.forEach(doc => {
     const docCirc = (doc.circle || '').toLowerCase();
     (doc.lineItems || []).forEach((line: any) => {
@@ -1107,9 +1127,7 @@ async function computeItemMatrixSummary(params: {
   });
 
   // 4a. JMC Work (formerly IMC Work)
-  const jmcs = await JmcRegister.find({ status: { $nin: ['Rejected', 'Cancelled'] } }).lean();
   const imcMap = new Map<string, Record<string, number>>();
-
   jmcs.forEach(doc => {
     const docCirc = ((doc as any).circle || '').toLowerCase();
     ((doc as any).items || []).forEach((line: any) => {
@@ -1131,9 +1149,7 @@ async function computeItemMatrixSummary(params: {
   });
 
   // 4b. Erection Billed
-  const contractorInvoices = await ContractorInvoice.find({ status: { $ne: 'Cancelled' as any } }).lean();
   const erectionMap = new Map<string, Record<string, number>>();
-
   contractorInvoices.forEach(doc => {
     const docCirc = ((doc as any).circle || '').toLowerCase();
     ((doc as any).lineItems || []).forEach((line: any) => {
@@ -1155,9 +1171,7 @@ async function computeItemMatrixSummary(params: {
   });
 
   // 5. Supply Billed (Purchase Invoice)
-  const pis = await PurchaseInvoice.find({ status: { $ne: 'Cancelled' } }).lean();
   const supplyBilledMap = new Map<string, Record<string, number>>();
-
   pis.forEach(doc => {
     const docCirc = (doc.circle || '').toLowerCase();
     (doc.lineItems || []).forEach((line: any) => {

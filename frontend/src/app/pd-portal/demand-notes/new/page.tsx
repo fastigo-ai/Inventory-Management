@@ -213,8 +213,9 @@ function DemandNoteForm() {
         const activity = selectedItem.dynamicData?.activity || '';
         const description = selectedItem.dynamicData?.itemName || selectedItem.dynamicData?.name || selectedItem.name || selectedItem.dynamicData?.description || '';
         const tempCode = selectedItem.dynamicData?.tempCode || '';
+        const loaSrNo = selectedItem.dynamicData?.loaSrNo || selectedItem.dynamicData?.loaSerialNo || selectedItem.dynamicData?.loaSerialNumber || selectedItem.dynamicData?.sku || selectedItem.sku || '';
 
-        const res = await getContextData(itemId, contractorId, contractorName, activity, description, tempCode);
+        const res = await getContextData(itemId, contractorId, contractorName, activity, description, tempCode, loaSrNo);
         if (res.success) {
           const ctx = res.data;
           setItems(prev => {

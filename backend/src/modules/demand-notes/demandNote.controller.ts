@@ -87,7 +87,7 @@ export const createDemandNote = asyncHandler(async (req: AuthRequest, res: Respo
 // Endpoint to fetch real-time constraints for a specific item in the context of the user's package and circle
 export const getContextData = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = req.user as any;
-  const { itemId, contractorId, contractorName, activity, description, tempCode } = req.query;
+  const { itemId, contractorId, contractorName, activity, description, tempCode, loaSrNo } = req.query;
 
   if (!user.assignedPackage || !user.assignedCircle) {
     throw new ApiError(400, 'User is not assigned to a specific Package and Circle.');
@@ -150,6 +150,8 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
         let isMatch = false;
         if (tempCode && jmcItem.tempCode) {
           isMatch = String(jmcItem.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase();
+        } else if (loaSrNo && jmcItem.loaSerialNo) {
+          isMatch = String(jmcItem.loaSerialNo).trim().toLowerCase() === String(loaSrNo).trim().toLowerCase();
         } else if (itemId && jmcItem.itemId) {
           isMatch = String(jmcItem.itemId) === String(itemId);
         } else {
@@ -175,6 +177,8 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
         let isMatch = false;
         if (tempCode && wipItem.tempCode) {
           isMatch = String(wipItem.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase();
+        } else if (loaSrNo && wipItem.loaSerialNo) {
+          isMatch = String(wipItem.loaSerialNo).trim().toLowerCase() === String(loaSrNo).trim().toLowerCase();
         } else if (itemId && wipItem.itemId) {
           isMatch = String(wipItem.itemId) === String(itemId);
         } else {
@@ -200,6 +204,8 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
         let isMatch = false;
         if (tempCode && wipReqItem.tempCode) {
           isMatch = String(wipReqItem.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase();
+        } else if (loaSrNo && wipReqItem.loaSerialNo) {
+          isMatch = String(wipReqItem.loaSerialNo).trim().toLowerCase() === String(loaSrNo).trim().toLowerCase();
         } else if (itemId && wipReqItem.itemId) {
           isMatch = String(wipReqItem.itemId) === String(itemId);
         } else {

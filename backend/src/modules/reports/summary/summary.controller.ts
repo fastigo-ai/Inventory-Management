@@ -892,6 +892,10 @@ export const exportStoreItemisedSummary = asyncHandler(async (req: Request, res:
   res.send(csv);
 });
 
+// In-memory cache for Matrix Summary to prevent expensive queries on every pagination/filter
+const matrixCache = new Map<string, { timestamp: number; data: any[] }>();
+const MATRIX_CACHE_TTL = 45 * 1000; // 45 seconds
+
 /**
  * Shared Multi-Circle Matrix Engine matching Excel LOA/BOM summary layout
  */
@@ -902,6 +906,12 @@ async function computeItemMatrixSummary(params: {
   search?: string;
 }) {
   const { package: pkg, circle, targetCircle = 'SOLAN', search } = params;
+
+  const cacheKey = `${pkg || ''}___${circle || ''}___${targetCircle || ''}___${search || ''}`;
+  const cached = matrixCache.get(cacheKey);
+  if (cached && (Date.now() - cached.timestamp < MATRIX_CACHE_TTL)) {
+    return cached.data;
+  }
 
   const itemFilter: any = { isDeleted: { $ne: true } };
 
@@ -1343,6 +1353,8 @@ async function computeItemMatrixSummary(params: {
   // Sort by temp code numerical order
   matrixRows.sort((a, b) => a.tempNum - b.tempNum);
   matrixRows.forEach((r, i) => r.srNo = i + 1);
+
+  matrixCache.set(cacheKey, { timestamp: Date.now(), data: matrixRows });
 
   return matrixRows;
 }

@@ -128,3 +128,20 @@
     @apply font-sans;
   }
 }
+
+@media print {
+  html, body, main {
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+  }
+  
+  /* Reset some Tailwind layout behaviors that break printing */
+  .print\:hidden {
+    display: none !important;
+  }
+  
+  .print\:block {
+    display: block !important;
+  }
+}

@@ -241,293 +241,311 @@ export default function StoreReceiptsPage() {
     "h-9 w-full rounded-md border border-slate-200 bg-transparent px-3 text-sm focus:outline-none focus:ring-1 focus:ring-slate-400";
 
   return (
-    <div className="flex-1 bg-slate-50 min-h-screen">
-      <div className="px-8 py-6">
+    <div className="flex-1 bg-slate-50 min-h-screen font-sans">
+      <div className="px-6 py-6 lg:px-10 lg:py-8 max-w-[1600px] mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900">Store Receipts (Pending Items)</h1>
-            <p className="text-sm text-slate-500 mt-1">Approve incoming items from Purchase Invoices</p>
+            <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">Store Receipts</h1>
+            <p className="text-sm text-slate-500 mt-1">Manage and approve incoming items from Purchase Invoices</p>
           </div>
-          <div className="flex space-x-3">
-            <Button variant="outline" onClick={exportToCSV} className="h-9 px-4 text-slate-700 bg-white border-slate-200 hover:bg-slate-50">
-              <Download className="w-4 h-4 mr-2" />
-              Export to CSV
+          <div className="flex gap-3">
+            <Button 
+              variant="outline" 
+              onClick={exportToCSV}
+              className="h-9 px-4 border-slate-200 text-slate-600 hover:bg-slate-50 rounded-md font-medium text-sm transition-colors"
+            >
+              <Download className="w-4 h-4 mr-2 text-slate-400" />
+              Export CSV
             </Button>
-            <div className="relative">
+            <Button 
+              className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium text-sm transition-colors shadow-sm"
+              onClick={() => document.getElementById('csv-upload')?.click()}
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Bulk Import CSV
+            </Button>
+            <input
+              type="file"
+              id="csv-upload"
+              accept=".csv"
+              className="hidden"
+              onChange={handleFileUpload}
+            />
+          </div>
+        </div>
+
+        {/* Filter Section - Enterprise Style */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200/60 mb-6 overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-100 flex flex-wrap gap-4 items-end bg-slate-50/30">
+            {isAdmin && (
+              <>
+                <div className="flex flex-col gap-1.5 w-[160px]">
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Package</label>
+                  <select
+                    className={selectClass}
+                    value={filters.package}
+                    onChange={(e) => { setFilters((p) => ({ ...p, package: e.target.value })); setCurrentPage(1); }}
+                  >
+                    <option value="All">All Packages</option>
+                    {packageOptions.map((pkg) => (
+                      <option key={pkg} value={pkg}>{pkg}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5 w-[160px]">
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Circle</label>
+                  <select
+                    className={selectClass}
+                    value={filters.circle}
+                    onChange={(e) => { setFilters((p) => ({ ...p, circle: e.target.value })); setCurrentPage(1); }}
+                  >
+                    <option value="All">All Circles</option>
+                    {circleOptions.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+
+            <div className="flex flex-col gap-1.5 w-[160px]">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</label>
+              <select
+                className={selectClass}
+                value={filters.status}
+                onChange={(e) => { setFilters((p) => ({ ...p, status: e.target.value })); setCurrentPage(1); }}
+              >
+                <option value="All">All Statuses</option>
+                <option value="PENDING_RECEIPT">Pending Receipt</option>
+                <option value="APPROVED">Approved / Completed</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1.5 w-[160px]">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Vendor</label>
+              <select
+                className={selectClass}
+                value={filters.vendor}
+                onChange={(e) => { setFilters((p) => ({ ...p, vendor: e.target.value })); setCurrentPage(1); }}
+              >
+                <option value="All">All Vendors</option>
+                {vendorOptions.map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1.5 w-[160px]">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Invoice / PO</label>
               <input
-                type="file"
-                accept=".csv"
-                onChange={handleFileUpload}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                title="Bulk Import CSV"
+                type="text"
+                placeholder="Search..."
+                className={inputClass}
+                value={filters.invoicePo}
+                onChange={(e) => { setFilters((p) => ({ ...p, invoicePo: e.target.value })); setCurrentPage(1); }}
               />
-              <Button className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white pointer-events-none">
-                <Upload className="w-4 h-4 mr-2" />
-                Bulk Import CSV
+            </div>
+
+            <div className="flex flex-col gap-1.5 w-[140px]">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Date Range</label>
+              <select
+                className={selectClass}
+                value={filters.dateRange}
+                onChange={(e) => { setFilters((p) => ({ ...p, dateRange: e.target.value })); setCurrentPage(1); }}
+              >
+                <option value="All">All Time</option>
+                <option value="Today">Today</option>
+                <option value="This Week">This Week</option>
+                <option value="This Month">This Month</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1.5 w-[160px]">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Item / Temp</label>
+              <input
+                type="text"
+                placeholder="Search..."
+                className={inputClass}
+                value={filters.itemTemp}
+                onChange={(e) => { setFilters((p) => ({ ...p, itemTemp: e.target.value })); setCurrentPage(1); }}
+              />
+            </div>
+
+            <div className="ml-auto flex items-end">
+              <Button
+                variant="ghost"
+                className="h-9 px-3 text-slate-500 hover:text-slate-900 font-medium text-sm"
+                onClick={() => {
+                  setFilters({ package: "All", circle: "All", status: "All", vendor: "All", invoicePo: "", dateRange: "All", itemTemp: "", discrepancy: "All" });
+                  setSearchTerm("");
+                  setCurrentPage(1);
+                }}
+              >
+                Reset
               </Button>
             </div>
           </div>
-        </div>
-
-        {/* Filter Bar */}
-        <div className="bg-white p-4 rounded-lg border border-slate-200 mb-6 flex flex-wrap gap-4 items-end shadow-sm">
-          {isAdmin && (
-            <>
-              <div className="flex flex-col gap-1.5 w-[160px]">
-                <label className="text-xs font-medium text-slate-600">Package</label>
-                <select
-                  className={selectClass}
-                  value={filters.package}
-                  onChange={(e) => { setFilters((p) => ({ ...p, package: e.target.value })); setCurrentPage(1); }}
-                >
-                  <option value="All">All Packages</option>
-                  {packageOptions.map((pkg) => (
-                    <option key={pkg} value={pkg}>{pkg}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex flex-col gap-1.5 w-[160px]">
-                <label className="text-xs font-medium text-slate-600">Circle</label>
-                <select
-                  className={selectClass}
-                  value={filters.circle}
-                  onChange={(e) => { setFilters((p) => ({ ...p, circle: e.target.value })); setCurrentPage(1); }}
-                >
-                  <option value="All">All Circles</option>
-                  {circleOptions.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-            </>
-          )}
-
-          <div className="flex flex-col gap-1.5 w-[160px]">
-            <label className="text-xs font-medium text-slate-600">Receipt Status</label>
-            <select
-              className={selectClass}
-              value={filters.status}
-              onChange={(e) => { setFilters((p) => ({ ...p, status: e.target.value })); setCurrentPage(1); }}
-            >
-              <option value="All">All Statuses</option>
-              <option value="PENDING_RECEIPT">Pending Receipt</option>
-              <option value="APPROVED">Approved / Completed</option>
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-1.5 w-[160px]">
-            <label className="text-xs font-medium text-slate-600">Vendor</label>
-            <select
-              className={selectClass}
-              value={filters.vendor}
-              onChange={(e) => { setFilters((p) => ({ ...p, vendor: e.target.value })); setCurrentPage(1); }}
-            >
-              <option value="All">All Vendors</option>
-              {vendorOptions.map((v) => (
-                <option key={v} value={v}>{v}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-1.5 w-[160px]">
-            <label className="text-xs font-medium text-slate-600">Invoice / PO No.</label>
+          
+          {/* Search Bar */}
+          <div className="px-5 py-3 bg-white flex items-center border-b border-slate-100">
+            <Search className="w-4 h-4 text-slate-400 mr-3" />
             <input
               type="text"
-              placeholder="Search..."
-              className={inputClass}
-              value={filters.invoicePo}
-              onChange={(e) => { setFilters((p) => ({ ...p, invoicePo: e.target.value })); setCurrentPage(1); }}
+              placeholder="Search by ID, Invoice No, Vendor..."
+              className="w-full text-sm border-none focus:ring-0 p-0 text-slate-700 placeholder:text-slate-400 bg-transparent outline-none"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
 
-          <div className="flex flex-col gap-1.5 w-[140px]">
-            <label className="text-xs font-medium text-slate-600">Date Range</label>
-            <select
-              className={selectClass}
-              value={filters.dateRange}
-              onChange={(e) => { setFilters((p) => ({ ...p, dateRange: e.target.value })); setCurrentPage(1); }}
-            >
-              <option value="All">All Time</option>
-              <option value="Today">Today</option>
-              <option value="This Week">This Week</option>
-              <option value="This Month">This Month</option>
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-1.5 w-[160px]">
-            <label className="text-xs font-medium text-slate-600">Item / Temp Code</label>
-            <input
-              type="text"
-              placeholder="Search..."
-              className={inputClass}
-              value={filters.itemTemp}
-              onChange={(e) => { setFilters((p) => ({ ...p, itemTemp: e.target.value })); setCurrentPage(1); }}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5 w-[170px]">
-            <label className="text-xs font-medium text-slate-600">Discrepancy</label>
-            <select
-              className={selectClass}
-              value={filters.discrepancy}
-              onChange={(e) => { setFilters((p) => ({ ...p, discrepancy: e.target.value })); setCurrentPage(1); }}
-            >
-              <option value="All">All Quantities</option>
-              <option value="Quantity Mismatch">Quantity Mismatch</option>
-            </select>
-          </div>
-
-          <div className="ml-auto flex items-end">
-            <Button
-              variant="ghost"
-              className="h-9 text-slate-500 hover:text-slate-900"
-              onClick={() => {
-                setFilters({ package: "All", circle: "All", status: "All", vendor: "All", invoicePo: "", dateRange: "All", itemTemp: "", discrepancy: "All" });
-                setSearchTerm("");
-                setCurrentPage(1);
-              }}
-            >
-              Clear Filters
-            </Button>
-          </div>
-        </div>
-
-        {/* Search Bar */}
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm mb-0 flex items-center px-4 py-2 mb-px">
-          <svg className="w-4 h-4 text-slate-400 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input
-            type="text"
-            placeholder="Search all columns..."
-            className="flex-1 text-sm bg-transparent border-none outline-none text-slate-700 placeholder:text-slate-400"
-            value={searchTerm}
-            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-          />
-        </div>
-
-        {/* Table */}
-        <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm flex flex-col">
-          {loading ? (
-            <div className="p-8 text-center text-slate-500">Loading...</div>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="bg-slate-50 text-slate-500 font-medium border-y border-slate-200">
-                    <tr>
-                      <th className="px-6 py-3">INVOICE NUMBER</th>
-                      <th className="px-6 py-3">ITEM DETAILS</th>
-                      <th className="px-6 py-3">LOA SR NO.</th>
-                      <th className="px-6 py-3">QTY</th>
-                      <th className="px-6 py-3">SRT</th>
-                      <th className="px-6 py-3">ACT</th>
-                      <th className="px-6 py-3">PACKAGE</th>
-                      <th className="px-6 py-3">CIRCLE/SUBCIRCLE</th>
-                      <th className="px-6 py-3">STATUS</th>
-                      <th className="px-6 py-3 text-right">ACTION</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {entries.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
-                          <p className="text-lg font-medium text-slate-700 mb-1">No records found</p>
-                          <p className="text-sm">Try adjusting your filters or clearing them to see all items.</p>
-                        </td>
-                      </tr>
-                    ) : (
-                      entries.map((entry) => (
-                        <tr key={entry._id} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-6 py-4 font-medium text-slate-900">{entry.invoiceNumber}</td>
-                          <td className="px-6 py-4">
-                            <div className="font-medium text-slate-900">{entry.itemName || "-"}</div>
-                            {entry.itemDescription && (
-                              <div className="text-xs text-slate-500 max-w-[250px] truncate" title={entry.itemDescription}>
-                                {entry.itemDescription}
-                              </div>
-                            )}
-                            <div className="text-xs font-mono text-slate-400 mt-0.5">Temp: {entry.tempCode || "-"}</div>
-                          </td>
-                          <td className="px-6 py-4 font-mono text-xs">{entry.serialNumber || "-"}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="font-medium text-slate-800">{entry.invoiceQty || 0}</span> <span className="text-slate-500 text-xs">{entry.unit || ""}</span>
-                          </td>
-                          <td className="px-6 py-4 text-xs font-medium text-slate-700">{entry.srt || "-"}</td>
-                          <td className="px-6 py-4 text-xs font-medium text-slate-700">{entry.act || "-"}</td>
-                          <td className="px-6 py-4 text-xs">{entry.package || "-"}</td>
-                          <td className="px-6 py-4 text-xs">
-                            <div className="font-medium text-slate-700">{entry.circle || "-"}</div>
-                            {entry.subcircle && <div className="text-slate-500 mt-0.5">{entry.subcircle}</div>}
-                          </td>
-                          <td className="px-6 py-4">
-                            <span
-                              className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                                entry.status === "APPROVED"
-                                  ? "bg-green-100 text-green-700"
-                                  : "bg-amber-100 text-amber-700"
+          {/* Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead>
+                <tr className="bg-slate-50/50 border-b border-slate-200 text-slate-500">
+                  <th className="px-5 py-3.5 font-medium text-xs tracking-wider uppercase">Invoice & PO</th>
+                  <th className="px-5 py-3.5 font-medium text-xs tracking-wider uppercase">Item Details</th>
+                  <th className="px-5 py-3.5 font-medium text-xs tracking-wider uppercase">Qty</th>
+                  <th className="px-5 py-3.5 font-medium text-xs tracking-wider uppercase">SRT</th>
+                  <th className="px-5 py-3.5 font-medium text-xs tracking-wider uppercase">ACT</th>
+                  <th className="px-5 py-3.5 font-medium text-xs tracking-wider uppercase">Package</th>
+                  <th className="px-5 py-3.5 font-medium text-xs tracking-wider uppercase">Location</th>
+                  <th className="px-5 py-3.5 font-medium text-xs tracking-wider uppercase">Status</th>
+                  <th className="px-5 py-3.5 font-medium text-xs tracking-wider uppercase text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {loading ? (
+                  <tr>
+                    <td colSpan={9} className="px-5 py-12 text-center text-slate-500">
+                      <div className="flex flex-col items-center justify-center">
+                        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+                        <p className="text-sm">Loading receipts...</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : entries.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="px-5 py-12 text-center text-slate-500">
+                      <div className="flex flex-col items-center justify-center">
+                        <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-3">
+                          <Search className="w-6 h-6 text-slate-400" />
+                        </div>
+                        <p className="text-base font-medium text-slate-700">No receipts found</p>
+                        <p className="text-sm text-slate-500 mt-1">Try adjusting your filters or search terms.</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  entries.map((entry) => (
+                    <tr 
+                      key={entry._id} 
+                      className={`hover:bg-slate-50/50 transition-colors group ${entry.status === 'VOIDED' ? 'opacity-60 bg-red-50/20' : ''}`}
+                    >
+                      <td className="px-5 py-4 align-top">
+                        <div className="font-medium text-slate-900">{entry.invoiceNumber || "-"}</div>
+                        {entry.poNumber && <div className="text-xs text-slate-500 mt-1 flex items-center gap-1"><FileText className="w-3 h-3"/> PO: {entry.poNumber}</div>}
+                        <div className="text-xs text-slate-400 mt-1">{entry.vendorName || "-"}</div>
+                      </td>
+                      <td className="px-5 py-4 align-top max-w-[250px] whitespace-normal">
+                        <div className="font-medium text-slate-800 text-sm leading-tight line-clamp-2" title={entry.itemName || entry.itemDescription || ""}>
+                          {entry.itemName || entry.itemDescription || "-"}
+                        </div>
+                        {entry.tempCode && (
+                          <div className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 text-[10px] font-mono mt-2 border border-blue-100">
+                            Code: {entry.tempCode}
+                          </div>
+                        )}
+                        {entry.serialNumber && (
+                          <div className="text-[11px] font-mono text-slate-500 mt-1">S/N: {entry.serialNumber}</div>
+                        )}
+                      </td>
+                      <td className="px-5 py-4 align-top">
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="font-semibold text-slate-800 text-base">{entry.invoiceQty ?? entry.totalQty ?? 0}</span>
+                          <span className="text-slate-500 text-xs font-medium">{entry.unit || ""}</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 align-top text-sm font-medium text-slate-700">
+                        {entry.srt ?? "-"}
+                      </td>
+                      <td className="px-5 py-4 align-top text-sm font-medium text-slate-700">
+                        {entry.act ?? "-"}
+                      </td>
+                      <td className="px-5 py-4 align-top">
+                        <span className="inline-flex items-center text-xs text-slate-600 bg-slate-100 px-2 py-1 rounded-md">
+                          {entry.package || "-"}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 align-top">
+                        <div className="font-medium text-slate-700 text-sm">{entry.circle || "-"}</div>
+                        {entry.subcircle && <div className="text-xs text-slate-500 mt-1">{entry.subcircle}</div>}
+                      </td>
+                      <td className="px-5 py-4 align-top">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
+                            entry.status === "APPROVED" || entry.status === "VERIFIED"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200/60"
+                              : entry.status === "VOIDED"
+                              ? "bg-red-50 text-red-700 border-red-200/60"
+                              : "bg-amber-50 text-amber-700 border-amber-200/60"
+                          }`}
+                        >
+                          {entry.status === "APPROVED" ? "Approved" : 
+                           entry.status === "VERIFIED" ? "Verified" :
+                           entry.status === "VOIDED" ? "Voided" : "Pending Receipt"}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 align-top text-right">
+                        <div className="flex justify-end items-center gap-2">
+                          {entry.status === "PENDING_RECEIPT" && (
+                            <Button
+                              onClick={(e) => { e.stopPropagation(); handleApprove(entry._id); }}
+                              className="h-8 px-3 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm text-xs rounded-md transition-colors"
+                            >
+                              Approve
+                            </Button>
+                          )}
+                          
+                          {entry.status !== "VOIDED" ? (
+                            <Button
+                              onClick={(e) => { e.stopPropagation(); router.push(`/store/inventory/inward/entry/${entry._id}`); }}
+                              className={`h-8 px-3 text-xs rounded-md transition-colors ${
+                                entry.status === 'APPROVED' || entry.status === 'VERIFIED'
+                                  ? 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 shadow-sm' 
+                                  : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
                               }`}
                             >
-                              {entry.status === "APPROVED" ? "Approved" : "Pending Receipt"}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-right flex justify-end gap-2 items-center">
-                            {entry.status === "PENDING_RECEIPT" && (
-                              <Button
-                                onClick={(e) => { e.stopPropagation(); handleApprove(entry._id); }}
-                                className="h-8 bg-green-600 hover:bg-green-700 text-white"
-                              >
-                                Approve
-                              </Button>
-                            )}
-                            {entry.status !== "VOIDED" ? (
-                              <Button
-                                onClick={(e) => { e.stopPropagation(); router.push(`/store/inventory/inward/entry/${entry._id}`); }}
-                                className={`h-8 text-white ${entry.status === 'APPROVED' ? 'bg-slate-600 hover:bg-slate-700' : 'bg-blue-600 hover:bg-blue-700'}`}
-                              >
-                                {entry.status === 'APPROVED' ? 'View Details' : 'Register GRN'}
-                              </Button>
-                            ) : (
-                              <span className="text-xs text-red-500 font-medium px-2">VOIDED</span>
-                            )}
-                            
-                            {/* Action Icons */}
-                            {entry.status !== "VOIDED" && (
-                              <div className="flex items-center gap-1 ml-2 border-l border-slate-200 pl-2">
-                                {(entry.status === "APPROVED" || entry.status === "VERIFIED") && !isAdmin ? (
-                                  <div title="Approved entries require Admin override">
-                                    <Lock className="w-4 h-4 text-slate-300" />
-                                  </div>
-                                ) : (
-                                  <>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        router.push(`/store/inventory/inward/${entry._id}/edit`);
-                                      }}
-                                      className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors"
-                                      title={isAdmin && (entry.status === "APPROVED" || entry.status === "VERIFIED") ? "Admin Edit" : "Edit"}
-                                    >
-                                      <Pencil className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setVoidTargetId(entry._id);
-                                        setIsVoidModalOpen(true);
-                                      }}
-                                      className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
-                                      title={isAdmin && (entry.status === "APPROVED" || entry.status === "VERIFIED") ? "Admin Void" : "Void"}
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </button>
-                                  </>
-                                )}
-                              </div>
-                            )}
-                          </td>
-                        </tr>
+                              {entry.status === 'APPROVED' || entry.status === 'VERIFIED' ? 'View Details' : 'Register GRN'}
+                            </Button>
+                          ) : null}
+                          
+                          {/* Actions Menu */}
+                          {entry.status !== "VOIDED" && (
+                            <div className="flex items-center gap-1 border-l border-slate-200 pl-2 ml-1">
+                              {(entry.status === "APPROVED" || entry.status === "VERIFIED") && !isAdmin ? (
+                                <div title="Approved entries require Admin override" className="p-1">
+                                  <Lock className="w-3.5 h-3.5 text-slate-300" />
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setVoidTargetId(entry._id);
+                                    setIsVoidModalOpen(true);
+                                  }}
+                                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                  title="Void Entry"
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
                       ))
                     )}
                   </tbody>
@@ -541,8 +559,6 @@ export default function StoreReceiptsPage() {
                 setPageSize={setPageSize}
                 totalItems={totalItems}
               />
-            </>
-          )}
         </div>
       </div>
 

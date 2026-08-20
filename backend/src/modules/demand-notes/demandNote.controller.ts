@@ -132,7 +132,7 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
   if (!resolvedContractorId && contractorName) {
     const assignment = await mongoose.model('ContractorAssignment').findOne({
       contractorFarmName: new RegExp(`^${String(contractorName).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')
-    }).lean();
+    }).lean() as any;
     if (assignment && assignment.contractorId) {
       resolvedContractorId = assignment.contractorId.toString();
     }

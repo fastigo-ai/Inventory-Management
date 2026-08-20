@@ -87,7 +87,7 @@ export const createDemandNote = asyncHandler(async (req: AuthRequest, res: Respo
 // Endpoint to fetch real-time constraints for a specific item in the context of the user's package and circle
 export const getContextData = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = req.user as any;
-  const { itemId, contractorId, activity, description, tempCode } = req.query;
+  const { itemId, contractorId, contractorName, activity, description, tempCode } = req.query;
 
   if (!user.assignedPackage || !user.assignedCircle) {
     throw new ApiError(400, 'User is not assigned to a specific Package and Circle.');
@@ -128,9 +128,19 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
   let wipQty = 0;
   let wipRequiredQty = 0;
 
-  if (contractorId) {
+  let resolvedContractorId = contractorId;
+  if (!resolvedContractorId && contractorName) {
+    const assignment = await mongoose.model('ContractorAssignment').findOne({
+      contractorFarmName: new RegExp(`^${String(contractorName).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')
+    }).lean();
+    if (assignment && assignment.contractorId) {
+      resolvedContractorId = assignment.contractorId.toString();
+    }
+  }
+
+  if (resolvedContractorId) {
     const jmcRegisters = await mongoose.model('JmcRegister').find({
-      contractorId,
+      contractorId: resolvedContractorId,
       package: user.assignedPackage,
       circle: user.assignedCircle
     });
@@ -155,7 +165,7 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
     });
 
     const wipRegisters = await mongoose.model('WipRegister').find({
-      contractorId,
+      contractorId: resolvedContractorId,
       package: user.assignedPackage,
       circle: user.assignedCircle
     });
@@ -180,7 +190,7 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
     });
 
     const wipRequiredRegisters = await mongoose.model('WipRequiredRegister').find({
-      contractorId,
+      contractorId: resolvedContractorId,
       package: user.assignedPackage,
       circle: user.assignedCircle
     });

@@ -209,11 +209,12 @@ function DemandNoteForm() {
       try {
         // Fetch context including BOM and aggregated JMC/WIP qty
         const contractorId = formData.contractorId;
+        const contractorName = formData.contractorName;
         const activity = selectedItem.dynamicData?.activity || '';
         const description = selectedItem.dynamicData?.itemName || selectedItem.dynamicData?.name || selectedItem.name || selectedItem.dynamicData?.description || '';
         const tempCode = selectedItem.dynamicData?.tempCode || '';
 
-        const res = await getContextData(itemId, contractorId, activity, description, tempCode);
+        const res = await getContextData(itemId, contractorId, contractorName, activity, description, tempCode);
         if (res.success) {
           const ctx = res.data;
           setItems(prev => {
@@ -231,6 +232,7 @@ function DemandNoteForm() {
             curr.transferToOther = ctx.transferToOther || 0;
             curr.jmcQty = ctx.jmcQty || 0;
             curr.wipQty = ctx.wipQty || 0;
+            curr.wipRequiredQty = ctx.wipRequiredQty || 0;
             curr.balBomQty = curr.bomQty - curr.alreadyIssuedQty - (curr.demandQty || 0);
             curr.isLoadingContext = false;
             return updated;

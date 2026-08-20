@@ -28,9 +28,10 @@ export const deleteDemandNote = async (id: string) => {
   return response.data;
 };
 
-export const getContextData = async (itemId: string, contractorId?: string, activity?: string, description?: string, tempCode?: string) => {
+export const getContextData = async (itemId: string, contractorId?: string, contractorName?: string, activity?: string, description?: string, tempCode?: string) => {
   let url = `/demand-notes/context?itemId=${itemId}`;
   if (contractorId) url += `&contractorId=${encodeURIComponent(contractorId)}`;
+  if (contractorName) url += `&contractorName=${encodeURIComponent(contractorName)}`;
   if (activity) url += `&activity=${encodeURIComponent(activity)}`;
   if (description) url += `&description=${encodeURIComponent(description)}`;
   if (tempCode) url += `&tempCode=${encodeURIComponent(tempCode)}`;

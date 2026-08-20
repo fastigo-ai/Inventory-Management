@@ -61,6 +61,7 @@ export default function NewPurchaseInvoicePage() {
   // Form State
   const [vendorName, setVendorName] = useState("");
   const [purchaseOrderInput, setPurchaseOrderInput] = useState("");
+  const [invoiceNumberType, setInvoiceNumberType] = useState<"auto" | "manual">("auto");
   const [PurchaseInvoiceNumber, setPurchaseInvoiceNumber] = useState("");
   const [receiveDate, setReceiveDate] = useState("");
   const [billingFrom, setBillingFrom] = useState("");
@@ -508,7 +509,7 @@ export default function NewPurchaseInvoicePage() {
         vendorName,
         purchaseOrderId: matchedPo ? matchedPo._id : undefined,
         purchaseOrderNumber: purchaseOrderInput || undefined,
-        PurchaseInvoiceNumber,
+        invoiceNumber: invoiceNumberType === 'auto' ? undefined : PurchaseInvoiceNumber,
         receiveDate,
         billingFrom,
         diNo, diDate, 
@@ -678,13 +679,32 @@ export default function NewPurchaseInvoicePage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6 mb-12 border-b border-slate-100 pb-8">
               
               <div className="col-span-1">
-                <label className="block text-[13px] font-medium text-slate-700 mb-2">Purchase Invoice#</label>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-[13px] font-medium text-slate-700">Purchase Invoice#</label>
+                  <div className="flex bg-slate-100 rounded-md p-0.5">
+                    <button 
+                      type="button"
+                      onClick={() => { setInvoiceNumberType("auto"); setPurchaseInvoiceNumber(""); }}
+                      className={`px-2 py-1 text-[10px] rounded-sm transition-all ${invoiceNumberType === 'auto' ? 'bg-white shadow-sm font-medium text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                      Auto
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setInvoiceNumberType("manual")}
+                      className={`px-2 py-1 text-[10px] rounded-sm transition-all ${invoiceNumberType === 'manual' ? 'bg-white shadow-sm font-medium text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                      Manual
+                    </button>
+                  </div>
+                </div>
                 <div className="relative">
                   <Input 
-                    className="h-10 text-[13px] pr-8 rounded-md border-slate-300 bg-slate-50"
-                    value={PurchaseInvoiceNumber}
-                    onChange={(e) => setPurchaseInvoiceNumber(e.target.value)}
-                    placeholder="PR-00001"
+                    className={`h-10 text-[13px] pr-8 rounded-md border-slate-300 ${invoiceNumberType === 'auto' ? 'bg-slate-100 text-slate-500' : 'bg-slate-50'}`}
+                    value={invoiceNumberType === 'auto' ? 'Auto-generated on save' : PurchaseInvoiceNumber}
+                    onChange={(e) => invoiceNumberType === 'manual' && setPurchaseInvoiceNumber(e.target.value)}
+                    disabled={invoiceNumberType === 'auto'}
+                    placeholder="e.g. INV-1234 or TEXT"
                   />
                   <Settings className="w-4 h-4 text-slate-400 absolute right-3 top-3" />
                 </div>

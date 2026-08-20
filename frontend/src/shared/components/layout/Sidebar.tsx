@@ -198,7 +198,7 @@ export function Sidebar() {
     }
 
     if (user?.role?.name === 'Project Director') {
-      return item.title === 'Home' || item.title === 'Project Director Portal';
+      return item.title === 'Home' || item.title === 'Project Director Portal' || item.title === 'Reports';
     }
 
     // Role-based filtering based on module names

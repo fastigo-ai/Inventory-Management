@@ -620,14 +620,16 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
           errors.push(`Row error in DI ${diNumber}: Item '${itemName}' (TempCode: '${tempCode}', LoaSerialNo: '${loaSerialNo}') was not found in the master item list.`);
         }
 
+        const finalUnit = item ? (item.dynamicData?.unit || item.unit || unit || 'Nos') : (unit || 'Nos');
+
         disMap[diNumber].lineItems.push({
           itemId,
-          itemName,
-          tempCode,
-          loaSerialNo,
+          itemName: item ? (item.dynamicData?.name || item.name || itemName) : itemName,
+          tempCode: item ? (item.dynamicData?.tempCode || tempCode) : tempCode,
+          loaSerialNo: item ? (item.dynamicData?.loaSerialNo || item.dynamicData?.loaSerialNumber || loaSerialNo) : loaSerialNo,
           package: itemPackage,
           circle: itemCircle,
-          unit,
+          unit: finalUnit,
           quantity
         });
       }

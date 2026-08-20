@@ -93,11 +93,22 @@ export default function EditDIRegistrationPage() {
         setNotes(diRes.notes || "");
         setDiPackage(diRes.package || "");
         setDiCircle(diRes.circle || "");
-        setLineItems((diRes.lineItems || []).map((li: any) => ({
-          ...li,
-          sku: li.loaSerialNo || li.sku || "",
-          searchQuery: li.loaSerialNo || li.sku || ""
-        })));
+        const poIdStr = diRes.purchaseOrderId?._id || diRes.purchaseOrderId || "";
+        const posArray = Array.isArray(posRes.data) ? posRes.data : (posRes.data?.pos || posRes.data || []);
+        const itemsArray = Array.isArray(itemsRes) ? itemsRes : (itemsRes?.items || []);
+        const po = posArray.find((p: any) => p._id === poIdStr);
+
+        setLineItems((diRes.lineItems || []).map((li: any) => {
+          const masterItem = itemsArray.find((it: any) => it._id === li.itemId);
+          const poLineItem = po?.lineItems?.find((pli: any) => pli.itemId === li.itemId);
+          return {
+            ...li,
+            sku: li.loaSerialNo || li.sku || masterItem?.dynamicData?.loaSerialNo || "",
+            searchQuery: li.loaSerialNo || li.sku || "",
+            orderedQuantity: poLineItem ? (poLineItem.quantity || 0) : 0,
+            unit: masterItem?.dynamicData?.unit || masterItem?.unit || li.unit || poLineItem?.unit || 'Nos'
+          };
+        }));
         setExistingAttachments(diRes.attachments || []);
       }
       setTimeout(() => setIsInitialLoad(false), 100);
@@ -489,6 +500,7 @@ export default function EditDIRegistrationPage() {
                                         updateLineItem(index, 'package', it.dynamicData?.package || item.package || poLineItem?.package1 || poLineItem?.package || '');
                                         updateLineItem(index, 'circle', it.dynamicData?.circle || item.circle || poLineItem?.circle || '');
                                         updateLineItem(index, 'orderedQuantity', poLineItem ? (poLineItem.quantity || 0) : 0);
+                                        updateLineItem(index, 'unit', it.dynamicData?.unit || it.unit || poLineItem?.unit || 'Nos');
                                         updateLineItem(index, 'searchQuery', sku);
                                         setOpenDropdownId(null);
                                       }}
@@ -580,6 +592,7 @@ export default function EditDIRegistrationPage() {
                                         updateLineItem(index, 'package', it.dynamicData?.package || item.package || poLineItem?.package1 || poLineItem?.package || '');
                                         updateLineItem(index, 'circle', it.dynamicData?.circle || item.circle || poLineItem?.circle || '');
                                         updateLineItem(index, 'orderedQuantity', poLineItem ? (poLineItem.quantity || 0) : 0);
+                                        updateLineItem(index, 'unit', it.dynamicData?.unit || it.unit || poLineItem?.unit || 'Nos');
                                         updateLineItem(index, 'searchQuery', sku);
                                         setOpenTempCodeDropdownId(null);
                                       }}
@@ -678,6 +691,7 @@ export default function EditDIRegistrationPage() {
                                         updateLineItem(index, 'package', it.dynamicData?.package || item.package || poLineItem?.package1 || poLineItem?.package || '');
                                         updateLineItem(index, 'circle', it.dynamicData?.circle || item.circle || poLineItem?.circle || '');
                                         updateLineItem(index, 'orderedQuantity', poLineItem ? (poLineItem.quantity || 0) : 0);
+                                        updateLineItem(index, 'unit', it.dynamicData?.unit || it.unit || poLineItem?.unit || 'Nos');
                                         updateLineItem(index, 'searchQuery', sku);
                                         setOpenNameDropdownId(null);
                                       }}

@@ -452,6 +452,7 @@ export default function NewDIRegistrationPage() {
                                         updateLineItem(index, 'package', it.dynamicData?.package || item.package || poLineItem?.package1 || poLineItem?.package || '');
                                         updateLineItem(index, 'circle', it.dynamicData?.circle || item.circle || poLineItem?.circle || '');
                                         updateLineItem(index, 'orderedQuantity', poLineItem ? (poLineItem.quantity || 0) : 0);
+                                        updateLineItem(index, 'unit', it.dynamicData?.unit || it.unit || poLineItem?.unit || 'Nos');
                                         updateLineItem(index, 'searchQuery', sku);
                                         setOpenDropdownId(null);
                                       }}
@@ -543,6 +544,7 @@ export default function NewDIRegistrationPage() {
                                         updateLineItem(index, 'package', it.dynamicData?.package || item.package || poLineItem?.package1 || poLineItem?.package || '');
                                         updateLineItem(index, 'circle', it.dynamicData?.circle || item.circle || poLineItem?.circle || '');
                                         updateLineItem(index, 'orderedQuantity', poLineItem ? (poLineItem.quantity || 0) : 0);
+                                        updateLineItem(index, 'unit', it.dynamicData?.unit || it.unit || poLineItem?.unit || 'Nos');
                                         updateLineItem(index, 'searchQuery', sku);
                                         setOpenTempCodeDropdownId(null);
                                       }}
@@ -634,6 +636,7 @@ export default function NewDIRegistrationPage() {
                                         updateLineItem(index, 'package', it.dynamicData?.package || item.package || poLineItem?.package1 || poLineItem?.package || '');
                                         updateLineItem(index, 'circle', it.dynamicData?.circle || item.circle || poLineItem?.circle || '');
                                         updateLineItem(index, 'orderedQuantity', poLineItem ? (poLineItem.quantity || 0) : 0);
+                                        updateLineItem(index, 'unit', it.dynamicData?.unit || it.unit || poLineItem?.unit || 'Nos');
                                         updateLineItem(index, 'searchQuery', sku);
                                         setOpenNameDropdownId(null);
                                       }}

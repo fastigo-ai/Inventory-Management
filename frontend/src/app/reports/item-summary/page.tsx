@@ -134,11 +134,11 @@ export default function ItemSummaryMatrixPage() {
       'Total Dispatched Nahan', 'Total Dispatched Solan', 'Total Dispatched Rampur', 'Total Dispatched Rohru',
       'Total Inward Qty Nahan', 'Total Inward Qty Solan', 'Total Inward Qty Rampur', 'Total Inward Qty Rohru',
       'Total MIN/Issue Nahan', 'Total MIN/Issue Solan', 'Total MIN/Issue Rampur', 'Total MIN/Issue Rohru',
-      'Total IMC Nahan', 'Total IMC Solan', 'Total IMC Rampur', 'Total IMC Rohru',
-      'Supply Billed Solan', 'Supply Billed Nahan', 'Supply Billed Rampur', 'Supply Billed Rohru',
-      'Erection Billed Solan', 'Erection Billed Nahan', 'Erection Billed Rampur', 'Erection Billed Rohru',
-      `Bal for DI against ${targetCircle} LOA`, `Bal for DI against ${targetCircle} BOM`,
-      `Bal for MRN ${targetCircle}`, `Bal for IMC ${targetCircle}`,
+      'Total JMC Nahan', 'Total JMC Solan', 'Total JMC Rampur', 'Total JMC Rohru',
+      'Total Sup.Billed Solan', 'Total Sup.Billed Nahan', 'Total Sup.Billed Rampur', 'Total Sup.Billed Rohru',
+      'Total Erec.Billed Solan', 'Total Erec.Billed Nahan', 'Total Erec.Billed Rampur', 'Total Erec.Billed Rohru',
+      `Bal for DI vs LOA ${targetCircle}`, `Bal for DI vs BOM ${targetCircle}`,
+      `Bal for MRN ${targetCircle}`, `Bal for JMC ${targetCircle}`,
       `Bal for Supply Bill ${targetCircle}`, `Bal for Erection Bill ${targetCircle}`
     ];
 
@@ -174,7 +174,7 @@ export default function ItemSummaryMatrixPage() {
             Item Summary Report (Multi-Circle LOA / BOM Matrix)
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Complete multi-circle breakdown of LOA, BOM, DI, MRN, MIN, IMC, Billed & Balances across Solan, Nahan, Rampur & Rohru
+            Complete multi-circle breakdown of LOA, BOM, DI, MRN, MIN, JMC, Billed & Balances across Solan, Nahan, Rampur & Rohru
           </p>
         </div>
         <button
@@ -306,7 +306,7 @@ export default function ItemSummaryMatrixPage() {
           </label>
           <label className="flex items-center gap-1.5 cursor-pointer hover:text-indigo-600">
             <input type="checkbox" checked={showImc} onChange={e => setShowImc(e.target.checked)} className="rounded text-indigo-600 focus:ring-indigo-500" />
-            IMC (MIN / Work)
+            MIN & JMC Work
           </label>
           <label className="flex items-center gap-1.5 cursor-pointer hover:text-indigo-600">
             <input type="checkbox" checked={showSupplyBill} onChange={e => setShowSupplyBill(e.target.checked)} className="rounded text-indigo-600 focus:ring-indigo-500" />
@@ -337,7 +337,7 @@ export default function ItemSummaryMatrixPage() {
                   </th>
                   {showDi && <th colSpan={4} className="p-2 text-center bg-blue-100 text-blue-900 sticky top-0 z-20">Total Dispatched (DI)</th>}
                   {showMrn && <th colSpan={4} className="p-2 text-center bg-emerald-100 text-emerald-900 sticky top-0 z-20">Total Inward (MRN / SRV)</th>}
-                  {showImc && <th colSpan={4} className="p-2 text-center bg-purple-100 text-purple-900 sticky top-0 z-20">Total MIN / Issue (IMC)</th>}
+                  {showImc && <th colSpan={4} className="p-2 text-center bg-purple-100 text-purple-900 sticky top-0 z-20">Total MIN / Issue</th>}
                   {showImc && <th colSpan={4} className="p-2 text-center bg-indigo-100 text-indigo-900 sticky top-0 z-20">Total JMC Work</th>}
                   {showSupplyBill && <th colSpan={4} className="p-2 text-center bg-sky-100 text-sky-900 sticky top-0 z-20">Supply Billed</th>}
                   {showErectionBill && <th colSpan={4} className="p-2 text-center bg-teal-100 text-teal-900 sticky top-0 z-20">Erection Billed</th>}
@@ -374,7 +374,7 @@ export default function ItemSummaryMatrixPage() {
                   <th className="p-2 min-w-[90px] bg-orange-50 text-right font-bold text-orange-950">Bal for DI vs LOA</th>
                   <th className="p-2 min-w-[90px] bg-orange-50 text-right font-bold text-orange-950">Bal for Dispatch vs BOM</th>
                   <th className="p-2 min-w-[90px] bg-orange-50 text-right font-bold text-orange-950">Bal for MRN/SRV</th>
-                  <th className="p-2 min-w-[90px] bg-orange-50 text-right font-bold text-orange-950">Bal for IMC</th>
+                  <th className="p-2 min-w-[90px] bg-orange-50 text-right font-bold text-orange-950">Bal for JMC</th>
                   <th className="p-2 min-w-[90px] bg-orange-50 text-right font-bold text-orange-950">Bal for Supply Bill</th>
                   <th className="p-2 min-w-[90px] bg-orange-50 text-right font-bold text-orange-950">Bal for Erection Bill</th>
 

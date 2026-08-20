@@ -455,7 +455,7 @@ export const updatePurchaseInvoice = async (req: Request, res: Response): Promis
     }
     
     // Always set status to Paid as requested
-    invoiceData.status = 'Paid';
+    updateData.status = 'Paid';
 
     if (updateData.lineItems) {
       updateData.lineItems = updateData.lineItems.map((item: any) => {

@@ -237,6 +237,7 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
 export const getDemandNotes = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = req.user as any;
   const filter: any = {};
+  const { status, tab } = req.query as { status?: string; tab?: string };
 
   // If user is not an admin or PD, restrict to their assigned areas
   if (user.role?.name === 'Site Manager' || user.role?.name === 'Store Manager' || user.role?.name === 'Project Manager') {
@@ -244,11 +245,23 @@ export const getDemandNotes = asyncHandler(async (req: AuthRequest, res: Respons
     if (user.assignedCircle) filter.circle = user.assignedCircle;
   }
 
-  // Filter based on roles
-  if (user.role?.name === 'Project Manager') {
-    filter.status = { $in: ['Pending PM Approval', 'Pending Approval'] };
-  } else if (user.role?.name === 'Project Director') {
-    filter.status = 'Pending PD Approval';
+  // Filter based on explicit status or tab query
+  if (status) {
+    filter.status = status;
+  } else if (tab === 'pending') {
+    if (user.role?.name === 'Project Manager') {
+      filter.status = { $in: ['Pending PM Approval', 'Pending Approval'] };
+    } else if (user.role?.name === 'Project Director') {
+      filter.status = 'Pending PD Approval';
+    }
+  } else if (tab === 'history' || tab === 'approved') {
+    if (user.role?.name === 'Project Manager') {
+      filter.status = { $in: ['Pending PD Approval', 'Approved', 'Fulfilled', 'Rejected'] };
+    } else if (user.role?.name === 'Project Director') {
+      filter.status = { $in: ['Approved', 'Fulfilled', 'Rejected'] };
+    }
+  } else if (tab === 'all') {
+    // Return all demand notes within scope
   } else if (user.role?.name === 'Store Manager') {
     filter.status = { $in: ['Approved', 'Fulfilled'] };
   }
@@ -257,14 +270,16 @@ export const getDemandNotes = asyncHandler(async (req: AuthRequest, res: Respons
     .populate('createdBy', 'firstName lastName email')
     .populate('pmApprovedBy', 'firstName lastName email')
     .populate('pdApprovedBy', 'firstName lastName email')
-    .sort({ createdAt: 1 });
+    .sort({ createdAt: -1 });
     
   res.status(200).json(new ApiResponse(200, { demandNotes }, 'Demand Notes fetched'));
 });
 
 export const getDemandNoteById = asyncHandler(async (req: AuthRequest, res: Response) => {
   const demandNote = await DemandNote.findById(req.params.id)
-    .populate('createdBy', 'firstName lastName email');
+    .populate('createdBy', 'firstName lastName email')
+    .populate('pmApprovedBy', 'firstName lastName email')
+    .populate('pdApprovedBy', 'firstName lastName email');
     
   if (!demandNote) {
     throw new ApiError(404, 'Demand Note not found');

@@ -108,17 +108,101 @@ export default function DemandNoteDetailPage() {
           {(demandNote.status === 'Pending Approval' || demandNote.status === 'Pending PM Approval') && (
             <button
               onClick={handleApprove}
-              className="flex items-center px-4 py-2 bg-emerald-600 rounded-lg text-sm font-medium text-white hover:bg-emerald-700 transition-colors shadow-sm"
+              className="flex items-center px-4 py-2 bg-emerald-600 rounded-lg text-sm font-semibold text-white hover:bg-emerald-700 transition-colors shadow-sm cursor-pointer"
             >
-              <CheckCircle className="w-4 h-4 mr-2" /> Approve
+              <CheckCircle className="w-4 h-4 mr-2" /> Approve Demand Note
             </button>
           )}
           <button
             onClick={() => window.open(`/site-portal/demand-notes/${demandNote._id}/print`, '_blank')}
-            className="flex items-center px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
+            className="flex items-center px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-sm cursor-pointer"
           >
             <Printer className="w-4 h-4 mr-2" /> Print
           </button>
+        </div>
+      </div>
+
+      {/* Approval Audit Trail Timeline Card */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs">
+        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Approval Lifecycle & Audit Trail</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Step 1: Requisition */}
+          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/70 flex items-start gap-3">
+            <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 shrink-0 mt-0.5">
+              <CheckCircle className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-800">1. Site Requisition</p>
+              <p className="text-xs text-slate-600 font-medium">
+                {demandNote.createdBy ? `${demandNote.createdBy.firstName} ${demandNote.createdBy.lastName}` : 'Site Engineer'}
+              </p>
+              <p className="text-[11px] text-slate-400 mt-0.5">{new Date(demandNote.createdAt).toLocaleString()}</p>
+            </div>
+          </div>
+
+          {/* Step 2: PM Approval */}
+          <div className={`p-3.5 rounded-xl border flex items-start gap-3 ${
+            demandNote.pmApprovedBy 
+              ? 'bg-emerald-50/70 border-emerald-200/80' 
+              : 'bg-amber-50/70 border-amber-200/80'
+          }`}>
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+              demandNote.pmApprovedBy ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+            }`}>
+              {demandNote.pmApprovedBy ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-800">2. PM Approval</p>
+              {demandNote.pmApprovedBy ? (
+                <>
+                  <p className="text-xs text-emerald-800 font-semibold">
+                    {demandNote.pmApprovedBy.firstName} {demandNote.pmApprovedBy.lastName}
+                  </p>
+                  {demandNote.pmApprovedAt && (
+                    <p className="text-[11px] text-slate-400 mt-0.5">{new Date(demandNote.pmApprovedAt).toLocaleString()}</p>
+                  )}
+                </>
+              ) : (
+                <p className="text-xs text-amber-700 font-medium">Pending PM Review</p>
+              )}
+            </div>
+          </div>
+
+          {/* Step 3: PD Approval */}
+          <div className={`p-3.5 rounded-xl border flex items-start gap-3 ${
+            demandNote.pdApprovedBy 
+              ? 'bg-emerald-50/70 border-emerald-200/80' 
+              : demandNote.status === 'Pending PD Approval'
+              ? 'bg-purple-50/70 border-purple-200/80'
+              : 'bg-slate-50 border-slate-200/70'
+          }`}>
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+              demandNote.pdApprovedBy 
+                ? 'bg-emerald-100 text-emerald-700' 
+                : demandNote.status === 'Pending PD Approval'
+                ? 'bg-purple-100 text-purple-700'
+                : 'bg-slate-200 text-slate-500'
+            }`}>
+              {demandNote.pdApprovedBy ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-800">3. PD Final Sign-Off</p>
+              {demandNote.pdApprovedBy ? (
+                <>
+                  <p className="text-xs text-emerald-800 font-semibold">
+                    {demandNote.pdApprovedBy.firstName} {demandNote.pdApprovedBy.lastName}
+                  </p>
+                  {demandNote.pdApprovedAt && (
+                    <p className="text-[11px] text-slate-400 mt-0.5">{new Date(demandNote.pdApprovedAt).toLocaleString()}</p>
+                  )}
+                </>
+              ) : (
+                <p className="text-xs text-slate-500 font-medium">
+                  {demandNote.status === 'Pending PD Approval' ? 'Awaiting PD Sign-Off' : 'Pending Previous Steps'}
+                </p>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 

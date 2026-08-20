@@ -552,10 +552,7 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
         return true;
       };
 
-      if (tCode) {
-        const found = existingItems.find(i => i.dynamicData?.tempCode === tCode && matchCriteria(i));
-        if (found) return found;
-      }
+      // 1. Highest specificity: LOA Serial No + Package + Circle
       if (lSerial) {
         const found = existingItems.find(i => 
           (i.dynamicData?.loaSerialNo === lSerial || 
@@ -564,22 +561,28 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
         );
         if (found) return found;
       }
+      // 2. Temp Code + Package + Circle
+      if (tCode) {
+        const found = existingItems.find(i => i.dynamicData?.tempCode === tCode && matchCriteria(i));
+        if (found) return found;
+      }
+      // 3. Name + Package + Circle
       if (name) {
         const found = existingItems.find(i => i.dynamicData?.name?.toLowerCase() === name.toLowerCase() && matchCriteria(i));
         if (found) return found;
       }
 
       // Fallback matching without strict package/circle requirement
-      if (tCode) {
-        const found = existingItems.find(i => i.dynamicData?.tempCode === tCode);
-        if (found) return found;
-      }
       if (lSerial) {
         const found = existingItems.find(i => 
           i.dynamicData?.loaSerialNo === lSerial || 
           i.dynamicData?.loaSerialNumber === lSerial || 
           i.dynamicData?.sku === lSerial
         );
+        if (found) return found;
+      }
+      if (tCode) {
+        const found = existingItems.find(i => i.dynamicData?.tempCode === tCode);
         if (found) return found;
       }
       if (name) {

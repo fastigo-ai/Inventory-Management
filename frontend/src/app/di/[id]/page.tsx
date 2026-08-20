@@ -439,6 +439,7 @@ export default function DIDetailPage() {
                     <thead className="bg-[#fcfdff] border-b border-slate-200">
                       <tr>
                         <th className="px-3 py-2 text-center font-bold text-[#5e7790] uppercase w-10 border-r border-slate-200">SR.NO</th>
+                        <th className="px-3 py-2 text-left font-bold text-[#5e7790] uppercase border-r border-slate-200">LOA SR. NO.</th>
                         <th className="px-3 py-2 text-left font-bold text-[#5e7790] uppercase border-r border-slate-200">TEMP CODE</th>
                         <th className="px-3 py-2 text-left font-bold text-[#5e7790] uppercase border-r border-slate-200">ITEM NAME</th>
                         <th className="px-3 py-2 text-left font-bold text-[#5e7790] uppercase border-r border-slate-200">PACKAGE</th>
@@ -453,6 +454,7 @@ export default function DIDetailPage() {
                       {di.lineItems?.map((item: any, idx: number) => (
                         <tr key={idx} className="border-b border-slate-200 last:border-b-0">
                           <td className="px-3 py-3 text-center text-slate-600 align-top border-r border-slate-200">{idx + 1}</td>
+                          <td className="px-3 py-3 font-semibold text-blue-600 align-top border-r border-slate-200">{item.loaSerialNo || '--'}</td>
                           <td className="px-3 py-3 text-slate-600 align-top border-r border-slate-200">{item.tempCode || '--'}</td>
                           <td className="px-3 py-3 font-medium text-slate-800 align-top border-r border-slate-200">{item.itemName}</td>
                           <td className="px-3 py-3 text-slate-600 align-top border-r border-slate-200">{item.package || '--'}</td>
@@ -633,7 +635,14 @@ export default function DIDetailPage() {
                                   <tr className={`hover:bg-slate-50/50 transition-colors ${isFullyConsumed ? 'bg-slate-50/30' : ''}`}>
                                     <td className="px-6 py-4">
                                       <p className="font-medium text-slate-800">{item.itemName}</p>
-                                      {item.tempCode && <p className="text-xs text-slate-500 mt-0.5">Code: {item.tempCode}</p>}
+                                      <div className="flex items-center gap-2 mt-1">
+                                        {item.loaSerialNo && (
+                                          <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
+                                            LOA Sr: {item.loaSerialNo}
+                                          </span>
+                                        )}
+                                        {item.tempCode && <span className="text-xs text-slate-500">Code: {item.tempCode}</span>}
+                                      </div>
                                     </td>
                                     <td className="px-6 py-4">
                                       <div className="flex gap-2">

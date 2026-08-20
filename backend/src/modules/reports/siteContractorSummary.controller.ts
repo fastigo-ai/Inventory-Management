@@ -68,22 +68,34 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
     const cleanTemp = (tempCode || '').trim().toLowerCase();
     const cleanAct = (activity || '').trim().toLowerCase();
 
-    let rowObj = cleanLoa ? rowByLoaSrNo.get(`${itemIdStr}_${cleanLoa}`) : undefined;
-
-    if (!rowObj && cleanAct) {
-      rowObj = rowByActivity.get(`${itemIdStr}_${cleanAct}`);
+    let primaryKey = '';
+    if (cleanTemp) {
+      primaryKey = cleanAct ? `${cleanTemp}_${cleanAct}` : cleanTemp;
+    } else if (cleanLoa) {
+      primaryKey = cleanAct ? `${cleanLoa}_${cleanAct}` : cleanLoa;
+    } else {
+      primaryKey = itemIdStr;
     }
 
-    if (!rowObj && cleanTemp) {
-      rowObj = rowByTempCode.get(`${itemIdStr}_${cleanTemp}`);
-    }
+    let rowObj = reportMap[primaryKey];
 
+    if (!rowObj && cleanTemp && cleanAct) {
+      rowObj = reportMap[cleanTemp];
+    }
+    if (!rowObj && cleanTemp && !cleanAct) {
+      rowObj = rowByTempCode.get(cleanTemp);
+    }
+    if (!rowObj && cleanLoa && cleanAct) {
+      rowObj = reportMap[cleanLoa];
+    }
+    if (!rowObj && cleanLoa && !cleanAct) {
+      rowObj = rowByLoaSrNo.get(cleanLoa);
+    }
     if (!rowObj) {
       rowObj = rowByItemId.get(itemIdStr);
     }
 
     if (!rowObj) {
-      const key = `${itemIdStr}_${cleanLoa}_${cleanTemp}_${cleanAct}`;
       rowObj = {
         itemId: itemIdStr,
         tempCode: tempCode || '',
@@ -96,11 +108,10 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
         totalReturned: 0,
         bomQty: 0
       };
-      reportMap[key] = rowObj;
+      reportMap[primaryKey] = rowObj;
 
-      if (cleanLoa) rowByLoaSrNo.set(`${itemIdStr}_${cleanLoa}`, rowObj);
-      if (cleanTemp) rowByTempCode.set(`${itemIdStr}_${cleanTemp}`, rowObj);
-      if (cleanAct) rowByActivity.set(`${itemIdStr}_${cleanAct}`, rowObj);
+      if (cleanTemp && !rowByTempCode.has(cleanTemp)) rowByTempCode.set(cleanTemp, rowObj);
+      if (cleanLoa && !rowByLoaSrNo.has(cleanLoa)) rowByLoaSrNo.set(cleanLoa, rowObj);
       if (!rowByItemId.has(itemIdStr)) rowByItemId.set(itemIdStr, rowObj);
     }
 

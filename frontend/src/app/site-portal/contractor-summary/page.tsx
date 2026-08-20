@@ -92,7 +92,10 @@ export default function SiteContractorSummaryPage() {
       // Live search filter
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
-        const matchesTemp = (row.tempCode || '').toLowerCase().includes(q);
+        const isNumeric = !isNaN(Number(q));
+        const matchesTemp = isNumeric 
+          ? (row.tempCode || '').toLowerCase() === q 
+          : (row.tempCode || '').toLowerCase().includes(q);
         const matchesName = (row.itemName || '').toLowerCase().includes(q);
         const matchesActivity = (row.activity || '').toLowerCase().includes(q);
         if (!matchesTemp && !matchesName && !matchesActivity) return false;

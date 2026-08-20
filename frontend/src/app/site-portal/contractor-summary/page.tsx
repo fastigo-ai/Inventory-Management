@@ -137,9 +137,21 @@ export default function SiteContractorSummaryPage() {
 
   const handleActionChange = (action: string, row: any) => {
     if (action === 'demand-issue') {
-      router.push(`/site-portal/demand-notes/new?tempCode=${row.tempCode}`);
+      const qs = new URLSearchParams();
+      if (row.tempCode) qs.set('tempCode', row.tempCode);
+      if (row.itemId) qs.set('itemId', row.itemId);
+      if (filters.contractorId) qs.set('contractorId', filters.contractorId);
+      if (contractorName) qs.set('contractorName', contractorName);
+      if (filters.package) qs.set('package', filters.package);
+      if (filters.circle) qs.set('circle', filters.circle);
+      
+      router.push(`/site-portal/demand-notes/new?${qs.toString()}`);
     } else if (action === 'demand-return') {
-      router.push(`/store/contractor-return/new?tempCode=${row.tempCode}`);
+      const qs = new URLSearchParams();
+      if (row.tempCode) qs.set('tempCode', row.tempCode);
+      if (filters.contractorId) qs.set('contractorId', filters.contractorId);
+      
+      router.push(`/store/contractor-return/new?${qs.toString()}`);
     }
   };
 

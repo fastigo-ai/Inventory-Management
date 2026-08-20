@@ -17,6 +17,13 @@ function DemandNoteForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const workOrderId = searchParams.get('workOrderId');
+  
+  const contractorIdParam = searchParams.get('contractorId');
+  const contractorNameParam = searchParams.get('contractorName');
+  const packageParam = searchParams.get('package');
+  const circleParam = searchParams.get('circle');
+  const tempCodeParam = searchParams.get('tempCode');
+  const itemIdParam = searchParams.get('itemId');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFetchingWO, setIsFetchingWO] = useState(false);
@@ -51,8 +58,35 @@ function DemandNoteForm() {
   const [items, setItems] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchItemsList();
-  }, []);
+    // If URL params are present, auto-fill formData
+    if (contractorIdParam || contractorNameParam) {
+      setFormData(prev => ({
+        ...prev,
+        contractorId: contractorIdParam || prev.contractorId,
+        contractorName: contractorNameParam || prev.contractorName,
+        package: packageParam || prev.package,
+        circle: circleParam || prev.circle
+      }));
+    }
+
+    fetchItemsList().then((fetchedItems) => {
+      if ((itemIdParam || tempCodeParam) && fetchedItems && fetchedItems.length > 0) {
+        let itemToSelect;
+        if (itemIdParam) {
+          itemToSelect = fetchedItems.find((i: any) => String(i._id) === itemIdParam || String(i.itemId) === itemIdParam);
+        }
+        if (!itemToSelect && tempCodeParam) {
+          itemToSelect = fetchedItems.find((i: any) => 
+            String(i.dynamicData?.tempCode) === tempCodeParam || String(i.tempCode) === tempCodeParam
+          );
+        }
+        
+        if (itemToSelect) {
+          handleAddNewItem([itemToSelect], contractorIdParam || undefined);
+        }
+      }
+    });
+  }, [contractorIdParam, contractorNameParam, packageParam, circleParam, itemIdParam, tempCodeParam]);
 
   useEffect(() => {
     if (workOrderId) {
@@ -63,13 +97,17 @@ function DemandNoteForm() {
   const fetchItemsList = async () => {
     try {
       const res = await getItems({ limit: 5000 });
+      let list: any[] = [];
       if (res && res.items) {
-        setItemsList(res.items);
+        list = res.items;
       } else if (Array.isArray(res)) {
-        setItemsList(res);
+        list = res;
       }
+      setItemsList(list);
+      return list;
     } catch (error) {
       console.error('Failed to fetch items', error);
+      return [];
     }
   };
 
@@ -160,7 +198,7 @@ function DemandNoteForm() {
     setItems(newItems);
   };
 
-  const handleAddNewItem = async (selectedItems: any[]) => {
+  const handleAddNewItem = async (selectedItems: any[], overrideContractorId?: string) => {
     if (!selectedItems || selectedItems.length === 0) return;
 
     let newRows: any[] = [];
@@ -208,7 +246,7 @@ function DemandNoteForm() {
 
       try {
         // Fetch context including BOM and aggregated JMC/WIP qty
-        const contractorId = formData.contractorId;
+        const contractorId = overrideContractorId || formData.contractorId;
         const activity = selectedItem.dynamicData?.activity || '';
         const description = selectedItem.dynamicData?.itemName || selectedItem.dynamicData?.name || selectedItem.name || selectedItem.dynamicData?.description || '';
         const tempCode = selectedItem.dynamicData?.tempCode || '';

@@ -537,7 +537,7 @@ export default function ItemSummaryMatrixPage() {
                   })
                 )}
               </tbody>
-              <tfoot>
+              <tfoot className="sticky bottom-0 z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
                 {!loading && data.length > 0 && (
                   <tr className="bg-slate-800 text-white font-bold divide-x divide-slate-700 text-[11px]">
                     <td colSpan={4} className="p-2 text-right font-sans">

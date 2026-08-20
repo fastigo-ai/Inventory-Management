@@ -4,8 +4,9 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Plus, Upload } from "lucide-react";
-import { getContractorReturns } from "@/features/contractors/api/contractors.api";
+import { Plus, Upload, Edit, Trash2 } from "lucide-react";
+import { getContractorReturns, deleteContractorReturn } from "@/features/contractors/api/contractors.api";
+import { toast } from "sonner";
 import { useClientTable } from "@/shared/hooks/useClientTable";
 import { DataTableTopControls, DataTableBottomControls } from "@/shared/components/DataTableControls";
 import { BulkImportContractorReturnModal } from "./BulkImportContractorReturnModal";
@@ -22,6 +23,20 @@ export default function StoreContractorReturnPage() {
       .then(res => setReturns(res.data || []))
       .catch(console.error)
       .finally(() => setLoading(false));
+  };
+
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm("Are you sure you want to delete this return?")) {
+      try {
+        await deleteContractorReturn(id);
+        toast.success("Return deleted successfully");
+        fetchReturns();
+      } catch (error) {
+        console.error(error);
+        toast.error("Failed to delete return");
+      }
+    }
   };
 
   useEffect(() => {
@@ -95,6 +110,7 @@ export default function StoreContractorReturnPage() {
                       <th className="px-6 py-3">CONTRACTOR</th>
                       <th className="px-6 py-3">STATUS</th>
                       <th className="px-6 py-3 text-right">TOTAL ITEMS</th>
+                      <th className="px-6 py-3 text-center">ACTION</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -124,6 +140,29 @@ export default function StoreContractorReturnPage() {
                               </span>
                             </td>
                             <td className="px-6 py-4 text-right font-medium">{totalItems}</td>
+                            <td className="px-6 py-4 text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 text-slate-400 hover:text-blue-600"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    router.push(`/store/contractor-return/${a._id}/edit`);
+                                  }}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 text-slate-400 hover:text-red-600"
+                                  onClick={(e) => handleDelete(a._id, e)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </td>
                           </tr>
                         );
                       })

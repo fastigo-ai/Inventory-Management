@@ -406,14 +406,15 @@ export const getAdminInwardEntries = asyncHandler(async (req: Request, res: Resp
 
 export async function buildStockSummaryData(circleFilter?: string, packageFilter?: string) {
   // Build filters for Inward, Assignments, Returns
-  const inwardFilter: any = { status: 'VERIFIED' };
-  if (circleFilter) inwardFilter.circle = circleFilter;
+  const inwardFilter: any = { status: { $in: ['VERIFIED', 'APPROVED'] } };
+  if (circleFilter) inwardFilter.circle = { $regex: new RegExp(`^${circleFilter}$`, 'i') };
   if (packageFilter) inwardFilter.package = packageFilter;
 
   const assignmentFilter: any = { status: { $ne: 'Cancelled' } };
+  if (circleFilter) assignmentFilter.circle = { $regex: new RegExp(`^${circleFilter}$`, 'i') };
 
   const returnsFilter: any = {};
-  if (circleFilter) returnsFilter.division = circleFilter;
+  if (circleFilter) returnsFilter.division = { $regex: new RegExp(`^${circleFilter}$`, 'i') };
 
   console.log("Fetching DB collections in parallel...");
   // Fetch all collections in parallel to massively improve performance (fixes Axios timeouts)
@@ -549,13 +550,16 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
       const tc = item.tempCode || '';
       if (summaryMap[tc]) {
         const rcvQty = item.receivedQty || 0;
+        const cFilterLower = circleFilter ? circleFilter.toLowerCase() : '';
+        const toStoreLower = transfer.toStore ? transfer.toStore.toLowerCase() : '';
+        const fromStoreLower = transfer.fromStore ? transfer.fromStore.toLowerCase() : '';
         
-        if (circleFilter && transfer.toStore === circleFilter) {
+        if (circleFilter && toStoreLower === cFilterLower) {
           summaryMap[tc].receivedFromOtherStore += rcvQty;
           summaryMap[tc].totalInStockAfterReceive = summaryMap[tc].acceptedQty + summaryMap[tc].receivedFromOtherStore;
         }
 
-        if (circleFilter && transfer.fromStore === circleFilter) {
+        if (circleFilter && fromStoreLower === cFilterLower) {
           summaryMap[tc].transferToOtherStore += rcvQty;
         }
       }
@@ -1197,7 +1201,7 @@ export const getInwardRegister = asyncHandler(async (req: Request, res: Response
 
   const entries = await StoreInwardEntry.find(filter)
     .populate('purchaseInvoiceId')
-    .sort({ createdAt: 1 });
+    .sort({ createdAt: -1 });
 
   res.status(200).json(
     new ApiResponse(200, {

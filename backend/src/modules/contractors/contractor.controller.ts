@@ -627,9 +627,10 @@ export const createContractorReturn = asyncHandler(async (req: Request, res: Res
   if (existing) {
     throw new ApiError(400, 'A return with this Challan No already exists');
   }
-
   data.createdBy = (req as any).user?._id;
-
+  if ((req as any).user?.assignedCircle) {
+    data.circle = (req as any).user?.assignedCircle;
+  }
   const newReturn = await ContractorReturn.create(data);
 
   res.status(201).json(

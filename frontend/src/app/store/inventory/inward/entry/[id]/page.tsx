@@ -84,6 +84,11 @@ export default function InwardRegistrationForm() {
           const sgstRate = entry.sgst || 0;
           const igstRate = entry.igst || 0;
           const totalQty = entry.totalQty || entry.invoiceQty || 0;
+          const initialInvoiceQty = (entry.status === 'PENDING_RECEIPT' || (entry.invoiceQty ?? 0) < 0) ? entry.totalQty : entry.invoiceQty;
+          
+          if (primaryPackQty === 0) {
+            primaryPackQty = initialInvoiceQty || totalQty || 0;
+          }
           const rate = entry.rate || 0;
           const taxableAmount = totalQty * rate;
           const cgstAmount = (taxableAmount * cgstRate) / 100;
@@ -93,7 +98,7 @@ export default function InwardRegistrationForm() {
 
           setFormData({
             ...entry,
-            invoiceQty: (entry.status === 'PENDING_RECEIPT' || (entry.invoiceQty ?? 0) < 0) ? entry.totalQty : entry.invoiceQty,
+            invoiceQty: initialInvoiceQty,
             description: entry.itemDescription || entry.itemName || (entry.itemId?.dynamicData?.name) || '',
             unit: entry.unit || (entry.itemId?.dynamicData?.unit) || '',
             serialNumber: entry.serialNumber || (entry.itemId?.dynamicData?.sku) || '',
@@ -127,6 +132,11 @@ export default function InwardRegistrationForm() {
   const handleItemChange = (field: string, value: any) => {
     setFormData((prev: any) => {
       const updated = { ...prev, [field]: value };
+      
+      // Auto-update packQty to match Received Qty if they change Received Qty
+      if (field === 'invoiceQty') {
+        updated.packQty = value;
+      }
       
       const qty = Number(updated.invoiceQty) || 0;
       const rate = Number(updated.rate) || 0;
@@ -320,11 +330,11 @@ export default function InwardRegistrationForm() {
                   <th className="px-4 py-3 border-r">HSN Code</th>
                   <th className="px-4 py-3 border-r">Unit</th>
                   <th className="px-4 py-3 border-r">Challan Qty</th>
-                  <th className="px-4 py-3 border-r">Received Qty</th>
+                  <th className="px-4 py-3 border-r">Total Inv Qty</th>
                   <th className="px-4 py-3 border-r">SRT</th>
                   <th className="px-4 py-3 border-r">ACT</th>
                   <th className="px-4 py-3 border-r text-red-600 bg-red-50/50">Rejected Qty</th>
-                  <th className="px-4 py-3 border-r bg-blue-50">Accepted Qty</th>
+                  <th className="px-4 py-3 border-r bg-blue-50">Received Qty</th>
                   <th className="px-4 py-3 border-r bg-blue-50">Pack Type</th>
                   <th className="px-4 py-3 border-r bg-blue-50">Pack Unit</th>
                   <th className="px-4 py-3 border-r bg-blue-50">Pack Qty</th>
@@ -388,7 +398,7 @@ export default function InwardRegistrationForm() {
                     />
                   </td>
                   
-                  {/* Accepted Qty (was invoiceQty) */}
+                  {/* Received Qty (was invoiceQty) */}
                   <td className="px-4 py-3 border-r border-slate-100">
                     <Input 
                       type="number"

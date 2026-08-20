@@ -406,7 +406,7 @@ export default function StoreReceiptsPage() {
                 <tr className="bg-slate-50/50 border-b border-slate-200 text-slate-500">
                   <th className="px-5 py-3.5 font-medium text-xs tracking-wider uppercase">Invoice & PO</th>
                   <th className="px-5 py-3.5 font-medium text-xs tracking-wider uppercase">Item Details</th>
-                  <th className="px-5 py-3.5 font-medium text-xs tracking-wider uppercase">Qty</th>
+                  <th className="px-5 py-3.5 font-medium text-xs tracking-wider uppercase">Received Qty</th>
                   <th className="px-5 py-3.5 font-medium text-xs tracking-wider uppercase">SRT</th>
                   <th className="px-5 py-3.5 font-medium text-xs tracking-wider uppercase">ACT</th>
                   <th className="px-5 py-3.5 font-medium text-xs tracking-wider uppercase">Package</th>
@@ -463,7 +463,7 @@ export default function StoreReceiptsPage() {
                       </td>
                       <td className="px-5 py-4 align-top">
                         <div className="flex items-baseline gap-1.5">
-                          <span className="font-semibold text-slate-800 text-base">{entry.invoiceQty ?? entry.totalQty ?? 0}</span>
+                          <span className="font-semibold text-slate-800 text-base">{entry.totalQty ?? entry.invoiceQty ?? 0}</span>
                           <span className="text-slate-500 text-xs font-medium">{entry.unit || ""}</span>
                         </div>
                       </td>

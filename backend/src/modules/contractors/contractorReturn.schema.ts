@@ -12,6 +12,7 @@ export interface IReturnLineItem {
 export interface IContractorReturn extends Document {
   contractorId: mongoose.Types.ObjectId;
   location?: string;
+  circle?: string;
   
   // Return Specific Fields
   returnChallanNo: string;
@@ -46,6 +47,7 @@ const contractorReturnSchema = new Schema<IContractorReturn>(
   {
     contractorId: { type: Schema.Types.ObjectId, ref: 'Contractor', required: true, index: true },
     location: { type: String },
+    circle: { type: String, index: true },
     
     // Return Specific Fields
     returnChallanNo: { type: String, required: true, unique: true },

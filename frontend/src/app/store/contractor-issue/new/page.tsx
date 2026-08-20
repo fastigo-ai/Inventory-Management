@@ -220,6 +220,7 @@ export default function StoreContractorIssueNewPage() {
         location: "Store",
         assignmentNumber: minNo, // Mapping MIN No to primary assignment number
         date: minDate,
+        circle: user?.assignedCircle || "",
         
         demandNo,
         demandBookNo,
@@ -342,8 +343,8 @@ export default function StoreContractorIssueNewPage() {
               <label className="block text-xs font-medium text-slate-700 mb-1">Contractor Name <span className="text-red-500">*</span></label>
               <select
                 value={contractorId}
-                onChange={(e) => setContractorId(e.target.value)}
-                className="w-full h-9 rounded-md border border-slate-300 bg-white px-3 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                disabled
+                className="w-full h-9 rounded-md border border-slate-300 bg-slate-50 px-3 text-sm text-slate-500 cursor-not-allowed"
               >
                 <option value="" disabled>Select a contractor</option>
                 {contractors.map(c => (
@@ -353,24 +354,24 @@ export default function StoreContractorIssueNewPage() {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">Contractor's Firm/Farm Name</label>
-              <Input value={contractorFarmName} onChange={(e) => setContractorFarmName(e.target.value)} className="h-9" />
+              <Input value={contractorFarmName} readOnly className="h-9 bg-slate-50 text-slate-500 cursor-not-allowed" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">Supervisor / Engineer</label>
-              <Input value={supervisorEngineer} onChange={(e) => setSupervisorEngineer(e.target.value)} className="h-9" />
+              <Input value={supervisorEngineer} readOnly className="h-9 bg-slate-50 text-slate-500 cursor-not-allowed" />
             </div>
             
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">Demand No.</label>
-              <Input value={demandNo} onChange={(e) => setDemandNo(e.target.value)} className="h-9" />
+              <Input value={demandNo} readOnly className="h-9 bg-slate-50 text-slate-500 cursor-not-allowed" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">Demand Book No.</label>
-              <Input value={demandBookNo} onChange={(e) => setDemandBookNo(e.target.value)} className="h-9" />
+              <Input value={demandBookNo} readOnly className="h-9 bg-slate-50 text-slate-500 cursor-not-allowed" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">Demand Date</label>
-              <Input type="date" value={demandDate} onChange={(e) => setDemandDate(e.target.value)} className="h-9" />
+              <Input type="date" value={demandDate} readOnly className="h-9 bg-slate-50 text-slate-500 cursor-not-allowed" />
             </div>
           </div>
         </div>
@@ -381,19 +382,19 @@ export default function StoreContractorIssueNewPage() {
           <div className="grid grid-cols-4 gap-6">
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">Name of Division</label>
-              <Input value={division} onChange={(e) => setDivision(e.target.value)} className="h-9" />
+              <Input value={division} readOnly className="h-9 bg-slate-50 text-slate-500 cursor-not-allowed" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">Name of Sub-Division</label>
-              <Input value={subDivision} onChange={(e) => setSubDivision(e.target.value)} className="h-9" />
+              <Input value={subDivision} readOnly className="h-9 bg-slate-50 text-slate-500 cursor-not-allowed" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">Name of Sub-Station</label>
-              <Input value={subStation} onChange={(e) => setSubStation(e.target.value)} className="h-9" />
+              <Input value={subStation} readOnly className="h-9 bg-slate-50 text-slate-500 cursor-not-allowed" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">Name of Feeder</label>
-              <Input value={feeder} onChange={(e) => setFeeder(e.target.value)} className="h-9" />
+              <Input value={feeder} readOnly className="h-9 bg-slate-50 text-slate-500 cursor-not-allowed" />
             </div>
           </div>
         </div>
@@ -448,7 +449,6 @@ export default function StoreContractorIssueNewPage() {
                   <th className="px-4 py-3 font-medium w-[8%] text-center">In Stock</th>
                   <th className="px-4 py-3 font-medium w-[8%]">Demand Qty</th>
                   <th className="px-4 py-3 font-medium w-[10%]">Issued Qty</th>
-                  <th className="px-4 py-3 font-medium w-[6%] text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -458,67 +458,14 @@ export default function StoreContractorIssueNewPage() {
                       {index + 1}
                     </td>
                     <td className="p-4 align-top">
-                      <Select
-                        options={stockSummary
-                          .filter(s => s.totalBalanceQty > 0)
-                          .map(s => ({
-                            value: s.itemId,
-                            label: s.description || 'N/A'
-                          }))
-                        }
-                        value={
-                          item.itemId 
-                            ? { value: item.itemId, label: item.itemName || 'N/A' } 
-                            : null
-                        }
-                        onChange={(selectedOption) => updateLineItem(index, 'itemId', selectedOption?.value || "")}
-                        menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                        styles={customSelectStyles}
-                        placeholder="Search material..."
-                        className="text-sm"
-                      />
+                    <td className="p-4 align-top pt-6 text-slate-700 text-xs font-medium">
+                      {item.itemName || 'N/A'}
                     </td>
-                    <td className="p-4 align-top">
-                      <Select
-                        options={stockSummary
-                          .filter(s => s.totalBalanceQty > 0)
-                          .map(s => ({
-                            value: s.itemId,
-                            label: s.tempCode || 'N/A'
-                          }))
-                        }
-                        value={
-                          item.itemId 
-                            ? { value: item.itemId, label: item.tempCode || 'N/A' } 
-                            : null
-                        }
-                        onChange={(selectedOption) => updateLineItem(index, 'itemId', selectedOption?.value || "")}
-                        menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                        styles={customSelectStyles}
-                        placeholder="Search code..."
-                        className="text-sm font-mono"
-                      />
+                    <td className="p-4 align-top pt-6 text-slate-700 text-xs font-mono">
+                      {item.tempCode || 'N/A'}
                     </td>
-                    <td className="p-4 align-top">
-                      <Select
-                        options={Array.from(new Set(stockSummary.filter(s => s.totalBalanceQty > 0 && s.activity).map(s => s.activity)))
-                          .map(a => ({ value: a, label: a as string }))
-                        }
-                        value={
-                          item.activity 
-                            ? { value: item.activity, label: item.activity } 
-                            : null
-                        }
-                        onChange={(selectedOption) => {
-                          if (selectedOption?.value) {
-                            addItemsByActivityToRow(index, selectedOption.value);
-                          }
-                        }}
-                        menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                        styles={customSelectStyles}
-                        placeholder="Search activity..."
-                        className="text-sm"
-                      />
+                    <td className="p-4 align-top pt-6 text-slate-700 text-xs">
+                      {item.activity || 'N/A'}
                     </td>
                     <td className="p-4 align-top pt-6 text-slate-700 text-xs">
                       {item.hsnCode || '-'}
@@ -534,8 +481,8 @@ export default function StoreContractorIssueNewPage() {
                         type="number"
                         min={0}
                         value={item.demandQty}
-                        onChange={(e) => updateLineItem(index, 'demandQty', e.target.value)}
-                        className="h-9 w-full text-center"
+                        readOnly
+                        className="h-9 w-full text-center bg-slate-50 text-slate-500 cursor-not-allowed"
                       />
                     </td>
                     <td className="p-4 align-top">
@@ -551,29 +498,8 @@ export default function StoreContractorIssueNewPage() {
                         <p className="text-[10px] text-red-500 mt-1 absolute">Exceeds stock</p>
                       )}
                     </td>
-                    <td className="p-4 align-top text-center pt-5">
-                      <button 
-                        onClick={() => removeLineItem(index)}
-                        className="text-slate-400 hover:text-red-500 transition-colors p-1"
-                        title="Remove Item"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          
-          <div className="p-4 border-t border-slate-200 bg-slate-50">
-            <button 
-              onClick={addLineItem}
-              className="flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors px-2 py-1"
-            >
-              <PlusCircle className="w-4 h-4" />
-              Add another item
-            </button>
+          <div className="p-4 border-t border-slate-200 bg-slate-50 text-xs text-slate-500 flex items-center justify-center">
+            Items are strictly populated from the selected Demand Note.
           </div>
         </div>
 

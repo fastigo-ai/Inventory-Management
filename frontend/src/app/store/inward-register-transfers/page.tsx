@@ -7,11 +7,14 @@ import { Button } from "@/components/ui/button";
 import { useClientTable } from "@/shared/hooks/useClientTable";
 import { DataTableTopControls, DataTableBottomControls } from "@/shared/components/DataTableControls";
 import { BulkImportModal } from "./BulkImportModal";
+import { InwardTransferStatistics } from "@/features/store/components/InwardTransferStatistics";
+import { LayoutDashboard, List as ListIcon } from "lucide-react";
 
 export default function InwardRegisterTransfersPage() {
   const [transfers, setTransfers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'dashboard'>('list');
 
   useEffect(() => {
     fetchTransfers();
@@ -84,14 +87,33 @@ export default function InwardRegisterTransfersPage() {
   const formatDate = (d: any) => d ? new Date(d).toLocaleDateString() : "-";
 
   return (
-    <div className="flex-1 bg-white min-h-screen p-6">
-      <div className="max-w-[1400px] mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-slate-800">Received from Other Store (Inward Register)</h1>
-          <div className="flex gap-3">
+    <div className="flex-1 bg-slate-50 min-h-screen">
+      <div className="p-8 max-w-[1600px] mx-auto">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800">Received from Other Store (Inward Register)</h1>
+            <p className="text-sm text-slate-500 mt-1">Track and analyze materials transferred from other stores</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex bg-white rounded-lg p-1 border border-slate-200 shadow-sm mr-2">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'list' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'}`}
+              >
+                <ListIcon className="w-4 h-4 mr-2" />
+                List
+              </button>
+              <button
+                onClick={() => setViewMode('dashboard')}
+                className={`flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'dashboard' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'}`}
+              >
+                <LayoutDashboard className="w-4 h-4 mr-2" />
+                Dashboard
+              </button>
+            </div>
             <Button 
               variant="outline"
-              className="text-slate-600 border-blue-200 hover:bg-blue-50"
+              className="text-slate-600 border-slate-200 hover:bg-slate-50 bg-white shadow-sm"
               onClick={() => setIsImportModalOpen(true)}
             >
               <Upload className="w-4 h-4 mr-2" />
@@ -99,7 +121,7 @@ export default function InwardRegisterTransfersPage() {
             </Button>
             <Button 
               variant="outline"
-              className="text-slate-600"
+              className="text-slate-600 border-slate-200 hover:bg-slate-50 bg-white shadow-sm"
             >
               <Download className="w-4 h-4 mr-2" />
               Export CSV
@@ -107,14 +129,17 @@ export default function InwardRegisterTransfersPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-          <DataTableTopControls
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            pageSize={pageSize}
-            setPageSize={setPageSize}
-            totalItems={totalItems}
-          />
+        {viewMode === 'dashboard' ? (
+          <InwardTransferStatistics data={transfers} />
+        ) : (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <DataTableTopControls
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              pageSize={pageSize}
+              setPageSize={setPageSize}
+              totalItems={totalItems}
+            />
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left whitespace-nowrap">
               <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase">
@@ -181,15 +206,16 @@ export default function InwardRegisterTransfersPage() {
               </tbody>
             </table>
           </div>
-          <DataTableBottomControls
-            currentPage={currentPage}
-            setCurrentPage={setCurrentPage}
-            totalPages={totalPages}
-            pageSize={pageSize}
-            setPageSize={setPageSize}
-            totalItems={totalItems}
-          />
-        </div>
+            <DataTableBottomControls
+              currentPage={currentPage}
+              setCurrentPage={setCurrentPage}
+              totalPages={totalPages}
+              pageSize={pageSize}
+              setPageSize={setPageSize}
+              totalItems={totalItems}
+            />
+          </div>
+        )}
       </div>
       
       <BulkImportModal 

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { X, Trash2, PlusCircle } from "lucide-react";
 import Link from "next/link";
 import { createStoreTransfer, getStockSummary } from "@/features/store/api/store.api";
+import { useAuthStore } from "@/shared/store/auth.store";
 import Select, { StylesConfig } from 'react-select';
 
 const customSelectStyles: StylesConfig<any, false> = {
@@ -42,11 +43,13 @@ const customSelectStyles: StylesConfig<any, false> = {
 
 export default function NewOutwardTransferPage() {
   const router = useRouter();
+  const { user } = useAuthStore();
   
   const [requestDate, setRequestDate] = useState("");
   const [vendorName, setVendorName] = useState("");
-  const [fromStore, setFromStore] = useState("");
+  const [fromStore, setFromStore] = useState(user?.assignedCircle || "");
   const [toStore, setToStore] = useState("");
+  const [toDivision, setToDivision] = useState("");
   
   const [minBookNo, setMinBookNo] = useState("");
   const [minNo, setMinNo] = useState(`MIN-${Math.floor(1000 + Math.random() * 9000)}`);
@@ -62,6 +65,18 @@ export default function NewOutwardTransferPage() {
   const [driverMobile, setDriverMobile] = useState("");
   
   const [remarks, setRemarks] = useState("");
+  
+  const ALL_CIRCLES = ['Solan', 'Nahan', 'Rampur', 'Rohru'];
+  const availableToStores = ALL_CIRCLES.filter(c => c.toLowerCase() !== (user?.assignedCircle || "").toLowerCase());
+  
+  const getDivisions = (circle: string) => {
+    switch (circle?.toLowerCase()) {
+      case 'nahan': return ['Rajgarh', 'Poanta'];
+      case 'solan': return ['Kumarhatti', 'Nalagarh'];
+      default: return [];
+    }
+  };
+  const availableToDivisions = getDivisions(toStore);
 
   const [stockSummary, setStockSummary] = useState<any[]>([]);
   const [lineItems, setLineItems] = useState<any[]>([{
@@ -81,10 +96,21 @@ export default function NewOutwardTransferPage() {
     setMinDate(today);
     setChallanDate(today);
     setGrDate(today);
-    
-    // Fetch real-time stock summary for material dropdowns
-    getStockSummary({}).then(res => setStockSummary(res.data || []));
   }, []);
+
+  useEffect(() => {
+    if (user?.assignedCircle) {
+      setFromStore(user.assignedCircle);
+      
+      // Fetch real-time stock summary mapped specifically to this store portal's inventory
+      getStockSummary({ circle: user.assignedCircle }).then(res => {
+        console.log("Fetched stockSummary for", user.assignedCircle, ":", res.data);
+        setStockSummary(res.data || []);
+      }).catch(err => {
+        console.error("Failed to fetch stock summary:", err);
+      });
+    }
+  }, [user]);
 
   const addLineItem = () => {
     setLineItems([...lineItems, { 
@@ -108,8 +134,8 @@ export default function NewOutwardTransferPage() {
     if (selectedOption) {
       newItems[index] = {
         ...newItems[index],
-        itemId: selectedOption.data.item._id,
-        itemName: selectedOption.data.itemName,
+        itemId: selectedOption.data.itemId,
+        itemName: selectedOption.data.description,
         tempCode: selectedOption.data.tempCode,
         unit: selectedOption.data.unit || 'Nos',
         availableQty: selectedOption.data.totalBalanceQty || 0
@@ -127,6 +153,11 @@ export default function NewOutwardTransferPage() {
   const handleSave = async () => {
     if (!fromStore || !toStore) {
       alert("Please specify From Store and To Store");
+      return;
+    }
+    
+    if (lineItems.length === 0) {
+      alert("Please add at least one material to transfer");
       return;
     }
 
@@ -149,11 +180,14 @@ export default function NewOutwardTransferPage() {
     try {
       setIsSubmitting(true);
       
+      const finalToStore = toDivision ? `${toStore} - ${toDivision}` : toStore;
+
       const payload = {
+        registerType: "OUTWARD",
         requestDate,
         status: 'IN_TRANSIT', // Bypassing PENDING, sending directly to transit
         fromStore,
-        toStore,
+        toStore: finalToStore,
         vendorName,
         
         minBookNo,
@@ -194,20 +228,27 @@ export default function NewOutwardTransferPage() {
 
   // Convert stock summary to react-select options
   const descriptionOptions = stockSummary
-    .filter(s => s.totalBalanceQty > 0)
     .map(s => ({
-      value: s.item._id,
-      label: `${s.itemName} (In Stock: ${s.totalBalanceQty})`,
+      value: s.itemId,
+      label: `${s.description} (In Stock: ${s.totalBalanceQty})`,
       data: s
     }));
 
   const tempCodeOptions = stockSummary
-    .filter(s => s.totalBalanceQty > 0 && s.tempCode)
+    .filter(s => s.tempCode)
     .map(s => ({
-      value: s.item._id,
-      label: `${s.tempCode} - ${s.itemName}`,
+      value: s.itemId,
+      label: `${s.tempCode} - ${s.description}`,
       data: s
     }));
+
+  const tempCodeFilterOption = (option: any, inputValue: string) => {
+    if (!inputValue) return true;
+    const tempCode = String(option.data.data?.tempCode || '').toLowerCase();
+    return tempCode.includes(inputValue.toLowerCase());
+  };
+
+  console.log("descriptionOptions mapped:", descriptionOptions);
 
   return (
     <div className="flex-1 bg-slate-50 min-h-screen p-6">
@@ -236,12 +277,43 @@ export default function NewOutwardTransferPage() {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">From Store <span className="text-red-500">*</span></label>
-              <Input value={fromStore} onChange={(e) => setFromStore(e.target.value)} className="h-9" placeholder="e.g. Circle A" />
+              <Input 
+                value={fromStore} 
+                readOnly
+                className="h-9 bg-slate-50 text-slate-500 cursor-not-allowed" 
+              />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">To Store <span className="text-red-500">*</span></label>
-              <Input value={toStore} onChange={(e) => setToStore(e.target.value)} className="h-9" placeholder="e.g. Circle B" />
+              <select
+                value={toStore}
+                onChange={(e) => {
+                  setToStore(e.target.value);
+                  setToDivision(""); // Reset division when circle changes
+                }}
+                className="w-full h-9 rounded-md border border-slate-300 bg-white px-3 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="" disabled>Select Destination Store</option>
+                {availableToStores.map(store => (
+                  <option key={store} value={store}>{store}</option>
+                ))}
+              </select>
             </div>
+            {availableToDivisions.length > 0 && (
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">To Sub-Store (Division) <span className="text-slate-400 font-normal">(Optional)</span></label>
+                <select
+                  value={toDivision}
+                  onChange={(e) => setToDivision(e.target.value)}
+                  className="w-full h-9 rounded-md border border-slate-300 bg-white px-3 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="">Main Circle Store</option>
+                  {availableToDivisions.map(div => (
+                    <option key={div} value={div}>{div}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         </div>
 
@@ -333,6 +405,7 @@ export default function NewOutwardTransferPage() {
                         onChange={(opt) => handleMaterialSelect(index, opt)}
                         placeholder="Search code..."
                         styles={customSelectStyles}
+                        filterOption={tempCodeFilterOption}
                         menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
                         isClearable
                       />
@@ -369,8 +442,7 @@ export default function NewOutwardTransferPage() {
                     <td className="p-4 align-top text-center pt-5">
                       <button 
                         onClick={() => removeLineItem(index)}
-                        disabled={lineItems.length === 1}
-                        className="text-slate-400 hover:text-red-500 disabled:opacity-30 transition-colors"
+                        className="text-slate-400 hover:text-red-500 transition-colors"
                       >
                         <Trash2 className="w-4 h-4 mx-auto" />
                       </button>

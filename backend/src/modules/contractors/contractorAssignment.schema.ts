@@ -20,6 +20,7 @@ export interface IContractorAssignment extends Document {
   assignmentNumber: string; // Like Invoice# or MIN No.
   orderNumber?: string;
   date: Date;
+  circle?: string;
   
   // MIN Specific Fields
   demandNo?: string;
@@ -77,6 +78,7 @@ const contractorAssignmentSchema = new Schema<IContractorAssignment>(
     assignmentNumber: { type: String, required: true, unique: true },
     orderNumber: { type: String },
     date: { type: Date, required: true, default: Date.now, index: true },
+    circle: { type: String, index: true },
 
     // MIN Specific Fields
     demandNo: { type: String },

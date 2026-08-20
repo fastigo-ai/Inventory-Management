@@ -8,6 +8,7 @@ import { X, Trash2, PlusCircle, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { getContractors, createContractorReturn } from "@/features/contractors/api/contractors.api";
 import { getStockSummary } from "@/features/store/api/store.api";
+import { useAuthStore } from "@/shared/store/auth.store";
 import Select, { StylesConfig } from 'react-select';
 
 const customSelectStyles: StylesConfig<any, false> = {
@@ -15,32 +16,55 @@ const customSelectStyles: StylesConfig<any, false> = {
     ...base,
     minHeight: '36px',
     height: '36px',
-    borderRadius: '0.375rem', // rounded-md
-    borderColor: state.isFocused ? '#3b82f6' : '#cbd5e1', // blue-500 or slate-300
-    boxShadow: state.isFocused ? '0 0 0 1px #3b82f6' : 'none',
+    borderRadius: '0.375rem',
+    borderColor: state.isFocused ? '#2563eb' : 'transparent',
+    backgroundColor: state.isFocused ? '#ffffff' : 'transparent',
+    boxShadow: state.isFocused ? '0 0 0 1px #2563eb' : 'none',
+    cursor: 'pointer',
     '&:hover': {
-      borderColor: state.isFocused ? '#3b82f6' : '#94a3b8' // slate-400
+      borderColor: state.isFocused ? '#2563eb' : '#cbd5e1',
+      backgroundColor: '#ffffff'
     },
-    fontSize: '0.875rem', // text-sm
+    fontSize: '0.875rem',
   }),
   valueContainer: (base) => ({
     ...base,
     padding: '0 8px',
   }),
+  singleValue: (base) => ({
+    ...base,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    color: '#334155',
+  }),
   input: (base) => ({
     ...base,
     margin: '0',
     padding: '0',
+    color: '#334155',
   }),
   indicatorsContainer: (base) => ({
     ...base,
     height: '34px',
   }),
+  indicatorSeparator: () => ({
+    display: 'none',
+  }),
+  dropdownIndicator: (base) => ({
+    ...base,
+    padding: '4px',
+    color: '#94a3b8',
+    '&:hover': { color: '#64748b' }
+  }),
   menu: (base) => ({
     ...base,
-    borderRadius: '0.375rem',
-    boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+    borderRadius: '0.5rem',
+    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+    border: '1px solid #e2e8f0',
     zIndex: 9999,
+    overflow: 'hidden',
+    marginTop: '4px'
   }),
   menuPortal: (base) => ({
     ...base,
@@ -49,23 +73,35 @@ const customSelectStyles: StylesConfig<any, false> = {
   option: (base, state) => ({
     ...base,
     fontSize: '0.875rem',
+    padding: '8px 12px',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
     backgroundColor: state.isSelected 
-      ? '#eff6ff' // blue-50
+      ? '#eff6ff'
       : state.isFocused 
-        ? '#f8fafc' // slate-50
+        ? '#f8fafc'
         : 'white',
-    color: state.isSelected ? '#1e40af' : '#334155', // blue-800 or slate-700
+    color: state.isSelected ? '#1d4ed8' : '#334155',
     cursor: 'pointer',
     '&:active': {
-      backgroundColor: '#dbeafe' // blue-100
+      backgroundColor: '#dbeafe'
     }
   })
 };
 
 export default function StoreContractorReturnNewPage() {
   const router = useRouter();
+  const { user } = useAuthStore();
+  const circle = user?.assignedCircle || '';
   
-  // Data State
+  const availableDivisions = (() => {
+    switch (circle.toLowerCase()) {
+      case 'nahan': return ['Nahan', 'Rajgarh', 'Poanta'];
+      case 'solan': return ['Solan', 'Nalagarh', 'Baddhi', 'Parwahoo', 'Arki'];
+      default: return [];
+    }
+  })();
   const [contractors, setContractors] = useState<any[]>([]);
   const [stockSummary, setStockSummary] = useState<any[]>([]);
   
@@ -265,7 +301,18 @@ export default function StoreContractorReturnNewPage() {
           <div className="grid grid-cols-4 gap-6">
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">Name of Division</label>
-              <Input value={division} onChange={(e) => setDivision(e.target.value)} className="h-9" />
+              {availableDivisions.length > 0 ? (
+                <select
+                  value={division}
+                  onChange={(e) => setDivision(e.target.value)}
+                  className="w-full h-9 rounded-md border border-slate-300 bg-white px-3 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="" disabled>Select Division</option>
+                  {availableDivisions.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              ) : (
+                <Input value={division} onChange={(e) => setDivision(e.target.value)} className="h-9" />
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">Name of Sub-Division</label>
@@ -325,7 +372,6 @@ export default function StoreContractorReturnNewPage() {
                     <td className="p-4 align-top">
                       <Select
                         options={stockSummary
-                          .filter(s => s.totalBalanceQty > 0)
                           .map(s => ({
                             value: s.itemId,
                             label: s.description || 'N/A'
@@ -346,7 +392,6 @@ export default function StoreContractorReturnNewPage() {
                     <td className="p-4 align-top">
                       <Select
                         options={stockSummary
-                          .filter(s => s.totalBalanceQty > 0)
                           .map(s => ({
                             value: s.itemId,
                             label: s.tempCode || 'N/A'

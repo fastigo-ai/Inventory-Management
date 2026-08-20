@@ -30,6 +30,26 @@ export const createPurchaseInvoice = async (req: Request, res: Response): Promis
     
     if (prData.billingFrom) {
       prData.billingCompany = { name: prData.billingFrom };
+    } else if (prData.purchaseOrderId) {
+      const PurchaseOrder = mongoose.model('PurchaseOrder');
+      const po = await PurchaseOrder.findById(prData.purchaseOrderId).lean();
+      if (po && po.billingCompany && po.billingCompany.name) {
+        prData.billingCompany = { name: po.billingCompany.name };
+      } else if (po && po.billingFrom) {
+        prData.billingCompany = { name: po.billingFrom };
+      }
+    }
+    
+    if (!prData.diNumber && !prData.diNo && prData.lineItems && prData.lineItems.length > 0) {
+      const firstDiId = prData.lineItems.find((i: any) => i.diId)?.diId;
+      if (firstDiId) {
+        const DIModel = mongoose.model('DI');
+        const di = await DIModel.findById(firstDiId).lean();
+        if (di && di.diNumber) {
+          prData.diNumber = di.diNumber;
+          prData.diNo = di.diNumber;
+        }
+      }
     }
     
     if (prData.lineItems) {
@@ -149,8 +169,8 @@ export const createPurchaseInvoice = async (req: Request, res: Response): Promis
         subcircle: item.subcircle,
         package: item.package,
         unit: item.unit,
-        invoiceQty: item.totalInvoiceQuantity !== undefined ? item.totalInvoiceQuantity : item.quantity,
-        totalQty: item.totalInvoiceQuantity !== undefined ? item.totalInvoiceQuantity : item.quantity,
+        invoiceQty: item.totalInventory !== undefined ? item.totalInventory : item.quantity,
+        totalQty: item.totalInventory !== undefined ? item.totalInventory : item.quantity,
         srt: item.srt,
         act: item.act,
         rate: item.rate,
@@ -553,8 +573,8 @@ export const updatePurchaseInvoice = async (req: Request, res: Response): Promis
         subcircle: item.subcircle,
         package: item.package,
         unit: item.unit,
-        invoiceQty: item.invoiceQuantity,
-        totalQty: item.totalInvoiceQuantity,
+        invoiceQty: item.totalInventory !== undefined ? item.totalInventory : item.quantity,
+        totalQty: item.totalInventory !== undefined ? item.totalInventory : item.quantity,
         rate: item.rate,
         amount: item.amount,
         tempCode: item.tempCode,

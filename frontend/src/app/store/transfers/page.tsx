@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { useClientTable } from "@/shared/hooks/useClientTable";
 import { DataTableTopControls, DataTableBottomControls } from "@/shared/components/DataTableControls";
 import { useAuthStore } from "@/shared/store/auth.store";
+import { TransferStatistics } from "@/features/store/components/TransferStatistics";
+import { BarChart3 } from "lucide-react";
 
 export default function StoreTransfersPage() {
   const router = useRouter();
@@ -15,6 +17,7 @@ export default function StoreTransfersPage() {
   const [activeTab, setActiveTab] = useState<'incoming' | 'outgoing'>('incoming');
   const [transfers, setTransfers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showStats, setShowStats] = useState(false);
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -87,7 +90,37 @@ export default function StoreTransfersPage() {
             <Download className="w-4 h-4" />
             <span>Incoming Transfers (Action Required)</span>
           </button>
+          <button
+            onClick={() => setActiveTab('outgoing')}
+            className={`flex items-center space-x-2 py-3 px-4 font-medium text-sm border-b-2 transition-colors ${
+              activeTab === 'outgoing' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <Send className="w-4 h-4" />
+            <span>Outgoing Transfers</span>
+          </button>
+          
+          <div className="flex-1"></div>
+          
+          <button 
+            onClick={() => setShowStats(!showStats)}
+            className={`flex items-center justify-center px-3 py-1.5 my-1.5 rounded-md border transition-colors text-sm font-medium ${
+              showStats 
+                ? 'bg-blue-50 text-blue-700 border-blue-200' 
+                : 'text-slate-600 bg-white border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4 mr-2" />
+            {showStats ? "Hide Dashboard" : "Dashboard"}
+          </button>
         </div>
+
+        {/* Dashboard Section */}
+        {showStats && !loading && transfers.length > 0 && (
+          <div className="mb-6 animate-in slide-in-from-top-4 fade-in duration-300">
+            <TransferStatistics transfers={transfers} type={activeTab} />
+          </div>
+        )}
 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
           {loading ? (

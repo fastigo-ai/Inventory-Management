@@ -7,11 +7,14 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { InwardImportModal } from "@/features/store/components/InwardImportModal";
 import { useClientTable } from "@/shared/hooks/useClientTable";
 import { DataTableTopControls, DataTableBottomControls } from "@/shared/components/DataTableControls";
+import { InwardStatistics } from "@/features/store/components/InwardStatistics";
+import { BarChart3 } from "lucide-react";
 
 export default function StoreInwardRegisterPage() {
   const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [showStats, setShowStats] = useState(false);
 
   useEffect(() => {
     fetchInwardRegister();
@@ -47,11 +50,22 @@ export default function StoreInwardRegisterPage() {
       <div className="max-w-[1200px] mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-slate-800">Inward Register</h1>
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center justify-center text-slate-500 hover:bg-slate-100 p-2 rounded-md border border-slate-200 transition-colors">
-              <MoreHorizontal className="w-5 h-5" />
-            </DropdownMenuTrigger>
+          <div className="flex space-x-2">
+            <button 
+              onClick={() => setShowStats(!showStats)}
+              className={`flex items-center justify-center px-3 py-2 rounded-md border transition-colors text-sm font-medium ${
+                showStats 
+                  ? 'bg-blue-50 text-blue-700 border-blue-200' 
+                  : 'text-slate-600 bg-white border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4 mr-2" />
+              {showStats ? "Hide Dashboard" : "Dashboard"}
+            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center justify-center text-slate-500 hover:bg-slate-100 p-2 rounded-md border border-slate-200 transition-colors">
+                <MoreHorizontal className="w-5 h-5" />
+              </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 text-[13px]">
               <DropdownMenuItem onClick={() => setIsImportModalOpen(true)} className="cursor-pointer">
                 <Upload className="w-4 h-4 mr-2 text-slate-500" />
@@ -113,7 +127,16 @@ export default function StoreInwardRegisterPage() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          </div>
         </div>
+
+        {/* Dashboard Section */}
+        {showStats && !loading && entries.length > 0 && (
+          <div className="mb-6 animate-in slide-in-from-top-4 fade-in duration-300">
+            <InwardStatistics entries={entries} />
+          </div>
+        )}
+
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
           <DataTableTopControls
             searchTerm={searchTerm}
@@ -131,8 +154,10 @@ export default function StoreInwardRegisterPage() {
                     <th className="px-4 py-4">Vendor & PI</th>
                     <th className="px-4 py-4">Item Details</th>
                     <th className="px-4 py-4 text-right">Challan Qty</th>
-                    <th className="px-4 py-4 text-right">Recv Qty</th>
-                    <th className="px-4 py-4 text-right">Accpt Qty</th>
+                    <th className="px-4 py-4 text-right">Total Inv Qty</th>
+                    <th className="px-4 py-4 text-right">SRT</th>
+                    <th className="px-4 py-4 text-right">ACT</th>
+                    <th className="px-4 py-4 text-right">Received Qty</th>
                     <th className="px-4 py-4 text-right">Amount</th>
                     <th className="px-4 py-4">Status</th>
                   </tr>
@@ -140,11 +165,11 @@ export default function StoreInwardRegisterPage() {
                 <tbody className="divide-y divide-slate-100">
                   {loading ? (
                     <tr>
-                      <td colSpan={9} className="px-6 py-8 text-center text-slate-500">Loading...</td>
+                      <td colSpan={11} className="px-6 py-8 text-center text-slate-500">Loading...</td>
                     </tr>
                   ) : paginatedData.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="px-6 py-12 text-center">
+                      <td colSpan={11} className="px-6 py-12 text-center">
                         <FileText className="w-8 h-8 text-slate-300 mx-auto mb-3" />
                         <p className="text-slate-500 font-medium">No inward entries found for your search.</p>
                       </td>
@@ -170,6 +195,8 @@ export default function StoreInwardRegisterPage() {
                         </td>
                         <td className="px-4 py-4 text-right font-medium text-slate-700">{entry.challanQty || 0}</td>
                         <td className="px-4 py-4 text-right font-medium text-slate-700">{entry.totalQty || 0}</td>
+                        <td className="px-4 py-4 text-right font-medium text-slate-700">{entry.srt ?? '-'}</td>
+                        <td className="px-4 py-4 text-right font-medium text-slate-700">{entry.act ?? '-'}</td>
                         <td className="px-4 py-4 text-right font-bold text-emerald-600">{entry.invoiceQty || 0}</td>
                         <td className="px-4 py-4 text-right font-semibold text-slate-800 whitespace-nowrap">
                           ₹{(entry.amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}

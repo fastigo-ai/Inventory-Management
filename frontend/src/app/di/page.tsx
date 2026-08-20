@@ -118,33 +118,57 @@ export default function DIPage() {
         return;
       }
       
-      const headers = "DINumber,PurchaseOrderNumber,VendorName,Date,Circle,Package,Notes,ItemName,TempCode,LoaSerialNo,Unit,Quantity\n";
+      const headers = ['DINumber', 'PurchaseOrderNumber', 'VendorName', 'Date', 'Circle', 'Package', 'Notes', 'ItemName', 'TempCode', 'LoaSerialNo', 'Unit', 'Quantity'];
       
-      let csvContent = headers;
+      const escapeCSV = (val: any) => {
+        if (val === null || val === undefined) return '';
+        const str = String(val);
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      const rows: any[] = [];
       
       data.forEach((di: any) => {
-        const diNo = di.diNumber || '';
-        const poNo = di.poNumber || di.purchaseOrderId?.purchaseOrderNumber || '';
-        const vendor = di.vendorName || di.purchaseOrderId?.vendorName || '';
-        const date = di.date ? new Date(di.date).toISOString().split('T')[0] : '';
-        const circle = di.circle || '';
-        const pkg = di.package || '';
-        const notes = di.notes ? `"${di.notes.replace(/"/g, '""')}"` : '';
+        const baseInfo = {
+          'DINumber': di.diNumber || '',
+          'PurchaseOrderNumber': di.poNumber || di.purchaseOrderId?.purchaseOrderNumber || '',
+          'VendorName': di.vendorName || di.purchaseOrderId?.vendorName || '',
+          'Date': di.date ? new Date(di.date).toISOString().split('T')[0] : '',
+          'Circle': di.circle || '',
+          'Package': di.package || '',
+          'Notes': di.notes || ''
+        };
         
         if (di.lineItems && di.lineItems.length > 0) {
           di.lineItems.forEach((li: any) => {
-            const itemName = li.itemName ? `"${li.itemName.replace(/"/g, '""')}"` : '';
-            const tempCode = li.tempCode || '';
-            const loaSerial = li.loaSerialNo || '';
-            const unit = li.unit || '';
-            const qty = li.quantity || 0;
-            
-            csvContent += `${diNo},${poNo},"${vendor}",${date},${circle},"${pkg}",${notes},${itemName},${tempCode},${loaSerial},${unit},${qty}\n`;
+            rows.push({
+              ...baseInfo,
+              'ItemName': li.itemName || '',
+              'TempCode': li.tempCode || '',
+              'LoaSerialNo': li.loaSerialNo || '',
+              'Unit': li.unit || '',
+              'Quantity': li.quantity || 0
+            });
           });
         } else {
-          csvContent += `${diNo},${poNo},"${vendor}",${date},${circle},"${pkg}",${notes},,,,,\n`;
+          rows.push({
+            ...baseInfo,
+            'ItemName': '',
+            'TempCode': '',
+            'LoaSerialNo': '',
+            'Unit': '',
+            'Quantity': ''
+          });
         }
       });
+      
+      const csvContent = [
+        headers.map(escapeCSV).join(','),
+        ...rows.map(row => headers.map(h => escapeCSV(row[h])).join(','))
+      ].join('\n');
       
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);

@@ -24,6 +24,8 @@ export interface IStoreInwardEntry extends Document {
   totalQty?: number;
   challanQty?: number;
   rejectedQty?: number;
+  srt?: number;
+  act?: number;
   rate?: number;
   amount?: number;
   taxableAmount?: number;
@@ -99,6 +101,8 @@ const storeInwardEntrySchema = new Schema<IStoreInwardEntry>(
     totalQty: { type: Number },
     challanQty: { type: Number },
     rejectedQty: { type: Number },
+    srt: { type: Number },
+    act: { type: Number },
     rate: { type: Number },
     amount: { type: Number },
     taxableAmount: { type: Number },

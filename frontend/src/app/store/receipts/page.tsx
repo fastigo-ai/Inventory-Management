@@ -421,6 +421,8 @@ export default function StoreReceiptsPage() {
                       <th className="px-6 py-3">ITEM DETAILS</th>
                       <th className="px-6 py-3">LOA SR NO.</th>
                       <th className="px-6 py-3">QTY</th>
+                      <th className="px-6 py-3">SRT</th>
+                      <th className="px-6 py-3">ACT</th>
                       <th className="px-6 py-3">PACKAGE</th>
                       <th className="px-6 py-3">CIRCLE/SUBCIRCLE</th>
                       <th className="px-6 py-3">STATUS</th>
@@ -449,7 +451,11 @@ export default function StoreReceiptsPage() {
                             <div className="text-xs font-mono text-slate-400 mt-0.5">Temp: {entry.tempCode || "-"}</div>
                           </td>
                           <td className="px-6 py-4 font-mono text-xs">{entry.serialNumber || "-"}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">{entry.totalQty || 0} {entry.unit || ""}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="font-medium text-slate-800">{entry.invoiceQty || 0}</span> <span className="text-slate-500 text-xs">{entry.unit || ""}</span>
+                          </td>
+                          <td className="px-6 py-4 text-xs font-medium text-slate-700">{entry.srt || "-"}</td>
+                          <td className="px-6 py-4 text-xs font-medium text-slate-700">{entry.act || "-"}</td>
                           <td className="px-6 py-4 text-xs">{entry.package || "-"}</td>
                           <td className="px-6 py-4 text-xs">
                             <div className="font-medium text-slate-700">{entry.circle || "-"}</div>

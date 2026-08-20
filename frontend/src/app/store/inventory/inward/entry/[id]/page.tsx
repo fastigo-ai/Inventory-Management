@@ -321,6 +321,8 @@ export default function InwardRegistrationForm() {
                   <th className="px-4 py-3 border-r">Unit</th>
                   <th className="px-4 py-3 border-r">Challan Qty</th>
                   <th className="px-4 py-3 border-r">Received Qty</th>
+                  <th className="px-4 py-3 border-r">SRT</th>
+                  <th className="px-4 py-3 border-r">ACT</th>
                   <th className="px-4 py-3 border-r text-red-600 bg-red-50/50">Rejected Qty</th>
                   <th className="px-4 py-3 border-r bg-blue-50">Accepted Qty</th>
                   <th className="px-4 py-3 border-r bg-blue-50">Pack Type</th>
@@ -369,7 +371,13 @@ export default function InwardRegistrationForm() {
                     />
                   </td>
                   <td className="px-4 py-3 border-r border-slate-100 text-center text-slate-600 font-medium">
-                    {formData.totalQty}
+                    {formData.totalQty ?? '-'}
+                  </td>
+                  <td className="px-4 py-3 border-r border-slate-100 text-center text-slate-600 font-medium">
+                    {formData.srt ?? '-'}
+                  </td>
+                  <td className="px-4 py-3 border-r border-slate-100 text-center text-slate-600 font-medium">
+                    {formData.act ?? '-'}
                   </td>
                   <td className="px-4 py-3 border-r border-slate-100">
                     <Input 

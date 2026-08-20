@@ -197,6 +197,9 @@ export default function NewPurchaseInvoicePage() {
           console.error("Failed to fetch DI allocations", error);
         }
         
+        const poNumToUse = selectedDI.poNumber || purchaseOrderInput;
+        const matchingPo = purchaseOrders.find(p => p.purchaseOrderNumber === poNumToUse);
+
         if (selectedDI.lineItems && selectedDI.lineItems.length > 0) {
           const itemsWithBalance = selectedDI.lineItems.filter((item: any) => {
              const remaining = allocationMap.get(item._id);
@@ -205,6 +208,28 @@ export default function NewPurchaseInvoicePage() {
 
           setLineItems(itemsWithBalance.map((item: any) => {
             const remaining = allocationMap.get(item._id) !== undefined ? allocationMap.get(item._id) : (item.quantity || 0);
+            
+            let poQty = 0;
+            let poDate = '';
+            
+            if (matchingPo && matchingPo.lineItems) {
+              const poMatch = matchingPo.lineItems.find((pItem: any) => {
+                if (pItem.isCanceled) return false;
+                const sameItem = 
+                  (pItem.itemId && item.itemId && pItem.itemId === item.itemId) ||
+                  (pItem.tempCode && item.tempCode && String(pItem.tempCode).trim() === String(item.tempCode).trim()) ||
+                  (pItem.loaSerialNo && item.loaSerialNo && String(pItem.loaSerialNo).trim() === String(item.loaSerialNo).trim()) ||
+                  (String(pItem.itemName || '').trim().toLowerCase() === String(item.itemName || '').trim().toLowerCase());
+                const sameCircle = String(pItem.circle || '').trim().toLowerCase() === String(item.circle || '').trim().toLowerCase();
+                const samePackage = String(pItem.package || '').trim().toLowerCase() === String(item.package || '').trim().toLowerCase();
+                return sameItem && sameCircle && samePackage;
+              });
+              if (poMatch) {
+                poQty = poMatch.quantity || 0;
+                poDate = poMatch.poDate || '';
+              }
+            }
+
             return {
               isManual: false,
               itemId: item.itemId,
@@ -218,9 +243,9 @@ export default function NewPurchaseInvoicePage() {
               itemDescription: item.description || item.itemName || '',
               loaSerialNo: item.loaSerialNo || '',
               hsnCode: item.hsnCode || '',
-              poQuantity: 0,
+              poQuantity: poQty,
               diQuantity: remaining,
-              poDate: '', 
+              poDate: poDate, 
               srt: 0,
               act: 0,
               totalInvoiceQuantity: 0,

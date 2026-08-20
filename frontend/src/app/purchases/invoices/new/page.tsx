@@ -226,7 +226,7 @@ export default function NewPurchaseInvoicePage() {
               });
               if (poMatch) {
                 poQty = poMatch.quantity || 0;
-                poDate = poMatch.poDate || '';
+                poDate = matchingPo.date ? new Date(matchingPo.date).toISOString().split('T')[0] : '';
               }
             }
 
@@ -286,7 +286,7 @@ export default function NewPurchaseInvoicePage() {
           hsnCode: item.hsnCode || '',
           poQuantity: item.quantity || 0,
           diQuantity: 0,
-          poDate: item.poDate || '',
+          poDate: po.date ? new Date(po.date).toISOString().split('T')[0] : '',
           srt: 0,
           act: 0,
           totalInvoiceQuantity: 0,
@@ -317,7 +317,7 @@ export default function NewPurchaseInvoicePage() {
             );
             if (poMatch) {
               const poQty = poMatch.quantity || 0;
-              const poDate = poMatch.poDate || '';
+              const poDate = po.date ? new Date(po.date).toISOString().split('T')[0] : '';
               if (item.poQuantity !== poQty || item.poDate !== poDate) {
                 changed = true;
                 return { ...item, poQuantity: poQty, poDate: poDate };

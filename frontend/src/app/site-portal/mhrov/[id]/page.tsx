@@ -142,26 +142,36 @@ export default function MhrovDetailPage() {
                   <th className="px-6 py-3">Vendor</th>
                   <th className="px-6 py-3">Invoice No</th>
                   <th className="px-6 py-3">Item Name</th>
+                  <th className="px-4 py-3 min-w-[100px]">LOA Sr No</th>
+                  <th className="px-4 py-3 min-w-[100px]">Temp Code</th>
+                  <th className="px-4 py-3 text-right min-w-[100px]">Circle LOA</th>
+                  <th className="px-4 py-3 text-right min-w-[100px]">Total LOA</th>
+                  <th className="px-4 py-3 text-right min-w-[100px]">Stock Bal</th>
                   <th className="px-6 py-3 text-right">Qty</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white text-[13px] text-slate-700">
                 {mhrov.inwardEntries?.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
+                    <td colSpan={10} className="px-6 py-8 text-center text-slate-500">
                       No items linked to this MHROV.
                     </td>
                   </tr>
                 ) : (
-                  mhrov.inwardEntries.map((entry: any) => (
-                    <tr key={entry._id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-3">{entry.diId?.diNumber || "N/A"}</td>
-                      <td className="px-6 py-3 font-medium text-slate-900">{entry.vendorName}</td>
-                      <td className="px-6 py-3">{entry.invoiceNumber}</td>
-                      <td className="px-6 py-3 max-w-[200px] truncate" title={entry.itemName}>
-                        {entry.itemName}
+                  mhrov.inwardEntries?.map((entry: any) => (
+                    <tr key={entry._id} className="hover:bg-slate-50">
+                      <td className="px-6 py-4">{entry.diId?.diNumber || entry.diRefNo || "N/A"}</td>
+                      <td className="px-6 py-4 font-medium text-slate-900">{entry.vendorName}</td>
+                      <td className="px-6 py-4">{entry.invoiceNumber}</td>
+                      <td className="px-6 py-4">{entry.itemName}</td>
+                      <td className="px-4 py-3 font-medium text-slate-700">{entry.loaSrNo || entry.inwardEntryId?.loaSrNo || '-'}</td>
+                      <td className="px-4 py-3 font-medium text-slate-700">{entry.tempCode || entry.inwardEntryId?.tempCode || '-'}</td>
+                      <td className="px-4 py-3 text-right font-medium text-indigo-700">{entry.circleLoaQty || entry.inwardEntryId?.circleLoaQty || 0}</td>
+                      <td className="px-4 py-3 text-right text-slate-600">{entry.totalLoaQty || entry.inwardEntryId?.totalLoaQty || 0}</td>
+                      <td className="px-4 py-3 text-right font-medium text-emerald-700">{entry.balanceInStock || entry.inwardEntryId?.balanceInStock || 0}</td>
+                      <td className="px-6 py-4 text-right font-medium text-slate-800">
+                        {entry.mhrovDoneQty}
                       </td>
-                      <td className="px-6 py-3 text-right font-medium">{entry.totalQty}</td>
                     </tr>
                   ))
                 )}

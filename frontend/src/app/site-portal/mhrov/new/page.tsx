@@ -530,6 +530,11 @@ export default function NewMhrovPage() {
                         <td className="px-4 py-3 max-w-[200px] truncate" title={entry.itemName}>
                           {entry.itemName}
                         </td>
+                        <td className="px-4 py-3 font-medium text-slate-700">{entry.loaSrNo || '-'}</td>
+                        <td className="px-4 py-3 font-medium text-slate-700">{entry.tempCode || '-'}</td>
+                        <td className="px-4 py-3 text-right font-medium text-indigo-700">{entry.circleLoaQty || 0}</td>
+                        <td className="px-4 py-3 text-right text-slate-600">{entry.totalLoaQty || 0}</td>
+                        <td className="px-4 py-3 text-right font-medium text-emerald-700">{entry.balanceInStock || 0}</td>
                         <td className="px-4 py-3 text-right font-bold text-slate-800">
                           {availableQty}
                         </td>

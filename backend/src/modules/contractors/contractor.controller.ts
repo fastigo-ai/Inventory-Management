@@ -767,41 +767,29 @@ export const bulkImportContractorReturns = asyncHandler(async (req: Request, res
     }
   }
 
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  // Pass 1: Validate existing returns
+  for (const challanNo of Object.keys(returnsByChallan)) {
+    const existing = await ContractorReturn.findOne({ returnChallanNo: challanNo });
+    if (existing) {
+      errors.push(`Return Challan ${challanNo} already exists. Skipping.`);
+    }
+  }
 
-  try {
-    for (const challanNo of Object.keys(returnsByChallan)) {
+  if (errors.length > 0) {
+    return res.status(400).json(
+      new ApiResponse(400, { errors }, 'Import failed due to row errors.')
+    );
+  }
+
+  // Pass 2: Save Data
+  for (const challanNo of Object.keys(returnsByChallan)) {
+    try {
       const payload = returnsByChallan[challanNo];
-      
-      const existing = await ContractorReturn.findOne({ returnChallanNo: challanNo });
-      if (existing) {
-        errors.push(`Return Challan ${challanNo} already exists. Skipping.`);
-        continue;
-      }
-
-      try {
-        await ContractorReturn.create([payload], { session });
-        successCount++;
-      } catch (err: any) {
-        errors.push(`Error saving Challan ${challanNo}: ${err.message}`);
-      }
+      await ContractorReturn.create([payload]);
+      successCount++;
+    } catch (err: any) {
+      console.error(`Error saving Challan ${challanNo}:`, err);
     }
-
-    if (errors.length > 0) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(400).json(
-        new ApiResponse(400, { errors }, 'Import failed due to row errors.')
-      );
-    }
-
-    await session.commitTransaction();
-    session.endSession();
-  } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    throw error;
   }
 
   res.status(200).json(

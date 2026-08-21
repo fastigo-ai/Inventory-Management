@@ -706,10 +706,6 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
     let successCount = 0;
     const globalAffectedItemIds = new Set<string>();
     
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
     const docsToInsert: any[] = [];
     const bulkUpdateOps: any[] = [];
 
@@ -778,8 +774,6 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
     }
 
     if (errors.length > 0) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(400).json({
         success: false,
         message: 'Import failed due to row errors. No data was imported.',
@@ -788,29 +782,14 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
       });
     }
 
-    if (docsToInsert.length > 0) {
-      await DI.insertMany(docsToInsert, { session });
-    }
-    if (bulkUpdateOps.length > 0) {
-      await DI.bulkWrite(bulkUpdateOps, { session });
-    }
-
-    if (errors.length > 0) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(400).json({
-        success: false,
-        message: 'Import failed due to row errors. No data was imported.',
-        data: { errors },
-        errors
-      });
-    }
-
-    await session.commitTransaction();
-    session.endSession();
+    try {
+      if (docsToInsert.length > 0) {
+        await DI.insertMany(docsToInsert);
+      }
+      if (bulkUpdateOps.length > 0) {
+        await DI.bulkWrite(bulkUpdateOps);
+      }
     } catch (error) {
-      await session.abortTransaction();
-      session.endSession();
       throw error;
     }
 

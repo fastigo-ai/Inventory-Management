@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter, useParams, usePathname } from 'next/navigation';
 import { ArrowLeft, Loader2, FileText, CheckCircle, AlertCircle, Printer, Building2 } from 'lucide-react';
 import { getDemandNoteById } from '@/features/site-portal/api/demand-notes.api';
+import { getStockSummary } from '@/features/store/api/store.api';
 import { toast } from 'sonner';
 
 export default function DemandNoteDetailPage() {
@@ -13,6 +14,7 @@ export default function DemandNoteDetailPage() {
   const { id } = params;
   
   const [demandNote, setDemandNote] = useState<any>(null);
+  const [stockSummary, setStockSummary] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Determine portal from path to correctly route print button
@@ -25,6 +27,17 @@ export default function DemandNoteDetailPage() {
         const res = await getDemandNoteById(id as string);
         if (res.success && res.data?.demandNote) {
           setDemandNote(res.data.demandNote);
+          const circle = res.data.demandNote.circle;
+          if (circle) {
+            try {
+              const stockRes = await getStockSummary({ circle });
+              if (stockRes.success && stockRes.data) {
+                setStockSummary(stockRes.data);
+              }
+            } catch (err) {
+              console.error('Failed to fetch stock', err);
+            }
+          }
         } else {
           toast.error('Failed to fetch Demand Note details');
         }
@@ -183,25 +196,36 @@ export default function DemandNoteDetailPage() {
                 <th className="px-6 py-4">Material Code</th>
                 <th className="px-6 py-4">Item Name</th>
                 <th className="px-6 py-4">Activity</th>
+                <th className="px-6 py-4">LOA Sr No</th>
                 <th className="px-6 py-4">Unit</th>
+                <th className="px-6 py-4 text-center">In Stock</th>
                 <th className="px-6 py-4 font-bold text-indigo-700 bg-indigo-50/50">Demand Qty</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {demandNote.items && demandNote.items.length > 0 ? (
-                demandNote.items.map((item: any, idx: number) => (
+                demandNote.items.map((item: any, idx: number) => {
+                  const stockMatch = stockSummary.find(s => 
+                    s.loaSrNo === item.loaSrNo && 
+                    s.activity === item.activity && 
+                    (s.description === item.itemName || s.itemName === item.itemName)
+                  );
+                  const inStock = stockMatch ? stockMatch.totalBalanceQty : 0;
+                  return (
                   <tr key={idx} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4 text-slate-500">{idx + 1}</td>
                     <td className="px-6 py-4 font-medium text-slate-700">{item.tempCode || '-'}</td>
                     <td className="px-6 py-4 text-slate-700 max-w-sm truncate" title={item.itemName}>{item.itemName}</td>
                     <td className="px-6 py-4 text-slate-500">{item.activity || '-'}</td>
+                    <td className="px-6 py-4 text-slate-500 font-mono">{item.loaSrNo || '-'}</td>
                     <td className="px-6 py-4 text-slate-500">{item.unit || '-'}</td>
+                    <td className="px-6 py-4 text-center font-medium text-emerald-600">{inStock}</td>
                     <td className="px-6 py-4 font-bold text-indigo-600 bg-indigo-50/30">{item.demandQty}</td>
                   </tr>
-                ))
+                )})
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan={8} className="px-6 py-8 text-center text-slate-500">
                     No items in this Demand Note.
                   </td>
                 </tr>

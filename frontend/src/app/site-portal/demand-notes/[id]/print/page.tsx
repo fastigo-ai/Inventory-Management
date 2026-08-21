@@ -175,7 +175,8 @@ export default function DemandNotePrintPage() {
                 
                 {/* PM Approval Stamp */}
                 {(demandNote.status === 'Approved' || demandNote.status === 'Pending PD Approval' || demandNote.status === 'Fulfilled') && demandNote.pmApprovedBy && demandNote.pmApprovedAt && (
-                  <div className="absolute left-[300px] -top-10 -rotate-[15deg] border-[3px] border-emerald-600 text-emerald-700 p-3 rounded-md bg-white shadow-sm z-10 w-[220px]">
+                  <div className="absolute left-[300px] -top-10 -rotate-[15deg] border-[3px] border-emerald-600 text-emerald-700 p-3 rounded-md bg-white shadow-sm z-10 w-[220px]"
+                    style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
                     <div className="font-bold text-lg uppercase tracking-widest border-b-[2px] border-emerald-600 pb-1 mb-1 text-center">
                       AUTHORIZED
                     </div>

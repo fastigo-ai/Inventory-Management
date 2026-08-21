@@ -512,7 +512,6 @@ export default function NewMhrovPage() {
                         </td>
                         <td className="px-4 py-3">{entry.diId?.diNumber || entry.diRefNo || "N/A"}</td>
                         <td className="px-4 py-3 font-medium text-slate-900">{entry.vendorName}</td>
-                        <td className="px-4 py-3">{entry.invoiceNumber}</td>
                         <td className="px-4 py-3">{entry.invoiceDate ? new Date(entry.invoiceDate).toLocaleDateString() : ""}</td>
                         <td className="px-4 py-3 max-w-[200px] truncate" title={entry.itemName}>
                           {entry.itemName}

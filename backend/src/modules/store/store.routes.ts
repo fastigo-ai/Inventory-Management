@@ -37,7 +37,8 @@ import {
   importStoreTransfers,
   bulkImportInwardEntries,
   getStoreReceiptFilterOptions,
-  importReceivedStoreTransfers
+  importReceivedStoreTransfers,
+  queryDILineItemsForMhrov
 } from './store.controller';
 
 const router = Router();
@@ -99,6 +100,7 @@ router.route('/admin/inventory/stock-summary').get(getAdminStockSummary);
 
 
 // MHROV Routes
+router.get('/mhrov/di-items', queryDILineItemsForMhrov);
 router.post('/mhrov', upload.single('document'), createMhrov);
 router.get('/mhrov', getMhrovs);
 router.get('/mhrov/export', exportMhrovs);

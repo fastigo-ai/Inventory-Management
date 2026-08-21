@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useForm } from "react-hook-form";
-import { updateMhrov, queryInwardEntries, getMhrovById, getInwardFilterOptions } from "@/features/store/api/store.api";
+import { updateMhrov, queryDILineItemsForMhrov, getMhrovById, getInwardFilterOptions } from "@/features/store/api/store.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -98,7 +98,7 @@ export default function EditMhrovPage() {
   const fetchInwardEntries = async () => {
     try {
       setLoading(true);
-      const res = await queryInwardEntries({
+      const res = await queryDILineItemsForMhrov({
         page: pagination.page,
         limit: pagination.limit,
         diNo: filters.diNo,
@@ -207,8 +207,9 @@ export default function EditMhrovPage() {
       formData.append("mhrovNumber", data.mhrovNumber);
       formData.append("mhrovDate", data.mhrovDate);
       formData.append("status", data.status);
-      formData.append("inwardEntries", JSON.stringify(selectedCartItems.map(i => ({
-        inwardEntryId: i._id,
+      formData.append("items", JSON.stringify(selectedCartItems.map(i => ({
+        diId: i.diId?._id || i.diId,
+        itemId: i.itemId?._id || i.itemId,
         mhrovDoneQty: Number(i.mhrovDoneQty)
       }))));
       

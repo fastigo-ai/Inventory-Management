@@ -1,7 +1,9 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IMhrovItem {
-  inwardEntryId: mongoose.Types.ObjectId;
+  inwardEntryId?: mongoose.Types.ObjectId;
+  diId?: mongoose.Types.ObjectId;
+  itemId?: mongoose.Types.ObjectId;
   mhrovDoneQty: number;
 }
 
@@ -18,7 +20,9 @@ export interface IMhrov extends Document {
 }
 
 const mhrovItemSchema = new Schema({
-  inwardEntryId: { type: Schema.Types.ObjectId, ref: 'StoreInwardEntry', required: true, index: true },
+  inwardEntryId: { type: Schema.Types.ObjectId, ref: 'StoreInwardEntry', index: true },
+  diId: { type: Schema.Types.ObjectId, ref: 'DI', index: true },
+  itemId: { type: Schema.Types.ObjectId, ref: 'Item', index: true },
   mhrovDoneQty: { type: Number, required: true, min: 0 }
 }, { _id: false });
 

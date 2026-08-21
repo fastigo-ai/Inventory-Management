@@ -55,6 +55,11 @@ export const getInwardEntryById = async (id: string) => {
   return response.data;
 };
 
+export const queryDILineItemsForMhrov = async (params: any) => {
+  const response = await api.get('/store/mhrov/di-items', { params });
+  return response.data;
+};
+
 export const bulkImportInwardEntries = async (data: any[]) => {
   const response = await api.post('/store/inventory/inward/bulk-import', { entries: data }, { timeout: 300000 });
   return response.data;

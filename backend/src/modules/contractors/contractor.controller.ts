@@ -688,6 +688,15 @@ export const bulkImportContractorReturns = asyncHandler(async (req: Request, res
   
   const returnsByChallan: Record<string, any> = {};
   const itemCache = new Map();
+  
+  // Pre-fetch all Contractors for robust matching
+  const allContractors = await Contractor.find({}).lean();
+  const contractorCache = new Map();
+  for (const c of allContractors) {
+    if (c.name) contractorCache.set(c.name.replace(/\s+/g, '').toLowerCase(), c);
+    if (c.dynamicData?.displayName) contractorCache.set(c.dynamicData.displayName.replace(/\s+/g, '').toLowerCase(), c);
+    if (c.dynamicData?.companyName) contractorCache.set(c.dynamicData.companyName.replace(/\s+/g, '').toLowerCase(), c);
+  }
 
   for await (const row of parser) {
     try {
@@ -702,8 +711,10 @@ export const bulkImportContractorReturns = asyncHandler(async (req: Request, res
       const contractorName = row['Contractor Name'] || '';
       let contractor = null;
       if (contractorName) {
-        contractor = await Contractor.findOne({ name: { $regex: new RegExp(`^${contractorName}$`, 'i') } });
+        const contractorKey = contractorName.trim().replace(/\s+/g, '').toLowerCase();
+        contractor = contractorCache.get(contractorKey);
       }
+      
       if (!contractor) {
         errors.push(`Contractor '${contractorName}' not found for Challan ${challanNo}`);
         continue;

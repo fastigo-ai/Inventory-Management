@@ -25,6 +25,6 @@ router.route('/')
 router.route('/:id')
   .get(getJmcById)
   .put(requireRole(['Admin', 'Site Manager', 'Contractor']), updateJmc)
-  .delete(requireRole(['Admin']), deleteJmc);
+  .delete(requireRole(['Admin', 'Site Manager', 'Contractor']), deleteJmc);
 
 export default router;

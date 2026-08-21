@@ -25,8 +25,8 @@ export const getStoreReceiptFilterOptions = async () => {
   return response.data;
 };
 
-export const getInwardRegister = async () => {
-  const response = await api.get('/store/receipts/register');
+export const getInwardRegister = async (params?: any) => {
+  const response = await api.get('/store/receipts/register', { params });
   return response.data;
 };
 

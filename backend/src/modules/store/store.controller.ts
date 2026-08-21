@@ -1177,10 +1177,19 @@ export const getPendingStoreReceipts = asyncHandler(async (req: Request, res: Re
 export const getInwardRegister = asyncHandler(async (req: Request, res: Response) => {
   const user = (req as any).user;
   
+  const { status } = req.query;
+  
   const filter: any = { 
-    status: { $in: ['APPROVED', 'VERIFIED', 'INWARDED', 'SUBMITTED'] }, 
     purchaseInvoiceId: { $exists: true } 
   };
+
+  if (status === 'PENDING_RECEIPT') {
+    filter.status = 'PENDING_RECEIPT';
+  } else if (status === 'APPROVED') {
+    filter.status = { $in: ['APPROVED', 'VERIFIED', 'INWARDED', 'SUBMITTED'] };
+  } else {
+    filter.status = { $in: ['PENDING_RECEIPT', 'APPROVED', 'VERIFIED', 'INWARDED', 'SUBMITTED'] };
+  }
   
   if (user && user.role?.name === 'Store Manager') {
     if (user.assignedPackage) {

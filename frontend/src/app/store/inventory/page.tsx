@@ -16,15 +16,16 @@ export default function StoreInwardRegisterPage() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [showStats, setShowStats] = useState(false);
 
+  const [statusTab, setStatusTab] = useState<'All' | 'PENDING_RECEIPT' | 'APPROVED'>('All');
+
   useEffect(() => {
     fetchInwardRegister();
-  }, []);
+  }, [statusTab]);
 
   const fetchInwardRegister = async () => {
     try {
       setLoading(true);
-      const res = await getInwardRegister();
-      // res.data from the backend comes as { entries: [...] } for this specific API wrapper
+      const res = await getInwardRegister({ status: statusTab });
       setEntries(res.data?.entries || []);
     } catch (error) {
       console.error(error);
@@ -138,6 +139,40 @@ export default function StoreInwardRegisterPage() {
         )}
 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+          {/* Tabs for Status */}
+          <div className="flex px-5 pt-3 gap-6 border-b border-slate-100 bg-white">
+            <button
+              onClick={() => { setStatusTab('All'); setCurrentPage(1); }}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+                statusTab === 'All'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => { setStatusTab('PENDING_RECEIPT'); setCurrentPage(1); }}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+                statusTab === 'PENDING_RECEIPT'
+                  ? 'border-amber-500 text-amber-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+              }`}
+            >
+              Pending
+            </button>
+            <button
+              onClick={() => { setStatusTab('APPROVED'); setCurrentPage(1); }}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+                statusTab === 'APPROVED'
+                  ? 'border-emerald-500 text-emerald-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+              }`}
+            >
+              Approved
+            </button>
+          </div>
+
           <DataTableTopControls
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}

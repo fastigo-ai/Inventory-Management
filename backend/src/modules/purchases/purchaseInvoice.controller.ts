@@ -112,21 +112,31 @@ export const createPurchaseInvoice = async (req: Request, res: Response): Promis
     if (diId) {
       await RelationsService.linkDocuments(diId.toString(), 'DispatchInstruction', newPr._id.toString(), 'PurchaseInvoice');
       
-      // Update DI invoiced quantities
+      // Update DI invoiced quantities and copy missing metadata
       const di = await DI.findById(diId);
       if (di && newPr.lineItems) {
         let diUpdated = false;
+        let prNeedsUpdate = false;
+        
         newPr.lineItems.forEach((invItem: any) => {
           if (invItem.diLineId) {
             const diItem = di.lineItems.find((dItem: any) => dItem._id.toString() === invItem.diLineId.toString());
             if (diItem) {
               diItem.invoicedQuantity = (diItem.invoicedQuantity || 0) + (Number(invItem.quantity) || 0);
               diUpdated = true;
+              
+              if (!invItem.circle) { invItem.circle = diItem.circle || di.circle; prNeedsUpdate = true; }
+              if (!invItem.package) { invItem.package = diItem.package || di.package; prNeedsUpdate = true; }
+              if (!invItem.subcircle) { invItem.subcircle = diItem.subcircle || di.subcircle; prNeedsUpdate = true; }
+              if (!invItem.loaSerialNo) { invItem.loaSerialNo = diItem.loaSerialNo; prNeedsUpdate = true; }
             }
           }
         });
         if (diUpdated) {
           await di.save();
+        }
+        if (prNeedsUpdate) {
+          await newPr.save();
         }
       }
     }
@@ -1013,12 +1023,9 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
               if (!li.loaSerialNo && diLine.loaSerialNo) {
                 li.loaSerialNo = diLine.loaSerialNo;
               }
-              if (!li.circle && diLine.circle) {
-                li.circle = diLine.circle;
-              }
-              if (!li.package && diLine.package) {
-                li.package = diLine.package;
-              }
+              if (!li.circle) li.circle = diLine.circle || di.circle;
+              if (!li.package) li.package = diLine.package || di.package;
+              if (!li.subcircle) li.subcircle = diLine.subcircle || di.subcircle;
             }
           });
         } else {

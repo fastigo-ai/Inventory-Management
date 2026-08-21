@@ -143,7 +143,6 @@ export default function WipRegisterFormPage() {
       items: [
         ...formData.items,
         {
-          loaSerialNo: "",
           activity: "",
           tempCode: "",
           loaSrNo: "",
@@ -344,10 +343,9 @@ export default function WipRegisterFormPage() {
                 <tr>
                   <th className="px-4 py-3 border-r min-w-[120px]">LOA Sr No</th>
                   <th className="px-4 py-3 border-r min-w-[120px]">Temp Code</th>
-                  <th className="px-4 py-3 border-r w-24">LOA SR.NO.</th>
                   <th className="px-4 py-3 border-r">Activity</th>
                   <th className="px-4 py-3 border-r min-w-[300px]">Description</th>
-                  <th className="px-4 py-3 border-r w-24">Unit</th>
+                  <th className="px-4 py-3 border-r min-w-[100px]">Unit</th>
                   <th className="px-4 py-3 border-r min-w-[120px] bg-blue-50">Prev WIP Qty</th>
                   <th className="px-4 py-3 border-r min-w-[120px] bg-green-50 text-green-800">New WIP Qty</th>
                   <th className="px-4 py-3 border-r min-w-[120px] bg-purple-50 text-purple-800">Total WIP Qty</th>
@@ -370,14 +368,6 @@ export default function WipRegisterFormPage() {
                         onChange={e => handleItemChange(index, 'tempCode', e.target.value)} 
                         className="h-8 text-sm"
                         placeholder="Code"
-                      />
-                    </td>
-                    <td className="px-4 py-2 border-r border-slate-100">
-                      <Input 
-                        value={item.loaSerialNo || ''} 
-                        onChange={e => handleItemChange(index, 'loaSerialNo', e.target.value)} 
-                        className="h-8 text-sm"
-                        placeholder="LOA No."
                       />
                     </td>
                     <td className="px-4 py-2 border-r border-slate-100">
@@ -444,7 +434,7 @@ export default function WipRegisterFormPage() {
                 ))}
                 {formData.items.length === 0 && (
                   <tr>
-                    <td colSpan={11} className="px-6 py-8 text-center text-slate-500">
+                    <td colSpan={10} className="px-6 py-8 text-center text-slate-500">
                       No items added yet. Click "Add Item" to begin.
                     </td>
                   </tr>

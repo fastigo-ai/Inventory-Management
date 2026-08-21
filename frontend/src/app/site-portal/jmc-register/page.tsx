@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getJmcs } from "@/features/site-portal/api/jmc.api";
+import { getJmcs, deleteJmc } from "@/features/site-portal/api/jmc.api";
 import { getContractors } from "@/features/contractors/api/contractors.api";
-import { FileText, Plus } from "lucide-react";
+import { FileText, Plus, Trash2, Download } from "lucide-react";
 import { useClientTable } from "@/shared/hooks/useClientTable";
 import { DataTableTopControls, DataTableBottomControls } from "@/shared/components/DataTableControls";
 import { useRouter } from "next/navigation";
@@ -51,6 +51,67 @@ export default function JmcRegisterPage() {
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  
+  const exportData = () => {
+    const headers = ['Number', 'Date', 'Contractor', 'Package', 'Circle', 'Activity', 'LOA Sr No', 'Temp Code', 'Claimed Qty', 'Approved Qty', 'Rate', 'Amount', 'Status'];
+    const rows: any[] = [];
+    entries.forEach((entry: any) => {
+      const contractor = entry.contractorId?.name || entry.contractorId?.vendorName || entry.contractorId?.dynamicData?.companyName || 'Unknown';
+      const date = new Date(entry.date).toLocaleDateString();
+      if (entry.items && entry.items.length > 0) {
+        entry.items.forEach((item: any) => {
+          rows.push([
+            entry.jmcNumber || entry.wipNumber || '',
+            date,
+            contractor,
+            entry.package || '',
+            entry.circle || '',
+            item.activity || '',
+            item.loaSrNo || item.loaSerialNo || '',
+            item.tempCode || '',
+            item.claimedQty || 0,
+            item.approvedQty || 0,
+            item.rate || 0,
+            item.amount || 0,
+            entry.status || ''
+          ]);
+        });
+      } else {
+          rows.push([
+            entry.jmcNumber || entry.wipNumber || '',
+            date,
+            contractor,
+            entry.package || '',
+            entry.circle || '',
+            '', '', '', 0, 0, 0, 0, entry.status || ''
+          ]);
+      }
+    });
+
+    const csvContent = headers.join(",") + "\n" + rows.map(e => e.map((cell: any) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "Jmc_Export.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (confirm('Are you sure you want to delete this entry?')) {
+      try {
+        await deleteJmc(id);
+        fetchJmcs();
+      } catch (error) {
+        console.error(error);
+        alert('Failed to delete.');
+      }
     }
   };
 
@@ -112,6 +173,9 @@ export default function JmcRegisterPage() {
                 ))}
               </select>
             )}
+            <Button variant="outline" onClick={exportData} className="bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100">
+              <Download className="mr-2 h-4 w-4" /> Export Data
+            </Button>
             <Button variant="outline" onClick={() => setUploadModalOpen(true)}>
               <FileText className="mr-2 h-4 w-4" /> Bulk Upload JMC
             </Button>
@@ -167,16 +231,17 @@ export default function JmcRegisterPage() {
                     <th className="px-6 py-4">Claimed (₹)</th>
                     <th className="px-6 py-4">Approved (₹)</th>
                     <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {loading ? (
                     <tr>
-                      <td colSpan={8} className="px-6 py-8 text-center text-slate-500">Loading...</td>
+                      <td colSpan={9} className="px-6 py-8 text-center text-slate-500">Loading...</td>
                     </tr>
                   ) : paginatedData.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-6 py-12 text-center">
+                      <td colSpan={9} className="px-6 py-12 text-center">
                         <FileText className="w-8 h-8 text-slate-300 mx-auto mb-3" />
                         <p className="text-slate-500 font-medium">No JMC entries found.</p>
                       </td>
@@ -196,14 +261,14 @@ export default function JmcRegisterPage() {
                         <td className="px-6 py-4 font-medium text-slate-700">{(entry.claimedAmount || 0).toFixed(2)}</td>
                         <td className="px-6 py-4 font-medium text-green-700">{(entry.approvedAmount || 0).toFixed(2)}</td>
                         <td className="px-6 py-4">
-                          <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide ${
-                            entry.status === 'Approved' ? 'bg-emerald-100 text-emerald-700' :
-                            entry.status === 'Submitted' ? 'bg-blue-100 text-blue-700' :
-                            entry.status === 'Rejected' ? 'bg-red-100 text-red-700' :
-                            'bg-slate-100 text-slate-700'
-                          }`}>
+                          <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide ${entry.status === 'Approved' ? 'bg-emerald-100 text-emerald-700' : entry.status === 'Submitted' ? 'bg-blue-100 text-blue-700' : entry.status === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'}`}>
                             {entry.status}
                           </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button onClick={(e) => handleDelete(e, entry._id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </td>
                       </tr>
                     ))

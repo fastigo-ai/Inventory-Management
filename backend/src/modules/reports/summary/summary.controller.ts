@@ -447,18 +447,18 @@ async function computeStoreItemisedSummary(params: {
 
   if (tempCode && tempCode.trim() !== '') {
     const t = tempCode.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    itemFilter['dynamicData.tempCode'] = { $regex: `^${t}$`, $options: 'i' };
+    itemFilter['dynamicData.tempCode'] = { $regex: t, $options: 'i' };
   }
   if (itemName && itemName.trim() !== '') {
     const n = itemName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    itemFilter['dynamicData.name'] = { $regex: `^${n}$`, $options: 'i' };
+    itemFilter['dynamicData.name'] = { $regex: n, $options: 'i' };
   }
   if (search && search.trim() !== '') {
     const s = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     itemFilter.$or = [
-      { 'dynamicData.name': { $regex: `^${s}$`, $options: 'i' } },
-      { 'dynamicData.tempCode': { $regex: `^${s}$`, $options: 'i' } },
-      { 'dynamicData.sku': { $regex: `^${s}$`, $options: 'i' } }
+      { 'dynamicData.name': { $regex: s, $options: 'i' } },
+      { 'dynamicData.tempCode': { $regex: s, $options: 'i' } },
+      { 'dynamicData.sku': { $regex: s, $options: 'i' } }
     ];
   }
 
@@ -550,7 +550,7 @@ async function computeStoreItemisedSummary(params: {
     // 3. Contractor Returns
     const returnFilter: any = {};
     if (locRegex) {
-      returnFilter.$or = [{ store: locRegex }, { circle: locRegex }];
+      returnFilter.$or = [{ store: locRegex }, { circle: locRegex }, { division: locRegex }];
     }
     const returns = await ContractorReturn.find(returnFilter).lean();
     returns.forEach(doc => {

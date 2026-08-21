@@ -2,13 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { createWipRequired, getWipRequiredById, updateWipRequired } from "@/features/site-portal/api/wipRequired.api";
+import { getWipRequireds, createWipRequired, getWipRequiredById, updateWipRequired } from "@/features/site-portal/api/wipRequired.api";
 import { getContractors } from "@/features/contractors/api/contractors.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Plus, Trash2, Save, Send } from "lucide-react";
+import Select from "react-select";
+import { getItems } from "@/features/items/api/items.api";
+import { useAuthStore } from "@/shared/store/auth.store";
 
 export default function WipRegisterFormPage() {
+  const { user } = useAuthStore();
   const router = useRouter();
   const params = useParams();
   const isNew = !params.id || params.id === 'new';
@@ -17,30 +21,73 @@ export default function WipRegisterFormPage() {
   const [contractors, setContractors] = useState<any[]>([]);
   const [loading, setLoading] = useState(!isNew);
   const [submitting, setSubmitting] = useState(false);
+  const [availableItems, setAvailableItems] = useState<any[]>([]);
+  const [previousData, setPreviousData] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     contractorId: "",
-    package: "",
-    circle: "",
+    package: user?.assignedPackage || "",
+    circle: user?.assignedCircle || "",
     division: "",
     subDivision: "",
-    status: "Submitted",
+    status: "Approved",
     remarks: "",
     items: [
       {
         activity: "",
-        description: "",
+        tempCode: "",
+          loaSrNo: "",
+          description: "",
         unit: "",
         prevQty: 0,
         claimedQty: 0,
         approvedQty: 0,
         rate: 0,
         amount: 0,
+        totalLoaQty: 0,
         remarks: ""
       }
     ] as any[]
   });
+
+
+  useEffect(() => {
+    if (user && isNew) {
+      setFormData(prev => ({
+        ...prev,
+        package: prev.package || user.assignedPackage || "",
+        circle: prev.circle || user.assignedCircle || ""
+      }));
+    }
+  }, [user, isNew]);
+
+  useEffect(() => {
+    if (formData.package && formData.circle) {
+      getItems({ filters: { package: formData.package, circle: formData.circle }, limit: 1000 }).then(res => {
+        const fetched = res?.items || res?.data?.items || (Array.isArray(res) ? res : res.data) || [];
+        setAvailableItems(fetched);
+      }).catch(console.error);
+    } else {
+      getItems({ limit: 1000 }).then(res => {
+        const fetched = res?.items || res?.data?.items || (Array.isArray(res) ? res : res.data) || [];
+        setAvailableItems(fetched);
+      }).catch(console.error);
+    }
+  }, [formData.package, formData.circle]);
+
+
+  useEffect(() => {
+    if (formData.contractorId && formData.package && formData.circle) {
+      import('@/features/site-portal/api/wipRequired.api').then(api => {
+        (api as any).getWipRequireds({ contractorId: formData.contractorId }).then((res: any) => {
+          const fetched = res?.data?.data || (Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []));
+          const filtered = fetched.filter((j: any) => j.package === formData.package && j.circle === formData.circle && j.status === 'Approved');
+          setPreviousData(filtered);
+        }).catch(console.error);
+      });
+    }
+  }, [formData.contractorId, formData.package, formData.circle]);
 
   useEffect(() => {
     fetchContractors();
@@ -52,7 +99,7 @@ export default function WipRegisterFormPage() {
   const fetchContractors = async () => {
     try {
       const res = await getContractors();
-      setContractors(res.data || []);
+      setContractors(res?.data || (Array.isArray(res) ? res : []));
     } catch (err) {
       console.error(err);
     }
@@ -97,6 +144,8 @@ export default function WipRegisterFormPage() {
         ...formData.items,
         {
           activity: "",
+          tempCode: "",
+          loaSrNo: "",
           description: "",
           unit: "",
           prevQty: 0,
@@ -104,6 +153,7 @@ export default function WipRegisterFormPage() {
           approvedQty: 0,
           rate: 0,
           amount: 0,
+          totalLoaQty: 0,
           remarks: ""
         }
       ]
@@ -176,13 +226,14 @@ export default function WipRegisterFormPage() {
             </h1>
           </div>
           <div className="flex space-x-3">
+            
             <Button 
-              onClick={() => handleSubmit(formData.status === 'Submitted' ? 'Approved' : 'Submitted')}
+              onClick={() => handleSubmit('Approved')}
               disabled={submitting}
-              className={formData.status === 'Submitted' ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"}
+              className="bg-green-600 hover:bg-green-700"
             >
               <Send className="w-4 h-4 mr-2" />
-              {formData.status === 'Submitted' ? 'Approve WIP' : 'Submit WIP'}
+              Approve WIP
             </Button>
           </div>
         </div>
@@ -199,18 +250,25 @@ export default function WipRegisterFormPage() {
                   onChange={e => setFormData({...formData, date: e.target.value})} 
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Contractor *</label>
+              <div>
+                <label className="text-xs font-medium text-slate-500 block mb-1">Contractor *</label>
                 <select 
-                  className="w-full h-10 rounded-md border border-slate-200 px-3 text-sm focus:border-blue-500 focus:ring-blue-500 bg-white"
+                  className="w-full h-9 rounded-md border border-slate-200 px-3 text-sm focus:border-blue-500 focus:ring-blue-500 bg-white"
                   value={formData.contractorId}
-                  onChange={e => setFormData({...formData, contractorId: e.target.value})}
+                  onChange={e => {
+                    const selectedId = e.target.value;
+                    const selectedContractor = contractors.find(c => c._id === selectedId);
+                    setFormData(prev => ({
+                      ...prev, 
+                      contractorId: selectedId,
+                      package: selectedContractor?.dynamicData?.package || selectedContractor?.dynamicData?.assignedPackage || selectedContractor?.package || prev.package,
+                      circle: selectedContractor?.dynamicData?.circle || selectedContractor?.dynamicData?.assignedCircle || selectedContractor?.circle || selectedContractor?.location || prev.circle
+                    }));
+                  }}
                 >
                   <option value="">Select Contractor</option>
                   {contractors.map((c: any) => (
-                    <option key={c._id} value={c._id}>
-                      {c.dynamicData?.companyName || c.dynamicData?.displayName || c.name || c.vendorName || 'Unknown'}
-                    </option>
+                    <option key={c._id} value={c._id}>{c.name || c.vendorName || c.dynamicData?.displayName || c.dynamicData?.name}</option>
                   ))}
                 </select>
               </div>
@@ -281,22 +339,81 @@ export default function WipRegisterFormPage() {
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
             <h2 className="text-sm font-bold text-slate-700 uppercase">WIP Items</h2>
-            <Button onClick={addItem} variant="outline" size="sm" className="h-8">
+            <div className="flex items-center gap-4">
+              <div className="w-[300px]">
+                <Select
+                  options={Array.from(new Set(availableItems.map(ai => ai.dynamicData?.activity).filter(Boolean))).map(act => ({ value: act, label: act }))}
+                  placeholder="Add by Activity..."
+                  onChange={(selected: any) => {
+                    if (!selected) return;
+                    const activityItems = availableItems.filter(ai => ai.dynamicData?.activity === selected.value);
+                    
+                    // Calculate previous from historical
+                    const calcPrev = (tempCode: string, loaSrNo: string) => {
+                      let total = 0;
+                      previousData.forEach(jmc => {
+                        (jmc.items || []).forEach((item: any) => {
+                          if ((tempCode && item.tempCode === tempCode) || (loaSrNo && item.loaSrNo === loaSrNo)) {
+                            total += Number(item.approvedQty || item.approvedWipQty || item.approvedRequiredQty || item.newWipQty || 0);
+                          }
+                        });
+                      });
+                      return total;
+                    };
+
+                    const newRows = activityItems.map(ai => {
+                      const temp = ai.dynamicData?.tempCode || '';
+                      const loa = ai.dynamicData?.loaSrNo || ai.dynamicData?.loaSerialNo || ai.dynamicData?.sku || '';
+                      return {
+                        activity: ai.dynamicData?.activity || '',
+                        tempCode: temp,
+                        loaSrNo: loa,
+                        description: ai.dynamicData?.description || ai.dynamicData?.itemDescription || ai.dynamicData?.name || '',
+                        unit: ai.dynamicData?.unit || ai.dynamicData?.uom || '',
+                        totalLoaQty: Number(ai.dynamicData?.loaQty || ai.dynamicData?.loaQuantity || ai.dynamicData?.totalLoaQuantity || ai.dynamicData?.qty || ai.dynamicData?.quantity || 0),
+                        prevQty: calcPrev(temp, loa),
+                        claimedQty: 0,
+                        approvedQty: 0,
+                        newWipQty: 0,
+                        newRequiredQty: 0,
+                        rate: 0,
+                        amount: 0,
+                        remarks: ''
+                      };
+                    });
+                    setFormData(prev => ({
+                      ...prev,
+                      items: [...prev.items, ...newRows]
+                    }));
+                  }}
+                  styles={{
+                    control: (base) => ({ ...base, minHeight: '32px', height: '32px', fontSize: '13px', backgroundColor: 'white', border: '1px solid #cbd5e1', boxShadow: 'none' }),
+                    menuPortal: base => ({ ...base, zIndex: 9999 })
+                  }}
+                  menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+                  menuPosition="fixed"
+                />
+              </div>
+              <Button onClick={addItem} variant="outline" size="sm" className="h-8">
               <Plus className="w-4 h-4 mr-2" /> Add Item
             </Button>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="bg-slate-100 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase">
                 <tr>
-                  <th className="px-4 py-3 border-r w-24">LOA SR.NO.</th>
-                  <th className="px-4 py-3 border-r">Activity</th>
-                  <th className="px-4 py-3 border-r w-[250px]">Description</th>
-                  <th className="px-4 py-3 border-r w-24">Unit</th>
-                  <th className="px-4 py-3 border-r w-28 bg-blue-50">Prev WIP Qty</th>
-                  <th className="px-4 py-3 border-r w-28 bg-green-50 text-green-800">New WIP Qty</th>
-                  <th className="px-4 py-3 border-r w-28 bg-purple-50 text-purple-800">Total WIP Qty</th>
-                  <th className="px-4 py-3 border-r">Remarks</th>
+                  
+                  <th className="px-4 py-3 border-r min-w-[200px]">Activity</th>
+                  <th className="px-4 py-3 border-r min-w-[120px]">LOA Sr No</th>
+                  <th className="px-4 py-3 border-r min-w-[120px]">Temp Code</th>
+                  <th className="px-4 py-3 border-r min-w-[300px]">Description</th>
+                  <th className="px-4 py-3 border-r min-w-[100px]">Unit</th>
+                  <th className="px-4 py-3 border-r min-w-[100px]">LOA Qty</th>
+                  <th className="px-4 py-3 border-r min-w-[120px] bg-blue-50">Prev WIP Qty</th>
+                  <th className="px-4 py-3 border-r min-w-[120px] bg-green-50 text-green-800">New WIP Qty</th>
+                  <th className="px-4 py-3 border-r min-w-[120px] bg-purple-50 text-purple-800">Total WIP Qty</th>
+                  <th className="px-4 py-3 border-r min-w-[150px]">Remarks</th>
                   <th className="px-4 py-3 w-12 text-center">Act</th>
                 </tr>
               </thead>
@@ -312,11 +429,23 @@ export default function WipRegisterFormPage() {
                       />
                     </td>
                     <td className="px-4 py-2 border-r border-slate-100">
-                      <Input 
-                        value={item.activity} 
+                      <Input title={item.activity} value={item.activity || ''} 
                         onChange={e => handleItemChange(index, 'activity', e.target.value)} 
+                        className="h-8 text-sm bg-slate-50"
+                      />
+                    </td>
+                    <td className="px-4 py-2 border-r border-slate-100">
+                      <Input title={item.loaSrNo} value={item.loaSrNo || ''} 
+                        onChange={e => handleItemChange(index, 'loaSrNo', e.target.value)} 
                         className="h-8 text-sm"
-                        placeholder="Activity"
+                        placeholder="LOA Sr No"
+                      />
+                    </td>
+                    <td className="px-4 py-2 border-r border-slate-100">
+                      <Input title={item.tempCode} value={item.tempCode || ''} 
+                        onChange={e => handleItemChange(index, 'tempCode', e.target.value)} 
+                        className="h-8 text-sm"
+                        placeholder="Code"
                       />
                     </td>
                     <td className="px-4 py-2 border-r border-slate-100">
@@ -328,12 +457,14 @@ export default function WipRegisterFormPage() {
                       />
                     </td>
                     <td className="px-4 py-2 border-r border-slate-100">
-                      <Input 
-                        value={item.unit} 
+                      <Input title={item.unit} value={item.unit || ''} 
                         onChange={e => handleItemChange(index, 'unit', e.target.value)} 
                         className="h-8 text-sm"
                         placeholder="e.g. Mtr"
                       />
+                    </td>
+                    <td className="px-4 py-2 border-r border-slate-100 bg-slate-50 text-center font-medium text-slate-700">
+                      {item.totalLoaQty || 0}
                     </td>
                     <td className="px-4 py-2 border-r border-slate-100 bg-blue-50/30 text-center font-medium text-slate-700">
                       {item.prevQty || 0}
@@ -342,12 +473,12 @@ export default function WipRegisterFormPage() {
                       <Input 
                         type="number"
                         className="w-full h-9 bg-white"
-                        value={item.claimedQty || ''}
-                        onChange={(e) => handleItemChange(index, 'claimedQty', e.target.value)}
+                        value={item.claimedQty || ''} 
+                        onChange={e => handleItemChange(index, 'claimedQty', e.target.value)} 
                         placeholder="0"
                       />
                     </td>
-                    <td className="px-4 py-2 border-r border-slate-100 bg-purple-50/30 text-center font-bold text-purple-700">
+                    <td className="p-2 border-r text-center font-bold bg-purple-50/30 text-purple-900">
                       {((Number(item.prevQty) || 0) + (Number(item.claimedQty) || 0)).toFixed(2)}
                     </td>
                     <td className="px-4 py-2 border-r border-slate-100">
@@ -355,7 +486,6 @@ export default function WipRegisterFormPage() {
                         value={item.remarks} 
                         onChange={e => handleItemChange(index, 'remarks', e.target.value)} 
                         className="h-8 text-sm"
-                        placeholder="Remarks"
                       />
                     </td>
                     <td className="px-4 py-2 text-center">
@@ -370,7 +500,7 @@ export default function WipRegisterFormPage() {
                 ))}
                 {formData.items.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-6 py-8 text-center text-slate-500">
+                    <td colSpan={11} className="px-6 py-8 text-center text-slate-500">
                       No items added yet. Click "Add Item" to begin.
                     </td>
                   </tr>

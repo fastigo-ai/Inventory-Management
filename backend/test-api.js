@@ -1,32 +1,16 @@
-require('dotenv').config();
 const axios = require('axios');
-const mongoose = require('mongoose');
-const jwt = require('jsonwebtoken');
 
 async function run() {
-  await mongoose.connect(process.env.MONGO_URI);
-  const user = await mongoose.connection.collection('users').findOne({ email: 'pm@airef.com' });
-  const role = await mongoose.connection.collection('roles').findOne({ _id: user.role });
-  
-  const tokenPayload = {
-    id: user._id,
-    email: user.email,
-    role: { id: role._id, name: role.name },
-    assignedPackage: user.assignedPackage,
-    assignedCircle: user.assignedCircle
-  };
-  
-  const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: '1d' });
-  
   try {
-    const res = await axios.get('http://localhost:5000/api/demand-notes', {
-      headers: { Authorization: `Bearer ${token}` }
+    const res = await axios.get('http://localhost:5000/api/store/stock-summary?circle=Nahan');
+    const data = res.data.data;
+    
+    console.log("=== STOCK SUMMARY FOR NAHAN ===");
+    data.filter(s => s.totalBalanceQty > 0 || s.tempCode === "7" || s.tempCode === "20" || s.tempCode === "1").forEach(s => {
+      console.log(`TempCode: ${s.tempCode}, Item: ${s.description}, Inward (Total): ${s.receivedQty}, Available: ${s.totalBalanceQty}`);
     });
-    console.log(`Success! Found ${res.data.data.demandNotes.length} demand notes for PM.`);
-    console.log(res.data.data.demandNotes.map(d => d.demandNoteNumber));
   } catch (err) {
-    console.error('Error:', err.response?.data || err.message);
+    console.error(err.message);
   }
-  process.exit(0);
 }
 run();

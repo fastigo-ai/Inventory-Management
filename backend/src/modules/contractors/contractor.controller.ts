@@ -591,7 +591,8 @@ export const importContractors = asyncHandler(async (req: Request, res: Response
         }
         
         if (duplicateDetails.size > 0) {
-          return res.status(400).json(new ApiResponse(400, { 
+          require('fs').writeFileSync('last_upload_error.txt', JSON.stringify(errors, null, 2));
+      return res.status(400).json(new ApiResponse(400, { 
             errors: [{ 
               row: 'Database Check', 
               message: 'Uniqueness validation failed', 

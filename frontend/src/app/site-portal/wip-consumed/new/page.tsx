@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { createWip, getWipById, updateWip } from "@/features/site-portal/api/wip.api";
+import { getWips, createWip, getWipById, updateWip } from "@/features/site-portal/api/wip.api";
 import { getContractors } from "@/features/contractors/api/contractors.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,7 @@ export default function WipRegisterFormPage() {
   const [loading, setLoading] = useState(!isNew);
   const [submitting, setSubmitting] = useState(false);
   const [availableItems, setAvailableItems] = useState<any[]>([]);
+  const [previousData, setPreviousData] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -30,13 +31,14 @@ export default function WipRegisterFormPage() {
     circle: user?.assignedCircle || "",
     division: "",
     subDivision: "",
-    status: "Draft",
+    status: "Approved",
     remarks: "",
     items: [
       {
         activity: "",
         tempCode: "",
-        description: "",
+          loaSrNo: "",
+          description: "",
         unit: "",
         prevQty: 0,
         claimedQty: 0,
@@ -48,6 +50,17 @@ export default function WipRegisterFormPage() {
       }
     ] as any[]
   });
+
+
+  useEffect(() => {
+    if (user && isNew) {
+      setFormData(prev => ({
+        ...prev,
+        package: prev.package || user.assignedPackage || "",
+        circle: prev.circle || user.assignedCircle || ""
+      }));
+    }
+  }, [user, isNew]);
 
   useEffect(() => {
     if (formData.package && formData.circle) {
@@ -62,6 +75,19 @@ export default function WipRegisterFormPage() {
       }).catch(console.error);
     }
   }, [formData.package, formData.circle]);
+
+
+  useEffect(() => {
+    if (formData.contractorId && formData.package && formData.circle) {
+      import('@/features/site-portal/api/wip.api').then(api => {
+        (api as any).getWips({ contractorId: formData.contractorId }).then((res: any) => {
+          const fetched = res?.data?.data || (Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []));
+          const filtered = fetched.filter((j: any) => j.package === formData.package && j.circle === formData.circle && j.status === 'Approved');
+          setPreviousData(filtered);
+        }).catch(console.error);
+      });
+    }
+  }, [formData.contractorId, formData.package, formData.circle]);
 
   useEffect(() => {
     fetchContractors();
@@ -120,6 +146,7 @@ export default function WipRegisterFormPage() {
           loaSerialNo: "",
           activity: "",
           tempCode: "",
+          loaSrNo: "",
           description: "",
           unit: "",
           prevQty: 0,
@@ -184,21 +211,14 @@ export default function WipRegisterFormPage() {
             </h1>
           </div>
           <div className="flex space-x-3">
+            
             <Button 
-              variant="outline" 
-              onClick={() => handleSubmit('Draft')}
-              disabled={submitting || formData.status === 'Approved'}
-            >
-              <Save className="w-4 h-4 mr-2" />
-              Save Draft
-            </Button>
-            <Button 
-              onClick={() => handleSubmit(formData.status === 'Draft' ? 'Submitted' : 'Approved')}
+              onClick={() => handleSubmit('Approved')}
               disabled={submitting}
-              className={formData.status === 'Submitted' ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"}
+              className="bg-green-600 hover:bg-green-700"
             >
               <Send className="w-4 h-4 mr-2" />
-              {formData.status === 'Submitted' ? 'Approve WIP' : 'Submit WIP'}
+              Approve WIP
             </Button>
           </div>
         </div>
@@ -266,27 +286,51 @@ export default function WipRegisterFormPage() {
                   onChange={(selected: any) => {
                     if (!selected) return;
                     const activityItems = availableItems.filter(ai => ai.dynamicData?.activity === selected.value);
-                    const newRows = activityItems.map(ai => ({
-                      activity: ai.dynamicData?.activity || '',
-                      tempCode: ai.dynamicData?.tempCode || '',
-                      description: ai.dynamicData?.description || ai.dynamicData?.itemDescription || ai.dynamicData?.name || '',
-                      unit: ai.dynamicData?.unit || ai.dynamicData?.uom || '',
-                      totalLoaQty: Number(ai.dynamicData?.loaQty || ai.dynamicData?.totalLoaQuantity || ai.dynamicData?.qty || ai.dynamicData?.quantity || 0),
-                      prevQty: 0,
-                      claimedQty: 0,
-                      approvedQty: 0,
-                      rate: 0,
-                      amount: 0,
-                      remarks: ''
-                    }));
+                    
+                    // Calculate previous from historical
+                    const calcPrev = (tempCode: string, loaSrNo: string) => {
+                      let total = 0;
+                      previousData.forEach(jmc => {
+                        (jmc.items || []).forEach((item: any) => {
+                          if ((tempCode && item.tempCode === tempCode) || (loaSrNo && item.loaSrNo === loaSrNo)) {
+                            total += Number(item.approvedQty || item.approvedWipQty || item.approvedRequiredQty || item.newWipQty || 0);
+                          }
+                        });
+                      });
+                      return total;
+                    };
+
+                    const newRows = activityItems.map(ai => {
+                      const temp = ai.dynamicData?.tempCode || '';
+                      const loa = ai.dynamicData?.loaSrNo || ai.dynamicData?.loaSerialNo || ai.dynamicData?.sku || '';
+                      return {
+                        activity: ai.dynamicData?.activity || '',
+                        tempCode: temp,
+                        loaSrNo: loa,
+                        description: ai.dynamicData?.description || ai.dynamicData?.itemDescription || ai.dynamicData?.name || '',
+                        unit: ai.dynamicData?.unit || ai.dynamicData?.uom || '',
+                        totalLoaQty: Number(ai.dynamicData?.loaQty || ai.dynamicData?.loaQuantity || ai.dynamicData?.totalLoaQuantity || ai.dynamicData?.qty || ai.dynamicData?.quantity || 0),
+                        prevQty: calcPrev(temp, loa),
+                        claimedQty: 0,
+                        approvedQty: 0,
+                        newWipQty: 0,
+                        newRequiredQty: 0,
+                        rate: 0,
+                        amount: 0,
+                        remarks: ''
+                      };
+                    });
                     setFormData(prev => ({
                       ...prev,
                       items: [...prev.items, ...newRows]
                     }));
                   }}
                   styles={{
-                    control: (base) => ({ ...base, minHeight: '32px', height: '32px', fontSize: '13px', backgroundColor: 'white', border: '1px solid #cbd5e1', boxShadow: 'none' })
+                    control: (base) => ({ ...base, minHeight: '32px', height: '32px', fontSize: '13px', backgroundColor: 'white', border: '1px solid #cbd5e1', boxShadow: 'none' }),
+                    menuPortal: base => ({ ...base, zIndex: 9999 })
                   }}
+                  menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+                  menuPosition="fixed"
                 />
               </div>
               <Button onClick={addItem} variant="outline" size="sm" className="h-8">
@@ -298,15 +342,16 @@ export default function WipRegisterFormPage() {
             <table className="w-full text-sm text-left">
               <thead className="bg-slate-100 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase">
                 <tr>
-                  <th className="px-4 py-3 border-r w-[150px]">Temp Code</th>
+                  <th className="px-4 py-3 border-r min-w-[120px]">LOA Sr No</th>
+                  <th className="px-4 py-3 border-r min-w-[120px]">Temp Code</th>
                   <th className="px-4 py-3 border-r w-24">LOA SR.NO.</th>
                   <th className="px-4 py-3 border-r">Activity</th>
-                  <th className="px-4 py-3 border-r w-[250px]">Description</th>
+                  <th className="px-4 py-3 border-r min-w-[300px]">Description</th>
                   <th className="px-4 py-3 border-r w-24">Unit</th>
-                  <th className="px-4 py-3 border-r w-28 bg-blue-50">Prev WIP Qty</th>
-                  <th className="px-4 py-3 border-r w-28 bg-green-50 text-green-800">New WIP Qty</th>
-                  <th className="px-4 py-3 border-r w-28 bg-purple-50 text-purple-800">Total WIP Qty</th>
-                  <th className="px-4 py-3 border-r">Remarks</th>
+                  <th className="px-4 py-3 border-r min-w-[120px] bg-blue-50">Prev WIP Qty</th>
+                  <th className="px-4 py-3 border-r min-w-[120px] bg-green-50 text-green-800">New WIP Qty</th>
+                  <th className="px-4 py-3 border-r min-w-[120px] bg-purple-50 text-purple-800">Total WIP Qty</th>
+                  <th className="px-4 py-3 border-r min-w-[150px]">Remarks</th>
                   <th className="px-4 py-3 w-12 text-center">Act</th>
                 </tr>
               </thead>
@@ -314,8 +359,14 @@ export default function WipRegisterFormPage() {
                 {formData.items.map((item, index) => (
                   <tr key={index} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-2 border-r border-slate-100">
-                      <Input 
-                        value={item.tempCode || ''} 
+                      <Input title={item.loaSrNo} value={item.loaSrNo || ''} 
+                        onChange={e => handleItemChange(index, 'loaSrNo', e.target.value)} 
+                        className="h-8 text-sm"
+                        placeholder="LOA Sr No"
+                      />
+                    </td>
+                    <td className="px-4 py-2 border-r border-slate-100">
+                      <Input title={item.tempCode} value={item.tempCode || ''} 
                         onChange={e => handleItemChange(index, 'tempCode', e.target.value)} 
                         className="h-8 text-sm"
                         placeholder="Code"

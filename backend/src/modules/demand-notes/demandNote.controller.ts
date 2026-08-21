@@ -338,8 +338,13 @@ export const getDemandNotes = asyncHandler(async (req: AuthRequest, res: Respons
   const roleName = user.role?.name?.trim();
   // If user is not an admin or PD, restrict to their assigned areas
   if (roleName === 'Site Manager' || roleName === 'Store Manager' || roleName === 'Project Manager') {
-    if (user.assignedPackage && user.assignedPackage.trim()) filter.package = { $regex: new RegExp(`^${user.assignedPackage.trim()}$`, 'i') };
-    if (user.assignedCircle && user.assignedCircle.trim()) filter.circle = { $regex: new RegExp(`^${user.assignedCircle.trim()}$`, 'i') };
+    const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (user.assignedPackage && user.assignedPackage.trim()) {
+      filter.package = { $regex: new RegExp(`^${escapeRegex(user.assignedPackage.trim())}$`, 'i') };
+    }
+    if (user.assignedCircle && user.assignedCircle.trim()) {
+      filter.circle = { $regex: new RegExp(`^${escapeRegex(user.assignedCircle.trim())}$`, 'i') };
+    }
   }
 
   // Filter based on explicit status or tab query

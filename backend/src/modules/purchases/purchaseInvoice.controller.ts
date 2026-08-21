@@ -1013,6 +1013,12 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
               if (!li.loaSerialNo && diLine.loaSerialNo) {
                 li.loaSerialNo = diLine.loaSerialNo;
               }
+              if (!li.circle && diLine.circle) {
+                li.circle = diLine.circle;
+              }
+              if (!li.package && diLine.package) {
+                li.package = diLine.package;
+              }
             }
           });
         } else {

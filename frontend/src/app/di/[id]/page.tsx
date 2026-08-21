@@ -11,7 +11,7 @@ import { API_BASE_URL } from '@/shared/api/axios';
 import { PdfPreview } from '@/shared/components/PdfPreview';
 import { getDocumentAllocation } from '@/features/allocations/api/allocations.api';
 import { getDocumentRelations } from '@/features/relations/api/relations.api';
-import { getPurchaseInvoices } from '@/features/purchases/api/purchases.api';
+import { getPurchaseInvoices, getPurchaseInvoiceById } from '@/features/purchases/api/purchases.api';
 
 export default function DIDetailPage() {
   const params = useParams();
@@ -84,14 +84,12 @@ export default function DIDetailPage() {
         const piRelations = relData.children?.filter((r: any) => r.targetModule === 'PurchaseInvoice') || [];
         if (piRelations.length > 0) {
           try {
-            const piRes = await getPurchaseInvoices({ limit: 500 }); // Try fetching enough invoices to cover the relations
-            // Ideally we need an API to fetch PIs by multiple IDs or we fetch them one by one. 
-            // We can fetch the list and filter:
-            if (piRes.success || Array.isArray(piRes.data)) {
-               const allPIs = piRes.data?.prs || piRes.data?.data || piRes.data || [];
-               const linkedPIs = allPIs.filter((pi: any) => piRelations.some((r: any) => r.targetDocument === pi._id));
-               setChildPIs(linkedPIs);
-            }
+            // Fetch PIs directly by ID using promises to avoid the 500 limit problem
+            const piPromises = piRelations.map((r: any) => 
+              getPurchaseInvoiceById(r.targetDocument).catch(() => null)
+            );
+            const linkedPIs = (await Promise.all(piPromises)).filter(Boolean);
+            setChildPIs(linkedPIs);
           } catch (e) {
             console.error("Failed to load child PIs", e);
           }

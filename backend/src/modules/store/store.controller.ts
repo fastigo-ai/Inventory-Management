@@ -5,6 +5,7 @@ import { ApiResponse } from '../../core/utils/ApiResponse';
 import { ApiError } from '../../core/utils/ApiError';
 import { parseAndSanitizeCsv } from '../../utils/csv.util';
 import { parse } from 'csv-parse';
+import { stringify } from 'csv-stringify/sync';
 import { StoreInwardEntry } from './storeInwardEntry.schema';
 import { DI } from '../di/di.schema';
 import { PurchaseOrder } from '../purchases/purchaseOrder.schema';
@@ -2114,6 +2115,193 @@ export const getMhrovs = asyncHandler(async (req: Request, res: Response) => {
   const mhrovs = await Mhrov.find(filter).populate("inwardEntries", "invoiceNumber itemName totalQty").sort({ createdAt: 1 });
 
   res.status(200).json(new ApiResponse(200, mhrovs, 'MHROVs fetched successfully'));
+});
+
+export const exportMhrovs = asyncHandler(async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  const filter: any = {};
+  
+  if (user && user.role?.name === 'Store Manager') {
+    if (user.assignedPackage) filter.package = user.assignedPackage;
+    if (user.assignedCircle) filter.circle = user.assignedCircle;
+  }
+
+  const mhrovs = await Mhrov.find(filter).populate("inwardEntries").sort({ createdAt: 1 }).lean();
+
+  const csvData = mhrovs.flatMap(m => {
+    if (!m.items || m.items.length === 0) return [];
+    return m.items.map(item => {
+      const inwardEntry = (m.inwardEntries as any[]).find(entry => entry._id.toString() === item.inwardEntryId.toString()) || {} as any;
+      
+      return {
+        "MHROV No": m.mhrovNumber || '',
+        "MHROV Date": m.mhrovDate ? new Date(m.mhrovDate).toISOString().split('T')[0] : '',
+        "Status": m.status || '',
+        "Package": m.package || '',
+        "Circle": m.circle || '',
+        "DI No": inwardEntry.diRefNo || '',
+        "Vendor Name": inwardEntry.vendorName || '',
+        "Invoice No": inwardEntry.invoiceNumber || inwardEntry.inwardId || '',
+        "PO No": inwardEntry.poNumber || '',
+        "Item Name": inwardEntry.itemName || '',
+        "LOA Serial No": inwardEntry.serialNumber || '',
+        "Temp Code": inwardEntry.tempCode || '',
+        "MHROV Done Qty": item.mhrovDoneQty || 0
+      };
+    });
+  });
+
+  const csvString = stringify(csvData, { header: true });
+
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename=mhrov_export.csv');
+  res.status(200).send(csvString);
+});
+
+export const importMhrovs = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.file) {
+    res.status(400).json({ success: false, message: 'No CSV file uploaded' });
+    return;
+  }
+
+  const parser = parseAndSanitizeCsv(req.file.buffer);
+
+  const rows: any[] = [];
+  const errors: string[] = [];
+  
+  for await (const r of parser) {
+    const row = r as any;
+    const nRow: any = {};
+    for (const key of Object.keys(row)) {
+      nRow[key.toLowerCase().replace(/[^a-z0-9]/g, '')] = row[key];
+    }
+    rows.push(nRow);
+  }
+
+  const safeDate = (val: any): Date => {
+    if (!val) return new Date();
+    const str = String(val).trim();
+    const ddmmyyyy = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+    if (ddmmyyyy) {
+      const [, d, m, y] = ddmmyyyy;
+      return new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`);
+    }
+    const iso = str.match(/^\d{4}-\d{2}-\d{2}/);
+    if (iso) return new Date(str.split('T')[0]);
+    const d = new Date(str);
+    return isNaN(d.getTime()) ? new Date() : d;
+  };
+  
+  const safeNum = (val: any): number => {
+    if (val === null || val === undefined || val === '') return 0;
+    const n = parseFloat(String(val).replace(/,/g, '').trim());
+    return isNaN(n) ? 0 : n;
+  };
+
+  const mhrovMap: Record<string, any> = {};
+
+  for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+    const row = rows[rowIndex];
+    const actualRowNumber = rowIndex + 2;
+    const mhrovNumber = row['mhrovno'] || row['mhrovnumber'];
+    
+    if (!mhrovNumber) continue;
+
+    if (!mhrovMap[mhrovNumber]) {
+      mhrovMap[mhrovNumber] = {
+        mhrovNumber,
+        mhrovDate: safeDate(row['mhrovdate']),
+        status: row['status'] || 'pending',
+        package: row['package'] || '',
+        circle: row['circle'] || '',
+        items: []
+      };
+    }
+
+    const itemName = row['itemname'];
+    const diNo = row['dino'] || '';
+    const loaSerialNo = row['loaserialno'] || row['serialno'] || '';
+    const tempCode = row['tempcode'] || '';
+    const invoiceNo = row['invoiceno'] || row['invoicenumber'] || '';
+    const mhrovDoneQty = safeNum(row['mhrovdoneqty']);
+
+    if (itemName && mhrovDoneQty > 0) {
+      mhrovMap[mhrovNumber].items.push({
+        rowNumber: actualRowNumber,
+        itemName,
+        diNo,
+        loaSerialNo,
+        tempCode,
+        invoiceNo,
+        mhrovDoneQty
+      });
+    }
+  }
+
+  for (const mhrovNumber of Object.keys(mhrovMap)) {
+    const mhrovData = mhrovMap[mhrovNumber];
+    
+    const inwardEntriesArray = [];
+    const finalItems = [];
+
+    for (const item of mhrovData.items) {
+      const query: any = {};
+      if (item.invoiceNo) query.invoiceNumber = item.invoiceNo;
+      if (item.diNo) query.diRefNo = item.diNo;
+      if (item.loaSerialNo) query.serialNumber = item.loaSerialNo;
+      if (item.itemName) query.itemName = item.itemName;
+      if (item.tempCode) query.tempCode = item.tempCode;
+
+      const entries = await StoreInwardEntry.find(query);
+      if (entries.length === 0) {
+         errors.push(`Row ${item.rowNumber}: Could not find StoreInwardEntry matching Invoice "${item.invoiceNo}", DI "${item.diNo}", Item "${item.itemName}", Serial "${item.loaSerialNo}"`);
+      } else if (entries.length > 1) {
+         errors.push(`Row ${item.rowNumber}: Multiple StoreInwardEntries found matching the criteria. Please provide more specific data (e.g., Invoice No).`);
+      } else {
+         const entryId = entries[0]._id;
+         inwardEntriesArray.push(entryId);
+         finalItems.push({ inwardEntryId: entryId, mhrovDoneQty: item.mhrovDoneQty });
+      }
+    }
+    mhrovData.inwardEntries = Array.from(new Set(inwardEntriesArray.map(id => id.toString())));
+    mhrovData.finalItems = finalItems;
+  }
+
+  if (errors.length > 0) {
+    res.status(400).json({
+      success: false,
+      message: 'Import failed due to validation errors',
+      data: { errors }
+    });
+    return;
+  }
+
+  let successCount = 0;
+  for (const mhrovNumber of Object.keys(mhrovMap)) {
+    const data = mhrovMap[mhrovNumber];
+    await Mhrov.findOneAndUpdate(
+      { mhrovNumber },
+      {
+        $set: {
+          mhrovNumber: data.mhrovNumber,
+          mhrovDate: data.mhrovDate,
+          status: data.status,
+          package: data.package,
+          circle: data.circle,
+          inwardEntries: data.inwardEntries,
+          items: data.finalItems
+        }
+      },
+      { upsert: true, setDefaultsOnInsert: true }
+    );
+    successCount++;
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'Import processed successfully',
+    data: { successCount, errors: [] }
+  });
 });
 
 export const updateMhrov = asyncHandler(async (req: Request, res: Response) => {

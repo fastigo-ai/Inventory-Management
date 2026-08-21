@@ -671,7 +671,56 @@ export const deletePurchaseInvoice = async (req: Request, res: Response): Promis
 
 export const exportPurchaseInvoices = async (req: Request, res: Response): Promise<void> => {
   try {
-    const receives = await PurchaseInvoice.find().sort({ createdAt: 1 }).lean();
+    const filter: any = {};
+    
+    if (req.query.vendorName) {
+      filter.vendorName = req.query.vendorName;
+    }
+    
+    if (req.query.invoiceNumber) {
+      filter.invoiceNumber = { $regex: req.query.invoiceNumber as string, $options: 'i' };
+    }
+
+    if (req.query.status) {
+      const statuses = Array.isArray(req.query.status) ? req.query.status : [req.query.status];
+      filter.status = { $in: statuses };
+    }
+
+    if (req.query.receiptStatus) {
+      const rStatuses = Array.isArray(req.query.receiptStatus) ? req.query.receiptStatus : [req.query.receiptStatus];
+      filter.receiptStatus = { $in: rStatuses };
+    }
+
+    if (req.query.billedStatus) {
+      const bStatuses = Array.isArray(req.query.billedStatus) ? req.query.billedStatus : [req.query.billedStatus];
+      filter.billedStatus = { $in: bStatuses };
+    }
+
+    if (req.query.fromDate || req.query.toDate) {
+      filter.date = {};
+      if (req.query.fromDate) filter.date.$gte = new Date(req.query.fromDate as string);
+      if (req.query.toDate) {
+        const toDate = new Date(req.query.toDate as string);
+        toDate.setHours(23, 59, 59, 999);
+        filter.date.$lte = toDate;
+      }
+    }
+
+    if (req.query.hasPO) {
+      filter.purchaseOrderId = req.query.hasPO === 'true' ? { $exists: true, $ne: null } : { $eq: null };
+    }
+
+    if (req.query.hasDI) {
+      filter.diNumber = req.query.hasDI === 'true' ? { $exists: true, $ne: '' } : { $in: [null, ''] };
+    }
+
+    if (req.query.minAmount || req.query.maxAmount) {
+      filter.total = {};
+      if (req.query.minAmount) filter.total.$gte = Number(req.query.minAmount);
+      if (req.query.maxAmount) filter.total.$lte = Number(req.query.maxAmount);
+    }
+
+    const receives = await PurchaseInvoice.find(filter).sort({ createdAt: 1 }).lean();
 
     const csvData = receives.flatMap(r => 
       r.lineItems && r.lineItems.length > 0 ? r.lineItems.map((item: any) => ({
@@ -961,6 +1010,9 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
             });
             if (diLine) {
               li.diLineId = (diLine as any)._id;
+              if (!li.loaSerialNo && diLine.loaSerialNo) {
+                li.loaSerialNo = diLine.loaSerialNo;
+              }
             }
           });
         } else {

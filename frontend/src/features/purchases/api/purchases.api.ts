@@ -186,11 +186,26 @@ export const getPurchaseInvoices = async (params: Record<string, any> = {}) => {
   return response.data;
 };
 
-export const exportPurchaseInvoicesToCsv = async () => {
-  const response = await api.get('/purchases/invoices/export', { responseType: 'blob' });
-  const url = window.URL.createObjectURL(new Blob([response.data]));
+export const exportPurchaseInvoicesToCsv = async (params: Record<string, any> = {}) => {
+  const query = new URLSearchParams();
+  
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      if (Array.isArray(value)) {
+        value.forEach(v => query.append(key, v));
+      } else {
+        query.append(key, value.toString());
+      }
+    }
+  });
+  
+  const queryString = query.toString();
+  const url = queryString ? `/purchases/invoices/export?${queryString}` : '/purchases/invoices/export';
+
+  const response = await api.get(url, { responseType: 'blob' });
+  const downloadUrl = window.URL.createObjectURL(new Blob([response.data]));
   const link = document.createElement('a');
-  link.href = url;
+  link.href = downloadUrl;
   link.setAttribute('download', 'purchase_invoices_export.csv');
   document.body.appendChild(link);
   link.click();

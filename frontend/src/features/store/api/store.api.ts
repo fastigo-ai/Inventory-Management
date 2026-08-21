@@ -186,3 +186,26 @@ export const getMhrovDashboardData = async () => {
   const response = await api.get('/store/mhrov/dashboard/data');
   return response.data;
 };
+
+export const exportMhrovsToCsv = async () => {
+  const response = await api.get('/store/mhrov/export', { responseType: 'blob' });
+  const downloadUrl = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = downloadUrl;
+  link.setAttribute('download', 'mhrov_export.csv');
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+};
+
+export const importMhrovsFromCsv = async (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post('/store/mhrov/import', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+    timeout: 300000
+  });
+  return response;
+};

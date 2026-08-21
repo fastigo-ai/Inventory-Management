@@ -434,8 +434,9 @@ export default function PurchaseInvoiceDetailPage() {
                             <td className="border-x border-black px-1 py-2 text-center align-top">{idx + 1}</td>
                             <td className="border-x border-black px-1 py-2 text-left font-semibold align-top">
                               <div>{item.itemName}</div>
-                              {(item.package || item.circle) && (
+                              {(item.package || item.circle || item.loaSerialNo) && (
                                 <div className="text-[9px] font-normal text-slate-600 mt-1">
+                                  {item.loaSerialNo && <div>LOA Sr No: <span className="font-semibold text-slate-800">{item.loaSerialNo}</span></div>}
                                   {item.circle && <span>Circle: {item.circle}</span>}
                                   {item.circle && item.package && <span> | </span>}
                                   {item.package && <span>Package: {item.package}</span>}
@@ -644,6 +645,11 @@ export default function PurchaseInvoiceDetailPage() {
                       <td className="py-4 align-top">
                         <p className="font-medium text-slate-800">{item.itemName}</p>
                         {item.description && <p className="text-slate-500 text-xs mt-1">{item.description}</p>}
+                        {item.loaSerialNo && (
+                          <div className="mt-1.5 inline-flex items-center bg-indigo-50 border border-indigo-100 text-indigo-700 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded shadow-xs">
+                            LOA Sr No: {item.loaSerialNo}
+                          </div>
+                        )}
                       </td>
                       <td className="py-4 text-center align-top">{qty}</td>
                       <td className="py-4 text-center align-top">{item.srt || 0}</td>

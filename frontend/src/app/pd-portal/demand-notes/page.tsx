@@ -26,6 +26,7 @@ export default function DemandNotesList() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('pending');
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All Statuses');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   useEffect(() => {
@@ -61,20 +62,26 @@ export default function DemandNotesList() {
     if (activeTab === 'pending') list = pendingList;
     else if (activeTab === 'history') list = historyList;
 
-    if (!searchQuery.trim()) return list;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(
+        (dn) =>
+          dn.demandNoteNumber?.toLowerCase().includes(q) ||
+          dn.contractorName?.toLowerCase().includes(q) ||
+          dn.package?.toLowerCase().includes(q) ||
+          dn.circle?.toLowerCase().includes(q) ||
+          `${dn.createdBy?.firstName} ${dn.createdBy?.lastName}`.toLowerCase().includes(q) ||
+          `${dn.pmApprovedBy?.firstName} ${dn.pmApprovedBy?.lastName}`.toLowerCase().includes(q) ||
+          `${dn.pdApprovedBy?.firstName} ${dn.pdApprovedBy?.lastName}`.toLowerCase().includes(q)
+      );
+    }
 
-    const q = searchQuery.toLowerCase().trim();
-    return list.filter(
-      (dn) =>
-        dn.demandNoteNumber?.toLowerCase().includes(q) ||
-        dn.contractorName?.toLowerCase().includes(q) ||
-        dn.package?.toLowerCase().includes(q) ||
-        dn.circle?.toLowerCase().includes(q) ||
-        `${dn.createdBy?.firstName} ${dn.createdBy?.lastName}`.toLowerCase().includes(q) ||
-        `${dn.pmApprovedBy?.firstName} ${dn.pmApprovedBy?.lastName}`.toLowerCase().includes(q) ||
-        `${dn.pdApprovedBy?.firstName} ${dn.pdApprovedBy?.lastName}`.toLowerCase().includes(q)
-    );
-  }, [demandNotes, activeTab, pendingList, historyList, searchQuery]);
+    if (statusFilter !== 'All Statuses') {
+      list = list.filter(dn => dn.status === statusFilter);
+    }
+
+    return list;
+  }, [demandNotes, activeTab, pendingList, historyList, searchQuery, statusFilter]);
 
   const getStatusBadge = (status: string) => {
     const baseStyle = "px-2.5 py-1 text-xs font-semibold rounded-full border inline-flex items-center gap-1.5";
@@ -193,16 +200,35 @@ export default function DemandNotesList() {
           </button>
         </div>
 
-        {/* Search Input Box */}
-        <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Search DN#, contractor, PM, PD..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all placeholder:text-slate-400"
-          />
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+          <div className="relative w-full sm:w-64">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search DN#, contractor, PM, PD..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all placeholder:text-slate-400"
+            />
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <label className="text-xs sm:text-sm font-medium text-slate-600 whitespace-nowrap">Status:</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full sm:w-auto bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-xs text-xs sm:text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+            >
+              <option value="All Statuses">All Statuses</option>
+              <option value="Draft">Draft</option>
+              <option value="Pending Approval">Pending Approval</option>
+              <option value="Pending PM Approval">Pending PM Approval</option>
+              <option value="Pending PD Approval">Pending PD Approval</option>
+              <option value="Approved">Approved</option>
+              <option value="Rejected">Rejected</option>
+              <option value="Fulfilled">Fulfilled</option>
+            </select>
+          </div>
         </div>
       </div>
 

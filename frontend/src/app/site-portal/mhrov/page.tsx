@@ -2,17 +2,24 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getMhrovs, getMhrovDashboardData } from "@/features/store/api/store.api";
+import { getMhrovs, getMhrovDashboardData, exportMhrovsToCsv } from "@/features/store/api/store.api";
+import { MhrovImportModal } from "@/features/store/components/MhrovImportModal";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, FileText, BarChart3, ListTodo, AlertCircle, CheckCircle2 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Plus, Search, FileText, BarChart3, ListTodo, AlertCircle, CheckCircle2, ChevronDown, Upload, Download } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { useClientTable } from "@/shared/hooks/useClientTable";
 import { DataTableTopControls, DataTableBottomControls } from "@/shared/components/DataTableControls";
+import { toast } from "sonner";
 
 export default function MhrovPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"dashboard" | "vouchers">("dashboard");
+
+  // Import/Export State
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Vouchers State
   const [mhrovs, setMhrovs] = useState<any[]>([]);
@@ -79,6 +86,7 @@ export default function MhrovPage() {
   ].filter(d => d.value > 0) : [];
 
   return (
+    <>
     <div className="flex-1 p-8 bg-slate-50 min-h-screen">
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -87,13 +95,40 @@ export default function MhrovPage() {
             Track inward items and manage Material Handover Receipt Vouchers
           </p>
         </div>
-        <Button
-          onClick={() => router.push("/site-portal/mhrov/new")}
-          className="bg-indigo-600 hover:bg-indigo-700 h-9 shadow-sm"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          New MHROV
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => router.push("/site-portal/mhrov/new")}
+            className="bg-indigo-600 hover:bg-indigo-700 h-9 shadow-sm"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            New MHROV
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-slate-200 bg-white hover:bg-slate-100 h-9 px-3 text-slate-700 gap-1.5">
+              Actions <ChevronDown className="w-4 h-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setIsImportModalOpen(true)}>
+                <Upload className="w-4 h-4 mr-2" />
+                Import MHROVs
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={async () => {
+                try {
+                  setIsExporting(true);
+                  await exportMhrovsToCsv();
+                  toast.success('MHROVs exported successfully');
+                } catch (err) {
+                  toast.error('Export failed');
+                } finally {
+                  setIsExporting(false);
+                }
+              }} disabled={isExporting}>
+                <Download className="w-4 h-4 mr-2" />
+                {isExporting ? 'Exporting...' : 'Export MHROVs'}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -376,5 +411,14 @@ export default function MhrovPage() {
         </div>
       )}
     </div>
+    <MhrovImportModal
+      isOpen={isImportModalOpen}
+      onClose={() => setIsImportModalOpen(false)}
+      onSuccess={() => {
+        setIsImportModalOpen(false);
+        fetchMhrovs();
+      }}
+    />
+    </>
   );
 }

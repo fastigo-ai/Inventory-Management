@@ -6,6 +6,8 @@ import {
   createMhrov,
   updateMhrov,
   getMhrovs,
+  exportMhrovs,
+  importMhrovs,
   getMhrovById,
   getMhrovDashboardData,
   getPendingDIs,
@@ -99,6 +101,8 @@ router.route('/admin/inventory/stock-summary').get(getAdminStockSummary);
 // MHROV Routes
 router.post('/mhrov', upload.single('document'), createMhrov);
 router.get('/mhrov', getMhrovs);
+router.get('/mhrov/export', exportMhrovs);
+router.post('/mhrov/import', upload.single('file'), importMhrovs);
 router.get('/mhrov/dashboard/data', getMhrovDashboardData);
 router.route('/mhrov/:id').get(getMhrovById).put(upload.single('document'), updateMhrov);
 

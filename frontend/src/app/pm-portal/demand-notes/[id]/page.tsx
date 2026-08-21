@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Loader2, FileText, CheckCircle, AlertCircle, Edit, Printer } from 'lucide-react';
+import { ArrowLeft, Loader2, FileText, CheckCircle, AlertCircle, Edit, Printer, Building2 } from 'lucide-react';
 import { getStockSummary } from '@/features/store/api/store.api';
 import { getDemandNoteById, updateDemandNote } from '@/features/site-portal/api/demand-notes.api';
 import { toast } from 'sonner';

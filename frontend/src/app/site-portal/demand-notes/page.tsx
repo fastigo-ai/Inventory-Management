@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, FileText, ChevronRight, Upload, Download } from 'lucide-react';
+import { Plus, FileText, ChevronRight, Upload, Download, Search } from 'lucide-react';
 import { getDemandNotes } from '@/features/site-portal/api/demand-notes.api';
 import { toast } from 'sonner';
 import ImportDNModal from './ImportDNModal';
@@ -11,6 +11,9 @@ export default function DemandNotesList() {
   const [demandNotes, setDemandNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'pending' | 'history' | 'all'>('pending');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All Statuses');
 
   useEffect(() => {
     fetchDemandNotes();
@@ -110,6 +113,33 @@ export default function DemandNotesList() {
     document.body.removeChild(link);
   };
 
+  const pendingList = demandNotes.filter(
+    (dn) => dn.status === 'Draft' || dn.status === 'Pending PM Approval' || dn.status === 'Pending PD Approval' || dn.status === 'Pending Approval'
+  );
+
+  const historyList = demandNotes.filter(
+    (dn) => dn.status === 'Approved' || dn.status === 'Rejected' || dn.status === 'Fulfilled'
+  );
+
+  let filteredList = demandNotes;
+  if (activeTab === 'pending') filteredList = pendingList;
+  else if (activeTab === 'history') filteredList = historyList;
+
+  if (searchQuery.trim()) {
+    const q = searchQuery.toLowerCase().trim();
+    filteredList = filteredList.filter(
+      (dn) =>
+        dn.demandNoteNumber?.toLowerCase().includes(q) ||
+        dn.contractorName?.toLowerCase().includes(q) ||
+        dn.package?.toLowerCase().includes(q) ||
+        dn.circle?.toLowerCase().includes(q)
+    );
+  }
+
+  if (statusFilter !== 'All Statuses') {
+    filteredList = filteredList.filter(dn => dn.status === statusFilter);
+  }
+
   const getStatusBadge = (status: string) => {
     const baseStyle = "px-2.5 py-0.5 text-xs font-semibold rounded-full border";
     switch (status) {
@@ -132,6 +162,21 @@ export default function DemandNotesList() {
             <FileText className="w-6 h-6 text-indigo-500" /> Demand Notes (Site Portal)
           </h1>
           <p className="text-slate-500 text-sm mt-1">Manage and track material requisitions for your assigned package and circle.</p>
+        </div>
+        <div className="flex items-center gap-4 bg-slate-100/80 p-1.5 rounded-lg border border-slate-200/60">
+          {(['pending', 'history', 'all'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-6 py-2 rounded-md text-sm font-semibold transition-all duration-200 capitalize ${
+                activeTab === tab
+                  ? 'bg-white text-indigo-700 shadow-sm border border-slate-200/50'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -158,8 +203,38 @@ export default function DemandNotesList() {
       {loading ? (
         <div className="text-center py-10 text-slate-500">Loading demand notes...</div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          <table className="w-full text-sm text-left">
+        <div className="space-y-4">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm w-fit">
+              <Search className="w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search by DN number, package..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="bg-transparent border-none focus:outline-none text-sm w-64 text-slate-700 placeholder-slate-400"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-slate-600">Status:</label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="bg-white px-3 py-2 rounded-lg border border-slate-200 shadow-sm text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="All Statuses">All Statuses</option>
+                <option value="Draft">Draft</option>
+                <option value="Pending Approval">Pending Approval</option>
+                <option value="Pending PM Approval">Pending PM Approval</option>
+                <option value="Pending PD Approval">Pending PD Approval</option>
+                <option value="Approved">Approved</option>
+                <option value="Rejected">Rejected</option>
+                <option value="Fulfilled">Fulfilled</option>
+              </select>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <table className="w-full text-sm text-left">
             <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase">
               <tr>
                 <th className="px-6 py-4">DN Number</th>
@@ -171,12 +246,12 @@ export default function DemandNotesList() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {demandNotes.length === 0 ? (
+              {filteredList.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-slate-500">No demand notes found.</td>
+                  <td colSpan={6} className="px-6 py-8 text-center text-slate-500">No demand notes found in this tab.</td>
                 </tr>
               ) : (
-                demandNotes.map((dn) => (
+                filteredList.map((dn) => (
                   <tr key={dn._id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4 font-medium text-indigo-600">
                       <Link href={`/site-portal/demand-notes/${dn._id}`}>
@@ -205,6 +280,7 @@ export default function DemandNotesList() {
             </tbody>
           </table>
         </div>
+      </div>
       )}
 
       <ImportDNModal 

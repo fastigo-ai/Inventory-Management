@@ -15,6 +15,7 @@ import { JmcRegister } from "../jmc/jmc.schema";
 import { WipRegister } from "../wip/wip.schema";
 import { WipRequiredRegister } from "../wip-required/wipRequired.schema";
 import DemandNote from '../demand-notes/demandNote.schema';
+import { SummaryService } from '../reports/summary/summary.service';
 
 
 export const getContractors = asyncHandler(async (req: Request, res: Response) => {
@@ -602,16 +603,9 @@ export const importContractors = asyncHandler(async (req: Request, res: Response
     }
   }
 
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
-    await Contractor.insertMany(validContractors, { session });
-    await session.commitTransaction();
-    session.endSession();
+    await Contractor.insertMany(validContractors);
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
     throw error;
   }
 
@@ -991,11 +985,14 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
     }
   }
 
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  if (errors.length > 0) {
+    return res.status(400).json(
+      new ApiResponse(400, { errors }, 'Import failed due to row errors. No data was imported.')
+    );
+  }
 
   try {
-    // Save assignments
+    // Pass 2: Save assignments
     const payloads = Object.values(assignmentsByMin);
     const overwriteExisting = req.body.overwriteExisting === 'true';
 
@@ -1010,7 +1007,7 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
             }
           }));
 
-          const result = await ContractorAssignment.bulkWrite(bulkOps, { session });
+          const result = await ContractorAssignment.bulkWrite(bulkOps);
           successCount += payloads.length;
         } else {
           // If not overwriting, we need to filter out existing MINs
@@ -1029,29 +1026,36 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
             }
           }
 
+          if (errors.length > 0) {
+             return res.status(400).json(
+               new ApiResponse(400, { errors }, 'Import failed due to duplicate assignment numbers. No data was imported.')
+             );
+          }
+
           if (validPayloads.length > 0) {
-            await ContractorAssignment.insertMany(validPayloads, { session });
+            await ContractorAssignment.insertMany(validPayloads);
             successCount += validPayloads.length;
           }
         }
       }
     } catch (err: any) {
       errors.push(`Error saving/updating MINs: ${err.message}`);
+      return res.status(400).json(
+        new ApiResponse(400, { errors }, 'Import failed due to save error. Partial data might have been imported.')
+      );
     }
 
-  if (errors.length > 0) {
-    await session.abortTransaction();
-    session.endSession();
-    return res.status(400).json(
-      new ApiResponse(400, { errors }, 'Import failed due to row errors. No data was imported.')
-    );
-  }
-
-  await session.commitTransaction();
-  session.endSession();
+    // Rebuild summary cache for items
+    const affectedItemIds = new Set<string>();
+    Object.values(assignmentsByMin).forEach((p: any) => {
+      (p.lineItems || []).forEach((it: any) => {
+        if (it.itemId) affectedItemIds.add(it.itemId.toString());
+      });
+    });
+    affectedItemIds.forEach(id => {
+      SummaryService.rebuildForItem(id).catch(console.error);
+    });
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
     throw error;
   }
 

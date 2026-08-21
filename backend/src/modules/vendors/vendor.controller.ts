@@ -601,17 +601,10 @@ export const importVendors = asyncHandler(async (req: Request, res: Response) =>
     }
   }
 
-  // Atomic bulk insert with transactions
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
+  // Atomic bulk insert without unsupported transactions
   try {
-    await Vendor.insertMany(validVendors, { session });
-    await session.commitTransaction();
-    session.endSession();
+    await Vendor.insertMany(validVendors);
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
     throw error;
   }
 

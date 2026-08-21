@@ -68,7 +68,7 @@ export default function WipRegisterPage() {
       }
     });
 
-    const csvContent = headers.join(",") + "\n" + rows.map(e => e.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const csvContent = headers.join(",") + "\n" + rows.map(e => e.map((cell: any) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
@@ -84,7 +84,7 @@ export default function WipRegisterPage() {
     if (confirm('Are you sure you want to delete this entry?')) {
       try {
         await deleteWipRequired(id);
-        fetchWipRequireds();
+        fetchWips();
       } catch (error) {
         console.error(error);
         alert('Failed to delete.');

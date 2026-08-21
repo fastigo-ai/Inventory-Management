@@ -14,6 +14,7 @@ import mongoose from 'mongoose';
 import { JmcRegister } from "../jmc/jmc.schema";
 import { WipRegister } from "../wip/wip.schema";
 import { WipRequiredRegister } from "../wip-required/wipRequired.schema";
+import DemandNote from '../demand-notes/demandNote.schema';
 
 
 export const getContractors = asyncHandler(async (req: Request, res: Response) => {
@@ -246,6 +247,14 @@ export const createAssignment = asyncHandler(async (req: Request, res: Response)
   }
 
   const newAssignment = await ContractorAssignment.create(assignmentData);
+
+  // Fulfill the associated Demand Note if one exists
+  if (assignmentData.demandNo) {
+    await DemandNote.findOneAndUpdate(
+      { demandNoteNumber: assignmentData.demandNo },
+      { status: 'Fulfilled' }
+    );
+  }
 
   res.status(201).json(new ApiResponse(201, newAssignment, 'Contractor Assignment created successfully'));
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { X, Trash2, PlusCircle, ChevronDown } from "lucide-react";
@@ -66,7 +66,11 @@ const customSelectStyles: StylesConfig<any, false> = {
 
 export default function StoreContractorIssueNewPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialDemandNoteId = searchParams.get('demandNoteId');
   const { user } = useAuthStore();
+  
+  const [selectedDemandNoteOption, setSelectedDemandNoteOption] = useState<any>(null);
   
   // Data State
   const [contractors, setContractors] = useState<any[]>([]);
@@ -112,10 +116,82 @@ export default function StoreContractorIssueNewPage() {
     const today = new Date().toISOString().split('T')[0];
     setDemandDate(today);
     setMinDate(today);
-    getContractors().then(res => setContractors(res.data || []));
-    getStockSummary({}).then(res => setStockSummary(res.data || []));
-    getDemandNotes().then(res => setDemandNotes(res.data?.demandNotes || []));
+    
+    Promise.all([
+      getContractors(),
+      getStockSummary({}),
+      getDemandNotes()
+    ]).then(([contractorsRes, stockRes, demandNotesRes]) => {
+      const cList = contractorsRes.data || [];
+      const sList = stockRes.data || [];
+      const dnList = demandNotesRes.data?.demandNotes || [];
+      
+      setContractors(cList);
+      setStockSummary(sList);
+      setDemandNotes(dnList);
+      
+      if (initialDemandNoteId) {
+        const dn = dnList.find((d: any) => d._id === initialDemandNoteId);
+        if (dn) {
+          const option = {
+            value: dn._id,
+            label: `${dn.demandNoteNumber} - ${dn.status} (${dn.circle})`,
+            dn
+          };
+          setSelectedDemandNoteOption(option);
+          handleDemandNoteSelect(option, cList, sList);
+        }
+      }
+    });
   }, []);
+
+  const handleDemandNoteSelect = (option: any, cList = contractors, sList = stockSummary) => {
+    if (option && option.dn) {
+      const dn = option.dn;
+      setDemandNo(dn.demandNoteNumber);
+      setDemandDate(new Date(dn.createdAt).toISOString().split('T')[0]);
+      setDivision(dn.division || '');
+      setSubDivision(dn.subDivision || '');
+      
+      if (dn.contractorName) {
+        const matchedC = cList.find((c: any) => 
+          c.name === dn.contractorName || 
+          c.dynamicData?.displayName === dn.contractorName || 
+          c.dynamicData?.companyName === dn.contractorName
+        );
+        if (matchedC) setContractorId(matchedC._id);
+      }
+      
+      if (dn.items && dn.items.length > 0) {
+        const newItems = dn.items.map((item: any) => {
+          const stockMatch = sList.find((s: any) => s.itemId === item.itemId || (item.tempCode && s.tempCode === item.tempCode));
+          return {
+            itemId: item.itemId || (stockMatch ? stockMatch.itemId : ""),
+            itemName: item.itemName || "",
+            tempCode: item.tempCode || "",
+            activity: item.activity || "",
+            unit: item.unit || "Nos",
+            hsnCode: stockMatch ? stockMatch.hsnCode : "",
+            demandQty: item.demandQty || 1,
+            quantity: item.demandQty || 1,
+            availableQty: stockMatch ? stockMatch.totalBalanceQty : 0
+          };
+        });
+        
+        const uniqueItems: any[] = [];
+        const seenItemIds = new Set();
+        for (const item of newItems) {
+          if (item.itemId && !seenItemIds.has(item.itemId)) {
+            seenItemIds.add(item.itemId);
+            uniqueItems.push(item);
+          } else if (!item.itemId) {
+            uniqueItems.push(item);
+          }
+        }
+        setLineItems(uniqueItems);
+      }
+    }
+  };
 
   const updateLineItem = (index: number, field: string, value: any) => {
     const newItems = [...lineItems];
@@ -294,6 +370,7 @@ export default function StoreContractorIssueNewPage() {
             <label className="block text-sm font-semibold text-blue-800 whitespace-nowrap">Auto-fill from Demand Note:</label>
             <div className="flex-grow max-w-md">
               <Select
+                value={selectedDemandNoteOption}
                 options={demandNotes
                   .filter(dn => dn.status === 'Approved' || dn.status === 'Pending Approval' || dn.status === 'Draft')
                   .map(dn => ({
@@ -302,53 +379,8 @@ export default function StoreContractorIssueNewPage() {
                     dn
                   }))}
                 onChange={(option: any) => {
-                  if (option && option.dn) {
-                    const dn = option.dn;
-                    setDemandNo(dn.demandNoteNumber);
-                    setDemandDate(new Date(dn.createdAt).toISOString().split('T')[0]);
-                    setDivision(dn.division || '');
-                    setSubDivision(dn.subDivision || '');
-                    
-                    if (dn.contractorName) {
-                      const matchedC = contractors.find(c => 
-                        c.name === dn.contractorName || 
-                        c.dynamicData?.displayName === dn.contractorName || 
-                        c.dynamicData?.companyName === dn.contractorName
-                      );
-                      if (matchedC) setContractorId(matchedC._id);
-                    }
-                    
-                    if (dn.items && dn.items.length > 0) {
-                      const newItems = dn.items.map((item: any) => {
-                        const stockMatch = stockSummary.find(s => s.itemId === item.itemId || (item.tempCode && s.tempCode === item.tempCode));
-                        return {
-                          itemId: item.itemId || (stockMatch ? stockMatch.itemId : ""),
-                          itemName: item.itemName || "",
-                          tempCode: item.tempCode || "",
-                          activity: item.activity || "",
-                          unit: item.unit || "Nos",
-                          hsnCode: stockMatch ? stockMatch.hsnCode : "",
-                          demandQty: item.demandQty || 1,
-                          quantity: item.demandQty || 1,
-                          availableQty: stockMatch ? stockMatch.totalBalanceQty : 0
-                        };
-                      });
-                      
-                      // Filter out duplicates if the Demand Note had duplicate items
-                      const uniqueItems = [];
-                      const seenItemIds = new Set();
-                      for (const item of newItems) {
-                        if (item.itemId && !seenItemIds.has(item.itemId)) {
-                          seenItemIds.add(item.itemId);
-                          uniqueItems.push(item);
-                        } else if (!item.itemId) {
-                          uniqueItems.push(item);
-                        }
-                      }
-                      
-                      setLineItems(uniqueItems);
-                    }
-                  }
+                  setSelectedDemandNoteOption(option);
+                  handleDemandNoteSelect(option);
                 }}
                 className="text-sm"
                 styles={customSelectStyles}

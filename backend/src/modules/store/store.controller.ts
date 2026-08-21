@@ -340,9 +340,18 @@ export const queryInwardEntries = asyncHandler(async (req: Request, res: Respons
   // Attach remainingQty and doneQty
   let entriesWithRemaining = allEntries.map(entry => {
     const doneQty = doneQtyMap.get(entry._id.toString()) || 0;
+    const targetCircle = (circle as string) || entry.circle;
+    
     let diQty = 0;
     if (entry.diId && (entry.diId as any).lineItems && Array.isArray((entry.diId as any).lineItems)) {
-      const lineItem = (entry.diId as any).lineItems.find((li: any) => li.itemId?.toString() === entry.itemId?.toString() || li.itemName === entry.itemName);
+      const lineItem = (entry.diId as any).lineItems.find((li: any) => {
+        const isItemMatch = li.itemId?.toString() === entry.itemId?.toString() || li.itemName === entry.itemName;
+        const liCircle = li.circle || (entry.diId as any).circle;
+        const liPackage = li.package || (entry.diId as any).package;
+        const isCircleMatch = !liCircle || !targetCircle || liCircle.toLowerCase() === targetCircle.toLowerCase();
+        const isPackageMatch = !liPackage || !entry.package || liPackage.toLowerCase() === entry.package.toLowerCase();
+        return isItemMatch && isCircleMatch && isPackageMatch;
+      });
       if (lineItem) {
         diQty = Number(lineItem.quantity || 0);
       }
@@ -363,7 +372,7 @@ export const queryInwardEntries = asyncHandler(async (req: Request, res: Respons
       tempCode = dd.tempCode || '';
       totalLoaQty = Number(dd.loaQty || dd.loaQuantity || dd.totalLoaQuantity || dd.qty || dd.quantity || 0);
       
-      const targetCircle = (circle as string) || entry.circle;
+      
       const circleKey = targetCircle ? targetCircle.toLowerCase() + 'LoaQuantity' : '';
       if (circleKey && dd[circleKey]) {
         circleLoaQty = Number(dd[circleKey]);
@@ -2435,9 +2444,18 @@ export const getMhrovById = asyncHandler(async (req: Request, res: Response) => 
   const populatedEntries = (mhrov.inwardEntries || []).map((entry: any) => {
     if (entry && entry._id) {
       const idStr = entry._id.toString();
+      const targetCircle = (circle as string) || entry.circle;
+      
       let diQty = 0;
       if (entry.diId && (entry.diId as any).lineItems && Array.isArray((entry.diId as any).lineItems)) {
-        const lineItem = (entry.diId as any).lineItems.find((li: any) => li.itemId?.toString() === entry.itemId?.toString() || li.itemName === entry.itemName);
+        const lineItem = (entry.diId as any).lineItems.find((li: any) => {
+          const isItemMatch = li.itemId?.toString() === entry.itemId?.toString() || li.itemName === entry.itemName;
+          const liCircle = li.circle || (entry.diId as any).circle;
+          const liPackage = li.package || (entry.diId as any).package;
+          const isCircleMatch = !liCircle || !targetCircle || liCircle.toLowerCase() === targetCircle.toLowerCase();
+          const isPackageMatch = !liPackage || !entry.package || liPackage.toLowerCase() === entry.package.toLowerCase();
+          return isItemMatch && isCircleMatch && isPackageMatch;
+        });
         if (lineItem) {
           diQty = Number(lineItem.quantity || 0);
         }
@@ -2457,7 +2475,7 @@ export const getMhrovById = asyncHandler(async (req: Request, res: Response) => 
         tempCode = dd.tempCode || '';
         totalLoaQty = Number(dd.loaQty || dd.loaQuantity || dd.totalLoaQuantity || dd.qty || dd.quantity || 0);
         
-        const targetCircle = (circle as string) || entry.circle;
+        
         const circleKey = targetCircle ? targetCircle.toLowerCase() + 'LoaQuantity' : '';
         if (circleKey && dd[circleKey]) {
           circleLoaQty = Number(dd[circleKey]);

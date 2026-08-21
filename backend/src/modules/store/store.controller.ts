@@ -2817,11 +2817,14 @@ export const queryDILineItemsForMhrov = asyncHandler(async (req: Request, res: R
 
   // Extract all relevant line items
   let lineItemsWithStock: any[] = [];
+  const uniqueItemIds = new Set<string>();
   
   for (const di of dis) {
     const activeCircle = (circle as string) || (di as any).circle;
     
+    let liIndex = 0;
     for (const li of (di as any).lineItems || []) {
+      liIndex++;
       // Filter by item name if provided
       if (itemName && !li.itemName.toLowerCase().includes((itemName as string).toLowerCase())) {
         continue;
@@ -2836,48 +2839,24 @@ export const queryDILineItemsForMhrov = asyncHandler(async (req: Request, res: R
       
       const itemIdStr = li.itemId?.toString();
       const diIdStr = (di as any)._id.toString();
-      const key = `${diIdStr}_${itemIdStr}`;
-      const doneQty = doneQtyMap.get(key) || 0;
+      const key = `${diIdStr}_${itemIdStr}_${liIndex}`;
+      // Note: doneQty map lookup still uses diId_itemId because MHROV done items don't store the exact DI index.
+      // We'll approximate by just looking up by diId_itemId and subtracting as we go.
+      const lookupKey = `${diIdStr}_${itemIdStr}`;
+      const doneQty = doneQtyMap.get(lookupKey) || 0;
       const totalQty = Number(li.quantity || 0);
       const remainingQty = Math.max(0, totalQty - doneQty);
       
+      // If we used some of the doneQty for this line item, deduct it from the map so subsequent duplicates in the same DI don't double-subtract it
+      if (doneQty > 0) {
+         const usedQty = Math.min(totalQty, doneQty);
+         doneQtyMap.set(lookupKey, doneQty - usedQty);
+      }
+      
       if (remainingQty <= 0) continue; // Skip exhausted items
       
-      let loaSrNo = li.loaSerialNo || '';
-      let tempCode = li.tempCode || '';
-      let totalLoaQty = 0;
-      let circleLoaQty = 0;
-      let balanceInStock = 0;
-      
-      // Fetch Item Master to get stock balance
       if (li.itemId) {
-        const itemMaster = await mongoose.model('Item').findById(li.itemId).lean();
-        if (itemMaster && (itemMaster as any).dynamicData) {
-          const dd = (itemMaster as any).dynamicData;
-          loaSrNo = loaSrNo || dd.loaSrNo || dd.loaSerialNo || dd.sku || '';
-          tempCode = tempCode || dd.tempCode || '';
-          totalLoaQty = Number(dd.loaQty || dd.loaQuantity || dd.totalLoaQuantity || dd.qty || dd.quantity || 0);
-          
-          if (activeCircle) {
-            const circleKey = activeCircle.toLowerCase() + 'LoaQuantity';
-            if (dd[circleKey]) {
-              circleLoaQty = Number(dd[circleKey]);
-            }
-            
-            if (dd.stockLocations && Array.isArray(dd.stockLocations)) {
-              const matchingLoc = dd.stockLocations.find((l: any) => 
-                l.circle?.toLowerCase() === activeCircle.toLowerCase() &&
-                (!li.package || l.package?.toLowerCase() === li.package?.toLowerCase())
-              );
-              if (matchingLoc) {
-                 balanceInStock = Number(matchingLoc.quantity || 0);
-              } else {
-                 const matchingCircles = dd.stockLocations.filter((l: any) => l.circle?.toLowerCase() === activeCircle.toLowerCase());
-                 balanceInStock = matchingCircles.reduce((sum: number, l: any) => sum + Number(l.quantity || 0), 0);
-              }
-            }
-          }
-        }
+        uniqueItemIds.add(li.itemId.toString());
       }
       
       lineItemsWithStock.push({
@@ -2891,28 +2870,81 @@ export const queryDILineItemsForMhrov = asyncHandler(async (req: Request, res: R
         invoiceNumber: "N/A", // DIs don't have this
         invoiceDate: (di as any).date,
         itemName: li.itemName,
-        itemId: {
-          _id: itemIdStr,
-          itemName: li.itemName,
-          dynamicData: {
-             loaSrNo,
-             tempCode,
-             nahanLoaQuantity: circleLoaQty,
-             totalLoaQuantity: totalLoaQty,
-          }
-        },
-        loaSrNo,
-        tempCode,
+        itemIdStr,
+        loaSrNo: li.loaSerialNo || '',
+        tempCode: li.tempCode || '',
         totalQty,
         remainingQty,
         doneQty,
-        circleLoaQty,
-        totalLoaQty,
-        balanceInStock,
+        activeCircle,
+        package: li.package || (di as any).package,
         diLineItem: li // Keep raw line item for reference
       });
     }
   }
+
+  // Bulk fetch items
+  const items = await mongoose.model('Item').find({ _id: { $in: Array.from(uniqueItemIds) } }).lean();
+  const itemsMap = new Map();
+  items.forEach((i: any) => itemsMap.set(i._id.toString(), i));
+
+  // Populate item details
+  lineItemsWithStock = lineItemsWithStock.map(li => {
+    let loaSrNo = li.loaSrNo;
+    let tempCode = li.tempCode;
+    let totalLoaQty = 0;
+    let circleLoaQty = 0;
+    let balanceInStock = 0;
+    
+    if (li.itemIdStr) {
+      const itemMaster = itemsMap.get(li.itemIdStr);
+      if (itemMaster && itemMaster.dynamicData) {
+        const dd = itemMaster.dynamicData;
+        loaSrNo = loaSrNo || dd.loaSrNo || dd.loaSerialNo || dd.sku || '';
+        tempCode = tempCode || dd.tempCode || '';
+        totalLoaQty = Number(dd.loaQty || dd.loaQuantity || dd.totalLoaQuantity || dd.qty || dd.quantity || 0);
+        
+        if (li.activeCircle) {
+          const circleKey = li.activeCircle.toLowerCase() + 'LoaQuantity';
+          if (dd[circleKey]) {
+            circleLoaQty = Number(dd[circleKey]);
+          }
+          
+          if (dd.stockLocations && Array.isArray(dd.stockLocations)) {
+            const matchingLoc = dd.stockLocations.find((l: any) => 
+              l.circle?.toLowerCase() === li.activeCircle.toLowerCase() &&
+              (!li.package || l.package?.toLowerCase() === li.package?.toLowerCase())
+            );
+            if (matchingLoc) {
+               balanceInStock = Number(matchingLoc.quantity || 0);
+            } else {
+               const matchingCircles = dd.stockLocations.filter((l: any) => l.circle?.toLowerCase() === li.activeCircle.toLowerCase());
+               balanceInStock = matchingCircles.reduce((sum: number, l: any) => sum + Number(l.quantity || 0), 0);
+            }
+          }
+        }
+      }
+    }
+    
+    return {
+      ...li,
+      loaSrNo,
+      tempCode,
+      circleLoaQty,
+      totalLoaQty,
+      balanceInStock,
+      itemId: {
+        _id: li.itemIdStr,
+        itemName: li.itemName,
+        dynamicData: {
+           loaSrNo,
+           tempCode,
+           nahanLoaQuantity: circleLoaQty,
+           totalLoaQuantity: totalLoaQty,
+        }
+      },
+    };
+  });
 
   // Pagination
   const pageNum = parseInt(page as string, 10);

@@ -307,6 +307,11 @@ export default function NewMhrovPage() {
                   <th className="px-4 py-3">Vendor</th>
                   <th className="px-4 py-3">Invoice No</th>
                   <th className="px-4 py-3">Item Name</th>
+                  <th className="px-4 py-3 min-w-[100px]">LOA Sr No</th>
+                  <th className="px-4 py-3 min-w-[100px]">Temp Code</th>
+                  <th className="px-4 py-3 text-right min-w-[100px]">Circle LOA</th>
+                  <th className="px-4 py-3 text-right min-w-[100px]">Total LOA</th>
+                  <th className="px-4 py-3 text-right min-w-[100px]">Stock Bal</th>
                   <th className="px-4 py-3 text-right">Available Qty</th>
                   <th className="px-4 py-3 text-right w-40 bg-indigo-100/60 font-bold">MHROV Done Qty</th>
                   <th className="px-4 py-3 w-16 text-center">Action</th>
@@ -315,7 +320,7 @@ export default function NewMhrovPage() {
               <tbody className="divide-y divide-indigo-50 bg-white/60 text-[13px] text-slate-700">
                 {selectedCartItems.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-indigo-400">
+                    <td colSpan={12} className="px-6 py-8 text-center text-indigo-400">
                       No items added yet. Search below and click "Add Selected".
                     </td>
                   </tr>
@@ -330,6 +335,11 @@ export default function NewMhrovPage() {
                         <td className="px-4 py-3 max-w-[200px] truncate" title={entry.itemName}>
                           {entry.itemName}
                         </td>
+                        <td className="px-4 py-3 font-medium text-slate-700">{entry.loaSrNo || entry.inwardEntryId?.loaSrNo || '-'}</td>
+                        <td className="px-4 py-3 font-medium text-slate-700">{entry.tempCode || entry.inwardEntryId?.tempCode || '-'}</td>
+                        <td className="px-4 py-3 text-right font-medium text-indigo-700">{entry.circleLoaQty || entry.inwardEntryId?.circleLoaQty || 0}</td>
+                        <td className="px-4 py-3 text-right text-slate-600">{entry.totalLoaQty || entry.inwardEntryId?.totalLoaQty || 0}</td>
+                        <td className="px-4 py-3 text-right font-medium text-emerald-700">{entry.balanceInStock || entry.inwardEntryId?.balanceInStock || 0}</td>
                         <td className="px-4 py-3 text-right font-medium text-slate-600">{maxQty}</td>
                         <td className="px-4 py-2 text-right bg-indigo-50/30">
                           <Input
@@ -468,19 +478,24 @@ export default function NewMhrovPage() {
                       className="h-8 text-xs font-normal"
                     />
                   </th>
+                  <th className="px-4 py-3 min-w-[100px] align-top pt-5">LOA Sr No</th>
+                  <th className="px-4 py-3 min-w-[100px] align-top pt-5">Temp Code</th>
+                  <th className="px-4 py-3 text-right min-w-[100px] align-top pt-5">Circle LOA</th>
+                  <th className="px-4 py-3 text-right min-w-[100px] align-top pt-5">Total LOA</th>
+                  <th className="px-4 py-3 text-right min-w-[100px] align-top pt-5">Stock Bal</th>
                   <th className="px-4 py-3 text-right align-top pt-5">Available Qty</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white text-[13px] text-slate-700">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-slate-500">
+                    <td colSpan={12} className="px-6 py-8 text-center text-slate-500">
                       Loading items...
                     </td>
                   </tr>
                 ) : inwardEntries.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                    <td colSpan={12} className="px-6 py-12 text-center text-slate-500">
                       No matching items found.
                     </td>
                   </tr>

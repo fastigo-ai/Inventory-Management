@@ -440,6 +440,7 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
     const data = item.dynamicData || {};
     const tempCode = data.tempCode || data.temp_code || '';
     const activity = data.activity || data.itemActivity || 'Uncategorized Activity';
+    const loaSrNo = data.loaSrNo || data.loaSerialNo || data.loaSerialNumber || data.sku || '';
     
     summaryMap[tempCode] = {
       itemId: item._id,
@@ -449,6 +450,7 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
       hsnCode: data.hsnCode || data.hsn_code || '-',
       description: data.name || data.description || '-',
       unit: data.unit || 'Nos',
+      loaSrNo: loaSrNo,
       challanQty: 0,
       receivedQty: 0,
       rejectedQty: 0,

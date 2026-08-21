@@ -1056,7 +1056,14 @@ async function computeItemMatrixSummary(params: {
         }
       }
     }
-    const tc = String(lineTempCode || '').trim();
+    let tc = String(lineTempCode || '').trim();
+    if (!tc && lineItemId) {
+      const k = itemIdToKeyMap.get(lineItemId.toString());
+      if (k) {
+        tc = groupedItemsMap.get(k)?.tempCode || '';
+      }
+    }
+
     if (tc && circ) {
       const matches: string[] = [];
       for (const [k, grp] of groupedItemsMap.entries()) {
@@ -1066,6 +1073,11 @@ async function computeItemMatrixSummary(params: {
       }
       if (matches.length > 0) return matches; // Return ALL matches for proportional distribution
     }
+    
+    if (lineItemId) {
+      const k = itemIdToKeyMap.get(lineItemId.toString());
+      if (k) return [k];
+    }
     return [];
   };
 
@@ -1073,27 +1085,27 @@ async function computeItemMatrixSummary(params: {
   const [dis, inwards, mins, jmcs, contractorInvoices, pis] = await Promise.all([
     DI.find(
       { status: { $ne: 'Cancelled' } },
-      { circle: 1, 'lineItems.quantity': 1, 'lineItems.itemId': 1, 'lineItems.tempCode': 1, 'lineItems.loaSerialNo': 1, 'lineItems.circle': 1 }
+      { circle: 1, 'lineItems.quantity': 1, 'lineItems.itemId': 1, 'lineItems.tempCode': 1, 'lineItems.loaSerialNo': 1, 'lineItems.loaSrNo': 1, 'lineItems.circle': 1 }
     ).lean(),
     StoreInwardEntry.find(
       {},
-      { circle: 1, subcircle: 1, billingFrom: 1, invoiceQty: 1, acceptedQty: 1, totalQty: 1, itemId: 1, tempCode: 1, loaSerialNo: 1, serialNumber: 1, package: 1 }
+      { circle: 1, subcircle: 1, billingFrom: 1, invoiceQty: 1, acceptedQty: 1, totalQty: 1, itemId: 1, tempCode: 1, loaSerialNo: 1, loaSrNo: 1, serialNumber: 1, package: 1 }
     ).lean(),
     ContractorAssignment.find(
       {},
-      { circle: 1, 'lineItems.quantity': 1, 'lineItems.itemId': 1, 'lineItems.tempCode': 1, 'lineItems.loaSerialNo': 1, 'lineItems.circle': 1 }
+      { circle: 1, 'lineItems.quantity': 1, 'lineItems.itemId': 1, 'lineItems.tempCode': 1, 'lineItems.loaSerialNo': 1, 'lineItems.loaSrNo': 1, 'lineItems.circle': 1 }
     ).lean(),
     JmcRegister.find(
       { status: { $nin: ['Rejected', 'Cancelled'] } },
-      { circle: 1, 'items.approvedQty': 1, 'items.claimedQty': 1, 'items.itemId': 1, 'items.tempCode': 1, 'items.loaSerialNo': 1, 'items.circle': 1 }
+      { circle: 1, 'items.approvedQty': 1, 'items.claimedQty': 1, 'items.itemId': 1, 'items.tempCode': 1, 'items.loaSerialNo': 1, 'items.loaSrNo': 1, 'items.circle': 1 }
     ).lean(),
     ContractorInvoice.find(
       { status: { $ne: 'Cancelled' as any } },
-      { circle: 1, 'lineItems.quantity': 1, 'lineItems.installedQty': 1, 'lineItems.itemId': 1, 'lineItems.tempCode': 1, 'lineItems.loaSerialNo': 1, 'lineItems.circle': 1 }
+      { circle: 1, 'lineItems.quantity': 1, 'lineItems.installedQty': 1, 'lineItems.itemId': 1, 'lineItems.tempCode': 1, 'lineItems.loaSerialNo': 1, 'lineItems.loaSrNo': 1, 'lineItems.circle': 1 }
     ).lean(),
     PurchaseInvoice.find(
       { status: { $ne: 'Cancelled' } },
-      { circle: 1, 'lineItems.quantity': 1, 'lineItems.act': 1, 'lineItems.itemId': 1, 'lineItems.tempCode': 1, 'lineItems.loaSerialNo': 1, 'lineItems.circle': 1 }
+      { circle: 1, 'lineItems.quantity': 1, 'lineItems.act': 1, 'lineItems.itemId': 1, 'lineItems.tempCode': 1, 'lineItems.loaSerialNo': 1, 'lineItems.loaSrNo': 1, 'lineItems.circle': 1 }
     ).lean()
   ]);
 

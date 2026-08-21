@@ -1,18 +1,22 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Loader2, FileText, CheckCircle, AlertCircle, Edit, Printer } from 'lucide-react';
+import { useRouter, useParams, usePathname } from 'next/navigation';
+import { ArrowLeft, Loader2, FileText, CheckCircle, AlertCircle, Printer, Building2 } from 'lucide-react';
 import { getDemandNoteById } from '@/features/site-portal/api/demand-notes.api';
 import { toast } from 'sonner';
 
 export default function DemandNoteDetailPage() {
   const router = useRouter();
   const params = useParams();
+  const pathname = usePathname();
   const { id } = params;
   
   const [demandNote, setDemandNote] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Determine portal from path to correctly route print button
+  const portalPrefix = pathname.split('/')[1] || 'site-portal';
 
   useEffect(() => {
     const fetchDN = async () => {
@@ -63,6 +67,8 @@ export default function DemandNoteDetailPage() {
     );
   }
 
+  const isApprovedByPM = demandNote.status === 'Approved' || demandNote.status === 'Pending PD Approval' || demandNote.status === 'Fulfilled';
+
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
       {/* Header */}
@@ -92,147 +98,116 @@ export default function DemandNoteDetailPage() {
         </div>
         <div className="flex space-x-3">
           <button
-            onClick={() => window.open(`/site-portal/demand-notes/${demandNote._id}/print`, '_blank')}
-            className="flex items-center px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
+            onClick={() => window.open(`/${portalPrefix}/demand-notes/${demandNote._id}/print`, '_blank')}
+            className="flex items-center px-4 py-2 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-sm font-medium hover:bg-indigo-100 transition-colors shadow-sm"
           >
-            <Printer className="w-4 h-4 mr-2" /> Print
+            <Printer className="w-4 h-4 mr-2" /> Print PDF
           </button>
         </div>
       </div>
 
-      {/* PDF View Container */}
-      <div className="flex justify-center bg-slate-100 p-8 rounded-xl border border-slate-200 overflow-x-auto">
-        <div className="w-[210mm] min-h-[297mm] bg-white border border-slate-200 shadow-lg p-[10mm] text-black font-serif shrink-0">
-          
-          {/* Header Section */}
-          <div className="flex justify-between items-center border-b-2 border-black pb-4 mb-4">
-            <div className="text-4xl font-bold font-serif tracking-tighter">
-              {/* Left Logo Placeholder */}
-              A
+      {isApprovedByPM && demandNote.pmApprovedBy && demandNote.pmApprovedAt && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-3 shadow-sm">
+          <CheckCircle className="w-6 h-6 text-emerald-600 flex-shrink-0" />
+          <div>
+            <p className="text-emerald-900 font-medium text-sm">
+              Authorized by PM: {demandNote.pmApprovedBy.firstName} {demandNote.pmApprovedBy.lastName}
+            </p>
+            <p className="text-emerald-700 text-xs mt-0.5">
+              Approved on: {new Date(demandNote.pmApprovedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })} IST
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Details Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-indigo-500" /> Project Details
+          </h2>
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-2">
+              <span className="text-sm text-slate-500">Contractor</span>
+              <span className="col-span-2 text-sm font-medium text-slate-800">{demandNote.contractorName || '-'}</span>
             </div>
-            <div className="text-center flex-1">
-              <h1 className="text-3xl font-bold tracking-wide uppercase">AIREF-HOLISTIC JV</h1>
-              <p className="text-sm mt-1">Registered Office: D-94, Sector 26, Noida 201301</p>
-              <h2 className="text-xl font-bold mt-2 uppercase">Material Demand Note</h2>
+            <div className="grid grid-cols-3 gap-2">
+              <span className="text-sm text-slate-500">Town / Circle</span>
+              <span className="col-span-2 text-sm font-medium text-slate-800">{demandNote.circle || '-'}</span>
             </div>
-            <div className="text-5xl font-serif italic font-bold">
-              {/* Right Logo Placeholder */}
-              H
+            <div className="grid grid-cols-3 gap-2">
+              <span className="text-sm text-slate-500">Store Address</span>
+              <span className="col-span-2 text-sm font-medium text-slate-800">{demandNote.division || '-'}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <span className="text-sm text-slate-500">Location</span>
+              <span className="col-span-2 text-sm font-medium text-slate-800">{demandNote.location || '-'}</span>
             </div>
           </div>
+        </div>
 
-          {/* Info Grid Section */}
-          <div className="grid grid-cols-2 gap-x-8 gap-y-4 mb-6 text-sm">
-            {/* Left Column */}
-            <div className="flex flex-col gap-3">
-              <div className="flex">
-                <span className="font-bold whitespace-nowrap mr-2">WORK ORDER NO :</span>
-                <span className="flex-1 border-b border-black"></span>
-              </div>
-              <div className="flex">
-                <span className="font-bold whitespace-nowrap mr-2">Contractor Name :</span>
-                <span className="flex-1 border-b border-black text-blue-800 italic">{demandNote.contractorName || ""}</span>
-              </div>
-              <div className="flex">
-                <span className="font-bold whitespace-nowrap mr-2">Cont. Work Order No.:</span>
-                <span className="flex-1 border-b border-black"></span>
-              </div>
-              <div className="flex">
-                <span className="font-bold whitespace-nowrap mr-2">Demand for Sale / Feeder Name :</span>
-                <span className="flex-1 border-b border-black text-blue-800 italic">{demandNote.location || ""}</span>
-              </div>
+        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-indigo-500" /> Additional Info
+          </h2>
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-2">
+              <span className="text-sm text-slate-500">Package</span>
+              <span className="col-span-2 text-sm font-medium text-slate-800">{demandNote.package || '-'}</span>
             </div>
-            
-            {/* Right Column */}
-            <div className="flex flex-col gap-3">
-              <div className="flex">
-                <span className="font-bold whitespace-nowrap mr-2">STORE ADDRESS :</span>
-                <span className="flex-1 border-b border-black text-blue-800 italic">{demandNote.division || ""}</span>
-              </div>
-              <div className="flex">
-                <span className="font-bold whitespace-nowrap mr-2">MDN No. :</span>
-                <span className="flex-1 border-b border-black text-center">{demandNote.demandNoteNumber || ""}</span>
-              </div>
-              <div className="flex">
-                <span className="font-bold whitespace-nowrap mr-2">Date :</span>
-                <span className="flex-1 border-b border-black text-blue-800 italic">{new Date(demandNote.createdAt).toLocaleDateString()}</span>
-              </div>
-              <div className="flex">
-                <span className="font-bold whitespace-nowrap mr-2">Town Name :</span>
-                <span className="flex-1 border-b border-black text-blue-800 italic">{demandNote.circle || ""}</span>
-              </div>
+            <div className="grid grid-cols-3 gap-2">
+              <span className="text-sm text-slate-500">Status</span>
+              <span className="col-span-2">{getStatusBadge(demandNote.status)}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <span className="text-sm text-slate-500">Remarks</span>
+              <span className="col-span-2 text-sm font-medium text-slate-800">{demandNote.remarks || 'No remarks provided'}</span>
             </div>
           </div>
+        </div>
+      </div>
 
-          {/* Table Section */}
-          <table className="w-full border-collapse border-2 border-black text-sm mb-6">
-            <thead>
+      {/* Items Table */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+          <h2 className="text-lg font-semibold text-slate-800">Requested Items</h2>
+          <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold">
+            {demandNote.items?.length || 0} Items
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left whitespace-nowrap">
+            <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase">
               <tr>
-                <th className="border border-black px-2 py-1 text-center w-12 font-bold">Sr.<br/>No.</th>
-                <th className="border border-black px-2 py-1 text-center w-24 font-bold">Material<br/>Code</th>
-                <th className="border border-black px-2 py-1 text-center font-bold uppercase">Description of Material</th>
-                <th className="border border-black px-2 py-1 text-center w-16 font-bold">Unit</th>
-                <th className="border border-black px-2 py-1 text-center w-24 font-bold">Qty. Demand</th>
+                <th className="px-6 py-4">Sr No</th>
+                <th className="px-6 py-4">Material Code</th>
+                <th className="px-6 py-4">Item Name</th>
+                <th className="px-6 py-4">Activity</th>
+                <th className="px-6 py-4">Unit</th>
+                <th className="px-6 py-4 font-bold text-indigo-700 bg-indigo-50/50">Demand Qty</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-100">
               {demandNote.items && demandNote.items.length > 0 ? (
-                demandNote.items.map((item: any, index: number) => (
-                  <tr key={index}>
-                    <td className="border border-black px-2 py-1 text-center">{index + 1}</td>
-                    <td className="border border-black px-2 py-1 text-center">{item.tempCode || ""}</td>
-                    <td className="border border-black px-2 py-1 text-blue-800 italic">{item.itemName}</td>
-                    <td className="border border-black px-2 py-1 text-center text-blue-800 italic">{item.unit || ""}</td>
-                    <td className="border border-black px-2 py-1 text-center text-blue-800 italic">{item.demandQty || ""}</td>
+                demandNote.items.map((item: any, idx: number) => (
+                  <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-6 py-4 text-slate-500">{idx + 1}</td>
+                    <td className="px-6 py-4 font-medium text-slate-700">{item.tempCode || '-'}</td>
+                    <td className="px-6 py-4 text-slate-700 max-w-sm truncate" title={item.itemName}>{item.itemName}</td>
+                    <td className="px-6 py-4 text-slate-500">{item.activity || '-'}</td>
+                    <td className="px-6 py-4 text-slate-500">{item.unit || '-'}</td>
+                    <td className="px-6 py-4 font-bold text-indigo-600 bg-indigo-50/30">{item.demandQty}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="border border-black px-2 py-6 text-center italic text-gray-500">No items available</td>
+                  <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
+                    No items in this Demand Note.
+                  </td>
                 </tr>
               )}
-              {/* Add some blank rows to mimic the lined paper format */}
-              {Array.from({ length: Math.max(0, 10 - (demandNote.items?.length || 0)) }).map((_, i) => (
-                <tr key={`blank-${i}`}>
-                  <td className="border border-black px-2 py-4"></td>
-                  <td className="border border-black px-2 py-4"></td>
-                  <td className="border border-black px-2 py-4"></td>
-                  <td className="border border-black px-2 py-4"></td>
-                  <td className="border border-black px-2 py-4"></td>
-                </tr>
-              ))}
             </tbody>
           </table>
-
-          {/* Footer Section */}
-          <div className="mt-8">
-            <p className="font-bold text-sm mb-12">Certified that the above material is required for erectionwork at site.</p>
-            
-            <div className="flex justify-between items-end">
-              <div className="flex flex-col gap-6">
-                <div className="flex items-end">
-                  <span className="font-bold whitespace-nowrap mr-2">Engineer Sign. :</span>
-                  <span className="w-48 border-b border-black"></span>
-                </div>
-                <div className="flex items-end">
-                  <span className="font-bold whitespace-nowrap mr-2">Engineer Name :</span>
-                  <span className="w-48 border-b border-black text-blue-800 italic">
-                    {demandNote.createdBy ? `${demandNote.createdBy.firstName} ${demandNote.createdBy.lastName}` : ""}
-                  </span>
-                </div>
-                <div className="flex items-end">
-                  <span className="font-bold whitespace-nowrap mr-2">Contractor Sign. :</span>
-                  <span className="w-48 border-b border-black"></span>
-                </div>
-              </div>
-              
-              <div className="flex flex-col items-center">
-                <h3 className="font-bold text-lg mb-16">For AIREF-HOLISTIC JV</h3>
-                <p className="font-bold">Town Incharge/Area Manager</p>
-              </div>
-            </div>
-          </div>
-
         </div>
       </div>
     </div>

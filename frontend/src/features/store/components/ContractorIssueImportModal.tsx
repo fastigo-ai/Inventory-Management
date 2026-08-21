@@ -79,10 +79,10 @@ export function ContractorIssueImportModal({ isOpen, onClose, onSuccess }: Contr
   };
 
   const downloadSampleCsv = () => {
-    const headers = "MinNo,Date,ContractorName,Circle,DemandNo,DemandBookNo,DemandDate,ContractorFarmName,SupervisorEngineer,Division,SubDivision,SubStation,Feeder,VehicleNo,MinBookNo,MinDate,IssuedTfsSrNo,Remarks,ItemName,TempCode,Unit,HsnCode,DemandQty,IssuedQty,Rate,Amount\n";
-    const sampleRow1 = "MIN-5001,2026-07-24,Contractor X,Solan,DMD-101,DB-1,2026-07-20,Farm A,Engr Smith,Div 1,Sub Div 1,Station Alpha,Feeder 1,MH-01-XX-1111,MB-1,2026-07-24,,Urgent issue,GI STAY WIRE (7/3.15 MM),94,Kg,8544,20,20,500,10000\n";
-    const sampleRow2 = "MIN-5001,2026-07-24,Contractor X,Solan,DMD-101,DB-1,2026-07-20,Farm A,Engr Smith,Div 1,Sub Div 1,Station Alpha,Feeder 1,MH-01-XX-1111,MB-1,2026-07-24,,Urgent issue,Router,TC-2,Nos,8517,5,5,2000,10000\n";
-    const sampleRow3 = "MIN-5002,2026-07-25,Contractor Y,Nahan,DMD-102,DB-1,2026-07-21,Farm B,Engr Jones,Div 2,Sub Div 2,Station Beta,Feeder 2,MH-02-YY-2222,MB-1,2026-07-25,TFS-999,,Switch,TC-3,Nos,8517,2,2,1500,3000\n";
+    const headers = "MinNo,Date,ContractorName,Circle,DemandNo,DemandBookNo,DemandDate,ContractorFarmName,SupervisorEngineer,Division,SubDivision,SubStation,Feeder,VehicleNo,MinBookNo,MinDate,IssuedTfsSrNo,Remarks,ItemName,TempCode,LoaSrNo,Unit,HsnCode,DemandQty,IssuedQty,Rate,Amount\n";
+    const sampleRow1 = "MIN-5001,2026-07-24,Contractor X,Solan,DMD-101,DB-1,2026-07-20,Farm A,Engr Smith,Div 1,Sub Div 1,Station Alpha,Feeder 1,MH-01-XX-1111,MB-1,2026-07-24,,Urgent issue,GI STAY WIRE (7/3.15 MM),94,LOA-123,Kg,8544,20,20,500,10000\n";
+    const sampleRow2 = "MIN-5001,2026-07-24,Contractor X,Solan,DMD-101,DB-1,2026-07-20,Farm A,Engr Smith,Div 1,Sub Div 1,Station Alpha,Feeder 1,MH-01-XX-1111,MB-1,2026-07-24,,Urgent issue,Router,TC-2,LOA-123,Nos,8517,5,5,2000,10000\n";
+    const sampleRow3 = "MIN-5002,2026-07-25,Contractor Y,Nahan,DMD-102,DB-1,2026-07-21,Farm B,Engr Jones,Div 2,Sub Div 2,Station Beta,Feeder 2,MH-02-YY-2222,MB-1,2026-07-25,TFS-999,,Switch,TC-3,LOA-124,Nos,8517,2,2,1500,3000\n";
     const csvContent = headers + sampleRow1 + sampleRow2 + sampleRow3;
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });

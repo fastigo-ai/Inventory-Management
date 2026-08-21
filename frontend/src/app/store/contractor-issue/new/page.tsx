@@ -8,7 +8,7 @@ import { X, Trash2, PlusCircle, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { getContractors, createAssignment } from "@/features/contractors/api/contractors.api";
 import { getStockSummary } from "@/features/store/api/store.api";
-import { getDemandNotes } from "@/features/site-portal/api/demand-notes.api";
+import { getDemandNotes, getContextData } from "@/features/site-portal/api/demand-notes.api";
 import { useAuthStore } from "@/shared/store/auth.store";
 import Select, { StylesConfig } from 'react-select';
 
@@ -66,7 +66,7 @@ const customSelectStyles: StylesConfig<any, false> = {
 
 export default function StoreContractorIssueNewPage() {
   const router = useRouter();
-  const { user } = useAuthStore();
+  const user = useAuthStore((state: any) => state.user);
   
   // Data State
   const [contractors, setContractors] = useState<any[]>([]);
@@ -101,6 +101,7 @@ export default function StoreContractorIssueNewPage() {
     activity: "",
     unit: "Nos",
     hsnCode: "",
+    loaSrNo: "",
     demandQty: 1,
     quantity: 1, // This is Issued Qty
     availableQty: 0
@@ -117,7 +118,7 @@ export default function StoreContractorIssueNewPage() {
     getDemandNotes().then(res => setDemandNotes(res.data?.demandNotes || []));
   }, []);
 
-  const updateLineItem = (index: number, field: string, value: any) => {
+  const updateLineItem = async (index: number, field: string, value: any) => {
     const newItems = [...lineItems];
     
     if (field === "itemId") {
@@ -130,6 +131,29 @@ export default function StoreContractorIssueNewPage() {
         newItems[index].unit = selectedStock.unit || 'Nos';
         newItems[index].hsnCode = selectedStock.hsnCode || '';
         newItems[index].availableQty = selectedStock.totalBalanceQty || 0;
+        
+        let fetchedLoaSrNo = selectedStock.loaSrNo || '';
+        if (!fetchedLoaSrNo) {
+          try {
+            const res = await getContextData(
+              selectedStock.itemId,
+              contractorId || undefined,
+              undefined, // contractorName
+              selectedStock.activity || '',
+              selectedStock.description || '',
+              selectedStock.tempCode || selectedStock.itemCode || '',
+              '', // loaSrNo
+              undefined, // pkg
+              user?.assignedCircle || ''
+            );
+            if (res.success && res.data) {
+              fetchedLoaSrNo = res.data.loaSrNo || '';
+            }
+          } catch (error) {
+            console.error("Failed to fetch contextual LOA Sr No:", error);
+          }
+        }
+        newItems[index].loaSrNo = fetchedLoaSrNo;
       } else {
         newItems[index].itemId = "";
         newItems[index].itemName = "";
@@ -137,6 +161,7 @@ export default function StoreContractorIssueNewPage() {
         newItems[index].activity = "";
         newItems[index].unit = "Nos";
         newItems[index].hsnCode = "";
+        newItems[index].loaSrNo = "";
         newItems[index].availableQty = 0;
       }
     } else {
@@ -148,30 +173,52 @@ export default function StoreContractorIssueNewPage() {
 
   const addLineItem = () => {
     setLineItems([...lineItems, { 
-      itemId: "", itemName: "", tempCode: "", activity: "", unit: "Nos", hsnCode: "", demandQty: 1, quantity: 1, availableQty: 0 
+      itemId: "", itemName: "", tempCode: "", activity: "", unit: "Nos", hsnCode: "", loaSrNo: "", demandQty: 1, quantity: 1, availableQty: 0 
     }]);
   };
 
-  const addItemsByActivityToRow = (index: number, activity: string) => {
+  const addItemsByActivityToRow = async (index: number, activity: string) => {
     const itemsForActivity = stockSummary.filter(s => s.activity === activity && s.totalBalanceQty > 0);
     if (itemsForActivity.length === 0) return;
 
     const existingItemIds = new Set(lineItems.filter((item, i) => item.itemId && i !== index).map(item => item.itemId));
-    const newItemsToAdd = itemsForActivity.filter(s => !existingItemIds.has(s.itemId)).map(s => ({
-      itemId: s.itemId,
-      itemName: s.description,
-      tempCode: s.tempCode || s.itemCode || '',
-      activity: s.activity || '',
-      unit: s.unit || 'Nos',
-      hsnCode: s.hsnCode || '',
-      demandQty: 1,
-      quantity: 1,
-      availableQty: s.totalBalanceQty || 0
-    })).sort((a, b) => {
-      const codeA = parseInt(a.tempCode) || 0;
-      const codeB = parseInt(b.tempCode) || 0;
-      return codeA - codeB;
+    const newItemsToAddPromises = itemsForActivity.filter(s => !existingItemIds.has(s.itemId)).map(async (s) => {
+      let fetchedLoaSrNo = s.loaSrNo || '';
+      if (!fetchedLoaSrNo) {
+        try {
+          const res = await getContextData(
+            s.itemId,
+            contractorId || undefined,
+            undefined, // contractorName
+            s.activity || '',
+            s.description || '',
+            s.tempCode || s.itemCode || '',
+            '', // loaSrNo
+            undefined, // pkg
+            user?.assignedCircle || ''
+          );
+          if (res.success && res.data) {
+            fetchedLoaSrNo = res.data.loaSrNo || '';
+          }
+        } catch (error) {
+          console.error("Failed to fetch contextual LOA Sr No for multi add:", error);
+        }
+      }
+      return {
+        itemId: s.itemId,
+        itemName: s.description,
+        tempCode: s.tempCode || s.itemCode || '',
+        activity: s.activity || '',
+        unit: s.unit || 'Nos',
+        hsnCode: s.hsnCode || '',
+        loaSrNo: fetchedLoaSrNo,
+        demandQty: 1,
+        quantity: 1,
+        availableQty: s.totalBalanceQty || 0
+      };
     });
+
+    const newItemsToAdd = await Promise.all(newItemsToAddPromises);
 
     if (newItemsToAdd.length > 0) {
       const newItems = [...lineItems];
@@ -257,6 +304,7 @@ export default function StoreContractorIssueNewPage() {
           activity: item.activity,
           unit: item.unit,
           hsnCode: item.hsnCode,
+          loaSrNo: item.loaSrNo,
           demandQty: Number(item.demandQty),
           quantity: Number(item.quantity),
           rate: 0,
@@ -328,25 +376,13 @@ export default function StoreContractorIssueNewPage() {
                           activity: item.activity || "",
                           unit: item.unit || "Nos",
                           hsnCode: stockMatch ? stockMatch.hsnCode : "",
+                          loaSrNo: item.loaSrNo || "",
                           demandQty: item.demandQty || 1,
                           quantity: item.demandQty || 1,
                           availableQty: stockMatch ? stockMatch.totalBalanceQty : 0
                         };
                       });
-                      
-                      // Filter out duplicates if the Demand Note had duplicate items
-                      const uniqueItems = [];
-                      const seenItemIds = new Set();
-                      for (const item of newItems) {
-                        if (item.itemId && !seenItemIds.has(item.itemId)) {
-                          seenItemIds.add(item.itemId);
-                          uniqueItems.push(item);
-                        } else if (!item.itemId) {
-                          uniqueItems.push(item);
-                        }
-                      }
-                      
-                      setLineItems(uniqueItems);
+                      setLineItems(newItems);
                     }
                   }
                 }}
@@ -462,6 +498,7 @@ export default function StoreContractorIssueNewPage() {
                   <th className="px-4 py-3 font-medium w-[5%] text-center">Sr. No.</th>
                   <th className="px-4 py-3 font-medium w-[20%]">Description of Material</th>
                   <th className="px-4 py-3 font-medium w-[12%]">Temp Code</th>
+                  <th className="px-4 py-3 font-medium w-[12%]">LOA Sr No</th>
                   <th className="px-4 py-3 font-medium w-[15%]">Activity</th>
                   <th className="px-4 py-3 font-medium w-[10%]">HSN Code</th>
                   <th className="px-4 py-3 font-medium w-[8%]">UNIT</th>
@@ -476,11 +513,15 @@ export default function StoreContractorIssueNewPage() {
                     <td className="p-4 align-top text-center text-slate-500 pt-6">
                       {index + 1}
                     </td>
+                    <td className="p-4 align-top">
                     <td className="p-4 align-top pt-6 text-slate-700 text-xs font-medium">
                       {item.itemName || 'N/A'}
                     </td>
                     <td className="p-4 align-top pt-6 text-slate-700 text-xs font-mono">
                       {item.tempCode || 'N/A'}
+                    </td>
+                    <td className="p-4 align-top pt-6 text-slate-700 text-xs font-mono">
+                      {item.loaSrNo || 'N/A'}
                     </td>
                     <td className="p-4 align-top pt-6 text-slate-700 text-xs">
                       {item.activity || 'N/A'}
@@ -516,11 +557,6 @@ export default function StoreContractorIssueNewPage() {
                         <p className="text-[10px] text-red-500 mt-1 absolute">Exceeds stock</p>
                       )}
                     </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
           <div className="p-4 border-t border-slate-200 bg-slate-50 text-xs text-slate-500 flex items-center justify-center">
             Items are strictly populated from the selected Demand Note.
           </div>

@@ -161,17 +161,32 @@ export default function DemandNotePrintPage() {
         <div className="mt-8">
           <p className="font-bold text-sm mb-12">Certified that the above material is required for erectionwork at site.</p>
           
-          <div className="flex justify-between items-end">
+          <div className="flex justify-between items-end relative">
             <div className="flex flex-col gap-6">
               <div className="flex items-end">
                 <span className="font-bold whitespace-nowrap mr-2">Engineer Sign. :</span>
                 <span className="w-48 border-b border-black"></span>
               </div>
-              <div className="flex items-end">
+              <div className="flex items-end relative">
                 <span className="font-bold whitespace-nowrap mr-2">Engineer Name :</span>
                 <span className="w-48 border-b border-black text-blue-800 italic">
                   {demandNote.createdBy ? `${demandNote.createdBy.firstName} ${demandNote.createdBy.lastName}` : ""}
                 </span>
+                
+                {/* PM Approval Stamp */}
+                {(demandNote.status === 'Approved' || demandNote.status === 'Pending PD Approval' || demandNote.status === 'Fulfilled') && demandNote.pmApprovedBy && demandNote.pmApprovedAt && (
+                  <div className="absolute left-[300px] -top-10 -rotate-[15deg] border-[3px] border-emerald-600 text-emerald-700 p-3 rounded-md bg-white shadow-sm z-10 w-[220px]">
+                    <div className="font-bold text-lg uppercase tracking-widest border-b-[2px] border-emerald-600 pb-1 mb-1 text-center">
+                      AUTHORIZED
+                    </div>
+                    <div className="text-xs font-semibold text-center uppercase">
+                      BY PM: {demandNote.pmApprovedBy.firstName} {demandNote.pmApprovedBy.lastName}
+                    </div>
+                    <div className="text-[10px] font-mono text-center mt-1">
+                      {new Date(demandNote.pmApprovedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })} IST
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex items-end">
                 <span className="font-bold whitespace-nowrap mr-2">Contractor Sign. :</span>

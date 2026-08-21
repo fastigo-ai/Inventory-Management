@@ -147,6 +147,7 @@ export default function ContractorIssueDetailPage() {
               <tr>
                 <th className="px-6 py-4">S.No</th>
                 <th className="px-6 py-4 min-w-[250px]">Item Description</th>
+                <th className="px-6 py-4">LOA Sr No</th>
                 <th className="px-6 py-4">Activity</th>
                 <th className="px-6 py-4">HSN Code</th>
                 <th className="px-6 py-4">Unit</th>
@@ -170,6 +171,9 @@ export default function ContractorIssueDetailPage() {
                     <td className="px-6 py-4">
                       <p className="font-semibold text-slate-800">{item.itemName}</p>
                       {item.tempCode && <p className="text-xs font-mono text-slate-500 mt-1">{item.tempCode}</p>}
+                    </td>
+                    <td className="px-6 py-4 font-mono text-xs text-slate-600">
+                      {item.loaSrNo || '-'}
                     </td>
                     <td className="px-6 py-4">
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800">

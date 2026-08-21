@@ -49,8 +49,8 @@ export function ItemSelectionModal({
       const tempCode = (i.tempCode || i.dynamicData?.tempCode || '').toLowerCase();
       const loaSrNo = (i.loaSrNo || i.dynamicData?.loaSrNo || i.dynamicData?.loaSerialNo || i.dynamicData?.loaSerialNumber || i.dynamicData?.sku || i.sku || '').toLowerCase();
       
-      const matchesTempCode = searchFilters.tempCode ? tempCode === searchFilters.tempCode.toLowerCase() : true;
-      const matchesLoaSrNo = searchFilters.loaSrNo ? loaSrNo === searchFilters.loaSrNo.toLowerCase() : true;
+      const matchesTempCode = searchFilters.tempCode ? tempCode.includes(searchFilters.tempCode.toLowerCase()) : true;
+      const matchesLoaSrNo = searchFilters.loaSrNo ? loaSrNo.includes(searchFilters.loaSrNo.toLowerCase()) : true;
 
       return (
         name.includes(searchFilters.name.toLowerCase()) &&

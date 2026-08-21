@@ -295,19 +295,30 @@ export default function UsersPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-slate-700 block mb-1">Package (Optional)</label>
-                <Input
+                <select
+                  className="w-full h-10 rounded-md border border-slate-300 px-3 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
                   value={formData.assignedPackage}
-                  placeholder="e.g. Package 1 (S/N)"
                   onChange={e => setFormData({ ...formData, assignedPackage: e.target.value })}
-                />
+                >
+                  <option value="">Select Package</option>
+                  <option value="Package 1 (S/N)">Package 1 (S/N)</option>
+                  <option value="Package 2 (R/R)">Package 2 (R/R)</option>
+                </select>
               </div>
               <div>
                 <label className="text-sm font-medium text-slate-700 block mb-1">Circle (Optional)</label>
-                <Input
+                <select
+                  className="w-full h-10 rounded-md border border-slate-300 px-3 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
                   value={formData.assignedCircle}
-                  placeholder="e.g. Nahan"
                   onChange={e => setFormData({ ...formData, assignedCircle: e.target.value })}
-                />
+                >
+                  <option value="">Select Circle</option>
+                  <option value="Solan">Solan</option>
+                  <option value="Nahan">Nahan</option>
+                  <option value="Rampur">Rampur</option>
+                  <option value="Rohru">Rohru</option>
+                  <option value="Shimla">Shimla</option>
+                </select>
               </div>
             </div>
           </div>
@@ -375,19 +386,30 @@ export default function UsersPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-slate-700 block mb-1">Package (Optional)</label>
-                <Input
+                <select
+                  className="w-full h-10 rounded-md border border-slate-300 px-3 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
                   value={editFormData.assignedPackage}
-                  placeholder="e.g. Package 1 (S/N)"
                   onChange={e => setEditFormData({ ...editFormData, assignedPackage: e.target.value })}
-                />
+                >
+                  <option value="">Select Package</option>
+                  <option value="Package 1 (S/N)">Package 1 (S/N)</option>
+                  <option value="Package 2 (R/R)">Package 2 (R/R)</option>
+                </select>
               </div>
               <div>
                 <label className="text-sm font-medium text-slate-700 block mb-1">Circle (Optional)</label>
-                <Input
+                <select
+                  className="w-full h-10 rounded-md border border-slate-300 px-3 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
                   value={editFormData.assignedCircle}
-                  placeholder="e.g. Nahan"
                   onChange={e => setEditFormData({ ...editFormData, assignedCircle: e.target.value })}
-                />
+                >
+                  <option value="">Select Circle</option>
+                  <option value="SOLAN">SOLAN</option>
+                  <option value="NAHAN">NAHAN</option>
+                  <option value="RAMPUR">RAMPUR</option>
+                  <option value="ROHRU">ROHRU</option>
+                  <option value="SHIMLA">SHIMLA</option>
+                </select>
               </div>
             </div>
           </div>

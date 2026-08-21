@@ -907,12 +907,12 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
         errors.push(`Row has negative IssuedQty for MIN ${minNo}`);
         continue;
       }
-
       const rate = Number(row['Rate'] || 0);
       const amount = Number(row['Amount'] || (quantity * rate));
       const unit = row['Unit'] || item?.unit || 'Nos';
       const hsnCode = row['HsnCode'] || item?.hsnCode || '';
       const activity = row['Activity'] || row['activity'] || item?.dynamicData?.activity || item?.dynamicData?.Activity || '';
+      const loaSrNo = row['LoaSrNo'] || row['LoaSerialNo'] || row['SerialNo'] || row['LoaSerialNumber'] || item?.dynamicData?.loaSrNo || item?.dynamicData?.loaSerialNo || item?.dynamicData?.sku || '';
 
       const lineItem = {
         itemId: item?._id,
@@ -924,7 +924,8 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
         quantity,
         rate,
         amount,
-        activity
+        activity,
+        loaSrNo
       };
 
       if (!assignmentsByMin[minNo]) {

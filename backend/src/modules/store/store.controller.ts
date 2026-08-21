@@ -333,6 +333,7 @@ export const queryInwardEntries = asyncHandler(async (req: Request, res: Respons
 
   const allEntries = await StoreInwardEntry.find(filter)
     .populate('diId', 'diNumber')
+    .populate('itemId')
     .sort({ createdAt: 1 })
     .lean();
 
@@ -341,10 +342,49 @@ export const queryInwardEntries = asyncHandler(async (req: Request, res: Respons
     const doneQty = doneQtyMap.get(entry._id.toString()) || 0;
     const totalQty = Number(entry.totalQty || entry.invoiceQty || 0);
     const remainingQty = Math.max(0, totalQty - doneQty);
+    
+    // Extract Item details
+    let loaSrNo = '';
+    let tempCode = '';
+    let totalLoaQty = 0;
+    let circleLoaQty = 0;
+    let balanceInStock = 0;
+    
+    if (entry.itemId && (entry.itemId as any).dynamicData) {
+      const dd = (entry.itemId as any).dynamicData;
+      loaSrNo = dd.loaSrNo || dd.loaSerialNo || dd.sku || '';
+      tempCode = dd.tempCode || '';
+      totalLoaQty = Number(dd.loaQty || dd.loaQuantity || dd.totalLoaQuantity || dd.qty || dd.quantity || 0);
+      
+      const circleKey = entry.circle ? entry.circle.toLowerCase() + 'LoaQuantity' : '';
+      if (circleKey && dd[circleKey]) {
+        circleLoaQty = Number(dd[circleKey]);
+      }
+      
+      if (dd.stockLocations && Array.isArray(dd.stockLocations) && entry.circle) {
+        const matchingLoc = dd.stockLocations.find((l: any) => 
+          l.circle?.toLowerCase() === entry.circle?.toLowerCase() &&
+          (!entry.package || l.package?.toLowerCase() === entry.package?.toLowerCase())
+        );
+        if (matchingLoc) {
+           balanceInStock = Number(matchingLoc.quantity || 0);
+        } else {
+           // Fallback to sum of all matching circles if package is missing or mismatch
+           const matchingCircles = dd.stockLocations.filter((l: any) => l.circle?.toLowerCase() === entry.circle?.toLowerCase());
+           balanceInStock = matchingCircles.reduce((sum: number, l: any) => sum + Number(l.quantity || 0), 0);
+        }
+      }
+    }
+    
     return {
       ...entry,
       doneQty,
-      remainingQty
+      remainingQty,
+      loaSrNo,
+      tempCode,
+      totalLoaQty,
+      circleLoaQty,
+      balanceInStock
     };
   });
 

@@ -32,7 +32,7 @@ export const createPurchaseInvoice = async (req: Request, res: Response): Promis
       prData.billingCompany = { name: prData.billingFrom };
     } else if (prData.purchaseOrderId) {
       const PurchaseOrder = mongoose.model('PurchaseOrder');
-      const po = await PurchaseOrder.findById(prData.purchaseOrderId).lean();
+      const po: any = await PurchaseOrder.findById(prData.purchaseOrderId).lean();
       if (po && po.billingCompany && po.billingCompany.name) {
         prData.billingCompany = { name: po.billingCompany.name };
       } else if (po && po.billingFrom) {
@@ -44,7 +44,7 @@ export const createPurchaseInvoice = async (req: Request, res: Response): Promis
       const firstDiId = prData.lineItems.find((i: any) => i.diId)?.diId;
       if (firstDiId) {
         const DIModel = mongoose.model('DI');
-        const di = await DIModel.findById(firstDiId).lean();
+        const di: any = await DIModel.findById(firstDiId).lean();
         if (di && di.diNumber) {
           prData.diNumber = di.diNumber;
           prData.diNo = di.diNumber;

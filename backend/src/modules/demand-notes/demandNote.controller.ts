@@ -335,30 +335,31 @@ export const getDemandNotes = asyncHandler(async (req: AuthRequest, res: Respons
   const filter: any = {};
   const { status, tab } = req.query as { status?: string; tab?: string };
 
+  const roleName = user.role?.name?.trim();
   // If user is not an admin or PD, restrict to their assigned areas
-  if (user.role?.name === 'Site Manager' || user.role?.name === 'Store Manager' || user.role?.name === 'Project Manager') {
-    if (user.assignedPackage) filter.package = { $regex: new RegExp(`^${user.assignedPackage}$`, 'i') };
-    if (user.assignedCircle) filter.circle = { $regex: new RegExp(`^${user.assignedCircle}$`, 'i') };
+  if (roleName === 'Site Manager' || roleName === 'Store Manager' || roleName === 'Project Manager') {
+    if (user.assignedPackage && user.assignedPackage.trim()) filter.package = { $regex: new RegExp(`^${user.assignedPackage.trim()}$`, 'i') };
+    if (user.assignedCircle && user.assignedCircle.trim()) filter.circle = { $regex: new RegExp(`^${user.assignedCircle.trim()}$`, 'i') };
   }
 
   // Filter based on explicit status or tab query
   if (status) {
     filter.status = status;
   } else if (tab === 'pending') {
-    if (user.role?.name === 'Project Manager') {
+    if (roleName === 'Project Manager') {
       filter.status = { $in: ['Pending PM Approval', 'Pending Approval'] };
-    } else if (user.role?.name === 'Project Director') {
+    } else if (roleName === 'Project Director') {
       filter.status = 'Pending PD Approval';
     }
   } else if (tab === 'history' || tab === 'approved') {
-    if (user.role?.name === 'Project Manager') {
+    if (roleName === 'Project Manager') {
       filter.status = { $in: ['Pending PD Approval', 'Approved', 'Fulfilled', 'Rejected'] };
-    } else if (user.role?.name === 'Project Director') {
+    } else if (roleName === 'Project Director') {
       filter.status = { $in: ['Approved', 'Fulfilled', 'Rejected'] };
     }
   } else if (tab === 'all') {
     // Return all demand notes within scope
-  } else if (user.role?.name === 'Store Manager') {
+  } else if (roleName === 'Store Manager') {
     filter.status = { $in: ['Approved', 'Fulfilled'] };
   }
 

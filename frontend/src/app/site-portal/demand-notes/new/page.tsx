@@ -391,26 +391,32 @@ function DemandNoteForm() {
   };
 
   const handleSubmit = async () => {
-    if (items.some(i => !i.itemId || i.demandQty <= 0)) {
-      toast.error('Please ensure all item rows have a selected item and a valid Demand Qty.');
+    const itemsToSave = items.map(i => {
+      const { isLoadingContext, ...rest } = i;
+      return {
+        ...rest,
+        activity: rest.activity || '',
+        tempCode: rest.tempCode || '',
+        jmcQty: Number(rest.jmcQty) || 0,
+        wipQty: Number(rest.wipQty) || 0,
+        wipRequiredQty: Number(rest.wipRequiredQty) || 0,
+        miscellaneousQty: Number(rest.miscellaneousQty) || 0,
+        demandQty: Number(rest.demandQty) || 0
+      };
+    });
+
+    if (itemsToSave.length === 0) {
+      toast.error('No items to save.');
+      return;
+    }
+
+    if (itemsToSave.some(i => !i.itemId)) {
+      toast.error('Please ensure all items have a valid Item ID.');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const itemsToSave = items.map(i => {
-        const { isLoadingContext, ...rest } = i;
-        return {
-          ...rest,
-          activity: rest.activity || '',
-          tempCode: rest.tempCode || '',
-          jmcQty: Number(rest.jmcQty) || 0,
-          wipQty: Number(rest.wipQty) || 0,
-          wipRequiredQty: Number(rest.wipRequiredQty) || 0,
-          miscellaneousQty: Number(rest.miscellaneousQty) || 0,
-          demandQty: Number(rest.demandQty) || 0
-        };
-      });
 
       const data = new FormData();
       data.append('contractorName', formData.contractorName);

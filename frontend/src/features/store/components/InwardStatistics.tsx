@@ -150,7 +150,7 @@ export function InwardStatistics({ entries }: InwardStatisticsProps) {
                   tickFormatter={(val) => `₹${(val / 100000).toFixed(1)}L`}
                 />
                 <Tooltip 
-                  formatter={(value: number) => formatCurrency(value)}
+                  formatter={(value: any) => formatCurrency(Number(value))}
                   cursor={{ fill: '#f8fafc' }}
                   contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                 />
@@ -180,7 +180,7 @@ export function InwardStatistics({ entries }: InwardStatisticsProps) {
                   ))}
                 </Pie>
                 <Tooltip 
-                  formatter={(value: number) => value.toLocaleString('en-IN')}
+                  formatter={(value: any) => Number(value).toLocaleString('en-IN')}
                   contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                 />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
@@ -210,7 +210,7 @@ export function InwardStatistics({ entries }: InwardStatisticsProps) {
                 tickFormatter={(val) => `₹${(val / 100000).toFixed(1)}L`}
               />
               <Tooltip 
-                formatter={(value: number) => formatCurrency(value)}
+                formatter={(value: any) => formatCurrency(Number(value))}
                 contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
               />
               <Line type="monotone" dataKey="amount" stroke="#10b981" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />

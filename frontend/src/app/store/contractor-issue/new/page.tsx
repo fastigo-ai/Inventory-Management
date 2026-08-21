@@ -9,6 +9,7 @@ import Link from "next/link";
 import { getContractors, createAssignment } from "@/features/contractors/api/contractors.api";
 import { getStockSummary } from "@/features/store/api/store.api";
 import { getDemandNotes } from "@/features/site-portal/api/demand-notes.api";
+import { useAuthStore } from "@/shared/store/auth.store";
 import Select, { StylesConfig } from 'react-select';
 
 const customSelectStyles: StylesConfig<any, false> = {
@@ -65,6 +66,7 @@ const customSelectStyles: StylesConfig<any, false> = {
 
 export default function StoreContractorIssueNewPage() {
   const router = useRouter();
+  const { user } = useAuthStore();
   
   // Data State
   const [contractors, setContractors] = useState<any[]>([]);
@@ -329,6 +331,7 @@ export default function StoreContractorIssueNewPage() {
                           demandQty: item.demandQty || 1,
                           quantity: item.demandQty || 1,
                           availableQty: stockMatch ? stockMatch.totalBalanceQty : 0
+                        };
                       });
                       
                       // Filter out duplicates if the Demand Note had duplicate items
@@ -473,7 +476,6 @@ export default function StoreContractorIssueNewPage() {
                     <td className="p-4 align-top text-center text-slate-500 pt-6">
                       {index + 1}
                     </td>
-                    <td className="p-4 align-top">
                     <td className="p-4 align-top pt-6 text-slate-700 text-xs font-medium">
                       {item.itemName || 'N/A'}
                     </td>
@@ -514,6 +516,11 @@ export default function StoreContractorIssueNewPage() {
                         <p className="text-[10px] text-red-500 mt-1 absolute">Exceeds stock</p>
                       )}
                     </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <div className="p-4 border-t border-slate-200 bg-slate-50 text-xs text-slate-500 flex items-center justify-center">
             Items are strictly populated from the selected Demand Note.
           </div>

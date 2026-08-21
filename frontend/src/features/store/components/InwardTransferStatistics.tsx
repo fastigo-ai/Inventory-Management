@@ -120,13 +120,13 @@ export function InwardTransferStatistics({ data }: Props) {
                   outerRadius={100}
                   paddingAngle={5}
                   dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  label={({ name, percent = 0 }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
                 >
                   {stats.topVendors.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value: number) => [value.toLocaleString(), 'Qty']} />
+                <Tooltip formatter={(value: any) => [Number(value).toLocaleString(), 'Qty']} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -140,7 +140,7 @@ export function InwardTransferStatistics({ data }: Props) {
                 <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#e2e8f0" />
                 <XAxis type="number" hide />
                 <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 11 }} />
-                <Tooltip cursor={{ fill: '#f8fafc' }} formatter={(value: number) => [value.toLocaleString(), 'Qty']} />
+                <Tooltip cursor={{ fill: '#f8fafc' }} formatter={(value: any) => [Number(value).toLocaleString(), 'Qty']} />
                 <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20} />
               </BarChart>
             </ResponsiveContainer>

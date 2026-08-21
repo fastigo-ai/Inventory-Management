@@ -292,6 +292,10 @@ export const queryInwardEntries = asyncHandler(async (req: Request, res: Respons
   const filter: any = {};
   
   if (diId) filter.diId = diId;
+  else if (forMhrov === 'true' || String(forMhrov) === 'true' || forMhrov === undefined) {
+    // Only show items that have a DI assigned
+    filter.diId = { $exists: true, $ne: null };
+  }
   if (status) filter.status = status;
   
   if (diNo && diNo !== 'all') filter.diRefNo = diNo;
@@ -428,10 +432,11 @@ export const queryInwardEntries = asyncHandler(async (req: Request, res: Respons
 });
 
 export const getInwardFilterOptions = asyncHandler(async (req: Request, res: Response) => {
+  const validDiFilter = { diId: { $exists: true, $ne: null } };
   const [diNos, vendors, invoiceNos] = await Promise.all([
-    StoreInwardEntry.distinct('diRefNo'),
-    StoreInwardEntry.distinct('vendorName'),
-    StoreInwardEntry.distinct('invoiceNumber')
+    StoreInwardEntry.distinct('diRefNo', validDiFilter),
+    StoreInwardEntry.distinct('vendorName', validDiFilter),
+    StoreInwardEntry.distinct('invoiceNumber', validDiFilter)
   ]);
 
   res.status(200).json(

@@ -513,7 +513,6 @@ export default function StoreContractorIssueNewPage() {
                     <td className="p-4 align-top text-center text-slate-500 pt-6">
                       {index + 1}
                     </td>
-                    <td className="p-4 align-top">
                     <td className="p-4 align-top pt-6 text-slate-700 text-xs font-medium">
                       {item.itemName || 'N/A'}
                     </td>
@@ -557,6 +556,11 @@ export default function StoreContractorIssueNewPage() {
                         <p className="text-[10px] text-red-500 mt-1 absolute">Exceeds stock</p>
                       )}
                     </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <div className="p-4 border-t border-slate-200 bg-slate-50 text-xs text-slate-500 flex items-center justify-center">
             Items are strictly populated from the selected Demand Note.
           </div>

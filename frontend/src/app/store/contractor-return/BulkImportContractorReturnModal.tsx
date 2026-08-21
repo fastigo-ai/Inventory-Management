@@ -248,7 +248,7 @@ export function BulkImportContractorReturnModal({ open, onOpenChange, onSuccess 
               "Import Data"
             )}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

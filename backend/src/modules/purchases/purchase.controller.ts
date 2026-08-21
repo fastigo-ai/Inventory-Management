@@ -491,41 +491,98 @@ export const getNextPurchaseOrderNumber = async (req: Request, res: Response) =>
 
 export const exportPurchaseOrders = async (req: Request, res: Response) => {
   try {
-    const orders = await PurchaseOrder.find().sort({ createdAt: 1 }).lean();
+    const { status, vendor, circle, package: pkg } = req.query;
+    const query: any = {};
+    if (status && status !== 'all') query.status = status;
+    if (vendor && vendor !== 'all') query.vendorName = vendor;
+    if (circle && circle !== 'all') query.circle = circle;
+    if (pkg && pkg !== 'all') query.package = pkg;
+
+    const orders = await PurchaseOrder.find(query).sort({ createdAt: -1 }).lean();
     
     const rows: any[] = [];
     for (const order of orders) {
-      const billedFrom = order.billingCompany?.name || '';
       if (!order.lineItems || order.lineItems.length === 0) {
         rows.push({
           PurchaseOrderNumber: order.purchaseOrderNumber,
           VendorName: order.vendorName,
-          Date: order.date,
-          Location: order.location,
+          Date: order.date ? new Date(order.date).toISOString().split('T')[0] : '',
+          DeliveryDate: order.deliveryDate ? new Date(order.deliveryDate).toISOString().split('T')[0] : '',
+          Location: order.location || '',
+          Status: order.status || '',
+          Reference: order.reference || '',
+          DeliveryAddressType: order.deliveryAddressType || '',
+          DeliveryAddressId: order.deliveryAddressId || '',
+          PaymentTerms: order.paymentTerms?.[0]?.value || '',
+          Circle: order.circle || '',
+          Package: order.package || '',
+          ShipmentPreference: order.shipmentPreference || '',
+          WarehouseLocation: order.warehouseLocation || '',
+          Notes: order.notes || '',
+          TermsConditions: order.termsConditions || '',
+          CGSTPercentage: order.cgstPercentage || 0,
+          SGSTPercentage: order.sgstPercentage || 0,
+          IGSTPercentage: order.igstPercentage || 0,
+          
           ItemName: '',
-          Quantity: '',
-          Rate: '',
-          Status: order.status,
-          BilledFrom: billedFrom
+          Quantity: 0,
+          Rate: 0,
+          TempCode: '',
+          Account: '',
+          Description: '',
+          LoaSerialNo: '',
+          HsnCode: '',
+          ItemPackage: '',
+          ItemCircle: '',
+          Unit: ''
         });
       } else {
         for (const item of order.lineItems) {
           rows.push({
             PurchaseOrderNumber: order.purchaseOrderNumber,
             VendorName: order.vendorName,
-            Date: order.date,
-            Location: order.location,
+            Date: order.date ? new Date(order.date).toISOString().split('T')[0] : '',
+            DeliveryDate: order.deliveryDate ? new Date(order.deliveryDate).toISOString().split('T')[0] : '',
+            Location: order.location || '',
+            Status: order.status || '',
+            Reference: order.reference || '',
+            DeliveryAddressType: order.deliveryAddressType || '',
+            DeliveryAddressId: order.deliveryAddressId || '',
+            PaymentTerms: order.paymentTerms?.[0]?.value || '',
+            Circle: order.circle || '',
+            Package: order.package || '',
+            ShipmentPreference: order.shipmentPreference || '',
+            WarehouseLocation: order.warehouseLocation || '',
+            Notes: order.notes || '',
+            TermsConditions: order.termsConditions || '',
+            CGSTPercentage: order.cgstPercentage || 0,
+            SGSTPercentage: order.sgstPercentage || 0,
+            IGSTPercentage: order.igstPercentage || 0,
+            
             ItemName: item.itemName || '',
             Quantity: item.quantity || 0,
             Rate: item.rate || 0,
-            Status: order.status,
-            BilledFrom: billedFrom
+            TempCode: item.tempCode || '',
+            Account: item.account || '',
+            Description: item.description || '',
+            LoaSerialNo: item.loaSerialNo || '',
+            HsnCode: item.hsnCode || '',
+            ItemPackage: item.package || '',
+            ItemCircle: item.circle || '',
+            Unit: item.unit || ''
           });
         }
       }
     }
 
-    const headers = ['PurchaseOrderNumber', 'VendorName', 'Date', 'Location', 'ItemName', 'Quantity', 'Rate', 'Status', 'BilledFrom'];
+    const headers = [
+      'PurchaseOrderNumber', 'VendorName', 'Date', 'DeliveryDate', 'Location', 'Status', 'Reference',
+      'DeliveryAddressType', 'DeliveryAddressId', 'PaymentTerms', 'Circle', 'Package', 'ShipmentPreference',
+      'WarehouseLocation', 'Notes', 'TermsConditions', 'CGSTPercentage', 'SGSTPercentage', 'IGSTPercentage',
+      'ItemName', 'Quantity', 'Rate', 'TempCode', 'Account', 'Description', 'LoaSerialNo', 'HsnCode',
+      'ItemPackage', 'ItemCircle', 'Unit'
+    ];
+    
     const csv = stringify(rows, { header: true, columns: headers });
     
     res.setHeader('Content-Type', 'text/csv');
@@ -650,6 +707,12 @@ export const importPurchaseOrders = async (req: Request, res: Response) => {
         const item = findItemInMemory(tempCode, loaSerialNo, itemName);
         const itemId = item ? item._id : null;
 
+        if (!itemId) {
+           // Track error for pass 1 validation
+           if (!ordersMap[poNumber].validationErrors) ordersMap[poNumber].validationErrors = [];
+           ordersMap[poNumber].validationErrors.push(`Item '${itemName}' not found in Master Item List.`);
+        }
+
         ordersMap[poNumber].lineItems.push({
           itemId,
           itemName,
@@ -669,9 +732,14 @@ export const importPurchaseOrders = async (req: Request, res: Response) => {
     }
 
     const ordersToInsert = [];
+    const validationErrors: string[] = [];
     
     for (const poNumber of Object.keys(ordersMap)) {
       const order = ordersMap[poNumber];
+      
+      if (order.validationErrors && order.validationErrors.length > 0) {
+         validationErrors.push(`PO ${poNumber}: ` + order.validationErrors.join(', '));
+      }
       
       let calculatedSubTotal = 0;
       order.lineItems.forEach((item: any) => {
@@ -694,6 +762,15 @@ export const importPurchaseOrders = async (req: Request, res: Response) => {
       ordersToInsert.push(order);
     }
 
+    // Pass 1: Validation Check
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Import rejected due to missing items in Master Item List. No data was imported.',
+        errors: validationErrors
+      });
+    }
+
     // 4. Pre-fetch existing POs
     const poNumbers = ordersToInsert.map(o => o.purchaseOrderNumber);
     const existingPOs = await PurchaseOrder.find({ purchaseOrderNumber: { $in: poNumbers } });
@@ -701,10 +778,6 @@ export const importPurchaseOrders = async (req: Request, res: Response) => {
     let successCount = 0;
     const errors: any[] = [];
     
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
     for (const orderData of ordersToInsert) {
        try {
          const existing = existingPOs.find(p => p.purchaseOrderNumber === orderData.purchaseOrderNumber);
@@ -743,7 +816,7 @@ export const importPurchaseOrders = async (req: Request, res: Response) => {
            existing.total = orderData.total;
            existing.lineItems = orderData.lineItems;
 
-           const updated = await existing.save({ session });
+           const updated = await existing.save();
            successCount++;
 
            const allAffectedItemIds = Array.from(new Set([
@@ -755,7 +828,7 @@ export const importPurchaseOrders = async (req: Request, res: Response) => {
              SummaryService.rebuildForItem(itemId).catch(console.error);
            }
          } else {
-           const createdOrder = (await PurchaseOrder.create([orderData], { session }))[0];
+           const createdOrder = (await PurchaseOrder.create([orderData]))[0];
            successCount++;
            
            if (createdOrder.lineItems && createdOrder.lineItems.length > 0) {
@@ -769,22 +842,12 @@ export const importPurchaseOrders = async (req: Request, res: Response) => {
        }
     }
 
-    if (errors.length > 0) {
-      await session.abortTransaction();
-      session.endSession();
+    if (errors.length > 0 && successCount === 0) {
       return res.status(400).json({
         success: false,
         message: 'Import failed due to row errors. No data was imported.',
         errors
       });
-    }
-
-    await session.commitTransaction();
-    session.endSession();
-    } catch (error) {
-      await session.abortTransaction();
-      session.endSession();
-      throw error;
     }
 
     res.status(200).json({

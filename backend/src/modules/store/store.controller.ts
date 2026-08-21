@@ -180,18 +180,21 @@ export const createInwardEntry = asyncHandler(async (req: Request, res: Response
     throw new ApiError(400, 'DI ID or Purchase Invoice ID is required');
   }
 
-  // Enforce 1 active inward entry per DI or PI
+  // Enforce 1 active inward entry per PI + tempCode combination
+  // (A single PI can have multiple line items/tempCodes, each needing their own GRN)
   const existingFilter: any = { status: { $ne: 'DRAFT' } };
   if (data.purchaseInvoiceId) {
     existingFilter.purchaseInvoiceId = data.purchaseInvoiceId;
+    if (data.tempCode) existingFilter.tempCode = data.tempCode;
   } else {
     existingFilter.diId = data.diId;
+    if (data.tempCode) existingFilter.tempCode = data.tempCode;
   }
 
   const existing = await StoreInwardEntry.findOne(existingFilter);
 
   if (existing) {
-    throw new ApiError(400, 'A submitted Inward Entry already exists for this Invoice/DI');
+    throw new ApiError(400, `A submitted Inward Entry already exists for this Invoice/DI and item (TempCode: ${data.tempCode || 'unknown'})`);
   }
 
   // Truck number validation
@@ -230,12 +233,14 @@ export const createInwardEntry = asyncHandler(async (req: Request, res: Response
     }
   }
 
-  // If DRAFT, we just upsert based on diId or purchaseInvoiceId
+  // If DRAFT, upsert based on PI/DI + tempCode so each line item gets its own draft
   const draftFilter: any = { status: 'DRAFT' };
   if (data.purchaseInvoiceId) {
     draftFilter.purchaseInvoiceId = data.purchaseInvoiceId;
+    if (data.tempCode) draftFilter.tempCode = data.tempCode;
   } else {
     draftFilter.diId = data.diId;
+    if (data.tempCode) draftFilter.tempCode = data.tempCode;
   }
   let entry = await StoreInwardEntry.findOne(draftFilter);
   
@@ -412,10 +417,20 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
   if (packageFilter) inwardFilter.package = packageFilter;
 
   const assignmentFilter: any = { status: { $ne: 'Cancelled' } };
-  if (circleFilter) assignmentFilter.circle = { $regex: new RegExp(`^${circleFilter}$`, 'i') };
+  if (circleFilter) {
+    assignmentFilter.$or = [
+      { circle: { $regex: new RegExp(`^${circleFilter}$`, 'i') } },
+      { division: { $regex: new RegExp(`^${circleFilter}$`, 'i') } }
+    ];
+  }
 
   const returnsFilter: any = {};
-  if (circleFilter) returnsFilter.division = { $regex: new RegExp(`^${circleFilter}$`, 'i') };
+  if (circleFilter) {
+    returnsFilter.$or = [
+      { circle: { $regex: new RegExp(`^${circleFilter}$`, 'i') } },
+      { division: { $regex: new RegExp(`^${circleFilter}$`, 'i') } }
+    ];
+  }
 
   console.log("Fetching DB collections in parallel...");
   // Fetch all collections in parallel to massively improve performance (fixes Axios timeouts)
@@ -493,8 +508,9 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
       
       summaryMap[tc].challanQty += invQty;
       summaryMap[tc].receivedQty += totalPackingListQty;
+      summaryMap[tc].rejectedQty += (inward.rejectedQty || 0);
       
-      // Calculate derived fields (assuming rejectedQty is 0 for now)
+      // Calculate derived fields
       summaryMap[tc].acceptedQty = summaryMap[tc].receivedQty - summaryMap[tc].rejectedQty;
       summaryMap[tc].totalInStockAfterReceive = summaryMap[tc].acceptedQty + summaryMap[tc].receivedFromOtherStore;
       

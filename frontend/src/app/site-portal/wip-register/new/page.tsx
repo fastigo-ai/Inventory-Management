@@ -36,7 +36,8 @@ export default function WipRegisterFormPage() {
       {
         activity: "",
         tempCode: "",
-        description: "",
+          loaSrNo: "",
+          description: "",
         unit: "",
         prevQty: 0,
         claimedQty: 0,
@@ -48,6 +49,17 @@ export default function WipRegisterFormPage() {
       }
     ] as any[]
   });
+
+
+  useEffect(() => {
+    if (user && isNew) {
+      setFormData(prev => ({
+        ...prev,
+        package: prev.package || user.assignedPackage || "",
+        circle: prev.circle || user.assignedCircle || ""
+      }));
+    }
+  }, [user, isNew]);
 
   useEffect(() => {
     if (formData.package && formData.circle) {
@@ -120,6 +132,7 @@ export default function WipRegisterFormPage() {
           loaSerialNo: "",
           activity: "",
           tempCode: "",
+          loaSrNo: "",
           description: "",
           unit: "",
           prevQty: 0,
@@ -269,6 +282,7 @@ export default function WipRegisterFormPage() {
                     const newRows = activityItems.map(ai => ({
                       activity: ai.dynamicData?.activity || '',
                       tempCode: ai.dynamicData?.tempCode || '',
+                      loaSrNo: ai.dynamicData?.loaSrNo || ai.dynamicData?.loaSerialNo || '',
                       description: ai.dynamicData?.description || ai.dynamicData?.itemDescription || ai.dynamicData?.name || '',
                       unit: ai.dynamicData?.unit || ai.dynamicData?.uom || '',
                       totalLoaQty: Number(ai.dynamicData?.loaQty || ai.dynamicData?.totalLoaQuantity || ai.dynamicData?.qty || ai.dynamicData?.quantity || 0),
@@ -285,8 +299,11 @@ export default function WipRegisterFormPage() {
                     }));
                   }}
                   styles={{
-                    control: (base) => ({ ...base, minHeight: '32px', height: '32px', fontSize: '13px', backgroundColor: 'white', border: '1px solid #cbd5e1', boxShadow: 'none' })
+                    control: (base) => ({ ...base, minHeight: '32px', height: '32px', fontSize: '13px', backgroundColor: 'white', border: '1px solid #cbd5e1', boxShadow: 'none' }),
+                    menuPortal: base => ({ ...base, zIndex: 9999 })
                   }}
+                  menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+                  menuPosition="fixed"
                 />
               </div>
               <Button onClick={addItem} variant="outline" size="sm" className="h-8">
@@ -298,7 +315,8 @@ export default function WipRegisterFormPage() {
             <table className="w-full text-sm text-left">
               <thead className="bg-slate-100 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase">
                 <tr>
-                  <th className="px-4 py-3 border-r w-[150px]">Temp Code</th>
+                  <th className="px-4 py-3 border-r w-24">LOA Sr No</th>
+                  <th className="px-4 py-3 border-r w-24">Temp Code</th>
                   <th className="px-4 py-3 border-r w-24">LOA SR.NO.</th>
                   <th className="px-4 py-3 border-r">Activity</th>
                   <th className="px-4 py-3 border-r w-[250px]">Description</th>
@@ -313,6 +331,14 @@ export default function WipRegisterFormPage() {
               <tbody className="divide-y divide-slate-100">
                 {formData.items.map((item, index) => (
                   <tr key={index} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-2 border-r border-slate-100">
+                      <Input 
+                        value={item.loaSrNo || ''} 
+                        onChange={e => handleItemChange(index, 'loaSrNo', e.target.value)} 
+                        className="h-8 text-sm"
+                        placeholder="LOA Sr No"
+                      />
+                    </td>
                     <td className="px-4 py-2 border-r border-slate-100">
                       <Input 
                         value={item.tempCode || ''} 

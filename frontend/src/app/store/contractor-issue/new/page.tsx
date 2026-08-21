@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { X, Trash2, PlusCircle, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { getContractors, createAssignment } from "@/features/contractors/api/contractors.api";
 import { getStockSummary } from "@/features/store/api/store.api";
-import { getDemandNotes, getContextData } from "@/features/site-portal/api/demand-notes.api";
+import { getDemandNotes } from "@/features/site-portal/api/demand-notes.api";
 import { useAuthStore } from "@/shared/store/auth.store";
 import Select, { StylesConfig } from 'react-select';
 
@@ -66,7 +66,11 @@ const customSelectStyles: StylesConfig<any, false> = {
 
 export default function StoreContractorIssueNewPage() {
   const router = useRouter();
-  const user = useAuthStore((state: any) => state.user);
+  const searchParams = useSearchParams();
+  const initialDemandNoteId = searchParams.get('demandNoteId');
+  const { user } = useAuthStore();
+  
+  const [selectedDemandNoteOption, setSelectedDemandNoteOption] = useState<any>(null);
   
   // Data State
   const [contractors, setContractors] = useState<any[]>([]);
@@ -101,7 +105,6 @@ export default function StoreContractorIssueNewPage() {
     activity: "",
     unit: "Nos",
     hsnCode: "",
-    loaSrNo: "",
     demandQty: 1,
     quantity: 1, // This is Issued Qty
     availableQty: 0
@@ -113,12 +116,84 @@ export default function StoreContractorIssueNewPage() {
     const today = new Date().toISOString().split('T')[0];
     setDemandDate(today);
     setMinDate(today);
-    getContractors().then(res => setContractors(res.data || []));
-    getStockSummary({}).then(res => setStockSummary(res.data || []));
-    getDemandNotes().then(res => setDemandNotes(res.data?.demandNotes || []));
+    
+    Promise.all([
+      getContractors(),
+      getStockSummary({}),
+      getDemandNotes()
+    ]).then(([contractorsRes, stockRes, demandNotesRes]) => {
+      const cList = contractorsRes.data || [];
+      const sList = stockRes.data || [];
+      const dnList = demandNotesRes.data?.demandNotes || [];
+      
+      setContractors(cList);
+      setStockSummary(sList);
+      setDemandNotes(dnList);
+      
+      if (initialDemandNoteId) {
+        const dn = dnList.find((d: any) => d._id === initialDemandNoteId);
+        if (dn) {
+          const option = {
+            value: dn._id,
+            label: `${dn.demandNoteNumber} - ${dn.status} (${dn.circle})`,
+            dn
+          };
+          setSelectedDemandNoteOption(option);
+          handleDemandNoteSelect(option, cList, sList);
+        }
+      }
+    });
   }, []);
 
-  const updateLineItem = async (index: number, field: string, value: any) => {
+  const handleDemandNoteSelect = (option: any, cList = contractors, sList = stockSummary) => {
+    if (option && option.dn) {
+      const dn = option.dn;
+      setDemandNo(dn.demandNoteNumber);
+      setDemandDate(new Date(dn.createdAt).toISOString().split('T')[0]);
+      setDivision(dn.division || '');
+      setSubDivision(dn.subDivision || '');
+      
+      if (dn.contractorName) {
+        const matchedC = cList.find((c: any) => 
+          c.name === dn.contractorName || 
+          c.dynamicData?.displayName === dn.contractorName || 
+          c.dynamicData?.companyName === dn.contractorName
+        );
+        if (matchedC) setContractorId(matchedC._id);
+      }
+      
+      if (dn.items && dn.items.length > 0) {
+        const newItems = dn.items.map((item: any) => {
+          const stockMatch = sList.find((s: any) => s.itemId === item.itemId || (item.tempCode && s.tempCode === item.tempCode));
+          return {
+            itemId: item.itemId || (stockMatch ? stockMatch.itemId : ""),
+            itemName: item.itemName || "",
+            tempCode: item.tempCode || "",
+            activity: item.activity || "",
+            unit: item.unit || "Nos",
+            hsnCode: stockMatch ? stockMatch.hsnCode : "",
+            demandQty: item.demandQty || 1,
+            quantity: item.demandQty || 1,
+            availableQty: stockMatch ? stockMatch.totalBalanceQty : 0
+          };
+        });
+        
+        const uniqueItems: any[] = [];
+        const seenItemIds = new Set();
+        for (const item of newItems) {
+          if (item.itemId && !seenItemIds.has(item.itemId)) {
+            seenItemIds.add(item.itemId);
+            uniqueItems.push(item);
+          } else if (!item.itemId) {
+            uniqueItems.push(item);
+          }
+        }
+        setLineItems(uniqueItems);
+      }
+    }
+  };
+
+  const updateLineItem = (index: number, field: string, value: any) => {
     const newItems = [...lineItems];
     
     if (field === "itemId") {
@@ -131,29 +206,6 @@ export default function StoreContractorIssueNewPage() {
         newItems[index].unit = selectedStock.unit || 'Nos';
         newItems[index].hsnCode = selectedStock.hsnCode || '';
         newItems[index].availableQty = selectedStock.totalBalanceQty || 0;
-        
-        let fetchedLoaSrNo = selectedStock.loaSrNo || '';
-        if (!fetchedLoaSrNo) {
-          try {
-            const res = await getContextData(
-              selectedStock.itemId,
-              contractorId || undefined,
-              undefined, // contractorName
-              selectedStock.activity || '',
-              selectedStock.description || '',
-              selectedStock.tempCode || selectedStock.itemCode || '',
-              '', // loaSrNo
-              undefined, // pkg
-              user?.assignedCircle || ''
-            );
-            if (res.success && res.data) {
-              fetchedLoaSrNo = res.data.loaSrNo || '';
-            }
-          } catch (error) {
-            console.error("Failed to fetch contextual LOA Sr No:", error);
-          }
-        }
-        newItems[index].loaSrNo = fetchedLoaSrNo;
       } else {
         newItems[index].itemId = "";
         newItems[index].itemName = "";
@@ -161,7 +213,6 @@ export default function StoreContractorIssueNewPage() {
         newItems[index].activity = "";
         newItems[index].unit = "Nos";
         newItems[index].hsnCode = "";
-        newItems[index].loaSrNo = "";
         newItems[index].availableQty = 0;
       }
     } else {
@@ -173,52 +224,30 @@ export default function StoreContractorIssueNewPage() {
 
   const addLineItem = () => {
     setLineItems([...lineItems, { 
-      itemId: "", itemName: "", tempCode: "", activity: "", unit: "Nos", hsnCode: "", loaSrNo: "", demandQty: 1, quantity: 1, availableQty: 0 
+      itemId: "", itemName: "", tempCode: "", activity: "", unit: "Nos", hsnCode: "", demandQty: 1, quantity: 1, availableQty: 0 
     }]);
   };
 
-  const addItemsByActivityToRow = async (index: number, activity: string) => {
+  const addItemsByActivityToRow = (index: number, activity: string) => {
     const itemsForActivity = stockSummary.filter(s => s.activity === activity && s.totalBalanceQty > 0);
     if (itemsForActivity.length === 0) return;
 
     const existingItemIds = new Set(lineItems.filter((item, i) => item.itemId && i !== index).map(item => item.itemId));
-    const newItemsToAddPromises = itemsForActivity.filter(s => !existingItemIds.has(s.itemId)).map(async (s) => {
-      let fetchedLoaSrNo = s.loaSrNo || '';
-      if (!fetchedLoaSrNo) {
-        try {
-          const res = await getContextData(
-            s.itemId,
-            contractorId || undefined,
-            undefined, // contractorName
-            s.activity || '',
-            s.description || '',
-            s.tempCode || s.itemCode || '',
-            '', // loaSrNo
-            undefined, // pkg
-            user?.assignedCircle || ''
-          );
-          if (res.success && res.data) {
-            fetchedLoaSrNo = res.data.loaSrNo || '';
-          }
-        } catch (error) {
-          console.error("Failed to fetch contextual LOA Sr No for multi add:", error);
-        }
-      }
-      return {
-        itemId: s.itemId,
-        itemName: s.description,
-        tempCode: s.tempCode || s.itemCode || '',
-        activity: s.activity || '',
-        unit: s.unit || 'Nos',
-        hsnCode: s.hsnCode || '',
-        loaSrNo: fetchedLoaSrNo,
-        demandQty: 1,
-        quantity: 1,
-        availableQty: s.totalBalanceQty || 0
-      };
+    const newItemsToAdd = itemsForActivity.filter(s => !existingItemIds.has(s.itemId)).map(s => ({
+      itemId: s.itemId,
+      itemName: s.description,
+      tempCode: s.tempCode || s.itemCode || '',
+      activity: s.activity || '',
+      unit: s.unit || 'Nos',
+      hsnCode: s.hsnCode || '',
+      demandQty: 1,
+      quantity: 1,
+      availableQty: s.totalBalanceQty || 0
+    })).sort((a, b) => {
+      const codeA = parseInt(a.tempCode) || 0;
+      const codeB = parseInt(b.tempCode) || 0;
+      return codeA - codeB;
     });
-
-    const newItemsToAdd = await Promise.all(newItemsToAddPromises);
 
     if (newItemsToAdd.length > 0) {
       const newItems = [...lineItems];
@@ -304,7 +333,6 @@ export default function StoreContractorIssueNewPage() {
           activity: item.activity,
           unit: item.unit,
           hsnCode: item.hsnCode,
-          loaSrNo: item.loaSrNo,
           demandQty: Number(item.demandQty),
           quantity: Number(item.quantity),
           rate: 0,
@@ -342,6 +370,7 @@ export default function StoreContractorIssueNewPage() {
             <label className="block text-sm font-semibold text-blue-800 whitespace-nowrap">Auto-fill from Demand Note:</label>
             <div className="flex-grow max-w-md">
               <Select
+                value={selectedDemandNoteOption}
                 options={demandNotes
                   .filter(dn => dn.status === 'Approved' || dn.status === 'Pending Approval' || dn.status === 'Draft')
                   .map(dn => ({
@@ -350,41 +379,8 @@ export default function StoreContractorIssueNewPage() {
                     dn
                   }))}
                 onChange={(option: any) => {
-                  if (option && option.dn) {
-                    const dn = option.dn;
-                    setDemandNo(dn.demandNoteNumber);
-                    setDemandDate(new Date(dn.createdAt).toISOString().split('T')[0]);
-                    setDivision(dn.division || '');
-                    setSubDivision(dn.subDivision || '');
-                    
-                    if (dn.contractorName) {
-                      const matchedC = contractors.find(c => 
-                        c.name === dn.contractorName || 
-                        c.dynamicData?.displayName === dn.contractorName || 
-                        c.dynamicData?.companyName === dn.contractorName
-                      );
-                      if (matchedC) setContractorId(matchedC._id);
-                    }
-                    
-                    if (dn.items && dn.items.length > 0) {
-                      const newItems = dn.items.map((item: any) => {
-                        const stockMatch = stockSummary.find(s => s.itemId === item.itemId || (item.tempCode && s.tempCode === item.tempCode));
-                        return {
-                          itemId: item.itemId || (stockMatch ? stockMatch.itemId : ""),
-                          itemName: item.itemName || "",
-                          tempCode: item.tempCode || "",
-                          activity: item.activity || "",
-                          unit: item.unit || "Nos",
-                          hsnCode: stockMatch ? stockMatch.hsnCode : "",
-                          loaSrNo: item.loaSrNo || "",
-                          demandQty: item.demandQty || 1,
-                          quantity: item.demandQty || 1,
-                          availableQty: stockMatch ? stockMatch.totalBalanceQty : 0
-                        };
-                      });
-                      setLineItems(newItems);
-                    }
-                  }
+                  setSelectedDemandNoteOption(option);
+                  handleDemandNoteSelect(option);
                 }}
                 className="text-sm"
                 styles={customSelectStyles}
@@ -498,7 +494,6 @@ export default function StoreContractorIssueNewPage() {
                   <th className="px-4 py-3 font-medium w-[5%] text-center">Sr. No.</th>
                   <th className="px-4 py-3 font-medium w-[20%]">Description of Material</th>
                   <th className="px-4 py-3 font-medium w-[12%]">Temp Code</th>
-                  <th className="px-4 py-3 font-medium w-[12%]">LOA Sr No</th>
                   <th className="px-4 py-3 font-medium w-[15%]">Activity</th>
                   <th className="px-4 py-3 font-medium w-[10%]">HSN Code</th>
                   <th className="px-4 py-3 font-medium w-[8%]">UNIT</th>
@@ -518,9 +513,6 @@ export default function StoreContractorIssueNewPage() {
                     </td>
                     <td className="p-4 align-top pt-6 text-slate-700 text-xs font-mono">
                       {item.tempCode || 'N/A'}
-                    </td>
-                    <td className="p-4 align-top pt-6 text-slate-700 text-xs font-mono">
-                      {item.loaSrNo || 'N/A'}
                     </td>
                     <td className="p-4 align-top pt-6 text-slate-700 text-xs">
                       {item.activity || 'N/A'}

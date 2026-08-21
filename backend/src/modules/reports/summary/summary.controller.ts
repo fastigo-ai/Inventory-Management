@@ -446,8 +446,8 @@ async function computeStoreItemisedSummary(params: {
   const itemFilter: any = { isDeleted: { $ne: true } };
 
   if (tempCode && tempCode.trim() !== '') {
-    const t = tempCode.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    itemFilter['dynamicData.tempCode'] = { $regex: t, $options: 'i' };
+    const t = tempCode.trim();
+    itemFilter['dynamicData.tempCode'] = isNaN(Number(t)) ? t : { $in: [t, Number(t)] };
   }
   if (itemName && itemName.trim() !== '') {
     const n = itemName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

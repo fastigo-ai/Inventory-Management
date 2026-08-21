@@ -20,6 +20,20 @@ import Link from 'next/link';
 import { getStoreItemisedSummary, exportStoreItemisedSummary } from '@/features/reports/api/reports.api';
 import { useAuthStore } from '@/shared/store/auth.store';
 
+// Custom debounce hook
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+  return debouncedValue;
+}
+
 export default function StoreSummaryPage() {
   const { user } = useAuthStore();
   const isStoreManager = user?.role?.name === 'Store Manager';
@@ -46,6 +60,11 @@ export default function StoreSummaryPage() {
   const [hideZeroBalance, setHideZeroBalance] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'item' | 'loa'>('item');
 
+  // Debounced Filter States for smooth typing
+  const debouncedSearch = useDebounce(search, 500);
+  const debouncedTempCode = useDebounce(tempCode, 500);
+  const debouncedItemName = useDebounce(itemName, 500);
+
   // Pagination States
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(50);
@@ -67,9 +86,9 @@ export default function StoreSummaryPage() {
         circle: circle || undefined,
         store: store || undefined,
         package: pkg || undefined,
-        search: search || undefined,
-        tempCode: tempCode || undefined,
-        itemName: itemName || undefined,
+        search: debouncedSearch || undefined,
+        tempCode: debouncedTempCode || undefined,
+        itemName: debouncedItemName || undefined,
         hideZeroBalance,
         viewMode,
         page,
@@ -93,11 +112,11 @@ export default function StoreSummaryPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [circle, store, pkg, search, tempCode, itemName, hideZeroBalance, viewMode, limit]);
+  }, [circle, store, pkg, debouncedSearch, debouncedTempCode, debouncedItemName, hideZeroBalance, viewMode, limit]);
 
   useEffect(() => {
     fetchData();
-  }, [circle, store, pkg, search, tempCode, itemName, hideZeroBalance, viewMode, page, limit]);
+  }, [circle, store, pkg, debouncedSearch, debouncedTempCode, debouncedItemName, hideZeroBalance, viewMode, page, limit]);
 
   const handleExport = async () => {
     try {

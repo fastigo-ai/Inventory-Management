@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useForm } from "react-hook-form";
-import { updateMhrov, queryDILineItemsForMhrov, getMhrovById, getInwardFilterOptions } from "@/features/store/api/store.api";
+import { updateMhrov, queryDILineItemsForMhrov, getMhrovById, getMhrovDIFilterOptions } from "@/features/store/api/store.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,7 +37,6 @@ export default function EditMhrovPage() {
   const [filters, setFilters] = useState({
     diNo: "all",
     vendor: "all",
-    invoiceNo: "all",
     dateFrom: "",
     dateTo: "",
     itemName: ""
@@ -88,7 +87,7 @@ export default function EditMhrovPage() {
 
   const fetchFilterOptions = async () => {
     try {
-      const res = await getInwardFilterOptions();
+      const res = await getMhrovDIFilterOptions();
       if (res.data) setFilterOptions(res.data);
     } catch (error) {
       console.error(error);
@@ -103,7 +102,6 @@ export default function EditMhrovPage() {
         limit: pagination.limit,
         diNo: filters.diNo,
         vendor: filters.vendor,
-        invoiceNo: filters.invoiceNo,
         dateFrom: filters.dateFrom,
         dateTo: filters.dateTo,
         itemName: filters.itemName,
@@ -461,19 +459,7 @@ export default function EditMhrovPage() {
                       ))}
                     </select>
                   </th>
-                  <th className="px-4 py-3 align-top min-w-[120px]">
-                    <div className="mb-2">Invoice No</div>
-                    <select
-                      className="w-full h-8 px-2 py-1 text-xs font-normal border rounded bg-white"
-                      value={filters.invoiceNo}
-                      onChange={(e) => handleFilterChange("invoiceNo", e.target.value)}
-                    >
-                      <option value="all">All</option>
-                      {filterOptions.invoiceNos.map((inv, i) => (
-                        <option key={i} value={inv}>{inv}</option>
-                      ))}
-                    </select>
-                  </th>
+                  
                   <th className="px-4 py-3 align-top min-w-[200px]">
                     <div className="mb-2">Invoice Date</div>
                     <div className="flex items-center gap-2">

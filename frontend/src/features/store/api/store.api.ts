@@ -60,6 +60,11 @@ export const queryDILineItemsForMhrov = async (params: any) => {
   return response.data;
 };
 
+export const getMhrovDIFilterOptions = async (params?: any) => {
+  const response = await api.get('/store/mhrov/di-items/filter-options', { params });
+  return response.data;
+};
+
 export const bulkImportInwardEntries = async (data: any[]) => {
   const response = await api.post('/store/inventory/inward/bulk-import', { entries: data }, { timeout: 300000 });
   return response.data;
@@ -214,3 +219,5 @@ export const importMhrovsFromCsv = async (file: File) => {
   });
   return response;
 };
+// Cache bust
+ 

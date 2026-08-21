@@ -165,7 +165,11 @@ export default function StoreContractorIssueNewPage() {
       demandQty: 1,
       quantity: 1,
       availableQty: s.totalBalanceQty || 0
-    }));
+    })).sort((a, b) => {
+      const codeA = parseInt(a.tempCode) || 0;
+      const codeB = parseInt(b.tempCode) || 0;
+      return codeA - codeB;
+    });
 
     if (newItemsToAdd.length > 0) {
       const newItems = [...lineItems];
@@ -325,9 +329,21 @@ export default function StoreContractorIssueNewPage() {
                           demandQty: item.demandQty || 1,
                           quantity: item.demandQty || 1,
                           availableQty: stockMatch ? stockMatch.totalBalanceQty : 0
-                        };
                       });
-                      setLineItems(newItems);
+                      
+                      // Filter out duplicates if the Demand Note had duplicate items
+                      const uniqueItems = [];
+                      const seenItemIds = new Set();
+                      for (const item of newItems) {
+                        if (item.itemId && !seenItemIds.has(item.itemId)) {
+                          seenItemIds.add(item.itemId);
+                          uniqueItems.push(item);
+                        } else if (!item.itemId) {
+                          uniqueItems.push(item);
+                        }
+                      }
+                      
+                      setLineItems(uniqueItems);
                     }
                   }
                 }}

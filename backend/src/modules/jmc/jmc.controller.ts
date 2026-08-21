@@ -368,8 +368,10 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
               }
               
               if (candidateItems.length === 0) {
-                 // fallback to all items if circle filtering removed everything
-                 candidateItems = allItems;
+                 // Circle filter removed everything — do NOT fall back to all items.
+                 // Flag and skip this item so we don't import wrong-circle data.
+                 flagged.push({ sourceFile, sheetName, issue: `Item '${sr.description}' — no items found for circle '${uploadedCircle}'. Skipped.` });
+                 continue;
               }
               
               const descriptions = candidateItems.map((i: any) => String(i.dynamicData?.description || i.dynamicData?.name || '')).filter(Boolean);
@@ -396,8 +398,8 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
             }
 
             if (!itemId) {
-              flagged.push({ sourceFile, sheetName, issue: `Item '${sr.description}' not found in Master Item List. Saving without Item ID.` });
-              // We don't continue/skip here anymore. We allow it to save without itemId.
+              flagged.push({ sourceFile, sheetName, issue: `Item '${sr.description}' not found in Master Item List for circle '${uploadedCircle}'. Row skipped.` });
+              continue; // Skip this item — don't save garbage data
             }
 
             jmcItems.push({

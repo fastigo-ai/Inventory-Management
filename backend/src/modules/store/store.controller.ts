@@ -332,7 +332,7 @@ export const queryInwardEntries = asyncHandler(async (req: Request, res: Respons
   });
 
   const allEntries = await StoreInwardEntry.find(filter)
-    .populate('diId', 'diNumber')
+    .populate('diId', 'diNumber lineItems')
     .populate('itemId')
     .sort({ createdAt: 1 })
     .lean();
@@ -340,7 +340,14 @@ export const queryInwardEntries = asyncHandler(async (req: Request, res: Respons
   // Attach remainingQty and doneQty
   let entriesWithRemaining = allEntries.map(entry => {
     const doneQty = doneQtyMap.get(entry._id.toString()) || 0;
-    const totalQty = Number(entry.totalQty || entry.invoiceQty || 0);
+    let diQty = 0;
+    if (entry.diId && (entry.diId as any).lineItems && Array.isArray((entry.diId as any).lineItems)) {
+      const lineItem = (entry.diId as any).lineItems.find((li: any) => li.itemId?.toString() === entry.itemId?.toString() || li.itemName === entry.itemName);
+      if (lineItem) {
+        diQty = Number(lineItem.quantity || 0);
+      }
+    }
+    const totalQty = diQty > 0 ? diQty : Number(entry.totalQty || entry.invoiceQty || 0);
     const remainingQty = Math.max(0, totalQty - doneQty);
     
     // Extract Item details
@@ -2425,7 +2432,15 @@ export const getMhrovById = asyncHandler(async (req: Request, res: Response) => 
   const populatedEntries = (mhrov.inwardEntries || []).map((entry: any) => {
     if (entry && entry._id) {
       const idStr = entry._id.toString();
-      const doneQty = itemsMap.has(idStr) ? itemsMap.get(idStr) : entry.totalQty;
+      let diQty = 0;
+      if (entry.diId && (entry.diId as any).lineItems && Array.isArray((entry.diId as any).lineItems)) {
+        const lineItem = (entry.diId as any).lineItems.find((li: any) => li.itemId?.toString() === entry.itemId?.toString() || li.itemName === entry.itemName);
+        if (lineItem) {
+          diQty = Number(lineItem.quantity || 0);
+        }
+      }
+      const entryTotalQty = diQty > 0 ? diQty : Number(entry.totalQty || entry.invoiceQty || 0);
+      const doneQty = itemsMap.has(idStr) ? itemsMap.get(idStr) : entryTotalQty;
       
       let loaSrNo = '';
       let tempCode = '';
@@ -2497,7 +2512,7 @@ export const getMhrovDashboardData = asyncHandler(async (req: Request, res: Resp
 
   // 1. Fetch all VERIFIED Inward Entries
   const inwardEntries = await StoreInwardEntry.find(filter)
-    .populate('diId', 'diNumber')
+    .populate('diId', 'diNumber lineItems')
     .sort({ createdAt: 1 })
     .lean();
 

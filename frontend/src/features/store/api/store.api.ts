@@ -177,8 +177,8 @@ export const getMhrovs = async () => {
   return response.data;
 };
 
-export const getMhrovById = async (id: string) => {
-  const response = await api.get(`/store/mhrov/${id}`);
+export const getMhrovById = async (id: string, circle?: string) => {
+  const response = await api.get(`/store/mhrov/${id}${circle ? '?circle=' + encodeURIComponent(circle) : ''}`);
   return response.data;
 };
 

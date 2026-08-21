@@ -10,6 +10,7 @@ import { toast } from "sonner";
 
 export default function MhrovDetailPage() {
   const router = useRouter();
+  const { user } = useAuthStore();
   const params = useParams();
   const { id } = params as { id: string };
 

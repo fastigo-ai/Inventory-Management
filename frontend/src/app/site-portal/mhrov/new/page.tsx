@@ -11,9 +11,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Save, ShoppingCart, Trash2, Search, ChevronLeft, ChevronRight, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useAuthStore } from "@/shared/store/auth.store";
 
 export default function NewMhrovPage() {
   const router = useRouter();
+  const { user } = useAuthStore();
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm({
     defaultValues: {
       mhrovNumber: "",
@@ -72,7 +74,8 @@ export default function NewMhrovPage() {
         invoiceNo: filters.invoiceNo,
         dateFrom: filters.dateFrom,
         dateTo: filters.dateTo,
-        itemName: filters.itemName
+        itemName: filters.itemName,
+        circle: user?.assignedCircle || ""
       });
       
       const data = res.data;

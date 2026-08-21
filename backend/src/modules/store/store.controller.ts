@@ -288,7 +288,7 @@ export const getInwardEntryById = asyncHandler(async (req: Request, res: Respons
 });
 
 export const queryInwardEntries = asyncHandler(async (req: Request, res: Response) => {
-  const { diId, status, diNo, vendor, invoiceNo, dateFrom, dateTo, itemName, page = 1, limit = 50, excludeMhrovId, forMhrov } = req.query;
+  const { diId, status, diNo, vendor, invoiceNo, dateFrom, dateTo, itemName, page = 1, limit = 50, excludeMhrovId, forMhrov, circle } = req.query;
   const filter: any = {};
   
   if (diId) filter.diId = diId;
@@ -356,21 +356,22 @@ export const queryInwardEntries = asyncHandler(async (req: Request, res: Respons
       tempCode = dd.tempCode || '';
       totalLoaQty = Number(dd.loaQty || dd.loaQuantity || dd.totalLoaQuantity || dd.qty || dd.quantity || 0);
       
-      const circleKey = entry.circle ? entry.circle.toLowerCase() + 'LoaQuantity' : '';
+      const targetCircle = (circle as string) || entry.circle;
+      const circleKey = targetCircle ? targetCircle.toLowerCase() + 'LoaQuantity' : '';
       if (circleKey && dd[circleKey]) {
         circleLoaQty = Number(dd[circleKey]);
       }
       
-      if (dd.stockLocations && Array.isArray(dd.stockLocations) && entry.circle) {
+      if (dd.stockLocations && Array.isArray(dd.stockLocations) && targetCircle) {
         const matchingLoc = dd.stockLocations.find((l: any) => 
-          l.circle?.toLowerCase() === entry.circle?.toLowerCase() &&
+          l.circle?.toLowerCase() === targetCircle.toLowerCase() &&
           (!entry.package || l.package?.toLowerCase() === entry.package?.toLowerCase())
         );
         if (matchingLoc) {
            balanceInStock = Number(matchingLoc.quantity || 0);
         } else {
            // Fallback to sum of all matching circles if package is missing or mismatch
-           const matchingCircles = dd.stockLocations.filter((l: any) => l.circle?.toLowerCase() === entry.circle?.toLowerCase());
+           const matchingCircles = dd.stockLocations.filter((l: any) => l.circle?.toLowerCase() === targetCircle.toLowerCase());
            balanceInStock = matchingCircles.reduce((sum: number, l: any) => sum + Number(l.quantity || 0), 0);
         }
       }
@@ -2399,9 +2400,13 @@ export const updateMhrov = asyncHandler(async (req: Request, res: Response) => {
 
 export const getMhrovById = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
+  const { circle } = req.query;
   const mhrov = await Mhrov.findById(id).populate({
     path: 'inwardEntries',
-    populate: { path: 'diId' }
+    populate: [
+      { path: 'diId' },
+      { path: 'itemId' }
+    ]
   }).lean();
 
   if (!mhrov) {
@@ -2421,9 +2426,47 @@ export const getMhrovById = asyncHandler(async (req: Request, res: Response) => 
     if (entry && entry._id) {
       const idStr = entry._id.toString();
       const doneQty = itemsMap.has(idStr) ? itemsMap.get(idStr) : entry.totalQty;
+      
+      let loaSrNo = '';
+      let tempCode = '';
+      let totalLoaQty = 0;
+      let circleLoaQty = 0;
+      let balanceInStock = 0;
+      
+      if (entry.itemId && (entry.itemId as any).dynamicData) {
+        const dd = (entry.itemId as any).dynamicData;
+        loaSrNo = dd.loaSrNo || dd.loaSerialNo || dd.sku || '';
+        tempCode = dd.tempCode || '';
+        totalLoaQty = Number(dd.loaQty || dd.loaQuantity || dd.totalLoaQuantity || dd.qty || dd.quantity || 0);
+        
+        const targetCircle = (circle as string) || entry.circle;
+        const circleKey = targetCircle ? targetCircle.toLowerCase() + 'LoaQuantity' : '';
+        if (circleKey && dd[circleKey]) {
+          circleLoaQty = Number(dd[circleKey]);
+        }
+        
+        if (dd.stockLocations && Array.isArray(dd.stockLocations) && targetCircle) {
+          const matchingLoc = dd.stockLocations.find((l: any) => 
+            l.circle?.toLowerCase() === targetCircle.toLowerCase() &&
+            (!entry.package || l.package?.toLowerCase() === entry.package?.toLowerCase())
+          );
+          if (matchingLoc) {
+             balanceInStock = Number(matchingLoc.quantity || 0);
+          } else {
+             const matchingCircles = dd.stockLocations.filter((l: any) => l.circle?.toLowerCase() === targetCircle.toLowerCase());
+             balanceInStock = matchingCircles.reduce((sum: number, l: any) => sum + Number(l.quantity || 0), 0);
+          }
+        }
+      }
+      
       return {
         ...entry,
-        mhrovDoneQty: doneQty
+        mhrovDoneQty: doneQty,
+        loaSrNo,
+        tempCode,
+        totalLoaQty,
+        circleLoaQty,
+        balanceInStock
       };
     }
     return entry;

@@ -123,8 +123,11 @@ export const getAssignments = asyncHandler(async (req: Request, res: Response) =
   if (user && user.role?.name === 'Store Manager') {
     if (user.assignedCircle) {
       const allowedCircles = SUB_STORE_MAP[user.assignedCircle] || [user.assignedCircle];
-      // Use $in directly without regex for exact matches, much faster
-      filter.location = { $in: allowedCircles.map(c => new RegExp(`^${c}$`, 'i')) };
+      const regexCircles = allowedCircles.map(c => new RegExp(`^${c}$`, 'i'));
+      filter.$or = [
+        { location: { $in: regexCircles } },
+        { circle: { $in: regexCircles } }
+      ];
     }
   }
 

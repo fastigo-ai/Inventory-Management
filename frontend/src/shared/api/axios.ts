@@ -23,9 +23,9 @@ api.interceptors.request.use((config) => {
     }
   }
   
-  // CRITICAL FIX: If Content-Type is manually set to 'multipart/form-data', Axios will NOT append the boundary.
-  // We must delete it so Axios can automatically generate the correct boundary for FormData.
-  if (config.headers && config.headers['Content-Type'] === 'multipart/form-data') {
+  // CRITICAL FIX: For FormData (file uploads), we must NOT set Content-Type manually or it drops the boundary.
+  // By deleting it, the browser will automatically set 'multipart/form-data; boundary=...'
+  if (config.data instanceof FormData) {
     delete config.headers['Content-Type'];
   }
   

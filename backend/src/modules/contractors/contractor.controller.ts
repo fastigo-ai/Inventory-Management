@@ -674,6 +674,9 @@ export const deleteContractorReturn = asyncHandler(async (req: Request, res: Res
 });
 
 export const bulkImportContractorReturns = asyncHandler(async (req: Request, res: Response) => {
+  console.log("Req headers:", req.headers["content-type"]);
+  console.log("Req file:", req.file);
+  console.log("Req body:", req.body);
   if (!req.file) {
     throw new ApiError(400, 'Please upload a CSV file');
   }

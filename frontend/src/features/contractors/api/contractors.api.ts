@@ -24,7 +24,6 @@ export const importContractors = async (file: File) => {
   const formData = new FormData();
   formData.append('file', file);
   const response = await api.post('/contractors/import', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
     timeout: 300000
   });
   return response.data;
@@ -35,7 +34,6 @@ export const importContractorAssignments = async (file: File, overwriteExisting:
   formData.append('file', file);
   formData.append('overwriteExisting', String(overwriteExisting));
   const response = await api.post('/contractors/assignments/import', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
     timeout: 300000,
     onUploadProgress
   });
@@ -127,7 +125,6 @@ export const importContractorReturns = async (file: File) => {
   const formData = new FormData();
   formData.append('file', file);
   const response = await api.post('/contractors/returns/import', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
     timeout: 300000
   });
   return response.data;

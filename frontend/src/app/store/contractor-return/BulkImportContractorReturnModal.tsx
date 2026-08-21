@@ -126,7 +126,17 @@ export function BulkImportContractorReturnModal({ open, onOpenChange, onSuccess 
       setUploadProgress(0);
       setLoading(false);
       console.error("Import error:", error);
-      toast.error(error.response?.data?.message || "Failed to import data");
+      
+      const responseData = error.response?.data;
+      const rowErrors = responseData?.data?.errors;
+      
+      if (rowErrors && Array.isArray(rowErrors) && rowErrors.length > 0) {
+        toast.error(`Import failed: ${rowErrors[0]} ${rowErrors.length > 1 ? `(and ${rowErrors.length - 1} more errors)` : ''}`, {
+          duration: 5000,
+        });
+      } else {
+        toast.error(responseData?.message || "Failed to import data");
+      }
     }
   };
 

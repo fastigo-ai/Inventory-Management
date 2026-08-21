@@ -667,9 +667,6 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
   };
 
   if (validItems.length > 0) {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
     try {
       const itemChunks = chunkArray(validItems, 1000);
     
@@ -773,7 +770,7 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
       }
       
       if (chunkOps.length > 0) {
-        await Item.bulkWrite(chunkOps, { session });
+        await Item.bulkWrite(chunkOps);
       }
     }
 
@@ -782,7 +779,7 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
       const importedActivities = validItems.map(item => item.dynamicData.activity).filter(a => a && typeof a === 'string');
       if (importedActivities.length > 0) {
         const uniqueImported = Array.from(new Set(importedActivities));
-        const meta = await Metadata.findOne({ entityName: 'Item' }).session(session);
+        const meta = await Metadata.findOne({ entityName: 'Item' });
         if (meta) {
           const fields = (meta as any).fields;
           const activityField = fields.find((f: any) => f.name === 'activity');
@@ -797,17 +794,13 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
             }
             if (added) {
               activityField.options = Array.from(currentOptions);
-              await Metadata.updateOne({ entityName: 'Item' }, { $set: { fields } }, { session });
+              await Metadata.updateOne({ entityName: 'Item' }, { $set: { fields } });
             }
           }
         }
       }
       }
-      await session.commitTransaction();
-      session.endSession();
     } catch (error) {
-      await session.abortTransaction();
-      session.endSession();
       throw error;
     }
 

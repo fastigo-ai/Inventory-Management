@@ -291,10 +291,14 @@ export const queryInwardEntries = asyncHandler(async (req: Request, res: Respons
   const { diId, status, diNo, vendor, invoiceNo, dateFrom, dateTo, itemName, page = 1, limit = 50, excludeMhrovId, forMhrov, circle } = req.query;
   const filter: any = {};
   
+  if (circle) filter.circle = circle;
   if (diId) filter.diId = diId;
   else if (forMhrov === 'true' || String(forMhrov) === 'true' || forMhrov === undefined) {
-    // Only show items that have a DI assigned
-    filter.diId = { $exists: true, $ne: null };
+    // Only show items that have a DI assigned (either by ID or string ref)
+    filter.$or = [
+      { diId: { $exists: true, $ne: null } },
+      { diRefNo: { $exists: true, $nin: ['', null] } }
+    ];
   }
   if (status) filter.status = status;
   
@@ -432,7 +436,7 @@ export const queryInwardEntries = asyncHandler(async (req: Request, res: Respons
 });
 
 export const getInwardFilterOptions = asyncHandler(async (req: Request, res: Response) => {
-  const validDiFilter = { diId: { $exists: true, $ne: null } };
+  const validDiFilter = { $or: [{ diId: { $exists: true, $ne: null } }, { diRefNo: { $exists: true, $nin: ['', null] } }] };
   const [diNos, vendors, invoiceNos] = await Promise.all([
     StoreInwardEntry.distinct('diRefNo', validDiFilter),
     StoreInwardEntry.distinct('vendorName', validDiFilter),

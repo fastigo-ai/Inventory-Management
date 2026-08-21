@@ -751,7 +751,7 @@ export const bulkImportContractorReturns = asyncHandler(async (req: Request, res
           contractorId: contractor._id,
           returnChallanNo: challanNo,
           bookNo: row['Book No.'] || row['BookNo'] || '',
-          returnChallanDate: row['Return Challan Date'] ? new Date(row['Return Challan Date']) : new Date(),
+          returnChallanDate: row['Return Challan Date'] ? (parseCsvDate(row['Return Challan Date']) || new Date()) : new Date(),
           contractorFarmName: row['Contractor\'s Firm/Farm Name'] || row['ContractorFirmName'] || contractor.farmName || '',
           supervisorEngineer: row['Supervisor / Engineer'] || '',
           division: row['Name of Division'] || '',
@@ -815,7 +815,7 @@ export const bulkImportContractorReturns = asyncHandler(async (req: Request, res
   );
 });
 
-const parseCsvDate = (dateStr: string): Date | undefined => {
+function parseCsvDate(dateStr: string): Date | undefined {
   if (!dateStr) return undefined;
   let d = new Date(dateStr);
   if (Number.isNaN(d.getTime())) {

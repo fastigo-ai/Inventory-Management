@@ -23,11 +23,13 @@ export function BulkImportContractorReturnModal({ open, onOpenChange, onSuccess 
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [errorList, setErrorList] = useState<string[]>([]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setFile(e.target.files[0]);
       setUploadProgress(0);
+      setErrorList([]);
     }
   };
 
@@ -99,6 +101,7 @@ export function BulkImportContractorReturnModal({ open, onOpenChange, onSuccess 
 
     setLoading(true);
     setUploadProgress(0);
+    setErrorList([]);
 
     const progressInterval = setInterval(() => {
       setUploadProgress(prev => {
@@ -131,17 +134,21 @@ export function BulkImportContractorReturnModal({ open, onOpenChange, onSuccess 
       const rowErrors = responseData?.data?.errors;
       
       if (rowErrors && Array.isArray(rowErrors) && rowErrors.length > 0) {
-        toast.error(`Import failed: ${rowErrors[0]} ${rowErrors.length > 1 ? `(and ${rowErrors.length - 1} more errors)` : ''}`, {
-          duration: 5000,
-        });
+        setErrorList(rowErrors);
       } else {
         toast.error(responseData?.message || "Failed to import data");
       }
     }
   };
 
+  // Reset errors when closing
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) setErrorList([]);
+    onOpenChange(isOpen);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md bg-white">
         <DialogHeader>
           <DialogTitle>Bulk Import Contractor Returns</DialogTitle>
@@ -207,10 +214,28 @@ export function BulkImportContractorReturnModal({ open, onOpenChange, onSuccess 
                 </div>
               )}
             </div>
+
+            {errorList.length > 0 && (
+              <div className="mt-4 p-4 bg-red-50 border border-red-100 rounded-lg max-h-48 overflow-y-auto">
+                <h4 className="text-xs font-semibold text-red-700 mb-2 sticky top-0 bg-red-50">Validation Errors ({errorList.length}):</h4>
+                <ul className="list-disc pl-5 space-y-1">
+                  {errorList.map((err, idx) => (
+                    <li key={idx} className="text-xs text-red-600 font-medium">
+                      {err}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
-          
+        </div>
+
+        <DialogFooter className="border-t border-slate-100 pt-4 mt-2">
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
+            Cancel
+          </Button>
           <Button 
-            className="w-full bg-blue-600 hover:bg-blue-700" 
+            className="bg-blue-600 hover:bg-blue-700" 
             disabled={!file || loading}
             onClick={handleUpload}
           >

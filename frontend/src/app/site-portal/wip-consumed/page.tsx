@@ -114,7 +114,7 @@ export default function WipRegisterPage() {
               <FileText className="mr-2 h-4 w-4" /> Bulk Upload WIP
             </Button>
             <Button 
-              onClick={() => router.push('/site-portal/wip-register/new')}
+              onClick={() => router.push('/site-portal/wip-consumed/new')}
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -184,7 +184,7 @@ export default function WipRegisterPage() {
                       <tr 
                         key={entry._id} 
                         className="hover:bg-slate-50 transition-colors cursor-pointer"
-                        onClick={() => router.push(`/site-portal/wip-register/${entry._id}`)}
+                        onClick={() => router.push(`/site-portal/wip-consumed/${entry._id}`)}
                       >
                         <td className="px-6 py-4 font-medium text-blue-600">{entry.wipNumber}</td>
                         <td className="px-6 py-4">{new Date(entry.date).toLocaleDateString()}</td>

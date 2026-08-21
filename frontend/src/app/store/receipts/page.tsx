@@ -309,18 +309,7 @@ export default function StoreReceiptsPage() {
               </>
             )}
 
-            <div className="flex flex-col gap-1.5 w-[160px]">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</label>
-              <select
-                className={selectClass}
-                value={filters.status}
-                onChange={(e) => { setFilters((p) => ({ ...p, status: e.target.value })); setCurrentPage(1); }}
-              >
-                <option value="All">All Statuses</option>
-                <option value="PENDING_RECEIPT">Pending Receipt</option>
-                <option value="APPROVED">Approved / Completed</option>
-              </select>
-            </div>
+
 
             <div className="flex flex-col gap-1.5 w-[160px]">
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Vendor</label>
@@ -387,6 +376,40 @@ export default function StoreReceiptsPage() {
             </div>
           </div>
           
+          {/* Tabs for Status */}
+          <div className="flex px-5 pt-3 gap-6 border-b border-slate-100 bg-white">
+            <button
+              onClick={() => { setFilters((p) => ({ ...p, status: 'All' })); setCurrentPage(1); }}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+                filters.status === 'All'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+              }`}
+            >
+              All Receipts
+            </button>
+            <button
+              onClick={() => { setFilters((p) => ({ ...p, status: 'PENDING_RECEIPT' })); setCurrentPage(1); }}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+                filters.status === 'PENDING_RECEIPT'
+                  ? 'border-amber-500 text-amber-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+              }`}
+            >
+              Pending
+            </button>
+            <button
+              onClick={() => { setFilters((p) => ({ ...p, status: 'APPROVED' })); setCurrentPage(1); }}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+                filters.status === 'APPROVED'
+                  ? 'border-emerald-500 text-emerald-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+              }`}
+            >
+              Approved
+            </button>
+          </div>
+
           {/* Search Bar */}
           <div className="px-5 py-3 bg-white flex items-center border-b border-slate-100">
             <Search className="w-4 h-4 text-slate-400 mr-3" />

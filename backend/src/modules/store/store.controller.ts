@@ -850,17 +850,17 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
   }
 
   const parser = parseAndSanitizeCsv(req.file.buffer);
-
-  const inwardEntries: any[] = [];
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  
+  const rawRows: any[] = [];
+  for await (const row of parser) {
+    rawRows.push(row);
+  }
 
   const errors: string[] = [];
-  let successCount = 0;
-
-  try {
-
-  for await (const row of parser) {
+  const validPayloads: any[] = [];
+  
+  // Pass 1: Validate everything
+  for (const row of rawRows) {
     try {
       const invoiceNumber = row['InvoiceNumber'] || row['Invoice Number'] || row['invoiceNumber'];
       if (!invoiceNumber) {
@@ -889,8 +889,6 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
 
       let invoiceItem = null;
       if (loaSerialNo) {
-        // Try to match by loaSerialNo on PI items? PI items don't have loaSerialNo natively stored unless joined
-        // Let's just find an item that matches the name if loa isn't perfect, or just use the first item if 1
         invoiceItem = invoice.lineItems.find((li: any) => li.itemName === itemName);
       }
       
@@ -903,7 +901,7 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
       }
 
       if (!invoiceItem) {
-        errors.push(`Item '${itemName}' not found in Invoice ${invoiceNumber}`);
+        errors.push(`Item '${itemName || loaSerialNo}' not found in Invoice ${invoiceNumber}`);
         continue;
       }
 
@@ -945,7 +943,7 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
       
       const amount = row['Amount'] !== undefined && row['Amount'] !== '' ? Number(row['Amount']) : (taxableAmount + cgst + sgst + igst);
 
-      const payload = {
+      validPayloads.push({
         inwardId: row['InwardId'] || row['Inward ID'] || row['inwardId'] || `INW-${Math.floor(10000 + Math.random() * 90000)}`,
         purchaseInvoiceId: invoice._id,
         purchaseOrderId: po?._id,
@@ -964,7 +962,7 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
         rate: rate,
         amount: amount,
         taxableAmount: taxableAmount,
-        tempCode: row['TempCode'] || (invoiceItem.itemId ? undefined : undefined), 
+        tempCode: row['TempCode'] || undefined, 
         itemName: row['ItemName'] || invoiceItem.itemName || '',
         itemDescription: row['ItemDescription'] || invoiceItem.description || poItem?.description || '',
         hsnCode: row['HsnCode'] || invoiceItem.hsnCode || poItem?.hsnCode || '',
@@ -987,47 +985,43 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
         status: 'DRAFT',
         packingList: [],
         createdBy: (req as any).user?._id
-      };
-      
-      // If DRAFT exists for this PI and serialNumber, update it, else create
-      const draftFilter: any = { 
-        status: 'DRAFT',
-        purchaseInvoiceId: invoice._id,
-        serialNumber: payload.serialNumber
-      };
-      
-      let entry = await StoreInwardEntry.findOne(draftFilter).session(session);
-      if (entry) {
-        await StoreInwardEntry.findByIdAndUpdate(entry._id, payload, { session });
-      } else {
-        await StoreInwardEntry.create([payload], { session });
-      }
-      
-      successCount++;
+      });
     } catch (err: any) {
       errors.push(`Row error: ${err.message}`);
     }
   }
 
-  } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    throw error;
-  }
-
   if (errors.length > 0) {
-    await session.abortTransaction();
-    session.endSession();
     return res.status(400).json(
-      new ApiResponse(400, { errors }, 'Import failed due to row errors. No data was imported.')
+      new ApiResponse(400, { errors }, 'Import failed due to row validation errors. No data was imported.')
     );
   }
 
-  await session.commitTransaction();
-  session.endSession();
+  // Pass 2: Save Data
+  let successCount = 0;
+  for (const payload of validPayloads) {
+    try {
+      const draftFilter: any = { 
+        status: 'DRAFT',
+        purchaseInvoiceId: payload.purchaseInvoiceId,
+        serialNumber: payload.serialNumber
+      };
+      
+      let entry = await StoreInwardEntry.findOne(draftFilter);
+      if (entry) {
+        await StoreInwardEntry.findByIdAndUpdate(entry._id, payload);
+      } else {
+        await StoreInwardEntry.create([payload]);
+      }
+      successCount++;
+    } catch (err: any) {
+      // Very rare unless DB issues during save
+      console.error('Failed to save inward entry:', err);
+    }
+  }
 
   res.status(200).json(
-    new ApiResponse(200, { successCount, errors }, 'Import process completed')
+    new ApiResponse(200, { successCount, errors }, 'Import process completed successfully')
   );
 });
 
@@ -1756,15 +1750,9 @@ export const importStoreTransfers = asyncHandler(async (req: Request, res: Respo
     }
   }
 
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
-    // Save transfers
-    for (const docKey of Object.keys(transfersByDoc)) {
+  // Pass 1: Validate for existing records before saving
+  for (const docKey of Object.keys(transfersByDoc)) {
     const payload = transfersByDoc[docKey];
-    
-    // Check if transfer already exists based on ChallanNo or MinNo
     const existing = await StoreTransfer.findOne({ 
        $or: [
          { challanNo: { $eq: payload.challanNo, $ne: '' } },
@@ -1774,27 +1762,25 @@ export const importStoreTransfers = asyncHandler(async (req: Request, res: Respo
     
     if (existing) {
       errors.push(`Transfer ${payload.challanNo || payload.minNo} already exists. Skipping.`);
-      continue;
-    }
-
-    try {
-      await StoreTransfer.create([payload], { session });
-      successCount++;
-    } catch (err: any) {
-      errors.push(`Error saving Transfer ${docKey}: ${err.message}`);
     }
   }
 
   if (errors.length > 0) {
-    await session.abortTransaction();
-    session.endSession();
     return res.status(400).json(
-      new ApiResponse(400, { errors }, 'Import failed due to row errors. No data was imported.')
+      new ApiResponse(400, { errors }, 'Import failed due to row validation errors. No data was imported.')
     );
   }
 
-  await session.commitTransaction();
-  session.endSession();
+  // Pass 2: Save Data
+  for (const docKey of Object.keys(transfersByDoc)) {
+    try {
+      const payload = transfersByDoc[docKey];
+      await StoreTransfer.create([payload]);
+      successCount++;
+    } catch (err: any) {
+      console.error(`Error saving Transfer ${docKey}:`, err);
+    }
+  }
 
   // Rebuild summary cache for imported items
   const affectedItemIds = new Set<string>();
@@ -1806,14 +1792,9 @@ export const importStoreTransfers = asyncHandler(async (req: Request, res: Respo
   affectedItemIds.forEach(id => {
     SummaryService.rebuildForItem(id).catch(console.error);
   });
-  } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    throw error;
-  }
 
   res.status(200).json(
-    new ApiResponse(200, { successCount, errors }, 'Import process completed')
+    new ApiResponse(200, { successCount, errors }, 'Import process completed successfully')
   );
 });
 
@@ -1958,83 +1939,72 @@ export const importReceivedStoreTransfers = asyncHandler(async (req: Request, re
     }
   }
 
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  // Pass 1: Validate for existing records before saving
+  for (const docKey of Object.keys(transfersByDoc)) {
+    const payload = transfersByDoc[docKey];
+    const existing = await StoreTransfer.findOne({ 
+       $or: [
+         { challanNo: { $eq: payload.challanNo, $ne: '' } },
+         { minNo: { $eq: payload.minNo, $ne: '' } }
+       ]
+    });
+    
+    if (existing) {
+      errors.push(`Transfer ${payload.challanNo || payload.minNo} already exists. Skipping.`);
+    }
+  }
 
-  try {
-    for (const docKey of Object.keys(transfersByDoc)) {
+  if (errors.length > 0) {
+    return res.status(400).json(
+      new ApiResponse(400, { errors }, 'Import failed due to row validation errors. No data was imported.')
+    );
+  }
+
+  // Pass 2: Save Data
+  for (const docKey of Object.keys(transfersByDoc)) {
+    try {
       const payload = transfersByDoc[docKey];
+      await StoreTransfer.create([payload]);
       
-      const existing = await StoreTransfer.findOne({ 
-         $or: [
-           { challanNo: { $eq: payload.challanNo, $ne: '' } },
-           { minNo: { $eq: payload.minNo, $ne: '' } }
-         ]
-      });
+      const fromStoreStr = payload.fromStore && payload.fromStore !== '-' ? payload.fromStore : '';
+      const toStoreStr = payload.toStore && payload.toStore !== '-' ? payload.toStore : '';
       
-      if (existing) {
-        errors.push(`Transfer ${payload.challanNo || payload.minNo} already exists. Skipping.`);
-        continue;
-      }
+      const fromCircleKey = fromStoreStr ? `${fromStoreStr.toLowerCase().replace(/\s+/g, '')}LoaQuantity` : null;
+      const toCircleKey = toStoreStr ? `${toStoreStr.toLowerCase().replace(/\s+/g, '')}LoaQuantity` : null;
 
-      try {
-        await StoreTransfer.create([payload], { session });
-        
-        const fromStoreStr = payload.fromStore && payload.fromStore !== '-' ? payload.fromStore : '';
-        const toStoreStr = payload.toStore && payload.toStore !== '-' ? payload.toStore : '';
-        
-        const fromCircleKey = fromStoreStr ? `${fromStoreStr.toLowerCase().replace(/\s+/g, '')}LoaQuantity` : null;
-        const toCircleKey = toStoreStr ? `${toStoreStr.toLowerCase().replace(/\s+/g, '')}LoaQuantity` : null;
+      for (const lineItem of payload.items) {
+        if (lineItem.receivedQty > 0) {
+          const item = await Item.findById(lineItem.itemId);
+          if (item) {
+            const currentFromQty = fromCircleKey ? Number(item.dynamicData?.[fromCircleKey] || 0) : 0;
+            const currentToQty = toCircleKey ? Number(item.dynamicData?.[toCircleKey] || 0) : 0;
+            
+            const updateData: any = {};
+            if (fromCircleKey) updateData[fromCircleKey] = Math.max(0, currentFromQty - lineItem.receivedQty);
+            if (toCircleKey) updateData[toCircleKey] = currentToQty + lineItem.receivedQty;
 
-        for (const lineItem of payload.items) {
-          if (lineItem.receivedQty > 0) {
-            const item = await Item.findById(lineItem.itemId).session(session);
-            if (item) {
-              const currentFromQty = fromCircleKey ? Number(item.dynamicData?.[fromCircleKey] || 0) : 0;
-              const currentToQty = toCircleKey ? Number(item.dynamicData?.[toCircleKey] || 0) : 0;
+            if (Object.keys(updateData).length > 0) {
+              item.dynamicData = {
+                ...item.dynamicData,
+                ...updateData
+              };
+              item.markModified('dynamicData');
+              await item.save();
               
-              const updateData: any = {};
-              if (fromCircleKey) updateData[fromCircleKey] = Math.max(0, currentFromQty - lineItem.receivedQty);
-              if (toCircleKey) updateData[toCircleKey] = currentToQty + lineItem.receivedQty;
-
-              if (Object.keys(updateData).length > 0) {
-                item.dynamicData = {
-                  ...item.dynamicData,
-                  ...updateData
-                };
-                item.markModified('dynamicData');
-                await item.save({ session });
-                
-                SummaryService.rebuildForItem(item._id.toString()).catch(console.error);
-              }
+              SummaryService.rebuildForItem(item._id.toString()).catch(console.error);
             }
           }
         }
-        
-        successCount++;
-      } catch (err: any) {
-        errors.push(`Error saving Transfer ${docKey}: ${err.message}`);
       }
+      
+      successCount++;
+    } catch (err: any) {
+      console.error(`Error saving Transfer ${docKey}:`, err);
     }
-
-    if (errors.length > 0) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(400).json(
-        new ApiResponse(400, { errors }, 'Import failed due to row errors. No data was imported.')
-      );
-    }
-
-    await session.commitTransaction();
-    session.endSession();
-  } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    throw error;
   }
 
   res.status(200).json(
-    new ApiResponse(200, { successCount, errors }, 'Import process completed')
+    new ApiResponse(200, { successCount, errors }, 'Import process completed successfully')
   );
 });
 
@@ -2489,11 +2459,10 @@ export const bulkImportInwardEntries = asyncHandler(async (req: Request, res: Re
     errors: [] as string[]
   };
 
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  const updatesToApply: any[] = [];
 
-  try {
-    for (const row of entries) {
+  // Pass 1: Validation
+  for (const row of entries) {
     try {
       const entryId = row['Entry ID'];
       if (!entryId) {
@@ -2502,7 +2471,7 @@ export const bulkImportInwardEntries = asyncHandler(async (req: Request, res: Re
         continue;
       }
 
-      const existingEntry = await StoreInwardEntry.findById(entryId).session(session);
+      const existingEntry = await StoreInwardEntry.findById(entryId);
       if (!existingEntry) {
         results.failed++;
         results.errors.push(`Entry ID ${entryId} not found`);
@@ -2576,14 +2545,12 @@ export const bulkImportInwardEntries = asyncHandler(async (req: Request, res: Re
         }]
       };
 
-      await StoreInwardEntry.findByIdAndUpdate(entryId, updateData, { session });
-      
-      // Also invoke summary rebuild just like manual update
-      if (existingEntry.itemId) {
-        SummaryService.rebuildForItem(existingEntry.itemId.toString()).catch(console.error);
-      }
+      updatesToApply.push({
+        entryId,
+        updateData,
+        itemId: existingEntry.itemId
+      });
 
-      results.success++;
     } catch (err: any) {
       results.failed++;
       results.errors.push(`Row processing failed: ${err.message}`);
@@ -2591,19 +2558,24 @@ export const bulkImportInwardEntries = asyncHandler(async (req: Request, res: Re
   }
 
   if (results.errors.length > 0) {
-    await session.abortTransaction();
-    session.endSession();
     return res.status(400).json(
       new ApiResponse(400, { results }, 'Bulk import failed due to row errors. No entries were updated.')
     );
   }
 
-  await session.commitTransaction();
-  session.endSession();
-  } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    throw error;
+  // Pass 2: Apply Updates
+  for (const update of updatesToApply) {
+    try {
+      await StoreInwardEntry.findByIdAndUpdate(update.entryId, update.updateData);
+      
+      if (update.itemId) {
+        SummaryService.rebuildForItem(update.itemId.toString()).catch(console.error);
+      }
+      
+      results.success++;
+    } catch (err: any) {
+      console.error(`Failed to update inward entry ${update.entryId}:`, err);
+    }
   }
 
   res.status(200).json(

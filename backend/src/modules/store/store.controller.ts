@@ -1296,6 +1296,9 @@ export const approveStoreReceipt = asyncHandler(async (req: Request, res: Respon
   entry.status = 'APPROVED';
   await entry.save();
   
+  // Also process inward stock update since we are moving it to APPROVED state
+  await processInwardStockUpdate(entry._id.toString());
+  
   res.status(200).json(
     new ApiResponse(200, entry, 'Store receipt approved successfully')
   );

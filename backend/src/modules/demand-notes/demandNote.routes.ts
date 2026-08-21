@@ -25,7 +25,7 @@ router.post('/import', authorize(['Site Portal']), upload.single('file'), import
 router.post('/', authorize(['Site Portal']), upload.single('file'), createDemandNote);
 router.get('/', getDemandNotes);
 router.get('/:id', getDemandNoteById);
-router.put('/:id', authorize(['Site Portal']), updateDemandNote);
+router.put('/:id', authorize(['Site Portal', 'Project Manager Portal', 'Project Director Portal']), updateDemandNote);
 router.delete('/:id', authorize(['Site Portal']), deleteDemandNote);
 
 export default router;

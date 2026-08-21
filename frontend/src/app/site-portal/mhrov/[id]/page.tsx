@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, FileText, Download } from "lucide-react";
 import { toast } from "sonner";
+import { useAuthStore } from "@/shared/store/auth.store";
 
 export default function MhrovDetailPage() {
   const router = useRouter();

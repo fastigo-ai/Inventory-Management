@@ -119,7 +119,7 @@ export default function StoreContractorIssueNewPage() {
     
     Promise.all([
       getContractors(),
-      getStockSummary({}),
+      getStockSummary({ circle: user?.assignedCircle || '' }),
       getDemandNotes()
     ]).then(([contractorsRes, stockRes, demandNotesRes]) => {
       const cList = contractorsRes.data || [];

@@ -172,6 +172,7 @@ export default function StoreContractorIssueNewPage() {
             activity: item.activity || "",
             unit: item.unit || "Nos",
             hsnCode: stockMatch ? stockMatch.hsnCode : "",
+            loaSrNo: item.loaSrNo || (stockMatch ? stockMatch.loaSrNo : ""),
             demandQty: item.demandQty || 1,
             quantity: item.demandQty || 1,
             availableQty: stockMatch ? stockMatch.totalBalanceQty : 0
@@ -205,6 +206,7 @@ export default function StoreContractorIssueNewPage() {
         newItems[index].activity = selectedStock.activity || '';
         newItems[index].unit = selectedStock.unit || 'Nos';
         newItems[index].hsnCode = selectedStock.hsnCode || '';
+        newItems[index].loaSrNo = selectedStock.loaSrNo || '';
         newItems[index].availableQty = selectedStock.totalBalanceQty || 0;
       } else {
         newItems[index].itemId = "";
@@ -213,6 +215,7 @@ export default function StoreContractorIssueNewPage() {
         newItems[index].activity = "";
         newItems[index].unit = "Nos";
         newItems[index].hsnCode = "";
+        newItems[index].loaSrNo = "";
         newItems[index].availableQty = 0;
       }
     } else {
@@ -224,7 +227,7 @@ export default function StoreContractorIssueNewPage() {
 
   const addLineItem = () => {
     setLineItems([...lineItems, { 
-      itemId: "", itemName: "", tempCode: "", activity: "", unit: "Nos", hsnCode: "", demandQty: 1, quantity: 1, availableQty: 0 
+      itemId: "", itemName: "", tempCode: "", activity: "", unit: "Nos", hsnCode: "", loaSrNo: "", demandQty: 1, quantity: 1, availableQty: 0 
     }]);
   };
 
@@ -240,6 +243,7 @@ export default function StoreContractorIssueNewPage() {
       activity: s.activity || '',
       unit: s.unit || 'Nos',
       hsnCode: s.hsnCode || '',
+      loaSrNo: s.loaSrNo || '',
       demandQty: 1,
       quantity: 1,
       availableQty: s.totalBalanceQty || 0
@@ -333,6 +337,7 @@ export default function StoreContractorIssueNewPage() {
           activity: item.activity,
           unit: item.unit,
           hsnCode: item.hsnCode,
+          loaSrNo: item.loaSrNo,
           demandQty: Number(item.demandQty),
           quantity: Number(item.quantity),
           rate: 0,
@@ -494,6 +499,7 @@ export default function StoreContractorIssueNewPage() {
                   <th className="px-4 py-3 font-medium w-[5%] text-center">Sr. No.</th>
                   <th className="px-4 py-3 font-medium w-[20%]">Description of Material</th>
                   <th className="px-4 py-3 font-medium w-[12%]">Temp Code</th>
+                  <th className="px-4 py-3 font-medium w-[10%]">LOA Sr No</th>
                   <th className="px-4 py-3 font-medium w-[15%]">Activity</th>
                   <th className="px-4 py-3 font-medium w-[10%]">HSN Code</th>
                   <th className="px-4 py-3 font-medium w-[8%]">UNIT</th>
@@ -513,6 +519,9 @@ export default function StoreContractorIssueNewPage() {
                     </td>
                     <td className="p-4 align-top pt-6 text-slate-700 text-xs font-mono">
                       {item.tempCode || 'N/A'}
+                    </td>
+                    <td className="p-4 align-top pt-6 text-slate-700 text-xs font-mono">
+                      {item.loaSrNo || 'N/A'}
                     </td>
                     <td className="p-4 align-top pt-6 text-slate-700 text-xs">
                       {item.activity || 'N/A'}

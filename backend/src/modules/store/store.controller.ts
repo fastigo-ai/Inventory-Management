@@ -2154,7 +2154,15 @@ export const createMhrov = asyncHandler(async (req: Request, res: Response) => {
 
   const rawItems = items || inwardEntries;
   if (rawItems) {
-    const arr = typeof rawItems === 'string' ? JSON.parse(rawItems) : rawItems;
+    let arr = rawItems;
+    if (typeof rawItems === 'string') {
+      try {
+        arr = JSON.parse(rawItems);
+      } catch (e) {
+        res.status(400);
+        throw new Error('Invalid JSON format for items payload');
+      }
+    }
     if (Array.isArray(arr)) {
       arr.forEach((it: any) => {
         if (typeof it === 'object' && it !== null) {
@@ -2428,7 +2436,15 @@ export const updateMhrov = asyncHandler(async (req: Request, res: Response) => {
 
   const rawItems = items || inwardEntries;
   if (rawItems) {
-    const arr = typeof rawItems === 'string' ? JSON.parse(rawItems) : rawItems;
+    let arr = rawItems;
+    if (typeof rawItems === 'string') {
+      try {
+        arr = JSON.parse(rawItems);
+      } catch (e) {
+        res.status(400);
+        throw new Error('Invalid JSON format for items payload');
+      }
+    }
     if (Array.isArray(arr)) {
       parsedItems = [];
       parsedInwardEntries = [];

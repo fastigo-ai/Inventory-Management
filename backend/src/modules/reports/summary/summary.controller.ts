@@ -8,6 +8,7 @@ import { ContractorReturn } from '../../contractors/contractorReturn.schema';
 import { JmcRegister } from '../../jmc/jmc.schema';
 import { DI } from '../../di/di.schema';
 import { StoreInwardEntry } from '../../store/storeInwardEntry.schema';
+import { Mhrov } from '../../store/mhrov.schema';
 import { StoreTransfer } from '../../store/storeTransfer.schema';
 import Item from '../../items/item.model';
 import { asyncHandler } from '../../../core/utils/asyncHandler';
@@ -1081,8 +1082,8 @@ async function computeItemMatrixSummary(params: {
     return [];
   };
 
-  // 1-5. Run all 6 transaction queries concurrently in parallel with tight field projection
-  const [dis, inwards, mins, jmcs, contractorInvoices, pis] = await Promise.all([
+  // 1-5. Run all 7 transaction queries concurrently in parallel with tight field projection
+  const [dis, inwards, mhrovs, mins, jmcs, contractorInvoices, pis] = await Promise.all([
     DI.find(
       { status: { $ne: 'Cancelled' } },
       { circle: 1, 'lineItems.quantity': 1, 'lineItems.itemId': 1, 'lineItems.tempCode': 1, 'lineItems.loaSerialNo': 1, 'lineItems.loaSrNo': 1, 'lineItems.circle': 1 }
@@ -1090,6 +1091,10 @@ async function computeItemMatrixSummary(params: {
     StoreInwardEntry.find(
       {},
       { circle: 1, subcircle: 1, billingFrom: 1, invoiceQty: 1, acceptedQty: 1, totalQty: 1, itemId: 1, tempCode: 1, loaSerialNo: 1, loaSrNo: 1, serialNumber: 1, package: 1 }
+    ).lean(),
+    Mhrov.find(
+      { status: { $ne: 'Cancelled' } },
+      { circle: 1, 'items.mhrovDoneQty': 1, 'items.itemId': 1 }
     ).lean(),
     ContractorAssignment.find(
       {},
@@ -1211,6 +1216,58 @@ async function computeItemMatrixSummary(params: {
          });
       }
     }
+  });
+
+  // 2b. MHROV
+  const mhrovMap = new Map<string, Record<string, number>>();
+  mhrovs.forEach(doc => {
+    const docCirc = (doc.circle || '').toLowerCase();
+    (doc.items || []).forEach((line: any) => {
+      const qty = Number(line.mhrovDoneQty || 0);
+      if (qty > 0) {
+        const targetTCs = getTargetTempCodes(line.itemId, undefined, undefined, undefined, docCirc);
+        if (targetTCs.length === 1) {
+          const tc = targetTCs[0];
+          if (!mhrovMap.has(tc)) mhrovMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
+          const m = mhrovMap.get(tc)!;
+          if (docCirc.includes('solan')) m.solan += qty;
+          else if (docCirc.includes('nahan')) m.nahan += qty;
+          else if (docCirc.includes('rampur')) m.rampur += qty;
+          else if (docCirc.includes('rohru')) m.rohru += qty;
+          else m.nahan += qty;
+        } else if (targetTCs.length > 1) {
+          let totalLoaQty = 0;
+          targetTCs.forEach(tc => {
+            const grp = groupedItemsMap.get(tc);
+            if (grp) {
+               if (docCirc.includes('solan')) totalLoaQty += grp.solanLoaQty;
+               else if (docCirc.includes('nahan')) totalLoaQty += grp.nahanLoaQty;
+               else if (docCirc.includes('rampur')) totalLoaQty += grp.rampurLoaQty;
+               else if (docCirc.includes('rohru')) totalLoaQty += grp.rohruLoaQty;
+            }
+          });
+          targetTCs.forEach(tc => {
+            const grp = groupedItemsMap.get(tc);
+            if (grp) {
+               let myLoaQty = 0;
+               if (docCirc.includes('solan')) myLoaQty = grp.solanLoaQty;
+               else if (docCirc.includes('nahan')) myLoaQty = grp.nahanLoaQty;
+               else if (docCirc.includes('rampur')) myLoaQty = grp.rampurLoaQty;
+               else if (docCirc.includes('rohru')) myLoaQty = grp.rohruLoaQty;
+               
+               const distributedQty = totalLoaQty > 0 ? (qty * (myLoaQty / totalLoaQty)) : (qty / targetTCs.length);
+               if (!mhrovMap.has(tc)) mhrovMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
+               const m = mhrovMap.get(tc)!;
+               if (docCirc.includes('solan')) m.solan += distributedQty;
+               else if (docCirc.includes('nahan')) m.nahan += distributedQty;
+               else if (docCirc.includes('rampur')) m.rampur += distributedQty;
+               else if (docCirc.includes('rohru')) m.rohru += distributedQty;
+               else m.nahan += distributedQty;
+            }
+          });
+        }
+      }
+    });
   });
 
   // 3. MIN / Issue (Contractor Assignment)
@@ -1444,6 +1501,7 @@ async function computeItemMatrixSummary(params: {
 
     const diObj = diMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
     const invObj = inwardMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
+    const mhrovObj = mhrovMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
     const minObj = minMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
     const imcObj = imcMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
     const supObj = supplyBilledMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
@@ -1456,25 +1514,27 @@ async function computeItemMatrixSummary(params: {
     let targetBom = 0;
     let targetDi = 0;
     let targetInward = 0;
+    let targetMhrov = 0;
     let targetMin = 0;
     let targetImc = 0;
     let targetSupBilled = 0;
     let targetErecBilled = 0;
 
     if (evalCircle.includes('SOLAN')) {
-      targetLoa = solanLoaQty; targetBom = solanBomQty; targetDi = diObj.solan; targetInward = invObj.solan; targetMin = minObj.solan; targetImc = imcObj.solan; targetSupBilled = supObj.solan; targetErecBilled = erecObj.solan;
+      targetLoa = solanLoaQty; targetBom = solanBomQty; targetDi = diObj.solan; targetInward = invObj.solan; targetMhrov = mhrovObj.solan; targetMin = minObj.solan; targetImc = imcObj.solan; targetSupBilled = supObj.solan; targetErecBilled = erecObj.solan;
     } else if (evalCircle.includes('NAHAN')) {
-      targetLoa = nahanLoaQty; targetBom = nahanBomQty; targetDi = diObj.nahan; targetInward = invObj.nahan; targetMin = minObj.nahan; targetImc = imcObj.nahan; targetSupBilled = supObj.nahan; targetErecBilled = erecObj.nahan;
+      targetLoa = nahanLoaQty; targetBom = nahanBomQty; targetDi = diObj.nahan; targetInward = invObj.nahan; targetMhrov = mhrovObj.nahan; targetMin = minObj.nahan; targetImc = imcObj.nahan; targetSupBilled = supObj.nahan; targetErecBilled = erecObj.nahan;
     } else if (evalCircle.includes('RAMPUR')) {
-      targetLoa = rampurLoaQty; targetBom = rampurBomQty; targetDi = diObj.rampur; targetInward = invObj.rampur; targetMin = minObj.rampur; targetImc = imcObj.rampur; targetSupBilled = supObj.rampur; targetErecBilled = erecObj.rampur;
+      targetLoa = rampurLoaQty; targetBom = rampurBomQty; targetDi = diObj.rampur; targetInward = invObj.rampur; targetMhrov = mhrovObj.rampur; targetMin = minObj.rampur; targetImc = imcObj.rampur; targetSupBilled = supObj.rampur; targetErecBilled = erecObj.rampur;
     } else if (evalCircle.includes('ROHRU')) {
-      targetLoa = rohruLoaQty; targetBom = rohruBomQty; targetDi = diObj.rohru; targetInward = invObj.rohru; targetMin = minObj.rohru; targetImc = imcObj.rohru; targetSupBilled = supObj.rohru; targetErecBilled = erecObj.rohru;
+      targetLoa = rohruLoaQty; targetBom = rohruBomQty; targetDi = diObj.rohru; targetInward = invObj.rohru; targetMhrov = mhrovObj.rohru; targetMin = minObj.rohru; targetImc = imcObj.rohru; targetSupBilled = supObj.rohru; targetErecBilled = erecObj.rohru;
     }
 
     const balDiLoa = targetLoa - targetDi;
     const balDiBom = targetBom - targetDi;
     const balMrn = targetDi - targetInward;
-    const balImc = targetInward - targetMin;
+    const balMhrov = targetInward - targetMhrov;
+    const balImc = targetMhrov - targetMin;
     const balSupplyBill = targetInward - targetSupBilled;
     const balErectionBill = targetImc - targetErecBilled;
 
@@ -1483,7 +1543,8 @@ async function computeItemMatrixSummary(params: {
         diVsLoa: solanLoaQty - diObj.solan,
         diVsBom: solanBomQty - diObj.solan,
         mrn: diObj.solan - invObj.solan,
-        imc: invObj.solan - minObj.solan,
+        mhrov: invObj.solan - mhrovObj.solan,
+        imc: mhrovObj.solan - minObj.solan,
         supplyBill: invObj.solan - supObj.solan,
         erectionBill: imcObj.solan - erecObj.solan
       },
@@ -1491,7 +1552,8 @@ async function computeItemMatrixSummary(params: {
         diVsLoa: nahanLoaQty - diObj.nahan,
         diVsBom: nahanBomQty - diObj.nahan,
         mrn: diObj.nahan - invObj.nahan,
-        imc: invObj.nahan - minObj.nahan,
+        mhrov: invObj.nahan - mhrovObj.nahan,
+        imc: mhrovObj.nahan - minObj.nahan,
         supplyBill: invObj.nahan - supObj.nahan,
         erectionBill: imcObj.nahan - erecObj.nahan
       },
@@ -1499,7 +1561,8 @@ async function computeItemMatrixSummary(params: {
         diVsLoa: rampurLoaQty - diObj.rampur,
         diVsBom: rampurBomQty - diObj.rampur,
         mrn: diObj.rampur - invObj.rampur,
-        imc: invObj.rampur - minObj.rampur,
+        mhrov: invObj.rampur - mhrovObj.rampur,
+        imc: mhrovObj.rampur - minObj.rampur,
         supplyBill: invObj.rampur - supObj.rampur,
         erectionBill: imcObj.rampur - erecObj.rampur
       },
@@ -1507,7 +1570,8 @@ async function computeItemMatrixSummary(params: {
         diVsLoa: rohruLoaQty - diObj.rohru,
         diVsBom: rohruBomQty - diObj.rohru,
         mrn: diObj.rohru - invObj.rohru,
-        imc: invObj.rohru - minObj.rohru,
+        mhrov: invObj.rohru - mhrovObj.rohru,
+        imc: mhrovObj.rohru - minObj.rohru,
         supplyBill: invObj.rohru - supObj.rohru,
         erectionBill: imcObj.rohru - erecObj.rohru
       }
@@ -1546,6 +1610,12 @@ async function computeItemMatrixSummary(params: {
       inwardSolan: invObj.solan,
       inwardRampur: invObj.rampur,
       inwardRohru: invObj.rohru,
+      
+      // Flat MHROV
+      mhrovNahan: mhrovObj.nahan,
+      mhrovSolan: mhrovObj.solan,
+      mhrovRampur: mhrovObj.rampur,
+      mhrovRohru: mhrovObj.rohru,
 
       // Flat MIN
       minNahan: minObj.nahan,
@@ -1575,6 +1645,7 @@ async function computeItemMatrixSummary(params: {
       balDiLoa,
       balDiBom,
       balMrn,
+      balMhrov,
       balImc,
       balSupplyBill,
       balErectionBill,
@@ -1584,6 +1655,7 @@ async function computeItemMatrixSummary(params: {
       bomQuantities: { nahan: nahanBomQty, solan: solanBomQty, rampur: rampurBomQty, rohru: rohruBomQty },
       dispatched: diObj,
       inward: invObj,
+      mhrov: mhrovObj,
       min: minObj,
       imc: imcObj,
       supplyBilled: supObj,
@@ -1592,6 +1664,7 @@ async function computeItemMatrixSummary(params: {
         diVsLoa: balDiLoa,
         diVsBom: balDiBom,
         mrn: balMrn,
+        mhrov: balMhrov,
         imc: balImc,
         supplyBill: balSupplyBill,
         erectionBill: balErectionBill

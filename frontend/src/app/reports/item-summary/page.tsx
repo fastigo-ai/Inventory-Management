@@ -16,6 +16,7 @@ export default function ItemSummaryMatrixPage() {
   // Column Visibility Toggles (Choose by Tick options)
   const [showDi, setShowDi] = useState(true);
   const [showMrn, setShowMrn] = useState(true);
+  const [showMhrov, setShowMhrov] = useState(true);
   const [showImc, setShowImc] = useState(true);
   const [showSupplyBill, setShowSupplyBill] = useState(true);
   const [showErectionBill, setShowErectionBill] = useState(true);
@@ -85,6 +86,11 @@ export default function ItemSummaryMatrixPage() {
       acc.inwardRampur += (r.inwardRampur || 0);
       acc.inwardRohru += (r.inwardRohru || 0);
 
+      acc.mhrovSolan += (r.mhrovSolan || 0);
+      acc.mhrovNahan += (r.mhrovNahan || 0);
+      acc.mhrovRampur += (r.mhrovRampur || 0);
+      acc.mhrovRohru += (r.mhrovRohru || 0);
+
       acc.minSolan += (r.minSolan || 0);
       acc.minNahan += (r.minNahan || 0);
       acc.minRampur += (r.minRampur || 0);
@@ -127,6 +133,7 @@ export default function ItemSummaryMatrixPage() {
       solanLoa: 0, solanBom: 0, nahanLoa: 0, nahanBom: 0, rampurLoa: 0, rampurBom: 0, rohruLoa: 0, rohruBom: 0,
       dispatchedSolan: 0, dispatchedNahan: 0, dispatchedRampur: 0, dispatchedRohru: 0,
       inwardSolan: 0, inwardNahan: 0, inwardRampur: 0, inwardRohru: 0,
+      mhrovSolan: 0, mhrovNahan: 0, mhrovRampur: 0, mhrovRohru: 0,
       minSolan: 0, minNahan: 0, minRampur: 0, minRohru: 0,
       imcSolan: 0, imcNahan: 0, imcRampur: 0, imcRohru: 0,
       supSolan: 0, supNahan: 0, supRampur: 0, supRohru: 0,
@@ -148,6 +155,7 @@ export default function ItemSummaryMatrixPage() {
       'Sr. No.', 'LOA Sr. No.', 'Temp Code', 'Item Name', 'Package', 'Circle',
       'Solan LOA Qty', 'Solan BOM Qty', 'Nahan LOA Qty', 'Nahan BOM Qty', 'Rampur LOA Qty', 'Rampur BOM Qty', 'Rohru LOA Qty', 'Rohru BOM Qty',
       'Total Dispatched Solan', 'Total Dispatched Nahan', 'Total Dispatched Rampur', 'Total Dispatched Rohru',
+      'Total Inward (IR) Solan', 'Total Inward (IR) Nahan', 'Total Inward (IR) Rampur', 'Total Inward (IR) Rohru',
       'Total MRHOV Solan', 'Total MRHOV Nahan', 'Total MRHOV Rampur', 'Total MRHOV Rohru',
       'Total MIN/Issue Solan', 'Total MIN/Issue Nahan', 'Total MIN/Issue Rampur', 'Total MIN/Issue Rohru',
       'Total JMC Solan', 'Total JMC Nahan', 'Total JMC Rampur', 'Total JMC Rohru',
@@ -155,7 +163,7 @@ export default function ItemSummaryMatrixPage() {
       'Total Erection Billed Solan', 'Total Erection Billed Nahan', 'Total Erection Billed Rampur', 'Total Erection Billed Rohru',
       ...['SOLAN', 'NAHAN', 'RAMPUR', 'ROHRU'].flatMap(c => [
         `Bal for DI against ${c} LOA`, `Bal for Dispatch against ${c} LOA`,
-        `Bal for MRHOv-${c}`, `Bal for JMC-${c}`,
+        `Bal for IR-${c}`, `Bal for MRHOv-${c}`, `Bal for JMC-${c}`,
         `Bal for Supply Bill-${c}`, `Bal for Erection Bill-${c}`
       ])
     ];
@@ -169,14 +177,15 @@ export default function ItemSummaryMatrixPage() {
         cv('solan', r.solanLoaQty), cv('solan', r.solanBomQty), cv('nahan', r.nahanLoaQty), cv('nahan', r.nahanBomQty), cv('rampur', r.rampurLoaQty), cv('rampur', r.rampurBomQty), cv('rohru', r.rohruLoaQty), cv('rohru', r.rohruBomQty),
         cv('solan', r.dispatchedSolan), cv('nahan', r.dispatchedNahan), cv('rampur', r.dispatchedRampur), cv('rohru', r.dispatchedRohru),
         cv('solan', r.inwardSolan), cv('nahan', r.inwardNahan), cv('rampur', r.inwardRampur), cv('rohru', r.inwardRohru),
+        cv('solan', r.mhrovSolan), cv('nahan', r.mhrovNahan), cv('rampur', r.mhrovRampur), cv('rohru', r.mhrovRohru),
         cv('solan', r.minSolan), cv('nahan', r.minNahan), cv('rampur', r.minRampur), cv('rohru', r.minRohru),
         cv('solan', r.imcSolan), cv('nahan', r.imcNahan), cv('rampur', r.imcRampur), cv('rohru', r.imcRohru),
         cv('solan', r.supplyBilledSolan), cv('nahan', r.supplyBilledNahan), cv('rampur', r.supplyBilledRampur), cv('rohru', r.supplyBilledRohru),
         cv('solan', r.erectionBilledSolan), cv('nahan', r.erectionBilledNahan), cv('rampur', r.erectionBilledRampur), cv('rohru', r.erectionBilledRohru),
         ...['solan', 'nahan', 'rampur', 'rohru'].flatMap(c => {
-          if (!itemCirc.includes(c)) return ['', '', '', '', '', ''];
+          if (!itemCirc.includes(c)) return ['', '', '', '', '', '', ''];
           const b = r.allBalances ? r.allBalances[c] : (r.balances || {});
-          return [b.diVsLoa ?? 0, b.diVsBom ?? 0, b.mrn ?? 0, b.imc ?? 0, b.supplyBill ?? 0, b.erectionBill ?? 0];
+          return [b.diVsLoa ?? 0, b.diVsBom ?? 0, b.mrn ?? 0, b.mhrov ?? 0, b.imc ?? 0, b.supplyBill ?? 0, b.erectionBill ?? 0];
         })
       ].join(',');
     });
@@ -237,7 +246,14 @@ export default function ItemSummaryMatrixPage() {
         </div>
 
         <div className="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200/80 shadow-sm">
-          <div className="text-[11px] font-semibold text-emerald-800 uppercase tracking-wider">Total MRHOV (Inward)</div>
+          <div className="text-[11px] font-semibold text-emerald-800 uppercase tracking-wider">Total Inward (IR)</div>
+        <div className="bg-cyan-50/50 p-3 rounded-xl border border-cyan-200/80 shadow-sm">
+          <div className="text-[11px] font-semibold text-cyan-800 uppercase tracking-wider">Total MRHOV</div>
+          <div className="text-lg font-extrabold text-cyan-950 mt-0.5 font-mono">
+            {(totals.mhrovSolan + totals.mhrovNahan + totals.mhrovRampur + totals.mhrovRohru).toLocaleString('en-IN')}
+          </div>
+          <div className="text-[10px] text-cyan-700 mt-0.5">Handed over to Contractor</div>
+        </div>
           <div className="text-lg font-extrabold text-emerald-950 mt-0.5 font-mono">
             {(totals.inwardSolan + totals.inwardNahan + totals.inwardRampur + totals.inwardRohru).toLocaleString('en-IN')}
           </div>
@@ -328,8 +344,12 @@ export default function ItemSummaryMatrixPage() {
             DI (Dispatch)
           </label>
           <label className="flex items-center gap-1.5 cursor-pointer hover:text-indigo-600">
+            <input type="checkbox" checked={showMhrov} onChange={e => setShowMhrov(e.target.checked)} className="rounded text-indigo-600 focus:ring-indigo-500" />
+            MRHOV
+          </label>
+          <label className="flex items-center gap-1.5 cursor-pointer hover:text-indigo-600">
             <input type="checkbox" checked={showMrn} onChange={e => setShowMrn(e.target.checked)} className="rounded text-indigo-600 focus:ring-indigo-500" />
-            MRHOV (Inward)
+            Inward (IR)
           </label>
           <label className="flex items-center gap-1.5 cursor-pointer hover:text-indigo-600">
             <input type="checkbox" checked={showImc} onChange={e => setShowImc(e.target.checked)} className="rounded text-indigo-600 focus:ring-indigo-500" />
@@ -359,12 +379,13 @@ export default function ItemSummaryMatrixPage() {
                 <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-300 divide-x divide-slate-200">
                   <th colSpan={4} className="p-2 text-center bg-slate-200 sticky top-0 z-20">Item Master Info</th>
                   <th colSpan={8} className="p-2 text-center bg-amber-100 text-amber-900 sticky top-0 z-20">LOA & BOM Quantities</th>
-                  <th colSpan={6} className="p-2 text-center bg-orange-100 text-orange-900 sticky top-0 z-20">Balances — SOLAN</th>
-                  <th colSpan={6} className="p-2 text-center bg-orange-100/90 text-orange-900 sticky top-0 z-20">Balances — NAHAN</th>
-                  <th colSpan={6} className="p-2 text-center bg-orange-100/80 text-orange-900 sticky top-0 z-20">Balances — RAMPUR</th>
-                  <th colSpan={6} className="p-2 text-center bg-orange-100/70 text-orange-900 sticky top-0 z-20">Balances — ROHRU</th>
+                  <th colSpan={7} className="p-2 text-center bg-orange-100 text-orange-900 sticky top-0 z-20">Balances — SOLAN</th>
+                  <th colSpan={7} className="p-2 text-center bg-orange-100/90 text-orange-900 sticky top-0 z-20">Balances — NAHAN</th>
+                  <th colSpan={7} className="p-2 text-center bg-orange-100/80 text-orange-900 sticky top-0 z-20">Balances — RAMPUR</th>
+                  <th colSpan={7} className="p-2 text-center bg-orange-100/70 text-orange-900 sticky top-0 z-20">Balances — ROHRU</th>
                   {showDi && <th colSpan={4} className="p-2 text-center bg-blue-100 text-blue-900 sticky top-0 z-20">Total Dispatched (DI)</th>}
-                  {showMrn && <th colSpan={4} className="p-2 text-center bg-emerald-100 text-emerald-900 sticky top-0 z-20">Total MRHOV</th>}
+                  {showMrn && <th colSpan={4} className="p-2 text-center bg-emerald-100 text-emerald-900 sticky top-0 z-20">Total Inward (IR)</th>}
+                  {showMhrov && <th colSpan={4} className="p-2 text-center bg-cyan-100 text-cyan-900 sticky top-0 z-20">Total MRHOV</th>}
                   {showImc && <th colSpan={4} className="p-2 text-center bg-purple-100 text-purple-900 sticky top-0 z-20">Total MIN / Issue</th>}
                   {showImc && <th colSpan={4} className="p-2 text-center bg-indigo-100 text-indigo-900 sticky top-0 z-20">Total JMC Work</th>}
                   {showSupplyBill && <th colSpan={4} className="p-2 text-center bg-sky-100 text-sky-900 sticky top-0 z-20">Supply Billed</th>}
@@ -403,7 +424,8 @@ export default function ItemSummaryMatrixPage() {
                     <React.Fragment key={c}>
                       <th className={`p-2 min-w-[100px] ${idx % 2 === 0 ? 'bg-orange-50' : 'bg-orange-50/70'} text-right font-bold text-orange-950`} title={`${c} LOA Qty minus DI Dispatched to ${c}`}>Bal for DI against {c} LOA</th>
                       <th className={`p-2 min-w-[100px] ${idx % 2 === 0 ? 'bg-orange-50' : 'bg-orange-50/70'} text-right font-bold text-orange-950`} title={`${c} BOM Qty minus DI Dispatched to ${c}`}>Bal for Dispatch against {c} LOA</th>
-                      <th className={`p-2 min-w-[100px] ${idx % 2 === 0 ? 'bg-orange-50' : 'bg-orange-50/70'} text-right font-bold text-orange-950`} title={`DI Dispatched to ${c} minus MRHOV Received`}>Bal for MRHOv-{c}</th>
+                      <th className={`p-2 min-w-[100px] ${idx % 2 === 0 ? 'bg-orange-50' : 'bg-orange-50/70'} text-right font-bold text-orange-950`} title={`DI Dispatched to ${c} minus Inward Received`}>Bal for IR-{c}</th>
+                      <th className={`p-2 min-w-[100px] ${idx % 2 === 0 ? 'bg-orange-50' : 'bg-orange-50/70'} text-right font-bold text-orange-950`} title={`Inward IR minus MRHOV in ${c}`}>Bal for MRHOv-{c}</th>
                       <th className={`p-2 min-w-[100px] ${idx % 2 === 0 ? 'bg-orange-50' : 'bg-orange-50/70'} text-right font-bold text-orange-950`} title={`MRHOV Received in ${c} minus MIN Issued`}>Bal for JMC-{c}</th>
                       <th className={`p-2 min-w-[100px] ${idx % 2 === 0 ? 'bg-orange-50' : 'bg-orange-50/70'} text-right font-bold text-orange-950`} title={`MRHOV Received in ${c} minus Supply Billed`}>Bal for Supply Bill-{c}</th>
                       <th className={`p-2 min-w-[100px] ${idx % 2 === 0 ? 'bg-orange-50' : 'bg-orange-50/70'} text-right font-bold text-orange-950`} title={`JMC Work in ${c} minus Erection Billed`}>Bal for Erection Bill-{c}</th>
@@ -424,6 +446,12 @@ export default function ItemSummaryMatrixPage() {
                     <th className="p-2 min-w-[75px] bg-emerald-50/70 text-right">Nahan</th>
                     <th className="p-2 min-w-[75px] bg-emerald-50/70 text-right">Rampur</th>
                     <th className="p-2 min-w-[75px] bg-emerald-50/70 text-right">Rohru</th>
+                  </>}
+                  {showMhrov && <>
+                    <th className="p-2 min-w-[75px] bg-cyan-50 text-right font-bold text-cyan-900">Solan</th>
+                    <th className="p-2 min-w-[75px] bg-cyan-50/70 text-right">Nahan</th>
+                    <th className="p-2 min-w-[75px] bg-cyan-50/70 text-right">Rampur</th>
+                    <th className="p-2 min-w-[75px] bg-cyan-50/70 text-right">Rohru</th>
                   </>}
 
                   {/* MIN / Issue */}
@@ -522,6 +550,7 @@ export default function ItemSummaryMatrixPage() {
                                     <td className={`p-2 text-center text-slate-300 font-bold ${idx % 2 === 0 ? 'bg-orange-50/40' : 'bg-orange-50/20'}`}>-</td>
                                     <td className={`p-2 text-center text-slate-300 font-bold ${idx % 2 === 0 ? 'bg-orange-50/40' : 'bg-orange-50/20'}`}>-</td>
                                     <td className={`p-2 text-center text-slate-300 font-bold ${idx % 2 === 0 ? 'bg-orange-50/40' : 'bg-orange-50/20'}`}>-</td>
+                                    <td className={`p-2 text-center text-slate-300 font-bold ${idx % 2 === 0 ? 'bg-orange-50/40' : 'bg-orange-50/20'}`}>-</td>
                                   </React.Fragment>
                                 );
                               }
@@ -532,6 +561,7 @@ export default function ItemSummaryMatrixPage() {
                                   <td className={`p-2 text-right font-bold ${b.diVsLoa < 0 ? 'text-rose-600' : 'text-slate-800'} ${idx % 2 === 0 ? 'bg-orange-50/40' : 'bg-orange-50/20'}`}>{b.diVsLoa ?? 0}</td>
                                   <td className={`p-2 text-right font-bold ${b.diVsBom < 0 ? 'text-rose-600' : 'text-slate-800'} ${idx % 2 === 0 ? 'bg-orange-50/40' : 'bg-orange-50/20'}`}>{b.diVsBom ?? 0}</td>
                                   <td className={`p-2 text-right font-bold text-slate-800 ${idx % 2 === 0 ? 'bg-orange-50/40' : 'bg-orange-50/20'}`}>{b.mrn ?? 0}</td>
+                                  <td className={`p-2 text-right font-bold text-slate-800 ${idx % 2 === 0 ? 'bg-orange-50/40' : 'bg-orange-50/20'}`}>{b.mhrov ?? 0}</td>
                                   <td className={`p-2 text-right font-bold text-slate-800 ${idx % 2 === 0 ? 'bg-orange-50/40' : 'bg-orange-50/20'}`}>{b.imc ?? 0}</td>
                                   <td className={`p-2 text-right font-bold text-slate-800 ${idx % 2 === 0 ? 'bg-orange-50/40' : 'bg-orange-50/20'}`}>{b.supplyBill ?? 0}</td>
                                   <td className={`p-2 text-right font-bold text-slate-800 ${idx % 2 === 0 ? 'bg-orange-50/40' : 'bg-orange-50/20'}`}>{b.erectionBill ?? 0}</td>
@@ -553,6 +583,12 @@ export default function ItemSummaryMatrixPage() {
                               <td className="p-2 text-right text-slate-600">{cv('nahan', r.inwardNahan || r.inward?.nahan)}</td>
                               <td className="p-2 text-right text-slate-600">{cv('rampur', r.inwardRampur || r.inward?.rampur)}</td>
                               <td className="p-2 text-right text-slate-600">{cv('rohru', r.inwardRohru || r.inward?.rohru)}</td>
+                            </>}
+                            {showMhrov && <>
+                              <td className="p-2 text-right font-semibold text-cyan-900 bg-cyan-50/30">{cv('solan', r.mhrovSolan || r.mhrov?.solan)}</td>
+                              <td className="p-2 text-right text-slate-600">{cv('nahan', r.mhrovNahan || r.mhrov?.nahan)}</td>
+                              <td className="p-2 text-right text-slate-600">{cv('rampur', r.mhrovRampur || r.mhrov?.rampur)}</td>
+                              <td className="p-2 text-right text-slate-600">{cv('rohru', r.mhrovRohru || r.mhrov?.rohru)}</td>
                             </>}
 
                             {/* MIN / Issue */}
@@ -617,6 +653,7 @@ export default function ItemSummaryMatrixPage() {
                           <td className={`p-2 text-right ${idx % 2 === 0 ? 'text-orange-300' : 'text-orange-200'}`}>{bt.diVsLoa}</td>
                           <td className={`p-2 text-right ${idx % 2 === 0 ? 'text-orange-300' : 'text-orange-200'}`}>{bt.diVsBom}</td>
                           <td className={`p-2 text-right ${idx % 2 === 0 ? 'text-orange-300' : 'text-orange-200'}`}>{bt.mrn}</td>
+                          <td className={`p-2 text-right ${idx % 2 === 0 ? 'text-orange-300' : 'text-orange-200'}`}>{bt.mhrov}</td>
                           <td className={`p-2 text-right ${idx % 2 === 0 ? 'text-orange-300' : 'text-orange-200'}`}>{bt.imc}</td>
                           <td className={`p-2 text-right ${idx % 2 === 0 ? 'text-orange-300' : 'text-orange-200'}`}>{bt.supplyBill}</td>
                           <td className={`p-2 text-right ${idx % 2 === 0 ? 'text-orange-300' : 'text-orange-200'}`}>{bt.erectionBill}</td>
@@ -636,6 +673,12 @@ export default function ItemSummaryMatrixPage() {
                       <td className="p-2 text-right">{totals.inwardNahan}</td>
                       <td className="p-2 text-right">{totals.inwardRampur}</td>
                       <td className="p-2 text-right">{totals.inwardRohru}</td>
+                    </>}
+                    {showMhrov && <>
+                      <td className="p-2 text-right text-cyan-300">{totals.mhrovSolan}</td>
+                      <td className="p-2 text-right">{totals.mhrovNahan}</td>
+                      <td className="p-2 text-right">{totals.mhrovRampur}</td>
+                      <td className="p-2 text-right">{totals.mhrovRohru}</td>
                     </>}
 
                     {showImc && <>

@@ -181,19 +181,19 @@ export default function DemandNotesList() {
         <div className="flex items-center gap-3">
           <button
             onClick={handleExportCSV}
-            className="bg-white hover:bg-slate-50 text-emerald-600 border border-emerald-200 px-4 py-2 rounded-md flex items-center gap-2 font-medium transition-colors"
+            className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-semibold shadow-sm transition-all whitespace-nowrap"
           >
             <Download className="w-4 h-4" /> Export CSV
           </button>
           <button
             onClick={() => setIsImportModalOpen(true)}
-            className="bg-white hover:bg-slate-50 text-indigo-600 border border-indigo-200 px-4 py-2 rounded-md flex items-center gap-2 font-medium transition-colors"
+            className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-semibold shadow-sm transition-all whitespace-nowrap"
           >
             <Upload className="w-4 h-4" /> Import CSV
           </button>
           <Link
             href="/site-portal/demand-notes/new"
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md flex items-center gap-2 font-medium transition-colors"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 text-sm font-semibold shadow-sm shadow-indigo-200 transition-all whitespace-nowrap"
           >
             <Plus className="w-4 h-4" /> Create Demand Note
           </Link>

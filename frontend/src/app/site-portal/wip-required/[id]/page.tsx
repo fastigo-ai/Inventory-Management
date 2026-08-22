@@ -420,14 +420,7 @@ export default function WipRegisterFormPage() {
               <tbody className="divide-y divide-slate-100">
                 {formData.items.map((item, index) => (
                   <tr key={index} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-2 border-r border-slate-100">
-                      <Input 
-                        value={item.loaSerialNo || ''} 
-                        onChange={e => handleItemChange(index, 'loaSerialNo', e.target.value)} 
-                        className="h-8 text-sm"
-                        placeholder="LOA No."
-                      />
-                    </td>
+
                     <td className="px-4 py-2 border-r border-slate-100">
                       <Input title={item.activity} value={item.activity || ''} 
                         onChange={e => handleItemChange(index, 'activity', e.target.value)} 

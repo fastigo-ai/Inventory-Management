@@ -21,7 +21,9 @@ export default function NewMhrovPage() {
       mhrovNumber: "",
       mhrovDate: new Date().toISOString().split("T")[0],
       status: "pending",
-      document: null as File | null
+      document: null as File | null,
+      package: user?.assignedPackage || "",
+      circle: user?.assignedCircle || ""
     }
   });
 
@@ -174,6 +176,8 @@ export default function NewMhrovPage() {
       formData.append("mhrovNumber", data.mhrovNumber);
       formData.append("mhrovDate", data.mhrovDate);
       formData.append("status", data.status);
+      if (data.package) formData.append("package", data.package);
+      if (data.circle) formData.append("circle", data.circle);
       formData.append("items", JSON.stringify(selectedCartItems.map(i => ({
         diId: i.diId?._id || i.diId,
         itemId: i.itemId?._id || i.itemId,
@@ -285,6 +289,24 @@ export default function NewMhrovPage() {
                     }}
                   />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[13px] text-slate-600">Package</Label>
+                <Input
+                  className="h-9 text-[13px] bg-slate-50 border-slate-200 text-slate-500"
+                  placeholder="Auto-filled from your profile"
+                  readOnly
+                  {...register("package")}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[13px] text-slate-600">Circle</Label>
+                <Input
+                  className="h-9 text-[13px] bg-slate-50 border-slate-200 text-slate-500"
+                  placeholder="Auto-filled from your profile"
+                  readOnly
+                  {...register("circle")}
+                />
               </div>
             </div>
           </CardContent>

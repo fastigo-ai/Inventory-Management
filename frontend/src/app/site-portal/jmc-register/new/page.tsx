@@ -265,9 +265,19 @@ export default function JmcRegisterFormPage() {
                   }}
                 >
                   <option value="">Select Contractor</option>
-                  {contractors.map((c: any) => (
-                    <option key={c._id} value={c._id}>{c.name || c.vendorName || c.dynamicData?.displayName || c.dynamicData?.name}</option>
-                  ))}
+                  {contractors
+                    .filter(c => {
+                      if (!formData.circle) return true;
+                      const locs = c.location || c.assignedLocations || c.dynamicData?.assignedCircle || c.dynamicData?.circle || c.dynamicData?.assignedCircles || '';
+                      return locs.includes(formData.circle);
+                    })
+                    .map((c: any) => {
+                      const displayName = c.dynamicData?.displayName || c.dynamicData?.companyName || c.dynamicData?.name || c.dynamicData?.vendorName || c._id;
+                      return (
+                        <option key={c._id} value={c._id}>{displayName}</option>
+                      );
+                    })
+                  }
                 </select>
               </div>
               <div>

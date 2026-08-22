@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { 
   getSummaries, 
   getItemMatrixSummary,
-  getVendorSummary, 
+  getVendorSummary,
+  getVendorItemisedSummary,
   getContractorSummary, 
   getStoreSummary, 
   getStoreItemisedSummary,
@@ -18,6 +19,7 @@ const router = Router();
 router.get('/item-summary', getSummaries);
 router.get('/item-matrix-summary', getItemMatrixSummary);
 router.get('/vendor-summary', getVendorSummary);
+router.get('/vendor-itemised-summary', getVendorItemisedSummary);
 router.get('/contractor-summary', getContractorSummary);
 router.get('/store-summary', getStoreSummary);
 router.get('/store-itemised-summary', getStoreItemisedSummary);

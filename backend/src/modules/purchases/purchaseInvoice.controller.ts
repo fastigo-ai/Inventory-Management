@@ -234,7 +234,12 @@ export const getPurchaseInvoices = async (req: Request, res: Response): Promise<
     }
     
     if (req.query.invoiceNumber) {
-      filter.invoiceNumber = { $regex: req.query.invoiceNumber as string, $options: 'i' };
+      const q = req.query.invoiceNumber as string;
+      if (/^\d+$/.test(q)) {
+        filter.invoiceNumber = q; // Exact search for pure numbers
+      } else {
+        filter.invoiceNumber = { $regex: q, $options: 'i' };
+      }
     }
 
     if (req.query.status) {
@@ -697,7 +702,12 @@ export const exportPurchaseInvoices = async (req: Request, res: Response): Promi
     }
     
     if (req.query.invoiceNumber) {
-      filter.invoiceNumber = { $regex: req.query.invoiceNumber as string, $options: 'i' };
+      const q = req.query.invoiceNumber as string;
+      if (/^\d+$/.test(q)) {
+        filter.invoiceNumber = q;
+      } else {
+        filter.invoiceNumber = { $regex: q, $options: 'i' };
+      }
     }
 
     if (req.query.status) {

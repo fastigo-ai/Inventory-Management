@@ -1069,6 +1069,8 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
         totalQty: row['TotalQty'] !== undefined && row['TotalQty'] !== '' ? Number(row['TotalQty']) : (poItem ? poItem.quantity : invoiceItem.quantity),
         challanQty: challanQty,
         rejectedQty: rejectedQty,
+        acceptedQty: acceptedQty,
+        receivedQty: acceptedQty,
         rate: rate,
         amount: amount,
         taxableAmount: taxableAmount,
@@ -1208,10 +1210,17 @@ export const getPendingStoreReceipts = asyncHandler(async (req: Request, res: Re
   if (invoicePo) {
     const searchStr = invoicePo as string;
     filter.$or = filter.$or || [];
-    filter.$or.push(
-      { invoiceNumber: { $regex: searchStr, $options: 'i' } },
-      { poNumber: { $regex: searchStr, $options: 'i' } }
-    );
+    if (/^\d+$/.test(searchStr)) {
+      filter.$or.push(
+        { invoiceNumber: searchStr },
+        { poNumber: searchStr }
+      );
+    } else {
+      filter.$or.push(
+        { invoiceNumber: { $regex: searchStr, $options: 'i' } },
+        { poNumber: { $regex: searchStr, $options: 'i' } }
+      );
+    }
   }
 
   if (itemTemp) {
@@ -1313,7 +1322,12 @@ export const getInwardRegister = asyncHandler(async (req: Request, res: Response
   }
 
   if (req.query.search) {
-    filter.inwardId = { $regex: req.query.search as string, $options: 'i' };
+    const q = req.query.search as string;
+    if (/^\d+$/.test(q)) {
+      filter.inwardId = q;
+    } else {
+      filter.inwardId = { $regex: q, $options: 'i' };
+    }
   }
 
   const entries = await StoreInwardEntry.find(filter)

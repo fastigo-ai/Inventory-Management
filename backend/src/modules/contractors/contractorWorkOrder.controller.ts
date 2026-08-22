@@ -60,7 +60,12 @@ export const getWorkOrders = asyncHandler(async (req: AuthRequest, res: Response
     }
   }
   if (search) {
-    filter.workOrderNumber = { $regex: search, $options: 'i' };
+    const searchStr = String(search);
+    if (/^\d+$/.test(searchStr)) {
+      filter.workOrderNumber = searchStr;
+    } else {
+      filter.workOrderNumber = { $regex: searchStr, $options: 'i' };
+    }
   }
 
   const skip = (Number(page) - 1) * Number(limit);

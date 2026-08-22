@@ -36,7 +36,14 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
   
   if (itemName) filter.itemName = { $regex: itemName, $options: 'i' };
   if (description) filter.description = { $regex: description, $options: 'i' };
-  if (loaSerialNo) filter.loaSerialNo = { $regex: loaSerialNo, $options: 'i' };
+  if (loaSerialNo) {
+    const q = loaSerialNo as string;
+    if (/^\d+$/.test(q)) {
+      filter.loaSerialNo = q;
+    } else {
+      filter.loaSerialNo = { $regex: q, $options: 'i' };
+    }
+  }
   if (tempCode) filter.tempCode = tempCode; // Exact match for tempCode
 
   const pageNum = parseInt(page as string);
@@ -222,7 +229,8 @@ export const getVendorSummary = asyncHandler(async (req: Request, res: Response)
     }
   }
 
-  const summaries = await PurchaseOrder.aggregate([
+  // Get PO aggregations
+  const poSummaries = await PurchaseOrder.aggregate([
     { $match: matchQuery },
     { $unwind: "$lineItems" },
     {
@@ -230,25 +238,59 @@ export const getVendorSummary = asyncHandler(async (req: Request, res: Response)
         _id: "$vendorName",
         poCount: { $addToSet: "$_id" },
         totalOrderedValue: { $sum: { $multiply: ["$lineItems.quantity", "$lineItems.rate"] } },
-        totalInvoicedValue: { $sum: { $multiply: [{ $ifNull: ["$lineItems.invoicedQuantity", 0] }, "$lineItems.rate"] } },
-        totalOrderedQty: { $sum: "$lineItems.quantity" },
-        totalInvoicedQty: { $sum: { $ifNull: ["$lineItems.invoicedQuantity", 0] } }
+        totalOrderedQty: { $sum: "$lineItems.quantity" }
       }
-    },
-    {
-      $project: {
-        _id: 0,
-        vendorName: "$_id",
-        poCount: { $size: "$poCount" },
-        totalOrderedValue: 1,
-        totalInvoicedValue: 1,
-        totalOrderedQty: 1,
-        totalInvoicedQty: 1,
-        pendingValue: { $subtract: ["$totalOrderedValue", "$totalInvoicedValue"] }
-      }
-    },
-    { $sort: { totalOrderedValue: -1 } }
+    }
   ]);
+
+  // Get PI aggregations (for invoices)
+  const piSummaries = await PurchaseInvoice.aggregate([
+    { $match: matchQuery },
+    { $unwind: "$lineItems" },
+    {
+      $group: {
+        _id: "$vendorName",
+        totalInvoicedValue: { $sum: { $multiply: ["$lineItems.quantity", "$lineItems.rate"] } },
+        totalInvoicedQty: { $sum: "$lineItems.quantity" }
+      }
+    }
+  ]);
+
+  // Merge the results
+  const vendorMap = new Map();
+  
+  poSummaries.forEach(po => {
+    vendorMap.set(po._id, {
+      vendorName: po._id,
+      poCount: po.poCount.length,
+      totalOrderedValue: po.totalOrderedValue || 0,
+      totalOrderedQty: po.totalOrderedQty || 0,
+      totalInvoicedValue: 0,
+      totalInvoicedQty: 0,
+      pendingValue: po.totalOrderedValue || 0
+    });
+  });
+
+  piSummaries.forEach(pi => {
+    if (vendorMap.has(pi._id)) {
+      const existing = vendorMap.get(pi._id);
+      existing.totalInvoicedValue = pi.totalInvoicedValue || 0;
+      existing.totalInvoicedQty = pi.totalInvoicedQty || 0;
+      existing.pendingValue = existing.totalOrderedValue - existing.totalInvoicedValue;
+    } else {
+      vendorMap.set(pi._id, {
+        vendorName: pi._id,
+        poCount: 0,
+        totalOrderedValue: 0,
+        totalOrderedQty: 0,
+        totalInvoicedValue: pi.totalInvoicedValue || 0,
+        totalInvoicedQty: pi.totalInvoicedQty || 0,
+        pendingValue: -(pi.totalInvoicedValue || 0)
+      });
+    }
+  });
+
+  const summaries = Array.from(vendorMap.values()).sort((a, b) => b.totalOrderedValue - a.totalOrderedValue);
 
   res.status(200).json(new ApiResponse(200, summaries, 'Vendor summary fetched successfully'));
 });
@@ -1944,3 +1986,138 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
   }, 'Store Contractor Summary fetched successfully'));
 });
 
+
+export const getVendorItemisedSummary = asyncHandler(async (req: Request, res: Response) => {
+  const { vendorName, circles, pkg, subcircle, search, page = 1, limit = 10 } = req.query;
+  
+  if (!vendorName) {
+    return res.status(400).json(new ApiResponse(400, null, "vendorName is required"));
+  }
+
+  const matchQuery: any = { 
+    status: { $ne: 'Cancelled' }
+  };
+  
+  if (vendorName !== 'All Vendors') {
+    matchQuery.vendorName = vendorName;
+  }
+  
+  const lineItemMatch: any = {};
+  
+  if (circles) {
+    const circleArray = (circles as string).split(',').map(c => c.trim());
+    lineItemMatch['lineItems.circle'] = { $in: circleArray };
+  }
+
+  if (pkg && pkg !== 'All Packages') {
+    lineItemMatch['lineItems.package'] = pkg;
+  }
+
+  if (subcircle && subcircle !== 'All Sub-Circles') {
+    lineItemMatch['lineItems.subcircle'] = subcircle;
+  }
+  
+  if (search) {
+    lineItemMatch['$or'] = [
+      { 'lineItems.tempCode': new RegExp(`^${search}$`, 'i') },
+      { 'lineItems.itemName': new RegExp(search as string, 'i') }
+    ];
+  }
+
+  const piPipeline: any[] = [
+    { $match: matchQuery },
+    { $unwind: "$lineItems" }
+  ];
+  if (Object.keys(lineItemMatch).length > 0) piPipeline.push({ $match: lineItemMatch });
+  piPipeline.push({
+    $group: {
+      _id: {
+        tempCode: "$lineItems.tempCode",
+        loaSerialNo: vendorName === 'All Vendors' ? "-" : "$lineItems.loaSerialNo",
+        itemName: "$lineItems.itemName"
+      },
+      description: { $first: "$lineItems.description" },
+      totalInvQty: { $sum: "$lineItems.quantity" }
+    }
+  });
+
+  const piSummaries = await PurchaseInvoice.aggregate(piPipeline);
+
+  const masterItems = await Item.find({ isDeleted: false }).lean();
+  const masterMap = new Map();
+  masterItems.forEach(mi => {
+    const tempCode = String(mi.dynamicData?.tempCode).trim();
+    if (tempCode) {
+      if (!masterMap.has(tempCode)) masterMap.set(tempCode, []);
+      masterMap.get(tempCode).push(mi.dynamicData);
+    }
+  });
+
+  const itemMap = new Map();
+  const getKey = (id: any) => `${id.tempCode || ''}-${id.itemName || ''}-${id.loaSerialNo || ''}`;
+
+  piSummaries.forEach(pi => {
+    const key = getKey(pi._id);
+    let totalLoaQty = 0;
+    
+    const masterRows = masterMap.get(String(pi._id.tempCode).trim()) || [];
+    masterRows.forEach((masterData: any) => {
+      // Filter by Package if a specific package is selected
+      if (pkg && pkg !== 'All Packages') {
+        const normPkg = String(pkg).replace(/\s/g, '');
+        const normMasterPkg = String(masterData.package).replace(/\s/g, '');
+        if (normPkg !== normMasterPkg) return;
+      }
+
+      // Filter by Circle if specific circles are selected, else sum total loaQuantity
+      if (circles && circles !== 'All Circles') {
+        const circleArray = (circles as string).split(',').map(c => c.trim().toLowerCase());
+        if (circleArray.includes('solan')) totalLoaQty += Number(masterData.solanLoaQuantity) || 0;
+        if (circleArray.includes('nahan')) totalLoaQty += Number(masterData.nahanLoaQuantity) || 0;
+        if (circleArray.includes('rampur')) totalLoaQty += Number(masterData.rampurLoaQuantity) || 0;
+        if (circleArray.includes('rohru')) totalLoaQty += Number(masterData.rohruLoaQuantity) || 0;
+      } else {
+        totalLoaQty += Number(masterData.loaQuantity) || 0;
+      }
+    });
+
+    itemMap.set(key, {
+      tempCode: pi._id.tempCode,
+      loaSerialNo: pi._id.loaSerialNo,
+      itemName: pi._id.itemName,
+      description: pi.description,
+      totalLoaQty,
+      totalInvQty: pi.totalInvQty
+    });
+  });
+
+  const summaries = Array.from(itemMap.values()).sort((a, b) => {
+    const tc1 = a.tempCode || '';
+    const tc2 = b.tempCode || '';
+    const num1 = parseInt(tc1);
+    const num2 = parseInt(tc2);
+    
+    if (!isNaN(num1) && !isNaN(num2)) {
+      if (num1 === num2) {
+        return tc1.localeCompare(tc2);
+      }
+      return num1 - num2;
+    }
+    return tc1.localeCompare(tc2);
+  });
+
+  const pageNum = parseInt(page as string, 10);
+  const limitNum = parseInt(limit as string, 10);
+  
+  const paginatedSummaries = summaries.slice((pageNum - 1) * limitNum, pageNum * limitNum);
+
+  res.status(200).json(new ApiResponse(200, {
+    items: paginatedSummaries,
+    pagination: {
+      totalItems: summaries.length,
+      currentPage: pageNum,
+      totalPages: Math.ceil(summaries.length / limitNum),
+      limit: limitNum
+    }
+  }, 'Vendor itemised summary fetched successfully'));
+});

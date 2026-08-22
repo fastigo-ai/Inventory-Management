@@ -134,7 +134,12 @@ export const getAssignments = asyncHandler(async (req: Request, res: Response) =
 
   // Handle Search inside assignments (by AssignmentNumber or MIN No)
   if (search) {
-    filter.assignmentNumber = { $regex: new RegExp(String(search), 'i') };
+    const searchStr = String(search);
+    if (/^\d+$/.test(searchStr)) {
+      filter.assignmentNumber = searchStr;
+    } else {
+      filter.assignmentNumber = { $regex: new RegExp(searchStr, 'i') };
+    }
   }
   
   if (page && limit) {
@@ -192,7 +197,12 @@ export const getAssignmentSummary = asyncHandler(async (req: Request, res: Respo
   }
 
   if (search) {
-    filter.assignmentNumber = { $regex: new RegExp(String(search), 'i') };
+    const searchStr = String(search);
+    if (/^\d+$/.test(searchStr)) {
+      filter.assignmentNumber = searchStr;
+    } else {
+      filter.assignmentNumber = { $regex: new RegExp(searchStr, 'i') };
+    }
   }
 
   const summary = await ContractorAssignment.aggregate([

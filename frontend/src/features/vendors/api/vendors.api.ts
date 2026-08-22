@@ -69,11 +69,26 @@ export const deleteVendor = async (id: string) => {
   return response.data.data;
 };
 
-export const exportVendorsToCsv = async () => {
-  const response = await api.get('/vendors/export', { responseType: 'blob' });
-  const url = window.URL.createObjectURL(new Blob([response.data]));
+export const exportVendorsToCsv = async (params: Record<string, any> = {}) => {
+  const query = new URLSearchParams();
+  
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      if (Array.isArray(value)) {
+        value.forEach(v => query.append(key, v));
+      } else {
+        query.append(key, value.toString());
+      }
+    }
+  });
+  
+  const queryString = query.toString();
+  const url = queryString ? `/vendors/export?${queryString}` : '/vendors/export';
+
+  const response = await api.get(url, { responseType: 'blob' });
+  const downloadUrl = window.URL.createObjectURL(new Blob([response.data]));
   const link = document.createElement('a');
-  link.href = url;
+  link.href = downloadUrl;
   link.setAttribute('download', 'vendors_export.csv');
   document.body.appendChild(link);
   link.click();

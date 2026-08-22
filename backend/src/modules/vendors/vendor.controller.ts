@@ -214,7 +214,29 @@ export const exportVendors = asyncHandler(async (req: Request, res: Response) =>
     throw new ApiError(500, 'Vendor metadata configuration missing');
   }
 
-  const vendors = await Vendor.find({}).sort({ createdAt: 1 });
+  const search = req.query.search as string;
+  let matchQuery: any = { isDeleted: { $ne: true } };
+  
+  if (req.query.status) {
+    matchQuery.status = req.query.status;
+  }
+  
+  if (search) {
+    const searchRegex = new RegExp(search, 'i');
+    matchQuery = {
+      ...matchQuery,
+      $or: [
+        { 'dynamicData.companyName': searchRegex },
+        { 'dynamicData.displayName': searchRegex },
+        { 'dynamicData.primaryContact.firstName': searchRegex },
+        { 'dynamicData.primaryContact.lastName': searchRegex },
+        { 'dynamicData.phone.work': searchRegex },
+        { 'dynamicData.phone.mobile': searchRegex }
+      ]
+    };
+  }
+
+  const vendors = await Vendor.find(matchQuery).sort({ createdAt: 1 });
   
   // Headers based on metadata labels, expanding compound fields
   const headers: string[] = [];

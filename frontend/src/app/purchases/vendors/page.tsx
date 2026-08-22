@@ -113,7 +113,10 @@ export default function VendorsPage() {
   const handleExport = async () => {
     try {
       setIsExporting(true);
-      await exportVendorsToCsv();
+      const params: any = {};
+      if (searchQuery) params.search = searchQuery;
+      if (currentStatus) params.status = currentStatus;
+      await exportVendorsToCsv(params);
     } catch (error) {
       console.error("Export failed", error);
     } finally {

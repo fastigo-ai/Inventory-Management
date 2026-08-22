@@ -156,14 +156,14 @@ export default function DemandNotesList() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-6">
-      <div className="flex justify-between items-center bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+      <div className="flex flex-col 2xl:flex-row justify-between items-start 2xl:items-center bg-white p-6 rounded-xl border border-slate-200 shadow-sm gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2 whitespace-nowrap">
             <FileText className="w-6 h-6 text-indigo-500" /> Demand Notes (Site Portal)
           </h1>
           <p className="text-slate-500 text-sm mt-1">Manage and track material requisitions for your assigned package and circle.</p>
         </div>
-        <div className="flex items-center gap-4 bg-slate-100/80 p-1.5 rounded-lg border border-slate-200/60">
+        <div className="flex flex-wrap items-center gap-4 bg-slate-100/80 p-1.5 rounded-lg border border-slate-200/60">
           {(['pending', 'history', 'all'] as const).map((tab) => (
             <button
               key={tab}
@@ -178,7 +178,7 @@ export default function DemandNotesList() {
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={handleExportCSV}
             className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-semibold shadow-sm transition-all whitespace-nowrap"

@@ -88,23 +88,23 @@ export default function MhrovPage() {
   return (
     <>
     <div className="flex-1 p-8 bg-slate-50 min-h-screen">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-6 gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">MHROV Management</h1>
+          <h1 className="text-2xl font-semibold text-slate-900 whitespace-nowrap">MHROV Management</h1>
           <p className="text-sm text-slate-500 mt-1">
             Track inward items and manage Material Handover Receipt Vouchers
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             onClick={() => router.push("/site-portal/mhrov/new")}
-            className="bg-indigo-600 hover:bg-indigo-700 h-9 shadow-sm"
+            className="bg-indigo-600 hover:bg-indigo-700 h-9 rounded-lg shadow-sm whitespace-nowrap"
           >
             <Plus className="w-4 h-4 mr-2" />
             New MHROV
           </Button>
           <DropdownMenu>
-            <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-slate-200 bg-white hover:bg-slate-100 h-9 px-3 text-slate-700 gap-1.5">
+            <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-lg text-sm font-medium border border-slate-200 bg-white hover:bg-slate-100 h-9 px-3 text-slate-700 shadow-sm whitespace-nowrap gap-1.5">
               Actions <ChevronDown className="w-4 h-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">

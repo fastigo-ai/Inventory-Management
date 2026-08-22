@@ -107,22 +107,21 @@ export default function WipRegisterPage() {
   return (
     <div className="flex-1 bg-white min-h-screen p-6">
       <div className="max-w-[1200px] mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-slate-800">WIP To Be Required</h1>
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
+          <h1 className="text-2xl font-bold text-slate-800 whitespace-nowrap">WIP To Be Required</h1>
           
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={exportData} className="bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100">
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="outline" onClick={exportData} className="bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 rounded-lg shadow-sm whitespace-nowrap">
               <Download className="mr-2 h-4 w-4" /> Export Data
             </Button>
-            <Button variant="outline" onClick={() => setUploadModalOpen(true)}>
+            <Button variant="outline" onClick={() => setUploadModalOpen(true)} className="rounded-lg shadow-sm whitespace-nowrap">
               <FileText className="mr-2 h-4 w-4" /> Bulk Upload WIP
             </Button>
             <Button 
               onClick={() => router.push('/site-portal/wip-required/new')}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm whitespace-nowrap"
             >
-              <Plus className="w-4 h-4 mr-2" />
-              New WIP Entry
+              <Plus className="mr-2 h-4 w-4" /> New WIP Entry
             </Button>
           </div>
         </div>

@@ -127,7 +127,7 @@ const storeInwardEntrySchema = new Schema<IStoreInwardEntry>(
     diRefNo: { type: String },
     remarks: { type: String },
     
-    circle: { type: String },
+    circle: { type: String, index: true },
     subcircle: { type: String },
     package: { type: String },
     serialNumber: { type: String },

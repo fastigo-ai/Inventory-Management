@@ -129,7 +129,7 @@ const purchaseOrderSchema = new Schema<IPurchaseOrder>(
       remark: { type: String }
     }],
     poQuantity: { type: String },
-    circle: { type: String },
+    circle: { type: String, index: true },
     package: { type: String },
     shipmentPreference: { type: String },
     

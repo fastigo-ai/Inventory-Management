@@ -155,14 +155,12 @@ const purchaseInvoiceSchema = new Schema<IPurchaseInvoice>(
     status: { 
       type: String, 
       enum: ['Draft', 'Sent', 'Unpaid', 'Overdue', 'Partially Paid', 'Paid', 'Void', 'Cancelled'], 
-      default: 'Draft',
-      index: true
+      default: 'Draft'
     },
     receiptStatus: {
       type: String,
       enum: ['Pending Receipt', 'Partially Received', 'Received'],
-      default: 'Pending Receipt',
-      index: true
+      default: 'Pending Receipt'
     },
     billed: { type: Boolean, default: false },
     billedStatus: {

@@ -505,11 +505,33 @@ async function computeStoreItemisedSummary(params: {
     ];
   }
 
-  const items = await Item.find(itemFilter).lean();
-
-  // Circle or Store matching regex
-  const locMatch = store && store !== 'all' ? store : (circle && circle !== 'all' ? circle : null);
+  // Circle, Store, or Package matching regex
+  let locMatch = store && store !== 'all' ? store : (circle && circle !== 'all' ? circle : null);
+  if (!locMatch && pkg && pkg !== 'all') {
+    if (pkg.includes('Package 1')) {
+      locMatch = 'Solan|Nahan';
+    } else if (pkg.includes('Package 2')) {
+      locMatch = 'Rampur|Rohru';
+    }
+  }
   const locRegex = locMatch ? new RegExp(locMatch, 'i') : null;
+
+  if (locRegex) {
+    const locCondition = {
+      $or: [
+        { 'dynamicData.circle': locRegex },
+        { circle: locRegex }
+      ]
+    };
+    if (itemFilter.$or) {
+      itemFilter.$and = [{ $or: itemFilter.$or }, locCondition];
+      delete itemFilter.$or;
+    } else {
+      itemFilter.$or = locCondition.$or;
+    }
+  }
+
+  const items = await Item.find(itemFilter).lean();
 
   if (viewMode === 'item') {
     // ----------------------------------------------------

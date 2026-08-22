@@ -157,7 +157,7 @@ export default function StoreSummaryPage() {
     const wsData = exportData.map((row: any, index: number) => ({
       'SR NO': index + 1,
       'TEMP CODE': row.tempCode || '-',
-      'ITEM NAME': row.itemName || '-',
+      'ITEM NAME': row.name || row.itemName || '-',
       'CIRCLE': row.circle || circle || 'All Circles',
       'PACKAGE': row.package || pkg || 'All Packages',
       'UNIT': row.unit || 'No',
@@ -192,7 +192,7 @@ export default function StoreSummaryPage() {
       body: exportData.map((row: any, i: number) => [
         i + 1,
         row.tempCode || '-',
-        row.itemName || '-',
+        row.name || row.itemName || '-',
         row.receiptQty?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00',
         row.issuedQty?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00',
         row.returnedQty?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00',

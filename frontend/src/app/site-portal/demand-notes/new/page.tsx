@@ -514,20 +514,28 @@ function DemandNoteForm() {
               value={formData.contractorId || ''}
               onChange={e => {
                 const selected = contractorsList.find(c => c._id === e.target.value);
+                const name = selected ? (selected.dynamicData?.displayName || selected.dynamicData?.companyName || selected.dynamicData?.name || selected.dynamicData?.vendorName || '') : '';
                 setFormData({
                   ...formData,
                   contractorId: e.target.value,
-                  contractorName: selected ? selected.firmName || selected.name : ''
+                  contractorName: name
                 });
               }}
               className="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <option value="">Select Contractor</option>
               {contractorsList
-                .filter(c => !formData.circle || (c.locations && c.locations.includes(formData.circle)))
-                .map(c => (
-                  <option key={c._id} value={c._id}>{c.firmName || c.name}</option>
-                ))
+                .filter(c => {
+                  if (!formData.circle) return true;
+                  const locs = c.location || c.assignedLocations || c.dynamicData?.assignedCircle || c.dynamicData?.circle || c.dynamicData?.assignedCircles || '';
+                  return locs.includes(formData.circle);
+                })
+                .map(c => {
+                  const displayName = c.dynamicData?.displayName || c.dynamicData?.companyName || c.dynamicData?.name || c.dynamicData?.vendorName || c._id;
+                  return (
+                    <option key={c._id} value={c._id}>{displayName}</option>
+                  );
+                })
               }
             </select>
           </div>

@@ -48,7 +48,7 @@ const diSchema = new Schema<IDI>(
     poNumber: { type: String, index: true },
     vendorName: { type: String, index: true },
     date: { type: Date, required: true, default: Date.now, index: true },
-    circle: { type: String },
+    circle: { type: String, index: true },
     package: { type: String },
     lineItems: [diLineItemSchema],
     status: { type: String, enum: ['Draft', 'Active', 'Cancelled'], default: 'Active', index: true },

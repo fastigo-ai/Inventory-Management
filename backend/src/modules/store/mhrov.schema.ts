@@ -28,7 +28,7 @@ const mhrovItemSchema = new Schema({
 
 const mhrovSchema = new Schema(
   {
-    mhrovNumber: { type: String, required: true },
+    mhrovNumber: { type: String, required: true, unique: true },
     mhrovDate: { type: Date, required: true },
     status: { 
       type: String, 
@@ -39,7 +39,7 @@ const mhrovSchema = new Schema(
     },
     documentUrl: { type: String },
     package: { type: String },
-    circle: { type: String },
+    circle: { type: String, index: true },
     inwardEntries: [{ type: Schema.Types.ObjectId, ref: 'StoreInwardEntry', index: true }],
     items: [mhrovItemSchema],
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', index: true }

@@ -128,20 +128,7 @@ export default function PurchaseInvoicesPage() {
   const handleExport = async () => {
     try {
       setIsExporting(true);
-      const params: any = {};
-      
-      const spFilters: string[] = ['vendorName', 'invoiceNumber', 'fromDate', 'toDate', 'hasPO', 'hasDI', 'minAmount', 'maxAmount'];
-      spFilters.forEach(k => {
-        if (searchParams.get(k)) params[k] = searchParams.get(k);
-      });
-      
-      const spArrayFilters: string[] = ['status', 'receiptStatus', 'billedStatus'];
-      spArrayFilters.forEach(k => {
-        const arr = searchParams.getAll(k);
-        if (arr && arr.length > 0) params[k] = arr;
-      });
-
-      await exportPurchaseInvoicesToCsv(params);
+      await exportPurchaseInvoicesToCsv({});
     } catch (error) {
       console.error("Export failed", error);
     } finally {

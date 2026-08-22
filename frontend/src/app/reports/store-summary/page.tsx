@@ -17,8 +17,11 @@ import {
   Layers
 } from 'lucide-react';
 import Link from 'next/link';
-import { getStoreItemisedSummary, exportStoreItemisedSummary } from '@/features/reports/api/reports.api';
+import { getStoreItemisedSummary } from '@/features/reports/api/reports.api';
 import { useAuthStore } from '@/shared/store/auth.store';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 // Custom debounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -118,33 +121,99 @@ export default function StoreSummaryPage() {
     fetchData();
   }, [circle, store, pkg, debouncedSearch, debouncedTempCode, debouncedItemName, hideZeroBalance, viewMode, page, limit]);
 
-  const handleExport = async () => {
+  // Helper function to fetch all data for exports if no rows are selected
+  const fetchAllForExport = async () => {
+    if (selectedItems.size > 0) {
+      return data.filter((r, i) => selectedItems.has(r.itemId || r.tempCode || String(i)));
+    }
+    
+    setExporting(true);
     try {
-      setExporting(true);
-      const blob = await exportStoreItemisedSummary({
+      const res = await getStoreItemisedSummary({
         circle: circle || undefined,
         store: store || undefined,
         package: pkg || undefined,
-        search: search || undefined,
-        tempCode: tempCode || undefined,
-        itemName: itemName || undefined,
+        search: debouncedSearch || undefined,
+        tempCode: debouncedTempCode || undefined,
+        itemName: debouncedItemName || undefined,
         hideZeroBalance,
-        viewMode
+        viewMode,
+        page: 1,
+        limit: 100000 // Large limit to get all
       });
-
-      const url = window.URL.createObjectURL(new Blob([blob]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `Store_Itemised_Summary_${(circle || store || 'all').toUpperCase()}_${new Date().toISOString().slice(0,10)}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode?.removeChild(link);
+      return res.data?.items || [];
     } catch (err) {
-      console.error('Export failed:', err);
-      alert('Failed to export summary. Please try again.');
+      console.error('Export fetch failed:', err);
+      return [];
     } finally {
       setExporting(false);
     }
+  };
+
+  const handleExportExcel = async () => {
+    const exportData = await fetchAllForExport();
+    if (!exportData.length) return alert('No data to export');
+
+    const wsData = exportData.map((row: any, index: number) => ({
+      'SR NO': index + 1,
+      'TEMP CODE': row.tempCode || '-',
+      'ITEM NAME': row.itemName || '-',
+      'CIRCLE': row.circle || circle || 'All Circles',
+      'PACKAGE': row.package || pkg || 'All Packages',
+      'UNIT': row.unit || 'No',
+      'TOTAL RECEIPT QTY': row.receiptQty || 0,
+      'TOTAL ISSUED TO CONTRACTOR': row.issuedQty || 0,
+      'TOTAL RETURNED BY CONTRACTOR': row.returnedQty || 0,
+      'TOTAL TRANSFER TO OTHER STORE': row.transferOutQty || 0,
+      'TOTAL TRANSFER FROM OTHER STORE': row.transferInQty || 0,
+      'BAL AT STORE': row.balAtStore || 0
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(wsData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Store_Summary');
+    XLSX.writeFile(wb, `Store_Itemised_Summary_${(circle || store || 'all').toUpperCase()}_${new Date().toISOString().slice(0,10)}.xlsx`);
+  };
+
+  const handleExportPDF = async () => {
+    const exportData = await fetchAllForExport();
+    if (!exportData.length) return alert('No data to export');
+
+    const doc = new jsPDF('landscape');
+    
+    doc.setFontSize(16);
+    doc.text(`Store Itemised Summary: ${(circle || store || 'All Stores').toUpperCase()}`, 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 22);
+    
+    autoTable(doc, {
+      startY: 28,
+      head: [['SR', 'TEMP', 'ITEM NAME', 'RECEIPT', 'ISSUED', 'RETURNED', 'T-OUT', 'T-IN', 'BALANCE']],
+      body: exportData.map((row: any, i: number) => [
+        i + 1,
+        row.tempCode || '-',
+        row.itemName || '-',
+        row.receiptQty?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00',
+        row.issuedQty?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00',
+        row.returnedQty?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00',
+        row.transferOutQty?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00',
+        row.transferInQty?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00',
+        row.balAtStore?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'
+      ]),
+      headStyles: { fillColor: [226, 239, 217], textColor: [51, 65, 85], fontStyle: 'bold' },
+      didParseCell: function(data) {
+        if (data.section === 'head') {
+          if (data.column.index === 3) data.cell.styles.fillColor = [226, 239, 217]; // green for receipts
+          if (data.column.index === 4) data.cell.styles.fillColor = [253, 246, 235]; // orange for issued
+          if (data.column.index === 5) data.cell.styles.fillColor = [239, 246, 255]; // blue for returned
+          if (data.column.index === 6) data.cell.styles.fillColor = [254, 242, 242]; // red for transfer out
+          if (data.column.index === 7) data.cell.styles.fillColor = [240, 253, 250]; // teal for transfer in
+          if (data.column.index === 8) data.cell.styles.fillColor = [238, 242, 255]; // indigo for balance
+        }
+      }
+    });
+
+    doc.save(`Store_Itemised_Summary_${(circle || store || 'all').toUpperCase()}_${new Date().toISOString().slice(0,10)}.pdf`);
   };
 
   const circles = ['Nahan', 'Solan', 'Rampur', 'Rohru'];
@@ -175,12 +244,20 @@ export default function StoreSummaryPage() {
               </button>
 
               <button
-                onClick={handleExport}
+                onClick={handleExportExcel}
                 disabled={exporting || loading}
-                className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-lg shadow-sm transition-all disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 rounded-lg shadow-sm transition-all disabled:opacity-50"
               >
                 <Download className="w-3.5 h-3.5" />
-                {exporting ? 'Exporting...' : 'Export CSV'}
+                {exporting ? '...' : 'Export Excel'}
+              </button>
+              <button
+                onClick={handleExportPDF}
+                disabled={exporting || loading}
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 rounded-lg shadow-sm transition-all disabled:opacity-50"
+              >
+                <Download className="w-3.5 h-3.5" />
+                {exporting ? '...' : 'Export PDF'}
               </button>
             </div>
           </div>
@@ -371,9 +448,18 @@ export default function StoreSummaryPage() {
                 className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer pr-1 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <option value="">All Circles</option>
-                {circles.map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
+                {(pkg === '' || pkg === 'Package 1(S/N)') && (
+                  <>
+                    <option value="Solan">Solan</option>
+                    <option value="Nahan">Nahan</option>
+                  </>
+                )}
+                {(pkg === '' || pkg === 'Package 2(R/R)') && (
+                  <>
+                    <option value="Rampur">Rampur</option>
+                    <option value="Rohru">Rohru</option>
+                  </>
+                )}
               </select>
             </div>
 

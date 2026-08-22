@@ -362,8 +362,8 @@ export default function WipRegisterFormPage() {
                     };
 
                     const newRows = activityItems.map(ai => {
-                      const temp = ai.dynamicData?.tempCode || '';
-                      const loa = ai.dynamicData?.loaSrNo || ai.dynamicData?.loaSerialNo || ai.dynamicData?.sku || '';
+                      const temp = ai.rawItem?.tempCode || ai.dynamicData?.tempCode || '';
+                      const loa = ai.rawItem?.sku || ai.rawItem?.loaSrNo || ai.dynamicData?.loaSrNo || ai.dynamicData?.loaSerialNo || ai.dynamicData?.sku || '';
                       return {
                         activity: ai.dynamicData?.activity || '',
                         tempCode: temp,

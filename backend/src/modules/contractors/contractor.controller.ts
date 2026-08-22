@@ -1082,9 +1082,9 @@ export const getContractorAggregatedQuantities = asyncHandler(async (req: Reques
   const { id } = req.params;
 
   const [jmcRecords, wipRecords, wipReqRecords] = await Promise.all([
-    JmcRegister.find({ contractorId: id }).lean(),
-    WipRegister.find({ contractorId: id }).lean(),
-    WipRequiredRegister.find({ contractorId: id }).lean()
+    JmcRegister.find({ contractorId: id, status: 'Approved' }).lean(),
+    WipRegister.find({ contractorId: id, status: 'Approved' }).lean(),
+    WipRequiredRegister.find({ contractorId: id, status: 'Approved' }).lean()
   ]);
 
   const map: Record<string, { jmcQty: number; wipQty: number; wipRequiredQty: number }> = {};

@@ -510,7 +510,7 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
   if (circleFilter) inwardFilter.circle = { $regex: new RegExp(`^${circleFilter}$`, 'i') };
   if (packageFilter) inwardFilter.package = packageFilter;
 
-  const assignmentFilter: any = { status: { $ne: 'Cancelled' } };
+  const assignmentFilter: any = { status: 'Sent' };
   if (circleFilter) {
     assignmentFilter.$or = [
       { circle: { $regex: new RegExp(`^${circleFilter}$`, 'i') } },
@@ -518,7 +518,7 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
     ];
   }
 
-  const returnsFilter: any = {};
+  const returnsFilter: any = { status: 'Submitted' };
   if (circleFilter) {
     returnsFilter.$or = [
       { circle: { $regex: new RegExp(`^${circleFilter}$`, 'i') } },

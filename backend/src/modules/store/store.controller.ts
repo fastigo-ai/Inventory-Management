@@ -1537,11 +1537,9 @@ async function processInwardStockUpdate(entryId: string) {
           ...(entry.tempCode && { tempCode: entry.tempCode }),
           ...(entry.serialNumber && { loaSerialNo: entry.serialNumber }),
           ...(entry.hsnCode && { hsnCode: entry.hsnCode }),
-          ...(entry.itemDescription && { description: entry.itemDescription }),
-          ...(circleKey && { [circleKey]: Number(item.dynamicData?.[circleKey] || 0) + qtyToAdd })
+          ...(entry.itemDescription && { description: entry.itemDescription })
         };
         item.markModified('dynamicData');
-      item.markModified('dynamicData');
         await item.save();
         
         // Rebuild ItemSummary as item quantity was updated
@@ -1595,8 +1593,6 @@ async function processInwardStockUpdate(entryId: string) {
                 rate: lineItem.rate || 0,
               });
 
-              const circleKey = circle && circle !== 'Default' ? `${circle.toLowerCase().replace(/\s+/g, '')}LoaQuantity` : null;
-
               item.dynamicData = {
                 ...item.dynamicData,
                 stock: currentStock + qtyToAdd,
@@ -1605,8 +1601,7 @@ async function processInwardStockUpdate(entryId: string) {
                 ...(lineItem.tempCode && { tempCode: lineItem.tempCode }),
                 ...(lineItem.loaSerialNo && { loaSerialNo: lineItem.loaSerialNo }),
                 ...(lineItem.hsnCode && { hsnCode: lineItem.hsnCode }),
-                ...(lineItem.itemDescription && { description: lineItem.itemDescription }),
-                ...(circleKey && { [circleKey]: Number(item.dynamicData?.[circleKey] || 0) + qtyToAdd })
+                ...(lineItem.itemDescription && { description: lineItem.itemDescription })
               };
               item.markModified('dynamicData');
               await item.save();
@@ -1660,8 +1655,7 @@ export async function reverseInwardStockUpdate(entryId: string) {
           ...item.dynamicData,
           stock: Math.max(0, currentStock - qtyToSubtract),
           stockLocations: locations,
-          purchaseHistory: history,
-          ...(circleKey && { [circleKey]: Math.max(0, Number(item.dynamicData?.[circleKey] || 0) - qtyToSubtract) })
+          purchaseHistory: history
         };
         item.markModified('dynamicData');
         await item.save();
@@ -1711,8 +1705,7 @@ export async function reverseInwardStockUpdate(entryId: string) {
               ...item.dynamicData,
               stock: Math.max(0, currentStock - qtyToSubtract),
               stockLocations: locations,
-              purchaseHistory: history,
-              ...(circleKey && { [circleKey]: Math.max(0, Number(item.dynamicData?.[circleKey] || 0) - qtyToSubtract) })
+              purchaseHistory: history
             };
             item.markModified('dynamicData');
             await item.save();

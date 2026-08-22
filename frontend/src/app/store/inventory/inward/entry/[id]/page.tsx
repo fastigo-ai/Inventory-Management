@@ -103,7 +103,7 @@ export default function InwardRegistrationForm() {
             unit: entry.unit || (entry.itemId?.dynamicData?.unit) || '',
             serialNumber: entry.serialNumber || (entry.itemId?.dynamicData?.sku) || '',
             invoiceDate: entry.invoiceDate ? entry.invoiceDate.split('T')[0] : '',
-            grDate: entry.grDate ? entry.grDate.split('T')[0] : '',
+            grDate: entry.grDate ? entry.grDate.split('T')[0] : new Date().toISOString().split('T')[0],
             receivedDate: entry.receivedDate ? entry.receivedDate.split('T')[0] : new Date().toISOString().split('T')[0],
             packType: primaryPackType,
             packQty: primaryPackQty,

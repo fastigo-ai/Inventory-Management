@@ -146,19 +146,30 @@ export function AuditTimeline({ entityType, entityId }: AuditTimelineProps) {
                   {/* Content Box */}
                   <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
                     <div className="flex justify-between items-start mb-2">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
                           <User className="w-3.5 h-3.5" />
                         </div>
                         <span className="text-sm font-medium text-slate-800">{userName}</span>
-                        <span className="text-slate-400 text-sm">
+                        
+                        {log.performedBy?.email && (
+                          <span className="text-xs text-slate-500">({log.performedBy.email})</span>
+                        )}
+                        
+                        {log.performedBy?.role?.name && (
+                          <span className="text-xs bg-indigo-50 text-indigo-600 border border-indigo-100 px-1.5 py-0.5 rounded font-medium">
+                            {log.performedBy.role.name}
+                          </span>
+                        )}
+
+                        <span className="text-slate-400 text-sm ml-1">
                           {log.action === 'CREATE' ? 'created this record' : 
                            log.action === 'UPDATE' ? 'updated this record' : 
                            log.action === 'DELETE' ? 'deleted this record' : 
                            `performed ${log.action}`}
                         </span>
                       </div>
-                      <span className="text-xs text-slate-400 font-medium">
+                      <span className="text-xs text-slate-400 font-medium whitespace-nowrap ml-2">
                         {format(new Date(log.createdAt), 'hh:mm a')}
                       </span>
                     </div>

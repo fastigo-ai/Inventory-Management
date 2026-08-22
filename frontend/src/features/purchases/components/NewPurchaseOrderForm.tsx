@@ -541,9 +541,9 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
           tempCode: getVal('tempCode') || getVal('sku') || getVal('itemCode') || '',
           description: getVal('description') || getVal('itemDescription') || '',
           hsnCode: getVal('hsnCode') || getVal('hsn') || '',
-          package: getVal('package') || '',
+          package: getVal('package') || selectedItem.package || '',
           loaSerialNo: getVal('loaSerialNo') || getVal('loaSerialNumber') || getVal('LOA Serial No.') || getVal('loa') || '',
-          circle: getVal('circle') || '',
+          circle: getVal('circle') || selectedItem.circle || '',
           unit: getVal('unit') || '',
           account: '',
           quantity: 1,
@@ -1193,9 +1193,9 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                                           tempCode: getVal('tempCode') || getVal('sku') || getVal('itemCode') || '',
                                           description: getVal('description') || getVal('itemDescription') || '',
                                           hsnCode: getVal('hsnCode') || getVal('hsn') || '',
-                                          package: getVal('package') || '',
+                                          package: getVal('package') || item.package || '',
                                           loaSerialNo: getVal('loaSerialNo') || getVal('loaSerialNumber') || getVal('LOA Serial No.') || getVal('loa') || getVal('sku') || '',
-                                          circle: getVal('circle') || '',
+                                          circle: getVal('circle') || item.circle || '',
                                           unit: getVal('unit') || '',
                                           rate: getVal('price') || getVal('costPrice') || getVal('sellingPrice') || 0
                                         });
@@ -1287,9 +1287,9 @@ export function NewPurchaseOrderForm({ initialData, orderId }: NewPurchaseOrderF
                                         tempCode: getVal('tempCode') || getVal('sku') || getVal('itemCode') || '',
                                         description: getVal('description') || getVal('itemDescription') || '',
                                         hsnCode: getVal('hsnCode') || getVal('hsn') || '',
-                                        package: getVal('package') || '',
+                                        package: getVal('package') || item.package || '',
                                         loaSerialNo: getVal('loaSerialNo') || getVal('loaSerialNumber') || getVal('LOA Serial No.') || getVal('loa') || getVal('sku') || '',
-                                        circle: getVal('circle') || '',
+                                        circle: getVal('circle') || item.circle || '',
                                         unit: getVal('unit') || '',
                                         rate: getVal('price') || getVal('costPrice') || getVal('sellingPrice') || 0
                                       });

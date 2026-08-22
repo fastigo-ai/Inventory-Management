@@ -175,6 +175,7 @@ export const createPurchaseInvoice = async (req: Request, res: Response): Promis
         invoiceNumber: newPr.invoiceNumber,
         invoiceDate: newPr.date,
         diRefNo: newPr.diNumber || (newPr as any).diNo,
+        diId: item.diId || (newPr as any).diId,
         circle: item.circle,
         subcircle: item.subcircle,
         package: item.package,
@@ -285,8 +286,15 @@ export const getPurchaseInvoices = async (req: Request, res: Response): Promise<
       ];
     }
 
+    const sortBy = typeof req.query.sortBy === 'string' ? req.query.sortBy : 'date';
+    const sortOrder = req.query.sortOrder === 'asc' ? 1 : -1;
+    const sortConfig: Record<string, 1 | -1> = { [sortBy]: sortOrder };
+    if (sortBy !== 'createdAt') {
+      sortConfig.createdAt = -1;
+    }
+
     const [prs, total] = await Promise.all([
-      PurchaseInvoice.find(filter).sort({ date: 1, createdAt: 1 }).skip(skip).limit(limit).lean(),
+      PurchaseInvoice.find(filter).sort(sortConfig).skip(skip).limit(limit).lean(),
       PurchaseInvoice.countDocuments(filter)
     ]);
 
@@ -579,6 +587,7 @@ export const updatePurchaseInvoice = async (req: Request, res: Response): Promis
         invoiceNumber: updatedPr.invoiceNumber,
         invoiceDate: updatedPr.date,
         diRefNo: updatedPr.diNumber || updatedPr.diNo,
+        diId: item.diId || (updatedPr as any).diId,
         circle: item.circle,
         subcircle: item.subcircle,
         package: item.package,
@@ -1006,6 +1015,11 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
       if (prData.diNumber) {
         const di = existingDIs.find((d: any) => d.diNumber === prData.diNumber);
         if (di) {
+          prData.diId = di._id;
+          if (di.purchaseOrderId) {
+            prData.purchaseOrderId = di.purchaseOrderId;
+            prData.purchaseOrderNumber = di.poNumber;
+          }
           prData.lineItems.forEach((li: any) => {
             li.diId = di._id;
             const diLine = di.lineItems.find((dli: any) => {
@@ -1147,6 +1161,7 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
             invoiceNumber: savedPr.invoiceNumber,
             invoiceDate: savedPr.date,
             diRefNo: savedPr.diNumber || (savedPr as any).diNo,
+            diId: item.diId || (savedPr as any).diId,
             circle: item.circle,
             subcircle: item.subcircle,
             package: item.package,

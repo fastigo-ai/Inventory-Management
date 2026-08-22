@@ -10,12 +10,15 @@ import Link from 'next/link';
 import { createDemandNote, getContextData } from '@/features/site-portal/api/demand-notes.api';
 import { getItems } from '@/features/items/api/items.api';
 import { getContractorWorkOrderById } from '@/features/contractors/api/contractorWorkOrder.api';
-import { getContractorAggregatedQuantities } from '@/features/contractors/api/contractors.api';
+import { getContractorAggregatedQuantities, getContractors } from '@/features/contractors/api/contractors.api';
 import { ItemSelectionModal } from '@/features/site-portal/components/ItemSelectionModal';
+import { useAuthStore } from '@/shared/store/auth.store';
 
 function DemandNoteForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuthStore();
+  const [contractorsList, setContractorsList] = useState<any[]>([]);
   const workOrderId = searchParams.get('workOrderId');
   
   const contractorIdParam = searchParams.get('contractorId');
@@ -65,6 +68,34 @@ function DemandNoteForm() {
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [items, setItems] = useState<any[]>([]);
   const hasAutoPopulated = React.useRef(false);
+
+  useEffect(() => {
+    // Prefill package and circle from user profile if not overridden by URL params
+    if (user && !packageParam && !circleParam) {
+      setFormData(prev => ({
+        ...prev,
+        package: prev.package || user.assignedPackage || '',
+        circle: prev.circle || user.assignedCircle || ''
+      }));
+    }
+  }, [user, packageParam, circleParam]);
+
+  useEffect(() => {
+    // Fetch contractors for the dropdown
+    const fetchAllContractors = async () => {
+      try {
+        const res = await getContractors();
+        if (res && res.data) {
+          setContractorsList(res.data);
+        } else if (Array.isArray(res)) {
+          setContractorsList(res);
+        }
+      } catch (err) {
+        console.error("Failed to fetch contractors", err);
+      }
+    };
+    fetchAllContractors();
+  }, []);
 
   useEffect(() => {
     // If URL params are present, auto-fill formData
@@ -479,15 +510,34 @@ function DemandNoteForm() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div>
             <label className="text-sm font-medium text-slate-700 block mb-1">Contractor Name</label>
-            <Input value={formData.contractorName} onChange={e => setFormData({...formData, contractorName: e.target.value})} />
+            <select
+              value={formData.contractorId || ''}
+              onChange={e => {
+                const selected = contractorsList.find(c => c._id === e.target.value);
+                setFormData({
+                  ...formData,
+                  contractorId: e.target.value,
+                  contractorName: selected ? selected.firmName || selected.name : ''
+                });
+              }}
+              className="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="">Select Contractor</option>
+              {contractorsList
+                .filter(c => !formData.circle || (c.locations && c.locations.includes(formData.circle)))
+                .map(c => (
+                  <option key={c._id} value={c._id}>{c.firmName || c.name}</option>
+                ))
+              }
+            </select>
           </div>
           <div>
             <label className="text-sm font-medium text-slate-700 block mb-1">Package</label>
-            <Input value={formData.package} onChange={e => setFormData({...formData, package: e.target.value})} />
+            <Input value={formData.package} onChange={e => setFormData({...formData, package: e.target.value})} disabled={!!user?.assignedPackage} />
           </div>
           <div>
             <label className="text-sm font-medium text-slate-700 block mb-1">Circle</label>
-            <Input value={formData.circle} onChange={e => setFormData({...formData, circle: e.target.value})} />
+            <Input value={formData.circle} onChange={e => setFormData({...formData, circle: e.target.value})} disabled={!!user?.assignedCircle} />
           </div>
           <div>
             <label className="text-sm font-medium text-slate-700 block mb-1">Division</label>

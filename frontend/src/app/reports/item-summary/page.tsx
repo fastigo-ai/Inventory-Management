@@ -10,7 +10,7 @@ export default function ItemSummaryMatrixPage() {
   // Filters
   const [packageFilter, setPackageFilter] = useState('');
   const [circleFilter, setCircleFilter] = useState('');
-  const [targetCircle, setTargetCircle] = useState('SOLAN');
+  const [targetCircle, setTargetCircle] = useState('ALL');
   const [search, setSearch] = useState('');
 
   // Column Visibility Toggles (Choose by Tick options)
@@ -400,10 +400,24 @@ export default function ItemSummaryMatrixPage() {
                   <th className="p-2 min-w-[100px] bg-amber-50 text-right font-bold text-amber-900">LOA Quantity</th>
                   <th className="p-2 min-w-[100px] bg-amber-50 text-right font-bold text-amber-900">BOM Quantity</th>
                   
-                  <th className="p-2 min-w-[100px] bg-blue-50 text-right font-bold text-blue-900">Total DI Done</th>
-                  <th className="p-2 min-w-[100px] bg-emerald-50 text-right font-bold text-emerald-900">Total PI Done (IR)</th>
-                  <th className="p-2 min-w-[100px] bg-cyan-50 text-right font-bold text-cyan-900">Total MRHOV Done</th>
-                  <th className="p-2 min-w-[100px] bg-fuchsia-50 text-right font-bold text-fuchsia-900">Total JMC Done</th>
+                  {showDi && <th className="p-2 min-w-[100px] bg-blue-50 text-right font-bold text-blue-900">Total DI Done</th>}
+                  {showDi && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900">Bal for DI against LOA</th>}
+                  {showDi && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900">Bal for Dispatch against LOA</th>}
+                  
+                  {showMrn && <th className="p-2 min-w-[100px] bg-emerald-50 text-right font-bold text-emerald-900">Total PI Done (IR)</th>}
+                  {showMrn && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900">Bal for IR</th>}
+                  
+                  {showMhrov && <th className="p-2 min-w-[100px] bg-cyan-50 text-right font-bold text-cyan-900">Total MRHOV Done</th>}
+                  {showMhrov && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900">Bal for MRHOV</th>}
+                  
+                  {showImc && <th className="p-2 min-w-[100px] bg-fuchsia-50 text-right font-bold text-fuchsia-900">Total JMC Done</th>}
+                  {showImc && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900">Bal for JMC</th>}
+                  
+                  {showSupplyBill && <th className="p-2 min-w-[100px] bg-indigo-50 text-right font-bold text-indigo-900">Supply Bill RA</th>}
+                  {showSupplyBill && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900">Bal for Supply Bill</th>}
+                  
+                  {showErectionBill && <th className="p-2 min-w-[100px] bg-violet-50 text-right font-bold text-violet-900">Erection Bill RA</th>}
+                  {showErectionBill && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900">Bal for Erection Bill</th>}
                 </tr>
               </thead>
 
@@ -428,6 +442,11 @@ export default function ItemSummaryMatrixPage() {
                     
                     const mhrovQty = r.mhrovSolan || r.mhrovNahan || r.mhrovRampur || r.mhrovRohru || r.mhrov?.solan || r.mhrov?.nahan || r.mhrov?.rampur || r.mhrov?.rohru || 0;
                     const jmcQty = r.imcSolan || r.imcNahan || r.imcRampur || r.imcRohru || r.imc?.solan || r.imc?.nahan || r.imc?.rampur || r.imc?.rohru || 0;
+                    const supplyBillQty = r.supplyBilledSolan || r.supplyBilledNahan || r.supplyBilledRampur || r.supplyBilledRohru || 0;
+                    const erectionBillQty = r.erectionBilledSolan || r.erectionBilledNahan || r.erectionBilledRampur || r.erectionBilledRohru || 0;
+                    
+                    const itemCircleKey = c === 'solan' || c === 'nahan' || c === 'rampur' || c === 'rohru' ? c : 'solan';
+                    const bal = r.allBalances ? r.allBalances[itemCircleKey] : (r.balances || {});
 
                     return (
                       <tr key={idx} className="hover:bg-slate-50">
@@ -453,10 +472,24 @@ export default function ItemSummaryMatrixPage() {
                         <td className="p-2 text-right text-amber-900 font-medium bg-amber-50/20">{loaQty || '-'}</td>
                         <td className="p-2 text-right text-amber-900 font-medium bg-amber-50/20">{bomQty || '-'}</td>
 
-                        <td className="p-2 text-right text-blue-900 font-medium bg-blue-50/20">{diQty || '-'}</td>
-                        <td className="p-2 text-right text-emerald-900 font-medium bg-emerald-50/20">{piQty || '-'}</td>
-                        <td className="p-2 text-right text-cyan-900 font-medium bg-cyan-50/20">{mhrovQty || '-'}</td>
-                        <td className="p-2 text-right text-fuchsia-900 font-medium bg-fuchsia-50/20">{jmcQty || '-'}</td>
+                        {showDi && <td className="p-2 text-right text-blue-900 font-medium bg-blue-50/20">{diQty || '-'}</td>}
+                        {showDi && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{bal?.diVsLoa ?? '-'}</td>}
+                        {showDi && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{bal?.diVsBom ?? '-'}</td>}
+                        
+                        {showMrn && <td className="p-2 text-right text-emerald-900 font-medium bg-emerald-50/20">{piQty || '-'}</td>}
+                        {showMrn && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{bal?.mrn ?? '-'}</td>}
+                        
+                        {showMhrov && <td className="p-2 text-right text-cyan-900 font-medium bg-cyan-50/20">{mhrovQty || '-'}</td>}
+                        {showMhrov && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{bal?.mhrov ?? '-'}</td>}
+                        
+                        {showImc && <td className="p-2 text-right text-fuchsia-900 font-medium bg-fuchsia-50/20">{jmcQty || '-'}</td>}
+                        {showImc && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{bal?.imc ?? '-'}</td>}
+                        
+                        {showSupplyBill && <td className="p-2 text-right text-indigo-900 font-medium bg-indigo-50/20">{supplyBillQty || '-'}</td>}
+                        {showSupplyBill && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{bal?.supplyBill ?? '-'}</td>}
+                        
+                        {showErectionBill && <td className="p-2 text-right text-violet-900 font-medium bg-violet-50/20">{erectionBillQty || '-'}</td>}
+                        {showErectionBill && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{bal?.erectionBill ?? '-'}</td>}
                       </tr>
                     );
                   })
@@ -470,6 +503,16 @@ export default function ItemSummaryMatrixPage() {
                   let totalPi = 0;
                   let totalMhrov = 0;
                   let totalJmc = 0;
+                  let totalSupplyBill = 0;
+                  let totalErectionBill = 0;
+                  
+                  let totalBalDiLoa = 0;
+                  let totalBalDiBom = 0;
+                  let totalBalMrn = 0;
+                  let totalBalMhrov = 0;
+                  let totalBalImc = 0;
+                  let totalBalSupplyBill = 0;
+                  let totalBalErectionBill = 0;
 
                   data.forEach(r => {
                     if (selectedItems.size > 0 && !selectedItems.has(r.tempCode || '')) return;
@@ -479,6 +522,20 @@ export default function ItemSummaryMatrixPage() {
                     totalPi += (r.inwardSolan || r.inwardNahan || r.inwardRampur || r.inwardRohru || r.inward?.solan || r.inward?.nahan || r.inward?.rampur || r.inward?.rohru || 0);
                     totalMhrov += (r.mhrovSolan || r.mhrovNahan || r.mhrovRampur || r.mhrovRohru || r.mhrov?.solan || r.mhrov?.nahan || r.mhrov?.rampur || r.mhrov?.rohru || 0);
                     totalJmc += (r.imcSolan || r.imcNahan || r.imcRampur || r.imcRohru || r.imc?.solan || r.imc?.nahan || r.imc?.rampur || r.imc?.rohru || 0);
+                    totalSupplyBill += (r.supplyBilledSolan || r.supplyBilledNahan || r.supplyBilledRampur || r.supplyBilledRohru || 0);
+                    totalErectionBill += (r.erectionBilledSolan || r.erectionBilledNahan || r.erectionBilledRampur || r.erectionBilledRohru || 0);
+                    
+                    const c = String(r.circle || '').toLowerCase();
+                    const itemCircleKey = c === 'solan' || c === 'nahan' || c === 'rampur' || c === 'rohru' ? c : 'solan';
+                    const bal = r.allBalances ? r.allBalances[itemCircleKey] : (r.balances || {});
+                    
+                    totalBalDiLoa += (bal?.diVsLoa || 0);
+                    totalBalDiBom += (bal?.diVsBom || 0);
+                    totalBalMrn += (bal?.mrn || 0);
+                    totalBalMhrov += (bal?.mhrov || 0);
+                    totalBalImc += (bal?.imc || 0);
+                    totalBalSupplyBill += (bal?.supplyBill || 0);
+                    totalBalErectionBill += (bal?.erectionBill || 0);
                   });
 
                   return (
@@ -488,10 +545,25 @@ export default function ItemSummaryMatrixPage() {
                       </td>
                       <td className="p-2 text-right text-amber-300">{totalLoa}</td>
                       <td className="p-2 text-right text-amber-300">{totalBom}</td>
-                      <td className="p-2 text-right text-blue-300">{totalDi}</td>
-                      <td className="p-2 text-right text-emerald-300">{totalPi}</td>
-                      <td className="p-2 text-right text-cyan-300">{totalMhrov}</td>
-                      <td className="p-2 text-right text-fuchsia-300">{totalJmc}</td>
+                      
+                      {showDi && <td className="p-2 text-right text-blue-300">{totalDi}</td>}
+                      {showDi && <td className="p-2 text-right text-orange-300">{totalBalDiLoa}</td>}
+                      {showDi && <td className="p-2 text-right text-orange-300">{totalBalDiBom}</td>}
+                      
+                      {showMrn && <td className="p-2 text-right text-emerald-300">{totalPi}</td>}
+                      {showMrn && <td className="p-2 text-right text-orange-300">{totalBalMrn}</td>}
+                      
+                      {showMhrov && <td className="p-2 text-right text-cyan-300">{totalMhrov}</td>}
+                      {showMhrov && <td className="p-2 text-right text-orange-300">{totalBalMhrov}</td>}
+                      
+                      {showImc && <td className="p-2 text-right text-fuchsia-300">{totalJmc}</td>}
+                      {showImc && <td className="p-2 text-right text-orange-300">{totalBalImc}</td>}
+                      
+                      {showSupplyBill && <td className="p-2 text-right text-indigo-300">{totalSupplyBill}</td>}
+                      {showSupplyBill && <td className="p-2 text-right text-orange-300">{totalBalSupplyBill}</td>}
+                      
+                      {showErectionBill && <td className="p-2 text-right text-violet-300">{totalErectionBill}</td>}
+                      {showErectionBill && <td className="p-2 text-right text-orange-300">{totalBalErectionBill}</td>}
                     </tr>
                   );
                 })()}

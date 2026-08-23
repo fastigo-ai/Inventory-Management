@@ -105,9 +105,9 @@ export function TopBar() {
           </span>
         </Link>
         
-        {user?.role?.name === 'Store Manager' && (user?.assignedCircle || user?.assignedSubcircle) && (
+        {user?.role?.name === 'Store Manager' && (user?.assignedCircle || (user as any)?.assignedSubcircle) && (
           <div className="hidden md:flex items-center ml-2 px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[11px] font-semibold tracking-wider uppercase shadow-sm">
-            {user.assignedSubcircle || user.assignedCircle} Store
+            {(user as any)?.assignedSubcircle || user.assignedCircle} Store
           </div>
         )}
         

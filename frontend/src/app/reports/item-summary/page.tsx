@@ -376,23 +376,7 @@ export default function ItemSummaryMatrixPage() {
           <div className="overflow-x-auto max-h-[70vh]">
             <table className="w-full text-left border-collapse text-[11px]">
               <thead>
-                <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-300 divide-x divide-slate-200">
-                  <th colSpan={4} className="p-2 text-center bg-slate-200 sticky top-0 z-20">Item Master Info</th>
-                  <th colSpan={8} className="p-2 text-center bg-amber-100 text-amber-900 sticky top-0 z-20">LOA & BOM Quantities</th>
-                  <th colSpan={7} className="p-2 text-center bg-orange-100 text-orange-900 sticky top-0 z-20">Balances — SOLAN</th>
-                  <th colSpan={7} className="p-2 text-center bg-orange-100/90 text-orange-900 sticky top-0 z-20">Balances — NAHAN</th>
-                  <th colSpan={7} className="p-2 text-center bg-orange-100/80 text-orange-900 sticky top-0 z-20">Balances — RAMPUR</th>
-                  <th colSpan={7} className="p-2 text-center bg-orange-100/70 text-orange-900 sticky top-0 z-20">Balances — ROHRU</th>
-                  {showDi && <th colSpan={4} className="p-2 text-center bg-blue-100 text-blue-900 sticky top-0 z-20">Total Dispatched (DI)</th>}
-                  {showMrn && <th colSpan={4} className="p-2 text-center bg-emerald-100 text-emerald-900 sticky top-0 z-20">Total Inward (IR)</th>}
-                  {showMhrov && <th colSpan={4} className="p-2 text-center bg-cyan-100 text-cyan-900 sticky top-0 z-20">Total MRHOV</th>}
-                  {showImc && <th colSpan={4} className="p-2 text-center bg-purple-100 text-purple-900 sticky top-0 z-20">Total MIN / Issue</th>}
-                  {showImc && <th colSpan={4} className="p-2 text-center bg-indigo-100 text-indigo-900 sticky top-0 z-20">Total JMC Work</th>}
-                  {showSupplyBill && <th colSpan={4} className="p-2 text-center bg-sky-100 text-sky-900 sticky top-0 z-20">Supply Billed</th>}
-                  {showErectionBill && <th colSpan={4} className="p-2 text-center bg-teal-100 text-teal-900 sticky top-0 z-20">Erection Billed</th>}
-                </tr>
-
-                <tr className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200 divide-x divide-slate-200 sticky top-[33px] z-20">
+                <tr className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200 divide-x divide-slate-200 sticky top-0 z-20">
                   <th className="p-2 min-w-[40px] text-center bg-slate-100">
                     <input 
                       type="checkbox"
@@ -408,308 +392,109 @@ export default function ItemSummaryMatrixPage() {
                     />
                   </th>
                   <th className="p-2 min-w-[40px] text-center bg-slate-100">Sr. No.</th>
-                  <th className="p-2 min-w-[80px] bg-slate-100">LOA Sr. No.</th>
+                  <th className="p-2 min-w-[80px] bg-slate-100">Temp Code</th>
                   <th className="p-2 min-w-[220px] bg-slate-100">Item Name</th>
+                  <th className="p-2 min-w-[120px] bg-slate-100">Package</th>
+                  <th className="p-2 min-w-[100px] bg-slate-100">Circle</th>
 
-                  <th className="p-2 min-w-[75px] bg-amber-50 text-right font-bold text-amber-900">Solan LOA</th>
-                  <th className="p-2 min-w-[75px] bg-amber-50 text-right font-bold text-amber-900">Solan BOM</th>
-                  <th className="p-2 min-w-[75px] bg-amber-50/70 text-right">Nahan LOA</th>
-                  <th className="p-2 min-w-[75px] bg-amber-50/70 text-right">Nahan BOM</th>
-                  <th className="p-2 min-w-[75px] bg-amber-50/70 text-right">Rampur LOA</th>
-                  <th className="p-2 min-w-[75px] bg-amber-50/70 text-right">Rampur BOM</th>
-                  <th className="p-2 min-w-[75px] bg-amber-50/70 text-right">Rohru LOA</th>
-                  <th className="p-2 min-w-[75px] bg-amber-50/70 text-right">Rohru BOM</th>
-
-                  {['SOLAN', 'NAHAN', 'RAMPUR', 'ROHRU'].map((c, idx) => (
-                    <React.Fragment key={c}>
-                      <th className={`p-2 min-w-[100px] ${idx % 2 === 0 ? 'bg-orange-50' : 'bg-orange-50/70'} text-right font-bold text-orange-950`} title={`${c} LOA Qty minus DI Dispatched to ${c}`}>Bal for DI against {c} LOA</th>
-                      <th className={`p-2 min-w-[100px] ${idx % 2 === 0 ? 'bg-orange-50' : 'bg-orange-50/70'} text-right font-bold text-orange-950`} title={`${c} BOM Qty minus DI Dispatched to ${c}`}>Bal for Dispatch against {c} LOA</th>
-                      <th className={`p-2 min-w-[100px] ${idx % 2 === 0 ? 'bg-orange-50' : 'bg-orange-50/70'} text-right font-bold text-orange-950`} title={`DI Dispatched to ${c} minus Inward Received`}>Bal for IR-{c}</th>
-                      <th className={`p-2 min-w-[100px] ${idx % 2 === 0 ? 'bg-orange-50' : 'bg-orange-50/70'} text-right font-bold text-orange-950`} title={`Inward IR minus MRHOV in ${c}`}>Bal for MRHOv-{c}</th>
-                      <th className={`p-2 min-w-[100px] ${idx % 2 === 0 ? 'bg-orange-50' : 'bg-orange-50/70'} text-right font-bold text-orange-950`} title={`MRHOV Received in ${c} minus MIN Issued`}>Bal for JMC-{c}</th>
-                      <th className={`p-2 min-w-[100px] ${idx % 2 === 0 ? 'bg-orange-50' : 'bg-orange-50/70'} text-right font-bold text-orange-950`} title={`MRHOV Received in ${c} minus Supply Billed`}>Bal for Supply Bill-{c}</th>
-                      <th className={`p-2 min-w-[100px] ${idx % 2 === 0 ? 'bg-orange-50' : 'bg-orange-50/70'} text-right font-bold text-orange-950`} title={`JMC Work in ${c} minus Erection Billed`}>Bal for Erection Bill-{c}</th>
-                    </React.Fragment>
-                  ))}
-
-                  {/* DI */}
-                  {showDi && <>
-                    <th className="p-2 min-w-[75px] bg-blue-50 text-right font-bold text-blue-900">Solan</th>
-                    <th className="p-2 min-w-[75px] bg-blue-50/70 text-right">Nahan</th>
-                    <th className="p-2 min-w-[75px] bg-blue-50/70 text-right">Rampur</th>
-                    <th className="p-2 min-w-[75px] bg-blue-50/70 text-right">Rohru</th>
-                  </>}
-
-                  {/* MRN */}
-                  {showMrn && <>
-                    <th className="p-2 min-w-[75px] bg-emerald-50 text-right font-bold text-emerald-900">Solan</th>
-                    <th className="p-2 min-w-[75px] bg-emerald-50/70 text-right">Nahan</th>
-                    <th className="p-2 min-w-[75px] bg-emerald-50/70 text-right">Rampur</th>
-                    <th className="p-2 min-w-[75px] bg-emerald-50/70 text-right">Rohru</th>
-                  </>}
-                  {showMhrov && <>
-                    <th className="p-2 min-w-[75px] bg-cyan-50 text-right font-bold text-cyan-900">Solan</th>
-                    <th className="p-2 min-w-[75px] bg-cyan-50/70 text-right">Nahan</th>
-                    <th className="p-2 min-w-[75px] bg-cyan-50/70 text-right">Rampur</th>
-                    <th className="p-2 min-w-[75px] bg-cyan-50/70 text-right">Rohru</th>
-                  </>}
-
-                  {/* MIN / Issue */}
-                  {showImc && <>
-                    <th className="p-2 min-w-[75px] bg-purple-50 text-right font-bold text-purple-900">Solan</th>
-                    <th className="p-2 min-w-[75px] bg-purple-50/70 text-right">Nahan</th>
-                    <th className="p-2 min-w-[75px] bg-purple-50/70 text-right">Rampur</th>
-                    <th className="p-2 min-w-[75px] bg-purple-50/70 text-right">Rohru</th>
-                  </>}
-
-                  {/* IMC Work */}
-                  {showImc && <>
-                    <th className="p-2 min-w-[75px] bg-indigo-50 text-right font-bold text-indigo-900">Solan</th>
-                    <th className="p-2 min-w-[75px] bg-indigo-50/70 text-right">Nahan</th>
-                    <th className="p-2 min-w-[75px] bg-indigo-50/70 text-right">Rampur</th>
-                    <th className="p-2 min-w-[75px] bg-indigo-50/70 text-right">Rohru</th>
-                  </>}
-
-                  {/* Supply Billed */}
-                  {showSupplyBill && <>
-                    <th className="p-2 min-w-[75px] bg-sky-50 text-right font-bold text-sky-900">Solan</th>
-                    <th className="p-2 min-w-[75px] bg-sky-50/70 text-right">Nahan</th>
-                    <th className="p-2 min-w-[75px] bg-sky-50/70 text-right">Rampur</th>
-                    <th className="p-2 min-w-[75px] bg-sky-50/70 text-right">Rohru</th>
-                  </>}
-
-                  {/* Erection Billed */}
-                  {showErectionBill && <>
-                    <th className="p-2 min-w-[75px] bg-teal-50 text-right font-bold text-teal-900">Solan</th>
-                    <th className="p-2 min-w-[75px] bg-teal-50/70 text-right">Nahan</th>
-                    <th className="p-2 min-w-[75px] bg-teal-50/70 text-right">Rampur</th>
-                    <th className="p-2 min-w-[75px] bg-teal-50/70 text-right">Rohru</th>
-                  </>}
+                  <th className="p-2 min-w-[100px] bg-amber-50 text-right font-bold text-amber-900">LOA Quantity</th>
+                  <th className="p-2 min-w-[100px] bg-amber-50 text-right font-bold text-amber-900">BOM Quantity</th>
+                  
+                  <th className="p-2 min-w-[100px] bg-blue-50 text-right font-bold text-blue-900">Total DI Done</th>
+                  <th className="p-2 min-w-[100px] bg-emerald-50 text-right font-bold text-emerald-900">Total PI Done (IR)</th>
+                  <th className="p-2 min-w-[100px] bg-cyan-50 text-right font-bold text-cyan-900">Total MRHOV Done</th>
+                  <th className="p-2 min-w-[100px] bg-fuchsia-50 text-right font-bold text-fuchsia-900">Total JMC Done</th>
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-slate-200 font-mono text-[11px]">
                 {data.length === 0 ? (
                   <tr>
-                    <td colSpan={45} className="p-8 text-center text-slate-400 font-sans">
+                    <td colSpan={11} className="p-8 text-center text-slate-400 font-sans">
                       No summary items found matching selected filters.
                     </td>
                   </tr>
                 ) : (
-                  data.map((r, i) => {
-                    const rowKey = r.tempCode || String(i);
-                    const isSelected = selectedItems.has(rowKey);
+                  data.map((r, idx) => {
+                    const c = String(r.circle || '').toLowerCase();
+                    
+                    // Compute dynamic values based on the item's circle
+                    const loaQty = r.solanLoaQty || r.nahanLoaQty || r.rampurLoaQty || r.rohruLoaQty || 0;
+                    const bomQty = r.solanBomQty || r.nahanBomQty || r.rampurBomQty || r.rohruBomQty || 0;
+                    
+                    const diQty = r.dispatchedSolan || r.dispatchedNahan || r.dispatchedRampur || r.dispatchedRohru || r.dispatched?.solan || r.dispatched?.nahan || r.dispatched?.rampur || r.dispatched?.rohru || 0;
+                    
+                    const piQty = r.inwardSolan || r.inwardNahan || r.inwardRampur || r.inwardRohru || r.inward?.solan || r.inward?.nahan || r.inward?.rampur || r.inward?.rohru || 0;
+                    
+                    const mhrovQty = r.mhrovSolan || r.mhrovNahan || r.mhrovRampur || r.mhrovRohru || r.mhrov?.solan || r.mhrov?.nahan || r.mhrov?.rampur || r.mhrov?.rohru || 0;
+                    const jmcQty = r.imcSolan || r.imcNahan || r.imcRampur || r.imcRohru || r.imc?.solan || r.imc?.nahan || r.imc?.rampur || r.imc?.rohru || 0;
 
                     return (
-                      <tr key={`${r._id}-${r.tempCode || ''}-${r.circle || ''}-${i}`} className={`${isSelected ? 'bg-blue-50/50' : 'hover:bg-slate-100/80'} transition-colors divide-x divide-slate-100`}>
-                        <td className="p-2 text-center">
+                      <tr key={idx} className="hover:bg-slate-50">
+                        <td className="p-2 border-r bg-white sticky left-0 z-10 text-center">
                           <input 
-                            type="checkbox"
-                            checked={isSelected}
+                            type="checkbox" 
+                            checked={selectedItems.has(r.tempCode || String(idx))}
                             onChange={(e) => {
                               const newSet = new Set(selectedItems);
-                              if (e.target.checked) newSet.add(rowKey);
-                              else newSet.delete(rowKey);
+                              if (e.target.checked) newSet.add(r.tempCode || String(idx));
+                              else newSet.delete(r.tempCode || String(idx));
                               setSelectedItems(newSet);
                             }}
-                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer"
+                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3 h-3 cursor-pointer"
                           />
                         </td>
-                        <td className="p-2 text-center text-slate-500 font-sans">{r.srNo}</td>
-                        <td className="p-2 font-bold text-slate-800" title={r.tempCode ? `Temp Code: ${r.tempCode}` : undefined}>
-                          {r.loaSerialNo || r.tempCode}
-                        </td>
-                        <td className="p-2 font-sans font-medium text-slate-900 truncate max-w-[250px]" title={r.itemName}>
-                          {r.itemName}
-                        </td>
+                        <td className="p-2 text-center text-slate-500 border-r">{idx + 1 + (page - 1) * limit}</td>
+                        <td className="p-2 text-slate-700 border-r">{r.tempCode}</td>
+                        <td className="p-2 font-medium text-slate-900 border-r max-w-[220px] truncate" title={r.itemName || r.name}>{r.itemName || r.name}</td>
+                        <td className="p-2 text-slate-700 border-r">{r.package}</td>
+                        <td className="p-2 text-slate-700 border-r">{r.circle}</td>
 
-                      {/* LOA & BOM */}
-                      {(() => {
-                        const itemCirc = String(r.circle || '').toLowerCase();
-                        const cv = (circ: string, val: any) => !itemCirc.includes(circ) ? <span className="text-slate-300">-</span> : (val || 0);
-                        
-                        return (
-                          <>
-                            <td className="p-2 text-right font-semibold text-amber-900 bg-amber-50/30">{cv('solan', r.solanLoaQty || r.loaQuantities?.solan)}</td>
-                            <td className="p-2 text-right font-semibold text-amber-900 bg-amber-50/30">{cv('solan', r.solanBomQty || r.bomQuantities?.solan)}</td>
-                            <td className="p-2 text-right text-slate-600">{cv('nahan', r.nahanLoaQty || r.loaQuantities?.nahan)}</td>
-                            <td className="p-2 text-right text-slate-600">{cv('nahan', r.nahanBomQty || r.bomQuantities?.nahan)}</td>
-                            <td className="p-2 text-right text-slate-600">{cv('rampur', r.rampurLoaQty || r.loaQuantities?.rampur)}</td>
-                            <td className="p-2 text-right text-slate-600">{cv('rampur', r.rampurBomQty || r.bomQuantities?.rampur)}</td>
-                            <td className="p-2 text-right text-slate-600">{cv('rohru', r.rohruLoaQty || r.loaQuantities?.rohru)}</td>
-                            <td className="p-2 text-right text-slate-600">{cv('rohru', r.rohruBomQty || r.bomQuantities?.rohru)}</td>
+                        <td className="p-2 text-right text-amber-900 font-medium bg-amber-50/20">{loaQty || '-'}</td>
+                        <td className="p-2 text-right text-amber-900 font-medium bg-amber-50/20">{bomQty || '-'}</td>
 
-                            {/* Balances */}
-                            {['solan', 'nahan', 'rampur', 'rohru'].map((c, idx) => {
-                              if (!itemCirc.includes(c)) {
-                                return (
-                                  <React.Fragment key={c}>
-                                    <td className={`p-2 text-center text-slate-300 font-bold ${idx % 2 === 0 ? 'bg-orange-50/40' : 'bg-orange-50/20'}`}>-</td>
-                                    <td className={`p-2 text-center text-slate-300 font-bold ${idx % 2 === 0 ? 'bg-orange-50/40' : 'bg-orange-50/20'}`}>-</td>
-                                    <td className={`p-2 text-center text-slate-300 font-bold ${idx % 2 === 0 ? 'bg-orange-50/40' : 'bg-orange-50/20'}`}>-</td>
-                                    <td className={`p-2 text-center text-slate-300 font-bold ${idx % 2 === 0 ? 'bg-orange-50/40' : 'bg-orange-50/20'}`}>-</td>
-                                    <td className={`p-2 text-center text-slate-300 font-bold ${idx % 2 === 0 ? 'bg-orange-50/40' : 'bg-orange-50/20'}`}>-</td>
-                                    <td className={`p-2 text-center text-slate-300 font-bold ${idx % 2 === 0 ? 'bg-orange-50/40' : 'bg-orange-50/20'}`}>-</td>
-                                    <td className={`p-2 text-center text-slate-300 font-bold ${idx % 2 === 0 ? 'bg-orange-50/40' : 'bg-orange-50/20'}`}>-</td>
-                                  </React.Fragment>
-                                );
-                              }
-
-                              const b = r.allBalances ? r.allBalances[c] : (r.balances || {});
-                              return (
-                                <React.Fragment key={c}>
-                                  <td className={`p-2 text-right font-bold ${b.diVsLoa < 0 ? 'text-rose-600' : 'text-slate-800'} ${idx % 2 === 0 ? 'bg-orange-50/40' : 'bg-orange-50/20'}`}>{b.diVsLoa ?? 0}</td>
-                                  <td className={`p-2 text-right font-bold ${b.diVsBom < 0 ? 'text-rose-600' : 'text-slate-800'} ${idx % 2 === 0 ? 'bg-orange-50/40' : 'bg-orange-50/20'}`}>{b.diVsBom ?? 0}</td>
-                                  <td className={`p-2 text-right font-bold text-slate-800 ${idx % 2 === 0 ? 'bg-orange-50/40' : 'bg-orange-50/20'}`}>{b.mrn ?? 0}</td>
-                                  <td className={`p-2 text-right font-bold text-slate-800 ${idx % 2 === 0 ? 'bg-orange-50/40' : 'bg-orange-50/20'}`}>{b.mhrov ?? 0}</td>
-                                  <td className={`p-2 text-right font-bold text-slate-800 ${idx % 2 === 0 ? 'bg-orange-50/40' : 'bg-orange-50/20'}`}>{b.imc ?? 0}</td>
-                                  <td className={`p-2 text-right font-bold text-slate-800 ${idx % 2 === 0 ? 'bg-orange-50/40' : 'bg-orange-50/20'}`}>{b.supplyBill ?? 0}</td>
-                                  <td className={`p-2 text-right font-bold text-slate-800 ${idx % 2 === 0 ? 'bg-orange-50/40' : 'bg-orange-50/20'}`}>{b.erectionBill ?? 0}</td>
-                                </React.Fragment>
-                              );
-                            })}
-
-                            {/* DI */}
-                            {showDi && <>
-                              <td className="p-2 text-right font-semibold text-blue-900 bg-blue-50/30">{cv('solan', r.dispatchedSolan || r.dispatched?.solan)}</td>
-                              <td className="p-2 text-right text-slate-600">{cv('nahan', r.dispatchedNahan || r.dispatched?.nahan)}</td>
-                              <td className="p-2 text-right text-slate-600">{cv('rampur', r.dispatchedRampur || r.dispatched?.rampur)}</td>
-                              <td className="p-2 text-right text-slate-600">{cv('rohru', r.dispatchedRohru || r.dispatched?.rohru)}</td>
-                            </>}
-
-                            {/* MRN */}
-                            {showMrn && <>
-                              <td className="p-2 text-right font-semibold text-emerald-900 bg-emerald-50/30">{cv('solan', r.inwardSolan || r.inward?.solan)}</td>
-                              <td className="p-2 text-right text-slate-600">{cv('nahan', r.inwardNahan || r.inward?.nahan)}</td>
-                              <td className="p-2 text-right text-slate-600">{cv('rampur', r.inwardRampur || r.inward?.rampur)}</td>
-                              <td className="p-2 text-right text-slate-600">{cv('rohru', r.inwardRohru || r.inward?.rohru)}</td>
-                            </>}
-                            {showMhrov && <>
-                              <td className="p-2 text-right font-semibold text-cyan-900 bg-cyan-50/30">{cv('solan', r.mhrovSolan || r.mhrov?.solan)}</td>
-                              <td className="p-2 text-right text-slate-600">{cv('nahan', r.mhrovNahan || r.mhrov?.nahan)}</td>
-                              <td className="p-2 text-right text-slate-600">{cv('rampur', r.mhrovRampur || r.mhrov?.rampur)}</td>
-                              <td className="p-2 text-right text-slate-600">{cv('rohru', r.mhrovRohru || r.mhrov?.rohru)}</td>
-                            </>}
-
-                            {/* MIN / Issue */}
-                            {showImc && <>
-                              <td className="p-2 text-right font-semibold text-purple-900 bg-purple-50/30">{cv('solan', r.minSolan || r.min?.solan)}</td>
-                              <td className="p-2 text-right text-slate-600">{cv('nahan', r.minNahan || r.min?.nahan)}</td>
-                              <td className="p-2 text-right text-slate-600">{cv('rampur', r.minRampur || r.min?.rampur)}</td>
-                              <td className="p-2 text-right text-slate-600">{cv('rohru', r.minRohru || r.min?.rohru)}</td>
-                            </>}
-
-                            {/* IMC Work */}
-                            {showImc && <>
-                              <td className="p-2 text-right font-semibold text-indigo-900 bg-indigo-50/30">{cv('solan', r.imcSolan || r.imc?.solan)}</td>
-                              <td className="p-2 text-right text-slate-600">{cv('nahan', r.imcNahan || r.imc?.nahan)}</td>
-                              <td className="p-2 text-right text-slate-600">{cv('rampur', r.imcRampur || r.imc?.rampur)}</td>
-                              <td className="p-2 text-right text-slate-600">{cv('rohru', r.imcRohru || r.imc?.rohru)}</td>
-                            </>}
-
-                            {/* Supply Billed */}
-                            {showSupplyBill && <>
-                              <td className="p-2 text-right font-semibold text-sky-900 bg-sky-50/30">{cv('solan', r.supplyBilledSolan || r.supplyBilled?.solan)}</td>
-                              <td className="p-2 text-right text-slate-600">{cv('nahan', r.supplyBilledNahan || r.supplyBilled?.nahan)}</td>
-                              <td className="p-2 text-right text-slate-600">{cv('rampur', r.supplyBilledRampur || r.supplyBilled?.rampur)}</td>
-                              <td className="p-2 text-right text-slate-600">{cv('rohru', r.supplyBilledRohru || r.supplyBilled?.rohru)}</td>
-                            </>}
-
-                            {/* Erection Billed */}
-                            {showErectionBill && <>
-                              <td className="p-2 text-right font-semibold text-teal-900 bg-teal-50/30">{cv('solan', r.erectionBilledSolan || r.erectionBilled?.solan)}</td>
-                              <td className="p-2 text-right text-slate-600">{cv('nahan', r.erectionBilledNahan || r.erectionBilled?.nahan)}</td>
-                              <td className="p-2 text-right text-slate-600">{cv('rampur', r.erectionBilledRampur || r.erectionBilled?.rampur)}</td>
-                              <td className="p-2 text-right text-slate-600">{cv('rohru', r.erectionBilledRohru || r.erectionBilled?.rohru)}</td>
-                            </>}
-                          </>
-                        );
-                      })()}
-                    </tr>
+                        <td className="p-2 text-right text-blue-900 font-medium bg-blue-50/20">{diQty || '-'}</td>
+                        <td className="p-2 text-right text-emerald-900 font-medium bg-emerald-50/20">{piQty || '-'}</td>
+                        <td className="p-2 text-right text-cyan-900 font-medium bg-cyan-50/20">{mhrovQty || '-'}</td>
+                        <td className="p-2 text-right text-fuchsia-900 font-medium bg-fuchsia-50/20">{jmcQty || '-'}</td>
+                      </tr>
                     );
                   })
                 )}
               </tbody>
               <tfoot className="sticky bottom-0 z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-                {!loading && data.length > 0 && (
-                  <tr className="bg-slate-800 text-white font-bold divide-x divide-slate-700 text-[11px]">
-                    <td colSpan={4} className="p-2 text-right font-sans">
-                      {selectedItems.size > 0 ? `TOTAL (Selected ${selectedItems.size} items)` : 'TOTAL (Current Page)'}
-                    </td>
-                    
-                    <td className="p-2 text-right text-amber-300">{totals.solanLoa}</td>
-                    <td className="p-2 text-right text-amber-300">{totals.solanBom}</td>
-                    <td className="p-2 text-right">{totals.nahanLoa}</td>
-                    <td className="p-2 text-right">{totals.nahanBom}</td>
-                    <td className="p-2 text-right">{totals.rampurLoa}</td>
-                    <td className="p-2 text-right">{totals.rampurBom}</td>
-                    <td className="p-2 text-right">{totals.rohruLoa}</td>
-                    <td className="p-2 text-right">{totals.rohruBom}</td>
+                {!loading && data.length > 0 && (() => {
+                  let totalLoa = 0;
+                  let totalBom = 0;
+                  let totalDi = 0;
+                  let totalPi = 0;
+                  let totalMhrov = 0;
+                  let totalJmc = 0;
 
-                    {['solan', 'nahan', 'rampur', 'rohru'].map((c, idx) => {
-                      const bt = totals.balTotals[c];
-                      return (
-                        <React.Fragment key={c}>
-                          <td className={`p-2 text-right ${idx % 2 === 0 ? 'text-orange-300' : 'text-orange-200'}`}>{bt.diVsLoa}</td>
-                          <td className={`p-2 text-right ${idx % 2 === 0 ? 'text-orange-300' : 'text-orange-200'}`}>{bt.diVsBom}</td>
-                          <td className={`p-2 text-right ${idx % 2 === 0 ? 'text-orange-300' : 'text-orange-200'}`}>{bt.mrn}</td>
-                          <td className={`p-2 text-right ${idx % 2 === 0 ? 'text-orange-300' : 'text-orange-200'}`}>{bt.mhrov}</td>
-                          <td className={`p-2 text-right ${idx % 2 === 0 ? 'text-orange-300' : 'text-orange-200'}`}>{bt.imc}</td>
-                          <td className={`p-2 text-right ${idx % 2 === 0 ? 'text-orange-300' : 'text-orange-200'}`}>{bt.supplyBill}</td>
-                          <td className={`p-2 text-right ${idx % 2 === 0 ? 'text-orange-300' : 'text-orange-200'}`}>{bt.erectionBill}</td>
-                        </React.Fragment>
-                      );
-                    })}
+                  data.forEach(r => {
+                    if (selectedItems.size > 0 && !selectedItems.has(r.tempCode || '')) return;
+                    totalLoa += (r.solanLoaQty || r.nahanLoaQty || r.rampurLoaQty || r.rohruLoaQty || 0);
+                    totalBom += (r.solanBomQty || r.nahanBomQty || r.rampurBomQty || r.rohruBomQty || 0);
+                    totalDi += (r.dispatchedSolan || r.dispatchedNahan || r.dispatchedRampur || r.dispatchedRohru || r.dispatched?.solan || r.dispatched?.nahan || r.dispatched?.rampur || r.dispatched?.rohru || 0);
+                    totalPi += (r.inwardSolan || r.inwardNahan || r.inwardRampur || r.inwardRohru || r.inward?.solan || r.inward?.nahan || r.inward?.rampur || r.inward?.rohru || 0);
+                    totalMhrov += (r.mhrovSolan || r.mhrovNahan || r.mhrovRampur || r.mhrovRohru || r.mhrov?.solan || r.mhrov?.nahan || r.mhrov?.rampur || r.mhrov?.rohru || 0);
+                    totalJmc += (r.imcSolan || r.imcNahan || r.imcRampur || r.imcRohru || r.imc?.solan || r.imc?.nahan || r.imc?.rampur || r.imc?.rohru || 0);
+                  });
 
-                    {showDi && <>
-                      <td className="p-2 text-right text-blue-300">{totals.dispatchedSolan}</td>
-                      <td className="p-2 text-right">{totals.dispatchedNahan}</td>
-                      <td className="p-2 text-right">{totals.dispatchedRampur}</td>
-                      <td className="p-2 text-right">{totals.dispatchedRohru}</td>
-                    </>}
-
-                    {showMrn && <>
-                      <td className="p-2 text-right text-emerald-300">{totals.inwardSolan}</td>
-                      <td className="p-2 text-right">{totals.inwardNahan}</td>
-                      <td className="p-2 text-right">{totals.inwardRampur}</td>
-                      <td className="p-2 text-right">{totals.inwardRohru}</td>
-                    </>}
-                    {showMhrov && <>
-                      <td className="p-2 text-right text-cyan-300">{totals.mhrovSolan}</td>
-                      <td className="p-2 text-right">{totals.mhrovNahan}</td>
-                      <td className="p-2 text-right">{totals.mhrovRampur}</td>
-                      <td className="p-2 text-right">{totals.mhrovRohru}</td>
-                    </>}
-
-                    {showImc && <>
-                      <td className="p-2 text-right text-purple-300">{totals.minSolan}</td>
-                      <td className="p-2 text-right">{totals.minNahan}</td>
-                      <td className="p-2 text-right">{totals.minRampur}</td>
-                      <td className="p-2 text-right">{totals.minRohru}</td>
-                    </>}
-
-                    {showImc && <>
-                      <td className="p-2 text-right text-indigo-300">{totals.imcSolan}</td>
-                      <td className="p-2 text-right">{totals.imcNahan}</td>
-                      <td className="p-2 text-right">{totals.imcRampur}</td>
-                      <td className="p-2 text-right">{totals.imcRohru}</td>
-                    </>}
-
-                    {showSupplyBill && <>
-                      <td className="p-2 text-right text-sky-300">{totals.supSolan}</td>
-                      <td className="p-2 text-right">{totals.supNahan}</td>
-                      <td className="p-2 text-right">{totals.supRampur}</td>
-                      <td className="p-2 text-right">{totals.supRohru}</td>
-                    </>}
-
-                    {showErectionBill && <>
-                      <td className="p-2 text-right text-teal-300">{totals.erecSolan}</td>
-                      <td className="p-2 text-right">{totals.erecNahan}</td>
-                      <td className="p-2 text-right">{totals.erecRampur}</td>
-                      <td className="p-2 text-right">{totals.erecRohru}</td>
-                    </>}
-                  </tr>
-                )}
+                  return (
+                    <tr className="bg-slate-800 text-white font-bold divide-x divide-slate-700 text-[11px]">
+                      <td colSpan={6} className="p-2 text-right font-sans">
+                        {selectedItems.size > 0 ? `TOTAL (Selected ${selectedItems.size} items)` : 'TOTAL (Current Page)'}
+                      </td>
+                      <td className="p-2 text-right text-amber-300">{totalLoa}</td>
+                      <td className="p-2 text-right text-amber-300">{totalBom}</td>
+                      <td className="p-2 text-right text-blue-300">{totalDi}</td>
+                      <td className="p-2 text-right text-emerald-300">{totalPi}</td>
+                      <td className="p-2 text-right text-cyan-300">{totalMhrov}</td>
+                      <td className="p-2 text-right text-fuchsia-300">{totalJmc}</td>
+                    </tr>
+                  );
+                })()}
               </tfoot>
             </table>
           </div>

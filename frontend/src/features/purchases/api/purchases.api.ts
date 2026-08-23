@@ -201,6 +201,11 @@ export const getPurchaseInvoices = async (params: Record<string, any> = {}) => {
   return response.data;
 };
 
+export const getPIItemSummary = async () => {
+  const response = await api.get('/purchases/invoices/item-summary');
+  return response.data;
+};
+
 export const exportPurchaseInvoicesToCsv = async (params: Record<string, any> = {}) => {
   const query = new URLSearchParams();
   

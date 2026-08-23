@@ -10,6 +10,7 @@ export interface IUser extends Document {
   sessionVersion: number;
   assignedPackage?: string;
   assignedCircle?: string;
+  assignedSubcircle?: string;
 }
 
 const UserSchema: Schema = new Schema(
@@ -22,6 +23,7 @@ const UserSchema: Schema = new Schema(
     sessionVersion: { type: Number, default: 0 },
     assignedPackage: { type: String },
     assignedCircle: { type: String },
+    assignedSubcircle: { type: String },
   },
   { timestamps: true }
 );

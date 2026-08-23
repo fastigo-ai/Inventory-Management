@@ -310,7 +310,7 @@ export default function MhrovPage() {
                   <th className="px-6 py-3 font-medium">MHROV No</th>
                   <th className="px-6 py-3 font-medium">Date</th>
                   <th className="px-6 py-3 font-medium">Status</th>
-                  <th className="px-6 py-3 font-medium">PI Numbers</th>
+                  <th className="px-6 py-3 font-medium">DI / PI Numbers</th>
                   <th className="px-6 py-3 font-medium">Items Linked</th>
                   <th className="px-6 py-3 font-medium text-right">Actions</th>
                 </tr>
@@ -337,37 +337,43 @@ export default function MhrovPage() {
                     </td>
                   </tr>
                 ) : (
-                  paginatedData.map((mhrov) => (
-                    <tr
-                      key={mhrov._id}
-                      className="hover:bg-slate-50 cursor-pointer transition-colors group"
-                      onClick={() => router.push(`/site-portal/mhrov/${mhrov._id}`)}
-                    >
-                      <td className="px-6 py-3 font-medium text-indigo-600">
-                        {mhrov.mhrovNumber}
-                      </td>
-                      <td className="px-6 py-3">
-                        {new Date(mhrov.mhrovDate).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-3">
-                        <span
-                          className={`inline-flex items-center px-2 py-1 rounded-md text-[11px] font-medium uppercase tracking-wider ${
-                            mhrov.status === "done"
-                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                              : mhrov.status === "pending"
-                              ? "bg-amber-50 text-amber-700 border border-amber-200"
-                              : "bg-blue-50 text-blue-700 border border-blue-200"
-                          }`}
-                        >
-                          {mhrov.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-3 max-w-[200px] truncate" title={Array.from(new Set(mhrov.inwardEntries?.map((e: any) => e.invoiceNumber).filter(Boolean))).join(", ")}>
-                        {Array.from(new Set(mhrov.inwardEntries?.map((e: any) => e.invoiceNumber).filter(Boolean))).join(", ") || "-"}
-                      </td>
-                      <td className="px-6 py-3">
-                        {mhrov.inwardEntries?.length || 0} Items
-                      </td>
+                  paginatedData.map((mhrov) => {
+                    const piList = mhrov.inwardEntries?.map((e: any) => e.invoiceNumber).filter(Boolean) || [];
+                    const diList = mhrov.items?.map((e: any) => e.diId?.diNumber || e.diRefNo).filter(Boolean) || [];
+                    const refList = Array.from(new Set([...piList, ...diList]));
+                    const itemCount = mhrov.items?.length || mhrov.inwardEntries?.length || 0;
+
+                    return (
+                      <tr
+                        key={mhrov._id}
+                        className="hover:bg-slate-50 cursor-pointer transition-colors group"
+                        onClick={() => router.push(`/site-portal/mhrov/${mhrov._id}`)}
+                      >
+                        <td className="px-6 py-3 font-medium text-indigo-600">
+                          {mhrov.mhrovNumber}
+                        </td>
+                        <td className="px-6 py-3">
+                          {new Date(mhrov.mhrovDate).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-3">
+                          <span
+                            className={`inline-flex items-center px-2 py-1 rounded-md text-[11px] font-medium uppercase tracking-wider ${
+                              mhrov.status === "done"
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                : mhrov.status === "pending"
+                                ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                : "bg-blue-50 text-blue-700 border border-blue-200"
+                            }`}
+                          >
+                            {mhrov.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-3 max-w-[200px] truncate" title={refList.join(", ")}>
+                          {refList.join(", ") || "-"}
+                        </td>
+                        <td className="px-6 py-3">
+                          {itemCount} {itemCount === 1 ? 'Item' : 'Items'}
+                        </td>
                       <td className="px-6 py-3 text-right flex justify-end gap-2">
                         {mhrov.status?.toLowerCase() === 'pending' || mhrov.status?.toLowerCase() === 'draft' ? (
                           <Button
@@ -395,9 +401,10 @@ export default function MhrovPage() {
                         </Button>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
+                  );
+                })
+              )}
+            </tbody>
             </table>
           </div>
           <DataTableBottomControls

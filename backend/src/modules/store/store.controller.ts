@@ -1497,7 +1497,7 @@ export const voidInwardEntry = asyncHandler(async (req: Request, res: Response) 
   res.status(200).json(new ApiResponse(200, entry, 'Inward Entry voided successfully'));
 });
 
-async function processInwardStockUpdate(entryId: string) {
+export async function processInwardStockUpdate(entryId: string) {
   const entry = await StoreInwardEntry.findById(entryId);
   if (!entry) return;
   
@@ -2226,7 +2226,10 @@ export const getMhrovs = asyncHandler(async (req: Request, res: Response) => {
     if (user.assignedCircle) filter.circle = user.assignedCircle;
   }
 
-  const mhrovs = await Mhrov.find(filter).populate("inwardEntries", "invoiceNumber itemName totalQty").sort({ createdAt: 1 });
+  const mhrovs = await Mhrov.find(filter)
+    .populate("inwardEntries", "invoiceNumber itemName totalQty")
+    .populate("items.diId", "diNumber")
+    .sort({ createdAt: -1 });
 
   res.status(200).json(new ApiResponse(200, mhrovs, 'MHROVs fetched successfully'));
 });
@@ -2352,7 +2355,9 @@ export const importMhrovs = asyncHandler(async (req: Request, res: Response) => 
         loaSerialNo,
         tempCode,
         invoiceNo,
-        mhrovDoneQty
+        mhrovDoneQty,
+        circle: row['circle'] || '',
+        package: row['package'] || ''
       });
     }
   }
@@ -2363,26 +2368,100 @@ export const importMhrovs = asyncHandler(async (req: Request, res: Response) => 
     const inwardEntriesArray = [];
     const finalItems = [];
 
-    for (const item of mhrovData.items) {
-      const query: any = {};
-      if (item.invoiceNo) query.invoiceNumber = item.invoiceNo;
-      if (item.diNo) query.diRefNo = item.diNo;
-      if (item.loaSerialNo) query.serialNumber = item.loaSerialNo;
-      if (item.itemName) query.itemName = item.itemName;
-      if (item.tempCode) query.tempCode = item.tempCode;
+    // Bulk fetch to prevent N+1 query problem and DB timeouts
+    const cleanStr = (s: any) => String(s || '').replace(/\*+$/, '').trim();
+    const cleanStrLower = (s: any) => cleanStr(s).toLowerCase();
+    const normalizeForMatch = (s: any) => cleanStrLower(s).replace(/\s+/g, '');
 
-      const entries = await StoreInwardEntry.find(query);
-      if (entries.length === 0) {
-         errors.push(`Row ${item.rowNumber}: Could not find StoreInwardEntry matching Invoice "${item.invoiceNo}", DI "${item.diNo}", Item "${item.itemName}", Serial "${item.loaSerialNo}"`);
-      } else if (entries.length > 1) {
-         errors.push(`Row ${item.rowNumber}: Multiple StoreInwardEntries found matching the criteria. Please provide more specific data (e.g., Invoice No).`);
+    // Collect all possible keys, cleaned of asterisks and whitespace
+    const uniqueDiNos = [...new Set(mhrovData.items.map((i: any) => cleanStr(i.diNo)).filter(Boolean))];
+    const uniqueTempCodes = [...new Set(mhrovData.items.map((i: any) => cleanStr(i.tempCode)).filter(Boolean))];
+    const uniqueItemNamesLower = [...new Set(mhrovData.items.map((i: any) => cleanStrLower(i.itemName)).filter(Boolean))];
+    
+    // We use a broad $or query to catch the record if ANY of the identifiers match
+    const fetchCondition: any = { $or: [] };
+    // MHROV depends strictly on DI
+    if (uniqueDiNos.length > 0) fetchCondition.$or.push({ diNumber: { $in: uniqueDiNos } });
+    
+    // Fallback if somehow there are no identifiers (rare)
+    if (fetchCondition.$or.length === 0) {
+        delete fetchCondition.$or;
+    }
+    
+    let bulkEntries: any[] = [];
+    if (Object.keys(fetchCondition).length > 0) {
+        bulkEntries = await DI.find(fetchCondition).lean();
+    }
+
+    for (const item of mhrovData.items) {
+      // Find matches in memory instead of hitting the DB sequentially
+      let matchedLineItem: any = null;
+      let matchedDI: any = null;
+
+      for (const entry of bulkEntries) {
+         const csvDi = cleanStrLower(item.diNo);
+         const dbDi = cleanStrLower(entry.diNumber);
+         if (csvDi && dbDi && dbDi !== csvDi) continue;
+
+         if (entry.lineItems && Array.isArray(entry.lineItems)) {
+             for (const li of entry.lineItems) {
+                 let match = true;
+                 
+                 const csvCircle = normalizeForMatch(item.circle || mhrovData.circle);
+                 const dbCircle = normalizeForMatch(li.circle || entry.circle);
+                 if (csvCircle && dbCircle && dbCircle !== csvCircle) match = false;
+                 
+                 const csvSerial = normalizeForMatch(item.loaSerialNo);
+                 const dbSerial = normalizeForMatch(li.loaSerialNo);
+                 if (csvSerial && dbSerial && dbSerial !== csvSerial) {
+                    match = false;
+                 }
+                 
+                 const csvItem = normalizeForMatch(item.itemName);
+                 const dbItem = normalizeForMatch(li.itemName);
+                 if (csvItem && dbItem !== csvItem) {
+                    match = false;
+                 }
+                 
+                 const csvTemp = normalizeForMatch(item.tempCode);
+                 const dbTemp = normalizeForMatch(li.tempCode);
+                 if (csvTemp && dbTemp !== csvTemp) {
+                    match = false;
+                 }
+                 
+                 const csvPackage = normalizeForMatch(item.package || mhrovData.package);
+                 const dbPackage = normalizeForMatch(li.package || entry.package);
+                 if (csvPackage && dbPackage && dbPackage !== csvPackage) {
+                    match = false;
+                 }
+
+                 if (match) {
+                     matchedLineItem = li;
+                     matchedDI = entry;
+                     break;
+                 }
+             }
+         }
+         if (matchedLineItem) break;
+      }
+
+      if (!matchedLineItem) {
+         let debugStr = '';
+         if (item.loaSerialNo === '2086' && bulkEntries.length > 0) {
+             const entry = bulkEntries.find((e: any) => cleanStrLower(e.diNumber) === cleanStrLower(item.diNo));
+             if (!entry) debugStr = " (DI number not found in bulkEntries)";
+             else debugStr = " (Line item loop failed, likely a package or item name mismatch. See terminal logs.)";
+         }
+         errors.push(`Row ${item.rowNumber}: Could not find DI "${item.diNo}" with Item "${item.itemName}", Serial "${item.loaSerialNo}", TempCode "${item.tempCode}"${debugStr}`);
       } else {
-         const entryId = entries[0]._id;
-         inwardEntriesArray.push(entryId);
-         finalItems.push({ inwardEntryId: entryId, mhrovDoneQty: item.mhrovDoneQty });
+         finalItems.push({ 
+             diId: matchedDI._id,
+             itemId: matchedLineItem.itemId, 
+             mhrovDoneQty: item.mhrovDoneQty 
+         });
       }
     }
-    mhrovData.inwardEntries = Array.from(new Set(inwardEntriesArray.map(id => id.toString())));
+    mhrovData.inwardEntries = [];
     mhrovData.finalItems = finalItems;
   }
 
@@ -2504,6 +2583,10 @@ export const getMhrovById = asyncHandler(async (req: Request, res: Response) => 
       { path: 'diId' },
       { path: 'itemId' }
     ]
+  }).populate({
+    path: 'items.diId'
+  }).populate({
+    path: 'items.itemId'
   }).lean();
 
   if (!mhrov) {
@@ -2585,6 +2668,80 @@ export const getMhrovById = asyncHandler(async (req: Request, res: Response) => 
     }
     return entry;
   });
+
+  // If there are no inwardEntries (because of the new DI-only import), construct them from items array
+  if (populatedEntries.length === 0 && mhrov.items && mhrov.items.length > 0) {
+      mhrov.items.forEach((it: any, index: number) => {
+          if (it.diId && it.itemId) {
+              const di = it.diId;
+              const item = it.itemId;
+              
+              const targetCircle = (circle as string) || di.circle || mhrov.circle;
+              
+              let loaSrNo = '';
+              let tempCode = '';
+              let totalLoaQty = 0;
+              let circleLoaQty = 0;
+              let balanceInStock = 0;
+              
+              if (item.dynamicData) {
+                  const dd = item.dynamicData;
+                  loaSrNo = dd.loaSrNo || dd.loaSerialNo || dd.sku || '';
+                  tempCode = dd.tempCode || '';
+                  totalLoaQty = Number(dd.loaQty || dd.loaQuantity || dd.totalLoaQuantity || dd.qty || dd.quantity || 0);
+                  
+                  const circleKey = targetCircle ? targetCircle.toLowerCase() + 'LoaQuantity' : '';
+                  if (circleKey && dd[circleKey]) {
+                    circleLoaQty = Number(dd[circleKey]);
+                  }
+                  
+                  if (dd.stockLocations && Array.isArray(dd.stockLocations) && targetCircle) {
+                    const matchingLoc = dd.stockLocations.find((l: any) => 
+                      l.circle?.toLowerCase() === targetCircle.toLowerCase() &&
+                      (!di.package || l.package?.toLowerCase() === di.package?.toLowerCase())
+                    );
+                    if (matchingLoc) {
+                       balanceInStock = Number(matchingLoc.quantity || 0);
+                    } else {
+                       const matchingCircles = dd.stockLocations.filter((l: any) => l.circle?.toLowerCase() === targetCircle.toLowerCase());
+                       balanceInStock = matchingCircles.reduce((sum: number, l: any) => sum + Number(l.quantity || 0), 0);
+                    }
+                  }
+              }
+
+              let diQty = 0;
+              if (di.lineItems && Array.isArray(di.lineItems)) {
+                  const lineItem = di.lineItems.find((li: any) => 
+                      li.itemId?.toString() === item._id.toString()
+                  );
+                  if (lineItem) {
+                      diQty = Number(lineItem.quantity || 0);
+                      // override tempcode/serial if provided in lineitem
+                      if (lineItem.tempCode) tempCode = lineItem.tempCode;
+                      if (lineItem.loaSerialNo) loaSrNo = lineItem.loaSerialNo;
+                  }
+              }
+
+              populatedEntries.push({
+                  _id: `synthetic-${index}`,
+                  invoiceNumber: 'N/A (DI Only)',
+                  diRefNo: di.diNumber,
+                  itemName: item.name || item.itemName || 'Unknown Item',
+                  totalQty: diQty,
+                  diId: di,
+                  itemId: item,
+                  circle: targetCircle,
+                  package: di.package,
+                  mhrovDoneQty: it.mhrovDoneQty,
+                  loaSrNo,
+                  tempCode,
+                  totalLoaQty,
+                  circleLoaQty,
+                  balanceInStock
+              });
+          }
+      });
+  }
 
   res.status(200).json(new ApiResponse(200, {
     ...mhrov,

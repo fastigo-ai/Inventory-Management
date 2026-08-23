@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { createPurchaseOrder, getPurchaseOrders, getPurchaseOrderById, exportPurchaseOrders, importPurchaseOrders, getNextPurchaseOrderNumber, updatePurchaseOrder, deletePurchaseOrder, getPurchaseAnalytics } from './purchase.controller';
-import { createPurchaseInvoice, getPurchaseInvoices, getPurchaseInvoiceById, getNextPurchaseInvoiceNumber, updatePurchaseInvoice, deletePurchaseInvoice, importPurchaseInvoices, exportPurchaseInvoices, getUniqueVendors } from './purchaseInvoice.controller';
+import { createPurchaseInvoice, getPurchaseInvoices, getPurchaseInvoiceById, getNextPurchaseInvoiceNumber, updatePurchaseInvoice, deletePurchaseInvoice, importPurchaseInvoices, exportPurchaseInvoices, getUniqueVendors, getPIItemSummary } from './purchaseInvoice.controller';
 import { authenticate } from '../../core/middlewares/auth.middleware';
 
 const router = Router();
@@ -25,6 +25,7 @@ router.delete('/orders/:id', deletePurchaseOrder);
 
 router.post('/invoices/import', uploadCsv.single('file'), importPurchaseInvoices);
 router.get('/invoices/export', exportPurchaseInvoices);
+router.get('/invoices/item-summary', getPIItemSummary);
 router.get('/invoices/vendors', getUniqueVendors);
 router.get('/invoices/next-number', getNextPurchaseInvoiceNumber);
 router.post('/invoices', createPurchaseInvoice);

@@ -1036,8 +1036,8 @@ async function computeItemMatrixSummary(params: {
     const pkgVal = String(d.package || it.package || '').trim();
     const circleVal = String(d.circle || it.circle || '').trim();
 
-    // Grouping by Package + Circle + LOA Sr No ensures an item only belongs to its own circle
-    const groupKey = `${pkgVal ? pkgVal + '___' : ''}${circleVal ? circleVal + '___' : ''}${loaSrNo}`;
+    // Group by Package + Circle + Temp Code for a flat layout
+    const groupKey = `${pkgVal ? pkgVal + '___' : ''}${circleVal ? circleVal + '___' : ''}${tc}`;
 
     if (!groupedItemsMap.has(groupKey)) {
       groupedItemsMap.set(groupKey, {
@@ -1062,6 +1062,7 @@ async function computeItemMatrixSummary(params: {
     const grp = groupedItemsMap.get(groupKey)!;
     grp.itemIds.push(it._id.toString());
     itemIdToKeyMap.set(it._id.toString(), groupKey);
+    if (tc) tempCodeToKeyMap.set(`${pkgVal ? pkgVal + '___' : ''}${tc}`, groupKey);
     if (tc) tempCodeToKeyMap.set(`${pkgVal ? pkgVal + '___' : ''}${circleVal ? circleVal + '___' : ''}${tc}`, groupKey);
 
     if (!grp.itemName && name) grp.itemName = name;

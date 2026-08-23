@@ -74,3 +74,9 @@ export const importDIsFromCsv = async (file: File) => {
   });
   return response.data;
 };
+
+export const getDIItemSummary = async (params?: { package?: string; circle?: string; search?: string; }) => {
+  const response = await api.get('/di/item-summary', { params });
+  return response.data;
+};
+

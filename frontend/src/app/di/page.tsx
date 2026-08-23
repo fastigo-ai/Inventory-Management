@@ -4,11 +4,10 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus, MoreHorizontal, Upload } from "lucide-react";
-import { getDIs, getDIInsights } from "@/features/di/api/di.api";
+import { Plus, MoreHorizontal, Upload, Download } from "lucide-react";
+import { getDIs, getDIInsights, getDIItemSummary } from "@/features/di/api/di.api";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DIImportModal } from "@/features/di/components/DIImportModal";
-import { Download } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Filter, PieChart as PieChartIcon, Activity, CheckCircle, Clock } from "lucide-react";
 
@@ -18,6 +17,20 @@ export default function DIPage() {
   const [loading, setLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [showInsights, setShowInsights] = useState(true);
+
+  // Tab State
+  const [activeTab, setActiveTab] = useState<'list' | 'matrix'>('list');
+
+  // Matrix State
+  const [matrixData, setMatrixData] = useState<any[]>([]);
+  const [matrixLoading, setMatrixLoading] = useState(false);
+  const [matrixSearch, setMatrixSearch] = useState("");
+  const [matrixPackage, setMatrixPackage] = useState("");
+  const [matrixCircle, setMatrixCircle] = useState("");
+  const [showSolan, setShowSolan] = useState(true);
+  const [showNahan, setShowNahan] = useState(true);
+  const [showRampur, setShowRampur] = useState(true);
+  const [showRohru, setShowRohru] = useState(true);
 
   // Pagination states
   const [page, setPage] = useState(1);
@@ -88,6 +101,23 @@ export default function DIPage() {
   useEffect(() => {
     fetchDIs();
   }, [page, limit, search, diNumber, startDate, endDate, statusFilter]);
+
+  const fetchMatrixData = () => {
+    setMatrixLoading(true);
+    getDIItemSummary({ search: matrixSearch, package: matrixPackage, circle: matrixCircle })
+      .then(res => {
+        if (res.success && res.data) {
+          setMatrixData(res.data);
+        }
+      })
+      .finally(() => setMatrixLoading(false));
+  };
+
+  useEffect(() => {
+    if (activeTab === 'matrix') {
+      fetchMatrixData();
+    }
+  }, [activeTab, matrixSearch, matrixPackage, matrixCircle]);
 
   // Insights rely on global state from backend
   const overallProgress = globalProgress;

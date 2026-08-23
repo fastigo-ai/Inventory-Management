@@ -79,7 +79,7 @@ export const createPurchaseInvoice = async (req: Request, res: Response): Promis
         return {
           ...item,
           quantity: qty,
-          totalInventory: item.totalInventory || item.totalInvoiceQuantity || 0,
+          totalInventory: qty, // enforce totalInventory === quantity so IR always matches PI
           rate,
           amount,
           cgst,
@@ -529,7 +529,7 @@ export const updatePurchaseInvoice = async (req: Request, res: Response): Promis
         return {
           ...item,
           quantity: qty,
-          totalInventory: item.totalInventory || item.totalInvoiceQuantity || 0,
+          totalInventory: qty, // enforce totalInventory === quantity so IR always matches PI
           rate,
           amount,
           cgst,
@@ -815,6 +815,87 @@ export const exportPurchaseInvoices = async (req: Request, res: Response): Promi
   }
 };
 
+export const getPIItemSummary = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const pipeline = [
+      { $unwind: "$lineItems" },
+      {
+        $group: {
+          _id: "$lineItems.tempCode",
+          itemName: { $first: "$lineItems.itemName" },
+          // Use totalInventory (= quantity as of new enforcement). Fall back to quantity for old records.
+          piQuantity: {
+            $sum: {
+              $toDouble: {
+                $cond: [
+                  { $gt: [{ $ifNull: ["$lineItems.totalInventory", 0] }, 0] },
+                  "$lineItems.totalInventory",
+                  "$lineItems.quantity"
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        $lookup: {
+          from: "storeinwardentries",
+          let: { tempCode: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ["$tempCode", "$$tempCode"] },
+                status: { $nin: ["DRAFT", "PENDING_RECEIPT"] }
+              }
+            },
+            {
+              $group: {
+                _id: null,
+                irQuantity: { 
+                  $sum: { 
+                    $toDouble: {
+                      $cond: [
+                        { $gt: [{ $ifNull: ["$totalQty", 0] }, 0] },
+                        "$totalQty",
+                        "$invoiceQty"
+                      ]
+                    }
+                  } 
+                }
+              }
+            }
+          ],
+          as: "irData"
+        }
+      },
+      {
+        $project: {
+          tempCode: "$_id",
+          itemName: 1,
+          piQuantity: 1,
+          irQuantity: { $ifNull: [{ $arrayElemAt: ["$irData.irQuantity", 0] }, 0] },
+          _id: 0
+        }
+      },
+      { $sort: { piQuantity: -1 } }
+    ];
+
+    const results = await PurchaseInvoice.aggregate(pipeline);
+
+    res.status(200).json({
+      success: true,
+      data: results
+    });
+  } catch (error: any) {
+    console.error('Error in getPIItemSummary:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch PI item summary',
+      error: error.message
+    });
+  }
+};
+
 export const importPurchaseInvoices = async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.file) {
@@ -849,34 +930,33 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
 
     const orConditions: any[] = [];
     if (tempCodes.size > 0) orConditions.push({ 'dynamicData.tempCode': { $in: Array.from(tempCodes) } });
-    if (loaSerialNos.size > 0) {
-      const serials = Array.from(loaSerialNos);
-      orConditions.push({ 'dynamicData.loaSerialNo': { $in: serials } });
-      orConditions.push({ 'dynamicData.loaSerialNumber': { $in: serials } });
-      orConditions.push({ 'dynamicData.sku': { $in: serials } });
+    if (itemNames.size > 0) {
+      const nameRegexes = Array.from(itemNames).map(n => new RegExp(`^${n}$`, 'i'));
+      orConditions.push({ 'dynamicData.name': { $in: nameRegexes } });
     }
-    if (itemNames.size > 0) orConditions.push({ 'dynamicData.name': { $in: Array.from(itemNames) } });
 
     const existingItems = orConditions.length > 0 ? await Item.find({ $or: orConditions }) : [];
 
-    const findItemInMemory = (tCode?: string, lSerial?: string, name?: string) => {
-      if (tCode) {
-        const found = existingItems.find((i: any) => i.dynamicData?.tempCode === tCode);
-        if (found) return found;
-      }
-      if (lSerial) {
-        const found = existingItems.find((i: any) => 
-          i.dynamicData?.loaSerialNo === lSerial || 
-          i.dynamicData?.loaSerialNumber === lSerial || 
-          i.dynamicData?.sku === lSerial
-        );
-        if (found) return found;
-      }
-      if (name) {
-        const found = existingItems.find((i: any) => i.dynamicData?.name === name);
-        if (found) return found;
-      }
-      return null;
+    const findItemInMemory = (tCode?: string, name?: string, pkg?: string, circ?: string) => {
+      const isMatch = (a?: string, b?: string) => {
+        const valA = (a || '').replace(/\s+/g, '').toLowerCase();
+        const valB = (b || '').replace(/\s+/g, '').toLowerCase();
+        return valA === valB;
+      };
+
+      const found = existingItems.find((i: any) => {
+        const iTempCode = i.dynamicData?.tempCode;
+        const iName = i.dynamicData?.name;
+        const iPkg = i.dynamicData?.package;
+        const iCirc = i.dynamicData?.circle;
+
+        return isMatch(iTempCode, tCode) && 
+               isMatch(iName, name) && 
+               isMatch(iPkg, pkg) && 
+               isMatch(iCirc, circ);
+      });
+      
+      return found || null;
     };
 
     const prMap: Record<string, any> = {};
@@ -933,11 +1013,13 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
       const itemName = row['itemname'];
       const tempCode = row['tempcode'] || '';
       const loaSerialNo = row['loaserialno'] || row['serialno'] || '';
+      const pkg = row['package'] || '';
+      const circle = row['circle'] || '';
 
       if (itemName) {
-        const item = findItemInMemory(tempCode, loaSerialNo, itemName);
+        const item = findItemInMemory(tempCode, itemName, pkg, circle);
         if (!item) {
-          errors.push(`Row ${actualRowNumber}: UNRESOLVED_ITEM - Could not find item matching Temp Code "${tempCode}", Serial "${loaSerialNo}", or Name "${itemName}"`);
+          errors.push(`Row ${actualRowNumber}: UNRESOLVED_ITEM - Could not find item matching Temp Code "${tempCode}", Name "${itemName}", Package "${pkg}", and Circle "${circle}" in the master list.`);
           continue;
         }
         

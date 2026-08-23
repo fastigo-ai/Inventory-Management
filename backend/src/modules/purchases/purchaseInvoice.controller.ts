@@ -880,7 +880,7 @@ export const getPIItemSummary = async (req: Request, res: Response): Promise<voi
       { $sort: { piQuantity: -1 } }
     ];
 
-    const results = await PurchaseInvoice.aggregate(pipeline);
+    const results = await PurchaseInvoice.aggregate(pipeline as any[]);
 
     res.status(200).json({
       success: true,

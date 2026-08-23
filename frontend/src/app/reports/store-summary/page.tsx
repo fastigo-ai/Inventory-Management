@@ -70,7 +70,7 @@ export default function StoreSummaryPage() {
 
   // Pagination States
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(50);
+  const [limit, setLimit] = useState(1000);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -711,6 +711,7 @@ export default function StoreSummaryPage() {
                   <option value={50}>50</option>
                   <option value={100}>100</option>
                   <option value={200}>200</option>
+                  <option value={1000}>1000</option>
                 </select>
               </div>
             </div>

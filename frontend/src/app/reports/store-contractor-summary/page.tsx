@@ -17,6 +17,9 @@ import {
 import Link from 'next/link';
 import { getStoreContractorSummary } from '@/features/reports/api/reports.api';
 import { useAuthStore } from '@/shared/store/auth.store';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export default function StoreContractorSummaryPage() {
   const { user } = useAuthStore();
@@ -30,6 +33,7 @@ export default function StoreContractorSummaryPage() {
     totalBalanceQty: 0
   });
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   // Filter States
   const [contractorName, setContractorName] = useState<string>('A K Contractor');
@@ -92,28 +96,110 @@ export default function StoreContractorSummaryPage() {
     fetchData();
   }, [contractorName, circle, pkg, search, hideZero, page, limit]);
 
-  const handleExportCSV = () => {
-    if (data.length === 0) return;
+  const fetchAllForExport = async () => {
+    if (selectedItems.size > 0) {
+      return data.filter((r, i) => selectedItems.has(r.loaSerialNo || r.tempCode || String(i)));
+    }
+    
+    setExporting(true);
+    try {
+      const res = await getStoreContractorSummary({
+        contractorName: contractorName || undefined,
+        circle: circle || undefined,
+        package: pkg || undefined,
+        search: search || undefined,
+        hideZero,
+        page: 1,
+        limit: 100000
+      });
+      return res.data?.items || [];
+    } catch (err) {
+      console.error('Export fetch failed:', err);
+      return [];
+    } finally {
+      setExporting(false);
+    }
+  };
 
-    const headers = [
-      'Sr No', 'LOA Sr. No.', 'Temp Code', 'Item Name', 'Unit', 'Circle', 'Package',
-      'Total Issued Qty', 'Total Return Qty', 'Total Balance Qty'
-    ];
+  const handleExportExcel = async () => {
+    const exportData = await fetchAllForExport();
+    if (!exportData.length) return alert('No data to export');
 
-    const rows = data.map(r => [
-      r.srNo, `"${r.loaSerialNo || ''}"`, `"${r.tempCode || ''}"`, `"${(r.itemName || '').replace(/"/g, '""')}"`,
-      `"${r.unit || 'NOS'}"`, `"${r.circle || ''}"`, `"${r.package || ''}"`,
-      r.totalIssuedQty || 0, r.totalReturnQty || 0, r.totalBalanceQty || 0
-    ].join(','));
+    const wsData = exportData.map((r: any, index: number) => ({
+      'Sr No': r.srNo || index + 1,
+      'LOA Sr. No.': r.loaSerialNo || '-',
+      'Temp Code': r.tempCode || '-',
+      'Item Name': r.itemName || '-',
+      'Circle': r.circle || circle || 'All Circles',
+      'Package': r.package || pkg || 'All Packages',
+      'Unit': r.unit || 'Nos',
+      'Total Issued Qty': r.totalIssuedQty || 0,
+      'Total Return Qty': r.totalReturnQty || 0,
+      'Total Balance Qty': r.totalBalanceQty || 0
+    }));
 
-    const csvContent = [headers.join(','), ...rows].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute('download', `Store_Contractor_Summary_${(contractorName || 'All').replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const ws = XLSX.utils.json_to_sheet(wsData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Contractor_Summary');
+    XLSX.writeFile(wb, `Store_Contractor_Summary_${(contractorName || 'All').replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  const handleExportPDF = async () => {
+    const exportData = await fetchAllForExport();
+    if (!exportData.length) return alert('No data to export');
+
+    const doc = new jsPDF('landscape');
+    
+    doc.setFontSize(16);
+    doc.text(`Store Contractor Summary: ${contractorName || 'All Contractors'}`, 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Circle: ${circle || 'All'} | Package: ${pkg || 'All'} | Generated on: ${new Date().toLocaleDateString()}`, 14, 22);
+    
+    autoTable(doc, {
+      startY: 28,
+      head: [['SR', 'LOA NO.', 'TEMP CODE', 'ITEM NAME', 'ISSUED', 'RETURNED', 'BALANCE']],
+      body: exportData.map((row: any, i: number) => [
+        row.srNo || i + 1,
+        row.loaSerialNo || '-',
+        row.tempCode || '-',
+        row.itemName || '-',
+        row.totalIssuedQty?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00',
+        row.totalReturnQty?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00',
+        row.totalBalanceQty?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'
+      ]),
+      headStyles: { fillColor: [241, 245, 249], textColor: [51, 65, 85], fontStyle: 'bold' },
+      didParseCell: function(data) {
+        if (data.section === 'head') {
+          if (data.column.index === 4) { // Issued
+            data.cell.styles.fillColor = [254, 243, 199];
+            data.cell.styles.textColor = [120, 53, 15];
+          }
+          if (data.column.index === 5) { // Returned
+            data.cell.styles.fillColor = [219, 234, 254];
+            data.cell.styles.textColor = [30, 58, 138];
+          }
+          if (data.column.index === 6) { // Balance
+            data.cell.styles.fillColor = [49, 46, 129];
+            data.cell.styles.textColor = [255, 255, 255];
+          }
+        } else if (data.section === 'body') {
+          if (data.column.index === 4) {
+            data.cell.styles.textColor = [180, 83, 9];
+            data.cell.styles.fontStyle = 'bold';
+          }
+          if (data.column.index === 5) {
+            data.cell.styles.textColor = [29, 78, 216];
+            data.cell.styles.fontStyle = 'bold';
+          }
+          if (data.column.index === 6) {
+            data.cell.styles.textColor = [49, 46, 129];
+            data.cell.styles.fontStyle = 'bold';
+          }
+        }
+      }
+    });
+
+    doc.save(`Store_Contractor_Summary_${(contractorName || 'All').replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.pdf`);
   };
 
   const circles = ['Nahan', 'Solan', 'Rampur', 'Rohru'];
@@ -143,12 +229,20 @@ export default function StoreContractorSummaryPage() {
               </button>
 
               <button
-                onClick={handleExportCSV}
-                disabled={loading || data.length === 0}
+                onClick={handleExportExcel}
+                disabled={exporting || loading}
                 className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 rounded-lg shadow-sm transition-all disabled:opacity-50"
               >
                 <Download className="w-3.5 h-3.5" />
-                Export CSV
+                {exporting ? '...' : 'Export Excel'}
+              </button>
+              <button
+                onClick={handleExportPDF}
+                disabled={exporting || loading}
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 rounded-lg shadow-sm transition-all disabled:opacity-50"
+              >
+                <Download className="w-3.5 h-3.5" />
+                {exporting ? '...' : 'Export PDF'}
               </button>
             </div>
           </div>
@@ -476,6 +570,8 @@ export default function StoreContractorSummaryPage() {
                 <option value={25}>25 items per page</option>
                 <option value={50}>50 items per page</option>
                 <option value={100}>100 items per page</option>
+                <option value={500}>500 items per page</option>
+                <option value={1000}>1000 items per page</option>
               </select>
 
               <button

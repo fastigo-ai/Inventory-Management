@@ -1975,6 +1975,24 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
 
   rows.sort((a, b) => {
     if (a.tempNum !== b.tempNum) return a.tempNum - b.tempNum;
+    
+    // Attempt numeric sort for loaSerialNo
+    const loaA = Number(a.loaSerialNo);
+    const loaB = Number(b.loaSerialNo);
+    const isLoaANum = !isNaN(loaA) && a.loaSerialNo !== '' && a.loaSerialNo !== '-';
+    const isLoaBNum = !isNaN(loaB) && b.loaSerialNo !== '' && b.loaSerialNo !== '-';
+
+    if (isLoaANum && isLoaBNum) {
+      if (loaA !== loaB) return loaA - loaB;
+    } else if (isLoaANum) {
+      return -1; // Numbers come before strings
+    } else if (isLoaBNum) {
+      return 1;
+    } else {
+      const cmp = String(a.loaSerialNo).localeCompare(String(b.loaSerialNo));
+      if (cmp !== 0) return cmp;
+    }
+    
     return a.itemName.localeCompare(b.itemName);
   });
 

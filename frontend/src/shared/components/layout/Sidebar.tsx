@@ -66,7 +66,12 @@ const navItems: NavItem[] = [
     children: [
       { title: 'Dashboard', href: '/reports' },
       { title: 'Activity Logs', href: '/reports/activity' },
-      { title: 'Item Summary', href: '/reports/item-summary' }
+      { title: 'Item Summary', href: '/reports/item-summary' },
+      { title: 'Vendor Summary', href: '/reports/vendor-summary' },
+      { title: 'Contractor Summary', href: '/reports/contractor-summary' },
+      { title: 'Store Itemised Summary', href: '/reports/store-summary' },
+      { title: 'Store Contractor Summary', href: '/reports/store-contractor-summary' },
+      { title: 'Site Contractor Summary', href: '/site-portal/contractor-summary' }
     ]
   },
   {

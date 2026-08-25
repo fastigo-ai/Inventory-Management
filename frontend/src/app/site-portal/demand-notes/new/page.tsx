@@ -186,6 +186,9 @@ function DemandNoteForm() {
     }
   };
 
+  // Ensure getContextData is imported or available here.
+  // It's used in handleAddNewItem, so it's already in scope.
+
   const fetchWorkOrderData = async (id: string) => {
     try {
       setIsFetchingWO(true);
@@ -194,6 +197,7 @@ function DemandNoteForm() {
         const wo = res.data;
         setFormData(prev => ({
           ...prev,
+          contractorId: wo.contractorId?._id || wo.contractorId || '',
           contractorName: wo.contractorId?.dynamicData?.companyName || wo.contractorId?.dynamicData?.displayName || wo.contractorName || '',
           division: wo.division || '',
           subDivision: wo.subDivision || '',
@@ -236,7 +240,7 @@ function DemandNoteForm() {
               loaQty: i.loaQty || i.circleLoaQty || 0,
               woQty: i.woQty || i.issuedQty || 0,
               bomQty: i.bomQty || i.circleBomQty || 0,
-              alreadyIssuedQty: i.alreadyIssuedQty || i.issuedQty || 0,
+              alreadyIssuedQty: 0,
               contractorErectionRate: i.contractorErectionRate || 0,
               amount: i.amount || 0,
               gstType: i.gstType || '',
@@ -250,12 +254,65 @@ function DemandNoteForm() {
               wipRequiredQty: agg.wipRequiredQty || 0,
               miscellaneousQty: 0,
               demandQty: 0,
-              balBomQty: (i.bomQty || i.circleBomQty || 0) - (i.alreadyIssuedQty || i.issuedQty || 0),
+              balBomQty: (i.bomQty || i.circleBomQty || 0) - (i.alreadyIssuedQty || 0),
               isLoadingContext: false
             };
           });
           setWorkOrderItems(mappedItems);
-          setItems(mappedItems);
+          
+          // Set initial items, then asynchronously fetch their context to update alreadyIssuedQty
+          const initialItems = mappedItems.map(item => ({ ...item, isLoadingContext: true }));
+          setItems(initialItems);
+
+          initialItems.forEach(async (item: any, idx: number) => {
+            try {
+              const res = await getContextData(
+                item.itemId,
+                cId || undefined,
+                wo.contractorName || undefined,
+                item.activity,
+                item.itemName,
+                item.tempCode,
+                item.loaSrNo,
+                wo.package || undefined,
+                wo.circle || undefined
+              );
+              if (res.success) {
+                setItems(prev => {
+                  const updated = [...prev];
+                  const curr = updated[idx];
+                  if (curr) {
+                    if (res.data.alreadyIssuedQty !== undefined && res.data.alreadyIssuedQty >= 0) {
+                      curr.alreadyIssuedQty = res.data.alreadyIssuedQty;
+                    }
+                    if (res.data.stockBal !== undefined && res.data.stockBal > 0) {
+                      curr.stockBal = res.data.stockBal;
+                    }
+                    if (res.data.jmcQty !== undefined && res.data.jmcQty > 0) curr.jmcQty = res.data.jmcQty;
+                    if (res.data.wipQty !== undefined && res.data.wipQty > 0) curr.wipQty = res.data.wipQty;
+                    if (res.data.wipRequiredQty !== undefined && res.data.wipRequiredQty > 0) curr.wipRequiredQty = res.data.wipRequiredQty;
+                    
+                    curr.balBomQty = curr.bomQty - curr.alreadyIssuedQty - (curr.demandQty || 0);
+                    curr.isLoadingContext = false;
+                  }
+                  return updated;
+                });
+              } else {
+                setItems(prev => {
+                  const updated = [...prev];
+                  if (updated[idx]) updated[idx].isLoadingContext = false;
+                  return updated;
+                });
+              }
+            } catch (error) {
+              setItems(prev => {
+                const updated = [...prev];
+                if (updated[idx]) updated[idx].isLoadingContext = false;
+                return updated;
+              });
+            }
+          });
+          
         } else {
           toast.warning('This Work Order does not contain any items.');
         }
@@ -305,7 +362,7 @@ function DemandNoteForm() {
           wipQty: Number(wipConsumedParam || 0),
           wipRequiredQty: Number(wipRequiredParam || 0),
           miscellaneousQty: 0,
-          balBomQty: selectedItem.bomQty - selectedItem.alreadyIssuedQty - (initialDemandQty || 0),
+          balBomQty: selectedItem.bomQty - (selectedItem.alreadyIssuedQty || 0) - (initialDemandQty || 0),
         };
       } else {
         newItem.itemId = itemId;
@@ -375,10 +432,12 @@ function DemandNoteForm() {
             
             if (!workOrderId) {
               curr.bomQty = ctx.bomQty || curr.bomQty || 0;
-              if (ctx.alreadyIssuedQty !== undefined && ctx.alreadyIssuedQty > 0) {
-                curr.alreadyIssuedQty = ctx.alreadyIssuedQty;
-              }
             }
+
+            if (ctx.alreadyIssuedQty !== undefined && ctx.alreadyIssuedQty >= 0) {
+              curr.alreadyIssuedQty = ctx.alreadyIssuedQty;
+            }
+
             if (ctx.stockBal !== undefined && ctx.stockBal > 0) curr.stockBal = ctx.stockBal;
             curr.transferFromOther = ctx.transferFromOther || 0;
             curr.transferToOther = ctx.transferToOther || 0;
@@ -418,7 +477,8 @@ function DemandNoteForm() {
     const wipC = Number(item.wipQty) || 0;
     const wipR = Number(item.wipRequiredQty) || 0;
     const misc = Number(item.miscellaneousQty) || 0;
-    return issued - jmc - wipC - wipR - misc;
+    const balance = issued - jmc - wipC - wipR - misc;
+    return Number(balance.toFixed(2));
   };
 
   const handleSubmit = async () => {
@@ -521,6 +581,7 @@ function DemandNoteForm() {
                   contractorName: name
                 });
               }}
+              disabled={!!workOrderId}
               className="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <option value="">Select Contractor</option>

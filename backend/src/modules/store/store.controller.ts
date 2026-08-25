@@ -17,22 +17,16 @@ import { StoreTransfer } from './storeTransfer.schema';
 import { Mhrov } from './mhrov.schema';
 import cloudinary from '../../core/utils/cloudinary';
 import { SummaryService } from '../reports/summary/summary.service';
+import { expandCircle } from '../../utils/hierarchy';
 
 export const getPendingDIs = asyncHandler(async (req: Request, res: Response) => {
   const user = (req as any).user;
   const filter: any = { status: { $in: ['Active', 'Pending Receipt', 'Received'] } }; // Keeping old statuses temporarily for backward compatibility with existing DB entries
   
-  const SUB_STORE_MAP: Record<string, string[]> = {
-    'Solan': ['Solan', 'Kumarhatti', 'Nalagarh'],
-    'Nahan': ['Nahan'],
-    'Rohru': ['Rohru'],
-    'Rampur': ['Rampur'],
-  };
-
   if (user && user.role?.name === 'Store Manager') {
     if (user.assignedPackage) filter.package = user.assignedPackage;
     if (user.assignedCircle) {
-      const allowedCircles = SUB_STORE_MAP[user.assignedCircle] || [user.assignedCircle];
+      const allowedCircles = expandCircle(user.assignedCircle) || [user.assignedCircle];
       filter.circle = { $in: allowedCircles };
     }
   }
@@ -772,21 +766,17 @@ export const getStoreTransfers = asyncHandler(async (req: Request, res: Response
 
   const storeNameRaw = circle || (user && user.role?.name === 'Store Manager' ? user.assignedCircle : '');
   const cleanStoreName = storeNameRaw ? String(storeNameRaw).replace(/store/i, '').trim() : '';
-
+  const expandedStoreNames = expandCircle(cleanStoreName) || [cleanStoreName];
   if (cleanStoreName) {
-    const storeRegex = new RegExp(cleanStoreName, 'i');
+    const storeRegex = new RegExp(`^(${expandedStoreNames.join('|')})$`, 'i');
     if (registerType === 'OUTWARD') {
-      filter.$or = [
-        { fromStore: storeRegex },
-        { registerType: 'OUTWARD' }
-      ];
+      filter.fromStore = storeRegex;
+      filter.registerType = 'OUTWARD';
     } else if (registerType === 'INWARD') {
-      filter.$or = [
-        { toStore: storeRegex },
-        { registerType: 'INWARD' }
-      ];
+      filter.toStore = storeRegex;
+      filter.registerType = 'INWARD';
     } else {
-      filter = { $or: [{ fromStore: storeRegex }, { toStore: storeRegex }] };
+      filter.$or = [{ fromStore: storeRegex }, { toStore: storeRegex }];
     }
   } else {
     if (registerType) {
@@ -1158,7 +1148,7 @@ export const getStoreReceiptFilterOptions = asyncHandler(async (req: Request, re
       baseFilter.package = { $regex: new RegExp(`^\\s*${regexStr}\\s*$`, 'i') };
     }
     if (user.assignedCircle) {
-      baseFilter.circle = { $regex: new RegExp(`^\\s*${user.assignedCircle.trim()}\\s*$`, 'i') };
+      baseFilter.circle = { $in: expandCircle(user.assignedCircle) || [user.assignedCircle] };
     }
     if (user.assignedSubcircle) {
       baseFilter.subcircle = { $regex: new RegExp(`^\\s*${user.assignedSubcircle.trim()}\\s*$`, 'i') };
@@ -1198,7 +1188,7 @@ export const getPendingStoreReceipts = asyncHandler(async (req: Request, res: Re
       filter.package = { $regex: new RegExp(`^\\s*${regexStr}\\s*$`, 'i') };
     }
     if (user.assignedCircle) {
-      filter.circle = { $regex: new RegExp(`^\\s*${user.assignedCircle.trim()}\\s*$`, 'i') };
+      filter.circle = { $in: expandCircle(user.assignedCircle) || [user.assignedCircle] };
     }
     if (user.assignedSubcircle) {
       filter.subcircle = { $regex: new RegExp(`^\\s*${user.assignedSubcircle.trim()}\\s*$`, 'i') };
@@ -1326,7 +1316,7 @@ export const getInwardRegister = asyncHandler(async (req: Request, res: Response
       filter.package = { $regex: new RegExp(`^\\s*${regexStr}\\s*$`, 'i') };
     }
     if (user.assignedCircle) {
-      filter.circle = { $regex: new RegExp(`^\\s*${user.assignedCircle.trim()}\\s*$`, 'i') };
+      filter.circle = { $in: expandCircle(user.assignedCircle) || [user.assignedCircle] };
     }
   }
 
@@ -2309,7 +2299,7 @@ export const getMhrovs = asyncHandler(async (req: Request, res: Response) => {
   
   if (user && user.role?.name === 'Store Manager') {
     if (user.assignedPackage) filter.package = user.assignedPackage;
-    if (user.assignedCircle) filter.circle = user.assignedCircle;
+    if (user.assignedCircle) filter.circle = { $in: expandCircle(user.assignedCircle) || [user.assignedCircle] };
   }
 
   const mhrovs = await Mhrov.find(filter)
@@ -2326,7 +2316,7 @@ export const exportMhrovs = asyncHandler(async (req: Request, res: Response) => 
   
   if (user && user.role?.name === 'Store Manager') {
     if (user.assignedPackage) filter.package = user.assignedPackage;
-    if (user.assignedCircle) filter.circle = user.assignedCircle;
+    if (user.assignedCircle) filter.circle = { $in: expandCircle(user.assignedCircle) || [user.assignedCircle] };
   }
 
   const mhrovs = await Mhrov.find(filter).populate("inwardEntries").sort({ createdAt: 1 }).lean();
@@ -2873,8 +2863,9 @@ export const getMhrovDashboardData = asyncHandler(async (req: Request, res: Resp
       mhrovFilter.package = user.assignedPackage;
     }
     if (user.assignedCircle) {
-      filter.circle = user.assignedCircle;
-      mhrovFilter.circle = user.assignedCircle;
+      const exp = expandCircle(user.assignedCircle) || [user.assignedCircle];
+      filter.circle = { $in: exp };
+      mhrovFilter.circle = { $in: exp };
     }
   }
 

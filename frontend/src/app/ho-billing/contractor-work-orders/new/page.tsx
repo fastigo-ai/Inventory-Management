@@ -113,9 +113,9 @@ export default function NewContractorWorkOrderPage() {
         const fetchedItems = res?.items || res?.data?.items || (Array.isArray(res) ? res : []);
         const mappedItems = Array.isArray(fetchedItems) ? fetchedItems.map(item => {
           const isPkg1 = formData.package === 'Package 1(S/N)';
-          const totalPackageLoaQty = isPkg1 
+          const totalPackageLoaQty = Number(item.dynamicData?.totalloaqty || item.dynamicData?.totalLoaQty || item.dynamicData?.totalLoaQuantity || 0) || (isPkg1 
             ? (Number(item.dynamicData?.solanloaqty || item.dynamicData?.solanLoaQuantity || item.dynamicData?.solanLoaQty || 0) + Number(item.dynamicData?.nahanloaqty || item.dynamicData?.nahanLoaQuantity || item.dynamicData?.nahanLoaQty || 0))
-            : (Number(item.dynamicData?.rampurloaqty || item.dynamicData?.rampurLoaQuantity || item.dynamicData?.rampurLoaQty || 0) + Number(item.dynamicData?.rohruloaqty || item.dynamicData?.rohruLoaQuantity || item.dynamicData?.rohruLoaQty || 0));
+            : (Number(item.dynamicData?.rampurloaqty || item.dynamicData?.rampurLoaQuantity || item.dynamicData?.rampurLoaQty || 0) + Number(item.dynamicData?.rohruloaqty || item.dynamicData?.rohruLoaQuantity || item.dynamicData?.rohruLoaQty || 0)));
 
           return {
             itemId: item._id,
@@ -146,7 +146,14 @@ export default function NewContractorWorkOrderPage() {
         if (mappedItems.length === 0) {
           toast.info('No items found for this activity');
         } else {
-          setItems(prev => [...prev, ...mappedItems]);
+          setItems(prev => {
+            const newItems = [...prev, ...mappedItems];
+            return newItems.sort((a, b) => {
+              const aVal = String(a.loaSrNo || '').trim();
+              const bVal = String(b.loaSrNo || '').trim();
+              return aVal.localeCompare(bVal, undefined, { numeric: true, sensitivity: 'base' });
+            });
+          });
           setFormData(prev => ({ ...prev, activities: [...prev.activities, currentActivityInput] }));
           setCurrentActivityInput('');
         }
@@ -241,9 +248,9 @@ export default function NewContractorWorkOrderPage() {
 
   const handleAddManualItem = (item: any) => {
     const isPkg1 = formData.package === 'Package 1(S/N)';
-    const totalPackageLoaQty = isPkg1 
+    const totalPackageLoaQty = Number(item.dynamicData?.totalloaqty || item.dynamicData?.totalLoaQty || item.dynamicData?.totalLoaQuantity || 0) || (isPkg1 
       ? (Number(item.dynamicData?.solanloaqty || item.dynamicData?.solanLoaQuantity || item.dynamicData?.solanLoaQty || 0) + Number(item.dynamicData?.nahanloaqty || item.dynamicData?.nahanLoaQuantity || item.dynamicData?.nahanLoaQty || 0))
-      : (Number(item.dynamicData?.rampurloaqty || item.dynamicData?.rampurLoaQuantity || item.dynamicData?.rampurLoaQty || 0) + Number(item.dynamicData?.rohruloaqty || item.dynamicData?.rohruLoaQuantity || item.dynamicData?.rohruLoaQty || 0));
+      : (Number(item.dynamicData?.rampurloaqty || item.dynamicData?.rampurLoaQuantity || item.dynamicData?.rampurLoaQty || 0) + Number(item.dynamicData?.rohruloaqty || item.dynamicData?.rohruLoaQuantity || item.dynamicData?.rohruLoaQty || 0)));
 
     const mappedItem = {
       itemId: item._id,
@@ -269,7 +276,14 @@ export default function NewContractorWorkOrderPage() {
       gstAmount: 0,
       totalAmount: 0
     };
-    setItems(prev => [...prev, mappedItem]);
+    setItems(prev => {
+      const newItems = [...prev, mappedItem];
+      return newItems.sort((a, b) => {
+        const aVal = String(a.loaSrNo || '').trim();
+        const bVal = String(b.loaSrNo || '').trim();
+        return aVal.localeCompare(bVal, undefined, { numeric: true, sensitivity: 'base' });
+      });
+    });
     setManualItemSearch('');
     setShowManualResults(false);
   };
@@ -330,7 +344,7 @@ export default function NewContractorWorkOrderPage() {
       case 'nahan':
         return ['Nahan', 'Rajgarh', 'Poanta'];
       case 'solan':
-        return ['Solan', 'Nalagarh', 'Baddhi', 'Parwahoo', 'Arki'];
+        return ['Solan', 'Nalagarh', 'Kumarhatti', 'Baddhi', 'Parwahoo', 'Arki'];
       default:
         return [];
     }

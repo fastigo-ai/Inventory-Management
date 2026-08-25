@@ -81,7 +81,7 @@ function DemandNoteForm() {
         const wo = res.data;
         setFormData(prev => ({
           ...prev,
-          contractorName: wo.contractorId?.dynamicData?.companyName || wo.contractorId?.dynamicData?.displayName || wo.contractorName || '',
+          contractorName: wo.contractorId?.dynamicData?.name || wo.contractorId?.dynamicData?.contractorName || wo.contractorId?.dynamicData?.firmName || wo.contractorId?.dynamicData?.companyName || wo.contractorId?.dynamicData?.displayName || wo.contractorName || '',
           division: wo.division || '',
           subDivision: wo.subDivision || '',
           location: wo.location || '',

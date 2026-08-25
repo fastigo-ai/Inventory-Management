@@ -13,6 +13,7 @@ import { StoreTransfer } from '../../store/storeTransfer.schema';
 import Item from '../../items/item.model';
 import { asyncHandler } from '../../../core/utils/asyncHandler';
 import { ApiResponse } from '../../../core/utils/ApiResponse';
+import { expandCircle } from '../../../utils/hierarchy';
 import { stringify } from 'csv-stringify/sync';
 
 const getCirclePackage = (circ?: string, fallbackPkg?: string): string => {
@@ -507,9 +508,15 @@ async function computeStoreItemisedSummary(params: {
 
   // Circle, Store, or Package matching regex
   let locMatch = store && store !== 'all' ? store : (circle && circle !== 'all' ? circle : null);
-  if (!locMatch && pkg && pkg !== 'all') {
+  
+  if (locMatch) {
+    const expanded = expandCircle(locMatch);
+    if (expanded && expanded.length > 0) {
+      locMatch = expanded.join('|');
+    }
+  } else if (pkg && pkg !== 'all') {
     if (pkg.includes('Package 1')) {
-      locMatch = 'Solan|Nahan';
+      locMatch = 'Solan|Kumarhatti|Nalagarh|Nahan';
     } else if (pkg.includes('Package 2')) {
       locMatch = 'Rampur|Rohru';
     }
@@ -1791,7 +1798,7 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
 
   // 1. Fetch distinct contractors list for dropdown
   const assignContractors = await ContractorAssignment.distinct('contractorFarmName');
-  const returnContractors = await ContractorReturn.distinct('contractorName');
+  const returnContractors = await ContractorReturn.distinct('contractorFarmName');
   const contractorList = Array.from(new Set([...assignContractors, ...returnContractors]))
     .filter(Boolean)
     .sort((a, b) => (a as string).localeCompare(b as string));
@@ -1884,7 +1891,9 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
     assignFilter.contractorFarmName = { $regex: new RegExp(`^${contractorName.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') };
   }
   if (circle && circle !== 'all') {
-    const cRegex = new RegExp(circle.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    const expanded = expandCircle(circle as string);
+    const cMatch = expanded && expanded.length > 0 ? expanded.join('|') : circle.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const cRegex = new RegExp(`(${cMatch})`, 'i');
     assignFilter.$or = [
       { location: cRegex },
       { circle: cRegex },
@@ -1920,10 +1929,12 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
   // 4. Aggregate Contractor Returns (Returned Qty)
   const returnFilter: any = {};
   if (contractorName && contractorName !== 'all') {
-    returnFilter.contractorName = { $regex: new RegExp(`^${contractorName.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') };
+    returnFilter.contractorFarmName = { $regex: new RegExp(`^${contractorName.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') };
   }
   if (circle && circle !== 'all') {
-    const cRegex = new RegExp(circle.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    const expanded = expandCircle(circle as string);
+    const cMatch = expanded && expanded.length > 0 ? expanded.join('|') : circle.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const cRegex = new RegExp(`(${cMatch})`, 'i');
     returnFilter.$or = [
       { circle: cRegex },
       { store: cRegex },
@@ -1963,8 +1974,8 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
   }
 
   if (circle && circle !== 'all') {
-    const cFilter = circle.toString().toLowerCase();
-    rows = rows.filter(r => (r.circle || '').toLowerCase().includes(cFilter));
+    const expanded = expandCircle(circle as string) || [circle.toString().toLowerCase()];
+    rows = rows.filter(r => expanded.some(c => (r.circle || '').toLowerCase().includes(c.toLowerCase())));
   }
 
   // Filter by selected package if provided

@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Plus, Upload, Edit, Trash2 } from "lucide-react";
+import { Plus, Upload, Download, Edit, Trash2 } from "lucide-react";
+import * as XLSX from "xlsx";
 import { getContractorReturns, deleteContractorReturn } from "@/features/contractors/api/contractors.api";
 import { toast } from "sonner";
 import { useClientTable } from "@/shared/hooks/useClientTable";
@@ -39,6 +40,55 @@ export default function StoreContractorReturnPage() {
     }
   };
 
+  const handleExport = () => {
+    if (!returns || returns.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+
+    const exportData: any[] = [];
+
+    returns.forEach(r => {
+      const baseRow = {
+        'Return Challan No': r.returnChallanNo || '',
+        'Return Challan Date': r.returnChallanDate ? new Date(r.returnChallanDate).toLocaleDateString() : '',
+        'Contractor Farm Name': r.contractorFarmName || r.contractorId?.companyName || '',
+        'Location': r.location || '',
+        'Circle': r.circle || '',
+        'Supervisor Engineer': r.supervisorEngineer || '',
+        'Division': r.division || '',
+        'Sub Division': r.subDivision || '',
+        'Sub Station': r.subStation || '',
+        'Feeder': r.feeder || '',
+        'Book No': r.bookNo || '',
+        'Issued TFS Sr No': r.issuedTfsSrNo || '',
+        'Remarks': r.remarks || '',
+        'Status': r.status || ''
+      };
+
+      if (r.lineItems && r.lineItems.length > 0) {
+        r.lineItems.forEach((item: any) => {
+          exportData.push({
+            ...baseRow,
+            'Item Name': item.itemName || '',
+            'Temp Code': item.tempCode || '',
+            'Unit': item.unit || '',
+            'HSN Code': item.hsnCode || '',
+            'Return Qty': item.quantity || 0
+          });
+        });
+      } else {
+        // If no line items, just push the base row
+        exportData.push(baseRow);
+      }
+    });
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Contractor_Returns");
+    XLSX.writeFile(wb, `Contractor_Returns_Export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
   useEffect(() => {
     fetchReturns();
   }, []);
@@ -64,6 +114,14 @@ export default function StoreContractorReturnPage() {
             <p className="text-sm text-slate-500 mt-1">View and record items returned by contractors</p>
           </div>
           <div className="flex gap-3">
+            <Button 
+              variant="outline" 
+              className="text-slate-600 border-green-200 hover:bg-green-50"
+              onClick={handleExport}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Bulk Export
+            </Button>
             <Button 
               variant="outline" 
               className="text-slate-600 border-blue-200 hover:bg-blue-50"

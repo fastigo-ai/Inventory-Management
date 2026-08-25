@@ -22,8 +22,8 @@ const UserSchema: Schema = new Schema(
     role: { type: Schema.Types.ObjectId, ref: 'Role', required: true, index: true },
     sessionVersion: { type: Number, default: 0 },
     assignedPackage: { type: String },
-    assignedCircle: { type: String },
-    assignedSubcircle: { type: String },
+    assignedCircle: { type: String }, // e.g., 'Solan' (Supervisor) or 'Kumarhatti' (Sub-circle store manager)
+    assignedSubcircle: { type: String }, // e.g., 'Kumarhatti' if strictly needed, though usually just saved as assignedCircle
   },
   { timestamps: true }
 );

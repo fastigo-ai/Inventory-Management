@@ -261,7 +261,7 @@ function DemandNoteForm() {
           setWorkOrderItems(mappedItems);
           
           // Set initial items, then asynchronously fetch their context to update alreadyIssuedQty
-          const initialItems = mappedItems.map(item => ({ ...item, isLoadingContext: true }));
+          const initialItems = mappedItems.map((item: any) => ({ ...item, isLoadingContext: true }));
           setItems(initialItems);
 
           initialItems.forEach(async (item: any, idx: number) => {

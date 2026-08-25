@@ -236,18 +236,11 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
     const jmcRegisters = await mongoose.model('JmcRegister').find(regQuery).lean() as any[];
     jmcRegisters.forEach((jmc: any) => {
       jmc.items?.forEach((jmcItem: any) => {
-        let isMatch = false;
-        if (tempCode && jmcItem.tempCode) {
-          isMatch = String(jmcItem.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase();
-        } else if (loaSrNo && jmcItem.loaSerialNo) {
-          isMatch = String(jmcItem.loaSerialNo).trim().toLowerCase() === String(loaSrNo).trim().toLowerCase();
-        } else if (item?._id && jmcItem.itemId) {
-          isMatch = String(jmcItem.itemId) === String(item._id);
-        } else {
-          const matchActivity = activity ? jmcItem.activity === activity : true;
-          const matchDesc = description ? jmcItem.description === description : true;
-          isMatch = matchActivity && matchDesc;
-        }
+        const isMatch = (item?._id && jmcItem.itemId && String(jmcItem.itemId) === String(item._id)) ||
+                        (tempCode && jmcItem.tempCode && String(jmcItem.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase()) ||
+                        (loaSrNo && (jmcItem.loaSerialNo || jmcItem.loaSrNo) && String(jmcItem.loaSerialNo || jmcItem.loaSrNo).trim().toLowerCase() === String(loaSrNo).trim().toLowerCase()) ||
+                        (activity && jmcItem.activity && String(jmcItem.activity).trim().toLowerCase() === String(activity).trim().toLowerCase()) ||
+                        (description && (jmcItem.description || jmcItem.itemName) && String(jmcItem.description || jmcItem.itemName).trim().toLowerCase() === String(description).trim().toLowerCase());
 
         if (isMatch) {
           jmcQty += (Number(jmcItem.claimedQty) || 0) + (Number(jmcItem.approvedQty) || 0);
@@ -258,18 +251,11 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
     const wipRegisters = await mongoose.model('WipRegister').find(regQuery).lean() as any[];
     wipRegisters.forEach((wip: any) => {
       wip.items?.forEach((wipItem: any) => {
-        let isMatch = false;
-        if (tempCode && wipItem.tempCode) {
-          isMatch = String(wipItem.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase();
-        } else if (loaSrNo && wipItem.loaSerialNo) {
-          isMatch = String(wipItem.loaSerialNo).trim().toLowerCase() === String(loaSrNo).trim().toLowerCase();
-        } else if (item?._id && wipItem.itemId) {
-          isMatch = String(wipItem.itemId) === String(item._id);
-        } else {
-          const matchActivity = activity ? wipItem.activity === activity : true;
-          const matchDesc = description ? wipItem.description === description : true;
-          isMatch = matchActivity && matchDesc;
-        }
+        const isMatch = (item?._id && wipItem.itemId && String(wipItem.itemId) === String(item._id)) ||
+                        (tempCode && wipItem.tempCode && String(wipItem.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase()) ||
+                        (loaSrNo && (wipItem.loaSerialNo || wipItem.loaSrNo) && String(wipItem.loaSerialNo || wipItem.loaSrNo).trim().toLowerCase() === String(loaSrNo).trim().toLowerCase()) ||
+                        (activity && wipItem.activity && String(wipItem.activity).trim().toLowerCase() === String(activity).trim().toLowerCase()) ||
+                        (description && (wipItem.description || wipItem.itemName) && String(wipItem.description || wipItem.itemName).trim().toLowerCase() === String(description).trim().toLowerCase());
 
         if (isMatch) {
           wipQty += (Number(wipItem.claimedQty) || 0) + (Number(wipItem.approvedQty) || 0);
@@ -280,18 +266,11 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
     const wipRequiredRegisters = await mongoose.model('WipRequiredRegister').find(regQuery).lean() as any[];
     wipRequiredRegisters.forEach((wipReq: any) => {
       wipReq.items?.forEach((wipReqItem: any) => {
-        let isMatch = false;
-        if (tempCode && wipReqItem.tempCode) {
-          isMatch = String(wipReqItem.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase();
-        } else if (loaSrNo && wipReqItem.loaSerialNo) {
-          isMatch = String(wipReqItem.loaSerialNo).trim().toLowerCase() === String(loaSrNo).trim().toLowerCase();
-        } else if (item?._id && wipReqItem.itemId) {
-          isMatch = String(wipReqItem.itemId) === String(item._id);
-        } else {
-          const matchActivity = activity ? wipReqItem.activity === activity : true;
-          const matchDesc = description ? wipReqItem.description === description : true;
-          isMatch = matchActivity && matchDesc;
-        }
+        const isMatch = (item?._id && wipReqItem.itemId && String(wipReqItem.itemId) === String(item._id)) ||
+                        (tempCode && wipReqItem.tempCode && String(wipReqItem.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase()) ||
+                        (loaSrNo && (wipReqItem.loaSerialNo || wipReqItem.loaSrNo) && String(wipReqItem.loaSerialNo || wipReqItem.loaSrNo).trim().toLowerCase() === String(loaSrNo).trim().toLowerCase()) ||
+                        (activity && wipReqItem.activity && String(wipReqItem.activity).trim().toLowerCase() === String(activity).trim().toLowerCase()) ||
+                        (description && (wipReqItem.description || wipReqItem.itemName) && String(wipReqItem.description || wipReqItem.itemName).trim().toLowerCase() === String(description).trim().toLowerCase());
 
         if (isMatch) {
           wipRequiredQty += (Number(wipReqItem.claimedQty) || 0) + (Number(wipReqItem.approvedQty) || 0);

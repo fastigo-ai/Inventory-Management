@@ -285,12 +285,12 @@ function DemandNoteForm() {
                     if (res.data.alreadyIssuedQty !== undefined && res.data.alreadyIssuedQty >= 0) {
                       curr.alreadyIssuedQty = res.data.alreadyIssuedQty;
                     }
-                    if (res.data.stockBal !== undefined && res.data.stockBal > 0) {
+                    if (res.data.stockBal !== undefined && res.data.stockBal >= 0) {
                       curr.stockBal = res.data.stockBal;
                     }
-                    if (res.data.jmcQty !== undefined && res.data.jmcQty > 0) curr.jmcQty = res.data.jmcQty;
-                    if (res.data.wipQty !== undefined && res.data.wipQty > 0) curr.wipQty = res.data.wipQty;
-                    if (res.data.wipRequiredQty !== undefined && res.data.wipRequiredQty > 0) curr.wipRequiredQty = res.data.wipRequiredQty;
+                    if (res.data.jmcQty !== undefined && res.data.jmcQty >= 0) curr.jmcQty = res.data.jmcQty;
+                    if (res.data.wipQty !== undefined && res.data.wipQty >= 0) curr.wipQty = res.data.wipQty;
+                    if (res.data.wipRequiredQty !== undefined && res.data.wipRequiredQty >= 0) curr.wipRequiredQty = res.data.wipRequiredQty;
                     
                     curr.balBomQty = curr.bomQty - curr.alreadyIssuedQty - (curr.demandQty || 0);
                     curr.isLoadingContext = false;

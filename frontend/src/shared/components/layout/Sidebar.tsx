@@ -203,7 +203,7 @@ export function Sidebar() {
     }
 
     if (user?.role?.name === 'Project Director') {
-      return item.title === 'Home' || item.title === 'Project Director Portal' || item.title === 'Reports';
+      return item.title === 'Home' || item.title === 'Project Director Portal' || item.title === 'Reports' || item.title === 'Items';
     }
 
     // Role-based filtering based on module names

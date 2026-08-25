@@ -92,8 +92,8 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
   const user = req.user as any;
   const { itemId, contractorId, contractorName, activity, description, tempCode, loaSrNo } = req.query;
 
-  const pkg = user?.assignedPackage || req.query.package;
-  const circle = user?.assignedCircle || req.query.circle;
+  const pkg = req.query.package || user?.assignedPackage;
+  const circle = req.query.circle || user?.assignedCircle;
 
   let item = itemId ? await Item.findById(itemId) : null;
   if (!item && tempCode) {

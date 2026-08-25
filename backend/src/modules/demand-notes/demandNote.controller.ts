@@ -49,8 +49,11 @@ const generateNextDemandNoteNumber = async () => {
 
 export const createDemandNote = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = req.user as any;
-  if (!user.assignedPackage || !user.assignedCircle) {
-    throw new ApiError(400, 'User is not assigned to a specific Package and Circle.');
+  const finalPackage = req.body.package || user.assignedPackage;
+  const finalCircle = req.body.circle || user.assignedCircle;
+
+  if (!finalPackage || !finalCircle) {
+    throw new ApiError(400, 'User or Request must provide a specific Package and Circle.');
   }
 
   const demandNoteNumber = await generateNextDemandNoteNumber();
@@ -75,8 +78,8 @@ export const createDemandNote = asyncHandler(async (req: AuthRequest, res: Respo
     items,
     demandNoteNumber,
     createdBy: user._id,
-    package: user.assignedPackage,
-    circle: user.assignedCircle,
+    package: finalPackage,
+    circle: finalCircle,
     ...(locationDrawingUrl && { locationDrawingUrl })
   };
 

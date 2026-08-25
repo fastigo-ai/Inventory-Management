@@ -116,14 +116,14 @@ export default function MhrovDetailPage() {
               </p>
               <span
                 className={`inline-flex items-center px-2 py-1 rounded-md text-[11px] font-medium uppercase tracking-wider ${
-                  mhrov.status === "done"
+                  mhrov.status?.toUpperCase() === "DONE" || mhrov.status?.toUpperCase() === "VERIFIED"
                     ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                    : mhrov.status === "pending"
+                    : mhrov.status?.toUpperCase() === "PENDING"
                     ? "bg-amber-50 text-amber-700 border border-amber-200"
                     : "bg-blue-50 text-blue-700 border border-blue-200"
                 }`}
               >
-                {mhrov.status}
+                {mhrov.status?.toUpperCase()}
               </span>
             </div>
           </CardContent>
@@ -143,6 +143,8 @@ export default function MhrovDetailPage() {
                   <th className="px-6 py-3">Vendor</th>
                   <th className="px-6 py-3">Invoice No</th>
                   <th className="px-6 py-3">Item Name</th>
+                  <th className="px-6 py-3">Package</th>
+                  <th className="px-6 py-3">Circle</th>
                   <th className="px-4 py-3 min-w-[100px]">LOA Sr No</th>
                   <th className="px-4 py-3 min-w-[100px]">Temp Code</th>
                   <th className="px-4 py-3 text-right min-w-[100px]">Circle LOA</th>
@@ -154,7 +156,7 @@ export default function MhrovDetailPage() {
               <tbody className="divide-y divide-slate-200 bg-white text-[13px] text-slate-700">
                 {mhrov.inwardEntries?.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-6 py-8 text-center text-slate-500">
+                    <td colSpan={12} className="px-6 py-8 text-center text-slate-500">
                       No items linked to this MHROV.
                     </td>
                   </tr>
@@ -165,6 +167,8 @@ export default function MhrovDetailPage() {
                       <td className="px-6 py-4 font-medium text-slate-900">{entry.vendorName}</td>
                       <td className="px-6 py-4">{entry.invoiceNumber}</td>
                       <td className="px-6 py-4">{entry.itemName}</td>
+                      <td className="px-6 py-4">{entry.package || entry.diId?.package || "N/A"}</td>
+                      <td className="px-6 py-4">{entry.circle || entry.diId?.circle || "N/A"}</td>
                       <td className="px-4 py-3 font-medium text-slate-700">{entry.loaSrNo || entry.inwardEntryId?.loaSrNo || '-'}</td>
                       <td className="px-4 py-3 font-medium text-slate-700">{entry.tempCode || entry.inwardEntryId?.tempCode || '-'}</td>
                       <td className="px-4 py-3 text-right font-medium text-indigo-700">{entry.circleLoaQty || entry.inwardEntryId?.circleLoaQty || 0}</td>

@@ -57,6 +57,10 @@ export interface IStoreInwardEntry extends Document {
   
   status: 'DRAFT' | 'PENDING_RECEIPT' | 'APPROVED' | 'SUBMITTED' | 'VERIFIED' | 'NEEDS_CORRECTION' | 'VOIDED';
   
+  mhrovDoneQty?: number;
+  pendingMhrovQty?: number;
+  mhrovStatus?: 'PENDING' | 'PARTIAL' | 'COMPLETED';
+  
   packingList: IStoreInwardPackingList[];
   
   auditLogs?: {
@@ -136,6 +140,15 @@ const storeInwardEntrySchema = new Schema<IStoreInwardEntry>(
       type: String, 
       enum: ['DRAFT', 'PENDING_RECEIPT', 'APPROVED', 'SUBMITTED', 'VERIFIED', 'NEEDS_CORRECTION', 'VOIDED'], 
       default: 'DRAFT',
+      index: true
+    },
+    
+    mhrovDoneQty: { type: Number, default: 0 },
+    pendingMhrovQty: { type: Number },
+    mhrovStatus: { 
+      type: String, 
+      enum: ['PENDING', 'PARTIAL', 'COMPLETED'], 
+      default: 'PENDING',
       index: true
     },
     

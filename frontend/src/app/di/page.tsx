@@ -442,7 +442,8 @@ export default function DIPage() {
                       <th className="px-6 py-3 whitespace-nowrap">VENDOR</th>
                       <th className="px-6 py-3 whitespace-nowrap">DATE</th>
                       <th className="px-6 py-3 whitespace-nowrap">STATUS</th>
-                      <th className="px-6 py-3 whitespace-nowrap">PROGRESS</th>
+                      <th className="px-6 py-3 whitespace-nowrap">INV. PROGRESS</th>
+                      <th className="px-6 py-3 whitespace-nowrap">MHROV PROGRESS</th>
                       <th className="px-6 py-3 whitespace-nowrap text-right">INVOICES</th>
                     </tr>
                   </thead>
@@ -478,11 +479,28 @@ export default function DIPage() {
                                   className="h-full rounded-full transition-all duration-500" 
                                   style={{ 
                                     width: `${Math.max(0, Number(percent) || 0)}%`,
-                                    background: Number(percent) >= 100 ? 'linear-gradient(to right, #34d399, #10b981)' : 'linear-gradient(to right, #60a5fa, #3b82f6)'
+                                    backgroundColor: percent === 100 ? '#10b981' : percent > 50 ? '#3b82f6' : '#64748b'
                                   }}
-                                ></div>
+                                />
                               </div>
-                              <span className="text-[11px] font-bold text-slate-600 w-9">{percent}%</span>
+                              <span className="text-xs font-semibold text-slate-600 min-w-[32px] text-right">
+                                {Math.max(0, Number(percent) || 0)}%
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-3 w-36">
+                              <div className="flex-1 bg-indigo-100 h-2 rounded-full overflow-hidden shadow-inner">
+                                <div 
+                                  className="h-full rounded-full transition-all duration-500 bg-indigo-500" 
+                                  style={{ 
+                                    width: `${Math.max(0, Number(di.mhrovProgressPercent) || 0)}%`
+                                  }}
+                                />
+                              </div>
+                              <span className="text-xs font-semibold text-indigo-700 min-w-[32px] text-right">
+                                {Math.max(0, Number(di.mhrovProgressPercent) || 0)}%
+                              </span>
                             </div>
                           </td>
                           <td className="px-6 py-4 text-right whitespace-nowrap">

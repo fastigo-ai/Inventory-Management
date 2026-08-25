@@ -265,7 +265,7 @@ export default function MhrovPage() {
                                     <AlertCircle className="w-3 h-3 mr-1" />
                                     Not Started
                                   </span>
-                                ) : item.mhrovData.status === 'done' ? (
+                                ) : item.mhrovData.status?.toUpperCase() === 'DONE' || item.mhrovData.status?.toUpperCase() === 'VERIFIED' ? (
                                   <span className="inline-flex items-center px-2 py-1 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
                                     <CheckCircle2 className="w-3 h-3 mr-1" />
                                     Done
@@ -358,14 +358,14 @@ export default function MhrovPage() {
                         <td className="px-6 py-3">
                           <span
                             className={`inline-flex items-center px-2 py-1 rounded-md text-[11px] font-medium uppercase tracking-wider ${
-                              mhrov.status === "done"
+                              mhrov.status?.toUpperCase() === "DONE" || mhrov.status?.toUpperCase() === "VERIFIED"
                                 ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                : mhrov.status === "pending"
+                                : mhrov.status?.toUpperCase() === "PENDING"
                                 ? "bg-amber-50 text-amber-700 border border-amber-200"
                                 : "bg-blue-50 text-blue-700 border border-blue-200"
                             }`}
                           >
-                            {mhrov.status}
+                            {mhrov.status?.toUpperCase()}
                           </span>
                         </td>
                         <td className="px-6 py-3 max-w-[200px] truncate" title={refList.join(", ")}>

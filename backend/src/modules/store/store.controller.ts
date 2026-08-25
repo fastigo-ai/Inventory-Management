@@ -251,8 +251,17 @@ export const createInwardEntry = asyncHandler(async (req: Request, res: Response
   }
 
   if (entry) {
+    // If it's being updated, we should really sync it, but since it's a DRAFT upsert it's fine.
+    // If quantities change, pendingMhrovQty might need recalculation.
+    // Assuming DRAFTs don't have MHROVs yet.
+    if (entry.status === 'DRAFT') {
+      data.pendingMhrovQty = Number(data.totalQty || data.invoiceQty || data.challanQty || 0);
+    }
     entry = await StoreInwardEntry.findByIdAndUpdate(entry._id, data, { new: true });
   } else {
+    data.mhrovDoneQty = 0;
+    data.pendingMhrovQty = Number(data.totalQty || data.invoiceQty || data.challanQty || 0);
+    data.mhrovStatus = 'PENDING';
     entry = await StoreInwardEntry.create(data);
   }
 
@@ -2152,6 +2161,73 @@ const uploadToCloudinary = (buffer: Buffer, folder: string): Promise<any> => {
   });
 };
 
+export const syncMhrovQuantities = async (diId?: string, itemId?: string, inwardEntryId?: string) => {
+  if (inwardEntryId) {
+    const entry = await StoreInwardEntry.findById(inwardEntryId);
+    if (entry) {
+      const mhrovs = await Mhrov.find({ 'items.inwardEntryId': inwardEntryId });
+      let totalDone = 0;
+      mhrovs.forEach(m => {
+         m.items?.forEach(it => {
+           if (it.inwardEntryId?.toString() === inwardEntryId.toString()) {
+             totalDone += (it.mhrovDoneQty || 0);
+           }
+         });
+      });
+      
+      entry.mhrovDoneQty = totalDone;
+      const totalQty = Number(entry.totalQty || entry.invoiceQty || entry.challanQty || 0);
+      entry.pendingMhrovQty = Math.max(0, totalQty - totalDone);
+      
+      if (totalDone === 0) entry.mhrovStatus = 'PENDING';
+      else if (entry.pendingMhrovQty <= 0) entry.mhrovStatus = 'COMPLETED';
+      else entry.mhrovStatus = 'PARTIAL';
+      
+      await entry.save();
+    }
+  }
+  
+  if (diId && itemId) {
+    const di = await DI.findById(diId);
+    if (di) {
+      const mhrovs = await Mhrov.find({ 'items.diId': diId, 'items.itemId': itemId });
+      let totalDone = 0;
+      mhrovs.forEach(m => {
+         m.items?.forEach(it => {
+           if (it.diId?.toString() === diId.toString() && it.itemId?.toString() === itemId.toString()) {
+             totalDone += (it.mhrovDoneQty || 0);
+           }
+         });
+      });
+      
+      let updated = false;
+      let remainingToApply = totalDone;
+      
+      const matchingItems = di.lineItems.filter((li: any) => li.itemId?.toString() === itemId.toString());
+      
+      matchingItems.forEach((li: any, index: number) => {
+        const isLast = index === matchingItems.length - 1;
+        const applied = isLast ? remainingToApply : Math.min(li.quantity || 0, remainingToApply);
+        
+        li.mhrovDoneQty = applied;
+        li.pendingMhrovQty = Math.max(0, (li.quantity || 0) - applied);
+        remainingToApply = Math.max(0, remainingToApply - applied);
+        
+        if (applied === 0) li.mhrovStatus = 'PENDING';
+        else if (li.pendingMhrovQty <= 0) li.mhrovStatus = 'COMPLETED';
+        else li.mhrovStatus = 'PARTIAL';
+        
+        updated = true;
+      });
+      
+      if (updated) {
+        di.markModified('lineItems');
+        await di.save();
+      }
+    }
+  }
+};
+
 export const createMhrov = asyncHandler(async (req: Request, res: Response) => {
   const { mhrovNumber, mhrovDate, status, inwardEntries, items } = req.body;
   const user = (req as any).user;
@@ -2213,6 +2289,16 @@ export const createMhrov = asyncHandler(async (req: Request, res: Response) => {
   });
 
   await mhrov.save();
+
+  // Trigger sync for all associated items
+  for (const it of parsedItems) {
+    if (it.inwardEntryId) {
+      await syncMhrovQuantities(undefined, undefined, it.inwardEntryId);
+    }
+    if (it.diId && it.itemId) {
+      await syncMhrovQuantities(it.diId, it.itemId);
+    }
+  }
 
   res.status(201).json(new ApiResponse(201, mhrov, 'MHROV created successfully'));
 });
@@ -2492,6 +2578,19 @@ export const importMhrovs = asyncHandler(async (req: Request, res: Response) => 
       },
       { upsert: true, setDefaultsOnInsert: true }
     );
+    
+    // Sync items
+    if (data.finalItems && Array.isArray(data.finalItems)) {
+      for (const it of data.finalItems) {
+        if (it.inwardEntryId) {
+          await syncMhrovQuantities(undefined, undefined, it.inwardEntryId);
+        }
+        if (it.diId && it.itemId) {
+          await syncMhrovQuantities(it.diId, it.itemId);
+        }
+      }
+    }
+    
     successCount++;
   }
 
@@ -2564,12 +2663,25 @@ export const updateMhrov = asyncHandler(async (req: Request, res: Response) => {
 
   mhrov.mhrovNumber = mhrovNumber || mhrov.mhrovNumber;
   mhrov.mhrovDate = mhrovDate || mhrov.mhrovDate;
+  const oldItems = [...(mhrov.items || [])];
+
   mhrov.status = status || mhrov.status;
   mhrov.documentUrl = documentUrl;
   mhrov.inwardEntries = parsedInwardEntries;
   mhrov.items = parsedItems;
 
   await mhrov.save();
+
+  // Sync old and new items
+  const allItemsToSync = [...oldItems, ...parsedItems];
+  for (const it of allItemsToSync) {
+    if (it.inwardEntryId) {
+      await syncMhrovQuantities(undefined, undefined, it.inwardEntryId);
+    }
+    if (it.diId && it.itemId) {
+      await syncMhrovQuantities(it.diId, it.itemId);
+    }
+  }
 
   res.status(200).json(new ApiResponse(200, mhrov, 'MHROV updated successfully'));
 });
@@ -2726,7 +2838,7 @@ export const getMhrovById = asyncHandler(async (req: Request, res: Response) => 
                   _id: `synthetic-${index}`,
                   invoiceNumber: 'N/A (DI Only)',
                   diRefNo: di.diNumber,
-                  itemName: item.name || item.itemName || 'Unknown Item',
+                  itemName: item.dynamicData?.name || item.dynamicData?.itemName || item.dynamicData?.itemDescription || 'Unknown Item',
                   totalQty: diQty,
                   diId: di,
                   itemId: item,
@@ -2752,7 +2864,7 @@ export const getMhrovById = asyncHandler(async (req: Request, res: Response) => 
 
 export const getMhrovDashboardData = asyncHandler(async (req: Request, res: Response) => {
   const user = (req as any).user;
-  const filter: any = { status: 'VERIFIED' };
+  const filter: any = { status: { $in: ['VERIFIED', 'APPROVED'] } };
   const mhrovFilter: any = {};
   
   if (user && user.role?.name === 'Store Manager') {
@@ -2788,6 +2900,28 @@ export const getMhrovDashboardData = asyncHandler(async (req: Request, res: Resp
         });
       });
     }
+    if (mhrov.items && Array.isArray(mhrov.items)) {
+      mhrov.items.forEach((item: any) => {
+        const data = {
+          mhrovId: mhrov._id,
+          mhrovNumber: mhrov.mhrovNumber,
+          mhrovDate: mhrov.mhrovDate,
+          status: mhrov.status
+        };
+        if (item.inwardEntryId) {
+          inwardToMhrovMap.set(item.inwardEntryId.toString(), data);
+        }
+        if (item.diId && item.itemId) {
+          const diIdStr = item.diId._id ? item.diId._id.toString() : item.diId.toString();
+          const itemIdStr = item.itemId._id ? item.itemId._id.toString() : item.itemId.toString();
+          inwardToMhrovMap.set(`${diIdStr}_${itemIdStr}`, data);
+        }
+        if (item.itemId) {
+          const itemIdStr = item.itemId._id ? item.itemId._id.toString() : item.itemId.toString();
+          inwardToMhrovMap.set(`ITEM_${itemIdStr}`, data);
+        }
+      });
+    }
   });
 
   // 4. Merge data and calculate metrics
@@ -2799,11 +2933,20 @@ export const getMhrovDashboardData = asyncHandler(async (req: Request, res: Resp
 
   const mergedItems = inwardEntries.map(entry => {
     totalItems++;
-    const mhrovData = inwardToMhrovMap.get(entry._id.toString());
+    let mhrovData = inwardToMhrovMap.get(entry._id.toString());
+    if (!mhrovData && entry.diId && entry.itemId) {
+      const diIdStr = (entry.diId as any)._id ? (entry.diId as any)._id.toString() : entry.diId.toString();
+      const itemIdStr = (entry.itemId as any)._id ? (entry.itemId as any)._id.toString() : entry.itemId.toString();
+      mhrovData = inwardToMhrovMap.get(`${diIdStr}_${itemIdStr}`);
+    }
+    if (!mhrovData && entry.itemId) {
+      const itemIdStr = (entry.itemId as any)._id ? (entry.itemId as any)._id.toString() : entry.itemId.toString();
+      mhrovData = inwardToMhrovMap.get(`ITEM_${itemIdStr}`);
+    }
     
     if (mhrovData) {
-      if (mhrovData.status === 'done') doneCount++;
-      else if (mhrovData.status === 'pending') pendingCount++;
+      if (mhrovData.status?.toUpperCase() === 'DONE' || mhrovData.status?.toUpperCase() === 'VERIFIED') doneCount++;
+      else if (mhrovData.status?.toUpperCase() === 'PENDING') pendingCount++;
       else if (mhrovData.status === 'MHROV done but not signed') doneNotSignedCount++;
       else pendingCount++; // Fallback
       
@@ -2978,22 +3121,19 @@ export const queryDILineItemsForMhrov = asyncHandler(async (req: Request, res: R
   // Find matching DIs
   const dis = await mongoose.model('DI').find(filter).lean();
   
-  // Find MHROVs to subtract already done quantities
-  const mhrovFilter: any = {};
+  // If excluding an MHROV (edit mode), get its items to add back to remaining quantity
+  const editMhrovItemsMap = new Map<string, number>();
   if (excludeMhrovId) {
-    mhrovFilter._id = { $ne: excludeMhrovId };
+    const editMhrov = await Mhrov.findById(excludeMhrovId).lean();
+    if (editMhrov) {
+      (editMhrov.items || []).forEach((item: any) => {
+        if (item.diId && item.itemId) {
+           const key = `${item.diId}_${item.itemId}`;
+           editMhrovItemsMap.set(key, (editMhrovItemsMap.get(key) || 0) + Number(item.mhrovDoneQty || 0));
+        }
+      });
+    }
   }
-  const existingMhrovs = await Mhrov.find(mhrovFilter).lean();
-  
-  const doneQtyMap = new Map<string, number>();
-  existingMhrovs.forEach(mhrov => {
-    (mhrov.items || []).forEach(item => {
-      if (item.diId && item.itemId) {
-        const key = `${item.diId}_${item.itemId}`;
-        doneQtyMap.set(key, (doneQtyMap.get(key) || 0) + Number(item.mhrovDoneQty || 0));
-      }
-    });
-  });
 
   // Extract all relevant line items
   let lineItemsWithStock: any[] = [];
@@ -3020,17 +3160,20 @@ export const queryDILineItemsForMhrov = asyncHandler(async (req: Request, res: R
       const itemIdStr = li.itemId?.toString();
       const diIdStr = (di as any)._id.toString();
       const key = `${diIdStr}_${itemIdStr}_${liIndex}`;
-      // Note: doneQty map lookup still uses diId_itemId because MHROV done items don't store the exact DI index.
-      // We'll approximate by just looking up by diId_itemId and subtracting as we go.
       const lookupKey = `${diIdStr}_${itemIdStr}`;
-      const doneQty = doneQtyMap.get(lookupKey) || 0;
-      const totalQty = Number(li.quantity || 0);
-      const remainingQty = Math.max(0, totalQty - doneQty);
+      let editModeAllocatedQty = editMhrovItemsMap.get(lookupKey) || 0;
       
-      // If we used some of the doneQty for this line item, deduct it from the map so subsequent duplicates in the same DI don't double-subtract it
-      if (doneQty > 0) {
-         const usedQty = Math.min(totalQty, doneQty);
-         doneQtyMap.set(lookupKey, doneQty - usedQty);
+      const totalQty = Number(li.quantity || 0);
+      let doneQty = li.mhrovDoneQty || 0;
+      let remainingQty = li.pendingMhrovQty !== undefined ? li.pendingMhrovQty : Math.max(0, totalQty - doneQty);
+      
+      // If we are in edit mode, add back the quantity that this specific MHROV had claimed
+      remainingQty += editModeAllocatedQty;
+      doneQty = Math.max(0, doneQty - editModeAllocatedQty);
+      
+      // Prevent double-adding for duplicate items in same DI
+      if (editModeAllocatedQty > 0) {
+         editMhrovItemsMap.set(lookupKey, 0);
       }
       
       if (remainingQty <= 0) continue; // Skip exhausted items

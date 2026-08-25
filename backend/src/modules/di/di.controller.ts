@@ -70,6 +70,16 @@ export const createDI = asyncHandler(async (req: Request, res: Response) => {
     }
   }
 
+  // Initialize MHROV tracking fields for new line items
+  if (Array.isArray(parsedLineItems)) {
+    parsedLineItems = parsedLineItems.map((li: any) => ({
+      ...li,
+      mhrovDoneQty: 0,
+      pendingMhrovQty: Number(li.quantity || 0),
+      mhrovStatus: 'PENDING'
+    }));
+  }
+
   // Process attachments
   const files = req.files as { [fieldname: string]: Express.Multer.File[] };
   const diLetterCopyUrl = files?.['diLetterCopyUrl']?.[0]?.filename ? `/uploads/dis/${files['diLetterCopyUrl'][0].filename}` : undefined;
@@ -233,9 +243,16 @@ export const getDIs = asyncHandler(async (req: Request, res: Response) => {
        const totalConsumed = totalOrdered - calculatedRemaining;
        const progressPercent = totalOrdered > 0 ? Math.round((totalConsumed / totalOrdered) * 100) : 0;
        
+       let totalMhrovDone = 0;
+       diObj.lineItems?.forEach((item: any) => {
+         totalMhrovDone += (Number(item.mhrovDoneQty) || 0);
+       });
+       const mhrovProgressPercent = totalOrdered > 0 ? Math.round((totalMhrovDone / totalOrdered) * 100) : 0;
+       
        return {
          ...diObj,
          progressPercent,
+         mhrovProgressPercent,
          childInvoices: pis
        };
     }));
@@ -277,9 +294,16 @@ export const getDIs = asyncHandler(async (req: Request, res: Response) => {
        const totalConsumed = totalOrdered - calculatedRemaining;
        const progressPercent = totalOrdered > 0 ? Math.round((totalConsumed / totalOrdered) * 100) : 0;
        
+       let totalMhrovDone = 0;
+       diObj.lineItems?.forEach((item: any) => {
+         totalMhrovDone += (Number(item.mhrovDoneQty) || 0);
+       });
+       const mhrovProgressPercent = totalOrdered > 0 ? Math.round((totalMhrovDone / totalOrdered) * 100) : 0;
+       
        return {
          ...diObj,
          progressPercent,
+         mhrovProgressPercent,
          childInvoices: pis
        };
     }));
@@ -434,6 +458,25 @@ export const updateDI = asyncHandler(async (req: Request, res: Response) => {
     } catch (e) {
       parsedLineItems = [];
     }
+  }
+
+  // Preserve and recalculate MHROV tracking fields
+  if (Array.isArray(parsedLineItems)) {
+    parsedLineItems = parsedLineItems.map((newLi: any) => {
+      const oldLi = existingDI.lineItems.find((li: any) => li.itemId?.toString() === newLi.itemId?.toString() || li.itemName === newLi.itemName);
+      const mhrovDoneQty = oldLi?.mhrovDoneQty || 0;
+      const pendingMhrovQty = Math.max(0, Number(newLi.quantity || 0) - mhrovDoneQty);
+      let mhrovStatus = 'PENDING';
+      if (mhrovDoneQty > 0) {
+        mhrovStatus = pendingMhrovQty <= 0 ? 'COMPLETED' : 'PARTIAL';
+      }
+      return {
+        ...newLi,
+        mhrovDoneQty,
+        pendingMhrovQty,
+        mhrovStatus
+      };
+    });
   }
 
   // Process new attachments

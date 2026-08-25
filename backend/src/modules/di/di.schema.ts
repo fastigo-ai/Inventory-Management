@@ -10,6 +10,9 @@ export interface IDILineItem {
   unit?: string;
   quantity: number;
   invoicedQuantity?: number;
+  mhrovDoneQty?: number;
+  pendingMhrovQty?: number;
+  mhrovStatus?: 'PENDING' | 'PARTIAL' | 'COMPLETED';
 }
 
 export interface IDI extends Document {
@@ -39,6 +42,9 @@ const diLineItemSchema = new Schema<IDILineItem>({
   unit: { type: String },
   quantity: { type: Number, required: true, default: 0 },
   invoicedQuantity: { type: Number, default: 0 },
+  mhrovDoneQty: { type: Number, default: 0 },
+  pendingMhrovQty: { type: Number },
+  mhrovStatus: { type: String, enum: ['PENDING', 'PARTIAL', 'COMPLETED'], default: 'PENDING' },
 });
 
 const diSchema = new Schema<IDI>(

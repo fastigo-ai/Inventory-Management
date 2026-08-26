@@ -5,7 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getItemLedger } from "@/features/reports/api/itemLedger.api";
 import { toast } from "sonner";
-import { Search, Download, Loader2 } from "lucide-react";
+import { Search, Download, Loader2, FileDown } from "lucide-react";
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 import { useDebounce } from "@/shared/hooks/useDebounce";
 import { useUrlFilters } from "@/shared/hooks/useUrlFilters";
@@ -48,31 +51,62 @@ export default function ItemLedgerPage() {
     fetchLedger();
   }, [debouncedFilters]);
 
-  const exportToCsv = () => {
+  const handleExportExcel = () => {
     if (!data || data.ledger.length === 0) return;
 
-    const headers = ["Date", "Transaction Type", "Reference", "Vendor / Contractor", "Circle", "Package", "Qty IN (+)", "Qty OUT (-)", "Balance"];
-    const rows = data.ledger.map(row => [
-      new Date(row.date).toLocaleDateString(),
-      row.type,
-      `"${row.reference || ''}"`,
-      `"${row.entityName || ''}"`,
-      `"${row.circle || ''}"`,
-      `"${row.package || ''}"`,
-      row.type === 'IN' ? row.quantity : '',
-      row.type === 'OUT' ? row.quantity : '',
-      row.balance
-    ]);
+    const exportData = data.ledger.map(row => ({
+      'DATE': new Date(row.date).toLocaleDateString(),
+      'TRANSACTION': row.type,
+      'REFERENCE': row.reference || '-',
+      'VENDOR / CONTRACTOR': row.entityName || '-',
+      'CIRCLE': row.circle || '-',
+      'PACKAGE': row.package || '-',
+      'IN (+)': row.type === 'IN' ? row.quantity : 0,
+      'OUT (-)': row.type === 'OUT' ? row.quantity : 0,
+      'BALANCE': row.balance
+    }));
 
-    const csvContent = [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `Item_Ledger_${debouncedFilters.tempCode}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Ledger');
+    XLSX.writeFile(wb, `Item_Ledger_${data.item?.tempCode || 'Export'}.xlsx`);
+  };
+
+  const handleExportPDF = () => {
+    if (!data || data.ledger.length === 0) return;
+
+    const doc = new jsPDF('landscape');
+    
+    doc.setFontSize(16);
+    doc.text(`Item Ledger: ${data.item?.tempCode || ''} - ${data.item?.itemName || 'Unknown'}`, 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 22);
+    
+    autoTable(doc, {
+      startY: 28,
+      head: [['DATE', 'TRANSACTION', 'REFERENCE', 'VENDOR / CONTRACTOR', 'CIRCLE', 'PACKAGE', 'IN (+)', 'OUT (-)', 'BALANCE']],
+      body: data.ledger.map(row => [
+        new Date(row.date).toLocaleDateString(),
+        row.type,
+        row.reference || '-',
+        row.entityName || '-',
+        row.circle || '-',
+        row.package || '-',
+        row.type === 'IN' ? row.quantity : '',
+        row.type === 'OUT' ? row.quantity : '',
+        row.balance
+      ]),
+      headStyles: { fillColor: [226, 239, 217], textColor: [51, 65, 85], fontStyle: 'bold' },
+      didParseCell: function(data) {
+        if (data.section === 'head') {
+          if (data.column.index === 6) data.cell.styles.fillColor = [226, 239, 217]; // Green for IN
+          if (data.column.index === 7) data.cell.styles.fillColor = [253, 232, 232]; // Red for OUT
+          if (data.column.index === 8) data.cell.styles.fillColor = [241, 245, 249]; // Gray for Balance
+        }
+      }
+    });
+
+    doc.save(`Item_Ledger_${data.item?.tempCode || 'Export'}.pdf`);
   };
 
   return (
@@ -82,9 +116,24 @@ export default function ItemLedgerPage() {
           <h1 className="text-2xl font-bold tracking-tight">Item Ledger</h1>
           <p className="text-muted-foreground">View chronologically sorted stock additions and issuances per item.</p>
         </div>
-        <Button onClick={exportToCsv} disabled={!data || data.ledger.length === 0} variant="outline">
-          <Download className="mr-2 h-4 w-4" /> Export CSV
-        </Button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={handleExportExcel}
+            disabled={!data || data.ledger.length === 0}
+            className="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg shadow-sm transition-colors"
+          >
+            <FileDown className="w-4 h-4 mr-2" />
+            Export Excel
+          </button>
+          <button 
+            onClick={handleExportPDF}
+            disabled={!data || data.ledger.length === 0}
+            className="inline-flex items-center px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg shadow-sm transition-colors"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export PDF
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-4 items-end bg-slate-50 p-4 rounded-lg border relative">

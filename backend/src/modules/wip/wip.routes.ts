@@ -20,11 +20,11 @@ router.post('/upload', requireRole(['Admin', 'Site Manager']), upload.array('fil
 
 router.route('/')
   .get(getWips)
-  .post(requireRole(['Admin', 'Site Manager', 'Contractor']), createWip);
+  .post(requireRole(['Admin', 'Site Manager', 'Contractor']), upload.single('file'), createWip);
 
 router.route('/:id')
   .get(getWipById)
-  .put(requireRole(['Admin', 'Site Manager']), updateWip)
+  .put(requireRole(['Admin', 'Site Manager', 'Contractor']), upload.single('file'), updateWip)
   .delete(requireRole(['Admin', 'Site Manager']), deleteWip);
 
 export default router;

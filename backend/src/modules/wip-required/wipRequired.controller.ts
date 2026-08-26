@@ -8,6 +8,20 @@ import Item from '../items/item.model';
 import * as xlsx from 'xlsx';
 import stringSimilarity from 'string-similarity';
 import mongoose from 'mongoose';
+import cloudinary from '../../core/utils/cloudinary';
+
+const uploadToCloudinary = (buffer: Buffer, folder: string): Promise<any> => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      { folder, resource_type: 'auto' },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      }
+    );
+    uploadStream.end(buffer);
+  });
+};
 
 export const createWipRequired = asyncHandler(async (req: Request, res: Response) => {
   const data = req.body;
@@ -17,10 +31,31 @@ export const createWipRequired = asyncHandler(async (req: Request, res: Response
   data.wipRequiredNumber = `WIP/${new Date().getFullYear().toString().slice(-2)}/${(count + 1).toString().padStart(4, '0')}`;
   data.createdBy = user._id;
 
-  const newWip = await WipRequiredRegister.create(data);
+  let drawingSheetUrl = '';
+  if (req.file) {
+    const result = await uploadToCloudinary(req.file.buffer, 'wip_required_drawings');
+    drawingSheetUrl = result.secure_url;
+  }
+
+  let items = req.body.items;
+  if (typeof items === 'string') {
+    try {
+      items = JSON.parse(items);
+    } catch (err) {
+      items = [];
+    }
+  }
+
+  const payload = {
+    ...data,
+    items,
+    ...(drawingSheetUrl && { drawingSheetUrl })
+  };
+
+  const newWipRequired = await WipRequiredRegister.create(payload);
 
   res.status(201).json(
-    new ApiResponse(201, newWip, 'WIP Required register entry created successfully')
+    new ApiResponse(201, newWipRequired, 'WIP Required register entry created successfully')
   );
 });
 
@@ -66,14 +101,35 @@ export const updateWipRequired = asyncHandler(async (req: Request, res: Response
     throw new ApiError(404, 'WIP Required register entry not found');
   }
 
-  const updatedWip = await WipRequiredRegister.findByIdAndUpdate(
+  let drawingSheetUrl = '';
+  if (req.file) {
+    const result = await uploadToCloudinary(req.file.buffer, 'wip_required_drawings');
+    drawingSheetUrl = result.secure_url;
+  }
+
+  let items = req.body.items;
+  if (items && typeof items === 'string') {
+    try {
+      items = JSON.parse(items);
+    } catch (err) {
+      items = [];
+    }
+  }
+
+  const payload = {
+    ...data,
+    ...(items && { items }),
+    ...(drawingSheetUrl && { drawingSheetUrl })
+  };
+
+  const updatedWipRequired = await WipRequiredRegister.findByIdAndUpdate(
     id,
-    data,
+    payload,
     { new: true, runValidators: true }
   );
 
   res.status(200).json(
-    new ApiResponse(200, updatedWip, 'WIP Required register entry updated successfully')
+    new ApiResponse(200, updatedWipRequired, 'WIP Required register entry updated successfully')
   );
 });
 

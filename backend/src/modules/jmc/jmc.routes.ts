@@ -20,11 +20,11 @@ router.post('/upload', requireRole(['Admin', 'Site Manager']), upload.array('fil
 
 router.route('/')
   .get(getJmcs)
-  .post(requireRole(['Admin', 'Site Manager', 'Contractor']), createJmc);
+  .post(requireRole(['Admin', 'Site Manager', 'Contractor']), upload.single('file'), createJmc);
 
 router.route('/:id')
   .get(getJmcById)
-  .put(requireRole(['Admin', 'Site Manager', 'Contractor']), updateJmc)
+  .put(requireRole(['Admin', 'Site Manager', 'Contractor']), upload.single('file'), updateJmc)
   .delete(requireRole(['Admin', 'Site Manager', 'Contractor']), deleteJmc);
 
 export default router;

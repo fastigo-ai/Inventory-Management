@@ -11,6 +11,33 @@ import Select from "react-select";
 import { getItems } from "@/features/items/api/items.api";
 import { useAuthStore } from "@/shared/store/auth.store";
 
+const calcPrevQtyFromJmcs = (jmcs: any[], tempCode: string | number, loaSrNo: string | number, desc?: string) => {
+  let total = 0;
+  const tStr = tempCode ? tempCode.toString().trim() : '';
+  const lStr = loaSrNo ? loaSrNo.toString().trim() : '';
+  const dStr = desc ? desc.toString().trim().toLowerCase() : '';
+
+  jmcs.forEach(jmc => {
+    (jmc.items || []).forEach((item: any) => {
+      const itemTemp = item.tempCode ? item.tempCode.toString().trim() : '';
+      const itemLoa = item.loaSrNo ? item.loaSrNo.toString().trim() : '';
+      const itemDesc = item.description ? item.description.toString().trim().toLowerCase() : '';
+
+      const isMatch = (tStr && itemTemp && tStr === itemTemp) ||
+                      (lStr && itemLoa && lStr === itemLoa) ||
+                      (dStr && itemDesc && (dStr === itemDesc || dStr.includes(itemDesc) || itemDesc.includes(dStr)));
+
+      if (isMatch) {
+        const qty = Number(item.approvedQty) > 0 
+          ? Number(item.approvedQty) 
+          : Number(item.claimedQty || item.quantity || 0);
+        total += qty;
+      }
+    });
+  });
+  return total;
+};
+
 export default function JmcRegisterFormPage() {
   const { user } = useAuthStore();
   const router = useRouter();
@@ -23,6 +50,7 @@ export default function JmcRegisterFormPage() {
   const [submitting, setSubmitting] = useState(false);
   const [availableItems, setAvailableItems] = useState<any[]>([]);
   const [previousJmcs, setPreviousJmcs] = useState<any[]>([]);
+  const [file, setFile] = useState<File | null>(null);
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -78,14 +106,28 @@ export default function JmcRegisterFormPage() {
 
 
   useEffect(() => {
-    if (formData.contractorId && formData.package && formData.circle) {
+    if (formData.contractorId) {
       getJmcs({ contractorId: formData.contractorId }).then(res => {
         const jmcs = res?.data?.data || (Array.isArray(res?.data) ? res.data : []);
-        const filtered = jmcs.filter((j: any) => j.package === formData.package && j.circle === formData.circle && j.status === 'Approved');
-        setPreviousJmcs(filtered);
+        setPreviousJmcs(jmcs);
       }).catch(console.error);
+    } else {
+      setPreviousJmcs([]);
     }
-  }, [formData.contractorId, formData.package, formData.circle]);
+  }, [formData.contractorId]);
+
+  // Automatically recalculate previous quantities for existing items when historical JMCs arrive
+  useEffect(() => {
+    if (formData.items.length > 0 && previousJmcs.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        items: prev.items.map(item => ({
+          ...item,
+          prevQty: calcPrevQtyFromJmcs(previousJmcs, item.tempCode, item.loaSrNo, item.description)
+        }))
+      }));
+    }
+  }, [previousJmcs]);
 
   useEffect(() => {
     fetchContractors();
@@ -179,12 +221,21 @@ export default function JmcRegisterFormPage() {
         approvedTotal += (Number(item.approvedQty) * Number(item.rate));
       });
 
-      const payload = {
-        ...formData,
-        status: statusToSave,
-        claimedAmount: claimedTotal,
-        approvedAmount: approvedTotal
-      };
+      const payload = new FormData();
+      payload.append('date', formData.date);
+      payload.append('contractorId', formData.contractorId);
+      payload.append('package', formData.package);
+      payload.append('circle', formData.circle);
+      payload.append('division', formData.division);
+      payload.append('subDivision', formData.subDivision);
+      payload.append('remarks', formData.remarks);
+      payload.append('status', statusToSave);
+      payload.append('claimedAmount', claimedTotal.toString());
+      payload.append('approvedAmount', approvedTotal.toString());
+      payload.append('items', JSON.stringify(formData.items));
+      if (file) {
+        payload.append('file', file);
+      }
 
       if (isNew) {
         await createJmc(payload);
@@ -265,9 +316,19 @@ export default function JmcRegisterFormPage() {
                   }}
                 >
                   <option value="">Select Contractor</option>
-                  {contractors.map((c: any) => (
-                    <option key={c._id} value={c._id}>{c.name || c.vendorName || c.dynamicData?.displayName || c.dynamicData?.name}</option>
-                  ))}
+                  {contractors
+                    .filter(c => {
+                      if (!formData.circle) return true;
+                      const locs = c.location || c.assignedLocations || c.dynamicData?.assignedCircle || c.dynamicData?.circle || c.dynamicData?.assignedCircles || '';
+                      return locs.includes(formData.circle);
+                    })
+                    .map((c: any) => {
+                      const displayName = c.dynamicData?.displayName || c.dynamicData?.companyName || c.dynamicData?.name || c.dynamicData?.vendorName || c._id;
+                      return (
+                        <option key={c._id} value={c._id}>{displayName}</option>
+                      );
+                    })
+                  }
                 </select>
               </div>
               <div>
@@ -322,12 +383,20 @@ export default function JmcRegisterFormPage() {
                   <span className="text-lg font-bold text-green-700">₹ {totalApproved.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                 </div>
               </div>
-              <div>
-                <label className="text-xs font-medium text-slate-500 block mb-1">Remarks</label>
-                <Input 
-                  value={formData.remarks} 
-                  onChange={e => setFormData({...formData, remarks: e.target.value})} 
-                  placeholder="Any additional notes..."
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-2">Remarks</label>
+                <Input
+                  value={formData.remarks}
+                  onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+                  placeholder="Enter remarks..."
+                />
+              </div>
+              <div className="md:col-span-1">
+                <label className="block text-sm font-medium text-slate-700 mb-2">Drawing Sheet / Document</label>
+                <input
+                  type="file"
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
                 />
               </div>
             </div>
@@ -345,31 +414,19 @@ export default function JmcRegisterFormPage() {
                   onChange={(selected: any) => {
                     if (!selected) return;
                     const activityItems = availableItems.filter(ai => ai.dynamicData?.activity === selected.value);
-                    
-                    // Calculate prevQty from historical JMCs
-                    const calcPrevQty = (tempCode: string, loaSrNo: string) => {
-                      let total = 0;
-                      previousJmcs.forEach(jmc => {
-                        (jmc.items || []).forEach((item: any) => {
-                          if ((tempCode && item.tempCode === tempCode) || (loaSrNo && item.loaSrNo === loaSrNo)) {
-                            total += Number(item.approvedQty || 0);
-                          }
-                        });
-                      });
-                      return total;
-                    };
 
                     const newRows = activityItems.map(ai => {
                       const temp = ai.dynamicData?.tempCode || '';
                       const loa = ai.dynamicData?.loaSrNo || ai.dynamicData?.loaSerialNo || ai.dynamicData?.sku || '';
+                      const desc = ai.dynamicData?.description || ai.dynamicData?.itemDescription || ai.dynamicData?.name || '';
                       return {
                         activity: ai.dynamicData?.activity || '',
                         tempCode: temp,
                         loaSrNo: loa,
-                        description: ai.dynamicData?.description || ai.dynamicData?.itemDescription || ai.dynamicData?.name || '',
+                        description: desc,
                         unit: ai.dynamicData?.unit || ai.dynamicData?.uom || '',
                         totalLoaQty: Number(ai.dynamicData?.loaQty || ai.dynamicData?.loaQuantity || ai.dynamicData?.totalLoaQuantity || ai.dynamicData?.qty || ai.dynamicData?.quantity || 0),
-                        prevQty: calcPrevQty(temp, loa),
+                        prevQty: calcPrevQtyFromJmcs(previousJmcs, temp, loa, desc),
                         claimedQty: 0,
                         approvedQty: 0,
                         rate: 0,

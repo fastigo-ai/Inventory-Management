@@ -31,6 +31,7 @@ export interface IWipRequiredRegister extends Document {
   createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
+  drawingSheetUrl?: string;
 }
 
 const WipRequiredItemSchema = new Schema<IWipRequiredItem>({
@@ -62,7 +63,8 @@ const WipRequiredRegisterSchema = new Schema<IWipRequiredRegister>(
     approvedAmount: { type: Number, default: 0 },
     status: { type: String, enum: ['Draft', 'Submitted', 'Approved', 'Rejected'], default: 'Submitted', index: true },
     remarks: { type: String, default: '' },
-    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true }
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    drawingSheetUrl: { type: String, default: '' }
   },
   { timestamps: true }
 );

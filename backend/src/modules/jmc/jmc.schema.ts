@@ -35,6 +35,7 @@ export interface IJmcRegister extends Document {
   createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
+  drawingSheetUrl?: string;
 }
 
 const JmcItemSchema = new Schema<IJmcItem>({
@@ -70,7 +71,8 @@ const JmcRegisterSchema = new Schema<IJmcRegister>(
     approvedAmount: { type: Number, default: 0 },
     status: { type: String, enum: ['Draft', 'Submitted', 'Approved', 'Rejected'], default: 'Draft', index: true },
     remarks: { type: String, default: '' },
-    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true }
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    drawingSheetUrl: { type: String, default: '' }
   },
   { timestamps: true }
 );

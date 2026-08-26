@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getWipRequireds, deleteWipRequired } from "@/features/site-portal/api/wipRequired.api";
-import { FileText, Plus, Trash2, Download } from "lucide-react";
+import { FileText, Plus, Trash2, Download, Edit } from "lucide-react";
 import { useClientTable } from "@/shared/hooks/useClientTable";
 import { DataTableTopControls, DataTableBottomControls } from "@/shared/components/DataTableControls";
 import { useRouter } from "next/navigation";
@@ -179,7 +179,18 @@ export default function WipRegisterPage() {
                             {entry.status}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-6 py-4 text-right flex justify-end gap-2">
+                          {entry.status !== 'Approved' && (
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/site-portal/wip-required/${entry._id}`);
+                              }} 
+                              className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-full transition-colors"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                          )}
                           <button onClick={(e) => handleDelete(e, entry._id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors">
                             <Trash2 className="w-4 h-4" />
                           </button>

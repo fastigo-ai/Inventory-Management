@@ -50,6 +50,7 @@ export default function JmcRegisterFormPage() {
   const [submitting, setSubmitting] = useState(false);
   const [availableItems, setAvailableItems] = useState<any[]>([]);
   const [previousJmcs, setPreviousJmcs] = useState<any[]>([]);
+  const [file, setFile] = useState<File | null>(null);
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -220,12 +221,21 @@ export default function JmcRegisterFormPage() {
         approvedTotal += (Number(item.approvedQty) * Number(item.rate));
       });
 
-      const payload = {
-        ...formData,
-        status: statusToSave,
-        claimedAmount: claimedTotal,
-        approvedAmount: approvedTotal
-      };
+      const payload = new FormData();
+      payload.append('date', formData.date);
+      payload.append('contractorId', formData.contractorId);
+      payload.append('package', formData.package);
+      payload.append('circle', formData.circle);
+      payload.append('division', formData.division);
+      payload.append('subDivision', formData.subDivision);
+      payload.append('remarks', formData.remarks);
+      payload.append('status', statusToSave);
+      payload.append('claimedAmount', claimedTotal.toString());
+      payload.append('approvedAmount', approvedTotal.toString());
+      payload.append('items', JSON.stringify(formData.items));
+      if (file) {
+        payload.append('file', file);
+      }
 
       if (isNew) {
         await createJmc(payload);
@@ -373,12 +383,20 @@ export default function JmcRegisterFormPage() {
                   <span className="text-lg font-bold text-green-700">₹ {totalApproved.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                 </div>
               </div>
-              <div>
-                <label className="text-xs font-medium text-slate-500 block mb-1">Remarks</label>
-                <Input 
-                  value={formData.remarks} 
-                  onChange={e => setFormData({...formData, remarks: e.target.value})} 
-                  placeholder="Any additional notes..."
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-2">Remarks</label>
+                <Input
+                  value={formData.remarks}
+                  onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+                  placeholder="Enter remarks..."
+                />
+              </div>
+              <div className="md:col-span-1">
+                <label className="block text-sm font-medium text-slate-700 mb-2">Drawing Sheet / Document</label>
+                <input
+                  type="file"
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
                 />
               </div>
             </div>

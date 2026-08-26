@@ -8,6 +8,20 @@ import Item from '../items/item.model';
 import * as xlsx from 'xlsx';
 import stringSimilarity from 'string-similarity';
 import mongoose from 'mongoose';
+import cloudinary from '../../core/utils/cloudinary';
+
+const uploadToCloudinary = (buffer: Buffer, folder: string): Promise<any> => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      { folder, resource_type: 'auto' },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      }
+    );
+    uploadStream.end(buffer);
+  });
+};
 
 export const createWip = asyncHandler(async (req: Request, res: Response) => {
   const data = req.body;
@@ -17,7 +31,28 @@ export const createWip = asyncHandler(async (req: Request, res: Response) => {
   data.wipNumber = `WIP/${new Date().getFullYear().toString().slice(-2)}/${(count + 1).toString().padStart(4, '0')}`;
   data.createdBy = user._id;
 
-  const newWip = await WipRegister.create(data);
+  let drawingSheetUrl = '';
+  if (req.file) {
+    const result = await uploadToCloudinary(req.file.buffer, 'wip_drawings');
+    drawingSheetUrl = result.secure_url;
+  }
+
+  let items = req.body.items;
+  if (typeof items === 'string') {
+    try {
+      items = JSON.parse(items);
+    } catch (err) {
+      items = [];
+    }
+  }
+
+  const payload = {
+    ...data,
+    items,
+    ...(drawingSheetUrl && { drawingSheetUrl })
+  };
+
+  const newWip = await WipRegister.create(payload);
 
   res.status(201).json(
     new ApiResponse(201, newWip, 'WIP Register entry created successfully')
@@ -79,9 +114,30 @@ export const updateWip = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(404, 'WIP Register entry not found');
   }
 
+  let drawingSheetUrl = '';
+  if (req.file) {
+    const result = await uploadToCloudinary(req.file.buffer, 'wip_drawings');
+    drawingSheetUrl = result.secure_url;
+  }
+
+  let items = req.body.items;
+  if (items && typeof items === 'string') {
+    try {
+      items = JSON.parse(items);
+    } catch (err) {
+      items = [];
+    }
+  }
+
+  const payload = {
+    ...data,
+    ...(items && { items }),
+    ...(drawingSheetUrl && { drawingSheetUrl })
+  };
+
   const updatedWip = await WipRegister.findByIdAndUpdate(
     id,
-    data,
+    payload,
     { new: true, runValidators: true }
   );
 

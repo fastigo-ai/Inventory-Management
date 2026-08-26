@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .resize-header {
+    resize: horizontal;
+    overflow: hidden;
+    /* Optional: styling for the resize handle */
+  }
+}
+
+/* Make all th elements resizable by default if they are in a basic table */
+table th {
+  resize: horizontal;
+  overflow: auto;
+  /* Add min-width to avoid collapsing completely */
+  min-width: 40px;
+}

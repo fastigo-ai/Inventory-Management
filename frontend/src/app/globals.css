@@ -127,6 +127,16 @@
   html {
     @apply font-sans;
   }
+  
+  /* Global support for resizable table columns across all modules */
+  th {
+    resize: horizontal;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    min-width: 40px;
+    position: relative;
+  }
 }
 
 @media print {

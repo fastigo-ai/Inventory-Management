@@ -232,10 +232,6 @@ export default function NewContractorWorkOrderPage() {
       setIsSearchingManual(true);
       getItems({ 
         search: manualItemSearch, 
-        filters: {
-          circle: formData.circle, 
-          package: formData.package
-        },
         limit: 10 
       })
         .then(res => {

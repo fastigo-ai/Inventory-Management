@@ -91,6 +91,7 @@ export const createDemandNote = asyncHandler(async (req: AuthRequest, res: Respo
 export const getContextData = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = req.user as any;
   const { itemId, contractorId, contractorName, activity, description, tempCode, loaSrNo } = req.query;
+  console.log('--- GET CONTEXT DATA ---', req.query);
 
   const pkg = req.query.package || user?.assignedPackage;
   const circle = req.query.circle || user?.assignedCircle;

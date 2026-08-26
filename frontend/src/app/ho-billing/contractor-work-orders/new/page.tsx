@@ -578,32 +578,80 @@ export default function NewContractorWorkOrderPage() {
           <table className="w-full whitespace-nowrap">
             <thead className="bg-slate-50 text-slate-500 text-[11px] uppercase tracking-wider font-medium border-b border-slate-200">
               <tr>
-                <th className="px-4 py-3 text-left whitespace-nowrap">Temp Code</th>
                 <th className="p-0 text-left align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
-                  <div className="px-4 py-3 min-w-[150px] resize-x overflow-auto whitespace-nowrap flex items-center justify-between">
+                  <div className="px-4 py-3 w-[100px] min-w-[40px] resize-x overflow-auto whitespace-nowrap flex items-center justify-between">
+                    <span>Temp Code</span>
+                  </div>
+                </th>
+                <th className="p-0 text-left align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
+                  <div className="px-4 py-3 w-[150px] min-w-[40px] resize-x overflow-auto whitespace-nowrap flex items-center justify-between">
                     <span>Activity</span>
                   </div>
                 </th>
-                <th className="px-4 py-3 text-left whitespace-nowrap">LOA Sr No</th>
                 <th className="p-0 text-left align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
-                  <div className="px-4 py-3 min-w-[250px] resize-x overflow-auto whitespace-nowrap flex items-center justify-between">
+                  <div className="px-4 py-3 w-[100px] min-w-[40px] resize-x overflow-auto whitespace-nowrap flex items-center justify-between">
+                    <span>LOA Sr No</span>
+                  </div>
+                </th>
+                <th className="p-0 text-left align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
+                  <div className="px-4 py-3 w-[250px] min-w-[40px] resize-x overflow-auto whitespace-nowrap flex items-center justify-between">
                     <span>Description</span>
                   </div>
                 </th>
-                <th className="px-4 py-3 text-left">Unit</th>
+                <th className="p-0 text-left align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
+                  <div className="px-4 py-3 w-[80px] min-w-[40px] resize-x overflow-auto whitespace-nowrap flex items-center justify-between">
+                    <span>Unit</span>
+                  </div>
+                </th>
                 {showLoaColumns && (
                   <>
-                    <th className="px-4 py-3 text-right whitespace-nowrap">Total LOA Qty</th>
-                    <th className="px-4 py-3 text-right whitespace-nowrap">{formData.circle || 'Circle'} LOA Qty</th>
-                    <th className="px-4 py-3 text-right whitespace-nowrap">{formData.circle || 'Circle'} BOM Qty</th>
+                    <th className="p-0 text-right align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
+                      <div className="px-4 py-3 w-[100px] min-w-[40px] resize-x overflow-auto whitespace-nowrap flex items-center justify-end">
+                        <span>Total LOA Qty</span>
+                      </div>
+                    </th>
+                    <th className="p-0 text-right align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
+                      <div className="px-4 py-3 w-[120px] min-w-[40px] resize-x overflow-auto whitespace-nowrap flex items-center justify-end">
+                        <span>{formData.circle || 'Circle'} LOA Qty</span>
+                      </div>
+                    </th>
+                    <th className="p-0 text-right align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
+                      <div className="px-4 py-3 w-[120px] min-w-[40px] resize-x overflow-auto whitespace-nowrap flex items-center justify-end">
+                        <span>{formData.circle || 'Circle'} BOM Qty</span>
+                      </div>
+                    </th>
                   </>
                 )}
-                <th className="px-4 py-3 text-right text-orange-600 whitespace-nowrap">Issued Qty</th>
-                <th className="px-4 py-3 text-right text-indigo-600 whitespace-nowrap">WO Qty</th>
-                <th className="px-4 py-3 text-right text-indigo-600">Rate</th>
-                <th className="px-4 py-3 text-right">Amount</th>
-                <th className="px-4 py-3 text-left whitespace-nowrap">GST Type</th>
-                <th className="px-4 py-3 text-right whitespace-nowrap">Total Amount</th>
+                <th className="p-0 text-right align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
+                  <div className="px-4 py-3 w-[100px] min-w-[40px] resize-x overflow-auto whitespace-nowrap flex items-center justify-end text-orange-600">
+                    <span>Issued Qty</span>
+                  </div>
+                </th>
+                <th className="p-0 text-right align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
+                  <div className="px-4 py-3 w-[100px] min-w-[40px] resize-x overflow-auto whitespace-nowrap flex items-center justify-end text-indigo-600">
+                    <span>WO Qty</span>
+                  </div>
+                </th>
+                <th className="p-0 text-right align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
+                  <div className="px-4 py-3 w-[100px] min-w-[40px] resize-x overflow-auto whitespace-nowrap flex items-center justify-end text-indigo-600">
+                    <span>Rate</span>
+                  </div>
+                </th>
+                <th className="p-0 text-right align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
+                  <div className="px-4 py-3 w-[100px] min-w-[40px] resize-x overflow-auto whitespace-nowrap flex items-center justify-end">
+                    <span>Amount</span>
+                  </div>
+                </th>
+                <th className="p-0 text-left align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
+                  <div className="px-4 py-3 w-[120px] min-w-[40px] resize-x overflow-auto whitespace-nowrap flex items-center justify-between">
+                    <span>GST Type</span>
+                  </div>
+                </th>
+                <th className="p-0 text-right align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
+                  <div className="px-4 py-3 w-[120px] min-w-[40px] resize-x overflow-auto whitespace-nowrap flex items-center justify-end">
+                    <span>Total Amount</span>
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 text-sm">

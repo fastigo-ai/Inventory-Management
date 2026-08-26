@@ -18,14 +18,18 @@ const router = express.Router();
 
 router.use(authenticate);
 
-router.get('/context', requireRole(['Site Portal']), getContextData);
-router.get('/sample-csv', requireRole(['Site Portal']), downloadSampleCSV);
-router.post('/import', requireRole(['Site Portal']), upload.single('file'), importDemandNotes);
+const allRoles = ['Admin', 'Site Manager', 'Project Manager', 'Project Director', 'Store Manager', 'System Admin'];
 
-router.post('/', requireRole(['Site Portal']), upload.single('file'), createDemandNote);
+router.get('/context', requireRole(allRoles), getContextData);
+router.get('/sample-csv', requireRole(allRoles), downloadSampleCSV);
+router.post('/import', requireRole(allRoles), upload.single('file'), importDemandNotes);
+
+router.post('/', requireRole(allRoles), upload.single('file'), createDemandNote);
 router.get('/', getDemandNotes);
 router.get('/:id', getDemandNoteById);
-router.put('/:id', requireRole(['Site Portal', 'Project Manager Portal', 'Project Director Portal']), updateDemandNote);
-router.delete('/:id', requireRole(['Site Portal']), deleteDemandNote);
+router.put('/:id', requireRole(allRoles), updateDemandNote);
+router.delete('/:id', requireRole(['Admin', 'Site Manager']), deleteDemandNote);
 
 export default router;
+// Triggering reload
+

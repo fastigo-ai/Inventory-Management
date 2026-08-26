@@ -7,21 +7,37 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+import { useUrlFilters } from '@/shared/hooks/useUrlFilters';
+
 export default function VendorSummary() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [vendors, setVendors] = useState<string[]>([]);
   
-  const [selectedVendor, setSelectedVendor] = useState('All Vendors');
-  const [selectedPackage, setSelectedPackage] = useState('All Packages');
-  const [selectedCircle, setSelectedCircle] = useState('');
-  const [selectedSubCircle, setSelectedSubCircle] = useState('All Sub-Circles');
-  const [tempCodeSearch, setTempCodeSearch] = useState('');
-  const [itemNameSearch, setItemNameSearch] = useState('');
+  const { filters, setFilter, debouncedFilters } = useUrlFilters({
+    selectedVendor: 'All Vendors',
+    selectedPackage: 'All Packages',
+    selectedCircle: '',
+    selectedSubCircle: 'All Sub-Circles',
+    tempCodeSearch: '',
+    itemNameSearch: '',
+    page: '1',
+    limit: '10'
+  }, 300);
 
-  // Pagination State
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const { selectedVendor, selectedPackage, selectedCircle, selectedSubCircle, tempCodeSearch, itemNameSearch } = filters;
+  const page = Number(filters.page);
+  const limit = Number(filters.limit);
+
+  const setSelectedVendor = (val: string) => setFilter('selectedVendor', val);
+  const setSelectedPackage = (val: string) => setFilter('selectedPackage', val);
+  const setSelectedCircle = (val: string) => setFilter('selectedCircle', val);
+  const setSelectedSubCircle = (val: string) => setFilter('selectedSubCircle', val);
+  const setTempCodeSearch = (val: string) => setFilter('tempCodeSearch', val);
+  const setItemNameSearch = (val: string) => setFilter('itemNameSearch', val);
+  const setPage = (val: any) => setFilter('page', (typeof val === 'function' ? val(page) : val).toString());
+  const setLimit = (val: any) => setFilter('limit', val.toString());
+
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -48,25 +64,25 @@ export default function VendorSummary() {
       setLoading(true);
       try {
         const query = new URLSearchParams();
-        query.append('vendorName', selectedVendor);
+        query.append('vendorName', debouncedFilters.selectedVendor);
         
-        if (selectedPackage && selectedPackage !== 'All Packages') {
-          query.append('pkg', selectedPackage);
+        if (debouncedFilters.selectedPackage && debouncedFilters.selectedPackage !== 'All Packages') {
+          query.append('pkg', debouncedFilters.selectedPackage);
         }
 
-        if (selectedCircle && selectedCircle !== 'All Circles') {
-          query.append('circles', selectedCircle);
+        if (debouncedFilters.selectedCircle && debouncedFilters.selectedCircle !== 'All Circles') {
+          query.append('circles', debouncedFilters.selectedCircle);
           
-          if (selectedCircle === 'Solan' && selectedSubCircle && selectedSubCircle !== 'All Sub-Circles') {
-            query.append('subcircle', selectedSubCircle);
+          if (debouncedFilters.selectedCircle === 'Solan' && debouncedFilters.selectedSubCircle && debouncedFilters.selectedSubCircle !== 'All Sub-Circles') {
+            query.append('subcircle', debouncedFilters.selectedSubCircle);
           }
         }
         
-        if (tempCodeSearch) query.append('search', tempCodeSearch);
-        else if (itemNameSearch) query.append('search', itemNameSearch);
+        if (debouncedFilters.tempCodeSearch) query.append('search', debouncedFilters.tempCodeSearch);
+        else if (debouncedFilters.itemNameSearch) query.append('search', debouncedFilters.itemNameSearch);
         
-        query.append('page', page.toString());
-        query.append('limit', limit.toString());
+        query.append('page', debouncedFilters.page.toString());
+        query.append('limit', debouncedFilters.limit.toString());
 
         const res = await api.get(`/reports/vendor-itemised-summary?${query.toString()}`);
         
@@ -80,14 +96,10 @@ export default function VendorSummary() {
       }
     };
 
-    const timeoutId = setTimeout(() => {
-      fetchData();
-    }, 300); // Debounce search
+    fetchData();
+  }, [debouncedFilters]);
 
-    return () => clearTimeout(timeoutId);
-  }, [selectedVendor, selectedPackage, selectedCircle, selectedSubCircle, tempCodeSearch, itemNameSearch, page, limit]);
-
-  // Reset page to 1 when filters change
+  // Reset page to 1 when filters change (ignoring page/limit changes)
   useEffect(() => {
     setPage(1);
   }, [selectedVendor, selectedPackage, selectedCircle, selectedSubCircle, tempCodeSearch, itemNameSearch]);

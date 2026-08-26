@@ -5,30 +5,40 @@ import { Users, ArrowLeft, Calendar } from 'lucide-react';
 import Link from 'next/link';
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
+import { useUrlFilters } from '@/shared/hooks/useUrlFilters';
+
 export default function ContractorSummary() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dateRange, setDateRange] = useState({ start: '', end: '' });
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const query = new URLSearchParams();
-      if (dateRange.start) query.append('startDate', dateRange.start);
-      if (dateRange.end) query.append('endDate', dateRange.end);
-
-      const res = await api.get(`/reports/contractor-summary?${query.toString()}`);
-      setData(res.data.data || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+  
+  const { filters, setFilter, debouncedFilters } = useUrlFilters({ start: '', end: '' }, 300);
+  const dateRange = { start: filters.start, end: filters.end };
+  
+  const setDateRange = (val: any) => {
+    const newVal = typeof val === 'function' ? val(dateRange) : val;
+    setFilter('start', newVal.start || '');
+    setFilter('end', newVal.end || '');
   };
 
   useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const query = new URLSearchParams();
+        if (debouncedFilters.start) query.append('startDate', debouncedFilters.start);
+        if (debouncedFilters.end) query.append('endDate', debouncedFilters.end);
+
+        const res = await api.get(`/reports/contractor-summary?${query.toString()}`);
+        setData(res.data.data || []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchData();
-  }, [dateRange]);
+  }, [debouncedFilters]);
 
   const topContractors = [...data]
     .sort((a, b) => (b.balanceLiability || 0) - (a.balanceLiability || 0))

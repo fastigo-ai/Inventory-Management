@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getItemLedger } from "@/features/reports/api/itemLedger.api";
@@ -8,26 +8,31 @@ import { toast } from "sonner";
 import { Search, Download, Loader2 } from "lucide-react";
 
 import { useDebounce } from "@/shared/hooks/useDebounce";
-import { useEffect } from "react";
+import { useUrlFilters } from "@/shared/hooks/useUrlFilters";
 
 export default function ItemLedgerPage() {
-  const [tempCode, setTempCode] = useState("");
-  const debouncedTempCode = useDebounce(tempCode, 800);
-  const [circle, setCircle] = useState("");
-  const [pkg, setPkg] = useState("");
+  const { filters, setFilter, debouncedFilters } = useUrlFilters({ tempCode: "", itemName: "", circle: "", pkg: "" }, 800);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<{ item: any; ledger: any[]; totalBalance: number } | null>(null);
 
   useEffect(() => {
     const fetchLedger = async () => {
-      if (!debouncedTempCode.trim()) {
+      const safeTempCode = (debouncedFilters.tempCode || "").trim();
+      const safeItemName = (debouncedFilters.itemName || "").trim();
+
+      if (!safeTempCode && !safeItemName) {
         setData(null);
         return;
       }
       
       setLoading(true);
       try {
-        const result = await getItemLedger({ tempCode: debouncedTempCode.trim(), circle, package: pkg });
+        const result = await getItemLedger({ 
+          tempCode: safeTempCode || undefined, 
+          itemName: safeItemName || undefined,
+          circle: debouncedFilters.circle, 
+          package: debouncedFilters.pkg 
+        });
         setData(result);
         if (result.ledger.length === 0) {
           toast.info("No ledger entries found for this criteria", { id: 'ledger-empty' });
@@ -41,7 +46,7 @@ export default function ItemLedgerPage() {
     };
 
     fetchLedger();
-  }, [debouncedTempCode, circle, pkg]);
+  }, [debouncedFilters]);
 
   const exportToCsv = () => {
     if (!data || data.ledger.length === 0) return;
@@ -64,7 +69,7 @@ export default function ItemLedgerPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", `Item_Ledger_${debouncedTempCode}.csv`);
+    link.setAttribute("download", `Item_Ledger_${debouncedFilters.tempCode}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -84,22 +89,34 @@ export default function ItemLedgerPage() {
 
       <div className="flex flex-wrap gap-4 items-end bg-slate-50 p-4 rounded-lg border relative">
         <div className="space-y-1">
-          <label className="text-sm font-medium">Temp Code <span className="text-red-500">*</span></label>
+          <label className="text-sm font-medium">Temp Code</label>
           <div className="relative w-48">
             <Input 
               placeholder="e.g. 69" 
-              value={tempCode} 
-              onChange={(e) => setTempCode(e.target.value)}
+              value={filters.tempCode || ""} 
+              onChange={(e) => setFilter('tempCode', e.target.value)}
               className="w-full bg-white pr-8"
             />
-            {loading && <Loader2 className="absolute right-2 top-2.5 h-4 w-4 animate-spin text-slate-400" />}
+            {loading && !filters.itemName && <Loader2 className="absolute right-2 top-2.5 h-4 w-4 animate-spin text-slate-400" />}
+          </div>
+        </div>
+        <div className="space-y-1">
+          <label className="text-sm font-medium">Item Name</label>
+          <div className="relative w-64">
+            <Input 
+              placeholder="e.g. Cement" 
+              value={filters.itemName || ""} 
+              onChange={(e) => setFilter('itemName', e.target.value)}
+              className="w-full bg-white pr-8"
+            />
+            {loading && filters.itemName && <Loader2 className="absolute right-2 top-2.5 h-4 w-4 animate-spin text-slate-400" />}
           </div>
         </div>
         <div className="space-y-1">
           <label className="text-sm font-medium">Circle</label>
           <select 
-            value={circle}
-            onChange={(e) => setCircle(e.target.value)}
+            value={filters.circle || ""}
+            onChange={(e) => setFilter('circle', e.target.value)}
             className="flex h-10 w-48 rounded-md border border-input bg-white px-3 py-2 text-sm ring-offset-background"
           >
             <option value="">All Circles</option>
@@ -112,8 +129,8 @@ export default function ItemLedgerPage() {
         <div className="space-y-1">
           <label className="text-sm font-medium">Package</label>
           <select 
-            value={pkg}
-            onChange={(e) => setPkg(e.target.value)}
+            value={filters.pkg || ""}
+            onChange={(e) => setFilter('pkg', e.target.value)}
             className="flex h-10 w-48 rounded-md border border-input bg-white px-3 py-2 text-sm ring-offset-background"
           >
             <option value="">All Packages</option>
@@ -126,8 +143,14 @@ export default function ItemLedgerPage() {
       {data && (
         <div className="space-y-4">
           <div className="bg-white p-4 rounded-lg border shadow-sm">
-            <h2 className="text-lg font-semibold">{data.item.tempCode} - {data.item.itemName || 'Unknown Item'}</h2>
-            <p className="text-sm text-slate-500">Unit: {data.item.unit || 'N/A'} | Total Current Balance: <span className="font-bold text-indigo-600">{data.totalBalance}</span></p>
+            {data.item ? (
+              <>
+                <h2 className="text-lg font-semibold">{data.item.tempCode} - {data.item.itemName || 'Unknown Item'}</h2>
+                <p className="text-sm text-slate-500">Unit: {data.item.unit || 'N/A'} | Total Current Balance: <span className="font-bold text-indigo-600">{data.totalBalance}</span></p>
+              </>
+            ) : (
+              <h2 className="text-lg font-semibold text-red-500">Item not found</h2>
+            )}
           </div>
 
           <div className="rounded-md border bg-white overflow-hidden shadow-sm">

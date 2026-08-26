@@ -7,23 +7,34 @@ import Item from '../../items/item.model';
 import mongoose from 'mongoose';
 
 export const getItemLedger = asyncHandler(async (req: Request, res: Response) => {
-  const { tempCode, circle, package: pkg } = req.query;
+  const { tempCode, itemName, circle, package: pkg } = req.query;
 
-  if (!tempCode) {
-    return res.status(400).json(new ApiResponse(400, null, 'Temp Code is required'));
+  if (!tempCode && !itemName) {
+    return res.status(400).json(new ApiResponse(400, null, 'Temp Code or Item Name is required'));
+  }
+
+  let finalTempCode = tempCode;
+
+  // If tempCode is missing but itemName is provided, find the tempCode
+  if (!finalTempCode && itemName) {
+    const item = await Item.findOne({ 'dynamicData.itemName': { $regex: itemName as string, $options: 'i' } });
+    if (!item) {
+       return res.status(200).json(new ApiResponse(200, { item: null, ledger: [], totalBalance: 0 }, 'Item not found'));
+    }
+    finalTempCode = item.dynamicData?.tempCode;
   }
 
   // Find the item details for context
-  const itemFilters: any = { 'dynamicData.tempCode': tempCode };
+  const itemFilters: any = { 'dynamicData.tempCode': finalTempCode };
   if (circle) {
     // Basic package resolution just in case we need it, though circle is usually sufficient
   }
   
   // We don't strictly need to find the item first, but it's good for the response header
-  const item = await Item.findOne({ 'dynamicData.tempCode': tempCode });
+  const item = await Item.findOne(itemFilters);
 
   // 1. Fetch Inward Entries (Receipts from Vendors)
-  const inwardQuery: any = { tempCode: tempCode, status: { $in: ['APPROVED', 'VERIFIED'] } };
+  const inwardQuery: any = { tempCode: finalTempCode, status: { $in: ['APPROVED', 'VERIFIED'] } };
   if (circle) inwardQuery.circle = circle;
   if (pkg) inwardQuery.package = pkg;
 
@@ -33,7 +44,7 @@ export const getItemLedger = asyncHandler(async (req: Request, res: Response) =>
   // For assignments, the tempCode is inside the lineItems array.
   const assignmentQuery: any = { 
     status: { $ne: 'Cancelled' },
-    'lineItems.tempCode': tempCode 
+    'lineItems.tempCode': finalTempCode 
   };
   if (circle) {
     assignmentQuery.$or = [{ circle: circle }, { location: circle }];
@@ -68,7 +79,7 @@ export const getItemLedger = asyncHandler(async (req: Request, res: Response) =>
         reference: assignment.assignmentNumber || assignment.minNo || 'Unknown Issue',
         entityName: contractorName,
         quantity: lineItem.quantity || lineItem.demandQty || 0,
-        circle: assignment.circle,
+        circle: assignment.circle || assignment.location,
         package: 'Package 1(S/N)' // Defaulting or fetch from assignment if exists
       });
     }

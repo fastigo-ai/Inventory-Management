@@ -53,24 +53,36 @@ export default function StoreSummaryPage() {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
 
-  // Filter States
-  const [circle, setCircle] = useState<string>(user?.assignedCircle || ''); // Default to assigned circle
-  const [store, setStore] = useState<string>('');
-  const [pkg, setPkg] = useState<string>('');
-  const [search, setSearch] = useState<string>('');
-  const [tempCode, setTempCode] = useState<string>('');
-  const [itemName, setItemName] = useState<string>('');
-  const [hideZeroBalance, setHideZeroBalance] = useState<boolean>(false);
-  const [viewMode, setViewMode] = useState<'item' | 'loa'>('item');
+  const { filters, setFilter, debouncedFilters } = useUrlFilters({
+    circle: user?.assignedCircle || '',
+    store: '',
+    pkg: '',
+    search: '',
+    tempCode: '',
+    itemName: '',
+    hideZeroBalance: 'false',
+    viewMode: 'item',
+    page: '1',
+    limit: '1000'
+  }, 500);
 
-  // Debounced Filter States for smooth typing
-  const debouncedSearch = useDebounce(search, 500);
-  const debouncedTempCode = useDebounce(tempCode, 500);
-  const debouncedItemName = useDebounce(itemName, 500);
+  const { circle, store, pkg, search, tempCode, itemName, viewMode } = filters;
+  const hideZeroBalance = filters.hideZeroBalance === 'true';
+  const page = Number(filters.page);
+  const limit = Number(filters.limit);
+
+  const setCircle = (val: string) => setFilter('circle', val);
+  const setStore = (val: string) => setFilter('store', val);
+  const setPkg = (val: string) => setFilter('pkg', val);
+  const setSearch = (val: string) => setFilter('search', val);
+  const setTempCode = (val: string) => setFilter('tempCode', val);
+  const setItemName = (val: string) => setFilter('itemName', val);
+  const setHideZeroBalance = (val: boolean | ((prev: boolean) => boolean)) => setFilter('hideZeroBalance', (typeof val === 'function' ? val(hideZeroBalance) : val).toString());
+  const setViewMode = (val: any) => setFilter('viewMode', val);
+  const setPage = (val: any) => setFilter('page', (typeof val === 'function' ? val(page) : val).toString());
+  const setLimit = (val: any) => setFilter('limit', val.toString());
 
   // Pagination States
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(1000);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -82,44 +94,45 @@ export default function StoreSummaryPage() {
     setSelectedItems(new Set());
   }, [data]);
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const res = await getStoreItemisedSummary({
-        circle: circle || undefined,
-        store: store || undefined,
-        package: pkg || undefined,
-        search: debouncedSearch || undefined,
-        tempCode: debouncedTempCode || undefined,
-        itemName: debouncedItemName || undefined,
-        hideZeroBalance,
-        viewMode,
-        page,
-        limit
-      });
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const res = await getStoreItemisedSummary({
+          circle: debouncedFilters.circle || undefined,
+          store: debouncedFilters.store || undefined,
+          package: debouncedFilters.pkg || undefined,
+          search: debouncedFilters.search || undefined,
+          tempCode: debouncedFilters.tempCode || undefined,
+          itemName: debouncedFilters.itemName || undefined,
+          hideZeroBalance: debouncedFilters.hideZeroBalance === 'true',
+          viewMode: debouncedFilters.viewMode as any,
+          page: Number(debouncedFilters.page),
+          limit: Number(debouncedFilters.limit)
+        });
 
-      if (res.success && res.data) {
-        setData(res.data.items || []);
-        setTotals(res.data.totals || {});
-        if (res.data.pagination) {
-          setTotalItems(res.data.pagination.totalItems);
-          setTotalPages(res.data.pagination.totalPages);
+        if (res.success && res.data) {
+          setData(res.data.items || []);
+          setTotals(res.data.totals || {});
+          if (res.data.pagination) {
+            setTotalItems(res.data.pagination.totalItems);
+            setTotalPages(res.data.pagination.totalPages);
+          }
         }
+      } catch (err) {
+        console.error('Failed to fetch store summary:', err);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error('Failed to fetch store summary:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
+    fetchData();
+  }, [debouncedFilters]);
+
+  // Reset page to 1 when filters change (ignoring page/limit)
   useEffect(() => {
     setPage(1);
-  }, [circle, store, pkg, debouncedSearch, debouncedTempCode, debouncedItemName, hideZeroBalance, viewMode, limit]);
-
-  useEffect(() => {
-    fetchData();
-  }, [circle, store, pkg, debouncedSearch, debouncedTempCode, debouncedItemName, hideZeroBalance, viewMode, page, limit]);
+  }, [circle, store, pkg, search, tempCode, itemName, hideZeroBalance, viewMode, limit]);
 
   // Helper function to fetch all data for exports if no rows are selected
   const fetchAllForExport = async () => {
@@ -133,9 +146,9 @@ export default function StoreSummaryPage() {
         circle: circle || undefined,
         store: store || undefined,
         package: pkg || undefined,
-        search: debouncedSearch || undefined,
-        tempCode: debouncedTempCode || undefined,
-        itemName: debouncedItemName || undefined,
+        search: debouncedFilters.search || undefined,
+        tempCode: debouncedFilters.tempCode || undefined,
+        itemName: debouncedFilters.itemName || undefined,
         hideZeroBalance,
         viewMode,
         page: 1,

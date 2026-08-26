@@ -5,15 +5,21 @@ import { getItemMatrixSummary } from '@/features/reports/api/reports.api';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+import { useUrlFilters } from '@/shared/hooks/useUrlFilters';
+
 export default function ItemSummaryMatrixPage() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filters
-  const [packageFilter, setPackageFilter] = useState('');
-  const [circleFilter, setCircleFilter] = useState('');
-  const [targetCircle, setTargetCircle] = useState('ALL');
-  const [search, setSearch] = useState('');
+  // Filters from URL
+  const { filters, setFilter, debouncedFilters } = useUrlFilters({
+    packageFilter: '',
+    circleFilter: '',
+    targetCircle: 'ALL',
+    search: '',
+    page: '1',
+    limit: '50'
+  }, 500);
 
   // Column Visibility Toggles (Choose by Tick options)
   const [showDi, setShowDi] = useState(true);
@@ -23,9 +29,6 @@ export default function ItemSummaryMatrixPage() {
   const [showSupplyBill, setShowSupplyBill] = useState(true);
   const [showErectionBill, setShowErectionBill] = useState(true);
 
-  // Pagination
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(50);
   const [totalItems, setTotalItems] = useState(0);
 
   // Selection State
@@ -36,27 +39,30 @@ export default function ItemSummaryMatrixPage() {
     setSelectedItems(new Set());
   }, [data]);
 
-  const fetchReport = async () => {
-    try {
-      setLoading(true);
-      const res = await getItemMatrixSummary({
-        package: packageFilter || undefined,
-        circle: circleFilter || undefined,
-        targetCircle,
-        search: search || undefined,
-        page,
-        limit
-      });
-      if (res.success && res.data) {
-        setData(res.data.items);
-        setTotalItems(res.data.pagination.totalItems);
+  useEffect(() => {
+    const fetchReport = async () => {
+      try {
+        setLoading(true);
+        const res = await getItemMatrixSummary({
+          package: debouncedFilters.packageFilter || undefined,
+          circle: debouncedFilters.circleFilter || undefined,
+          targetCircle: debouncedFilters.targetCircle,
+          search: debouncedFilters.search || undefined,
+          page: Number(debouncedFilters.page),
+          limit: Number(debouncedFilters.limit)
+        });
+        if (res.success && res.data) {
+          setData(res.data.items);
+          setTotalItems(res.data.pagination.totalItems);
+        }
+      } catch (err) {
+        console.error('Failed to fetch item matrix report:', err);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error('Failed to fetch item matrix report:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+    fetchReport();
+  }, [debouncedFilters]);
 
   useEffect(() => {
     fetchReport();

@@ -35,16 +35,30 @@ export default function StoreContractorSummaryPage() {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
 
-  // Filter States
-  const [contractorName, setContractorName] = useState<string>('A K Contractor');
-  const [circle, setCircle] = useState<string>(user?.assignedCircle || '');
-  const [pkg, setPkg] = useState<string>('');
-  const [search, setSearch] = useState<string>('');
-  const [hideZero, setHideZero] = useState<boolean>(true);
+  const { filters, setFilter, debouncedFilters } = useUrlFilters({
+    contractorName: 'A K Contractor',
+    circle: user?.assignedCircle || '',
+    pkg: '',
+    search: '',
+    hideZero: 'true',
+    page: '1',
+    limit: '50'
+  }, 500);
+
+  const { contractorName, circle, pkg, search } = filters;
+  const hideZero = filters.hideZero === 'true';
+  const page = Number(filters.page);
+  const limit = Number(filters.limit);
+
+  const setContractorName = (val: string) => setFilter('contractorName', val);
+  const setCircle = (val: string) => setFilter('circle', val);
+  const setPkg = (val: string) => setFilter('pkg', val);
+  const setSearch = (val: string) => setFilter('search', val);
+  const setHideZero = (val: boolean | ((prev: boolean) => boolean)) => setFilter('hideZero', (typeof val === 'function' ? val(hideZero) : val).toString());
+  const setPage = (val: any) => setFilter('page', (typeof val === 'function' ? val(page) : val).toString());
+  const setLimit = (val: any) => setFilter('limit', val.toString());
 
   // Pagination States
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(50);
   const [totalItems, setTotalItems] = useState(0);
 
   // Selection State
@@ -55,46 +69,47 @@ export default function StoreContractorSummaryPage() {
     setSelectedItems(new Set());
   }, [data]);
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const res = await getStoreContractorSummary({
-        contractorName: contractorName || undefined,
-        circle: circle || undefined,
-        package: pkg || undefined,
-        search: search || undefined,
-        hideZero,
-        page,
-        limit
-      });
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const res = await getStoreContractorSummary({
+          contractorName: debouncedFilters.contractorName || undefined,
+          circle: debouncedFilters.circle || undefined,
+          package: debouncedFilters.pkg || undefined,
+          search: debouncedFilters.search || undefined,
+          hideZero: debouncedFilters.hideZero === 'true',
+          page: Number(debouncedFilters.page),
+          limit: Number(debouncedFilters.limit)
+        });
 
-      if (res.success && res.data) {
-        setData(res.data.items || []);
-        setTotals(res.data.totals || {});
-        if (res.data.contractors && res.data.contractors.length > 0) {
-          setContractorsList(res.data.contractors);
-          if (!contractorName && res.data.contractors.length > 0) {
-            setContractorName(res.data.contractors[0]);
+        if (res.success && res.data) {
+          setData(res.data.items || []);
+          setTotals(res.data.totals || {});
+          if (res.data.contractors && res.data.contractors.length > 0) {
+            setContractorsList(res.data.contractors);
+            if (!debouncedFilters.contractorName && res.data.contractors.length > 0) {
+              setContractorName(res.data.contractors[0]);
+            }
+          }
+          if (res.data.pagination) {
+            setTotalItems(res.data.pagination.totalItems);
           }
         }
-        if (res.data.pagination) {
-          setTotalItems(res.data.pagination.totalItems);
-        }
+      } catch (err) {
+        console.error('Failed to fetch store contractor summary:', err);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error('Failed to fetch store contractor summary:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
+    fetchData();
+  }, [debouncedFilters]);
+
+  // Reset page to 1 when filters change (ignoring page/limit)
   useEffect(() => {
     setPage(1);
   }, [contractorName, circle, pkg, search, hideZero, limit]);
-
-  useEffect(() => {
-    fetchData();
-  }, [contractorName, circle, pkg, search, hideZero, page, limit]);
 
   const fetchAllForExport = async () => {
     if (selectedItems.size > 0) {

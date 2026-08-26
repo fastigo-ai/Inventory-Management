@@ -6,6 +6,8 @@ import { ArrowLeft, Loader2, FileText, CheckCircle, AlertCircle, Edit, Printer, 
 import { getStockSummary } from '@/features/store/api/store.api';
 import { getDemandNoteById, updateDemandNote } from '@/features/site-portal/api/demand-notes.api';
 import { toast } from 'sonner';
+import { DocumentAttachment } from '@/shared/components/DocumentAttachment';
+import { AuditTimeline } from '@/shared/components/audit/AuditTimeline';
 
 export default function DemandNoteDetailPage() {
   const router = useRouter();
@@ -364,6 +366,14 @@ export default function DemandNoteDetailPage() {
           </table>
         </div>
       </div>
+
+      {/* Document Attachment */}
+      {demandNote.locationDrawingUrl && (
+        <DocumentAttachment url={demandNote.locationDrawingUrl} label="Location Drawing / Attached Document" />
+      )}
+
+      {/* Full Audit Log */}
+      <AuditTimeline entityType="DemandNote" entityId={demandNote._id} />
 
       {/* Rejection Modal */}
       {isRejectModalOpen && (

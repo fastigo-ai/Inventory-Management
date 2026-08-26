@@ -6,6 +6,8 @@ import { ArrowLeft, Loader2, FileText, CheckCircle, AlertCircle, Printer, Buildi
 import { getDemandNoteById, deleteDemandNote } from '@/features/site-portal/api/demand-notes.api';
 import { getStockSummary } from '@/features/store/api/store.api';
 import { toast } from 'sonner';
+import { DocumentAttachment } from '@/shared/components/DocumentAttachment';
+import { AuditTimeline } from '@/shared/components/audit/AuditTimeline';
 
 export default function DemandNoteDetailPage() {
   const router = useRouter();
@@ -208,6 +210,12 @@ export default function DemandNoteDetailPage() {
               <span className="text-sm text-slate-500">Remarks</span>
               <span className="col-span-2 text-sm font-medium text-slate-800">{demandNote.remarks || 'No remarks provided'}</span>
             </div>
+            {demandNote.status === 'Rejected' && (
+              <div className="grid grid-cols-3 gap-2 mt-2">
+                <span className="text-sm text-slate-500">Rejection Reason</span>
+                <span className="col-span-2 text-sm font-medium text-red-600">{demandNote.rejectionRemarks || 'No reason provided'}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -266,6 +274,14 @@ export default function DemandNoteDetailPage() {
           </table>
         </div>
       </div>
+
+      {/* Document Attachment */}
+      {demandNote.locationDrawingUrl && (
+        <DocumentAttachment url={demandNote.locationDrawingUrl} label="Location Drawing / Attached Document" />
+      )}
+
+      {/* Full Audit Log */}
+      <AuditTimeline entityType="DemandNote" entityId={demandNote._id} />
     </div>
   );
 }

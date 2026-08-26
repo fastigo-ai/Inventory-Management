@@ -67,6 +67,7 @@ const navItems: NavItem[] = [
       { title: 'Dashboard', href: '/reports' },
       { title: 'Activity Logs', href: '/reports/activity' },
       { title: 'Item Summary', href: '/reports/item-summary' },
+      { title: 'Item Ledger', href: '/reports/item-ledger' },
       { title: 'Vendor Summary', href: '/reports/vendor-summary' },
       { title: 'Contractor Summary', href: '/reports/contractor-summary' },
       { title: 'Store Itemised Summary', href: '/reports/store-summary' },

@@ -13,11 +13,13 @@ import { getContractorWorkOrderById } from '@/features/contractors/api/contracto
 import { getContractorAggregatedQuantities, getContractors } from '@/features/contractors/api/contractors.api';
 import { ItemSelectionModal } from '@/features/site-portal/components/ItemSelectionModal';
 import { useAuthStore } from '@/shared/store/auth.store';
+import { useAuditTracker } from '@/shared/hooks/useAuditTracker';
 
 function DemandNoteForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuthStore();
+  const { trackAction } = useAuditTracker();
   const [contractorsList, setContractorsList] = useState<any[]>([]);
   const workOrderId = searchParams.get('workOrderId');
   
@@ -527,9 +529,17 @@ function DemandNoteForm() {
       }
 
       await createDemandNote(data);
+      trackAction('FORM_SUBMIT', 'Demand Note Submitted for Approval', {
+        entityType: 'DemandNote', module: 'Demand Notes (Site Portal)',
+        status: 'success', metadata: { contractorName: formData.contractorName, circle: formData.circle, itemCount: itemsToSave.length }
+      });
       toast.success('Demand Note submitted for approval!');
       router.push('/site-portal/demand-notes');
     } catch (error: any) {
+      trackAction('FORM_ERROR', 'Demand Note Submission Failed', {
+        entityType: 'DemandNote', module: 'Demand Notes (Site Portal)',
+        status: 'failed', metadata: { error: error.response?.data?.message }
+      });
       toast.error(error.response?.data?.message || 'Failed to submit Demand Note');
     } finally {
       setIsSubmitting(false);

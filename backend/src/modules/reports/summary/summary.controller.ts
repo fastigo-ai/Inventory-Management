@@ -474,7 +474,7 @@ export const getItemDetails = asyncHandler(async (req: Request, res: Response) =
 /**
  * Shared calculation engine for Store Itemised Summary (FROM CIRCLE STORE - Item Wise)
  */
-async function computeStoreItemisedSummary(params: {
+export async function computeStoreItemisedSummary(params: {
   circle?: string;
   store?: string;
   package?: string;

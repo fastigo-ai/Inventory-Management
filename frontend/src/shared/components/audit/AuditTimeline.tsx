@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { getAuditLogs, GetAuditLogsParams } from '@/features/audit/api/audit.api';
+import { getAuditLogs } from '@/features/audit/api/audit.api';
 import { Loader2, User, Clock, FileText, CheckCircle, AlertCircle, Edit, Plus, Trash, RotateCcw } from 'lucide-react';
 import { format, isToday, isYesterday, isThisWeek, parseISO } from 'date-fns';
 

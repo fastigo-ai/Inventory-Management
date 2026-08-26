@@ -6,6 +6,7 @@ import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { AuthGuard } from "@/features/auth/components/AuthGuard";
 import { cn } from "@/lib/utils";
+import AuditNavigationTracker from "@/shared/components/AuditNavigationTracker";
 
 import { useUIStore } from "@/shared/store/ui.store";
 
@@ -21,6 +22,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthGuard>
+      <AuditNavigationTracker />
       {isLoginPage ? (
         <main>{children}</main>
       ) : (

@@ -6,6 +6,7 @@ import { Plus, FileText, ChevronRight, ChevronLeft, Upload, Download, Search, Ca
 import { getDemandNotes } from '@/features/site-portal/api/demand-notes.api';
 import { toast } from 'sonner';
 import ImportDNModal from './ImportDNModal';
+import { useAuditTracker } from '@/shared/hooks/useAuditTracker';
 
 export default function DemandNotesList() {
   const [demandNotes, setDemandNotes] = useState<any[]>([]);
@@ -14,6 +15,7 @@ export default function DemandNotesList() {
   const [activeTab, setActiveTab] = useState<'pending' | 'history' | 'all'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Statuses');
+  const { trackClick, trackExport, trackAction } = useAuditTracker();
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -109,6 +111,7 @@ export default function DemandNotesList() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    trackExport('CSV', 'Demand Notes (Site Portal)', { count: demandNotes.length });
   };
 
   const pendingList = demandNotes.filter(

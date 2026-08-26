@@ -579,9 +579,17 @@ export default function NewContractorWorkOrderPage() {
             <thead className="bg-slate-50 text-slate-500 text-[11px] uppercase tracking-wider font-medium border-b border-slate-200">
               <tr>
                 <th className="px-4 py-3 text-left whitespace-nowrap">Temp Code</th>
-                <th className="px-4 py-3 text-left">Activity</th>
+                <th className="p-0 text-left align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
+                  <div className="px-4 py-3 min-w-[150px] resize-x overflow-auto whitespace-nowrap flex items-center justify-between">
+                    <span>Activity</span>
+                  </div>
+                </th>
                 <th className="px-4 py-3 text-left whitespace-nowrap">LOA Sr No</th>
-                <th className="px-4 py-3 text-left max-w-[200px]">Description</th>
+                <th className="p-0 text-left align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
+                  <div className="px-4 py-3 min-w-[250px] resize-x overflow-auto whitespace-nowrap flex items-center justify-between">
+                    <span>Description</span>
+                  </div>
+                </th>
                 <th className="px-4 py-3 text-left">Unit</th>
                 {showLoaColumns && (
                   <>
@@ -641,9 +649,9 @@ export default function NewContractorWorkOrderPage() {
                     )}
                     <tr className="hover:bg-slate-50 group">
                       <td className="px-4 py-2.5 text-slate-700">{item.tempCode}</td>
-                      <td className="px-4 py-2.5 text-slate-700 truncate max-w-[150px]" title={item.activity}>{item.activity}</td>
+                      <td className="px-4 py-2.5 text-slate-700 whitespace-normal min-w-[150px] max-w-[250px] leading-snug">{item.activity}</td>
                       <td className="px-4 py-2.5 text-slate-700">{item.loaSrNo}</td>
-                      <td className="px-4 py-2.5 text-slate-700 truncate max-w-[200px]" title={item.description}>{item.description}</td>
+                      <td className="px-4 py-2.5 text-slate-700 whitespace-normal min-w-[250px] max-w-[500px] leading-snug">{item.description}</td>
                       <td className="px-4 py-2.5 text-slate-700">{item.unit}</td>
                       {showLoaColumns && (
                         <>

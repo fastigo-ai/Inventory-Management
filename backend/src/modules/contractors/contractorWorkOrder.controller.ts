@@ -16,7 +16,7 @@ const generateNextWoNumber = async () => {
   const prefix = `WO-${year}${month}-`;
   
   const lastWo = await ContractorWorkOrder.findOne({ workOrderNumber: new RegExp(`^${prefix}`) })
-    .sort({ workOrderNumber: 1 })
+    .sort({ workOrderNumber: -1 })
     .limit(1);
 
   let sequence = 1;

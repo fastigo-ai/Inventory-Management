@@ -323,10 +323,14 @@ export const getDemandNotes = asyncHandler(async (req: AuthRequest, res: Respons
   if (roleName === 'Site Manager' || roleName === 'Store Manager' || roleName === 'Project Manager') {
     const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     if (user.assignedPackage && user.assignedPackage.trim()) {
-      filter.package = { $regex: new RegExp(`^${escapeRegex(user.assignedPackage.trim())}$`, 'i') };
+      let flexiblePkg = String(user.assignedPackage).replace(/\s+/g, ' ').trim();
+      flexiblePkg = flexiblePkg.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&');
+      flexiblePkg = flexiblePkg.replace(/(\\s|\s)+/g, '\\s*');
+      flexiblePkg = flexiblePkg.replace(/\\([()[\]{}|\/?.*+^$])/g, '\\s*\\$1\\s*');
+      filter.package = { $regex: new RegExp(`^\\s*${flexiblePkg}\\s*$`, 'i') };
     }
     if (user.assignedCircle && user.assignedCircle.trim()) {
-      filter.circle = { $regex: new RegExp(`^${escapeRegex(user.assignedCircle.trim())}$`, 'i') };
+      filter.circle = { $regex: new RegExp(`^\\s*${escapeRegex(user.assignedCircle.trim())}\\s*$`, 'i') };
     }
   }
 

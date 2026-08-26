@@ -16,7 +16,7 @@ export default function DemandNotePrintPage() {
     async function loadData() {
       try {
         const res = await getDemandNoteById(id as string);
-        setDemandNote(res.data);
+        setDemandNote(res.data?.demandNote || res.data);
       } catch (error) {
         console.error(error);
         toast.error("Failed to fetch Demand Note details");

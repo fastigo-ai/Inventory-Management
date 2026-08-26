@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus, Upload, Eye, Edit, Trash2, Box, PackageOpen, FileText, Users, Calculator } from "lucide-react";
-import { getAssignments, cancelAssignment, getAssignmentSummary, getContractors } from "@/features/contractors/api/contractors.api";
+import { Plus, Upload, Eye, Edit, Trash2, Box, PackageOpen, FileText, Users, Calculator, Download } from "lucide-react";
+import { getAssignments, cancelAssignment, getAssignmentSummary, getContractors, exportAssignments } from "@/features/contractors/api/contractors.api";
 import { ContractorIssueImportModal } from "@/features/store/components/ContractorIssueImportModal";
 import { toast } from "sonner";
 import { DataTableBottomControls } from "@/shared/components/DataTableControls";
@@ -33,6 +33,29 @@ export default function StoreContractorIssuePage() {
   useEffect(() => {
     getContractors().then(res => setContractorsList(res.data || res)).catch(console.error);
   }, []);
+
+  const handleExport = async () => {
+    try {
+      const blob = await exportAssignments({
+        search: debouncedSearch,
+        contractorId: contractorId || undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+      });
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'contractor_issues.csv');
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('Export downloaded successfully');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to export data');
+    }
+  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -105,6 +128,10 @@ export default function StoreContractorIssuePage() {
             <p className="text-sm text-slate-500 mt-1">Issue stock to contractors from your local inventory</p>
           </div>
           <div className="flex gap-3">
+            <Button variant="outline" onClick={handleExport} className="text-green-700 border-green-200 hover:bg-green-50">
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </Button>
             <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
               <Upload className="w-4 h-4 mr-2" />
               Import CSV

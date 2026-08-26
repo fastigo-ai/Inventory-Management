@@ -22,6 +22,7 @@ import {
   deleteContractorReturn,
   bulkImportContractorReturns,
   importContractorAssignments,
+  exportContractorAssignments,
   getContractorTransactions,
   getAssignmentSummary,
   getContractorAggregatedQuantities
@@ -44,6 +45,7 @@ router.route('/assignments')
   .post(createAssignment);
 
 router.get('/assignments/summary', getAssignmentSummary);
+router.get('/assignments/export', exportContractorAssignments);
 
 router.route('/assignments/:id')
   .get(getAssignmentById)

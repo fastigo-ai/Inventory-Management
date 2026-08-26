@@ -11,6 +11,33 @@ import Select from "react-select";
 import { getItems } from "@/features/items/api/items.api";
 import { useAuthStore } from "@/shared/store/auth.store";
 
+const calcPrevQtyFromJmcs = (jmcs: any[], tempCode: string | number, loaSrNo: string | number, desc?: string) => {
+  let total = 0;
+  const tStr = tempCode ? tempCode.toString().trim() : '';
+  const lStr = loaSrNo ? loaSrNo.toString().trim() : '';
+  const dStr = desc ? desc.toString().trim().toLowerCase() : '';
+
+  jmcs.forEach(jmc => {
+    (jmc.items || []).forEach((item: any) => {
+      const itemTemp = item.tempCode ? item.tempCode.toString().trim() : '';
+      const itemLoa = item.loaSrNo ? item.loaSrNo.toString().trim() : '';
+      const itemDesc = item.description ? item.description.toString().trim().toLowerCase() : '';
+
+      const isMatch = (tStr && itemTemp && tStr === itemTemp) ||
+                      (lStr && itemLoa && lStr === itemLoa) ||
+                      (dStr && itemDesc && (dStr === itemDesc || dStr.includes(itemDesc) || itemDesc.includes(dStr)));
+
+      if (isMatch) {
+        const qty = Number(item.approvedQty) > 0 
+          ? Number(item.approvedQty) 
+          : Number(item.claimedQty || item.quantity || 0);
+        total += qty;
+      }
+    });
+  });
+  return total;
+};
+
 export default function JmcRegisterFormPage() {
   const { user } = useAuthStore();
   const router = useRouter();
@@ -78,14 +105,28 @@ export default function JmcRegisterFormPage() {
 
 
   useEffect(() => {
-    if (formData.contractorId && formData.package && formData.circle) {
+    if (formData.contractorId) {
       getJmcs({ contractorId: formData.contractorId }).then(res => {
         const jmcs = res?.data?.data || (Array.isArray(res?.data) ? res.data : []);
-        const filtered = jmcs.filter((j: any) => j.package === formData.package && j.circle === formData.circle && j.status === 'Approved');
-        setPreviousJmcs(filtered);
+        setPreviousJmcs(jmcs);
       }).catch(console.error);
+    } else {
+      setPreviousJmcs([]);
     }
-  }, [formData.contractorId, formData.package, formData.circle]);
+  }, [formData.contractorId]);
+
+  // Automatically recalculate previous quantities for existing items when historical JMCs arrive
+  useEffect(() => {
+    if (formData.items.length > 0 && previousJmcs.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        items: prev.items.map(item => ({
+          ...item,
+          prevQty: calcPrevQtyFromJmcs(previousJmcs, item.tempCode, item.loaSrNo, item.description)
+        }))
+      }));
+    }
+  }, [previousJmcs]);
 
   useEffect(() => {
     fetchContractors();
@@ -355,31 +396,19 @@ export default function JmcRegisterFormPage() {
                   onChange={(selected: any) => {
                     if (!selected) return;
                     const activityItems = availableItems.filter(ai => ai.dynamicData?.activity === selected.value);
-                    
-                    // Calculate prevQty from historical JMCs
-                    const calcPrevQty = (tempCode: string, loaSrNo: string) => {
-                      let total = 0;
-                      previousJmcs.forEach(jmc => {
-                        (jmc.items || []).forEach((item: any) => {
-                          if ((tempCode && item.tempCode === tempCode) || (loaSrNo && item.loaSrNo === loaSrNo)) {
-                            total += Number(item.approvedQty || 0);
-                          }
-                        });
-                      });
-                      return total;
-                    };
 
                     const newRows = activityItems.map(ai => {
                       const temp = ai.dynamicData?.tempCode || '';
                       const loa = ai.dynamicData?.loaSrNo || ai.dynamicData?.loaSerialNo || ai.dynamicData?.sku || '';
+                      const desc = ai.dynamicData?.description || ai.dynamicData?.itemDescription || ai.dynamicData?.name || '';
                       return {
                         activity: ai.dynamicData?.activity || '',
                         tempCode: temp,
                         loaSrNo: loa,
-                        description: ai.dynamicData?.description || ai.dynamicData?.itemDescription || ai.dynamicData?.name || '',
+                        description: desc,
                         unit: ai.dynamicData?.unit || ai.dynamicData?.uom || '',
                         totalLoaQty: Number(ai.dynamicData?.loaQty || ai.dynamicData?.loaQuantity || ai.dynamicData?.totalLoaQuantity || ai.dynamicData?.qty || ai.dynamicData?.quantity || 0),
-                        prevQty: calcPrevQty(temp, loa),
+                        prevQty: calcPrevQtyFromJmcs(previousJmcs, temp, loa, desc),
                         claimedQty: 0,
                         approvedQty: 0,
                         rate: 0,

@@ -823,6 +823,82 @@ function parseCsvDate(dateStr: string): Date | undefined {
   return Number.isNaN(d.getTime()) ? undefined : d;
 };
 
+export const exportContractorAssignments = asyncHandler(async (req: Request, res: Response) => {
+  const { contractorId, startDate, endDate, search } = req.query;
+  const filter: any = {};
+  
+  if (contractorId && contractorId !== 'All') {
+    filter.contractorId = contractorId;
+  }
+  
+  if (startDate || endDate) {
+    filter.date = {};
+    if (startDate) filter.date.$gte = new Date(startDate as string);
+    if (endDate) filter.date.$lte = new Date(endDate as string);
+  }
+  
+  if (search) {
+    const searchRegex = { $regex: search as string, $options: 'i' };
+    filter.$or = [
+      { assignmentNumber: searchRegex },
+      { minNo: searchRegex },
+      { demandNo: searchRegex }
+    ];
+  }
+  
+  const assignments = await ContractorAssignment.find(filter)
+    .populate('contractorId', 'name farmName companyName dynamicData')
+    .sort({ date: -1 });
+    
+  const headers = ['MinNo', 'Date', 'ContractorName', 'Circle', 'DemandNo', 'DemandBookNo', 'DemandDate', 'ContractorFarmName', 'SupervisorEngineer', 'Division', 'SubDivision', 'SubStation', 'Feeder', 'VehicleNo', 'MinBookNo', 'MinDate', 'IssuedTfsSrNo', 'Remarks', 'ItemName', 'TempCode', 'LoaSrNo', 'Unit', 'HsnCode', 'DemandQty', 'IssuedQty', 'Rate', 'Amount'];
+  
+  let csv = headers.join(',') + '\\n';
+  
+  assignments.forEach((assignment: any) => {
+    const contractorName = assignment.contractorId?.name || assignment.contractorId?.companyName || assignment.contractorId?.dynamicData?.displayName || assignment.contractorId?.dynamicData?.name || '';
+    const dateStr = assignment.date ? new Date(assignment.date).toISOString().split('T')[0] : '';
+    const demandDateStr = assignment.demandDate ? new Date(assignment.demandDate).toISOString().split('T')[0] : '';
+    const minDateStr = assignment.minDate ? new Date(assignment.minDate).toISOString().split('T')[0] : '';
+    
+    (assignment.lineItems || []).forEach((item: any) => {
+      const row = [
+        assignment.assignmentNumber || assignment.minNo || '',
+        dateStr,
+        contractorName,
+        assignment.circle || '',
+        assignment.demandNo || '',
+        assignment.demandBookNo || '',
+        demandDateStr,
+        assignment.contractorFarmName || '',
+        assignment.supervisorEngineer || '',
+        assignment.division || '',
+        assignment.subDivision || '',
+        assignment.subStation || '',
+        assignment.feeder || '',
+        assignment.vehicleNo || '',
+        assignment.minBookNo || '',
+        minDateStr,
+        assignment.issuedTfsSrNo || '',
+        (assignment.remarks || '').replace(/,/g, ' '),
+        (item.itemName || '').replace(/,/g, ' '),
+        item.tempCode || '',
+        item.loaSrNo || '',
+        item.unit || '',
+        item.hsnCode || '',
+        item.demandQty || 0,
+        item.quantity || 0,
+        item.rate || 0,
+        item.amount || 0
+      ];
+      csv += row.map(v => typeof v === 'string' && v.includes(',') ? `"${v}"` : v).join(',') + '\\n';
+    });
+  });
+  
+  res.header('Content-Type', 'text/csv');
+  res.attachment('contractor_issues.csv');
+  res.send(csv);
+});
+
 export const importContractorAssignments = asyncHandler(async (req: Request, res: Response) => {
   if (!req.file) {
     throw new ApiError(400, 'Please upload a CSV file');

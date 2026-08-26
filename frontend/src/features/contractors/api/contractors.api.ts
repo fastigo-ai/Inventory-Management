@@ -75,6 +75,14 @@ export const getAssignmentSummary = async (params?: Record<string, any>) => {
   return response.data;
 };
 
+export const exportAssignments = async (params?: Record<string, any>) => {
+  const response = await api.get('/contractors/assignments/export', { 
+    params, 
+    responseType: 'blob' 
+  });
+  return response.data;
+};
+
 export const getAssignmentById = async (id: string) => {
   const response = await api.get(`/contractors/assignments/${id}`);
   return response.data;

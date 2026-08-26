@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Save, ArrowLeft, Plus, X, Search } from 'lucide-react';
+import { Save, ArrowLeft, Plus, X, Search, Eye, EyeOff } from 'lucide-react';
 import { getContractors } from '@/features/contractors/api/contractors.api';
 import { getItems, getEntityMetadata, getItemMetrics } from '@/features/items/api/items.api';
 import { createContractorWorkOrder } from '@/features/contractors/api/contractorWorkOrder.api';
@@ -45,6 +45,8 @@ export default function NewContractorWorkOrderPage() {
     type: 'package',
     value: ''
   });
+  
+  const [showLoaColumns, setShowLoaColumns] = useState(false); // Default to false to give more space for description
   
   const [activityRatios, setActivityRatios] = useState<Record<string, string>>({});
 
@@ -560,6 +562,16 @@ export default function NewContractorWorkOrderPage() {
               )}
             </div>
           </div>
+          
+          <div className="mt-6 flex justify-end border-t border-slate-100 pt-4">
+            <button
+              onClick={() => setShowLoaColumns(!showLoaColumns)}
+              className="flex items-center gap-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              {showLoaColumns ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              {showLoaColumns ? 'Hide' : 'Show'} LOA & BOM Qty Columns
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -571,9 +583,13 @@ export default function NewContractorWorkOrderPage() {
                 <th className="px-4 py-3 text-left whitespace-nowrap">LOA Sr No</th>
                 <th className="px-4 py-3 text-left max-w-[200px]">Description</th>
                 <th className="px-4 py-3 text-left">Unit</th>
-                <th className="px-4 py-3 text-right whitespace-nowrap">Total LOA Qty</th>
-                <th className="px-4 py-3 text-right whitespace-nowrap">{formData.circle || 'Circle'} LOA Qty</th>
-                <th className="px-4 py-3 text-right whitespace-nowrap">{formData.circle || 'Circle'} BOM Qty</th>
+                {showLoaColumns && (
+                  <>
+                    <th className="px-4 py-3 text-right whitespace-nowrap">Total LOA Qty</th>
+                    <th className="px-4 py-3 text-right whitespace-nowrap">{formData.circle || 'Circle'} LOA Qty</th>
+                    <th className="px-4 py-3 text-right whitespace-nowrap">{formData.circle || 'Circle'} BOM Qty</th>
+                  </>
+                )}
                 <th className="px-4 py-3 text-right text-orange-600 whitespace-nowrap">Issued Qty</th>
                 <th className="px-4 py-3 text-right text-indigo-600 whitespace-nowrap">WO Qty</th>
                 <th className="px-4 py-3 text-right text-indigo-600">Rate</th>
@@ -585,11 +601,11 @@ export default function NewContractorWorkOrderPage() {
             <tbody className="divide-y divide-slate-200 text-sm">
               {isLoadingItems ? (
                 <tr>
-                  <td colSpan={13} className="px-6 py-8 text-center text-slate-500">Loading items...</td>
+                  <td colSpan={showLoaColumns ? 14 : 11} className="px-6 py-8 text-center text-slate-500">Loading items...</td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="px-6 py-8 text-center text-slate-500">Select an activity to view items</td>
+                  <td colSpan={showLoaColumns ? 14 : 11} className="px-6 py-8 text-center text-slate-500">Select an activity to view items</td>
                 </tr>
               ) : items.map((item, index) => {
                 const showActivityHeader = index === 0 || items[index - 1].activity !== item.activity;
@@ -598,7 +614,7 @@ export default function NewContractorWorkOrderPage() {
                   <React.Fragment key={item.itemId}>
                     {showActivityHeader && (
                       <tr className="bg-slate-100/80 border-y border-slate-200">
-                        <td colSpan={8} className="px-4 py-2 text-[13px] font-bold text-slate-700">
+                        <td colSpan={showLoaColumns ? 8 : 5} className="px-4 py-2 text-[13px] font-bold text-slate-700">
                           Activity: <span className="text-indigo-700 ml-1">{item.activity}</span>
                         </td>
                         <td className="px-4 py-2">
@@ -629,9 +645,13 @@ export default function NewContractorWorkOrderPage() {
                       <td className="px-4 py-2.5 text-slate-700">{item.loaSrNo}</td>
                       <td className="px-4 py-2.5 text-slate-700 truncate max-w-[200px]" title={item.description}>{item.description}</td>
                       <td className="px-4 py-2.5 text-slate-700">{item.unit}</td>
-                      <td className="px-4 py-2.5 text-right font-medium text-slate-800">{item.totalPackageLoaQty}</td>
-                      <td className="px-4 py-2.5 text-right font-medium text-slate-800">{item.circleLoaQty}</td>
-                      <td className="px-4 py-2.5 text-right font-medium text-slate-800">{item.circleBomQty}</td>
+                      {showLoaColumns && (
+                        <>
+                          <td className="px-4 py-2.5 text-right font-medium text-slate-800">{item.totalPackageLoaQty}</td>
+                          <td className="px-4 py-2.5 text-right font-medium text-slate-800">{item.circleLoaQty}</td>
+                          <td className="px-4 py-2.5 text-right font-medium text-slate-800">{item.circleBomQty}</td>
+                        </>
+                      )}
                       <td className="px-4 py-2.5">
                         <input
                           type="number"

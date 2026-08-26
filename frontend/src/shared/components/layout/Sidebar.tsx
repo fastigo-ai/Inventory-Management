@@ -143,6 +143,7 @@ const navItems: NavItem[] = [
     title: 'Project Manager Portal',
     icon: <Layers className="w-5 h-5" />,
     children: [
+      { title: 'Dashboard', href: '/pm-portal' },
       { title: 'Demand Notes (PM)', href: '/pm-portal/demand-notes' },
     ]
   },

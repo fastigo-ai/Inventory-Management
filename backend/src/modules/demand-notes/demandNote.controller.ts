@@ -399,6 +399,11 @@ export const updateDemandNote = asyncHandler(async (req: AuthRequest, res: Respo
     updateData.pdApprovedAt = new Date();
   }
 
+  if (updateData.status === 'Rejected' && existing.status !== 'Rejected') {
+    updateData.rejectedBy = user._id;
+    updateData.rejectedAt = new Date();
+  }
+
   const demandNote = await DemandNote.findByIdAndUpdate(req.params.id, updateData, { new: true });
   res.status(200).json(new ApiResponse(200, { demandNote }, 'Demand Note updated successfully'));
 });

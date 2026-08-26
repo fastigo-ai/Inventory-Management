@@ -48,6 +48,9 @@ export interface IDemandNote extends Document {
   pmApprovedAt?: Date;
   pdApprovedBy?: mongoose.Types.ObjectId;
   pdApprovedAt?: Date;
+  rejectedBy?: mongoose.Types.ObjectId;
+  rejectedAt?: Date;
+  rejectionRemarks?: string;
   items: IDemandNoteItem[];
   createdAt: Date;
   updatedAt: Date;
@@ -107,6 +110,9 @@ const demandNoteSchema = new Schema<IDemandNote>(
     pmApprovedAt: { type: Date },
     pdApprovedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     pdApprovedAt: { type: Date },
+    rejectedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    rejectedAt: { type: Date },
+    rejectionRemarks: { type: String },
     items: [demandNoteItemSchema],
   },
   { timestamps: true }

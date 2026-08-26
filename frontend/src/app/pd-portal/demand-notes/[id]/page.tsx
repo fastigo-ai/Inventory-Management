@@ -15,6 +15,9 @@ export default function DemandNoteDetailPage() {
   const [demandNote, setDemandNote] = useState<any>(null);
   const [stockSummary, setStockSummary] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [rejectionRemarks, setRejectionRemarks] = useState('');
+  const [isRejecting, setIsRejecting] = useState(false);
 
   const fetchDemandNote = async () => {
     try {
@@ -58,6 +61,26 @@ export default function DemandNoteDetailPage() {
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to approve demand note');
       setIsLoading(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!rejectionRemarks.trim()) {
+      toast.error('Please provide a reason for rejection');
+      return;
+    }
+    try {
+      setIsRejecting(true);
+      const res = await updateDemandNote(demandNote._id, { status: 'Rejected', rejectionRemarks });
+      if (res.success) {
+        toast.success('Demand Note rejected successfully');
+        setIsRejectModalOpen(false);
+        fetchDemandNote();
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to reject demand note');
+    } finally {
+      setIsRejecting(false);
     }
   };
 
@@ -126,12 +149,20 @@ export default function DemandNoteDetailPage() {
         </div>
         <div className="flex space-x-3">
           {demandNote.status === 'Pending PD Approval' && (
-            <button
-              onClick={handleApprove}
-              className="flex items-center px-4 py-2 bg-purple-600 rounded-lg text-sm font-semibold text-white hover:bg-purple-700 transition-colors shadow-sm cursor-pointer"
-            >
-              <CheckCircle className="w-4 h-4 mr-2" /> Grant Final PD Approval
-            </button>
+            <>
+              <button
+                onClick={() => setIsRejectModalOpen(true)}
+                className="flex items-center px-4 py-2 bg-red-600 rounded-lg text-sm font-semibold text-white hover:bg-red-700 transition-colors shadow-sm cursor-pointer"
+              >
+                <AlertCircle className="w-4 h-4 mr-2" /> Reject
+              </button>
+              <button
+                onClick={handleApprove}
+                className="flex items-center px-4 py-2 bg-purple-600 rounded-lg text-sm font-semibold text-white hover:bg-purple-700 transition-colors shadow-sm cursor-pointer"
+              >
+                <CheckCircle className="w-4 h-4 mr-2" /> Grant Final PD Approval
+              </button>
+            </>
           )}
           <button
             onClick={() => window.open(`/pd-portal/demand-notes/${demandNote._id}/print`, '_blank')}
@@ -269,6 +300,12 @@ export default function DemandNoteDetailPage() {
               <span className="text-sm text-slate-500">Remarks</span>
               <span className="col-span-2 text-sm font-medium text-slate-800">{demandNote.remarks || 'No remarks provided'}</span>
             </div>
+            {demandNote.status === 'Rejected' && (
+              <div className="grid grid-cols-3 gap-2 mt-2">
+                <span className="text-sm text-slate-500">Rejection Reason</span>
+                <span className="col-span-2 text-sm font-medium text-red-600">{demandNote.rejectionRemarks || 'No reason provided'}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -327,6 +364,46 @@ export default function DemandNoteDetailPage() {
           </table>
         </div>
       </div>
+
+      {/* Rejection Modal */}
+      {isRejectModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="p-6 border-b border-slate-200">
+              <h3 className="text-lg font-bold text-slate-800">Reject Demand Note</h3>
+              <p className="text-sm text-slate-500 mt-1">Please provide a reason for rejecting this demand note.</p>
+            </div>
+            <div className="p-6">
+              <label className="block text-sm font-medium text-slate-700 mb-2">Rejection Remarks <span className="text-red-500">*</span></label>
+              <textarea
+                value={rejectionRemarks}
+                onChange={(e) => setRejectionRemarks(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-sm"
+                rows={4}
+                placeholder="Enter remarks..."
+                required
+              />
+            </div>
+            <div className="p-6 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
+              <button
+                onClick={() => setIsRejectModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                disabled={isRejecting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReject}
+                disabled={isRejecting}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+              >
+                {isRejecting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Confirm Rejection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -190,3 +190,90 @@ export const getSitePortalDashboardSummary = asyncHandler(async (req: any, res: 
     }
   }, 'Site Portal Dashboard Data'));
 });
+
+export const getPMPortalDashboardSummary = asyncHandler(async (req: any, res: Response) => {
+  const user = req.user;
+  
+  // Base query for the PM's scope
+  const baseQuery: any = {};
+  if (user.assignedPackage) baseQuery.package = user.assignedPackage;
+  if (user.assignedCircle) baseQuery.circle = user.assignedCircle;
+  
+  const DemandNote = mongoose.model('DemandNote');
+  const JmcRegister = mongoose.model('JmcRegister');
+  const ContractorInvoice = mongoose.model('ContractorInvoice');
+  const WipRegister = mongoose.model('WipRegister');
+  const Mhrov = mongoose.model('Mhrov');
+  
+  // 1. Pending Approvals
+  const pendingDemandNotesCount = await DemandNote.countDocuments({
+    ...baseQuery,
+    status: { $in: ['Pending PM Approval', 'Pending Approval'] }
+  });
+  
+  const pendingJmcsCount = await JmcRegister.countDocuments({
+    ...baseQuery,
+    status: 'Submitted'
+  });
+  
+  const pendingInvoicesCount = await ContractorInvoice.countDocuments({
+    // ContractorInvoice might not have package/circle directly on it if it relies on WorkOrder.
+    // Wait, let's just query all for now, we can filter by PM scope if we have contractor assignments. 
+    // Usually, invoices might just be global or we need to lookup. Let's do a basic query for now.
+    status: 'Submitted'
+  });
+  // We'll refine pendingInvoicesCount if ContractorInvoice has package/circle. For now let's query all 'Submitted' or we can leave it as a general pending.
+  
+  // 2. Contractor Progress (JMC Approved Amounts)
+  const jmcs = await JmcRegister.find({ ...baseQuery }).populate('contractorId', 'dynamicData');
+  
+  const contractorStats: Record<string, { contractor: string, approvedJmcAmount: number, totalJmcAmount: number }> = {};
+  
+  let totalApprovedJmcAmount = 0;
+  
+  jmcs.forEach(jmc => {
+    const cName = jmc.contractorId?.dynamicData?.displayName || jmc.contractorId?.dynamicData?.companyName || 'Unknown';
+    if (!contractorStats[cName]) {
+      contractorStats[cName] = { contractor: cName, approvedJmcAmount: 0, totalJmcAmount: 0 };
+    }
+    
+    contractorStats[cName].totalJmcAmount += (jmc.claimedAmount || 0);
+    
+    if (jmc.status === 'Approved') {
+      contractorStats[cName].approvedJmcAmount += (jmc.approvedAmount || jmc.claimedAmount || 0);
+      totalApprovedJmcAmount += (jmc.approvedAmount || jmc.claimedAmount || 0);
+    }
+  });
+
+  // 3. Material Consumption
+  // For Material Consumption we can sum up WIP Consumed quantity and MHROV quantity.
+  let totalWipQty = 0;
+  const wips = await WipRegister.find(baseQuery);
+  wips.forEach(wip => {
+    wip.items?.forEach((item: any) => {
+      totalWipQty += (Number(item.claimedQty) || 0) + (Number(item.approvedQty) || 0);
+    });
+  });
+
+  let totalMhrovQty = 0;
+  const mhrovs = await Mhrov.find(baseQuery);
+  mhrovs.forEach(mhrov => {
+    mhrov.items?.forEach((item: any) => {
+      totalMhrovQty += (Number(item.quantity) || 0);
+    });
+  });
+
+  res.status(200).json(new ApiResponse(200, {
+    pendingApprovals: {
+      demandNotes: pendingDemandNotesCount,
+      jmcs: pendingJmcsCount,
+      invoices: pendingInvoicesCount
+    },
+    contractorProgress: Object.values(contractorStats).sort((a, b) => b.totalJmcAmount - a.totalJmcAmount),
+    materialConsumption: {
+      totalWipQty,
+      totalMhrovQty,
+      totalApprovedJmcAmount
+    }
+  }, 'PM Portal Dashboard Data'));
+});

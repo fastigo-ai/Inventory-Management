@@ -22,6 +22,7 @@ import { useAuthStore } from '@/shared/store/auth.store';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useUrlFilters } from '@/shared/hooks/useUrlFilters';
 
 // Custom debounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -94,38 +95,38 @@ export default function StoreSummaryPage() {
     setSelectedItems(new Set());
   }, [data]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const res = await getStoreItemisedSummary({
-          circle: debouncedFilters.circle || undefined,
-          store: debouncedFilters.store || undefined,
-          package: debouncedFilters.pkg || undefined,
-          search: debouncedFilters.search || undefined,
-          tempCode: debouncedFilters.tempCode || undefined,
-          itemName: debouncedFilters.itemName || undefined,
-          hideZeroBalance: debouncedFilters.hideZeroBalance === 'true',
-          viewMode: debouncedFilters.viewMode as any,
-          page: Number(debouncedFilters.page),
-          limit: Number(debouncedFilters.limit)
-        });
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const res = await getStoreItemisedSummary({
+        circle: debouncedFilters.circle || undefined,
+        store: debouncedFilters.store || undefined,
+        package: debouncedFilters.pkg || undefined,
+        search: debouncedFilters.search || undefined,
+        tempCode: debouncedFilters.tempCode || undefined,
+        itemName: debouncedFilters.itemName || undefined,
+        hideZeroBalance: debouncedFilters.hideZeroBalance === 'true',
+        viewMode: debouncedFilters.viewMode as any,
+        page: Number(debouncedFilters.page),
+        limit: Number(debouncedFilters.limit)
+      });
 
-        if (res.success && res.data) {
-          setData(res.data.items || []);
-          setTotals(res.data.totals || {});
-          if (res.data.pagination) {
-            setTotalItems(res.data.pagination.totalItems);
-            setTotalPages(res.data.pagination.totalPages);
-          }
+      if (res.success && res.data) {
+        setData(res.data.items || []);
+        setTotals(res.data.totals || {});
+        if (res.data.pagination) {
+          setTotalItems(res.data.pagination.totalItems);
+          setTotalPages(res.data.pagination.totalPages);
         }
-      } catch (err) {
-        console.error('Failed to fetch store summary:', err);
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (err) {
+      console.error('Failed to fetch store summary:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchData();
   }, [debouncedFilters]);
 
@@ -150,7 +151,7 @@ export default function StoreSummaryPage() {
         tempCode: debouncedFilters.tempCode || undefined,
         itemName: debouncedFilters.itemName || undefined,
         hideZeroBalance,
-        viewMode,
+        viewMode: viewMode as 'item' | 'loa',
         page: 1,
         limit: 100000 // Large limit to get all
       });
@@ -731,7 +732,7 @@ export default function StoreSummaryPage() {
 
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setPage(prev => Math.max(prev - 1, 1))}
+                onClick={() => setPage(Math.max(page - 1, 1))}
                 disabled={page <= 1 || loading}
                 className="px-3 py-1.5 font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xs"
               >
@@ -741,7 +742,7 @@ export default function StoreSummaryPage() {
                 Page {page} of {totalPages || 1}
               </span>
               <button
-                onClick={() => setPage(prev => Math.min(prev + 1, totalPages))}
+                onClick={() => setPage(Math.min(page + 1, totalPages))}
                 disabled={page >= totalPages || loading}
                 className="px-3 py-1.5 font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xs"
               >

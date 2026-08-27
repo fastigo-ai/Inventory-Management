@@ -18,6 +18,7 @@ import Link from 'next/link';
 import { getStoreContractorSummary } from '@/features/reports/api/reports.api';
 import { useAuthStore } from '@/shared/store/auth.store';
 import * as XLSX from 'xlsx';
+import { useUrlFilters } from '@/shared/hooks/useUrlFilters';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -69,40 +70,40 @@ export default function StoreContractorSummaryPage() {
     setSelectedItems(new Set());
   }, [data]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const res = await getStoreContractorSummary({
-          contractorName: debouncedFilters.contractorName || undefined,
-          circle: debouncedFilters.circle || undefined,
-          package: debouncedFilters.pkg || undefined,
-          search: debouncedFilters.search || undefined,
-          hideZero: debouncedFilters.hideZero === 'true',
-          page: Number(debouncedFilters.page),
-          limit: Number(debouncedFilters.limit)
-        });
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const res = await getStoreContractorSummary({
+        contractorName: debouncedFilters.contractorName || undefined,
+        circle: debouncedFilters.circle || undefined,
+        package: debouncedFilters.pkg || undefined,
+        search: debouncedFilters.search || undefined,
+        hideZero: debouncedFilters.hideZero === 'true',
+        page: Number(debouncedFilters.page),
+        limit: Number(debouncedFilters.limit)
+      });
 
-        if (res.success && res.data) {
-          setData(res.data.items || []);
-          setTotals(res.data.totals || {});
-          if (res.data.contractors && res.data.contractors.length > 0) {
-            setContractorsList(res.data.contractors);
-            if (!debouncedFilters.contractorName && res.data.contractors.length > 0) {
-              setContractorName(res.data.contractors[0]);
-            }
-          }
-          if (res.data.pagination) {
-            setTotalItems(res.data.pagination.totalItems);
+      if (res.success && res.data) {
+        setData(res.data.items || []);
+        setTotals(res.data.totals || {});
+        if (res.data.contractors && res.data.contractors.length > 0) {
+          setContractorsList(res.data.contractors);
+          if (!debouncedFilters.contractorName && res.data.contractors.length > 0) {
+            setContractorName(res.data.contractors[0]);
           }
         }
-      } catch (err) {
-        console.error('Failed to fetch store contractor summary:', err);
-      } finally {
-        setLoading(false);
+        if (res.data.pagination) {
+          setTotalItems(res.data.pagination.totalItems);
+        }
       }
-    };
+    } catch (err) {
+      console.error('Failed to fetch store contractor summary:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchData();
   }, [debouncedFilters]);
 
@@ -591,7 +592,7 @@ export default function StoreContractorSummaryPage() {
 
               <button
                 disabled={page <= 1 || loading}
-                onClick={() => setPage(p => p - 1)}
+                onClick={() => setPage(page - 1)}
                 className="px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-100 disabled:opacity-50 font-semibold"
               >
                 Previous
@@ -599,7 +600,7 @@ export default function StoreContractorSummaryPage() {
               <span className="px-2 font-bold text-slate-800">Page {page} of {Math.ceil(totalItems / limit) || 1}</span>
               <button
                 disabled={page * limit >= totalItems || loading}
-                onClick={() => setPage(p => p + 1)}
+                onClick={() => setPage(page + 1)}
                 className="px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-100 disabled:opacity-50 font-semibold"
               >
                 Next

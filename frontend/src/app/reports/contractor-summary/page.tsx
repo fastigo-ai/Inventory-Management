@@ -14,7 +14,7 @@ export default function ContractorSummary() {
   const { filters, setFilter, debouncedFilters } = useUrlFilters({ start: '', end: '' }, 300);
   const dateRange = { start: filters.start, end: filters.end };
   
-  const setDateRange = (val: any) => {
+  const setDateRange = (val: { start?: string; end?: string } | ((prev: { start: string; end: string }) => { start?: string; end?: string })) => {
     const newVal = typeof val === 'function' ? val(dateRange) : val;
     setFilter('start', newVal.start || '');
     setFilter('end', newVal.end || '');
@@ -74,14 +74,14 @@ export default function ContractorSummary() {
                 type="date" 
                 className="bg-transparent border-none text-sm text-slate-700 focus:ring-0 cursor-pointer"
                 value={dateRange.start}
-                onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
               />
               <span className="text-slate-400 text-sm">to</span>
               <input 
                 type="date" 
                 className="bg-transparent border-none text-sm text-slate-700 focus:ring-0 cursor-pointer"
                 value={dateRange.end}
-                onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
               />
               {(dateRange.start || dateRange.end) && (
                 <button 

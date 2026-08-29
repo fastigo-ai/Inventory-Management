@@ -102,7 +102,7 @@ export default function DemandNoteDetailPage() {
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm print:hidden">
         <div className="flex items-center space-x-4">
           <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 rounded-full transition-colors flex-shrink-0">
             <ArrowLeft className="w-5 h-5 text-slate-600" />
@@ -139,11 +139,12 @@ export default function DemandNoteDetailPage() {
             onClick={() => window.open(`/${portalPrefix}/demand-notes/${demandNote._id}/print`, '_blank')}
             className="flex items-center px-4 py-2 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-sm font-medium hover:bg-indigo-100 transition-colors shadow-sm"
           >
-            <Printer className="w-4 h-4 mr-2" /> Print PDF
+            <Printer className="w-4 h-4 mr-2" /> Download / Print PDF
           </button>
         </div>
       </div>
 
+      <div className="space-y-6 p-1 bg-slate-50 print:bg-white">
       {isApprovedByPM && demandNote.pmApprovedBy && demandNote.pmApprovedAt && (
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-3 shadow-sm">
           <CheckCircle className="w-6 h-6 text-emerald-600 flex-shrink-0" />
@@ -212,25 +213,25 @@ export default function DemandNoteDetailPage() {
       </div>
 
       {/* Items Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden print:overflow-visible">
         <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50">
           <h2 className="text-lg font-semibold text-slate-800">Requested Items</h2>
           <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold">
             {demandNote.items?.length || 0} Items
           </span>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left whitespace-nowrap">
-            <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase">
+        <div className="overflow-x-auto print:overflow-visible">
+          <table className="w-full text-sm text-left whitespace-nowrap print:whitespace-normal print:text-xs">
+            <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase print:text-[10px]">
               <tr>
-                <th className="px-6 py-4">Sr No</th>
-                <th className="px-6 py-4">Material Code</th>
-                <th className="px-6 py-4">Item Name</th>
-                <th className="px-6 py-4">Activity</th>
-                <th className="px-6 py-4">LOA Sr No</th>
-                <th className="px-6 py-4">Unit</th>
-                <th className="px-6 py-4 text-center">In Stock</th>
-                <th className="px-6 py-4 font-bold text-indigo-700 bg-indigo-50/50">Demand Qty</th>
+                <th className="px-6 py-4 print:px-2 print:py-2">Sr No</th>
+                <th className="px-6 py-4 print:px-2 print:py-2">Material Code</th>
+                <th className="px-6 py-4 print:px-2 print:py-2 min-w-[250px] print:min-w-0">Item Name</th>
+                <th className="px-6 py-4 print:px-2 print:py-2">Activity</th>
+                <th className="px-6 py-4 print:px-2 print:py-2">LOA Sr No</th>
+                <th className="px-6 py-4 print:px-2 print:py-2">Unit</th>
+                <th className="px-6 py-4 text-center print:px-2 print:py-2">In Stock</th>
+                <th className="px-6 py-4 font-bold text-indigo-700 bg-indigo-50/50 print:px-2 print:py-2">Demand Qty</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -250,14 +251,14 @@ export default function DemandNoteDetailPage() {
                   const inStock = stockMatch ? stockMatch.totalBalanceQty : 0;
                   return (
                   <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 text-slate-500">{idx + 1}</td>
-                    <td className="px-6 py-4 font-medium text-slate-700">{item.tempCode || '-'}</td>
-                    <td className="px-6 py-4 text-slate-700 max-w-sm truncate" title={item.itemName}>{item.itemName}</td>
-                    <td className="px-6 py-4 text-slate-500">{item.activity || '-'}</td>
-                    <td className="px-6 py-4 text-slate-500 font-mono">{item.loaSrNo || '-'}</td>
-                    <td className="px-6 py-4 text-slate-500">{item.unit || '-'}</td>
-                    <td className="px-6 py-4 text-center font-medium text-emerald-600">{inStock}</td>
-                    <td className="px-6 py-4 font-bold text-indigo-600 bg-indigo-50/30">{item.demandQty}</td>
+                    <td className="px-6 py-4 print:px-2 print:py-2 text-slate-500">{idx + 1}</td>
+                    <td className="px-6 py-4 print:px-2 print:py-2 font-medium text-slate-700">{item.tempCode || '-'}</td>
+                    <td className="px-6 py-4 print:px-2 print:py-2 text-slate-700 max-w-sm print:max-w-none print:whitespace-normal truncate" title={item.itemName}>{item.itemName}</td>
+                    <td className="px-6 py-4 print:px-2 print:py-2 text-slate-500">{item.activity || '-'}</td>
+                    <td className="px-6 py-4 print:px-2 print:py-2 text-slate-500 font-mono">{item.loaSrNo || '-'}</td>
+                    <td className="px-6 py-4 print:px-2 print:py-2 text-slate-500">{item.unit || '-'}</td>
+                    <td className="px-6 py-4 print:px-2 print:py-2 text-center font-medium text-emerald-600">{inStock}</td>
+                    <td className="px-6 py-4 print:px-2 print:py-2 font-bold text-indigo-600 bg-indigo-50/30">{item.demandQty}</td>
                   </tr>
                 )})
               ) : (
@@ -279,6 +280,7 @@ export default function DemandNoteDetailPage() {
 
       {/* Full Audit Log */}
       <AuditTimeline entityType="DemandNote" entityId={demandNote._id} />
+      </div>
     </div>
   );
 }

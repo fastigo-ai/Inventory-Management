@@ -598,7 +598,7 @@ export default function DIDetailPage() {
                     <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
                       <h3 className="font-semibold text-slate-800 text-sm">Line Items Allocation ({di.lineItems?.length || 0})</h3>
                     </div>
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto print:overflow-visible">
                       <table className="w-full text-sm text-left">
                         <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200 text-[11px] uppercase tracking-wider">
                           <tr>

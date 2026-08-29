@@ -964,8 +964,8 @@ export default function PurchaseOrderDetailPage() {
                 <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/50">
                   <h2 className="font-bold text-slate-800">Order Items</h2>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-left">
+                <div className="overflow-x-auto print:overflow-visible">
+                  <table className="w-full text-sm text-left print:whitespace-normal print:text-xs">
                       <thead className="bg-white border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
                         <tr>
                           <th className="px-6 py-3">#</th>

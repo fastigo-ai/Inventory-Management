@@ -131,8 +131,10 @@ export default function StoreDemandNotesList() {
                 ) : (
                   filteredList.map((dn) => (
                     <tr key={dn._id} className="hover:bg-slate-50/80 transition-colors group">
-                      <td className="px-6 py-4 font-semibold text-indigo-600">
-                        {dn.demandNoteNumber}
+                      <td className="px-6 py-4 font-semibold">
+                        <Link href={`/store/demand-notes/${dn._id}`} className="text-indigo-600 hover:text-indigo-800 hover:underline">
+                          {dn.demandNoteNumber}
+                        </Link>
                       </td>
 
                       <td className="px-6 py-4 text-slate-700 font-medium">

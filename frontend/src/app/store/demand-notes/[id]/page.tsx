@@ -236,11 +236,17 @@ export default function DemandNoteDetailPage() {
             <tbody className="divide-y divide-slate-100">
               {demandNote.items && demandNote.items.length > 0 ? (
                 demandNote.items.map((item: any, idx: number) => {
-                  const stockMatch = stockSummary.find(s => 
-                    s.loaSrNo === item.loaSrNo && 
-                    s.activity === item.activity && 
-                    (s.description === item.itemName || s.itemName === item.itemName)
-                  );
+                  const stockMatch = stockSummary.find((s: any) => {
+                    if (s.tempCode && item.tempCode && s.tempCode === item.tempCode) return true;
+                    const sName = String(s.description || s.itemName || '').trim().toLowerCase();
+                    const iName = String(item.itemName || '').trim().toLowerCase();
+                    const sLoa = String(s.loaSrNo || '').trim();
+                    const iLoa = String(item.loaSrNo || '').trim();
+                    
+                    if (sName === iName) return true;
+                    if (sLoa && iLoa && sLoa === iLoa) return true;
+                    return false;
+                  });
                   const inStock = stockMatch ? stockMatch.totalBalanceQty : 0;
                   return (
                   <tr key={idx} className="hover:bg-slate-50 transition-colors">

@@ -4,6 +4,9 @@ const nextConfig: NextConfig = {
   experimental: {
     proxyClientMaxBodySize: 100 * 1024 * 1024,
   },
+  turbopack: {
+    root: '/Users/Apple/Desktop/Inventory-Management',
+  },
   async rewrites() {
     return [
       {

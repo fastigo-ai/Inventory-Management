@@ -28,9 +28,13 @@ export default function DemandNoteDetailPage() {
       if (res.success && res.data?.demandNote) {
         setDemandNote(res.data.demandNote);
         const circle = res.data.demandNote.circle;
+        const contractorId = typeof res.data.demandNote.contractor === 'object' 
+          ? res.data.demandNote.contractor?._id 
+          : res.data.demandNote.contractor;
+          
         if (circle) {
           try {
-            const stockRes = await getStockSummary({ circle });
+            const stockRes = await getStockSummary({ circle, contractorId });
             if (stockRes.success && stockRes.data) {
               setStockSummary(stockRes.data);
             }
@@ -324,18 +328,27 @@ export default function DemandNoteDetailPage() {
                 <th className="px-6 py-4">LOA Sr No</th>
                 <th className="px-6 py-4">Unit</th>
                 <th className="px-6 py-4 text-center">In Stock</th>
+                <th className="px-6 py-4 text-center">Till Issued</th>
+                <th className="px-6 py-4 text-center">Consumption</th>
+                <th className="px-6 py-4 text-center">JMC Done</th>
                 <th className="px-6 py-4 font-bold text-indigo-700 bg-indigo-50/50">Demand Qty</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {demandNote.items && demandNote.items.length > 0 ? (
                 demandNote.items.map((item: any, idx: number) => {
-                  const stockMatch = stockSummary.find(s => 
-                    s.loaSrNo === item.loaSrNo && 
-                    s.activity === item.activity && 
-                    (s.description === item.itemName || s.itemName === item.itemName)
-                  );
+                  const stockMatch = stockSummary.find(s => {
+                    if (item.tempCode && s.tempCode && String(item.tempCode).trim() === String(s.tempCode).trim()) {
+                      return true;
+                    }
+                    return String(s.loaSrNo) === String(item.loaSrNo) && 
+                           String(s.activity) === String(item.activity) && 
+                           (s.description === item.itemName || s.itemName === item.itemName);
+                  });
                   const inStock = stockMatch ? stockMatch.totalBalanceQty : 0;
+                  const tillIssued = stockMatch ? stockMatch.contractorsActualIssued : 0;
+                  const consumption = stockMatch ? (stockMatch.wipConsumed || stockMatch.consumedQty || 0) : 0;
+                  const jmcDone = stockMatch ? (stockMatch.jmcDone || 0) : 0;
                   return (
                   <tr key={idx} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4 text-slate-500">{idx + 1}</td>
@@ -345,12 +358,15 @@ export default function DemandNoteDetailPage() {
                     <td className="px-6 py-4 text-slate-500 font-mono">{item.loaSrNo || '-'}</td>
                     <td className="px-6 py-4 text-slate-500">{item.unit || '-'}</td>
                     <td className="px-6 py-4 text-center font-medium text-emerald-600">{inStock}</td>
+                    <td className="px-6 py-4 text-center font-medium text-blue-600">{tillIssued}</td>
+                    <td className="px-6 py-4 text-center font-medium text-orange-600">{consumption}</td>
+                    <td className="px-6 py-4 text-center font-medium text-purple-600">{jmcDone}</td>
                     <td className="px-6 py-4 font-bold text-indigo-600 bg-indigo-50/30">{item.demandQty}</td>
                   </tr>
                 )})
               ) : (
                 <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan={11} className="px-6 py-8 text-center text-slate-500">
                     No items in this Demand Note.
                   </td>
                 </tr>

@@ -15,6 +15,8 @@ import { ContractorAssignment } from '../contractors/contractorAssignment.schema
 import { ContractorReturn } from '../contractors/contractorReturn.schema';
 import { StoreTransfer } from './storeTransfer.schema';
 import { Mhrov } from './mhrov.schema';
+import { WipRegister } from '../wip/wip.schema';
+import { JmcRegister } from '../jmc/jmc.schema';
 import cloudinary from '../../core/utils/cloudinary';
 import { SummaryService } from '../reports/summary/summary.service';
 import { expandCircle } from '../../utils/hierarchy';
@@ -507,13 +509,14 @@ export const getAdminInwardEntries = asyncHandler(async (req: Request, res: Resp
   );
 });
 
-export async function buildStockSummaryData(circleFilter?: string, packageFilter?: string) {
+export async function buildStockSummaryData(circleFilter?: string, packageFilter?: string, contractorId?: string) {
   // Build filters for Inward, Assignments, Returns
   const inwardFilter: any = { status: { $in: ['VERIFIED', 'APPROVED'] } };
   if (circleFilter) inwardFilter.circle = { $regex: new RegExp(`^${circleFilter}$`, 'i') };
   if (packageFilter) inwardFilter.package = packageFilter;
 
   const assignmentFilter: any = { status: 'Sent' };
+  if (contractorId) assignmentFilter.contractorId = contractorId;
   if (circleFilter) {
     assignmentFilter.$or = [
       { circle: { $regex: new RegExp(`^${circleFilter}$`, 'i') } },
@@ -522,12 +525,23 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
   }
 
   const returnsFilter: any = { status: 'Submitted' };
+  if (contractorId) returnsFilter.contractorId = contractorId;
   if (circleFilter) {
     returnsFilter.$or = [
       { circle: { $regex: new RegExp(`^${circleFilter}$`, 'i') } },
       { division: { $regex: new RegExp(`^${circleFilter}$`, 'i') } }
     ];
   }
+
+  const wipJmcFilter: any = { status: { $ne: 'Rejected' } };
+  if (contractorId) wipJmcFilter.contractorId = contractorId;
+  if (circleFilter) {
+    wipJmcFilter.$or = [
+      { circle: { $regex: new RegExp(`^${circleFilter}$`, 'i') } },
+      { division: { $regex: new RegExp(`^${circleFilter}$`, 'i') } }
+    ];
+  }
+
 
   console.log("Fetching DB collections in parallel...");
   // Fetch all collections in parallel to massively improve performance (fixes Axios timeouts)
@@ -536,13 +550,17 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
     verifiedInwards,
     assignments,
     contractorReturns,
-    transfers
+    transfers,
+    wipRecords,
+    jmcRecords
   ] = await Promise.all([
-    Item.find({ isDeleted: false }),
-    StoreInwardEntry.find(inwardFilter),
-    ContractorAssignment.find(assignmentFilter),
-    ContractorReturn.find(returnsFilter),
-    StoreTransfer.find({ status: 'RECEIVED' })
+    Item.find({ isDeleted: false }).lean(),
+    StoreInwardEntry.find(inwardFilter).lean(),
+    ContractorAssignment.find(assignmentFilter).lean(),
+    ContractorReturn.find(returnsFilter).lean(),
+    StoreTransfer.find({ status: 'RECEIVED' }).lean(),
+    WipRegister.find(wipJmcFilter).lean(),
+    JmcRegister.find(wipJmcFilter).lean()
   ]);
   console.log("Fetched all DB collections successfully!");
 
@@ -574,6 +592,8 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
       contractorsIssuedQty: 0,
       contractorsReturnQty: 0,
       contractorsActualIssued: 0,
+      wipConsumed: 0,
+      jmcDone: 0,
       totalBalanceQty: 0,
       remarks: '',
       // Latest GRN details
@@ -651,6 +671,26 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
       const tc = line.tempCode || '';
       if (summaryMap[tc]) {
         summaryMap[tc].contractorsReturnQty += (line.quantity || 0);
+      }
+    });
+  });
+
+  // Calculate WIP Consumed
+  wipRecords.forEach((record: any) => {
+    record.items?.forEach((item: any) => {
+      const tc = item.tempCode || '';
+      if (summaryMap[tc]) {
+        summaryMap[tc].wipConsumed += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
+      }
+    });
+  });
+
+  // Calculate JMC Done
+  jmcRecords.forEach((record: any) => {
+    record.items?.forEach((item: any) => {
+      const tc = item.tempCode || '';
+      if (summaryMap[tc]) {
+        summaryMap[tc].jmcDone += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
       }
     });
   });
@@ -739,14 +779,14 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
 }
 
 export const getStockSummary = asyncHandler(async (req: Request, res: Response) => {
-  const { circle, package: pkg } = req.query;
-  const summary = await buildStockSummaryData(circle as string, pkg as string);
+  const { circle, package: pkg, contractorId } = req.query;
+  const summary = await buildStockSummaryData(circle as string, pkg as string, contractorId as string);
   res.status(200).json(new ApiResponse(200, summary, 'Stock summary fetched successfully'));
 });
 
 export const getAdminStockSummary = asyncHandler(async (req: Request, res: Response) => {
-  const { circle, package: pkg } = req.query;
-  const summary = await buildStockSummaryData(circle as string, pkg as string);
+  const { circle, package: pkg, contractorId } = req.query;
+  const summary = await buildStockSummaryData(circle as string, pkg as string, contractorId as string);
   res.status(200).json(new ApiResponse(200, summary, 'Admin stock summary fetched successfully'));
 });
 

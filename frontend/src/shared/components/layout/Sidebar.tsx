@@ -152,6 +152,7 @@ const navItems: NavItem[] = [
     title: 'Project Director Portal',
     icon: <Shield className="w-5 h-5" />,
     children: [
+      { title: 'Dashboard', href: '/pd-portal' },
       { title: 'Demand Notes (PD)', href: '/pd-portal/demand-notes' },
     ]
   }

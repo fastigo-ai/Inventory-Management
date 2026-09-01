@@ -277,3 +277,85 @@ export const getPMPortalDashboardSummary = asyncHandler(async (req: any, res: Re
     }
   }, 'PM Portal Dashboard Data'));
 });
+
+export const getPDPortalDashboardSummary = asyncHandler(async (req: any, res: Response) => {
+  const user = req.user;
+  
+  // Base query for the PD's scope
+  const baseQuery: any = {};
+  if (user.assignedPackage) baseQuery.package = user.assignedPackage;
+  if (user.assignedCircle) baseQuery.circle = user.assignedCircle;
+  
+  const DemandNote = mongoose.model('DemandNote');
+  const JmcRegister = mongoose.model('JmcRegister');
+  const ContractorInvoice = mongoose.model('ContractorInvoice');
+  const WipRegister = mongoose.model('WipRegister');
+  const Mhrov = mongoose.model('Mhrov');
+  
+  // 1. Pending Approvals
+  const pendingDemandNotesCount = await DemandNote.countDocuments({
+    ...baseQuery,
+    status: 'Pending PD Approval'
+  });
+  
+  const pendingJmcsCount = await JmcRegister.countDocuments({
+    ...baseQuery,
+    status: 'Submitted'
+  });
+  
+  const pendingInvoicesCount = await ContractorInvoice.countDocuments({
+    status: 'Submitted'
+  });
+  
+  // 2. Contractor Progress (JMC Approved Amounts)
+  const jmcs = await JmcRegister.find({ ...baseQuery }).populate('contractorId', 'dynamicData');
+  
+  const contractorStats: Record<string, { contractor: string, approvedJmcAmount: number, totalJmcAmount: number }> = {};
+  
+  let totalApprovedJmcAmount = 0;
+  
+  jmcs.forEach(jmc => {
+    const cName = jmc.contractorId?.dynamicData?.displayName || jmc.contractorId?.dynamicData?.companyName || 'Unknown';
+    if (!contractorStats[cName]) {
+      contractorStats[cName] = { contractor: cName, approvedJmcAmount: 0, totalJmcAmount: 0 };
+    }
+    
+    contractorStats[cName].totalJmcAmount += (jmc.claimedAmount || 0);
+    
+    if (jmc.status === 'Approved') {
+      contractorStats[cName].approvedJmcAmount += (jmc.approvedAmount || jmc.claimedAmount || 0);
+      totalApprovedJmcAmount += (jmc.approvedAmount || jmc.claimedAmount || 0);
+    }
+  });
+
+  // 3. Material Consumption
+  let totalWipQty = 0;
+  const wips = await WipRegister.find(baseQuery);
+  wips.forEach(wip => {
+    wip.items?.forEach((item: any) => {
+      totalWipQty += (Number(item.claimedQty) || 0) + (Number(item.approvedQty) || 0);
+    });
+  });
+
+  let totalMhrovQty = 0;
+  const mhrovs = await Mhrov.find(baseQuery);
+  mhrovs.forEach(mhrov => {
+    mhrov.items?.forEach((item: any) => {
+      totalMhrovQty += (Number(item.quantity) || 0);
+    });
+  });
+
+  res.status(200).json(new ApiResponse(200, {
+    pendingApprovals: {
+      demandNotes: pendingDemandNotesCount,
+      jmcs: pendingJmcsCount,
+      invoices: pendingInvoicesCount
+    },
+    contractorProgress: Object.values(contractorStats).sort((a, b) => b.totalJmcAmount - a.totalJmcAmount),
+    materialConsumption: {
+      totalWipQty,
+      totalMhrovQty,
+      totalApprovedJmcAmount
+    }
+  }, 'PD Portal Dashboard Data'));
+});

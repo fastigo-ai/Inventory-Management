@@ -47,15 +47,15 @@ export default function VendorDetail({ params }: { params: { vendorName: string 
             <div className="flex gap-4 border-l border-slate-200 pl-6">
               <div>
                 <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Total Ordered</p>
-                <p className="text-lg font-bold text-slate-800">₹{totalOrderedValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                <p className="text-lg font-bold text-slate-800">₹{totalOrderedValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
               </div>
               <div>
                 <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Total Invoiced</p>
-                <p className="text-lg font-bold text-emerald-600">₹{totalInvoicedValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                <p className="text-lg font-bold text-emerald-600">₹{totalInvoicedValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
               </div>
               <div>
                 <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Pending</p>
-                <p className="text-lg font-bold text-amber-600">₹{Math.max(0, totalOrderedValue - totalInvoicedValue).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                <p className="text-lg font-bold text-amber-600">₹{Math.max(0, totalOrderedValue - totalInvoicedValue).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
               </div>
             </div>
           </div>
@@ -92,7 +92,7 @@ export default function VendorDetail({ params }: { params: { vendorName: string 
                         </td>
                         <td className="px-6 py-4 text-slate-600">{new Date(po.date).toLocaleDateString('en-GB')}</td>
                         <td className="px-6 py-4 text-right font-medium text-slate-800">
-                          ₹{po.grandTotal?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'}
+                          ₹{po.grandTotal?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0'}
                         </td>
                       </tr>
                     ))}
@@ -129,7 +129,7 @@ export default function VendorDetail({ params }: { params: { vendorName: string 
                         </td>
                         <td className="px-6 py-4 text-slate-600">{new Date(inv.receiveDate || inv.date).toLocaleDateString('en-GB')}</td>
                         <td className="px-6 py-4 text-right font-medium text-slate-800">
-                          ₹{inv.totalAmount?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'}
+                          ₹{inv.totalAmount?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0'}
                         </td>
                       </tr>
                     ))}

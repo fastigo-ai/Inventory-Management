@@ -149,9 +149,9 @@ export default function StoreContractorSummaryPage() {
       'Circle': r.circle || circle || 'All Circles',
       'Package': r.package || pkg || 'All Packages',
       'Unit': r.unit || 'Nos',
-      'Total Issued Qty': r.totalIssuedQty || 0,
-      'Total Return Qty': r.totalReturnQty || 0,
-      'Total Balance Qty': r.totalBalanceQty || 0
+      'Total Issued Qty': Math.round(r.totalIssuedQty || 0),
+      'Total Return Qty': Math.round(r.totalReturnQty || 0),
+      'Total Balance Qty': Math.round(r.totalBalanceQty || 0)
     }));
 
     const ws = XLSX.utils.json_to_sheet(wsData);
@@ -179,9 +179,9 @@ export default function StoreContractorSummaryPage() {
         row.loaSerialNo || '-',
         row.tempCode || '-',
         row.itemName || '-',
-        row.totalIssuedQty?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00',
-        row.totalReturnQty?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00',
-        row.totalBalanceQty?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'
+        row.totalIssuedQty?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0',
+        row.totalReturnQty?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0',
+        row.totalBalanceQty?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0'
       ]),
       headStyles: { fillColor: [241, 245, 249], textColor: [51, 65, 85], fontStyle: 'bold' },
       didParseCell: function(data) {
@@ -289,9 +289,9 @@ export default function StoreContractorSummaryPage() {
               {(() => {
                 const selectedRows = data.filter((r, i) => selectedItems.has(r.loaSerialNo || r.tempCode || String(i)));
                 const activeTotals = selectedRows.length > 0 ? selectedRows.reduce((acc, r) => ({
-                  totalIssuedQty: acc.totalIssuedQty + (r.totalIssuedQty || 0),
-                  totalReturnQty: acc.totalReturnQty + (r.totalReturnQty || 0),
-                  totalBalanceQty: acc.totalBalanceQty + (r.totalBalanceQty || 0),
+                  totalIssuedQty: acc.totalIssuedQty + (Math.round(r.totalIssuedQty || 0)),
+                  totalReturnQty: acc.totalReturnQty + (Math.round(r.totalReturnQty || 0)),
+                  totalBalanceQty: acc.totalBalanceQty + (Math.round(r.totalBalanceQty || 0)),
                 }), { totalIssuedQty: 0, totalReturnQty: 0, totalBalanceQty: 0 }) : totals;
                 
                 return (
@@ -300,19 +300,19 @@ export default function StoreContractorSummaryPage() {
                       {selectedRows.length > 0 && <span className="absolute -top-2 -left-2 bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">Selected</span>}
                       <div className="text-[10px] uppercase font-bold text-amber-800">Total Issued</div>
                       <div className="text-sm font-extrabold text-amber-950 font-mono">
-                        {Number(activeTotals.totalIssuedQty || 0).toLocaleString('en-IN')}
+                        {Number(activeTotals.totalIssuedQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                       </div>
                     </div>
                     <div className="bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg text-right">
                       <div className="text-[10px] uppercase font-bold text-blue-800">Total Returned</div>
                       <div className="text-sm font-extrabold text-blue-950 font-mono">
-                        {Number(activeTotals.totalReturnQty || 0).toLocaleString('en-IN')}
+                        {Number(activeTotals.totalReturnQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                       </div>
                     </div>
                     <div className="bg-indigo-600 text-white px-3.5 py-1.5 rounded-lg text-right shadow-xs">
                       <div className="text-[10px] uppercase font-bold text-indigo-200">Balance in Custody</div>
                       <div className="text-sm font-extrabold text-white font-mono">
-                        {Number(activeTotals.totalBalanceQty || 0).toLocaleString('en-IN')}
+                        {Number(activeTotals.totalBalanceQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                       </div>
                     </div>
                   </>
@@ -516,19 +516,19 @@ export default function StoreContractorSummaryPage() {
                         
                         {/* Issued Qty */}
                         <td className="py-2.5 px-4 text-right font-bold text-amber-900 bg-amber-50/30">
-                          {r.totalIssuedQty ? Number(r.totalIssuedQty).toLocaleString('en-IN') : '0'}
+                          {r.totalIssuedQty ? Number(r.totalIssuedQty).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '0'}
                         </td>
 
                         {/* Return Qty */}
                         <td className="py-2.5 px-4 text-right font-bold text-blue-900 bg-blue-50/30">
-                          {r.totalReturnQty ? Number(r.totalReturnQty).toLocaleString('en-IN') : '0'}
+                          {r.totalReturnQty ? Number(r.totalReturnQty).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '0'}
                         </td>
 
                         {/* Balance Qty */}
                         <td className={`py-2.5 px-4 text-right font-extrabold ${
-                          (r.totalBalanceQty || 0) > 0 ? 'text-indigo-900 bg-indigo-50/60' : 'text-slate-400 bg-slate-50/40'
+                          (Math.round(r.totalBalanceQty || 0)) > 0 ? 'text-indigo-900 bg-indigo-50/60' : 'text-slate-400 bg-slate-50/40'
                         }`}>
-                          {r.totalBalanceQty ? Number(r.totalBalanceQty).toLocaleString('en-IN') : '0'}
+                          {r.totalBalanceQty ? Number(r.totalBalanceQty).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '0'}
                         </td>
                       </tr>
                     );
@@ -542,24 +542,24 @@ export default function StoreContractorSummaryPage() {
                   {(() => {
                     const selectedRows = data.filter((r, i) => selectedItems.has(r.loaSerialNo || r.tempCode || String(i)));
                     const activeTotals = selectedRows.length > 0 ? selectedRows.reduce((acc, r) => ({
-                      totalIssuedQty: acc.totalIssuedQty + (r.totalIssuedQty || 0),
-                      totalReturnQty: acc.totalReturnQty + (r.totalReturnQty || 0),
-                      totalBalanceQty: acc.totalBalanceQty + (r.totalBalanceQty || 0),
+                      totalIssuedQty: acc.totalIssuedQty + (Math.round(r.totalIssuedQty || 0)),
+                      totalReturnQty: acc.totalReturnQty + (Math.round(r.totalReturnQty || 0)),
+                      totalBalanceQty: acc.totalBalanceQty + (Math.round(r.totalBalanceQty || 0)),
                     }), { totalIssuedQty: 0, totalReturnQty: 0, totalBalanceQty: 0 }) : totals;
                     
                     return (
                       <tr>
                         <td colSpan={8} className="py-3 px-5 text-right font-sans tracking-wider uppercase">
-                          {selectedRows.length > 0 ? `Selected (${selectedRows.length} items):` : `Total (${totalItems.toLocaleString()} items):`}
+                          {selectedRows.length > 0 ? `Selected (${selectedRows.length} items):` : `Total (${totalItems.toLocaleString('en-IN', { maximumFractionDigits: 0 })} items):`}
                         </td>
                         <td className="py-3 px-4 text-right font-mono text-amber-300">
-                          {Number(activeTotals.totalIssuedQty || 0).toLocaleString('en-IN')}
+                          {Number(activeTotals.totalIssuedQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                         </td>
                         <td className="py-3 px-4 text-right font-mono text-blue-300">
-                          {Number(activeTotals.totalReturnQty || 0).toLocaleString('en-IN')}
+                          {Number(activeTotals.totalReturnQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                         </td>
                         <td className="py-3 px-4 text-right font-mono text-white bg-indigo-600 font-extrabold">
-                          {Number(activeTotals.totalBalanceQty || 0).toLocaleString('en-IN')}
+                          {Number(activeTotals.totalBalanceQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                         </td>
                       </tr>
                     );

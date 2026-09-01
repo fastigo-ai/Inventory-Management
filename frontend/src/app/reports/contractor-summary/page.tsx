@@ -111,7 +111,7 @@ export default function ContractorSummary() {
                   <Tooltip 
                     cursor={{ fill: '#f8fafc' }}
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    formatter={(value: any) => [`₹${value.toLocaleString()}`, '']}
+                    formatter={(value: any) => [`₹${value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`, '']}
                   />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
                   <Bar dataKey="Issued" fill="#f59e0b" radius={[4, 4, 0, 0]} maxBarSize={50} />
@@ -155,16 +155,16 @@ export default function ContractorSummary() {
                         <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full text-xs font-bold">{row.minCount}</span>
                       </td>
                       <td className="px-6 py-4 text-right font-medium text-slate-800 border-r border-slate-100">
-                        ₹{row.totalIssuedValue?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                        ₹{row.totalIssuedValue?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0'}
                       </td>
                       <td className="px-6 py-4 text-center text-slate-600 border-r border-slate-100">
                         <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full text-xs font-bold">{row.billCount}</span>
                       </td>
                       <td className="px-6 py-4 text-right font-medium text-emerald-600 border-r border-slate-100">
-                        ₹{row.totalBilledValue?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                        ₹{row.totalBilledValue?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0'}
                       </td>
                       <td className="px-6 py-4 text-right font-bold text-red-500">
-                        ₹{Math.max(0, row.balanceLiability || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ₹{Math.max(0, row.balanceLiability || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                       </td>
                     </tr>
                   ))

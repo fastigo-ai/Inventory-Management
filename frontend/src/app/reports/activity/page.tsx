@@ -138,7 +138,7 @@ export default function ActivityPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-sm text-slate-500 font-medium">{total.toLocaleString()} total events</span>
+          <span className="text-sm text-slate-500 font-medium">{total.toLocaleString('en-IN', { maximumFractionDigits: 0 })} total events</span>
           <button
             onClick={fetchLogs}
             disabled={loading}
@@ -390,7 +390,7 @@ export default function ActivityPage() {
             {/* Pagination */}
             <div className="border-t border-slate-100 px-6 py-4 flex flex-col sm:flex-row items-center justify-between bg-white gap-3">
               <span className="text-sm text-slate-500 font-medium">
-                Showing {((page - 1) * limit) + 1}–{Math.min(page * limit, total)} of {total.toLocaleString()} events
+                Showing {((page - 1) * limit) + 1}–{Math.min(page * limit, total)} of {total.toLocaleString('en-IN', { maximumFractionDigits: 0 })} events
               </span>
               <div className="flex items-center gap-2">
                 <button

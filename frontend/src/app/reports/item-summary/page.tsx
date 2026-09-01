@@ -185,7 +185,7 @@ export default function ItemSummaryMatrixPage() {
 
     const rows = data.map((r, i) => {
       const itemCirc = String(r.circle || '').toLowerCase();
-      const cv = (circ: string, val: any) => !itemCirc.includes(circ) ? '-' : (val?.toLocaleString(undefined, {minimumFractionDigits: 2}) || '0.00');
+      const cv = (circ: string, val: any) => !itemCirc.includes(circ) ? '-' : (val?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0');
 
       return [
         r.srNo || (i + 1),
@@ -206,13 +206,13 @@ export default function ItemSummaryMatrixPage() {
           if (!itemCirc.includes(c)) return ['-', '-', '-', '-', '-', '-', '-'];
           const b = r.allBalances ? r.allBalances[c] : (r.balances || {});
           return [
-            b.diVsLoa?.toLocaleString(undefined, {minimumFractionDigits: 2}) ?? '0.00', 
-            b.diVsBom?.toLocaleString(undefined, {minimumFractionDigits: 2}) ?? '0.00', 
-            b.mrn?.toLocaleString(undefined, {minimumFractionDigits: 2}) ?? '0.00', 
-            b.mhrov?.toLocaleString(undefined, {minimumFractionDigits: 2}) ?? '0.00', 
-            b.imc?.toLocaleString(undefined, {minimumFractionDigits: 2}) ?? '0.00', 
-            b.supplyBill?.toLocaleString(undefined, {minimumFractionDigits: 2}) ?? '0.00', 
-            b.erectionBill?.toLocaleString(undefined, {minimumFractionDigits: 2}) ?? '0.00'
+            b.diVsLoa?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) ?? '0.00', 
+            b.diVsBom?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) ?? '0.00', 
+            b.mrn?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) ?? '0.00', 
+            b.mhrov?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) ?? '0.00', 
+            b.imc?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) ?? '0.00', 
+            b.supplyBill?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) ?? '0.00', 
+            b.erectionBill?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) ?? '0.00'
           ];
         })
       ];
@@ -327,7 +327,7 @@ export default function ItemSummaryMatrixPage() {
         <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-200/80 shadow-sm">
           <div className="text-[11px] font-semibold text-amber-800 uppercase tracking-wider">Total LOA Qty</div>
           <div className="text-lg font-extrabold text-amber-950 mt-0.5 font-mono">
-            {(totals.solanLoa + totals.nahanLoa + totals.rampurLoa + totals.rohruLoa).toLocaleString('en-IN')}
+            {(totals.solanLoa + totals.nahanLoa + totals.rampurLoa + totals.rohruLoa).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
           </div>
           <div className="text-[10px] text-amber-700 mt-0.5">All 4 Circles LOA Sum</div>
         </div>
@@ -335,7 +335,7 @@ export default function ItemSummaryMatrixPage() {
         <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-200/80 shadow-sm">
           <div className="text-[11px] font-semibold text-blue-800 uppercase tracking-wider">Total Dispatched (DI)</div>
           <div className="text-lg font-extrabold text-blue-950 mt-0.5 font-mono">
-            {(totals.dispatchedSolan + totals.dispatchedNahan + totals.dispatchedRampur + totals.dispatchedRohru).toLocaleString('en-IN')}
+            {(totals.dispatchedSolan + totals.dispatchedNahan + totals.dispatchedRampur + totals.dispatchedRohru).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
           </div>
           <div className="text-[10px] text-blue-700 mt-0.5">Dispatched across all DIs</div>
         </div>
@@ -345,12 +345,12 @@ export default function ItemSummaryMatrixPage() {
         <div className="bg-cyan-50/50 p-3 rounded-xl border border-cyan-200/80 shadow-sm">
           <div className="text-[11px] font-semibold text-cyan-800 uppercase tracking-wider">Total MRHOV</div>
           <div className="text-lg font-extrabold text-cyan-950 mt-0.5 font-mono">
-            {(totals.mhrovSolan + totals.mhrovNahan + totals.mhrovRampur + totals.mhrovRohru).toLocaleString('en-IN')}
+            {(totals.mhrovSolan + totals.mhrovNahan + totals.mhrovRampur + totals.mhrovRohru).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
           </div>
           <div className="text-[10px] text-cyan-700 mt-0.5">Handed over to Contractor</div>
         </div>
           <div className="text-lg font-extrabold text-emerald-950 mt-0.5 font-mono">
-            {(totals.inwardSolan + totals.inwardNahan + totals.inwardRampur + totals.inwardRohru).toLocaleString('en-IN')}
+            {(totals.inwardSolan + totals.inwardNahan + totals.inwardRampur + totals.inwardRohru).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
           </div>
           <div className="text-[10px] text-emerald-700 mt-0.5">Received Store Stock</div>
         </div>
@@ -358,7 +358,7 @@ export default function ItemSummaryMatrixPage() {
         <div className="bg-sky-50/50 p-3 rounded-xl border border-sky-200/80 shadow-sm">
           <div className="text-[11px] font-semibold text-sky-800 uppercase tracking-wider">Total Supply Billed</div>
           <div className="text-lg font-extrabold text-sky-950 mt-0.5 font-mono">
-            {(totals.supSolan + totals.supNahan + totals.supRampur + totals.supRohru).toLocaleString('en-IN')}
+            {(totals.supSolan + totals.supNahan + totals.supRampur + totals.supRohru).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
           </div>
           <div className="text-[10px] text-sky-700 mt-0.5">Purchase Invoices Billed</div>
         </div>
@@ -366,7 +366,7 @@ export default function ItemSummaryMatrixPage() {
         <div className="bg-orange-50/50 p-3 rounded-xl border border-orange-200/80 shadow-sm">
           <div className="text-[11px] font-semibold text-orange-900 uppercase tracking-wider">Bal DI vs LOA ({debouncedFilters.targetCircle})</div>
           <div className={`text-lg font-extrabold mt-0.5 font-mono ${totals.balDiLoa < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
-            {totals.balDiLoa.toLocaleString('en-IN')}
+            {totals.balDiLoa.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
           </div>
           <div className="text-[10px] text-orange-700 mt-0.5">Target Balance Outstanding</div>
         </div>

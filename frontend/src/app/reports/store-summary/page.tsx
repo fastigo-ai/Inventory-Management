@@ -207,12 +207,12 @@ export default function StoreSummaryPage() {
         i + 1,
         row.tempCode || '-',
         row.name || row.itemName || '-',
-        row.receiptQty?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00',
-        row.issuedQty?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00',
-        row.returnedQty?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00',
-        row.transferOutQty?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00',
-        row.transferInQty?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00',
-        row.balAtStore?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'
+        row.receiptQty?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0',
+        row.issuedQty?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0',
+        row.returnedQty?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0',
+        row.transferOutQty?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0',
+        row.transferInQty?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0',
+        row.balAtStore?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0'
       ]),
       headStyles: { fillColor: [226, 239, 217], textColor: [51, 65, 85], fontStyle: 'bold' },
       didParseCell: function(data) {
@@ -324,7 +324,7 @@ export default function StoreSummaryPage() {
 
               <div className="flex items-center gap-2 text-xs font-medium text-slate-500 bg-slate-100/70 px-3 py-1.5 rounded-lg border border-slate-200/60">
                 <Boxes className="w-4 h-4 text-slate-400" />
-                <span>Total: <strong className="text-slate-800">{totalItems.toLocaleString()}</strong></span>
+                <span>Total: <strong className="text-slate-800">{totalItems.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</strong></span>
               </div>
             </div>
           </div>
@@ -338,12 +338,12 @@ export default function StoreSummaryPage() {
           {(() => {
             const selectedRows = data.filter((r, i) => selectedItems.has(r.itemId || r.tempCode || String(i)));
             const activeTotals = selectedRows.length > 0 ? selectedRows.reduce((acc, r) => ({
-              receiptQty: acc.receiptQty + (r.receiptQty || 0),
-              issuedQty: acc.issuedQty + (r.issuedQty || 0),
-              returnedQty: acc.returnedQty + (r.returnedQty || 0),
-              transferOutQty: acc.transferOutQty + (r.transferOutQty || 0),
-              transferInQty: acc.transferInQty + (r.transferInQty || 0),
-              balAtStore: acc.balAtStore + (r.balAtStore || 0),
+              receiptQty: acc.receiptQty + (Math.round(r.receiptQty || 0)),
+              issuedQty: acc.issuedQty + (Math.round(r.issuedQty || 0)),
+              returnedQty: acc.returnedQty + (Math.round(r.returnedQty || 0)),
+              transferOutQty: acc.transferOutQty + (Math.round(r.transferOutQty || 0)),
+              transferInQty: acc.transferInQty + (Math.round(r.transferInQty || 0)),
+              balAtStore: acc.balAtStore + (Math.round(r.balAtStore || 0)),
             }), { receiptQty: 0, issuedQty: 0, returnedQty: 0, transferOutQty: 0, transferInQty: 0, balAtStore: 0 }) : totals;
 
             return (
@@ -355,7 +355,7 @@ export default function StoreSummaryPage() {
                     <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
                   </div>
                   <div className="text-xl font-bold text-slate-900 mt-2">
-                    {Number(activeTotals.receiptQty || 0).toLocaleString()}
+                    {Number(activeTotals.receiptQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                   </div>
                   <div className="text-[10px] text-emerald-600 font-medium mt-1">Inward Receipts</div>
                 </div>
@@ -367,7 +367,7 @@ export default function StoreSummaryPage() {
                     <TrendingDown className="w-3.5 h-3.5 text-amber-500" />
                   </div>
                   <div className="text-xl font-bold text-slate-900 mt-2">
-                    {Number(activeTotals.issuedQty || 0).toLocaleString()}
+                    {Number(activeTotals.issuedQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                   </div>
                   <div className="text-[10px] text-amber-600 font-medium mt-1">MIN Assignments</div>
                 </div>
@@ -379,7 +379,7 @@ export default function StoreSummaryPage() {
                     <RotateCcw className="w-3.5 h-3.5 text-blue-500" />
                   </div>
                   <div className="text-xl font-bold text-slate-900 mt-2">
-                    {Number(activeTotals.returnedQty || 0).toLocaleString()}
+                    {Number(activeTotals.returnedQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                   </div>
                   <div className="text-[10px] text-blue-600 font-medium mt-1">Store Returns</div>
                 </div>
@@ -391,7 +391,7 @@ export default function StoreSummaryPage() {
                     <ArrowRightLeft className="w-3.5 h-3.5 text-orange-500" />
                   </div>
                   <div className="text-xl font-bold text-slate-900 mt-2">
-                    {Number(activeTotals.transferOutQty || 0).toLocaleString()}
+                    {Number(activeTotals.transferOutQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                   </div>
                   <div className="text-[10px] text-orange-600 font-medium mt-1">To Other Stores</div>
                 </div>
@@ -403,7 +403,7 @@ export default function StoreSummaryPage() {
                     <ArrowRightLeft className="w-3.5 h-3.5 text-indigo-500" />
                   </div>
                   <div className="text-xl font-bold text-slate-900 mt-2">
-                    {Number(activeTotals.transferInQty || 0).toLocaleString()}
+                    {Number(activeTotals.transferInQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                   </div>
                   <div className="text-[10px] text-indigo-600 font-medium mt-1">From Other Stores</div>
                 </div>
@@ -415,7 +415,7 @@ export default function StoreSummaryPage() {
                     <Store className="w-3.5 h-3.5 text-blue-200" />
                   </div>
                   <div className="text-xl font-bold text-white mt-2">
-                    {Number(activeTotals.balAtStore || 0).toLocaleString()}
+                    {Number(activeTotals.balAtStore || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                   </div>
                   <div className="text-[10px] text-blue-200 font-medium mt-1">Current Physical Stock</div>
                 </div>
@@ -638,26 +638,26 @@ export default function StoreSummaryPage() {
                           {item.unit || 'Nos'}
                         </td>
                         <td className="py-3 px-4 text-right font-mono font-semibold text-slate-800 bg-emerald-50/20 border-r border-slate-100">
-                          {item.receiptQty ? Number(item.receiptQty).toLocaleString() : '-'}
+                          {item.receiptQty ? Number(item.receiptQty).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '-'}
                         </td>
                         <td className="py-3 px-4 text-right font-mono font-semibold text-slate-800 bg-amber-50/20 border-r border-slate-100">
-                          {item.issuedQty ? Number(item.issuedQty).toLocaleString() : '-'}
+                          {item.issuedQty ? Number(item.issuedQty).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '-'}
                         </td>
                         <td className="py-3 px-4 text-right font-mono font-semibold text-slate-800 bg-blue-50/20 border-r border-slate-100">
-                          {item.returnedQty ? Number(item.returnedQty).toLocaleString() : '-'}
+                          {item.returnedQty ? Number(item.returnedQty).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '-'}
                         </td>
                         <td className="py-3 px-4 text-right font-mono font-semibold text-slate-800 bg-orange-50/20 border-r border-slate-100">
-                          {item.transferOutQty ? Number(item.transferOutQty).toLocaleString() : '-'}
+                          {item.transferOutQty ? Number(item.transferOutQty).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '-'}
                         </td>
                         <td className="py-3 px-4 text-right font-mono font-semibold text-slate-800 bg-indigo-50/20 border-r border-slate-100">
-                          {item.transferInQty ? Number(item.transferInQty).toLocaleString() : '-'}
+                          {item.transferInQty ? Number(item.transferInQty).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '-'}
                         </td>
                         <td className={`py-3 px-4 text-right font-mono font-bold ${
                           isPositive ? 'text-emerald-700 bg-emerald-50/60 font-extrabold' : 
                           isNegative ? 'text-rose-700 bg-rose-50/60 font-extrabold' : 
                           'text-slate-400 bg-slate-50/40'
                         }`}>
-                          {Number(item.balAtStore || 0).toLocaleString()}
+                          {Number(item.balAtStore || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                         </td>
                       </tr>
                     );
@@ -670,36 +670,36 @@ export default function StoreSummaryPage() {
                   {(() => {
                     const selectedRows = data.filter((r, i) => selectedItems.has(r.itemId || r.tempCode || String(i)));
                     const activeTotals = selectedRows.length > 0 ? selectedRows.reduce((acc, r) => ({
-                      receiptQty: acc.receiptQty + (r.receiptQty || 0),
-                      issuedQty: acc.issuedQty + (r.issuedQty || 0),
-                      returnedQty: acc.returnedQty + (r.returnedQty || 0),
-                      transferOutQty: acc.transferOutQty + (r.transferOutQty || 0),
-                      transferInQty: acc.transferInQty + (r.transferInQty || 0),
-                      balAtStore: acc.balAtStore + (r.balAtStore || 0),
+                      receiptQty: acc.receiptQty + (Math.round(r.receiptQty || 0)),
+                      issuedQty: acc.issuedQty + (Math.round(r.issuedQty || 0)),
+                      returnedQty: acc.returnedQty + (Math.round(r.returnedQty || 0)),
+                      transferOutQty: acc.transferOutQty + (Math.round(r.transferOutQty || 0)),
+                      transferInQty: acc.transferInQty + (Math.round(r.transferInQty || 0)),
+                      balAtStore: acc.balAtStore + (Math.round(r.balAtStore || 0)),
                     }), { receiptQty: 0, issuedQty: 0, returnedQty: 0, transferOutQty: 0, transferInQty: 0, balAtStore: 0 }) : totals;
 
                     return (
                       <tr>
                         <td colSpan={7} className="py-3.5 px-5 text-right tracking-wider uppercase">
-                          {selectedRows.length > 0 ? `Selected (${selectedRows.length} items):` : `Grand Totals (${totalItems.toLocaleString()} items):`}
+                          {selectedRows.length > 0 ? `Selected (${selectedRows.length} items):` : `Grand Totals (${totalItems.toLocaleString('en-IN', { maximumFractionDigits: 0 })} items):`}
                         </td>
                         <td className="py-3.5 px-4 text-right font-mono text-emerald-300">
-                          {Number(activeTotals.receiptQty || 0).toLocaleString()}
+                          {Number(activeTotals.receiptQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                         </td>
                         <td className="py-3.5 px-4 text-right font-mono text-amber-300">
-                          {Number(activeTotals.issuedQty || 0).toLocaleString()}
+                          {Number(activeTotals.issuedQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                         </td>
                         <td className="py-3.5 px-4 text-right font-mono text-blue-300">
-                          {Number(activeTotals.returnedQty || 0).toLocaleString()}
+                          {Number(activeTotals.returnedQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                         </td>
                         <td className="py-3.5 px-4 text-right font-mono text-orange-300">
-                          {Number(activeTotals.transferOutQty || 0).toLocaleString()}
+                          {Number(activeTotals.transferOutQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                         </td>
                         <td className="py-3.5 px-4 text-right font-mono text-indigo-300">
-                          {Number(activeTotals.transferInQty || 0).toLocaleString()}
+                          {Number(activeTotals.transferInQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                         </td>
                         <td className="py-3.5 px-4 text-right font-mono text-white bg-blue-600 font-extrabold">
-                          {Number(activeTotals.balAtStore || 0).toLocaleString()}
+                          {Number(activeTotals.balAtStore || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                         </td>
                       </tr>
                     );
@@ -712,7 +712,7 @@ export default function StoreSummaryPage() {
           {/* Pagination Controls */}
           <div className="bg-white px-5 py-3.5 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2 text-slate-500">
-              <span>Showing <strong>{data.length > 0 ? (page - 1) * limit + 1 : 0}</strong> to <strong>{Math.min(page * limit, totalItems)}</strong> of <strong>{totalItems.toLocaleString()}</strong> items</span>
+              <span>Showing <strong>{data.length > 0 ? (page - 1) * limit + 1 : 0}</strong> to <strong>{Math.min(page * limit, totalItems)}</strong> of <strong>{totalItems.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</strong> items</span>
               <span className="text-slate-300">|</span>
               <div className="flex items-center gap-1.5">
                 <span>Per page:</span>

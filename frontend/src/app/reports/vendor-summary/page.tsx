@@ -144,8 +144,8 @@ export default function VendorSummary() {
         row.loaSerialNo || '-',
         row.itemName || '-',
         row.description || '-',
-        row.totalInvQty?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00',
-        row.totalLoaQty?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'
+        row.totalInvQty?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0',
+        row.totalLoaQty?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0'
       ]),
       headStyles: { fillColor: [226, 239, 217], textColor: [51, 65, 85], fontStyle: 'bold' },
       didParseCell: function(data) {
@@ -364,10 +364,10 @@ export default function VendorSummary() {
                       <td className="px-6 py-4 font-bold text-slate-800 border-r border-[#c5e0b4]">{row.itemName || '-'}</td>
                       <td className="px-6 py-4 text-slate-500 border-r border-[#c5e0b4] text-xs">{row.description || '-'}</td>
                       <td className="px-6 py-4 text-right font-bold text-indigo-600 border-r border-[#c5e0b4]">
-                        {(row.totalInvQty || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        {(row.totalInvQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                       </td>
                       <td className="px-6 py-4 text-right font-bold text-amber-600">
-                        {(row.totalLoaQty || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        {(row.totalLoaQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                       </td>
                     </tr>
                   ))

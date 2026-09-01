@@ -13,6 +13,17 @@ export const api = axios.create({
   },
 });
 
+import axiosRetry from 'axios-retry';
+
+// Automatically retry failed idempotent requests (GET, HEAD, OPTIONS, PUT, DELETE) due to network errors or 5xx errors
+axiosRetry(api, { 
+  retries: 2, 
+  retryDelay: axiosRetry.exponentialDelay,
+  retryCondition: (error) => {
+    return axiosRetry.isNetworkOrIdempotentRequestError(error) || error.response?.status === 503;
+  }
+});
+
 api.interceptors.request.use((config) => {
   // Cookies are automatically sent because of `withCredentials: true`
   // We ALSO send the token via Bearer header as a fallback for strict cross-origin cookie blocking in Safari/Chrome

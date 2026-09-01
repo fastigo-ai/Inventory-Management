@@ -9,6 +9,14 @@ import bcrypt from 'bcrypt';
 
 const PORT = process.env.PORT || 5000;
 
+let server: any;
+
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT EXCEPTION! Shutting down...');
+  console.error(err.name, err.message, err.stack);
+  process.exit(1);
+});
+
 connectDB()
   .then(async () => {
     // Auto-seed admin user for production deployments
@@ -38,13 +46,34 @@ connectDB()
       console.error('Failed to auto-seed admin', e);
     }
 
-    app.listen(PORT, () => {
+    server = app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
     });
   })
   .catch((err) => {
     console.error('MongoDB connection failed!', err);
   });
+
+process.on('unhandledRejection', (err: any) => {
+  console.error('UNHANDLED REJECTION! 💥 Shutting down gracefully...');
+  console.error(err.name, err.message, err.stack);
+  if (server) {
+    server.close(() => {
+      process.exit(1);
+    });
+  } else {
+    process.exit(1);
+  }
+});
+
+process.on('SIGTERM', () => {
+  console.log('👋 SIGTERM RECEIVED. Shutting down gracefully');
+  if (server) {
+    server.close(() => {
+      console.log('💥 Process terminated!');
+    });
+  }
+});
 
 
 // AUTO-RELOAD: 2026-08-06T11:46:00

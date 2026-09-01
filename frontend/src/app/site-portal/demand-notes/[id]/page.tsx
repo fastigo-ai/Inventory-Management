@@ -20,6 +20,10 @@ export default function DemandNoteDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Pagination states for items
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
   // Determine portal from path to correctly route print button
   const portalPrefix = pathname.split('/')[1] || 'site-portal';
 
@@ -221,59 +225,105 @@ export default function DemandNoteDetailPage() {
       </div>
 
       {/* Items Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-          <h2 className="text-lg font-semibold text-slate-800">Requested Items</h2>
-          <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold">
-            {demandNote.items?.length || 0} Items
-          </span>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left whitespace-nowrap">
-            <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase">
-              <tr>
-                <th className="px-6 py-4">Sr No</th>
-                <th className="px-6 py-4">Material Code</th>
-                <th className="px-6 py-4">Item Name</th>
-                <th className="px-6 py-4">Activity</th>
-                <th className="px-6 py-4">LOA Sr No</th>
-                <th className="px-6 py-4">Unit</th>
-                <th className="px-6 py-4 text-center">In Stock</th>
-                <th className="px-6 py-4 font-bold text-indigo-700 bg-indigo-50/50">Demand Qty</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {demandNote.items && demandNote.items.length > 0 ? (
-                demandNote.items.map((item: any, idx: number) => {
-                  const stockMatch = stockSummary.find(s => 
-                    s.loaSrNo === item.loaSrNo && 
-                    s.activity === item.activity && 
-                    (s.description === item.itemName || s.itemName === item.itemName)
-                  );
-                  const inStock = stockMatch ? stockMatch.totalBalanceQty : 0;
-                  return (
-                  <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 text-slate-500">{idx + 1}</td>
-                    <td className="px-6 py-4 font-medium text-slate-700">{item.tempCode || '-'}</td>
-                    <td className="px-6 py-4 text-slate-700 max-w-sm truncate" title={item.itemName}>{item.itemName}</td>
-                    <td className="px-6 py-4 text-slate-500">{item.activity || '-'}</td>
-                    <td className="px-6 py-4 text-slate-500 font-mono">{item.loaSrNo || '-'}</td>
-                    <td className="px-6 py-4 text-slate-500">{item.unit || '-'}</td>
-                    <td className="px-6 py-4 text-center font-medium text-emerald-600">{inStock}</td>
-                    <td className="px-6 py-4 font-bold text-indigo-600 bg-indigo-50/30">{item.demandQty}</td>
+      {(() => {
+        const totalItems = demandNote.items?.length || 0;
+        const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+        const currentItems = demandNote.items?.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage) || [];
+
+        return (
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+              <h2 className="text-lg font-semibold text-slate-800">Requested Items</h2>
+              <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold">
+                {totalItems} Items
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left whitespace-nowrap">
+                <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase">
+                  <tr>
+                    <th className="px-6 py-4">Sr No</th>
+                    <th className="px-6 py-4">Material Code</th>
+                    <th className="px-6 py-4">Item Name</th>
+                    <th className="px-6 py-4">Activity</th>
+                    <th className="px-6 py-4">LOA Sr No</th>
+                    <th className="px-6 py-4">Unit</th>
+                    <th className="px-6 py-4 text-center">In Stock</th>
+                    <th className="px-6 py-4 font-bold text-indigo-700 bg-indigo-50/50">Demand Qty</th>
                   </tr>
-                )})
-              ) : (
-                <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center text-slate-500">
-                    No items in this Demand Note.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {currentItems.length > 0 ? (
+                    currentItems.map((item: any, idx: number) => {
+                      const actualIdx = (currentPage - 1) * itemsPerPage + idx;
+                      const stockMatch = stockSummary.find(s => 
+                        s.loaSrNo === item.loaSrNo && 
+                        s.activity === item.activity && 
+                        (s.description === item.itemName || s.itemName === item.itemName)
+                      );
+                      const inStock = stockMatch ? stockMatch.totalBalanceQty : 0;
+                      return (
+                      <tr key={actualIdx} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-4 text-slate-500">{actualIdx + 1}</td>
+                        <td className="px-6 py-4 font-medium text-slate-700">{item.tempCode || '-'}</td>
+                        <td className="px-6 py-4 text-slate-700 max-w-sm truncate" title={item.itemName}>{item.itemName}</td>
+                        <td className="px-6 py-4 text-slate-500">{item.activity || '-'}</td>
+                        <td className="px-6 py-4 text-slate-500 font-mono">{item.loaSrNo || '-'}</td>
+                        <td className="px-6 py-4 text-slate-500">{item.unit || '-'}</td>
+                        <td className="px-6 py-4 text-center font-medium text-emerald-600">{inStock}</td>
+                        <td className="px-6 py-4 font-bold text-indigo-600 bg-indigo-50/30">{item.demandQty}</td>
+                      </tr>
+                    )})
+                  ) : (
+                    <tr>
+                      <td colSpan={8} className="px-6 py-8 text-center text-slate-500">
+                        No items in this Demand Note.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            
+            {/* Pagination */}
+            {totalItems > 0 && (
+              <div className="px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between bg-white gap-4">
+                <span className="text-sm text-slate-500 font-medium">
+                  Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} items
+                </span>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors bg-white shadow-sm"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                  </button>
+                  <button className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-sm font-bold shadow-sm shadow-indigo-200">
+                    {currentPage}
+                  </button>
+                  <button 
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors bg-white shadow-sm"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                  </button>
+                  <select 
+                    value={itemsPerPage}
+                    onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                    className="ml-2 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-600 font-medium focus:outline-none focus:border-indigo-400 cursor-pointer shadow-sm"
+                  >
+                    <option value={10}>10 / page</option>
+                    <option value={20}>20 / page</option>
+                    <option value={50}>50 / page</option>
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Document Attachment */}
       {demandNote.locationDrawingUrl && (

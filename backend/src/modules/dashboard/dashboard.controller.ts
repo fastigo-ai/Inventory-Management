@@ -6,6 +6,11 @@ import { buildStockSummaryData } from '../store/store.controller';
 import { StoreInwardEntry } from '../store/storeInwardEntry.schema';
 import { PurchaseOrder } from '../purchases/purchaseOrder.schema';
 import { ContractorInvoice } from '../contractor-billing/contractorInvoice.schema';
+import DemandNote from '../demand-notes/demandNote.schema';
+import { JmcRegister } from '../jmc/jmc.schema';
+import { WipRegister } from '../wip/wip.schema';
+import { Mhrov } from '../store/mhrov.schema';
+import { Contractor } from '../contractors/contractor.schema';
 export const getDashboardSummary = asyncHandler(async (req: Request, res: Response) => {
   // 1. Fetch real-time stock summary (this is heavy but accurate)
   const stockSummary = await buildStockSummaryData();

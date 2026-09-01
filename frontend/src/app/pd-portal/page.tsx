@@ -160,7 +160,7 @@ export default function PDPortalDashboard() {
                     <Archive className="w-5 h-5 text-indigo-500" />
                     <span className="text-sm font-medium text-slate-600">Total MHROV Qty</span>
                   </div>
-                  <p className="text-2xl font-bold text-indigo-700">{materialConsumption.totalMhrovQty.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-indigo-700">{materialConsumption.totalMhrovQty.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
                 </div>
                 
                 <div className="p-5 bg-emerald-50/50 border border-emerald-100 rounded-xl">
@@ -168,7 +168,7 @@ export default function PDPortalDashboard() {
                     <TrendingUp className="w-5 h-5 text-emerald-500" />
                     <span className="text-sm font-medium text-slate-600">Total WIP Qty Consumed</span>
                   </div>
-                  <p className="text-2xl font-bold text-emerald-700">{materialConsumption.totalWipQty.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-emerald-700">{materialConsumption.totalWipQty.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
                 </div>
                 
                 <div className="col-span-2 p-5 bg-blue-50/50 border border-blue-100 rounded-xl mt-2">
@@ -176,7 +176,7 @@ export default function PDPortalDashboard() {
                     <CheckCircle className="w-5 h-5 text-blue-500" />
                     <span className="text-sm font-medium text-slate-600">Total Approved JMC Value</span>
                   </div>
-                  <p className="text-3xl font-bold text-blue-700">₹{materialConsumption.totalApprovedJmcAmount.toLocaleString('en-IN')}</p>
+                  <p className="text-3xl font-bold text-blue-700">₹{materialConsumption.totalApprovedJmcAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
                   <p className="text-xs text-slate-500 mt-2">Overall financial value of completed and approved work on site.</p>
                 </div>
               </div>

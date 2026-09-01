@@ -167,8 +167,8 @@ export default function NewOutwardTransferPage() {
         alert(`Please select an item for row ${i + 1}`);
         return;
       }
-      if (item.quantity <= 0) {
-        alert(`Transfer Qty must be greater than 0 for ${item.itemName}`);
+      if (item.quantity < 0) {
+        alert(`Transfer Qty cannot be negative for ${item.itemName}`);
         return;
       }
       if (item.quantity > item.availableQty) {

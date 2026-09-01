@@ -196,8 +196,8 @@ export default function StoreContractorReturnNewPage() {
         alert(`Please select an item for row ${i + 1}`);
         return;
       }
-      if (item.quantity <= 0) {
-        alert(`Return Qty must be greater than 0 for ${item.itemName}`);
+      if (item.quantity < 0) {
+        alert(`Return Qty cannot be negative for ${item.itemName}`);
         return;
       }
     }

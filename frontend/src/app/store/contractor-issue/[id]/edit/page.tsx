@@ -231,8 +231,8 @@ export default function StoreContractorIssueEditPage() {
         alert(`Please select an item for row ${i + 1}`);
         return;
       }
-      if (item.quantity <= 0) {
-        alert(`Issued Qty must be greater than 0 for ${item.itemName}`);
+      if (item.quantity < 0) {
+        alert(`Issued Qty cannot be negative for ${item.itemName}`);
         return;
       }
       if (item.quantity > item.availableQty) {

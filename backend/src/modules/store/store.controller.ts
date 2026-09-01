@@ -510,13 +510,20 @@ export const getAdminInwardEntries = asyncHandler(async (req: Request, res: Resp
 });
 
 export async function buildStockSummaryData(circleFilter?: string, packageFilter?: string, contractorId?: string) {
+  let contractorFilter: any = null;
+  if (contractorId) {
+    const cIdStr = String(contractorId).trim();
+    const cIdObj = mongoose.Types.ObjectId.isValid(cIdStr) ? new mongoose.Types.ObjectId(cIdStr) : cIdStr;
+    contractorFilter = { $in: [cIdStr, cIdObj] };
+  }
+
   // Build filters for Inward, Assignments, Returns
   const inwardFilter: any = { status: { $in: ['VERIFIED', 'APPROVED'] } };
   if (circleFilter) inwardFilter.circle = { $regex: new RegExp(`^${circleFilter}$`, 'i') };
   if (packageFilter) inwardFilter.package = packageFilter;
 
   const assignmentFilter: any = { status: 'Sent' };
-  if (contractorId) assignmentFilter.contractorId = contractorId;
+  if (contractorFilter) assignmentFilter.contractorId = contractorFilter;
   if (circleFilter) {
     assignmentFilter.$or = [
       { circle: { $regex: new RegExp(`^${circleFilter}$`, 'i') } },
@@ -525,7 +532,7 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
   }
 
   const returnsFilter: any = { status: 'Submitted' };
-  if (contractorId) returnsFilter.contractorId = contractorId;
+  if (contractorFilter) returnsFilter.contractorId = contractorFilter;
   if (circleFilter) {
     returnsFilter.$or = [
       { circle: { $regex: new RegExp(`^${circleFilter}$`, 'i') } },
@@ -534,7 +541,7 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
   }
 
   const wipJmcFilter: any = { status: { $ne: 'Rejected' } };
-  if (contractorId) wipJmcFilter.contractorId = contractorId;
+  if (contractorFilter) wipJmcFilter.contractorId = contractorFilter;
   if (circleFilter) {
     wipJmcFilter.$or = [
       { circle: { $regex: new RegExp(`^${circleFilter}$`, 'i') } },
@@ -779,14 +786,44 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
 }
 
 export const getStockSummary = asyncHandler(async (req: Request, res: Response) => {
-  const { circle, package: pkg, contractorId } = req.query;
-  const summary = await buildStockSummaryData(circle as string, pkg as string, contractorId as string);
+  const { circle, package: pkg, contractorId, contractorName } = req.query;
+  
+  let resolvedContractorId = contractorId as string;
+  if (!resolvedContractorId && contractorName) {
+    const mongoose = require('mongoose');
+    const Contractor = mongoose.models.Contractor || mongoose.model('Contractor');
+    const c = await Contractor.findOne({
+      $or: [
+        { 'dynamicData.name': contractorName },
+        { 'dynamicData.contractorName': contractorName },
+        { 'dynamicData.firmName': contractorName }
+      ]
+    }).lean();
+    if (c) resolvedContractorId = c._id.toString();
+  }
+
+  const summary = await buildStockSummaryData(circle as string, pkg as string, resolvedContractorId);
   res.status(200).json(new ApiResponse(200, summary, 'Stock summary fetched successfully'));
 });
 
 export const getAdminStockSummary = asyncHandler(async (req: Request, res: Response) => {
-  const { circle, package: pkg, contractorId } = req.query;
-  const summary = await buildStockSummaryData(circle as string, pkg as string, contractorId as string);
+  const { circle, package: pkg, contractorId, contractorName } = req.query;
+
+  let resolvedContractorId = contractorId as string;
+  if (!resolvedContractorId && contractorName) {
+    const mongoose = require('mongoose');
+    const Contractor = mongoose.models.Contractor || mongoose.model('Contractor');
+    const c = await Contractor.findOne({
+      $or: [
+        { 'dynamicData.name': contractorName },
+        { 'dynamicData.contractorName': contractorName },
+        { 'dynamicData.firmName': contractorName }
+      ]
+    }).lean();
+    if (c) resolvedContractorId = c._id.toString();
+  }
+
+  const summary = await buildStockSummaryData(circle as string, pkg as string, resolvedContractorId);
   res.status(200).json(new ApiResponse(200, summary, 'Admin stock summary fetched successfully'));
 });
 

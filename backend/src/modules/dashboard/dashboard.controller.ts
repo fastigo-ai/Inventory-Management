@@ -201,8 +201,13 @@ export const getPMPortalDashboardSummary = asyncHandler(async (req: any, res: Re
   
   // Base query for the PM's scope
   const baseQuery: any = {};
-  if (user.assignedPackage) baseQuery.package = user.assignedPackage;
-  if (user.assignedCircle) baseQuery.circle = user.assignedCircle;
+  if (user.assignedPackage) {
+    // Some records might have extra spaces or different casing
+    baseQuery.package = { $regex: new RegExp(`^${user.assignedPackage.trim()}$`, 'i') };
+  }
+  if (user.assignedCircle) {
+    baseQuery.circle = { $regex: new RegExp(`^${user.assignedCircle.trim()}$`, 'i') };
+  }
   
   const DemandNote = mongoose.model('DemandNote');
   const JmcRegister = mongoose.model('JmcRegister');

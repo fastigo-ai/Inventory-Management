@@ -31,10 +31,11 @@ export default function DemandNoteDetailPage() {
         const contractorId = typeof res.data.demandNote.contractor === 'object' 
           ? res.data.demandNote.contractor?._id 
           : res.data.demandNote.contractor;
+        const contractorName = res.data.demandNote.contractorName;
           
         if (circle) {
           try {
-            const stockRes = await getStockSummary({ circle, contractorId });
+            const stockRes = await getStockSummary({ circle, contractorId, contractorName });
             if (stockRes.success && stockRes.data) {
               setStockSummary(stockRes.data);
             }

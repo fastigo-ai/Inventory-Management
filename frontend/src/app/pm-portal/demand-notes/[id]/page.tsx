@@ -358,11 +358,11 @@ export default function DemandNoteDetailPage() {
                     <td className="px-6 py-4 text-slate-500">{item.activity || '-'}</td>
                     <td className="px-6 py-4 text-slate-500 font-mono">{item.loaSrNo || '-'}</td>
                     <td className="px-6 py-4 text-slate-500">{item.unit || '-'}</td>
-                    <td className="px-6 py-4 text-center font-medium text-emerald-600">{inStock}</td>
+                    <td className="px-6 py-4 text-center font-medium text-emerald-600">{Math.round(Number(inStock))}</td>
                     <td className="px-6 py-4 text-center font-medium text-blue-600">{tillIssued}</td>
                     <td className="px-6 py-4 text-center font-medium text-orange-600">{consumption}</td>
                     <td className="px-6 py-4 text-center font-medium text-purple-600">{jmcDone}</td>
-                    <td className="px-6 py-4 font-bold text-indigo-600 bg-indigo-50/30">{item.demandQty}</td>
+                    <td className="px-6 py-4 font-bold text-indigo-600 bg-indigo-50/30">{Math.round(Number(item.demandQty))}</td>
                   </tr>
                 )})
               ) : (

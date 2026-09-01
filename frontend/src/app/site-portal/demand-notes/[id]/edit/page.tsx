@@ -785,7 +785,7 @@ function DemandNoteEditForm() {
                         <Input
                           type="number"
                           className="w-20 h-9"
-                          step="any" value={item.demandQty !== undefined ? item.demandQty : ''}
+                          step="1" value={item.demandQty !== undefined ? item.demandQty : ''}
                           onChange={(e) => handleItemChange(idx, 'demandQty', e.target.value)}
                           placeholder="0"
                         />

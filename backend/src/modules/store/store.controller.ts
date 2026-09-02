@@ -2381,7 +2381,8 @@ export const getMhrovs = asyncHandler(async (req: Request, res: Response) => {
 
   const mhrovs = await Mhrov.find(filter)
     .populate("inwardEntries", "invoiceNumber itemName totalQty")
-    .populate("items.diId", "diNumber")
+    .populate("items.diId", "diNumber date lineItems")
+    .populate("items.itemId")
     .sort({ createdAt: -1 });
 
   res.status(200).json(new ApiResponse(200, mhrovs, 'MHROVs fetched successfully'));

@@ -83,6 +83,7 @@ export const getJmcs = asyncHandler(async (req: Request, res: Response) => {
   const jmcs = await JmcRegister.find(filter)
     .populate('contractorId', 'name vendorName dynamicData')
     .populate('workOrderId', 'workOrderNumber')
+    .populate('items.itemId')
     .sort({ createdAt: 1 });
 
   res.status(200).json(

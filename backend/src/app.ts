@@ -29,6 +29,7 @@ import jmcRoutes from './modules/jmc/jmc.routes';
 import wipRoutes from './modules/wip/wip.routes';
 import wipRequiredRoutes from './modules/wip-required/wipRequired.routes';
 import billingRoutes from './modules/contractor-billing/billing.routes';
+import clientBillRoutes from './modules/client-billing/clientBill.routes';
 import { errorHandler } from './core/middlewares/error.middleware';
 
 import { contextMiddleware } from './core/middlewares/context.middleware';
@@ -114,6 +115,7 @@ apiRouter.use('/jmc', jmcRoutes);
 apiRouter.use('/wip', wipRoutes);
 apiRouter.use('/wip-required', wipRequiredRoutes);
 apiRouter.use('/contractor-billing', billingRoutes);
+apiRouter.use('/client-billing', clientBillRoutes);
 
 // Mount API routes on both / and /api to handle DigitalOcean path stripping
 app.use('/', apiRouter);

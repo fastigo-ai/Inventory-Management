@@ -18,7 +18,8 @@ import {
   Circle,
   Plus,
   Shield,
-  Store
+  Store,
+  Receipt
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -136,8 +137,7 @@ const navItems: NavItem[] = [
       { title: 'JMC Register', href: '/site-portal/jmc-register' },
       { title: 'WIP Consumed', href: '/site-portal/wip-consumed' },
       { title: 'WIP To Be Required', href: '/site-portal/wip-required' },
-      { title: 'Site Contractor Summary', href: '/site-portal/contractor-summary' },
-      { title: 'Contractor Billing', href: '/site-portal/contractor-billing' }
+      { title: 'Site Contractor Summary', href: '/site-portal/contractor-summary' }
     ]
   },
   {
@@ -154,6 +154,14 @@ const navItems: NavItem[] = [
     children: [
       { title: 'Dashboard', href: '/pd-portal' },
       { title: 'Demand Notes (PD)', href: '/pd-portal/demand-notes' },
+    ]
+  },
+  {
+    title: 'Billing',
+    icon: <Receipt className="w-5 h-5" />,
+    children: [
+      { title: 'Client Billing', href: '/billing/client-billing' },
+      { title: 'Contractor Billing', href: '/site-portal/contractor-billing' }
     ]
   }
 ];
@@ -211,6 +219,11 @@ export function Sidebar() {
 
     // Role-based filtering based on module names
     if (permissions.includes(item.title)) {
+      return true;
+    }
+    
+    // Fallback for newly created Billing module (if role hasn't been updated yet)
+    if (item.title === 'Billing' && permissions.includes('Site Portal')) {
       return true;
     }
 

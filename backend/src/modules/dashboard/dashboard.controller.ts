@@ -199,19 +199,20 @@ export const getSitePortalDashboardSummary = asyncHandler(async (req: any, res: 
 export const getPMPortalDashboardSummary = asyncHandler(async (req: any, res: Response) => {
   const user = req.user;
   
+  const escapeRegExp = (string: string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
   // Base query for the PM's scope
   const baseQuery: any = {};
-  if (user.assignedPackage) {
-    // Some records might have extra spaces or different casing
-    baseQuery.package = { $regex: new RegExp(`^${user.assignedPackage.trim()}$`, 'i') };
+  if (user.assignedPackage && user.assignedPackage !== 'All') {
+    baseQuery.package = { $regex: new RegExp(`^${escapeRegExp(user.assignedPackage.trim())}$`, 'i') };
   }
-  if (user.assignedCircle) {
-    baseQuery.circle = { $regex: new RegExp(`^${user.assignedCircle.trim()}$`, 'i') };
+  if (user.assignedCircle && user.assignedCircle !== 'All') {
+    baseQuery.circle = { $regex: new RegExp(`^${escapeRegExp(user.assignedCircle.trim())}$`, 'i') };
   }
   
   const DemandNote = mongoose.model('DemandNote');
   const JmcRegister = mongoose.model('JmcRegister');
-  const ContractorInvoice = mongoose.model('ContractorInvoice');
+  const ClientBill = mongoose.model('ClientBill');
   const WipRegister = mongoose.model('WipRegister');
   const Mhrov = mongoose.model('Mhrov');
   
@@ -226,13 +227,10 @@ export const getPMPortalDashboardSummary = asyncHandler(async (req: any, res: Re
     status: 'Submitted'
   });
   
-  const pendingInvoicesCount = await ContractorInvoice.countDocuments({
-    // ContractorInvoice might not have package/circle directly on it if it relies on WorkOrder.
-    // Wait, let's just query all for now, we can filter by PM scope if we have contractor assignments. 
-    // Usually, invoices might just be global or we need to lookup. Let's do a basic query for now.
-    status: 'Submitted'
+  const pendingInvoicesCount = await ClientBill.countDocuments({
+    ...baseQuery,
+    status: 'Pending PM Approval'
   });
-  // We'll refine pendingInvoicesCount if ContractorInvoice has package/circle. For now let's query all 'Submitted' or we can leave it as a general pending.
   
   // 2. Contractor Progress (JMC Approved Amounts)
   const jmcs = await JmcRegister.find({ ...baseQuery }).populate('contractorId', 'dynamicData');
@@ -291,14 +289,20 @@ export const getPMPortalDashboardSummary = asyncHandler(async (req: any, res: Re
 export const getPDPortalDashboardSummary = asyncHandler(async (req: any, res: Response) => {
   const user = req.user;
   
+  const escapeRegExp = (string: string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
   // Base query for the PD's scope
   const baseQuery: any = {};
-  if (user.assignedPackage) baseQuery.package = user.assignedPackage;
-  if (user.assignedCircle) baseQuery.circle = user.assignedCircle;
+  if (user.assignedPackage && user.assignedPackage !== 'All') {
+    baseQuery.package = { $regex: new RegExp(`^${escapeRegExp(user.assignedPackage.trim())}$`, 'i') };
+  }
+  if (user.assignedCircle && user.assignedCircle !== 'All') {
+    baseQuery.circle = { $regex: new RegExp(`^${escapeRegExp(user.assignedCircle.trim())}$`, 'i') };
+  }
   
   const DemandNote = mongoose.model('DemandNote');
   const JmcRegister = mongoose.model('JmcRegister');
-  const ContractorInvoice = mongoose.model('ContractorInvoice');
+  const ClientBill = mongoose.model('ClientBill');
   const WipRegister = mongoose.model('WipRegister');
   const Mhrov = mongoose.model('Mhrov');
   
@@ -313,8 +317,9 @@ export const getPDPortalDashboardSummary = asyncHandler(async (req: any, res: Re
     status: 'Submitted'
   });
   
-  const pendingInvoicesCount = await ContractorInvoice.countDocuments({
-    status: 'Submitted'
+  const pendingInvoicesCount = await ClientBill.countDocuments({
+    ...baseQuery,
+    status: 'Pending PD Approval'
   });
   
   // 2. Contractor Progress (JMC Approved Amounts)

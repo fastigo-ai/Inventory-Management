@@ -146,6 +146,7 @@ const navItems: NavItem[] = [
     children: [
       { title: 'Dashboard', href: '/pm-portal' },
       { title: 'Demand Notes (PM)', href: '/pm-portal/demand-notes' },
+      { title: 'Billing Approvals', href: '/billing/approvals' },
     ]
   },
   {
@@ -154,6 +155,7 @@ const navItems: NavItem[] = [
     children: [
       { title: 'Dashboard', href: '/pd-portal' },
       { title: 'Demand Notes (PD)', href: '/pd-portal/demand-notes' },
+      { title: 'Billing Approvals', href: '/billing/approvals' },
     ]
   },
   {

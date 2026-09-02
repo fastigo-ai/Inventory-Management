@@ -49,22 +49,29 @@ export default function PrintClientBillPage() {
   const grandTotalAmount = totalBaseAmount + totalGstAmount;
 
   return (
-    <div className="min-h-screen bg-slate-100 p-8 print:bg-white print:p-0">
-      
-      {/* Non-printable controls */}
-      <div className="max-w-5xl mx-auto mb-6 flex justify-between items-center print:hidden">
-        <Link href={`/billing/client-billing`}>
-          <Button variant="outline" className="bg-white">
-            <ArrowLeft className="w-4 h-4 mr-2" /> Back
+    <>
+      <style dangerouslySetInnerHTML={{__html: `
+        @media print {
+          @page { size: landscape; margin: 10mm; }
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+      `}} />
+      <div className="min-h-screen bg-slate-100 p-8 print:bg-white print:p-0">
+        
+        {/* Non-printable controls */}
+        <div className="max-w-[1400px] mx-auto mb-6 flex justify-between items-center print:hidden">
+          <Link href={`/billing/client-billing`}>
+            <Button variant="outline" className="bg-white">
+              <ArrowLeft className="w-4 h-4 mr-2" /> Back
+            </Button>
+          </Link>
+          <Button onClick={handlePrint} className="bg-indigo-600 hover:bg-indigo-700">
+            <Printer className="w-4 h-4 mr-2" /> Print Invoice
           </Button>
-        </Link>
-        <Button onClick={handlePrint} className="bg-indigo-600 hover:bg-indigo-700">
-          <Printer className="w-4 h-4 mr-2" /> Print Invoice
-        </Button>
-      </div>
+        </div>
 
-      {/* Printable Area */}
-      <div className="max-w-5xl mx-auto bg-white p-10 shadow-lg print:shadow-none print:p-0">
+        {/* Printable Area */}
+        <div className="max-w-[1400px] mx-auto bg-white p-10 shadow-lg print:shadow-none print:p-0">
         
         {/* Header Section */}
         <div className="flex justify-between items-start border-b-[4px] border-indigo-600 pb-6 mb-8">
@@ -103,52 +110,52 @@ export default function PrintClientBillPage() {
 
         {/* Items Table */}
         <div className="mb-10">
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="w-full text-left text-[11px] border-collapse">
             <thead>
               <tr className="bg-indigo-600 text-white">
-                <th className="py-2 px-2 font-semibold">RA Bill No</th>
-                <th className="py-2 px-2 font-semibold whitespace-nowrap">RA Bill Date</th>
-                <th className="py-2 px-2 font-semibold">{bill.billType === 'Supply' ? 'MHROV No' : 'JMC No'}</th>
-                <th className="py-2 px-2 font-semibold">LOA Sr No</th>
-                <th className="py-2 px-2 font-semibold">Temp Code</th>
-                <th className="py-2 px-2 font-semibold w-1/4">Item Name</th>
+                <th className="py-1.5 px-1 font-semibold">RA Bill No</th>
+                <th className="py-1.5 px-1 font-semibold whitespace-nowrap">RA Bill Date</th>
+                <th className="py-1.5 px-1 font-semibold">{bill.billType === 'Supply' ? 'MHROV No' : 'JMC No'}</th>
+                <th className="py-1.5 px-1 font-semibold">LOA Sr No</th>
+                <th className="py-1.5 px-1 font-semibold">Temp Code</th>
+                <th className="py-1.5 px-1 font-semibold w-[20%]">Item Name</th>
                 {bill.billType === 'Supply' && (
                   <>
-                    <th className="py-2 px-2 font-semibold">DI No</th>
-                    <th className="py-2 px-2 font-semibold whitespace-nowrap">DI Date</th>
-                    <th className="py-2 px-2 font-semibold text-center">DI Qty</th>
+                    <th className="py-1.5 px-1 font-semibold">DI No</th>
+                    <th className="py-1.5 px-1 font-semibold whitespace-nowrap">DI Date</th>
+                    <th className="py-1.5 px-1 font-semibold text-center">DI Qty</th>
                   </>
                 )}
-                <th className="py-2 px-2 font-semibold text-center">{bill.billType === 'Supply' ? 'MHROV Qty' : 'JMC Qty'}</th>
-                <th className="py-2 px-2 font-semibold text-center">RA Bill Qty</th>
-                <th className="py-2 px-2 font-semibold text-right">BOQ Rate</th>
-                <th className="py-2 px-2 font-semibold text-center">GST %</th>
-                <th className="py-2 px-2 font-semibold text-right">Amount</th>
+                <th className="py-1.5 px-1 font-semibold text-center">{bill.billType === 'Supply' ? 'MHROV Qty' : 'JMC Qty'}</th>
+                <th className="py-1.5 px-1 font-semibold text-center">RA Bill Qty</th>
+                <th className="py-1.5 px-1 font-semibold text-right">BOQ Rate</th>
+                <th className="py-1.5 px-1 font-semibold text-center">GST %</th>
+                <th className="py-1.5 px-1 font-semibold text-right">Amount</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {bill.items.map((item: any, idx: number) => (
                 <tr key={idx} className="hover:bg-slate-50">
-                  <td className="py-2 px-2 text-slate-700 whitespace-nowrap">{bill.raBillNo || '-'}</td>
-                  <td className="py-2 px-2 text-slate-700 whitespace-nowrap">{new Date(bill.raBillDate).toLocaleDateString('en-GB') || '-'}</td>
-                  <td className="py-2 px-2 font-medium text-slate-800">{item.refNumber || '-'}</td>
-                  <td className="py-2 px-2 font-medium text-slate-800">{item.loaSrNo || '-'}</td>
-                  <td className="py-2 px-2 font-medium text-slate-800">{item.tempCode || '-'}</td>
-                  <td className="py-2 px-2 text-slate-700">
-                    <p className="font-semibold">{item.itemName}</p>
+                  <td className="py-1.5 px-1 text-slate-700 whitespace-nowrap">{bill.raBillNo || '-'}</td>
+                  <td className="py-1.5 px-1 text-slate-700 whitespace-nowrap">{new Date(bill.raBillDate).toLocaleDateString('en-GB') || '-'}</td>
+                  <td className="py-1.5 px-1 font-medium text-slate-800">{item.refNumber || '-'}</td>
+                  <td className="py-1.5 px-1 font-medium text-slate-800">{item.loaSrNo || '-'}</td>
+                  <td className="py-1.5 px-1 font-medium text-slate-800">{item.tempCode || '-'}</td>
+                  <td className="py-1.5 px-1 text-slate-700">
+                    <p className="font-semibold line-clamp-2">{item.itemName}</p>
                   </td>
                   {bill.billType === 'Supply' && (
                     <>
-                      <td className="py-2 px-2 text-slate-700">{item.diNo || '-'}</td>
-                      <td className="py-2 px-2 text-slate-700 whitespace-nowrap">{item.diDate ? new Date(item.diDate).toLocaleDateString('en-GB') : '-'}</td>
-                      <td className="py-2 px-2 text-center font-medium text-slate-800">{item.diQty || 0}</td>
+                      <td className="py-1.5 px-1 text-slate-700">{item.diNo || '-'}</td>
+                      <td className="py-1.5 px-1 text-slate-700 whitespace-nowrap">{item.diDate ? new Date(item.diDate).toLocaleDateString('en-GB') : '-'}</td>
+                      <td className="py-1.5 px-1 text-center font-medium text-slate-800">{item.diQty || 0}</td>
                     </>
                   )}
-                  <td className="py-2 px-2 text-center font-medium text-slate-800">{item.sourceDoneQty || 0}</td>
-                  <td className="py-2 px-2 text-center font-bold text-slate-900">{item.raBillQty}</td>
-                  <td className="py-2 px-2 text-right text-slate-700">₹{item.boqRate?.toLocaleString('en-IN') || '0'}</td>
-                  <td className="py-2 px-2 text-center text-slate-700">18%</td>
-                  <td className="py-2 px-2 text-right font-bold text-slate-900">₹{(item.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                  <td className="py-1.5 px-1 text-center font-medium text-slate-800">{item.sourceDoneQty || 0}</td>
+                  <td className="py-1.5 px-1 text-center font-bold text-slate-900">{item.raBillQty}</td>
+                  <td className="py-1.5 px-1 text-right text-slate-700">₹{item.boqRate?.toLocaleString('en-IN') || '0'}</td>
+                  <td className="py-1.5 px-1 text-center text-slate-700">18%</td>
+                  <td className="py-1.5 px-1 text-right font-bold text-slate-900">₹{(item.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                 </tr>
               ))}
             </tbody>

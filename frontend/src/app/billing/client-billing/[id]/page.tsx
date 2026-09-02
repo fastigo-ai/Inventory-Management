@@ -191,31 +191,50 @@ export default function ClientBillDetailsPage({ params }: { params: Promise<{ id
           <h2 className="text-lg font-semibold text-slate-800">Bill Items</h2>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
               <tr>
-                <th className="px-5 py-4 font-semibold">Item Name & Code</th>
-                <th className="px-5 py-4 font-semibold">LOA Sr No</th>
-                <th className="px-5 py-4 font-semibold">DI No</th>
-                <th className="px-5 py-4 font-semibold text-right">Done Qty</th>
-                <th className="px-5 py-4 font-semibold text-right">Bill Qty</th>
-                <th className="px-5 py-4 font-semibold text-right">BOQ Rate</th>
-                <th className="px-5 py-4 font-semibold text-right">Amount</th>
+                <th className="px-4 py-3 font-semibold">RA Bill No</th>
+                <th className="px-4 py-3 font-semibold">RA Bill Date</th>
+                <th className="px-4 py-3 font-semibold">{bill.billType === 'Supply' ? 'MHROV No' : 'JMC No'}</th>
+                <th className="px-4 py-3 font-semibold">LOA Sr No</th>
+                <th className="px-4 py-3 font-semibold">Temp Code</th>
+                <th className="px-4 py-3 font-semibold text-slate-800 min-w-[200px]">Item Name</th>
+                {bill.billType === 'Supply' && (
+                  <>
+                    <th className="px-4 py-3 font-semibold">DI No</th>
+                    <th className="px-4 py-3 font-semibold">DI Date</th>
+                    <th className="px-4 py-3 font-semibold">DI Qty</th>
+                  </>
+                )}
+                <th className="px-4 py-3 font-semibold">{bill.billType === 'Supply' ? 'MHROV Qty' : 'JMC Qty'}</th>
+                <th className="px-4 py-3 font-semibold">RA Bill Qty</th>
+                <th className="px-4 py-3 font-semibold">BOQ Rate</th>
+                <th className="px-4 py-3 font-semibold">GST %</th>
+                <th className="px-4 py-3 font-semibold text-right">Amount</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {bill.items?.map((item: any, idx: number) => (
                 <tr key={idx} className="hover:bg-slate-50">
-                  <td className="px-5 py-4">
-                    <p className="font-medium text-slate-900 line-clamp-2 max-w-xs">{item.itemName}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">{item.tempCode}</p>
-                  </td>
-                  <td className="px-5 py-4 font-medium">{item.loaSrNo}</td>
-                  <td className="px-5 py-4 text-slate-500">{item.diNo}</td>
-                  <td className="px-5 py-4 text-right">{item.sourceDoneQty}</td>
-                  <td className="px-5 py-4 text-right font-medium">{item.raBillQty}</td>
-                  <td className="px-5 py-4 text-right text-slate-600">₹{item.boqRate?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
-                  <td className="px-5 py-4 text-right font-semibold text-slate-800">₹{item.totalAmount?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
+                  <td className="px-4 py-3 text-slate-500">{bill.raBillNo || '-'}</td>
+                  <td className="px-4 py-3 text-slate-500">{new Date(bill.raBillDate).toLocaleDateString('en-GB') || '-'}</td>
+                  <td className="px-4 py-3 font-medium text-slate-700">{item.refNumber || '-'}</td>
+                  <td className="px-4 py-3">{item.loaSrNo || '-'}</td>
+                  <td className="px-4 py-3 font-medium text-slate-700">{item.tempCode || '-'}</td>
+                  <td className="px-4 py-3 text-slate-600 truncate max-w-xs" title={item.itemName}>{item.itemName}</td>
+                  {bill.billType === 'Supply' && (
+                    <>
+                      <td className="px-4 py-3 text-slate-500">{item.diNo || '-'}</td>
+                      <td className="px-4 py-3 text-slate-500">{item.diDate ? new Date(item.diDate).toLocaleDateString('en-GB') : '-'}</td>
+                      <td className="px-4 py-3 text-slate-500 text-center">{item.diQty || 0}</td>
+                    </>
+                  )}
+                  <td className="px-4 py-3 text-slate-500 text-center">{item.sourceDoneQty || 0}</td>
+                  <td className="px-4 py-3 text-center font-medium">{item.raBillQty || 0}</td>
+                  <td className="px-4 py-3 text-slate-600">₹{item.boqRate?.toLocaleString('en-IN', { maximumFractionDigits: 2 }) || '0'}</td>
+                  <td className="px-4 py-3 text-slate-500 text-center">18%</td>
+                  <td className="px-4 py-3 text-right font-semibold text-slate-800">₹{item.totalAmount?.toLocaleString('en-IN', { maximumFractionDigits: 2 }) || '0'}</td>
                 </tr>
               ))}
             </tbody>

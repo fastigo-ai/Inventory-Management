@@ -3,7 +3,7 @@
 import React, { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { getClientBillById } from '@/features/billing/api/client-billing.api';
+import { getClientBillById, updateClientBillStatus } from '@/features/billing/api/client-billing.api';
 import { FileText, Edit, Printer, ArrowLeft, Download, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -31,6 +31,40 @@ export default function ClientBillDetailsPage({ params }: { params: Promise<{ id
       toast.error('Failed to fetch bill details');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleAction = async (action: 'ApprovePM' | 'ApprovePD' | 'Reject') => {
+    const statusMap = {
+      'ApprovePM': 'Pending PD Approval',
+      'ApprovePD': 'Approved',
+      'Reject': 'Rejected'
+    };
+    const newStatus = statusMap[action];
+    
+    if (action === 'Reject') {
+      const remarks = window.prompt("Please enter rejection remarks:");
+      if (!remarks) return;
+      try {
+        const res = await updateClientBillStatus(bill._id, { status: newStatus, rejectionRemarks: remarks });
+        if (res.success) {
+          toast.success(`Bill updated to ${newStatus}`);
+          fetchBill();
+        }
+      } catch (error) {
+        toast.error('Failed to update status');
+      }
+      return;
+    }
+
+    try {
+      const res = await updateClientBillStatus(bill._id, { status: newStatus });
+      if (res.success) {
+        toast.success(`Bill updated to ${newStatus}`);
+        fetchBill();
+      }
+    } catch (error) {
+      toast.error('Failed to update status');
     }
   };
 
@@ -85,7 +119,27 @@ export default function ClientBillDetailsPage({ params }: { params: Promise<{ id
           </div>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {bill.status === 'Pending PM Approval' && (
+            <>
+              <Button onClick={() => handleAction('ApprovePM')} className="bg-emerald-600 hover:bg-emerald-700">
+                <CheckCircle className="w-4 h-4 mr-2" /> Approve (PM)
+              </Button>
+              <Button variant="destructive" onClick={() => handleAction('Reject')}>
+                <XCircle className="w-4 h-4 mr-2" /> Reject
+              </Button>
+            </>
+          )}
+          {bill.status === 'Pending PD Approval' && (
+            <>
+              <Button onClick={() => handleAction('ApprovePD')} className="bg-emerald-600 hover:bg-emerald-700">
+                <CheckCircle className="w-4 h-4 mr-2" /> Approve (PD)
+              </Button>
+              <Button variant="destructive" onClick={() => handleAction('Reject')}>
+                <XCircle className="w-4 h-4 mr-2" /> Reject
+              </Button>
+            </>
+          )}
           <Link href={`/billing/client-billing/${bill._id}/edit`}>
             <Button variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">
               <Edit className="w-4 h-4 mr-2" />

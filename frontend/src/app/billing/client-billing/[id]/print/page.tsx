@@ -200,6 +200,6 @@ export default function PrintClientBillPage() {
         </div>
 
       </div>
-    </div>
+    </>
   );
 }

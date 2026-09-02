@@ -20,7 +20,7 @@ const uploadToCloudinary = (buffer: Buffer, folder: string): Promise<any> => {
 export const createClientBill = asyncHandler(async (req: any, res: Response) => {
   const { raBillNo, raBillDate, billType, stage, referenceType, referenceIds, items, status } = req.body;
   
-  if (!req.user?.assignedCircle || !req.user?.assignedPackage) {
+  if (req.user?.role?.name !== 'Super Admin' && (!req.user?.assignedCircle || !req.user?.assignedPackage)) {
     return res.status(400).json(new ApiResponse(400, null, 'User missing assigned circle/package'));
   }
   
@@ -121,8 +121,14 @@ export const updateClientBill = asyncHandler(async (req: any, res: Response) => 
 export const getClientBills = asyncHandler(async (req: any, res: Response) => {
   let query: any = {};
   
-  if (req.user?.assignedCircle) query.circle = { $regex: new RegExp(`^${req.user.assignedCircle}$`, 'i') };
-  if (req.user?.assignedPackage) query.package = { $regex: new RegExp(`^${req.user.assignedPackage}$`, 'i') };
+  if (req.user?.role?.name !== 'Super Admin') {
+    if (req.user?.assignedCircle && req.user.assignedCircle !== 'All') {
+      query.circle = { $regex: new RegExp(`^${req.user.assignedCircle}$`, 'i') };
+    }
+    if (req.user?.assignedPackage && req.user.assignedPackage !== 'All') {
+      query.package = { $regex: new RegExp(`^${req.user.assignedPackage}$`, 'i') };
+    }
+  }
   
   const bills = await ClientBill.find(query).sort({ createdAt: -1 });
   return res.status(200).json(new ApiResponse(200, bills, 'Client Bills fetched successfully'));

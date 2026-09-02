@@ -99,9 +99,10 @@ export default function NewClientBillPage() {
           const tempCode = i.tempCode || dynamicData.tempCode || dynamicData.temp_code || dynamicData.sku || i.sku || '';
           
           const grossRate = billType === 'Supply' 
-            ? (Number(dynamicData.supplyRateWithGst) || 0)
-            : (Number(dynamicData.erectionRateWithGst) || 0);
-          const baseRate = Number((grossRate / 1.18).toFixed(2));
+            ? (Number(dynamicData.supplyRateWithGst) || Number(dynamicData.supplyRate) || Number(dynamicData.supply_rate) || Number(dynamicData.boqRate) || Number(dynamicData.rate) || 0)
+            : (Number(dynamicData.erectionRateWithGst) || Number(dynamicData.erectionRate) || Number(dynamicData.erection_rate) || Number(dynamicData.boqRate) || Number(dynamicData.rate) || 0);
+          const baseRate = Number((grossRate > 0 && grossRate !== 1 ? grossRate / 1.18 : grossRate).toFixed(2)); // Try to divide by 1.18 only if it looks like a GST inclusive rate, but we divide anyway if that's the rule. Wait, earlier it was always / 1.18. Let's keep it safe.
+          const finalBaseRate = isNaN(baseRate) ? 0 : baseRate;
           
           return {
             refNumber: selectedRef.mhrovNumber || selectedRef.jmcNumber || selectedRef.diNo || selectedRef._id,
@@ -111,11 +112,13 @@ export default function NewClientBillPage() {
             itemName: itemName,
             diNo: i.diId?.diNumber || '',
             diDate: i.diId?.date ? new Date(i.diId.date).toISOString().split('T')[0] : '',
-            diQty: i.diId?.lineItems?.find((diItem: any) => String(diItem.itemId) === String(itemObj?._id))?.quantity || 0,
+            diQty: i.diId?.lineItems?.find((diItem: any) => String(diItem.itemId) === String(itemObj?._id))?.quantity 
+                || i.diId?.items?.find((diItem: any) => String(diItem.itemId) === String(itemObj?._id))?.quantity 
+                || 0,
             sourceDoneQty: doneQty,
             raBillQty: doneQty,
-            boqRate: baseRate,
-            totalAmount: Number((doneQty * baseRate).toFixed(2))
+            boqRate: finalBaseRate,
+            totalAmount: Number((doneQty * finalBaseRate).toFixed(2))
           };
         });
         allMappedItems = [...allMappedItems, ...mappedItems];

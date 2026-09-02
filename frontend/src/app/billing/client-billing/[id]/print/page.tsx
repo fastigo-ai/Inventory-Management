@@ -103,27 +103,52 @@ export default function PrintClientBillPage() {
 
         {/* Items Table */}
         <div className="mb-10">
-          <table className="w-full text-left text-sm border-collapse">
+          <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-indigo-600 text-white">
-                <th className="py-3 px-4 font-semibold">LOA Sr No</th>
-                <th className="py-3 px-4 font-semibold w-1/3">Item Description</th>
-                <th className="py-3 px-4 font-semibold text-center">Qty</th>
-                <th className="py-3 px-4 font-semibold text-right">BOQ Rate</th>
-                <th className="py-3 px-4 font-semibold text-right">Amount</th>
+                <th className="py-2 px-2 font-semibold">RA Bill No</th>
+                <th className="py-2 px-2 font-semibold whitespace-nowrap">RA Bill Date</th>
+                <th className="py-2 px-2 font-semibold">{bill.billType === 'Supply' ? 'MHROV No' : 'JMC No'}</th>
+                <th className="py-2 px-2 font-semibold">LOA Sr No</th>
+                <th className="py-2 px-2 font-semibold">Temp Code</th>
+                <th className="py-2 px-2 font-semibold w-1/4">Item Name</th>
+                {bill.billType === 'Supply' && (
+                  <>
+                    <th className="py-2 px-2 font-semibold">DI No</th>
+                    <th className="py-2 px-2 font-semibold whitespace-nowrap">DI Date</th>
+                    <th className="py-2 px-2 font-semibold text-center">DI Qty</th>
+                  </>
+                )}
+                <th className="py-2 px-2 font-semibold text-center">{bill.billType === 'Supply' ? 'MHROV Qty' : 'JMC Qty'}</th>
+                <th className="py-2 px-2 font-semibold text-center">RA Bill Qty</th>
+                <th className="py-2 px-2 font-semibold text-right">BOQ Rate</th>
+                <th className="py-2 px-2 font-semibold text-center">GST %</th>
+                <th className="py-2 px-2 font-semibold text-right">Amount</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-200">
               {bill.items.map((item: any, idx: number) => (
                 <tr key={idx} className="hover:bg-slate-50">
-                  <td className="py-4 px-4 font-medium text-slate-700">{item.loaSrNo || '-'}</td>
-                  <td className="py-4 px-4 text-slate-600">
-                    <p className="font-semibold text-slate-800">{item.itemName}</p>
-                    <p className="text-xs text-slate-400 mt-1">Temp Code: {item.tempCode || '-'}</p>
+                  <td className="py-2 px-2 text-slate-700 whitespace-nowrap">{bill.raBillNo || '-'}</td>
+                  <td className="py-2 px-2 text-slate-700 whitespace-nowrap">{new Date(bill.raBillDate).toLocaleDateString('en-GB') || '-'}</td>
+                  <td className="py-2 px-2 font-medium text-slate-800">{item.refNumber || '-'}</td>
+                  <td className="py-2 px-2 font-medium text-slate-800">{item.loaSrNo || '-'}</td>
+                  <td className="py-2 px-2 font-medium text-slate-800">{item.tempCode || '-'}</td>
+                  <td className="py-2 px-2 text-slate-700">
+                    <p className="font-semibold">{item.itemName}</p>
                   </td>
-                  <td className="py-4 px-4 text-center font-semibold text-slate-700">{item.raBillQty}</td>
-                  <td className="py-4 px-4 text-right text-slate-600">₹{item.boqRate.toLocaleString('en-IN')}</td>
-                  <td className="py-4 px-4 text-right font-bold text-slate-800">₹{(item.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                  {bill.billType === 'Supply' && (
+                    <>
+                      <td className="py-2 px-2 text-slate-700">{item.diNo || '-'}</td>
+                      <td className="py-2 px-2 text-slate-700 whitespace-nowrap">{item.diDate ? new Date(item.diDate).toLocaleDateString('en-GB') : '-'}</td>
+                      <td className="py-2 px-2 text-center font-medium text-slate-800">{item.diQty || 0}</td>
+                    </>
+                  )}
+                  <td className="py-2 px-2 text-center font-medium text-slate-800">{item.sourceDoneQty || 0}</td>
+                  <td className="py-2 px-2 text-center font-bold text-slate-900">{item.raBillQty}</td>
+                  <td className="py-2 px-2 text-right text-slate-700">₹{item.boqRate?.toLocaleString('en-IN') || '0'}</td>
+                  <td className="py-2 px-2 text-center text-slate-700">18%</td>
+                  <td className="py-2 px-2 text-right font-bold text-slate-900">₹{(item.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                 </tr>
               ))}
             </tbody>

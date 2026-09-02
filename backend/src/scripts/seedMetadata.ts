@@ -56,7 +56,9 @@ const seedMetadata = async () => {
       // Additional Information
       { name: 'tempCode', label: 'TEMP CODE', type: 'text', required: false, visible: true, editable: true, tab: 'Additional Information', order: 27, colSpan: 1 },
       { name: 'loaQuantity', label: 'LOA Quantity', type: 'number', required: false, visible: true, editable: true, tab: 'Additional Information', order: 28, colSpan: 1 },
-      { name: 'circle', label: 'Circle', type: 'dropdown', options: ['Delhi', 'Mumbai', 'Bangalore'], required: false, visible: true, editable: true, tab: 'Additional Information', order: 29, colSpan: 1 }
+      { name: 'circle', label: 'Circle', type: 'dropdown', options: ['Delhi', 'Mumbai', 'Bangalore'], required: false, visible: true, editable: true, tab: 'Additional Information', order: 29, colSpan: 1 },
+      { name: 'erectionRateWithGst', label: 'Erection Rate with GST', type: 'number', required: false, visible: true, editable: true, tab: 'Additional Information', order: 30, colSpan: 1 },
+      { name: 'supplyRateWithGst', label: 'Supply Rate With GST', type: 'number', required: false, visible: true, editable: true, tab: 'Additional Information', order: 31, colSpan: 1 }
     ];
 
     await Metadata.findOneAndUpdate(

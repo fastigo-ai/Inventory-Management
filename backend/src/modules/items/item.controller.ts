@@ -540,6 +540,10 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
     'rohruloa': 'rohruLoaQuantity',
     'rohrubom': 'rohruBomQuantity',
     'rohrubomqty': 'rohruBomQuantity',
+    'loaerectionratewithgst': 'erectionRateWithGst',
+    'loasupplyratewithgst': 'supplyRateWithGst',
+    'erectionratewithgst': 'erectionRateWithGst',
+    'supplyratewithgst': 'supplyRateWithGst',
   };
 
   let rowIndex = 1;

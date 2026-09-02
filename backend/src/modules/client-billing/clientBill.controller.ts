@@ -121,12 +121,16 @@ export const updateClientBill = asyncHandler(async (req: any, res: Response) => 
 export const getClientBills = asyncHandler(async (req: any, res: Response) => {
   let query: any = {};
   
+  const escapeRegExp = (string: string) => {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  };
+
   if (req.user?.role?.name !== 'Super Admin') {
     if (req.user?.assignedCircle && req.user.assignedCircle !== 'All') {
-      query.circle = { $regex: new RegExp(`^${req.user.assignedCircle}$`, 'i') };
+      query.circle = { $regex: new RegExp(`^${escapeRegExp(req.user.assignedCircle)}$`, 'i') };
     }
     if (req.user?.assignedPackage && req.user.assignedPackage !== 'All') {
-      query.package = { $regex: new RegExp(`^${req.user.assignedPackage}$`, 'i') };
+      query.package = { $regex: new RegExp(`^${escapeRegExp(req.user.assignedPackage)}$`, 'i') };
     }
   }
   

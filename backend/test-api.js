@@ -1,37 +1,55 @@
-require('dotenv').config();
 const mongoose = require('mongoose');
-const jwt = require('jsonwebtoken');
+const { ClientBill } = require('./dist/modules/client-billing/clientBill.schema.js');
+const dotenv = require('dotenv');
+dotenv.config();
 
-async function testApi() {
-  await mongoose.connect(process.env.MONGODB_URI);
-  const user = await mongoose.model('User').findOne({ 'role.name': 'Store Manager' });
-  if (!user) {
-    console.log("No store manager found");
-    process.exit(1);
+mongoose.connect(process.env.MONGO_URI).then(async () => {
+  // Let's test the exact filtering logic
+  const req = {
+    user: {
+      role: { name: 'Super Admin' },
+      assignedCircle: 'All',
+      assignedPackage: 'All'
+    }
+  };
+  
+  let query = {};
+  if (req.user?.role?.name !== 'Super Admin') {
+    if (req.user?.assignedCircle && req.user.assignedCircle !== 'All') {
+      query.circle = { $regex: new RegExp(`^${req.user.assignedCircle}$`, 'i') };
+    }
+    if (req.user?.assignedPackage && req.user.assignedPackage !== 'All') {
+      query.package = { $regex: new RegExp(`^${req.user.assignedPackage}$`, 'i') };
+    }
   }
   
-  const token = jwt.sign(
-    { 
-      userId: user._id,
-      email: user.email,
-      role: user.role
-    },
-    process.env.JWT_SECRET || 'fallback_secret',
-    { expiresIn: '1d' }
-  );
+  const bills = await ClientBill.find(query).sort({ createdAt: -1 });
+  console.log("Super Admin Result Count:", bills.length);
 
-  const axios = require('axios');
-  try {
-    const res = await axios.get('http://localhost:5000/api/store/mhrov/di-items?circle=Nahan', {
-      headers: {
-        Authorization: \`Bearer \${token}\`,
-        Cookie: \`token=\${token}\`
-      }
-    });
-    console.log("SUCCESS:", res.data.data.entries.length, "items");
-  } catch (err) {
-    console.log("ERROR:", err.response ? err.response.data : err.message);
+  const req2 = {
+    user: {
+      role: { name: 'Site Engineer' },
+      assignedCircle: 'Nahan',
+      assignedPackage: 'Package 1 (S/N)'
+    }
+  };
+  
+  let query2 = {};
+  if (req2.user?.role?.name !== 'Super Admin') {
+    if (req2.user?.assignedCircle && req2.user.assignedCircle !== 'All') {
+      query2.circle = { $regex: new RegExp(`^${req2.user.assignedCircle}$`, 'i') };
+    }
+    if (req2.user?.assignedPackage && req2.user.assignedPackage !== 'All') {
+      query2.package = { $regex: new RegExp(`^${req2.user.assignedPackage}$`, 'i') };
+    }
   }
+  
+  const bills2 = await ClientBill.find(query2).sort({ createdAt: -1 });
+  console.log("Site Engineer Result Count:", bills2.length);
+
+  // what if assignedPackage has parentheses like 'Package 1 (S/N)'?
+  // $regex: new RegExp(`^Package 1 (S/N)$`, 'i') -> the parentheses are regex capture groups!
+  // It won't match literally unless escaped!
+
   process.exit(0);
-}
-testApi();
+}).catch(console.error);

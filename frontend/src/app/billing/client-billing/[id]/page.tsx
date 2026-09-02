@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { getClientBillById } from '@/features/billing/api/client-billing.api';
@@ -8,18 +8,19 @@ import { FileText, Edit, Printer, ArrowLeft, Download, Clock, CheckCircle, XCirc
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
-export default function ClientBillDetailsPage({ params }: { params: { id: string } }) {
+export default function ClientBillDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const [bill, setBill] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const unwrappedParams = use(params);
 
   useEffect(() => {
     fetchBill();
-  }, [params.id]);
+  }, [unwrappedParams.id]);
 
   const fetchBill = async () => {
     try {
-      const res = await getClientBillById(params.id);
+      const res = await getClientBillById(unwrappedParams.id);
       if (res.success && res.data) {
         setBill(res.data);
       } else {

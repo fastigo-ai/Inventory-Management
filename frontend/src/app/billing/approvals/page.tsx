@@ -6,6 +6,7 @@ import { getClientBills, updateClientBillStatus } from '@/features/billing/api/c
 import { Clock, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import Link from 'next/link';
 
 export default function ApprovalsDashboardPage() {
   const [bills, setBills] = useState<any[]>([]);
@@ -108,8 +109,15 @@ export default function ApprovalsDashboardPage() {
                       <td className="px-6 py-4 text-right font-semibold">
                         ₹{total.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                       </td>
-                      <td className="px-6 py-4 w-64">
+                      <td className="px-6 py-4 w-72">
                         <div className="flex flex-col gap-2 items-center">
+                          <div className="flex gap-2 w-full">
+                            <Link href={`/billing/client-billing/${bill._id}`} className="w-full">
+                              <Button size="sm" variant="outline" className="w-full text-indigo-600 border-indigo-200 hover:bg-indigo-50">
+                                View Bill
+                              </Button>
+                            </Link>
+                          </div>
                           {bill.status === 'Pending PM Approval' && (
                             <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 w-full" onClick={() => handleAction(bill._id, 'ApprovePM')}>
                               <CheckCircle className="w-4 h-4 mr-1" /> Approve (PM)

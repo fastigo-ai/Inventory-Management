@@ -185,7 +185,7 @@ export default function ItemSummaryMatrixPage() {
 
     const rows = data.map((r, i) => {
       const itemCirc = String(r.circle || '').toLowerCase();
-      const cv = (circ: string, val: any) => !itemCirc.includes(circ) ? '-' : (val?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0');
+      const cv = (circ: string, val: any) => !itemCirc.includes(circ) ? '-' : (val != null ? Math.round(val).toLocaleString('en-IN') : '0');
 
       return [
         r.srNo || (i + 1),
@@ -206,13 +206,13 @@ export default function ItemSummaryMatrixPage() {
           if (!itemCirc.includes(c)) return ['-', '-', '-', '-', '-', '-', '-'];
           const b = r.allBalances ? r.allBalances[c] : (r.balances || {});
           return [
-            b.diVsLoa?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) ?? '0.00', 
-            b.diVsBom?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) ?? '0.00', 
-            b.mrn?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) ?? '0.00', 
-            b.mhrov?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) ?? '0.00', 
-            b.imc?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) ?? '0.00', 
-            b.supplyBill?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) ?? '0.00', 
-            b.erectionBill?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) ?? '0.00'
+            b.diVsLoa != null ? Math.round(b.diVsLoa).toLocaleString('en-IN') : '-', 
+            b.diVsBom != null ? Math.round(b.diVsBom).toLocaleString('en-IN') : '-', 
+            b.mrn != null ? Math.round(b.mrn).toLocaleString('en-IN') : '-', 
+            b.mhrov != null ? Math.round(b.mhrov).toLocaleString('en-IN') : '-', 
+            b.imc != null ? Math.round(b.imc).toLocaleString('en-IN') : '-', 
+            b.supplyBill != null ? Math.round(b.supplyBill).toLocaleString('en-IN') : '-', 
+            b.erectionBill != null ? Math.round(b.erectionBill).toLocaleString('en-IN') : '-'
           ];
         })
       ];
@@ -256,7 +256,7 @@ export default function ItemSummaryMatrixPage() {
 
     const rows = data.map(r => {
       const itemCirc = String(r.circle || '').toLowerCase();
-      const cv = (circ: string, val: any) => !itemCirc.includes(circ) ? '' : (val || 0);
+      const cv = (circ: string, val: any) => !itemCirc.includes(circ) ? '' : (val != null ? Math.round(val) : 0);
 
       return [
         r.srNo, `"${r.loaSerialNo || r.tempCode || ''}"`, `"${r.tempCode || ''}"`, `"${(r.itemName || '').replace(/"/g, '""')}"`, `"${r.package || ''}"`, `"${r.circle || ''}"`,
@@ -271,7 +271,15 @@ export default function ItemSummaryMatrixPage() {
         ...['solan', 'nahan', 'rampur', 'rohru'].flatMap(c => {
           if (!itemCirc.includes(c)) return ['', '', '', '', '', '', ''];
           const b = r.allBalances ? r.allBalances[c] : (r.balances || {});
-          return [b.diVsLoa ?? 0, b.diVsBom ?? 0, b.mrn ?? 0, b.mhrov ?? 0, b.imc ?? 0, b.supplyBill ?? 0, b.erectionBill ?? 0];
+          return [
+            b.diVsLoa != null ? Math.round(b.diVsLoa) : 0, 
+            b.diVsBom != null ? Math.round(b.diVsBom) : 0, 
+            b.mrn != null ? Math.round(b.mrn) : 0, 
+            b.mhrov != null ? Math.round(b.mhrov) : 0, 
+            b.imc != null ? Math.round(b.imc) : 0, 
+            b.supplyBill != null ? Math.round(b.supplyBill) : 0, 
+            b.erectionBill != null ? Math.round(b.erectionBill) : 0
+          ];
         })
       ].join(',');
     });
@@ -543,6 +551,9 @@ export default function ItemSummaryMatrixPage() {
                     const itemCircleKey = c === 'solan' || c === 'nahan' || c === 'rampur' || c === 'rohru' ? c : 'solan';
                     const bal = r.allBalances ? r.allBalances[itemCircleKey] : (r.balances || {});
 
+                    const fmtQty = (v: any) => (v ? Math.round(v).toLocaleString('en-IN') : '-');
+                    const fmtBal = (v: any) => (v != null ? Math.round(v).toLocaleString('en-IN') : '-');
+
                     return (
                       <tr key={idx} className="hover:bg-slate-50">
                         <td className="p-2 border-r bg-white sticky left-0 z-10 text-center">
@@ -564,27 +575,27 @@ export default function ItemSummaryMatrixPage() {
                         <td className="p-2 text-slate-700 border-r">{r.package}</td>
                         <td className="p-2 text-slate-700 border-r">{r.circle}</td>
 
-                        <td className="p-2 text-right text-amber-900 font-medium bg-amber-50/20">{loaQty || '-'}</td>
-                        <td className="p-2 text-right text-amber-900 font-medium bg-amber-50/20">{bomQty || '-'}</td>
+                        <td className="p-2 text-right text-amber-900 font-medium bg-amber-50/20">{fmtQty(loaQty)}</td>
+                        <td className="p-2 text-right text-amber-900 font-medium bg-amber-50/20">{fmtQty(bomQty)}</td>
 
-                        {showDi && <td className="p-2 text-right text-blue-900 font-medium bg-blue-50/20">{diQty || '-'}</td>}
-                        {showDi && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{bal?.diVsLoa ?? '-'}</td>}
-                        {showDi && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{bal?.diVsBom ?? '-'}</td>}
+                        {showDi && <td className="p-2 text-right text-blue-900 font-medium bg-blue-50/20">{fmtQty(diQty)}</td>}
+                        {showDi && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{fmtBal(bal?.diVsLoa)}</td>}
+                        {showDi && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{fmtBal(bal?.diVsBom)}</td>}
                         
-                        {showMrn && <td className="p-2 text-right text-emerald-900 font-medium bg-emerald-50/20">{piQty || '-'}</td>}
-                        {showMrn && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{bal?.mrn ?? '-'}</td>}
+                        {showMrn && <td className="p-2 text-right text-emerald-900 font-medium bg-emerald-50/20">{fmtQty(piQty)}</td>}
+                        {showMrn && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{fmtBal(bal?.mrn)}</td>}
                         
-                        {showMhrov && <td className="p-2 text-right text-cyan-900 font-medium bg-cyan-50/20">{mhrovQty || '-'}</td>}
-                        {showMhrov && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{bal?.mhrov ?? '-'}</td>}
+                        {showMhrov && <td className="p-2 text-right text-cyan-900 font-medium bg-cyan-50/20">{fmtQty(mhrovQty)}</td>}
+                        {showMhrov && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{fmtBal(bal?.mhrov)}</td>}
                         
-                        {showImc && <td className="p-2 text-right text-fuchsia-900 font-medium bg-fuchsia-50/20">{jmcQty || '-'}</td>}
-                        {showImc && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{bal?.imc ?? '-'}</td>}
+                        {showImc && <td className="p-2 text-right text-fuchsia-900 font-medium bg-fuchsia-50/20">{fmtQty(jmcQty)}</td>}
+                        {showImc && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{fmtBal(bal?.imc)}</td>}
                         
-                        {showSupplyBill && <td className="p-2 text-right text-indigo-900 font-medium bg-indigo-50/20">{supplyBillQty || '-'}</td>}
-                        {showSupplyBill && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{bal?.supplyBill ?? '-'}</td>}
+                        {showSupplyBill && <td className="p-2 text-right text-indigo-900 font-medium bg-indigo-50/20">{fmtQty(supplyBillQty)}</td>}
+                        {showSupplyBill && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{fmtBal(bal?.supplyBill)}</td>}
                         
-                        {showErectionBill && <td className="p-2 text-right text-violet-900 font-medium bg-violet-50/20">{erectionBillQty || '-'}</td>}
-                        {showErectionBill && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{bal?.erectionBill ?? '-'}</td>}
+                        {showErectionBill && <td className="p-2 text-right text-violet-900 font-medium bg-violet-50/20">{fmtQty(erectionBillQty)}</td>}
+                        {showErectionBill && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{fmtBal(bal?.erectionBill)}</td>}
                       </tr>
                     );
                   })

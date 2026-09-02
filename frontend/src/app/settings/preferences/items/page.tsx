@@ -1,7 +1,7 @@
 "use client";
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { getEntityMetadata, updateEntityMetadata } from "@/features/items/api/items.api";
 import { FieldMetadata } from "@/shared/components/dynamic/DynamicForm";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,56 @@ export default function ItemPreferencesPage() {
   const [activeTab, setActiveTab] = useState("Fields");
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+
+  const dragItem = useRef<number | null>(null);
+  const dragOverItem = useRef<number | null>(null);
+
+  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, index: number) => {
+    if (sortConfig || searchQuery) return;
+    dragItem.current = index;
+    const target = e.currentTarget as HTMLElement;
+    setTimeout(() => {
+      target.style.opacity = '0.5';
+      target.style.backgroundColor = '#f1f5f9';
+    }, 0);
+  };
+
+  const handleDragEnter = (e: React.DragEvent<HTMLTableRowElement>, index: number) => {
+    if (sortConfig || searchQuery) return;
+    dragOverItem.current = index;
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
+    if (sortConfig || searchQuery) return;
+    e.preventDefault();
+  };
+
+  const handleDragEnd = async (e: React.DragEvent<HTMLTableRowElement>) => {
+    if (sortConfig || searchQuery) return;
+    const target = e.currentTarget as HTMLElement;
+    target.style.opacity = '1';
+    target.style.backgroundColor = '';
+    
+    if (dragItem.current !== null && dragOverItem.current !== null && dragItem.current !== dragOverItem.current) {
+      const newFields = [...fields];
+      const draggedFieldContent = newFields.splice(dragItem.current, 1)[0];
+      newFields.splice(dragOverItem.current, 0, draggedFieldContent);
+      
+      const reorderedFields = newFields.map((f, i) => ({ ...f, order: i }));
+      
+      try {
+        setIsLoading(true);
+        await updateEntityMetadata('Item', reorderedFields);
+        setFields(reorderedFields);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    dragItem.current = null;
+    dragOverItem.current = null;
+  };
 
   useEffect(() => {
     loadFields();
@@ -238,10 +288,22 @@ export default function ItemPreferencesPage() {
               <tbody className="divide-y divide-slate-100">
                 {sortedFields.map((field, index) => {
                   const isActive = field.active !== false;
+                  const canDrag = !sortConfig && !searchQuery;
                   
                   return (
-                    <tr key={field.name} className="hover:bg-slate-50 transition-colors group">
+                    <tr 
+                      key={field.name} 
+                      className={`hover:bg-slate-50 transition-colors group ${canDrag ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                      draggable={canDrag}
+                      onDragStart={(e) => handleDragStart(e, index)}
+                      onDragEnter={(e) => handleDragEnter(e, index)}
+                      onDragEnd={handleDragEnd}
+                      onDragOver={handleDragOver}
+                    >
                       <td className="px-4 py-3 flex items-center space-x-2">
+                        {canDrag && (
+                          <GripVertical className="w-3.5 h-3.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab shrink-0 mr-1" />
+                        )}
                         {field.systemLocked ? (
                           <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         ) : (

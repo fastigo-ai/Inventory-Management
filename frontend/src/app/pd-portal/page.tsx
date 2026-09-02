@@ -84,7 +84,7 @@ export default function PDPortalDashboard() {
               </div>
             </Link>
 
-            <Link href="#" className="block group">
+            <Link href="/billing/approvals" className="block group">
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
                 <div className="absolute -right-6 -top-6 w-24 h-24 bg-emerald-50 rounded-full group-hover:bg-emerald-100 transition-colors"></div>
                 <div className="relative z-10 flex items-center justify-between">

@@ -67,7 +67,7 @@ const contractorInvoiceSchema = new Schema<IContractorInvoice>({
   invoiceNumber: { type: String, required: true, unique: true },
   date: { type: Date, required: true, default: Date.now },
   contractorId: { type: Schema.Types.ObjectId, ref: 'Contractor', required: true },
-  workOrderId: { type: Schema.Types.ObjectId, ref: 'ContractorWorkOrder', required: true },
+  workOrderId: { type: Schema.Types.ObjectId, ref: 'ContractorWorkOrder' },
   
   stage: { 
     type: String, 

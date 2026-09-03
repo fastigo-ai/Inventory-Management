@@ -12,10 +12,13 @@ import { api } from '@/shared/api/axios';
 import { createContractorInvoice } from '@/features/contractor-billing/api/contractor-billing.api';
 import { getItems } from '@/features/items/api/items.api';
 
+import { useAuthStore } from '@/shared/store/auth.store';
+
 const STAGES = ['10%', '20%', '25%', '30%', '50%', '70%', '75%', '90%', '100%'];
 
 export default function NewContractorBill() {
   const router = useRouter();
+  const { user } = useAuthStore();
   const [loading, setLoading] = useState(false);
 
   // Form State
@@ -59,12 +62,22 @@ export default function NewContractorBill() {
   }, [contractorId]);
 
   useEffect(() => {
-    const selectedWO = workOrders.find(w => w._id === workOrderId);
-    if (selectedWO && selectedWO.package && selectedWO.circle) {
+    let pkg = user?.package;
+    let cir = user?.circle;
+
+    if (workOrderId) {
+      const selectedWO = workOrders.find(w => w._id === workOrderId);
+      if (selectedWO) {
+        pkg = selectedWO.package || pkg;
+        cir = selectedWO.circle || cir;
+      }
+    }
+
+    if (pkg && cir) {
       getItems({ 
         filters: { 
-          package: selectedWO.package, 
-          circle: selectedWO.circle 
+          package: pkg, 
+          circle: cir 
         }, 
         limit: 1000 
       }).then(res => {
@@ -74,7 +87,7 @@ export default function NewContractorBill() {
     } else {
       setAvailableItems([]);
     }
-  }, [workOrderId, workOrders]);
+  }, [workOrderId, workOrders, user]);
 
   const handleAddItem = () => {
     setLineItems([
@@ -113,8 +126,8 @@ export default function NewContractorBill() {
   };
 
   const handleSubmit = async () => {
-    if (!contractorId || !workOrderId || !stage) {
-      toast.error('Please fill in Contractor, Work Order, and Stage');
+    if (!contractorId || !stage) {
+      toast.error('Please fill in Contractor and Stage');
       return;
     }
     
@@ -132,7 +145,7 @@ export default function NewContractorBill() {
       setLoading(true);
       const payload = {
         contractorId,
-        workOrderId,
+        workOrderId: workOrderId || undefined,
         stage,
         jmcDocUrl,
         signedBillDocUrl,
@@ -187,7 +200,7 @@ export default function NewContractorBill() {
             </div>
 
             <div className="space-y-2">
-              <Label>Work Order <span className="text-red-500">*</span></Label>
+              <Label>Work Order</Label>
               <select
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 value={workOrderId}

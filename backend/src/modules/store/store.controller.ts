@@ -792,14 +792,25 @@ export const getStockSummary = asyncHandler(async (req: Request, res: Response) 
   if (!resolvedContractorId && contractorName) {
     const mongoose = require('mongoose');
     const Contractor = mongoose.models.Contractor || mongoose.model('Contractor');
+    const searchRegex = new RegExp(`^${String(contractorName).trim()}$`, 'i');
     const c = await Contractor.findOne({
       $or: [
-        { 'dynamicData.name': contractorName },
-        { 'dynamicData.contractorName': contractorName },
-        { 'dynamicData.firmName': contractorName }
+        { 'dynamicData.companyName': { $regex: searchRegex } },
+        { 'dynamicData.displayName': { $regex: searchRegex } },
+        { 'dynamicData.name': { $regex: searchRegex } },
+        { 'dynamicData.contractorName': { $regex: searchRegex } },
+        { 'dynamicData.firmName': { $regex: searchRegex } },
+        { 'dynamicData.primaryContact.firstName': { $regex: searchRegex } },
+        { name: { $regex: searchRegex } },
+        { displayName: { $regex: searchRegex } }
       ]
     }).lean();
-    if (c) resolvedContractorId = c._id.toString();
+    if (c) {
+      resolvedContractorId = c._id.toString();
+    } else {
+      // Specified contractor name was not found in DB -> return 0 for contractor metrics
+      resolvedContractorId = new mongoose.Types.ObjectId().toString();
+    }
   }
 
   const summary = await buildStockSummaryData(circle as string, pkg as string, resolvedContractorId);
@@ -813,14 +824,25 @@ export const getAdminStockSummary = asyncHandler(async (req: Request, res: Respo
   if (!resolvedContractorId && contractorName) {
     const mongoose = require('mongoose');
     const Contractor = mongoose.models.Contractor || mongoose.model('Contractor');
+    const searchRegex = new RegExp(`^${String(contractorName).trim()}$`, 'i');
     const c = await Contractor.findOne({
       $or: [
-        { 'dynamicData.name': contractorName },
-        { 'dynamicData.contractorName': contractorName },
-        { 'dynamicData.firmName': contractorName }
+        { 'dynamicData.companyName': { $regex: searchRegex } },
+        { 'dynamicData.displayName': { $regex: searchRegex } },
+        { 'dynamicData.name': { $regex: searchRegex } },
+        { 'dynamicData.contractorName': { $regex: searchRegex } },
+        { 'dynamicData.firmName': { $regex: searchRegex } },
+        { 'dynamicData.primaryContact.firstName': { $regex: searchRegex } },
+        { name: { $regex: searchRegex } },
+        { displayName: { $regex: searchRegex } }
       ]
     }).lean();
-    if (c) resolvedContractorId = c._id.toString();
+    if (c) {
+      resolvedContractorId = c._id.toString();
+    } else {
+      // Specified contractor name was not found in DB -> return 0 for contractor metrics
+      resolvedContractorId = new mongoose.Types.ObjectId().toString();
+    }
   }
 
   const summary = await buildStockSummaryData(circle as string, pkg as string, resolvedContractorId);

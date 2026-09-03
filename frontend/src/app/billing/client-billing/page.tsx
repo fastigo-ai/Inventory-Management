@@ -128,7 +128,7 @@ export default function ClientBillingPage() {
                       <td className="px-6 py-4 text-right font-semibold">₹{total.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
                       <td className="px-6 py-4 text-center">{getStatusBadge(bill.status)}</td>
                       <td className="px-6 py-4 text-right">
-                        <Link href={`/billing/client-billing/${bill._id}`}>
+                        <Link href={`/billing/client-billing/${bill._id}/edit`}>
                           <Button variant="ghost" size="sm" className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50">
                             View
                           </Button>

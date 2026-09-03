@@ -272,13 +272,13 @@ export default function ItemSummaryMatrixPage() {
           if (!itemCirc.includes(c)) return ['', '', '', '', '', '', ''];
           const b = r.allBalances ? r.allBalances[c] : (r.balances || {});
           return [
-            b.diVsLoa != null ? Math.round(b.diVsLoa) : 0, 
-            b.diVsBom != null ? Math.round(b.diVsBom) : 0, 
-            b.mrn != null ? Math.round(b.mrn) : 0, 
-            b.mhrov != null ? Math.round(b.mhrov) : 0, 
-            b.imc != null ? Math.round(b.imc) : 0, 
-            b.supplyBill != null ? Math.round(b.supplyBill) : 0, 
-            b.erectionBill != null ? Math.round(b.erectionBill) : 0
+            b.diVsLoa != null ? String(Math.round(b.diVsLoa)) : '0', 
+            b.diVsBom != null ? String(Math.round(b.diVsBom)) : '0', 
+            b.mrn != null ? String(Math.round(b.mrn)) : '0', 
+            b.mhrov != null ? String(Math.round(b.mhrov)) : '0', 
+            b.imc != null ? String(Math.round(b.imc)) : '0', 
+            b.supplyBill != null ? String(Math.round(b.supplyBill)) : '0', 
+            b.erectionBill != null ? String(Math.round(b.erectionBill)) : '0'
           ];
         })
       ].join(',');

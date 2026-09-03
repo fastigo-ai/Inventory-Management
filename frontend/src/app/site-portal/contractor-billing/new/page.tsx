@@ -71,6 +71,34 @@ export default function NewContractorBill() {
     }
   }, [contractorId]);
 
+  const [jmcItemMap, setJmcItemMap] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (contractorId) {
+      api.get(`/jmcs?contractorId=${contractorId}`).then(res => {
+        const jmcs = res.data?.data || res.data || [];
+        const map: Record<string, number> = {};
+        jmcs.forEach((jmc: any) => {
+          if (jmc.status === 'Approved' && jmc.items) {
+            // If workOrderId is selected, strictly match it; otherwise aggregate all approved for contractor
+            if (workOrderId && jmc.workOrderId && jmc.workOrderId !== workOrderId) return;
+            
+            jmc.items.forEach((item: any) => {
+              if (item.itemId) {
+                const id = typeof item.itemId === 'string' ? item.itemId : item.itemId._id;
+                if (!map[id]) map[id] = 0;
+                map[id] += (item.approvedQty || item.claimedQty || 0);
+              }
+            });
+          }
+        });
+        setJmcItemMap(map);
+      }).catch(console.error);
+    } else {
+      setJmcItemMap({});
+    }
+  }, [contractorId, workOrderId]);
+
   useEffect(() => {
     let pkg = user?.assignedPackage;
     let cir = user?.assignedCircle;
@@ -146,7 +174,7 @@ export default function NewContractorBill() {
             activity: value,
             description: ai.dynamicData?.itemName || ai.dynamicData?.description || ai.itemName || '',
             rate: ai.dynamicData?.boqRate || ai.boqRate || 0,
-            jmcDoneQty: 0,
+            jmcDoneQty: jmcItemMap[ai._id] || 0,
             erectedQty: 0,
             gstRate: newItems[index].gstRate || 18,
             tempCode: ai.dynamicData?.tempCode || '',
@@ -154,6 +182,7 @@ export default function NewContractorBill() {
             loaQty: ai.dynamicData?.[circleKey] || ai.dynamicData?.loaQuantity || 0
           }));
           
+          newItems[index].jmcDoneQty = jmcItemMap[first._id] || 0;
           newItems.splice(index + 1, 0, ...additionalRows);
         }
       } else {
@@ -163,6 +192,7 @@ export default function NewContractorBill() {
         newItems[index].tempCode = '';
         newItems[index].loaSerialNo = '';
         newItems[index].loaQty = 0;
+        newItems[index].jmcDoneQty = 0;
       }
     }
 
@@ -175,6 +205,7 @@ export default function NewContractorBill() {
         newItems[index].tempCode = selectedItem.dynamicData?.tempCode || '';
         newItems[index].loaSerialNo = selectedItem.dynamicData?.loaSerialNo || '';
         newItems[index].loaQty = selectedItem.dynamicData?.[circleKey] || selectedItem.dynamicData?.loaQuantity || 0;
+        newItems[index].jmcDoneQty = jmcItemMap[selectedItem._id] || 0;
       }
     }
     setLineItems(newItems);

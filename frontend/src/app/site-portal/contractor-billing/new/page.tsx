@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +35,15 @@ export default function NewContractorBill() {
   const [contractors, setContractors] = useState<any[]>([]);
   const [workOrders, setWorkOrders] = useState<any[]>([]);
   const [availableItems, setAvailableItems] = useState<any[]>([]);
+
+  const uniqueActivities = useMemo(() => {
+    const activities = new Set<string>();
+    availableItems.forEach(ai => {
+      const act = ai.dynamicData?.activity || ai.activity;
+      if (act) activities.add(act);
+    });
+    return Array.from(activities).sort();
+  }, [availableItems]);
 
   useEffect(() => {
     api.get('/contractors').then(res => {
@@ -114,6 +123,12 @@ export default function NewContractorBill() {
   const handleItemChange = (index: number, field: string, value: any) => {
     const newItems = [...lineItems];
     newItems[index][field] = value;
+
+    if (field === 'activity') {
+      newItems[index].itemId = '';
+      newItems[index].description = '';
+      newItems[index].rate = 0;
+    }
 
     if (field === 'itemId' && value) {
       const selectedItem = availableItems.find(i => i._id === value);
@@ -299,28 +314,38 @@ export default function NewContractorBill() {
                 {lineItems.map((item, idx) => (
                   <tr key={idx} className="border-b hover:bg-slate-50">
                     <td className="p-2">
-                      <Input
+                      <select
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         value={item.activity}
-                        onChange={e => handleItemChange(idx, 'activity', e.target.value)}
-                        placeholder="Activity"
-                      />
+                        onChange={(e) => handleItemChange(idx, 'activity', e.target.value)}
+                      >
+                        <option value="">Select Activity</option>
+                        {uniqueActivities.map(act => (
+                          <option key={act} value={act}>{act}</option>
+                        ))}
+                      </select>
                     </td>
                     <td className="p-2">
                       <select
                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         value={item.itemId}
                         onChange={(e) => handleItemChange(idx, 'itemId', e.target.value)}
+                        disabled={!item.activity}
                       >
-                        <option value="">Select Item</option>
-                        {availableItems.map(ai => {
-                          const itemName = ai.dynamicData?.itemName || ai.dynamicData?.description || ai.itemName || 'Unknown Item';
-                          const activity = ai.dynamicData?.activity || ai.activity || '';
-                          return (
-                            <option key={ai._id} value={ai._id}>
-                              {activity ? `[${activity}] ${itemName}` : itemName}
-                            </option>
-                          );
-                        })}
+                        <option value="">{item.activity ? 'Select Item' : 'Select Activity First'}</option>
+                        {availableItems
+                          .filter(ai => {
+                            const act = ai.dynamicData?.activity || ai.activity || '';
+                            return act === item.activity;
+                          })
+                          .map(ai => {
+                            const itemName = ai.dynamicData?.itemName || ai.dynamicData?.description || ai.itemName || 'Unknown Item';
+                            return (
+                              <option key={ai._id} value={ai._id}>
+                                {itemName}
+                              </option>
+                            );
+                          })}
                       </select>
                     </td>
                     <td className="p-2">

@@ -62,8 +62,8 @@ export default function NewContractorBill() {
   }, [contractorId]);
 
   useEffect(() => {
-    let pkg = user?.package;
-    let cir = user?.circle;
+    let pkg = user?.assignedPackage;
+    let cir = user?.assignedCircle;
 
     if (workOrderId) {
       const selectedWO = workOrders.find(w => w._id === workOrderId);

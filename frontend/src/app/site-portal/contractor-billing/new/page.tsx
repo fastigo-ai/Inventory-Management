@@ -85,9 +85,8 @@ export default function NewContractorBill() {
             
             jmc.items.forEach((item: any) => {
               if (item.itemId) {
-                const tc = String(item.tempCode || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.tempCode || '') : '')).trim();
-                const loaNo = String(item.loaSerialNo || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.sku || item.itemId.loaSerialNo || '') : '')).trim();
-                const key = `${tc}_${loaNo}`;
+                const itemName = typeof item.itemId === 'object' ? (item.itemId.dynamicData?.itemName || item.itemId.itemName || item.description || '') : (item.description || '');
+                const key = itemName.trim().toLowerCase();
                 if (!map[key]) map[key] = 0;
                 map[key] += (item.approvedQty || item.claimedQty || 0);
               }
@@ -117,9 +116,8 @@ export default function NewContractorBill() {
           if (inv.status !== 'Rejected' && inv.lineItems) {
             inv.lineItems.forEach((item: any) => {
               if (item.itemId && (inv.stage === '90%' || inv.stage === '100%')) {
-                const tc = String(item.tempCode || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.tempCode || '') : '')).trim();
-                const loaNo = String(item.loaSerialNo || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.sku || item.itemId.loaSerialNo || '') : '')).trim();
-                const key = `${tc}_${loaNo}`;
+                const itemName = typeof item.itemId === 'object' ? (item.itemId.dynamicData?.itemName || item.itemId.itemName || item.description || '') : (item.description || '');
+                const key = itemName.trim().toLowerCase();
                 if (!map[key]) map[key] = 0;
                 map[key] += (item.jmcDoneQty || 0);
               }
@@ -213,9 +211,8 @@ export default function NewContractorBill() {
           newItems[index].loaQty = first.dynamicData?.[circleKey] || first.dynamicData?.loaQuantity || 0;
           
           const additionalRows = matchingItems.slice(1).map(ai => {
-            const tc = String(ai.dynamicData?.tempCode || ai.tempCode || '').trim();
-            const loaNo = String(ai.dynamicData?.sku || ai.loaSerialNo || '').trim();
-            const key = `${tc}_${loaNo}`;
+            const itemName = (ai.dynamicData?.itemName || ai.itemName || '').trim().toLowerCase();
+            const key = itemName;
             return {
               itemId: ai._id,
               activity: value,
@@ -231,9 +228,8 @@ export default function NewContractorBill() {
             };
           });
           
-          const firstTc = String(first.dynamicData?.tempCode || first.tempCode || '').trim();
-          const firstLoa = String(first.dynamicData?.sku || first.loaSerialNo || '').trim();
-          const firstKey = `${firstTc}_${firstLoa}`;
+          const firstItemName = (first.dynamicData?.itemName || first.itemName || '').trim().toLowerCase();
+          const firstKey = firstItemName;
           
           newItems[index].jmcDoneQty = Math.max(0, (jmcItemMap[firstKey] || 0) - (prevBilledJmcMap[firstKey] || 0));
           newItems.splice(index + 1, 0, ...additionalRows);
@@ -259,9 +255,8 @@ export default function NewContractorBill() {
         newItems[index].loaSerialNo = selectedItem.dynamicData?.loaSerialNo || '';
         newItems[index].loaQty = selectedItem.dynamicData?.[circleKey] || selectedItem.dynamicData?.loaQuantity || 0;
         
-        const tc = String(selectedItem.dynamicData?.tempCode || selectedItem.tempCode || '').trim();
-        const loaNo = String(selectedItem.dynamicData?.sku || selectedItem.loaSerialNo || '').trim();
-        const key = `${tc}_${loaNo}`;
+        const itemName = (selectedItem.dynamicData?.itemName || selectedItem.itemName || '').trim().toLowerCase();
+        const key = itemName;
         newItems[index].jmcDoneQty = Math.max(0, (jmcItemMap[key] || 0) - (prevBilledJmcMap[key] || 0));
       }
     }
@@ -517,9 +512,8 @@ export default function NewContractorBill() {
                         />
                         {stage === '90%' && (() => {
                           const ai = availableItems.find(a => a._id === item.itemId);
-                          const tc = String(ai?.dynamicData?.tempCode || ai?.tempCode || item.tempCode || '').trim();
-                          const loaNo = String(ai?.dynamicData?.sku || ai?.loaSerialNo || item.loaSerialNo || '').trim();
-                          const key = `${tc}_${loaNo}`;
+                          const itemName = (ai?.dynamicData?.itemName || ai?.itemName || item.description || '').trim().toLowerCase();
+                          const key = itemName;
                           const max = Math.max(0, (jmcItemMap[key] || 0) - (prevBilledJmcMap[key] || 0));
                           return <span className="text-[10px] text-slate-500 font-medium">Max: {max}</span>;
                         })()}

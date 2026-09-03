@@ -94,6 +94,12 @@ export const getInvoices = asyncHandler(async (req: Request, res: Response) => {
 
   if (user && user.role?.name === 'Contractor' && user.contractorId) {
     filter.contractorId = user.contractorId;
+  } else if (req.query.contractorId && req.query.contractorId !== 'All') {
+    filter.contractorId = req.query.contractorId;
+  }
+
+  if (req.query.workOrderId && req.query.workOrderId !== 'All') {
+    filter.workOrderId = req.query.workOrderId;
   }
 
   const invoices = await ContractorInvoice.find(filter)

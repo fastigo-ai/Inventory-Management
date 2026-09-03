@@ -85,9 +85,11 @@ export default function NewContractorBill() {
             
             jmc.items.forEach((item: any) => {
               if (item.itemId) {
-                const id = typeof item.itemId === 'string' ? item.itemId : item.itemId._id;
-                if (!map[id]) map[id] = 0;
-                map[id] += (item.approvedQty || item.claimedQty || 0);
+                const itemName = typeof item.itemId === 'object' ? (item.itemId.dynamicData?.itemName || item.itemId.itemName || item.description || '') : (item.description || '');
+                const act = typeof item.itemId === 'object' ? (item.itemId.dynamicData?.activity || item.itemId.activity || item.activity || '') : (item.activity || '');
+                const key = `${itemName.trim().toLowerCase()}_${act.trim().toLowerCase()}`;
+                if (!map[key]) map[key] = 0;
+                map[key] += (item.approvedQty || item.claimedQty || 0);
               }
             });
           }
@@ -96,6 +98,38 @@ export default function NewContractorBill() {
       }).catch(console.error);
     } else {
       setJmcItemMap({});
+    }
+  }, [contractorId, workOrderId]);
+
+  const [prevBilledJmcMap, setPrevBilledJmcMap] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (contractorId) {
+      let query = `/contractor-billing/invoices?contractorId=${contractorId}`;
+      if (workOrderId) {
+        query += `&workOrderId=${workOrderId}`;
+      }
+      api.get(query).then(res => {
+        const invoices = res.data?.data || res.data || [];
+        const map: Record<string, number> = {};
+        
+        invoices.forEach((inv: any) => {
+          if (inv.status !== 'Rejected' && inv.lineItems) {
+            inv.lineItems.forEach((item: any) => {
+              if (item.itemId && (inv.stage === '90%' || inv.stage === '100%')) {
+                const itemName = typeof item.itemId === 'object' ? (item.itemId.dynamicData?.itemName || item.itemId.itemName || item.description || '') : (item.description || '');
+                const act = typeof item.itemId === 'object' ? (item.itemId.dynamicData?.activity || item.itemId.activity || item.activity || '') : (item.activity || '');
+                const key = `${itemName.trim().toLowerCase()}_${act.trim().toLowerCase()}`;
+                if (!map[key]) map[key] = 0;
+                map[key] += (item.jmcDoneQty || 0);
+              }
+            });
+          }
+        });
+        setPrevBilledJmcMap(map);
+      }).catch(console.error);
+    } else {
+      setPrevBilledJmcMap({});
     }
   }, [contractorId, workOrderId]);
 
@@ -155,9 +189,9 @@ export default function NewContractorBill() {
     const newItems = [...lineItems];
 
     if (field === 'jmcDoneQty') {
-      const maxQty = jmcItemMap[newItems[index].itemId] || 0;
+      const maxQty = Math.max(0, (jmcItemMap[newItems[index].itemId] || 0) - (prevBilledJmcMap[newItems[index].itemId] || 0));
       if (value > maxQty) {
-        toast.error(`Cannot exceed approved JMC Quantity (${maxQty})`);
+        toast.error(`Cannot exceed available JMC Quantity (${maxQty})`);
         value = maxQty;
       }
     }
@@ -178,20 +212,30 @@ export default function NewContractorBill() {
           newItems[index].loaSerialNo = first.dynamicData?.loaSerialNo || '';
           newItems[index].loaQty = first.dynamicData?.[circleKey] || first.dynamicData?.loaQuantity || 0;
           
-          const additionalRows = matchingItems.slice(1).map(ai => ({
-            itemId: ai._id,
-            activity: value,
-            description: ai.dynamicData?.itemName || ai.dynamicData?.description || ai.itemName || '',
-            rate: ai.dynamicData?.boqRate || ai.boqRate || 0,
-            jmcDoneQty: jmcItemMap[ai._id] || 0,
-            erectedQty: 0,
-            gstRate: newItems[index].gstRate || 18,
-            tempCode: ai.dynamicData?.tempCode || '',
-            loaSerialNo: ai.dynamicData?.loaSerialNo || '',
-            loaQty: ai.dynamicData?.[circleKey] || ai.dynamicData?.loaQuantity || 0
-          }));
+          const additionalRows = matchingItems.slice(1).map(ai => {
+            const itemName = (ai.dynamicData?.itemName || ai.itemName || '').trim().toLowerCase();
+            const act = (ai.dynamicData?.activity || ai.activity || '').trim().toLowerCase();
+            const key = `${itemName}_${act}`;
+            return {
+              itemId: ai._id,
+              activity: value,
+              description: ai.dynamicData?.itemName || ai.dynamicData?.description || ai.itemName || '',
+              rate: ai.dynamicData?.boqRate || ai.boqRate || 0,
+              jmcDoneQty: Math.max(0, (jmcItemMap[key] || 0) - (prevBilledJmcMap[key] || 0)),
+              erectedQty: 0,
+              gstRate: 18,
+              amount: 0,
+              loaQty: ai.dynamicData?.loaQuantity || ai.loaQuantity || 0,
+              loaSerialNo: ai.dynamicData?.sku || ai.loaSerialNo || '',
+              tempCode: ai.dynamicData?.tempCode || ai.tempCode || '',
+            };
+          });
           
-          newItems[index].jmcDoneQty = jmcItemMap[first._id] || 0;
+          const firstItemName = (first.dynamicData?.itemName || first.itemName || '').trim().toLowerCase();
+          const firstAct = (first.dynamicData?.activity || first.activity || '').trim().toLowerCase();
+          const firstKey = `${firstItemName}_${firstAct}`;
+          
+          newItems[index].jmcDoneQty = Math.max(0, (jmcItemMap[firstKey] || 0) - (prevBilledJmcMap[firstKey] || 0));
           newItems.splice(index + 1, 0, ...additionalRows);
         }
       } else {
@@ -214,7 +258,11 @@ export default function NewContractorBill() {
         newItems[index].tempCode = selectedItem.dynamicData?.tempCode || '';
         newItems[index].loaSerialNo = selectedItem.dynamicData?.loaSerialNo || '';
         newItems[index].loaQty = selectedItem.dynamicData?.[circleKey] || selectedItem.dynamicData?.loaQuantity || 0;
-        newItems[index].jmcDoneQty = jmcItemMap[selectedItem._id] || 0;
+        
+        const itemName = (selectedItem.dynamicData?.itemName || selectedItem.itemName || '').trim().toLowerCase();
+        const act = (selectedItem.dynamicData?.activity || selectedItem.activity || '').trim().toLowerCase();
+        const key = `${itemName}_${act}`;
+        newItems[index].jmcDoneQty = Math.max(0, (jmcItemMap[key] || 0) - (prevBilledJmcMap[key] || 0));
       }
     }
     setLineItems(newItems);
@@ -397,7 +445,7 @@ export default function NewContractorBill() {
                   <th className="px-4 py-3 whitespace-nowrap">LOA Sl No</th>
                   <th className="px-4 py-3 whitespace-nowrap">LOA Qty</th>
                   <th className="px-4 py-3">Rate</th>
-                  <th className="px-4 py-3 border-x bg-blue-50">JMC Done Qty<br/><span className="text-[10px] text-slate-500 font-normal">100% Release</span></th>
+                  <th className="px-4 py-3 border-x bg-blue-50">JMC Done Qty<br/><span className="text-[10px] text-slate-500 font-normal">90% Release</span></th>
                   <th className="px-4 py-3 border-x bg-orange-50">Erected Qty<br/><span className="text-[10px] text-slate-500 font-normal">Adhoc Release</span></th>
                   <th className="px-4 py-3 whitespace-nowrap">GST %</th>
                   <th className="px-4 py-3">Amount</th>
@@ -464,12 +512,17 @@ export default function NewContractorBill() {
                           type="number"
                           value={item.jmcDoneQty}
                           onChange={e => handleItemChange(idx, 'jmcDoneQty', Number(e.target.value))}
-                          disabled={stage !== '100%'}
-                          className={stage !== '100%' ? 'bg-slate-100' : ''}
+                          disabled={stage !== '90%'}
+                          className={stage !== '90%' ? 'bg-slate-100' : ''}
                         />
-                        {stage === '100%' && (
-                          <span className="text-[10px] text-slate-500 font-medium">Max: {jmcItemMap[item.itemId] || 0}</span>
-                        )}
+                        {stage === '90%' && (() => {
+                          const ai = availableItems.find(a => a._id === item.itemId);
+                          const itemName = (ai?.dynamicData?.itemName || ai?.itemName || item.description || '').trim().toLowerCase();
+                          const act = (ai?.dynamicData?.activity || ai?.activity || item.activity || '').trim().toLowerCase();
+                          const key = `${itemName}_${act}`;
+                          const max = Math.max(0, (jmcItemMap[key] || 0) - (prevBilledJmcMap[key] || 0));
+                          return <span className="text-[10px] text-slate-500 font-medium">Max: {max}</span>;
+                        })()}
                       </div>
                     </td>
                     <td className="p-2 bg-orange-50/30">
@@ -477,8 +530,8 @@ export default function NewContractorBill() {
                         type="number"
                         value={item.erectedQty}
                         onChange={e => handleItemChange(idx, 'erectedQty', Number(e.target.value))}
-                        disabled={stage === '100%'}
-                        className={stage === '100%' ? 'bg-slate-100' : ''}
+                        disabled={stage === '90%'}
+                        className={stage === '90%' ? 'bg-slate-100' : ''}
                       />
                     </td>
                     <td className="p-2">
@@ -491,9 +544,20 @@ export default function NewContractorBill() {
                     <td className="p-2 font-bold text-slate-800 whitespace-nowrap">
                       {(() => {
                         const percentage = parseInt(stage) || 0;
-                        const qty = stage === '100%' ? (item.jmcDoneQty || 0) : ((item.erectedQty || 0) * percentage / 100);
-                        const baseAmt = qty * (item.rate || 0);
-                        const totalAmt = baseAmt * (1 + (item.gstRate || 0) / 100);
+                        let qty = 0;
+                        let baseAmt = 0;
+                        let totalAmt = 0;
+                        
+                        if (stage === '90%') {
+                          qty = item.jmcDoneQty || 0;
+                          baseAmt = qty * (item.rate || 0) * 0.9;
+                          const gstAmt = (qty * (item.rate || 0)) * ((item.gstRate || 0) / 100);
+                          totalAmt = baseAmt + gstAmt;
+                        } else {
+                          qty = (item.erectedQty || 0) * percentage / 100;
+                          baseAmt = qty * (item.rate || 0);
+                          totalAmt = baseAmt * (1 + (item.gstRate || 0) / 100);
+                        }
                         return `₹${totalAmt.toFixed(2)}`;
                       })()}
                     </td>

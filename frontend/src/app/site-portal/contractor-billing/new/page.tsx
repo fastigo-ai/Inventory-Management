@@ -153,6 +153,15 @@ export default function NewContractorBill() {
 
   const handleItemChange = (index: number, field: string, value: any) => {
     const newItems = [...lineItems];
+
+    if (field === 'jmcDoneQty') {
+      const maxQty = jmcItemMap[newItems[index].itemId] || 0;
+      if (value > maxQty) {
+        toast.error(`Cannot exceed approved JMC Quantity (${maxQty})`);
+        value = maxQty;
+      }
+    }
+
     newItems[index][field] = value;
 
     const circleKey = user?.assignedCircle ? `${user.assignedCircle.toLowerCase()}LoaQuantity` : 'loaQuantity';
@@ -450,13 +459,18 @@ export default function NewContractorBill() {
                       />
                     </td>
                     <td className="p-2 bg-blue-50/30">
-                      <Input
-                        type="number"
-                        value={item.jmcDoneQty}
-                        onChange={e => handleItemChange(idx, 'jmcDoneQty', Number(e.target.value))}
-                        disabled={stage !== '100%'}
-                        className={stage !== '100%' ? 'bg-slate-100' : ''}
-                      />
+                      <div className="flex flex-col gap-1">
+                        <Input
+                          type="number"
+                          value={item.jmcDoneQty}
+                          onChange={e => handleItemChange(idx, 'jmcDoneQty', Number(e.target.value))}
+                          disabled={stage !== '100%'}
+                          className={stage !== '100%' ? 'bg-slate-100' : ''}
+                        />
+                        {stage === '100%' && (
+                          <span className="text-[10px] text-slate-500 font-medium">Max: {jmcItemMap[item.itemId] || 0}</span>
+                        )}
+                      </div>
                     </td>
                     <td className="p-2 bg-orange-50/30">
                       <Input

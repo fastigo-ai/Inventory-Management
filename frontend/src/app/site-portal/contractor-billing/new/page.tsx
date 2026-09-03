@@ -75,7 +75,7 @@ export default function NewContractorBill() {
 
   useEffect(() => {
     if (contractorId) {
-      api.get(`/jmcs?contractorId=${contractorId}`).then(res => {
+      api.get(`/jmc?contractorId=${contractorId}`).then(res => {
         const jmcs = res.data?.data || res.data || [];
         const map: Record<string, number> = {};
         jmcs.forEach((jmc: any) => {

@@ -25,6 +25,7 @@ export default function NewContractorBill() {
   const [contractorId, setContractorId] = useState('');
   const [workOrderId, setWorkOrderId] = useState('');
   const [stage, setStage] = useState('');
+  const [globalCategory, setGlobalCategory] = useState('Supply');
   const [jmcDocUrl, setJmcDocUrl] = useState('');
   const [signedBillDocUrl, setSignedBillDocUrl] = useState('');
 
@@ -105,7 +106,6 @@ export default function NewContractorBill() {
         itemId: '',
         activity: '',
         description: '',
-        billingCategory: 'Supply',
         rate: 0,
         jmcDoneQty: 0,
         erectedQty: 0,
@@ -137,7 +137,6 @@ export default function NewContractorBill() {
             itemId: ai._id,
             activity: value,
             description: ai.dynamicData?.itemName || ai.dynamicData?.description || ai.itemName || '',
-            billingCategory: newItems[index].billingCategory || 'Supply',
             rate: ai.dynamicData?.boqRate || ai.boqRate || 0,
             jmcDoneQty: 0,
             erectedQty: 0,
@@ -188,7 +187,7 @@ export default function NewContractorBill() {
         stage,
         jmcDocUrl,
         signedBillDocUrl,
-        lineItems
+        lineItems: lineItems.map(item => ({ ...item, billingCategory: globalCategory }))
       };
 
       await createContractorInvoice(payload);
@@ -266,6 +265,18 @@ export default function NewContractorBill() {
                 ))}
               </select>
             </div>
+
+            <div className="space-y-2">
+              <Label>Billing Category <span className="text-red-500">*</span></Label>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                value={globalCategory}
+                onChange={(e) => setGlobalCategory(e.target.value)}
+              >
+                <option value="Supply">Supply</option>
+                <option value="Erection">Erection</option>
+              </select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -325,7 +336,6 @@ export default function NewContractorBill() {
                 <tr>
                   <th className="px-4 py-3">Activity</th>
                   <th className="px-4 py-3 min-w-[200px]">Item</th>
-                  <th className="px-4 py-3">Category</th>
                   <th className="px-4 py-3">Rate</th>
                   <th className="px-4 py-3 border-x bg-blue-50">JMC Done Qty<br/><span className="text-[10px] text-slate-500 font-normal">100% Release</span></th>
                   <th className="px-4 py-3 border-x bg-orange-50">Erected Qty<br/><span className="text-[10px] text-slate-500 font-normal">Adhoc Release</span></th>
@@ -369,16 +379,6 @@ export default function NewContractorBill() {
                               </option>
                             );
                           })}
-                      </select>
-                    </td>
-                    <td className="p-2">
-                      <select
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        value={item.billingCategory}
-                        onChange={(e) => handleItemChange(idx, 'billingCategory', e.target.value)}
-                      >
-                        <option value="Supply">Supply</option>
-                        <option value="Erection">Erection</option>
                       </select>
                     </td>
                     <td className="p-2">

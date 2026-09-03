@@ -35,8 +35,14 @@ export default function NewContractorBill() {
 
   useEffect(() => {
     api.get('/contractors').then(res => {
-      const arr = res.data?.data?.data || res.data?.data || res.data || [];
-      setContractors(Array.isArray(arr) ? arr : []);
+      const data = res.data?.data;
+      let arr: any[] = [];
+      if (Array.isArray(data)) {
+        arr = data;
+      } else if (data && Array.isArray(data.contractors)) {
+        arr = data.contractors;
+      }
+      setContractors(arr);
     }).catch(console.error);
   }, []);
 
@@ -173,7 +179,9 @@ export default function NewContractorBill() {
               >
                 <option value="">Select Contractor</option>
                 {contractors.map(c => (
-                  <option key={c._id} value={c._id}>{c.name || c.vendorName}</option>
+                  <option key={c._id} value={c._id}>
+                    {c.dynamicData?.displayName || c.name || c.vendorName || 'Unknown Contractor'}
+                  </option>
                 ))}
               </select>
             </div>

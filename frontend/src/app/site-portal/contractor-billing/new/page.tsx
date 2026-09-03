@@ -109,7 +109,10 @@ export default function NewContractorBill() {
         rate: 0,
         jmcDoneQty: 0,
         erectedQty: 0,
-        gstRate: 18
+        gstRate: 18,
+        tempCode: '',
+        loaSerialNo: '',
+        loaQty: 0
       }
     ]);
   };
@@ -124,6 +127,8 @@ export default function NewContractorBill() {
     const newItems = [...lineItems];
     newItems[index][field] = value;
 
+    const circleKey = user?.assignedCircle ? `${user.assignedCircle.toLowerCase()}LoaQuantity` : 'loaQuantity';
+
     if (field === 'activity') {
       if (value) {
         const matchingItems = availableItems.filter(ai => (ai.dynamicData?.activity || ai.activity || '') === value);
@@ -132,6 +137,9 @@ export default function NewContractorBill() {
           newItems[index].itemId = first._id;
           newItems[index].description = first.dynamicData?.itemName || first.dynamicData?.description || first.itemName || '';
           newItems[index].rate = first.dynamicData?.boqRate || first.boqRate || 0;
+          newItems[index].tempCode = first.dynamicData?.tempCode || '';
+          newItems[index].loaSerialNo = first.dynamicData?.loaSerialNo || '';
+          newItems[index].loaQty = first.dynamicData?.[circleKey] || first.dynamicData?.loaQuantity || 0;
           
           const additionalRows = matchingItems.slice(1).map(ai => ({
             itemId: ai._id,
@@ -140,7 +148,10 @@ export default function NewContractorBill() {
             rate: ai.dynamicData?.boqRate || ai.boqRate || 0,
             jmcDoneQty: 0,
             erectedQty: 0,
-            gstRate: newItems[index].gstRate || 18
+            gstRate: newItems[index].gstRate || 18,
+            tempCode: ai.dynamicData?.tempCode || '',
+            loaSerialNo: ai.dynamicData?.loaSerialNo || '',
+            loaQty: ai.dynamicData?.[circleKey] || ai.dynamicData?.loaQuantity || 0
           }));
           
           newItems.splice(index + 1, 0, ...additionalRows);
@@ -149,6 +160,9 @@ export default function NewContractorBill() {
         newItems[index].itemId = '';
         newItems[index].description = '';
         newItems[index].rate = 0;
+        newItems[index].tempCode = '';
+        newItems[index].loaSerialNo = '';
+        newItems[index].loaQty = 0;
       }
     }
 
@@ -158,6 +172,9 @@ export default function NewContractorBill() {
         newItems[index].description = selectedItem.dynamicData?.itemName || selectedItem.dynamicData?.description || selectedItem.itemName || '';
         newItems[index].rate = selectedItem.dynamicData?.boqRate || selectedItem.boqRate || 0;
         newItems[index].activity = selectedItem.dynamicData?.activity || selectedItem.activity || '';
+        newItems[index].tempCode = selectedItem.dynamicData?.tempCode || '';
+        newItems[index].loaSerialNo = selectedItem.dynamicData?.loaSerialNo || '';
+        newItems[index].loaQty = selectedItem.dynamicData?.[circleKey] || selectedItem.dynamicData?.loaQuantity || 0;
       }
     }
     setLineItems(newItems);
@@ -336,10 +353,14 @@ export default function NewContractorBill() {
                 <tr>
                   <th className="px-4 py-3">Activity</th>
                   <th className="px-4 py-3 min-w-[200px]">Item</th>
+                  <th className="px-4 py-3 whitespace-nowrap">Temp Code</th>
+                  <th className="px-4 py-3 whitespace-nowrap">LOA Sl No</th>
+                  <th className="px-4 py-3 whitespace-nowrap">LOA Qty</th>
                   <th className="px-4 py-3">Rate</th>
                   <th className="px-4 py-3 border-x bg-blue-50">JMC Done Qty<br/><span className="text-[10px] text-slate-500 font-normal">100% Release</span></th>
                   <th className="px-4 py-3 border-x bg-orange-50">Erected Qty<br/><span className="text-[10px] text-slate-500 font-normal">Adhoc Release</span></th>
-                  <th className="px-4 py-3">GST %</th>
+                  <th className="px-4 py-3 whitespace-nowrap">GST %</th>
+                  <th className="px-4 py-3">Amount</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
@@ -381,6 +402,15 @@ export default function NewContractorBill() {
                           })}
                       </select>
                     </td>
+                    <td className="p-2 text-slate-600 font-medium text-xs">
+                      {item.tempCode || '-'}
+                    </td>
+                    <td className="p-2 text-slate-600 font-medium text-xs">
+                      {item.loaSerialNo || '-'}
+                    </td>
+                    <td className="p-2 text-slate-600 font-medium text-xs">
+                      {item.loaQty || 0}
+                    </td>
                     <td className="p-2">
                       <Input
                         type="number"
@@ -413,6 +443,15 @@ export default function NewContractorBill() {
                         onChange={e => handleItemChange(idx, 'gstRate', Number(e.target.value))}
                       />
                     </td>
+                    <td className="p-2 font-bold text-slate-800 whitespace-nowrap">
+                      {(() => {
+                        const percentage = parseInt(stage) || 0;
+                        const qty = stage === '100%' ? (item.jmcDoneQty || 0) : ((item.erectedQty || 0) * percentage / 100);
+                        const baseAmt = qty * (item.rate || 0);
+                        const totalAmt = baseAmt * (1 + (item.gstRate || 0) / 100);
+                        return `₹${totalAmt.toFixed(2)}`;
+                      })()}
+                    </td>
                     <td className="p-2 text-center">
                       <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(idx)}>
                         <Trash2 className="w-4 h-4 text-red-500" />
@@ -422,7 +461,7 @@ export default function NewContractorBill() {
                 ))}
                 {lineItems.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="p-8 text-center text-slate-500">
+                    <td colSpan={11} className="p-8 text-center text-slate-500">
                       No items added yet. Click 'Add Item' to start.
                     </td>
                   </tr>

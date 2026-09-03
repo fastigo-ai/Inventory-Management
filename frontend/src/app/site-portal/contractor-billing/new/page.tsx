@@ -125,9 +125,32 @@ export default function NewContractorBill() {
     newItems[index][field] = value;
 
     if (field === 'activity') {
-      newItems[index].itemId = '';
-      newItems[index].description = '';
-      newItems[index].rate = 0;
+      if (value) {
+        const matchingItems = availableItems.filter(ai => (ai.dynamicData?.activity || ai.activity || '') === value);
+        if (matchingItems.length > 0) {
+          const first = matchingItems[0];
+          newItems[index].itemId = first._id;
+          newItems[index].description = first.dynamicData?.itemName || first.dynamicData?.description || first.itemName || '';
+          newItems[index].rate = first.dynamicData?.boqRate || first.boqRate || 0;
+          
+          const additionalRows = matchingItems.slice(1).map(ai => ({
+            itemId: ai._id,
+            activity: value,
+            description: ai.dynamicData?.itemName || ai.dynamicData?.description || ai.itemName || '',
+            billingCategory: newItems[index].billingCategory || 'Supply',
+            rate: ai.dynamicData?.boqRate || ai.boqRate || 0,
+            jmcDoneQty: 0,
+            erectedQty: 0,
+            gstRate: newItems[index].gstRate || 18
+          }));
+          
+          newItems.splice(index + 1, 0, ...additionalRows);
+        }
+      } else {
+        newItems[index].itemId = '';
+        newItems[index].description = '';
+        newItems[index].rate = 0;
+      }
     }
 
     if (field === 'itemId' && value) {

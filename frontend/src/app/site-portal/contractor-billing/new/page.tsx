@@ -118,8 +118,9 @@ export default function NewContractorBill() {
     if (field === 'itemId' && value) {
       const selectedItem = availableItems.find(i => i._id === value);
       if (selectedItem) {
-        newItems[index].description = selectedItem.itemName;
-        newItems[index].rate = selectedItem.boqRate || 0;
+        newItems[index].description = selectedItem.dynamicData?.itemName || selectedItem.dynamicData?.description || selectedItem.itemName || '';
+        newItems[index].rate = selectedItem.dynamicData?.boqRate || selectedItem.boqRate || 0;
+        newItems[index].activity = selectedItem.dynamicData?.activity || selectedItem.activity || '';
       }
     }
     setLineItems(newItems);
@@ -311,9 +312,15 @@ export default function NewContractorBill() {
                         onChange={(e) => handleItemChange(idx, 'itemId', e.target.value)}
                       >
                         <option value="">Select Item</option>
-                        {availableItems.map(ai => (
-                          <option key={ai._id} value={ai._id}>{ai.itemName}</option>
-                        ))}
+                        {availableItems.map(ai => {
+                          const itemName = ai.dynamicData?.itemName || ai.dynamicData?.description || ai.itemName || 'Unknown Item';
+                          const activity = ai.dynamicData?.activity || ai.activity || '';
+                          return (
+                            <option key={ai._id} value={ai._id}>
+                              {activity ? `[${activity}] ${itemName}` : itemName}
+                            </option>
+                          );
+                        })}
                       </select>
                     </td>
                     <td className="p-2">

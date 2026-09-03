@@ -5,7 +5,8 @@ export interface IContractorInvoiceItem {
   activity?: string;
   description?: string;
   billingCategory: 'Supply' | 'Erection';
-  quantity: number;
+  jmcDoneQty: number;
+  erectedQty: number;
   rate: number;
   percentageApplied: number; // e.g., 60, 30, 90, 10
   baseAmount: number;
@@ -20,15 +21,15 @@ export interface IContractorInvoice extends Document {
   contractorId: mongoose.Types.ObjectId;
   workOrderId: mongoose.Types.ObjectId;
   
-  // The type of billing stage
-  stage: 'Stage 1 (Supply Initial)' | 'Stage 2 (Erection & Supply Balance)' | 'Stage 3 (Final/Retention)';
+  // The type of billing stage based on flowchart
+  stage: '10%' | '20%' | '25%' | '30%' | '50%' | '70%' | '75%' | '90%' | '100%';
   
   // References to the source documents that trigger the billing
-  mhrovId?: mongoose.Types.ObjectId; // For Stage 1
-  jmcId?: mongoose.Types.ObjectId;   // For Stage 2
-  handoverCertificateId?: mongoose.Types.ObjectId; // For Stage 3
+  mhrovId?: mongoose.Types.ObjectId; // For Supply
+  jmcId?: mongoose.Types.ObjectId;   // For Erection
+  handoverCertificateId?: mongoose.Types.ObjectId; // For Final
 
-  // For Stage 2 flexibility on Supply calculation (based on MHROV qty or JMC erected qty)
+  // For Stage 2 flexibility on Supply calculation
   supplyBasis?: 'MHROV Total' | 'JMC Erected';
 
   lineItems: IContractorInvoiceItem[];
@@ -37,7 +38,10 @@ export interface IContractorInvoice extends Document {
   totalGstAmount: number;
   grandTotal: number;
 
-  status: 'Draft' | 'Submitted' | 'Approved' | 'Rejected' | 'Paid';
+  jmcDocUrl?: string;
+  signedBillDocUrl?: string;
+
+  status: 'Draft' | 'Pending PM Approval' | 'Pending PD Approval' | 'Pending HO Approval' | 'Payment Processed' | 'Rejected';
   remarks?: string;
   createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
@@ -49,7 +53,8 @@ const contractorInvoiceItemSchema = new Schema<IContractorInvoiceItem>({
   activity: { type: String },
   description: { type: String },
   billingCategory: { type: String, enum: ['Supply', 'Erection'], required: true },
-  quantity: { type: Number, required: true },
+  jmcDoneQty: { type: Number, required: true, default: 0 },
+  erectedQty: { type: Number, required: true, default: 0 },
   rate: { type: Number, required: true },
   percentageApplied: { type: Number, required: true },
   baseAmount: { type: Number, required: true },
@@ -66,7 +71,7 @@ const contractorInvoiceSchema = new Schema<IContractorInvoice>({
   
   stage: { 
     type: String, 
-    enum: ['Stage 1 (Supply Initial)', 'Stage 2 (Erection & Supply Balance)', 'Stage 3 (Final/Retention)'],
+    enum: ['10%', '20%', '25%', '30%', '50%', '70%', '75%', '90%', '100%'],
     required: true
   },
   
@@ -85,9 +90,12 @@ const contractorInvoiceSchema = new Schema<IContractorInvoice>({
   totalGstAmount: { type: Number, required: true, default: 0 },
   grandTotal: { type: Number, required: true, default: 0 },
 
+  jmcDocUrl: { type: String },
+  signedBillDocUrl: { type: String },
+
   status: {
     type: String,
-    enum: ['Draft', 'Submitted', 'Approved', 'Rejected', 'Paid'],
+    enum: ['Draft', 'Pending PM Approval', 'Pending PD Approval', 'Pending HO Approval', 'Payment Processed', 'Rejected'],
     default: 'Draft'
   },
   remarks: { type: String },

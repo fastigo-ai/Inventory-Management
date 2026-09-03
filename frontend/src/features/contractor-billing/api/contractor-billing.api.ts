@@ -11,18 +11,8 @@ export const getContractorInvoiceById = async (id: string) => {
   return response.data;
 };
 
-export const createStage1Invoice = async (payload: any) => {
-  const response = await api.post('/contractor-billing/invoices/stage1', payload);
-  return response.data;
-};
-
-export const createStage2Invoice = async (payload: any) => {
-  const response = await api.post('/contractor-billing/invoices/stage2', payload);
-  return response.data;
-};
-
-export const createStage3Invoice = async (payload: any) => {
-  const response = await api.post('/contractor-billing/invoices/stage3', payload);
+export const createContractorInvoice = async (payload: any) => {
+  const response = await api.post('/contractor-billing/invoices', payload);
   return response.data;
 };
 

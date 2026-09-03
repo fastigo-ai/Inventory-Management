@@ -6,49 +6,34 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, Save, Loader2, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, Plus, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/shared/api/axios';
-import { 
-  createStage1Invoice,
-  createStage2Invoice,
-  createStage3Invoice
-} from '@/features/contractor-billing/api/contractor-billing.api';
+import { createContractorInvoice } from '@/features/contractor-billing/api/contractor-billing.api';
 import { getItems } from '@/features/items/api/items.api';
+
+const STAGES = ['10%', '20%', '25%', '30%', '50%', '70%', '75%', '90%', '100%'];
 
 export default function NewContractorBill() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [fetchingDocs, setFetchingDocs] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Form State
   const [contractorId, setContractorId] = useState('');
   const [workOrderId, setWorkOrderId] = useState('');
   const [stage, setStage] = useState('');
-  
-  // Document Refs
-  const [mhrovId, setMhrovId] = useState('');
-  const [jmcId, setJmcId] = useState('');
-  const [handoverId, setHandoverId] = useState('');
+  const [jmcDocUrl, setJmcDocUrl] = useState('');
+  const [signedBillDocUrl, setSignedBillDocUrl] = useState('');
 
-  // Toggles
-  const [supplyBasis, setSupplyBasis] = useState('JMC Erected');
-
-  // Preview Items
+  // Items
   const [lineItems, setLineItems] = useState<any[]>([]);
 
   // Metadata Options
   const [contractors, setContractors] = useState<any[]>([]);
   const [workOrders, setWorkOrders] = useState<any[]>([]);
-  const [mhrovs, setMhrovs] = useState<any[]>([]);
-  const [jmcs, setJmcs] = useState<any[]>([]);
-  const [handovers, setHandovers] = useState<any[]>([]);
   const [availableItems, setAvailableItems] = useState<any[]>([]);
 
   useEffect(() => {
-    // Fetch initial contractors
     api.get('/contractors').then(res => {
       const arr = res.data?.data?.data || res.data?.data || res.data || [];
       setContractors(Array.isArray(arr) ? arr : []);
@@ -61,30 +46,11 @@ export default function NewContractorBill() {
         const arr = res.data?.data?.data || res.data?.data || res.data || [];
         setWorkOrders(Array.isArray(arr) ? arr : []);
       }).catch(console.error);
+    } else {
+      setWorkOrders([]);
+      setWorkOrderId('');
     }
   }, [contractorId]);
-
-  useEffect(() => {
-    if (stage && workOrderId) {
-      setFetchingDocs(true);
-      if (stage === 'Stage 1 (Supply Initial)') {
-        api.get('/store/mhrov').then(res => {
-          const arr = res.data?.data?.data || res.data?.data || res.data || [];
-          setMhrovs(Array.isArray(arr) ? arr : []);
-        }).finally(() => setFetchingDocs(false));
-      } else if (stage === 'Stage 2 (Erection & Supply Balance)') {
-        api.get('/jmc').then(res => {
-          const arr = res.data?.data?.data || res.data?.data || res.data || [];
-          setJmcs(Array.isArray(arr) ? arr : []);
-        }).finally(() => setFetchingDocs(false));
-      } else if (stage === 'Stage 3 (Final/Retention)') {
-        api.get('/contractor-billing/handover-certificates').then(res => {
-          const arr = res.data?.data?.data || res.data?.data || res.data || [];
-          setHandovers(Array.isArray(arr) ? arr : []);
-        }).finally(() => setFetchingDocs(false));
-      }
-    }
-  }, [stage, workOrderId]);
 
   useEffect(() => {
     const selectedWO = workOrders.find(w => w._id === workOrderId);
@@ -98,395 +64,309 @@ export default function NewContractorBill() {
       }).then(res => {
         const fetchedItems = res?.items || res?.data?.items || (Array.isArray(res) ? res : res.data) || [];
         setAvailableItems(fetchedItems);
-      }).catch(console.error);
-    } else if (selectedWO) {
-      // Fallback if no package/circle
-      getItems({ limit: 1000 }).then(res => {
-        const fetchedItems = res?.items || res?.data?.items || (Array.isArray(res) ? res : res.data) || [];
-        setAvailableItems(fetchedItems);
-      }).catch(console.error);
+      });
     } else {
       setAvailableItems([]);
     }
   }, [workOrderId, workOrders]);
 
-  const handleAddLineItem = () => {
-    setLineItems([...lineItems, {
-      itemId: '',
-      activity: '',
-      description: '',
-      billingCategory: stage === 'Stage 1 (Supply Initial)' ? 'Supply' : 'Erection',
-      quantity: 1,
-      rate: 0,
-      gstRate: 18,
-      baseAmount: 0,
-      gstAmount: 0
-    }]);
-  };
-
-  const handleUpdateLineItem = (index: number, field: string, value: any) => {
-    const newItems = [...lineItems];
-    newItems[index][field] = value;
-    
-    if (field === 'itemId') {
-      const item = availableItems.find(i => i._id === value);
-      if (item) {
-        newItems[index].description = item.dynamicData?.description || item.dynamicData?.itemDescription || '';
+  const handleAddItem = () => {
+    setLineItems([
+      ...lineItems,
+      {
+        itemId: '',
+        activity: '',
+        description: '',
+        billingCategory: 'Supply',
+        rate: 0,
+        jmcDoneQty: 0,
+        erectedQty: 0,
+        gstRate: 18
       }
-    }
-
-    if (field === 'quantity' || field === 'rate' || field === 'gstRate') {
-      const qty = parseFloat(newItems[index].quantity) || 0;
-      const rate = parseFloat(newItems[index].rate) || 0;
-      const gst = parseFloat(newItems[index].gstRate) || 0;
-      newItems[index].baseAmount = qty * rate;
-      newItems[index].gstAmount = (qty * rate * gst) / 100;
-    }
-
-    setLineItems(newItems);
+    ]);
   };
 
-  const handleRemoveLineItem = (index: number) => {
+  const handleRemoveItem = (index: number) => {
     const newItems = [...lineItems];
     newItems.splice(index, 1);
     setLineItems(newItems);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // Strict Validation
-    const newErrors: Record<string, string> = {};
-    if (!contractorId) newErrors.contractorId = 'Contractor is required';
-    if (!workOrderId) newErrors.workOrderId = 'Work Order is required';
-    if (!stage) newErrors.stage = 'Billing Stage is required';
-    
-    if (stage === 'Stage 1 (Supply Initial)' && !mhrovId) newErrors.mhrovId = 'MHROV is required';
-    if (stage === 'Stage 2 (Erection & Supply Balance)' && !jmcId) newErrors.jmcId = 'JMC is required';
-    if (stage === 'Stage 3 (Final/Retention)' && !handoverId) newErrors.handoverId = 'Handover Certificate is required';
+  const handleItemChange = (index: number, field: string, value: any) => {
+    const newItems = [...lineItems];
+    newItems[index][field] = value;
 
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      toast.error('Please fix the highlighted errors');
+    if (field === 'itemId' && value) {
+      const selectedItem = availableItems.find(i => i._id === value);
+      if (selectedItem) {
+        newItems[index].description = selectedItem.itemName;
+        newItems[index].rate = selectedItem.boqRate || 0;
+      }
+    }
+    setLineItems(newItems);
+  };
+
+  const handleSubmit = async () => {
+    if (!contractorId || !workOrderId || !stage) {
+      toast.error('Please fill in Contractor, Work Order, and Stage');
+      return;
+    }
+    
+    if (!jmcDocUrl || !signedBillDocUrl) {
+      toast.error('Please upload JMC Signed Copy and Signed Bill Copy');
       return;
     }
 
     if (lineItems.length === 0) {
-      toast.error('Source document has no items to bill. Add at least one line item.');
+      toast.error('Please add at least one line item');
       return;
     }
 
-    // Validate line items
-    for (const item of lineItems) {
-      if (item.billingCategory === 'Supply' && !item.itemId) {
-        toast.error('Supply items must have a registered Item selected');
-        return;
-      }
-      if (!item.quantity || !item.rate) {
-        toast.error('Quantity and Rate are required for all line items');
-        return;
-      }
-    }
-
-    setErrors({});
-    setLoading(true);
     try {
+      setLoading(true);
       const payload = {
         contractorId,
         workOrderId,
+        stage,
+        jmcDocUrl,
+        signedBillDocUrl,
         lineItems
       };
 
-      if (stage === 'Stage 1 (Supply Initial)') {
-        await createStage1Invoice({ ...payload, mhrovId });
-      } else if (stage === 'Stage 2 (Erection & Supply Balance)') {
-        await createStage2Invoice({ ...payload, jmcId, supplyBasis });
-      } else if (stage === 'Stage 3 (Final/Retention)') {
-        await createStage3Invoice({ ...payload, handoverCertificateId: handoverId });
-      }
-
-      toast.success('Bill generated successfully!');
+      await createContractorInvoice(payload);
+      toast.success('Contractor Bill submitted successfully!');
       router.push('/site-portal/contractor-billing');
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Failed to create bill');
+      console.error(error);
+      toast.error(error.response?.data?.message || 'Failed to submit bill');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="p-6 max-w-[1600px] mx-auto space-y-6 pb-28">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">Create Contractor Bill</h1>
-          <p className="text-gray-500">Generate a staggered bill with dynamic items.</p>
+          <h1 className="text-2xl font-bold text-slate-800 flex items-center">
+            <button onClick={() => router.back()} className="mr-4 hover:bg-slate-100 p-2 rounded-full">
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            Create Contractor Bill
+          </h1>
+          <p className="text-slate-500 ml-12 text-sm mt-1">Generate a staggered bill with dynamic items.</p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <Card className="border-gray-100 shadow-sm">
-          <CardHeader className="bg-gray-50/50 border-b border-gray-100">
-            <CardTitle className="text-lg">Billing Context</CardTitle>
-          </CardHeader>
-          <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Billing Context</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label className={errors.contractorId ? "text-red-500" : ""}>Contractor <span className="text-red-500">*</span></Label>
-              <select 
-                className={`flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50 ${errors.contractorId ? 'border-red-500 bg-red-50' : 'border-slate-200'}`}
-                value={contractorId} 
-                onChange={(e) => {
-                  setContractorId(e.target.value);
-                  if (errors.contractorId) setErrors({ ...errors, contractorId: '' });
-                }}
+              <Label>Contractor <span className="text-red-500">*</span></Label>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                value={contractorId}
+                onChange={(e) => setContractorId(e.target.value)}
               >
                 <option value="">Select Contractor</option>
                 {contractors.map(c => (
-                  <option key={c._id} value={c._id}>{c.dynamicData?.displayName || c.name || 'Unnamed Contractor'}</option>
+                  <option key={c._id} value={c._id}>{c.name || c.vendorName}</option>
                 ))}
               </select>
-              {errors.contractorId && <p className="text-xs text-red-500">{errors.contractorId}</p>}
             </div>
-            
+
             <div className="space-y-2">
-              <Label className={errors.workOrderId ? "text-red-500" : ""}>Work Order <span className="text-red-500">*</span></Label>
-              <select 
-                className={`flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50 ${errors.workOrderId ? 'border-red-500 bg-red-50' : 'border-slate-200'}`}
-                value={workOrderId} 
-                onChange={(e) => {
-                  setWorkOrderId(e.target.value);
-                  if (errors.workOrderId) setErrors({ ...errors, workOrderId: '' });
-                }} 
+              <Label>Work Order <span className="text-red-500">*</span></Label>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                value={workOrderId}
+                onChange={(e) => setWorkOrderId(e.target.value)}
                 disabled={!contractorId}
               >
                 <option value="">Select Work Order</option>
-                {workOrders.map(wo => (
-                  <option key={wo._id} value={wo._id}>{wo.workOrderNumber} (Pkg: {wo.package || 'N/A'})</option>
+                {workOrders.map(w => (
+                  <option key={w._id} value={w._id}>{w.workOrderNumber}</option>
                 ))}
               </select>
-              {errors.workOrderId && <p className="text-xs text-red-500">{errors.workOrderId}</p>}
             </div>
 
-            <div className="space-y-2 md:col-span-2">
-              <Label className={errors.stage ? "text-red-500" : ""}>Billing Stage <span className="text-red-500">*</span></Label>
-              <select 
-                className={`flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50 ${errors.stage ? 'border-red-500 bg-red-50' : 'border-slate-200'}`}
-                value={stage} 
-                onChange={(e) => {
-                  setStage(e.target.value);
-                  if (errors.stage) setErrors({ ...errors, stage: '' });
-                  setLineItems([]); // reset items when stage changes
-                }} 
-                disabled={!workOrderId}
+            <div className="space-y-2">
+              <Label>Billing Stage <span className="text-red-500">*</span></Label>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                value={stage}
+                onChange={(e) => setStage(e.target.value)}
               >
                 <option value="">Select Billing Stage</option>
-                <option value="Stage 1 (Supply Initial)">Stage 1: Supply Initial (60%)</option>
-                <option value="Stage 2 (Erection & Supply Balance)">Stage 2: Erection (90%) + Supply Balance (30%)</option>
-                <option value="Stage 3 (Final/Retention)">Stage 3: Final / Retention (10%)</option>
+                {STAGES.map(s => (
+                  <option key={s} value={s}>{s} Payment Stage</option>
+                ))}
               </select>
-              {errors.stage && <p className="text-xs text-red-500">{errors.stage}</p>}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </CardContent>
+      </Card>
 
-        {stage && (
-          <Card className="border-gray-100 shadow-sm transition-all">
-            <CardHeader className="bg-blue-50/30 border-b border-blue-50">
-              <CardTitle className="text-lg text-blue-900">Source Document Selection</CardTitle>
-              <CardDescription>Select the document that triggers this billing stage.</CardDescription>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6">
-              
-              {stage === 'Stage 1 (Supply Initial)' && (
-                <div className="space-y-2">
-                  <Label className={errors.mhrovId ? "text-red-500" : ""}>Select MHROV <span className="text-red-500">*</span></Label>
-                  <select 
-                    className={`flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50 ${errors.mhrovId ? 'border-red-500 bg-red-50' : 'border-slate-200'}`}
-                    value={mhrovId} 
-                    onChange={(e) => {
-                      setMhrovId(e.target.value);
-                      if (errors.mhrovId) setErrors({ ...errors, mhrovId: '' });
-                    }}
-                  >
-                    <option value="">{fetchingDocs ? "Loading..." : "Select MHROV"}</option>
-                    {mhrovs.map(m => (
-                      <option key={m._id} value={m._id}>{m.mhrovNumber}</option>
-                    ))}
-                  </select>
-                  {errors.mhrovId && <p className="text-xs text-red-500">{errors.mhrovId}</p>}
-                </div>
-              )}
+      <Card>
+        <CardHeader>
+          <CardTitle>Document Uploads</CardTitle>
+          <CardDescription>Mandatory documents required to process this bill.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label>JMC Certified Signed Copy & Drawing <span className="text-red-500">*</span></Label>
+              <Input
+                type="file"
+                className="cursor-pointer"
+                onChange={(e) => {
+                  // Mock upload
+                  toast.info('Uploading JMC copy...');
+                  setTimeout(() => setJmcDocUrl('https://example.com/jmc-signed.pdf'), 1000);
+                }}
+              />
+              {jmcDocUrl && <p className="text-xs text-green-600 font-medium">Uploaded Successfully</p>}
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Signed Bill Copy (Contractor / Site Officials) <span className="text-red-500">*</span></Label>
+              <Input
+                type="file"
+                className="cursor-pointer"
+                onChange={(e) => {
+                  // Mock upload
+                  toast.info('Uploading Signed Bill copy...');
+                  setTimeout(() => setSignedBillDocUrl('https://example.com/signed-bill.pdf'), 1000);
+                }}
+              />
+              {signedBillDocUrl && <p className="text-xs text-green-600 font-medium">Uploaded Successfully</p>}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-              {stage === 'Stage 2 (Erection & Supply Balance)' && (
-                <>
-                  <div className="space-y-2">
-                    <Label className={errors.jmcId ? "text-red-500" : ""}>Select JMC Register Entry <span className="text-red-500">*</span></Label>
-                    <select 
-                      className={`flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50 ${errors.jmcId ? 'border-red-500 bg-red-50' : 'border-slate-200'}`}
-                      value={jmcId} 
-                      onChange={(e) => {
-                        setJmcId(e.target.value);
-                        if (errors.jmcId) setErrors({ ...errors, jmcId: '' });
-                      }}
-                    >
-                      <option value="">{fetchingDocs ? "Loading..." : "Select JMC"}</option>
-                      {jmcs.map(j => (
-                        <option key={j._id} value={j._id}>{j.jmcNumber}</option>
-                      ))}
-                    </select>
-                    {errors.jmcId && <p className="text-xs text-red-500">{errors.jmcId}</p>}
-                  </div>
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-100 mt-4">
-                    <div className="space-y-0.5">
-                      <Label className="text-sm font-semibold">Stage 2 Supply Calculation Basis</Label>
-                      <p className="text-xs text-gray-500">Calculate 30% supply based on MHROV total vs JMC erected quantity</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-xs font-medium ${supplyBasis === 'MHROV Total' ? 'text-blue-600' : 'text-gray-400'}`}>MHROV</span>
-                      <Switch 
-                        checked={supplyBasis === 'JMC Erected'} 
-                        onCheckedChange={(checked) => setSupplyBasis(checked ? 'JMC Erected' : 'MHROV Total')}
+      <Card>
+        <CardHeader className="flex flex-row justify-between items-center">
+          <div>
+            <CardTitle>Bill Line Items</CardTitle>
+            <CardDescription>Add line items, fill JMC or Erected qty</CardDescription>
+          </div>
+          <Button onClick={handleAddItem} size="sm" className="bg-indigo-600 hover:bg-indigo-700">
+            <Plus className="w-4 h-4 mr-2" /> Add Item
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs text-slate-700 uppercase bg-slate-50 border-b">
+                <tr>
+                  <th className="px-4 py-3">Activity</th>
+                  <th className="px-4 py-3 min-w-[200px]">Item</th>
+                  <th className="px-4 py-3">Category</th>
+                  <th className="px-4 py-3">Rate</th>
+                  <th className="px-4 py-3 border-x bg-blue-50">JMC Done Qty<br/><span className="text-[10px] text-slate-500 font-normal">100% Release</span></th>
+                  <th className="px-4 py-3 border-x bg-orange-50">Erected Qty<br/><span className="text-[10px] text-slate-500 font-normal">Adhoc Release</span></th>
+                  <th className="px-4 py-3">GST %</th>
+                  <th className="px-4 py-3"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {lineItems.map((item, idx) => (
+                  <tr key={idx} className="border-b hover:bg-slate-50">
+                    <td className="p-2">
+                      <Input
+                        value={item.activity}
+                        onChange={e => handleItemChange(idx, 'activity', e.target.value)}
+                        placeholder="Activity"
                       />
-                      <span className={`text-xs font-medium ${supplyBasis === 'JMC Erected' ? 'text-blue-600' : 'text-gray-400'}`}>JMC</span>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {stage === 'Stage 3 (Final/Retention)' && (
-                <div className="space-y-2">
-                  <Label className={errors.handoverId ? "text-red-500" : ""}>Select Handover Certificate <span className="text-red-500">*</span></Label>
-                  <select 
-                    className={`flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50 ${errors.handoverId ? 'border-red-500 bg-red-50' : 'border-slate-200'}`}
-                    value={handoverId} 
-                    onChange={(e) => {
-                      setHandoverId(e.target.value);
-                      if (errors.handoverId) setErrors({ ...errors, handoverId: '' });
-                    }}
-                  >
-                    <option value="">{fetchingDocs ? "Loading..." : "Select Handover Certificate"}</option>
-                    {handovers.map(h => (
-                      <option key={h._id} value={h._id}>{h.certificateNumber}</option>
-                    ))}
-                  </select>
-                  {errors.handoverId && <p className="text-xs text-red-500">{errors.handoverId}</p>}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {stage && (
-          <Card className="border-gray-100 shadow-sm">
-            <CardHeader className="bg-gray-50/50 border-b border-gray-100 flex flex-row items-center justify-between py-4">
-              <div>
-                <CardTitle className="text-lg">Line Items</CardTitle>
-                <CardDescription>Add the items for this billing stage. The backend will calculate exact staggered percentages upon submission.</CardDescription>
-              </div>
-              <Button type="button" onClick={handleAddLineItem} size="sm" className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2">
-                <Plus className="h-4 w-4" /> Add Item
-              </Button>
-            </CardHeader>
-            <CardContent className="p-0 overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    <th className="px-4 py-3 font-semibold text-slate-700 w-1/4">Item / Activity</th>
-                    <th className="px-4 py-3 font-semibold text-slate-700">Category</th>
-                    <th className="px-4 py-3 font-semibold text-slate-700 w-24">Qty</th>
-                    <th className="px-4 py-3 font-semibold text-slate-700 w-32">Rate (₹)</th>
-                    <th className="px-4 py-3 font-semibold text-slate-700 w-24">GST %</th>
-                    <th className="px-4 py-3 font-semibold text-slate-700 text-right">Base Total</th>
-                    <th className="px-4 py-3 font-semibold text-slate-700 w-12 text-center"></th>
+                    </td>
+                    <td className="p-2">
+                      <select
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        value={item.itemId}
+                        onChange={(e) => handleItemChange(idx, 'itemId', e.target.value)}
+                      >
+                        <option value="">Select Item</option>
+                        {availableItems.map(ai => (
+                          <option key={ai._id} value={ai._id}>{ai.itemName}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="p-2">
+                      <select
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        value={item.billingCategory}
+                        onChange={(e) => handleItemChange(idx, 'billingCategory', e.target.value)}
+                      >
+                        <option value="Supply">Supply</option>
+                        <option value="Erection">Erection</option>
+                      </select>
+                    </td>
+                    <td className="p-2">
+                      <Input
+                        type="number"
+                        value={item.rate}
+                        onChange={e => handleItemChange(idx, 'rate', Number(e.target.value))}
+                      />
+                    </td>
+                    <td className="p-2 bg-blue-50/30">
+                      <Input
+                        type="number"
+                        value={item.jmcDoneQty}
+                        onChange={e => handleItemChange(idx, 'jmcDoneQty', Number(e.target.value))}
+                        disabled={stage !== '100%'}
+                        className={stage !== '100%' ? 'bg-slate-100' : ''}
+                      />
+                    </td>
+                    <td className="p-2 bg-orange-50/30">
+                      <Input
+                        type="number"
+                        value={item.erectedQty}
+                        onChange={e => handleItemChange(idx, 'erectedQty', Number(e.target.value))}
+                        disabled={stage === '100%'}
+                        className={stage === '100%' ? 'bg-slate-100' : ''}
+                      />
+                    </td>
+                    <td className="p-2">
+                      <Input
+                        type="number"
+                        value={item.gstRate}
+                        onChange={e => handleItemChange(idx, 'gstRate', Number(e.target.value))}
+                      />
+                    </td>
+                    <td className="p-2 text-center">
+                      <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(idx)}>
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </Button>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {lineItems.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
-                        No items added yet. Click "Add Item" to start building your bill.
-                      </td>
-                    </tr>
-                  ) : lineItems.map((item, index) => (
-                    <tr key={index} className="hover:bg-slate-50/50">
-                      <td className="px-4 py-3 space-y-2">
-                        <select
-                          className="flex h-9 w-full rounded-md border border-slate-200 bg-transparent px-3 py-1 text-sm shadow-sm"
-                          value={item.itemId || ''}
-                          onChange={(e) => handleUpdateLineItem(index, 'itemId', e.target.value)}
-                        >
-                          <option value="">Free Text Activity / Item</option>
-                          {availableItems.map(ai => (
-                            <option key={ai._id} value={ai._id}>{ai.dynamicData?.description || ai.dynamicData?.itemDescription || ai.dynamicData?.itemCode || 'Unnamed Item'}</option>
-                          ))}
-                        </select>
-                        <Input
-                          placeholder="Or type custom description/activity..."
-                          value={item.description}
-                          onChange={(e) => handleUpdateLineItem(index, 'description', e.target.value)}
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <select
-                          className="flex h-9 w-full rounded-md border border-slate-200 bg-transparent px-3 py-1 text-sm shadow-sm"
-                          value={item.billingCategory}
-                          onChange={(e) => handleUpdateLineItem(index, 'billingCategory', e.target.value)}
-                        >
-                          <option value="Supply">Supply</option>
-                          <option value="Erection">Erection</option>
-                        </select>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={item.quantity}
-                          onChange={(e) => handleUpdateLineItem(index, 'quantity', e.target.value)}
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={item.rate}
-                          onChange={(e) => handleUpdateLineItem(index, 'rate', e.target.value)}
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <Input
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={item.gstRate}
-                          onChange={(e) => handleUpdateLineItem(index, 'gstRate', e.target.value)}
-                        />
-                      </td>
-                      <td className="px-4 py-3 text-right font-medium text-slate-800 align-middle">
-                        ₹{item.baseAmount?.toFixed(2) || '0.00'}
-                      </td>
-                      <td className="px-4 py-3 text-center align-middle">
-                        <Button type="button" variant="ghost" size="icon" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleRemoveLineItem(index)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </CardContent>
-          </Card>
-        )}
+                ))}
+                {lineItems.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="p-8 text-center text-slate-500">
+                      No items added yet. Click 'Add Item' to start.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
 
-        <div className="fixed bottom-0 left-0 right-0 md:left-64 bg-white border-t p-4 z-50 flex justify-end gap-3 px-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-          <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
-          <Button type="submit" disabled={loading || lineItems.length === 0} className="min-w-[120px]">
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Save className="h-4 w-4 mr-2" /> Submit Bill</>}
+      {/* Footer sticky action bar */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10 pl-64">
+        <div className="max-w-7xl mx-auto flex justify-end gap-4">
+          <Button variant="outline" onClick={() => router.back()}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={loading} className="bg-indigo-600 hover:bg-indigo-700">
+            {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+            Submit Bill
           </Button>
         </div>
-      </form>
+      </div>
     </div>
   );
 }

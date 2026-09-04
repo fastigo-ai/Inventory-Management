@@ -25,7 +25,7 @@ export default function NewContractorBill() {
   const [contractorId, setContractorId] = useState('');
   const [workOrderId, setWorkOrderId] = useState('');
   const [stage, setStage] = useState('');
-  const [globalCategory, setGlobalCategory] = useState('Supply');
+  const [globalCategory, setGlobalCategory] = useState('JMC Done');
   const [jmcDocUrl, setJmcDocUrl] = useState('');
   const [signedBillDocUrl, setSignedBillDocUrl] = useState('');
 

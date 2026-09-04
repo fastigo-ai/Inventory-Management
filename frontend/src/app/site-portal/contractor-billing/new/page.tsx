@@ -229,7 +229,7 @@ export default function NewContractorBill() {
               activity: value,
               description: ai.dynamicData?.itemName || ai.dynamicData?.description || ai.itemName || '',
               rate: ai.dynamicData?.boqRate || ai.boqRate || 0,
-              jmcDoneQty: Math.max(0, (jmcItemMap[key] || 0) - (prevBilledJmcMap[key] || 0)),
+              jmcDoneQty: Math.round(Math.max(0, (jmcItemMap[key] || 0) - (prevBilledJmcMap[key] || 0))),
               erectedQty: 0,
               gstRate: newItems[index].gstRate || 18,
               tempCode: ai.dynamicData?.tempCode || '',
@@ -242,7 +242,7 @@ export default function NewContractorBill() {
           const firstLoa = String(first.dynamicData?.sku || first.loaSerialNo || '').trim();
           const firstKey = `${firstTc}_${firstLoa}`;
           
-          newItems[index].jmcDoneQty = Math.max(0, (jmcItemMap[firstKey] || 0) - (prevBilledJmcMap[firstKey] || 0));
+          newItems[index].jmcDoneQty = Math.round(Math.max(0, (jmcItemMap[firstKey] || 0) - (prevBilledJmcMap[firstKey] || 0)));
           newItems.splice(index + 1, 0, ...additionalRows);
         }
       } else {
@@ -268,7 +268,7 @@ export default function NewContractorBill() {
         const tc = String(selectedItem.dynamicData?.tempCode || selectedItem.tempCode || '').trim();
         const loaNo = String(selectedItem.dynamicData?.sku || selectedItem.loaSerialNo || '').trim();
         const key = `${tc}_${loaNo}`;
-        newItems[index].jmcDoneQty = Math.max(0, (jmcItemMap[key] || 0) - (prevBilledJmcMap[key] || 0));
+        newItems[index].jmcDoneQty = Math.round(Math.max(0, (jmcItemMap[key] || 0) - (prevBilledJmcMap[key] || 0)));
       }
     }
     setLineItems(newItems);

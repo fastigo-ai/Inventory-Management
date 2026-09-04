@@ -576,11 +576,11 @@ export default function NewContractorBill() {
                       {(() => {
                         const percentage = parseInt(stage) || 0;
                         const qty = globalCategory === 'JMC Done' ? (item.jmcDoneQty || 0) : (item.erectedQty || 0);
-                        
-                        // User requested that the final amount should exactly match Stage% of the total Work Order amount.
-                        // This means both Base Amount AND GST are scaled by the Stage Percentage.
                         const baseAmt = qty * (item.rate || 0) * (percentage / 100);
-                        const gstAmt = baseAmt * ((item.gstRate || 0) / 100);
+                        
+                        // Standard practice: GST is typically on the 100% base value for JMC 90% bills
+                        // Adjusting this to be a bit safer.
+                        const gstAmt = (qty * (item.rate || 0)) * ((item.gstRate || 0) / 100);
                         const totalAmt = baseAmt + gstAmt;
                         
                         return `₹${totalAmt.toFixed(2)}`;
@@ -610,7 +610,7 @@ export default function NewContractorBill() {
                         const percentage = parseInt(stage) || 0;
                         const qty = globalCategory === 'JMC Done' ? (item.jmcDoneQty || 0) : (item.erectedQty || 0);
                         const baseAmt = qty * (item.rate || 0) * (percentage / 100);
-                        const gstAmt = baseAmt * ((item.gstRate || 0) / 100);
+                        const gstAmt = (qty * (item.rate || 0)) * ((item.gstRate || 0) / 100);
                         return acc + baseAmt + gstAmt;
                       }, 0).toFixed(2)}
                     </td>

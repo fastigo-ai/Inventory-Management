@@ -46,9 +46,10 @@ export const createWorkOrder = asyncHandler(async (req: AuthRequest, res: Respon
 });
 
 export const getWorkOrders = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { page = 1, limit = 50, package: pkg, circle, division, search, status } = req.query;
+  const { page = 1, limit = 50, package: pkg, circle, division, search, status, contractorId } = req.query;
   const filter: any = {};
 
+  if (contractorId) filter.contractorId = contractorId;
   if (pkg) filter.package = pkg;
   if (circle) filter.circle = circle;
   if (division) filter.division = division;

@@ -150,6 +150,23 @@ export default function NewContractorBill() {
       if (selectedWO) {
         pkg = selectedWO.package || pkg;
         cir = selectedWO.circle || cir;
+        
+        // Auto-populate line items from work order
+        if (selectedWO.items && Array.isArray(selectedWO.items)) {
+          const newItems = selectedWO.items.map((woItem: any) => ({
+            itemId: woItem.itemId?._id || woItem.itemId || '',
+            activity: woItem.activity || '',
+            description: woItem.description || '',
+            rate: woItem.contractorErectionRate || 0,
+            jmcDoneQty: woItem.woQty || 0,
+            erectedQty: woItem.woQty || 0,
+            gstRate: 18, // Default GST rate
+            tempCode: woItem.tempCode || '',
+            loaSerialNo: woItem.loaSrNo || '',
+            loaQty: woItem.circleLoaQty || 0
+          }));
+          setLineItems(newItems);
+        }
       }
     }
 

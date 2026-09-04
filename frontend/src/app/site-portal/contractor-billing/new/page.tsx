@@ -451,8 +451,12 @@ export default function NewContractorBill() {
                   <th className="px-4 py-3 whitespace-nowrap">LOA Sl No</th>
                   <th className="px-4 py-3 whitespace-nowrap">LOA Qty</th>
                   <th className="px-4 py-3">Rate</th>
-                  <th className="px-4 py-3 border-x bg-blue-50">JMC Done Qty<br/><span className="text-[10px] text-slate-500 font-normal">90% Release</span></th>
-                  <th className="px-4 py-3 border-x bg-orange-50">Erected Qty<br/><span className="text-[10px] text-slate-500 font-normal">Adhoc Release</span></th>
+                  {globalCategory === 'JMC Done' && (
+                    <th className="px-4 py-3 border-x bg-blue-50">JMC Done Qty<br/><span className="text-[10px] text-slate-500 font-normal">90% Release</span></th>
+                  )}
+                  {globalCategory === 'Erection' && (
+                    <th className="px-4 py-3 border-x bg-orange-50">Erected Qty<br/><span className="text-[10px] text-slate-500 font-normal">Adhoc Release</span></th>
+                  )}
                   <th className="px-4 py-3 whitespace-nowrap">GST %</th>
                   <th className="px-4 py-3">Amount</th>
                   <th className="px-4 py-3"></th>
@@ -512,34 +516,38 @@ export default function NewContractorBill() {
                         onChange={e => handleItemChange(idx, 'rate', Number(e.target.value))}
                       />
                     </td>
-                    <td className="p-2 bg-blue-50/30">
-                      <div className="flex flex-col gap-1">
+                    {globalCategory === 'JMC Done' && (
+                      <td className="p-2 bg-blue-50/30">
+                        <div className="flex flex-col gap-1">
+                          <Input
+                            type="number"
+                            value={item.jmcDoneQty}
+                            onChange={e => handleItemChange(idx, 'jmcDoneQty', Number(e.target.value))}
+                            disabled={globalCategory !== 'JMC Done'}
+                            className={globalCategory !== 'JMC Done' ? 'bg-slate-100' : ''}
+                          />
+                          {(() => {
+                            const ai = availableItems.find(a => a._id === item.itemId);
+                            const tc = String(ai?.dynamicData?.tempCode || ai?.tempCode || item.tempCode || '').trim();
+                            const loaNo = String(ai?.dynamicData?.sku || ai?.loaSerialNo || item.loaSerialNo || '').trim();
+                            const key = `${tc}_${loaNo}`;
+                            const max = Math.max(0, (jmcItemMap[key] || 0) - (prevBilledJmcMap[key] || 0));
+                            return <span className="text-[10px] text-slate-500 font-medium">Max: {max}</span>;
+                          })()}
+                        </div>
+                      </td>
+                    )}
+                    {globalCategory === 'Erection' && (
+                      <td className="p-2 bg-orange-50/30">
                         <Input
                           type="number"
-                          value={item.jmcDoneQty}
-                          onChange={e => handleItemChange(idx, 'jmcDoneQty', Number(e.target.value))}
-                          disabled={globalCategory !== 'JMC Done'}
-                          className={globalCategory !== 'JMC Done' ? 'bg-slate-100' : ''}
+                          value={item.erectedQty}
+                          onChange={e => handleItemChange(idx, 'erectedQty', Number(e.target.value))}
+                          disabled={globalCategory === 'JMC Done'}
+                          className={globalCategory === 'JMC Done' ? 'bg-slate-100' : ''}
                         />
-                        {globalCategory === 'JMC Done' && (() => {
-                          const ai = availableItems.find(a => a._id === item.itemId);
-                          const tc = String(ai?.dynamicData?.tempCode || ai?.tempCode || item.tempCode || '').trim();
-                          const loaNo = String(ai?.dynamicData?.sku || ai?.loaSerialNo || item.loaSerialNo || '').trim();
-                          const key = `${tc}_${loaNo}`;
-                          const max = Math.max(0, (jmcItemMap[key] || 0) - (prevBilledJmcMap[key] || 0));
-                          return <span className="text-[10px] text-slate-500 font-medium">Max: {max}</span>;
-                        })()}
-                      </div>
-                    </td>
-                    <td className="p-2 bg-orange-50/30">
-                      <Input
-                        type="number"
-                        value={item.erectedQty}
-                        onChange={e => handleItemChange(idx, 'erectedQty', Number(e.target.value))}
-                        disabled={globalCategory === 'JMC Done'}
-                        className={globalCategory === 'JMC Done' ? 'bg-slate-100' : ''}
-                      />
-                    </td>
+                      </td>
+                    )}
                     <td className="p-2">
                       <Input
                         type="number"

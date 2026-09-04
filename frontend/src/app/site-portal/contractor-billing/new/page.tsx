@@ -81,19 +81,27 @@ export default function NewContractorBill() {
         jmcs.forEach((jmc: any) => {
           if (jmc.status === 'Approved' && jmc.items) {
             // If workOrderId is selected, strictly match it; otherwise aggregate all approved for contractor
-            if (workOrderId && jmc.workOrderId && jmc.workOrderId !== workOrderId) return;
+            let jmcWOId = jmc.workOrderId;
+            if (jmcWOId && typeof jmcWOId === 'object') {
+              jmcWOId = jmcWOId._id || jmcWOId.id || jmcWOId;
+            }
+            if (workOrderId && String(jmcWOId) !== String(workOrderId)) return;
             
             jmc.items.forEach((item: any) => {
               if (item.itemId) {
                 const tc = String(item.tempCode || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.tempCode || '') : '')).trim();
                 const loaNo = String(item.loaSerialNo || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.sku || item.itemId.loaSerialNo || '') : '')).trim();
                 const key = `${tc}_${loaNo}`;
-                if (!map[key]) map[key] = 0;
-                map[key] += (item.approvedQty || item.claimedQty || 0);
+                if (key !== '_') {
+                  if (!map[key]) map[key] = 0;
+                  map[key] += (Number(item.approvedQty) || Number(item.claimedQty) || 0);
+                }
               }
             });
           }
         });
+        console.log('Fetched JMCs:', jmcs);
+        console.log('jmcItemMap built:', map);
         setJmcItemMap(map);
       }).catch(console.error);
     } else {
@@ -223,11 +231,10 @@ export default function NewContractorBill() {
               rate: ai.dynamicData?.boqRate || ai.boqRate || 0,
               jmcDoneQty: Math.max(0, (jmcItemMap[key] || 0) - (prevBilledJmcMap[key] || 0)),
               erectedQty: 0,
-              gstRate: 18,
-              amount: 0,
-              loaQty: ai.dynamicData?.loaQuantity || ai.loaQuantity || 0,
-              loaSerialNo: ai.dynamicData?.sku || ai.loaSerialNo || '',
-              tempCode: ai.dynamicData?.tempCode || ai.tempCode || '',
+              gstRate: newItems[index].gstRate || 18,
+              tempCode: ai.dynamicData?.tempCode || '',
+              loaSerialNo: ai.dynamicData?.loaSerialNo || ai.dynamicData?.sku || '',
+              loaQty: ai.dynamicData?.[circleKey] || ai.dynamicData?.loaQuantity || 0
             };
           });
           
@@ -258,7 +265,6 @@ export default function NewContractorBill() {
         newItems[index].tempCode = selectedItem.dynamicData?.tempCode || '';
         newItems[index].loaSerialNo = selectedItem.dynamicData?.loaSerialNo || '';
         newItems[index].loaQty = selectedItem.dynamicData?.[circleKey] || selectedItem.dynamicData?.loaQuantity || 0;
-        
         const tc = String(selectedItem.dynamicData?.tempCode || selectedItem.tempCode || '').trim();
         const loaNo = String(selectedItem.dynamicData?.sku || selectedItem.loaSerialNo || '').trim();
         const key = `${tc}_${loaNo}`;

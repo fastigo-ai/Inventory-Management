@@ -600,6 +600,23 @@ export default function NewContractorBill() {
                     </td>
                   </tr>
                 )}
+                {lineItems.length > 0 && (
+                  <tr className="bg-indigo-50/50 font-bold border-t-2 border-indigo-100">
+                    <td colSpan={8} className="p-4 text-right text-indigo-900 uppercase tracking-wider text-xs">
+                      Grand Total (at {parseInt(stage) || 0}% Stage)
+                    </td>
+                    <td className="p-4 text-indigo-700 whitespace-nowrap text-lg">
+                      ₹{lineItems.reduce((acc, item) => {
+                        const percentage = parseInt(stage) || 0;
+                        const qty = globalCategory === 'JMC Done' ? (item.jmcDoneQty || 0) : (item.erectedQty || 0);
+                        const baseAmt = qty * (item.rate || 0) * (percentage / 100);
+                        const gstAmt = (qty * (item.rate || 0)) * ((item.gstRate || 0) / 100);
+                        return acc + baseAmt + gstAmt;
+                      }, 0).toFixed(2)}
+                    </td>
+                    <td></td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

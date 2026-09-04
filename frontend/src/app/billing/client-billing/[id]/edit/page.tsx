@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Save, ArrowLeft, Loader2, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -11,12 +11,11 @@ import { updateClientBill, getClientBillById } from '@/features/billing/api/clie
 import { api } from '@/shared/api/axios';
 
 export default function EditClientBillPage() {
-  const router = useRouter();
   const params = useParams();
+  const router = useRouter();
   const { id } = params as { id: string };
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [billType, setBillType] = useState<'Supply' | 'Erection'>('Supply');
   const [referenceList, setReferenceList] = useState<any[]>([]);
   
@@ -33,33 +32,25 @@ export default function EditClientBillPage() {
     referenceIds: [] as string[]
   });
 
+  // Whenever billType changes, fetch the corresponding approved documents
   useEffect(() => {
-    const fetchBillAndReferences = async () => {
+    fetchReferences();
+  }, [billType, formData.stage]);
+
+  useEffect(() => {
+    const fetchBillData = async () => {
       try {
-        const [mhrovRes, jmcRes, billRes] = await Promise.all([
-          api.get('/store/mhrov?status=Approved'),
-          api.get('/jmc?status=Approved'),
-          getClientBillById(id)
-        ]);
-        
+        const billRes = await getClientBillById(id);
         const bill = billRes.data;
-        let availableRefs: any[] = [];
-        if (bill.billType === 'Supply') {
-          if (mhrovRes.data?.success) availableRefs = mhrovRes.data.data;
-        } else {
-          if (jmcRes.data?.success) availableRefs = jmcRes.data.data;
-        }
-        setReferenceList(availableRefs);
         
         setBillType(bill.billType);
         setFormData({
           raBillNo: bill.raBillNo,
           raBillDate: new Date(bill.raBillDate).toISOString().split('T')[0],
           stage: bill.stage,
-          referenceIds: bill.referenceIds
+          referenceIds: bill.referenceIds || []
         });
         setItems(bill.items || []);
-        
       } catch (error) {
         toast.error('Failed to load bill data');
       } finally {
@@ -67,16 +58,37 @@ export default function EditClientBillPage() {
       }
     };
     
-    if (id) fetchBillAndReferences();
+    if (id) fetchBillData();
   }, [id]);
+
+  const fetchReferences = async () => {
+    try {
+      if (billType === 'Supply' && formData.stage === '60%') {
+        const res = await api.get('/store/mhrov?status=Approved');
+        if (res.data?.success) setReferenceList(res.data.data);
+      } else {
+        const [jmcRes, hcRes] = await Promise.all([
+          api.get('/jmc?status=Approved'),
+          (formData.stage === '10%') ? api.get('/contractor-billing/handover-certificates?status=Issued') : Promise.resolve({ data: { success: true, data: [] } })
+        ]);
+        let combined: any[] = [];
+        if (jmcRes.data?.success) combined = [...combined, ...jmcRes.data.data];
+        if (hcRes.data?.success) combined = [...combined, ...hcRes.data.data];
+        setReferenceList(combined);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const handleAddReference = (refId: string) => {
     if (!refId) return;
     
+    // Auto-generate RA Bill No if it's empty based on the first selected document
     const selectedRef = referenceList.find((r: any) => String(r._id) === refId);
     let newRaBillNo = formData.raBillNo;
     if (!newRaBillNo && selectedRef) {
-      const refNo = selectedRef.mhrovNumber || selectedRef.jmcNumber || selectedRef.diNo || '001';
+      const refNo = selectedRef.mhrovNumber || selectedRef.jmcNumber || selectedRef.certificateNumber || selectedRef.diNo || '001';
       newRaBillNo = `RA-${refNo}`;
     }
 
@@ -105,8 +117,11 @@ export default function EditClientBillPage() {
       const selectedRef = referenceList.find(r => String(r._id) === refId);
       
       if (selectedRef && selectedRef.items) {
+        // Map items from MHROV or JMC
         const mappedItems = selectedRef.items.map((i: any) => {
           const doneQty = i.mhrovDoneQty || i.approvedQty || 0;
+          
+          // Extract data depending on whether it's JMC (flat) or MHROV (populated itemId object)
           const itemObj = typeof i.itemId === 'object' && i.itemId !== null ? i.itemId : null;
           const dynamicData = itemObj?.dynamicData || {};
           
@@ -120,8 +135,23 @@ export default function EditClientBillPage() {
           const baseRate = Number((grossRate > 0 && grossRate !== 1 ? grossRate / 1.18 : grossRate).toFixed(2));
           const finalBaseRate = isNaN(baseRate) ? 0 : baseRate;
           
+          const percentage = parseInt(formData.stage) || 100;
+          const fullBaseAmount = doneQty * finalBaseRate;
+          const billedBaseAmount = fullBaseAmount * (percentage / 100);
+
+          let gstAmount = 0;
+          if (billType === 'Supply' && formData.stage === '60%') {
+            gstAmount = fullBaseAmount * 0.18; // 100% GST
+          } else if (billType === 'Supply' && (formData.stage === '30%' || formData.stage === '10%')) {
+            gstAmount = 0; // 0% GST because 100% was billed at 60%
+          } else if (billType === 'Erection' && formData.stage === '90%') {
+            gstAmount = fullBaseAmount * 0.18; // 100% GST at 90% erection (matching contractor)
+          } else {
+            gstAmount = 0;
+          }
+          
           return {
-            refNumber: selectedRef.mhrovNumber || selectedRef.jmcNumber || selectedRef.diNo || selectedRef._id,
+            refNumber: selectedRef.mhrovNumber || selectedRef.jmcNumber || selectedRef.certificateNumber || selectedRef.diNo || selectedRef._id,
             loaSrNo: loaSrNo,
             itemId: itemObj ? itemObj._id : i.itemId,
             tempCode: tempCode,
@@ -134,13 +164,15 @@ export default function EditClientBillPage() {
             sourceDoneQty: doneQty,
             raBillQty: doneQty,
             boqRate: finalBaseRate,
-            totalAmount: Number((doneQty * finalBaseRate).toFixed(2))
+            totalAmount: Number(billedBaseAmount.toFixed(2)),
+            gstAmount: Number(gstAmount.toFixed(2))
           };
         });
         allMappedItems = [...allMappedItems, ...mappedItems];
       }
     });
     
+    // Group identical items (same source, item, and DI) to prevent duplicate rows
     const groupedItems = allMappedItems.reduce((acc: any[], current: any) => {
       const existing = acc.find(item => 
         item.refNumber === current.refNumber && 
@@ -149,10 +181,23 @@ export default function EditClientBillPage() {
       );
       
       if (existing) {
-        existing.diQty += current.diQty;
+        existing.diQty += current.diQty; 
         existing.sourceDoneQty += current.sourceDoneQty;
         existing.raBillQty += current.raBillQty;
-        existing.totalAmount = Number((existing.raBillQty * existing.boqRate).toFixed(2));
+        
+        const percentage = parseInt(formData.stage) || 100;
+        const fullBaseAmount = existing.raBillQty * existing.boqRate;
+        existing.totalAmount = Number((fullBaseAmount * (percentage / 100)).toFixed(2));
+        
+        if (billType === 'Supply' && formData.stage === '60%') {
+          existing.gstAmount = Number((fullBaseAmount * 0.18).toFixed(2));
+        } else if (billType === 'Supply' && (formData.stage === '30%' || formData.stage === '10%')) {
+          existing.gstAmount = 0;
+        } else if (billType === 'Erection' && formData.stage === '90%') {
+          existing.gstAmount = Number((fullBaseAmount * 0.18).toFixed(2));
+        } else {
+          existing.gstAmount = 0;
+        }
       } else {
         acc.push({ ...current });
       }
@@ -183,6 +228,12 @@ export default function EditClientBillPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.raBillNo) return toast.error('RA Bill No is required');
+    if (formData.referenceIds.length === 0) return toast.error('Source reference is required');
+    
+    if (!invoiceDoc) return toast.error('Invoice document is mandatory');
+    if (!diDoc) return toast.error('DI document is mandatory');
+    if (!mhrovDoc) return toast.error('MHROV document is mandatory');
     
     setIsSubmitting(true);
     try {
@@ -191,9 +242,27 @@ export default function EditClientBillPage() {
       payload.append('raBillDate', formData.raBillDate);
       payload.append('stage', formData.stage);
       payload.append('billType', billType);
-      payload.append('referenceType', billType === 'Supply' ? 'MHROV' : 'JMCRegister');
+      
+      let refType = 'JMCRegister';
+      if (billType === 'Supply' && formData.stage === '60%') {
+        refType = 'MHROV';
+      } else if (formData.stage === '10%') {
+        const hasHC = formData.referenceIds.some(id => {
+          const ref = referenceList.find(r => String(r._id) === id);
+          return ref && ref.certificateNumber;
+        });
+        const hasJMC = formData.referenceIds.some(id => {
+          const ref = referenceList.find(r => String(r._id) === id);
+          return ref && ref.jmcNumber;
+        });
+        if (hasHC && hasJMC) refType = 'Mixed';
+        else if (hasHC) refType = 'HandoverCertificate';
+      }
+      payload.append('referenceType', refType);
+      
       payload.append('referenceIds', JSON.stringify(formData.referenceIds));
       payload.append('items', JSON.stringify(items));
+      payload.append('status', 'Pending PM Approval');
 
       if (invoiceDoc) payload.append('invoiceDoc', invoiceDoc);
       if (diDoc) payload.append('diDoc', diDoc);
@@ -204,29 +273,27 @@ export default function EditClientBillPage() {
       
       const res = await updateClientBill(id, payload);
       if (res.success) {
-        toast.success('Client Bill updated successfully');
+        toast.success('Client Bill created successfully');
         router.push('/billing/client-billing');
       }
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Failed to update bill');
+      toast.error(error?.response?.data?.message || 'Failed to create bill');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const totalBaseAmount = items.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
-  const totalGstAmount = totalBaseAmount * 0.18;
+  const totalGstAmount = items.reduce((sum, item) => sum + (item.gstAmount || 0), 0);
   const grandTotalAmount = totalBaseAmount + totalGstAmount;
-
-  if (isLoading) {
-    return <div className="p-8 text-center text-slate-500">Loading bill data...</div>;
-  }
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
-      <div className="flex items-center gap-4 border-b pb-5">
-        <Link href="/billing/client-billing" className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-          <ArrowLeft className="w-5 h-5 text-slate-500" />
+      <div className="flex items-center gap-4">
+        <Link href="/billing/client-billing">
+          <Button variant="ghost" size="icon" className="rounded-full hover:bg-slate-200">
+            <ArrowLeft className="w-5 h-5 text-slate-600" />
+          </Button>
         </Link>
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Edit RA Bill</h1>
@@ -280,10 +347,10 @@ export default function EditClientBillPage() {
                 value=""
                 onChange={(e) => handleAddReference(e.target.value)}
               >
-                <option value="" disabled>+ Add {billType === 'Supply' ? 'MHROV' : 'JMC'}...</option>
+                <option value="" disabled>+ Add {(billType === 'Supply' && formData.stage === '60%') ? 'MHROV' : (formData.stage === '10%' ? 'JMC / Handover Cert' : 'JMC')}...</option>
                 {referenceList.filter(ref => !formData.referenceIds.includes(String(ref._id))).map(ref => (
                   <option key={ref._id} value={ref._id}>
-                    {ref.mhrovNumber || ref.jmcNumber || ref.diNo || ref._id}
+                    {ref.mhrovNumber || ref.jmcNumber || ref.certificateNumber || ref.diNo || ref._id}
                   </option>
                 ))}
               </select>
@@ -292,7 +359,7 @@ export default function EditClientBillPage() {
                 <div className="flex flex-wrap gap-2 mt-3 p-2 bg-slate-50 border border-slate-100 rounded-md min-h-[48px]">
                   {formData.referenceIds.map(id => {
                     const ref = referenceList.find(r => String(r._id) === id);
-                    const label = ref ? (ref.mhrovNumber || ref.jmcNumber || ref.diNo || ref._id) : id;
+                    const label = ref ? (ref.mhrovNumber || ref.jmcNumber || ref.certificateNumber || ref.diNo || ref._id) : id;
                     return (
                       <span key={id} className="inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1 text-sm font-medium bg-indigo-50 text-indigo-700 rounded-full border border-indigo-100">
                         {label}
@@ -326,16 +393,16 @@ export default function EditClientBillPage() {
           <h2 className="text-lg font-semibold text-slate-800 border-b border-slate-100 pb-3">Documents Upload</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Invoice Copy</label>
-              <Input type="file" onChange={e => setInvoiceDoc(e.target.files?.[0] || null)} />
+              <label className="text-sm font-medium text-slate-700">Invoice Copy <span className="text-rose-500">*</span></label>
+              <Input type="file" required onChange={e => setInvoiceDoc(e.target.files?.[0] || null)} />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">DI Copy</label>
-              <Input type="file" onChange={e => setDiDoc(e.target.files?.[0] || null)} />
+              <label className="text-sm font-medium text-slate-700">DI Copy <span className="text-rose-500">*</span></label>
+              <Input type="file" required onChange={e => setDiDoc(e.target.files?.[0] || null)} />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">MHROV Copy</label>
-              <Input type="file" onChange={e => setMhrovDoc(e.target.files?.[0] || null)} />
+              <label className="text-sm font-medium text-slate-700">MHROV Copy <span className="text-rose-500">*</span></label>
+              <Input type="file" required onChange={e => setMhrovDoc(e.target.files?.[0] || null)} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">Additional Documents</label>
@@ -357,7 +424,7 @@ export default function EditClientBillPage() {
                   <tr>
                     <th className="px-4 py-3 font-semibold">RA Bill No</th>
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">RA Bill Date</th>
-                    <th className="px-4 py-3 font-semibold whitespace-nowrap">{billType === 'Supply' ? 'MHROV No' : 'JMC No'}</th>
+                    <th className="px-4 py-3 font-semibold whitespace-nowrap">{(billType === 'Supply' && formData.stage === '60%') ? 'MHROV No' : (formData.stage === '10%' ? 'Source Ref No' : 'JMC No')}</th>
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">LOA Sr No</th>
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">Temp Code</th>
                     <th className="px-4 py-3 font-semibold text-slate-800 w-1/5 min-w-[200px]">Item Name</th>
@@ -368,10 +435,10 @@ export default function EditClientBillPage() {
                         <th className="px-4 py-3 font-semibold whitespace-nowrap">DI Qty</th>
                       </>
                     )}
-                    <th className="px-4 py-3 font-semibold whitespace-nowrap">{billType === 'Supply' ? 'MHROV Qty' : 'JMC Qty'}</th>
+                    <th className="px-4 py-3 font-semibold whitespace-nowrap">{(billType === 'Supply' && formData.stage === '60%') ? 'MHROV Qty' : 'JMC Qty'}</th>
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">RA Bill Qty</th>
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">BOQ Rate</th>
-                    <th className="px-4 py-3 font-semibold whitespace-nowrap">GST %</th>
+                    <th className="px-4 py-3 font-semibold whitespace-nowrap">GST (₹)</th>
                     <th className="px-4 py-3 font-semibold text-right">Amount</th>
                   </tr>
                 </thead>
@@ -454,7 +521,7 @@ export default function EditClientBillPage() {
           </Link>
           <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700" disabled={isSubmitting || items.length === 0}>
             {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-            Save Changes
+            Submit
           </Button>
         </div>
       </form>

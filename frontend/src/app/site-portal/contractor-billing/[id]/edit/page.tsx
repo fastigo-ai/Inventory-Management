@@ -9,14 +9,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ArrowLeft, Save, Loader2, Plus, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/shared/api/axios';
-import { createContractorInvoice } from '@/features/contractor-billing/api/contractor-billing.api';
+import { updateContractorInvoice, getContractorInvoiceById } from '@/features/contractor-billing/api/contractor-billing.api';
+import { use } from 'react';
 import { getItems } from '@/features/items/api/items.api';
 
 import { useAuthStore } from '@/shared/store/auth.store';
 
 const STAGES = ['10%', '20%', '25%', '30%', '50%', '70%', '75%', '90%', '100%'];
 
-export default function NewContractorBill() {
+export default function EditContractorBill({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const router = useRouter();
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(false);
@@ -31,6 +33,35 @@ export default function NewContractorBill() {
 
   // Items
   const [lineItems, setLineItems] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (id) {
+      getContractorInvoiceById(id).then(res => {
+        if (res.success && res.data) {
+          const inv = res.data;
+          setContractorId(inv.contractorId?._id || inv.contractorId);
+          setWorkOrderId(inv.workOrderId?._id || inv.workOrderId || '');
+          setStage(inv.stage);
+          if (inv.lineItems?.length > 0) {
+            setGlobalCategory(inv.lineItems[0].billingCategory);
+          }
+          setJmcDocUrl(inv.jmcDocUrl || '');
+          setSignedBillDocUrl(inv.signedBillDocUrl || '');
+          
+          // Pre-populate line items
+          // We need to map them to the format expected by the form
+          const mappedItems = inv.lineItems.map((item: any) => ({
+            ...item,
+            itemId: item.itemId?._id || item.itemId,
+            tempCode: '-', // Fetched from WO in view mode, leaving simple here for edit
+            loaSrNo: '-',
+          }));
+          setLineItems(mappedItems);
+        }
+      }).catch(console.error);
+    }
+  }, [id]);
+
 
   // Metadata Options
   const [contractors, setContractors] = useState<any[]>([]);
@@ -318,9 +349,9 @@ export default function NewContractorBill() {
         lineItems: lineItems.map(item => ({ ...item, billingCategory: globalCategory }))
       };
 
-      await createContractorInvoice(payload);
-      toast.success('Contractor Bill submitted successfully!');
-      router.push('/site-portal/contractor-billing');
+      await updateContractorInvoice(id, payload);
+      toast.success('Contractor Bill updated successfully!');
+      router.push(`/site-portal/contractor-billing/${id}`);
     } catch (error: any) {
       console.error(error);
       toast.error(error.response?.data?.message || 'Failed to submit bill');

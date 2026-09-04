@@ -1,7 +1,8 @@
 import { api } from '@/shared/api/axios';
 
-export const getClientBills = async () => {
-  const response = await api.get('/client-billing');
+export const getClientBills = async (params?: any) => {
+  const query = params ? `?${new URLSearchParams(params).toString()}` : '';
+  const response = await api.get(`/client-billing${query}`);
   return response.data;
 };
 

@@ -32,18 +32,25 @@ export default function NewClientBillPage() {
   // Whenever billType changes, fetch the corresponding approved documents
   useEffect(() => {
     fetchReferences();
-    setFormData(prev => ({ ...prev, referenceIds: [], stage: billType === 'Supply' ? '60%' : '90%' }));
+    setFormData(prev => ({ ...prev, referenceIds: [] }));
     setItems([]);
-  }, [billType]);
+  }, [billType, formData.stage]);
 
   const fetchReferences = async () => {
     try {
-      if (billType === 'Supply') {
+      if (billType === 'Supply' && formData.stage === '60%') {
         const res = await api.get('/store/mhrov?status=Approved');
         if (res.data?.success) setReferenceList(res.data.data);
       } else {
-        const res = await api.get('/jmc?status=Approved');
-        if (res.data?.success) setReferenceList(res.data.data);
+        // Erection, OR Supply at 30% / 10% uses JMC
+        const [jmcRes, hcRes] = await Promise.all([
+          api.get('/jmc?status=Approved'),
+          (formData.stage === '10%') ? api.get('/contractor-billing/handover-certificates?status=Issued') : Promise.resolve({ data: { success: true, data: [] } })
+        ]);
+        let combined: any[] = [];
+        if (jmcRes.data?.success) combined = [...combined, ...jmcRes.data.data];
+        if (hcRes.data?.success) combined = [...combined, ...hcRes.data.data];
+        setReferenceList(combined);
       }
     } catch (err) {
       console.error(err);
@@ -57,7 +64,7 @@ export default function NewClientBillPage() {
     const selectedRef = referenceList.find((r: any) => String(r._id) === refId);
     let newRaBillNo = formData.raBillNo;
     if (!newRaBillNo && selectedRef) {
-      const refNo = selectedRef.mhrovNumber || selectedRef.jmcNumber || selectedRef.diNo || '001';
+      const refNo = selectedRef.mhrovNumber || selectedRef.jmcNumber || selectedRef.certificateNumber || selectedRef.diNo || '001';
       newRaBillNo = `RA-${refNo}`;
     }
 
@@ -101,11 +108,26 @@ export default function NewClientBillPage() {
           const grossRate = billType === 'Supply' 
             ? (Number(dynamicData.supplyRateWithGst) || Number(dynamicData.supplyRate) || Number(dynamicData.supply_rate) || Number(dynamicData.boqRate) || Number(dynamicData.rate) || 0)
             : (Number(dynamicData.erectionRateWithGst) || Number(dynamicData.erectionRate) || Number(dynamicData.erection_rate) || Number(dynamicData.boqRate) || Number(dynamicData.rate) || 0);
-          const baseRate = Number((grossRate > 0 && grossRate !== 1 ? grossRate / 1.18 : grossRate).toFixed(2)); // Try to divide by 1.18 only if it looks like a GST inclusive rate, but we divide anyway if that's the rule. Wait, earlier it was always / 1.18. Let's keep it safe.
+          const baseRate = Number((grossRate > 0 && grossRate !== 1 ? grossRate / 1.18 : grossRate).toFixed(2));
           const finalBaseRate = isNaN(baseRate) ? 0 : baseRate;
           
+          const percentage = parseInt(formData.stage) || 100;
+          const fullBaseAmount = doneQty * finalBaseRate;
+          const billedBaseAmount = fullBaseAmount * (percentage / 100);
+
+          let gstAmount = 0;
+          if (billType === 'Supply' && formData.stage === '60%') {
+            gstAmount = fullBaseAmount * 0.18; // 100% GST
+          } else if (billType === 'Supply' && (formData.stage === '30%' || formData.stage === '10%')) {
+            gstAmount = 0; // 0% GST because 100% was billed at 60%
+          } else if (billType === 'Erection' && formData.stage === '90%') {
+            gstAmount = fullBaseAmount * 0.18; // 100% GST at 90% erection (matching contractor)
+          } else {
+            gstAmount = 0;
+          }
+          
           return {
-            refNumber: selectedRef.mhrovNumber || selectedRef.jmcNumber || selectedRef.diNo || selectedRef._id,
+            refNumber: selectedRef.mhrovNumber || selectedRef.jmcNumber || selectedRef.certificateNumber || selectedRef.diNo || selectedRef._id,
             loaSrNo: loaSrNo,
             itemId: itemObj ? itemObj._id : i.itemId,
             tempCode: tempCode,
@@ -118,7 +140,8 @@ export default function NewClientBillPage() {
             sourceDoneQty: doneQty,
             raBillQty: doneQty,
             boqRate: finalBaseRate,
-            totalAmount: Number((doneQty * finalBaseRate).toFixed(2))
+            totalAmount: Number(billedBaseAmount.toFixed(2)),
+            gstAmount: Number(gstAmount.toFixed(2))
           };
         });
         allMappedItems = [...allMappedItems, ...mappedItems];
@@ -134,10 +157,23 @@ export default function NewClientBillPage() {
       );
       
       if (existing) {
-        existing.diQty += current.diQty; // Add diQty for grouped items just in case
+        existing.diQty += current.diQty; 
         existing.sourceDoneQty += current.sourceDoneQty;
         existing.raBillQty += current.raBillQty;
-        existing.totalAmount = Number((existing.raBillQty * existing.boqRate).toFixed(2));
+        
+        const percentage = parseInt(formData.stage) || 100;
+        const fullBaseAmount = existing.raBillQty * existing.boqRate;
+        existing.totalAmount = Number((fullBaseAmount * (percentage / 100)).toFixed(2));
+        
+        if (billType === 'Supply' && formData.stage === '60%') {
+          existing.gstAmount = Number((fullBaseAmount * 0.18).toFixed(2));
+        } else if (billType === 'Supply' && (formData.stage === '30%' || formData.stage === '10%')) {
+          existing.gstAmount = 0;
+        } else if (billType === 'Erection' && formData.stage === '90%') {
+          existing.gstAmount = Number((fullBaseAmount * 0.18).toFixed(2));
+        } else {
+          existing.gstAmount = 0;
+        }
       } else {
         acc.push({ ...current });
       }
@@ -182,7 +218,25 @@ export default function NewClientBillPage() {
       payload.append('raBillDate', formData.raBillDate);
       payload.append('stage', formData.stage);
       payload.append('billType', billType);
-      payload.append('referenceType', billType === 'Supply' ? 'MHROV' : 'JMCRegister');
+      
+      let refType = 'JMCRegister';
+      if (billType === 'Supply' && formData.stage === '60%') {
+        refType = 'MHROV';
+      } else if (formData.stage === '10%') {
+        // Check if there's any handover certificate in the selected references
+        const hasHC = formData.referenceIds.some(id => {
+          const ref = referenceList.find(r => String(r._id) === id);
+          return ref && ref.certificateNumber;
+        });
+        const hasJMC = formData.referenceIds.some(id => {
+          const ref = referenceList.find(r => String(r._id) === id);
+          return ref && ref.jmcNumber;
+        });
+        if (hasHC && hasJMC) refType = 'Mixed';
+        else if (hasHC) refType = 'HandoverCertificate';
+      }
+      payload.append('referenceType', refType);
+      
       payload.append('referenceIds', JSON.stringify(formData.referenceIds));
       payload.append('items', JSON.stringify(items));
       payload.append('status', 'Pending PM Approval');
@@ -207,7 +261,7 @@ export default function NewClientBillPage() {
   };
 
   const totalBaseAmount = items.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
-  const totalGstAmount = totalBaseAmount * 0.18;
+  const totalGstAmount = items.reduce((sum, item) => sum + (item.gstAmount || 0), 0);
   const grandTotalAmount = totalBaseAmount + totalGstAmount;
 
   return (
@@ -270,10 +324,10 @@ export default function NewClientBillPage() {
                 value=""
                 onChange={(e) => handleAddReference(e.target.value)}
               >
-                <option value="" disabled>+ Add {billType === 'Supply' ? 'MHROV' : 'JMC'}...</option>
+                <option value="" disabled>+ Add {(billType === 'Supply' && formData.stage === '60%') ? 'MHROV' : (formData.stage === '10%' ? 'JMC / Handover Cert' : 'JMC')}...</option>
                 {referenceList.filter(ref => !formData.referenceIds.includes(String(ref._id))).map(ref => (
                   <option key={ref._id} value={ref._id}>
-                    {ref.mhrovNumber || ref.jmcNumber || ref.diNo || ref._id}
+                    {ref.mhrovNumber || ref.jmcNumber || ref.certificateNumber || ref.diNo || ref._id}
                   </option>
                 ))}
               </select>
@@ -282,7 +336,7 @@ export default function NewClientBillPage() {
                 <div className="flex flex-wrap gap-2 mt-3 p-2 bg-slate-50 border border-slate-100 rounded-md min-h-[48px]">
                   {formData.referenceIds.map(id => {
                     const ref = referenceList.find(r => String(r._id) === id);
-                    const label = ref ? (ref.mhrovNumber || ref.jmcNumber || ref.diNo || ref._id) : id;
+                    const label = ref ? (ref.mhrovNumber || ref.jmcNumber || ref.certificateNumber || ref.diNo || ref._id) : id;
                     return (
                       <span key={id} className="inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1 text-sm font-medium bg-indigo-50 text-indigo-700 rounded-full border border-indigo-100">
                         {label}
@@ -347,7 +401,7 @@ export default function NewClientBillPage() {
                   <tr>
                     <th className="px-4 py-3 font-semibold">RA Bill No</th>
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">RA Bill Date</th>
-                    <th className="px-4 py-3 font-semibold whitespace-nowrap">{billType === 'Supply' ? 'MHROV No' : 'JMC No'}</th>
+                    <th className="px-4 py-3 font-semibold whitespace-nowrap">{(billType === 'Supply' && formData.stage === '60%') ? 'MHROV No' : (formData.stage === '10%' ? 'Source Ref No' : 'JMC No')}</th>
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">LOA Sr No</th>
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">Temp Code</th>
                     <th className="px-4 py-3 font-semibold text-slate-800 w-1/5 min-w-[200px]">Item Name</th>
@@ -358,10 +412,10 @@ export default function NewClientBillPage() {
                         <th className="px-4 py-3 font-semibold whitespace-nowrap">DI Qty</th>
                       </>
                     )}
-                    <th className="px-4 py-3 font-semibold whitespace-nowrap">{billType === 'Supply' ? 'MHROV Qty' : 'JMC Qty'}</th>
+                    <th className="px-4 py-3 font-semibold whitespace-nowrap">{(billType === 'Supply' && formData.stage === '60%') ? 'MHROV Qty' : 'JMC Qty'}</th>
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">RA Bill Qty</th>
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">BOQ Rate</th>
-                    <th className="px-4 py-3 font-semibold whitespace-nowrap">GST %</th>
+                    <th className="px-4 py-3 font-semibold whitespace-nowrap">GST (₹)</th>
                     <th className="px-4 py-3 font-semibold text-right">Amount</th>
                   </tr>
                 </thead>

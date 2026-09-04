@@ -232,7 +232,11 @@ export default function ContractorBillingDashboard() {
                     </tr>
                   ) : (
                     invoicePageData.map((inv) => (
-                      <tr key={inv._id} className="hover:bg-gray-50/50 transition-colors cursor-pointer">
+                      <tr 
+                        key={inv._id} 
+                        className="hover:bg-gray-50/50 transition-colors cursor-pointer"
+                        onClick={() => router.push(`/site-portal/contractor-billing/${inv._id}`)}
+                      >
                         <td className="px-6 py-4 font-medium text-blue-600">{inv.invoiceNumber}</td>
                         <td className="px-6 py-4">{format(new Date(inv.date), 'dd MMM yyyy')}</td>
                         <td className="px-6 py-4">

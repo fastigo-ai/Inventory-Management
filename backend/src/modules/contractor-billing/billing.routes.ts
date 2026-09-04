@@ -4,6 +4,7 @@ import {
   createInvoice,
   getInvoices,
   getInvoiceById,
+  updateInvoice,
   updateInvoiceStatus,
   getBillingAnalytics
 } from './billing.controller';
@@ -24,6 +25,7 @@ router.post('/invoices', requireRole(['Admin', 'Site Manager', 'Contractor']), c
 
 router.get('/invoices', getInvoices);
 router.get('/invoices/:id', getInvoiceById);
+router.put('/invoices/:id', requireRole(['Admin', 'Site Manager', 'Contractor']), updateInvoice);
 router.patch('/invoices/:id/status', requireRole(['Admin', 'Site Manager', 'Project Manager', 'Project Director', 'HO Billing']), updateInvoiceStatus);
 
 // Handover Certificate Routes

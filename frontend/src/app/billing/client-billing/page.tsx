@@ -114,7 +114,9 @@ export default function ClientBillingPage() {
                 </tr>
               ) : (
                 filteredBills.map((bill) => {
-                  const total = bill.items?.reduce((sum: number, item: any) => sum + (item.totalAmount || 0), 0) || 0;
+                  const totalBase = bill.items?.reduce((sum: number, item: any) => sum + (item.totalAmount || 0), 0) || 0;
+                  const totalGst = bill.items?.reduce((sum: number, item: any) => sum + (item.gstAmount || 0), 0) || 0;
+                  const total = totalBase + totalGst;
                   return (
                     <tr key={bill._id} className="hover:bg-slate-50/80 transition-colors group">
                       <td className="px-6 py-4 font-medium text-slate-900">{bill.raBillNo}</td>

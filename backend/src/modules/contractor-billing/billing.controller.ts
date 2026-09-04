@@ -44,7 +44,8 @@ export const createInvoice = asyncHandler(async (req: Request, res: Response) =>
       baseAmount = Number(item.erectedQty) * Number(item.rate) * (percentage / 100);
     }
 
-    const gstAmount = baseAmount * (Number(item.gstRate || 0) / 100);
+    const fullQty = percentage === 100 ? Number(item.jmcDoneQty || 0) : Number(item.erectedQty || 0);
+    const gstAmount = fullQty * Number(item.rate || 0) * (Number(item.gstRate || 0) / 100);
     const totalAmount = baseAmount + gstAmount;
 
     totalBaseAmount += baseAmount;
@@ -88,6 +89,87 @@ export const createInvoice = asyncHandler(async (req: Request, res: Response) =>
   res.status(201).json(new ApiResponse(201, invoice, 'Contractor Invoice created successfully'));
 });
 
+export const updateInvoice = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { 
+    stage, 
+    supplyBasis, 
+    lineItems,
+    jmcDocUrl,
+    signedBillDocUrl
+  } = req.body;
+  
+  const user = (req as any).user;
+
+  const invoice = await ContractorInvoice.findById(id);
+  
+  if (!invoice) {
+    throw new ApiError(404, 'Invoice not found');
+  }
+
+  // Check if invoice is in a valid status to edit
+  const editableStatuses = ['Draft', 'Pending PM Approval', 'Rejected'];
+  if (!editableStatuses.includes(invoice.status)) {
+    throw new ApiError(400, `Cannot edit invoice in ${invoice.status} status`);
+  }
+
+  let totalBaseAmount = 0;
+  let totalGstAmount = 0;
+
+  const percentage = parseInt(stage.replace('%', '')); // '10%', '20%', '100%'
+
+  const processedItems = lineItems.map((item: any) => {
+    let baseAmount = 0;
+    
+    // For 100% stage, we use jmcDoneQty. For others, we use erectedQty * percentage.
+    if (percentage === 100) {
+      baseAmount = Number(item.jmcDoneQty) * Number(item.rate);
+    } else {
+      baseAmount = Number(item.erectedQty) * Number(item.rate) * (percentage / 100);
+    }
+
+    const fullQty = percentage === 100 ? Number(item.jmcDoneQty || 0) : Number(item.erectedQty || 0);
+    const gstAmount = fullQty * Number(item.rate || 0) * (Number(item.gstRate || 0) / 100);
+    const totalAmount = baseAmount + gstAmount;
+
+    totalBaseAmount += baseAmount;
+    totalGstAmount += gstAmount;
+
+    return {
+      itemId: item.itemId,
+      activity: item.activity,
+      description: item.description,
+      billingCategory: item.billingCategory,
+      jmcDoneQty: Number(item.jmcDoneQty || 0),
+      erectedQty: Number(item.erectedQty || 0),
+      rate: Number(item.rate),
+      percentageApplied: percentage,
+      baseAmount,
+      gstRate: Number(item.gstRate || 0),
+      gstAmount,
+      totalAmount
+    };
+  });
+
+  invoice.stage = stage;
+  if (supplyBasis) invoice.supplyBasis = supplyBasis;
+  invoice.lineItems = processedItems;
+  invoice.totalBaseAmount = totalBaseAmount;
+  invoice.totalGstAmount = totalGstAmount;
+  invoice.grandTotal = totalBaseAmount + totalGstAmount;
+  if (jmcDocUrl !== undefined) invoice.jmcDocUrl = jmcDocUrl;
+  if (signedBillDocUrl !== undefined) invoice.signedBillDocUrl = signedBillDocUrl;
+  
+  // If it was rejected, editing it sends it back to Pending PM Approval
+  if (invoice.status === 'Rejected' || invoice.status === 'Draft') {
+    invoice.status = 'Pending PM Approval';
+  }
+
+  await invoice.save();
+
+  res.status(200).json(new ApiResponse(200, invoice, 'Contractor Invoice updated successfully'));
+});
+
 export const getInvoices = asyncHandler(async (req: Request, res: Response) => {
   const user = (req as any).user;
   const filter: any = {};
@@ -102,10 +184,42 @@ export const getInvoices = asyncHandler(async (req: Request, res: Response) => {
     filter.workOrderId = req.query.workOrderId;
   }
 
-  const invoices = await ContractorInvoice.find(filter)
+  if (req.query.status && req.query.status !== 'All') {
+    filter.status = req.query.status;
+  }
+
+  let invoices = await ContractorInvoice.find(filter)
     .populate('contractorId', 'name vendorName dynamicData')
-    .populate('workOrderId', 'workOrderNumber')
+    .populate('workOrderId', 'workOrderNumber package circle')
+    .populate('createdBy', 'name email role')
     .sort({ createdAt: -1 });
+
+  // Filter by package/circle (either from query or user assigned)
+  const escapeRegExp = (string: string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  
+  const targetCircle = (req.query.circle && req.query.circle !== 'All') ? String(req.query.circle) : 
+                       (user?.assignedCircle && user.assignedCircle !== 'All' ? user.assignedCircle : null);
+                       
+  const targetPackage = (req.query.package && req.query.package !== 'All') ? String(req.query.package) : 
+                        (user?.assignedPackage && user.assignedPackage !== 'All' ? user.assignedPackage : null);
+
+  const normalizeStr = (str: string) => str ? str.replace(/\s+/g, '').toLowerCase() : '';
+
+  if (targetCircle || targetPackage) {
+    invoices = invoices.filter((inv: any) => {
+      let match = true;
+      const wo = inv.workOrderId;
+      if (!wo) return false; 
+
+      if (targetCircle && targetCircle !== 'All') {
+        if (normalizeStr(wo.circle) !== normalizeStr(targetCircle)) match = false;
+      }
+      if (targetPackage && targetPackage !== 'All') {
+        if (normalizeStr(wo.package) !== normalizeStr(targetPackage)) match = false;
+      }
+      return match;
+    });
+  }
 
   res.status(200).json(new ApiResponse(200, invoices, 'Invoices fetched successfully'));
 });

@@ -1,8 +1,9 @@
 import { api } from '@/shared/api/axios';
 
 // Billing Invoices API
-export const getContractorInvoices = async () => {
-  const response = await api.get('/contractor-billing/invoices');
+export const getContractorInvoices = async (params?: any) => {
+  const query = params ? `?${new URLSearchParams(params).toString()}` : '';
+  const response = await api.get(`/contractor-billing/invoices${query}`);
   return response.data;
 };
 
@@ -13,6 +14,11 @@ export const getContractorInvoiceById = async (id: string) => {
 
 export const createContractorInvoice = async (payload: any) => {
   const response = await api.post('/contractor-billing/invoices', payload);
+  return response.data;
+};
+
+export const updateContractorInvoice = async (id: string, payload: any) => {
+  const response = await api.put(`/contractor-billing/invoices/${id}`, payload);
   return response.data;
 };
 

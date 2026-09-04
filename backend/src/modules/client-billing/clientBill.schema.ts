@@ -12,6 +12,7 @@ export interface IClientBillItem {
   raBillQty: number;
   boqRate: number;
   totalAmount: number;
+  gstAmount?: number;
 }
 
 export interface IClientBill extends Document {
@@ -19,7 +20,7 @@ export interface IClientBill extends Document {
   raBillDate: Date;
   billType: 'Supply' | 'Erection';
   stage: '60%' | '30%' | '10%' | '90%';
-  referenceType: 'MHROV' | 'JMCRegister';
+  referenceType: 'MHROV' | 'JMCRegister' | 'HandoverCertificate' | 'Mixed';
   referenceIds: mongoose.Types.ObjectId[];
   items: IClientBillItem[];
   status: 'Draft' | 'Pending PM Approval' | 'Pending PD Approval' | 'Approved' | 'Rejected';
@@ -51,7 +52,8 @@ const clientBillItemSchema = new Schema<IClientBillItem>({
   sourceDoneQty: { type: Number, required: true, default: 0 },
   raBillQty: { type: Number, required: true, default: 0 },
   boqRate: { type: Number, required: true, default: 0 },
-  totalAmount: { type: Number, required: true, default: 0 }
+  totalAmount: { type: Number, required: true, default: 0 },
+  gstAmount: { type: Number, default: 0 }
 });
 
 const clientBillSchema = new Schema<IClientBill>(
@@ -60,8 +62,8 @@ const clientBillSchema = new Schema<IClientBill>(
     raBillDate: { type: Date, required: true },
     billType: { type: String, enum: ['Supply', 'Erection'], required: true },
     stage: { type: String, enum: ['60%', '30%', '10%', '90%'], required: true },
-    referenceType: { type: String, enum: ['MHROV', 'JMCRegister'], required: true },
-    referenceIds: [{ type: Schema.Types.ObjectId, required: true, refPath: 'referenceType' }],
+    referenceType: { type: String, enum: ['MHROV', 'JMCRegister', 'HandoverCertificate', 'Mixed'], required: true },
+    referenceIds: [{ type: Schema.Types.ObjectId, required: true }],
     items: [clientBillItemSchema],
     status: {
       type: String,

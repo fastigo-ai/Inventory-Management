@@ -134,7 +134,16 @@ export const getClientBills = asyncHandler(async (req: any, res: Response) => {
     }
   }
   
-  const bills = await ClientBill.find(query).sort({ createdAt: -1 });
+  if (req.query.circle && req.query.circle !== 'All') {
+    query.circle = { $regex: new RegExp(`^${escapeRegExp(String(req.query.circle))}$`, 'i') };
+  }
+  if (req.query.package && req.query.package !== 'All') {
+    query.package = { $regex: new RegExp(`^${escapeRegExp(String(req.query.package))}$`, 'i') };
+  }
+
+  const bills = await ClientBill.find(query)
+    .populate('createdBy', 'name email role')
+    .sort({ createdAt: -1 });
   return res.status(200).json(new ApiResponse(200, bills, 'Client Bills fetched successfully'));
 });
 

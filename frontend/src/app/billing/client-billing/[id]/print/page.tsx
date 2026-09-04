@@ -45,7 +45,7 @@ export default function PrintClientBillPage() {
   };
 
   const totalBaseAmount = bill.items.reduce((sum: number, item: any) => sum + (item.totalAmount || 0), 0);
-  const totalGstAmount = totalBaseAmount * 0.18;
+  const totalGstAmount = bill.items.reduce((sum: number, item: any) => sum + (item.gstAmount || 0), 0);
   const grandTotalAmount = totalBaseAmount + totalGstAmount;
 
   return (
@@ -115,7 +115,7 @@ export default function PrintClientBillPage() {
               <tr className="bg-indigo-600 text-white">
                 <th className="py-1.5 px-1 font-semibold">RA Bill No</th>
                 <th className="py-1.5 px-1 font-semibold whitespace-nowrap">RA Bill Date</th>
-                <th className="py-1.5 px-1 font-semibold">{bill.billType === 'Supply' ? 'MHROV No' : 'JMC No'}</th>
+                <th className="py-1.5 px-1 font-semibold">{(bill.billType === 'Supply' && bill.stage === '60%') ? 'MHROV No' : 'JMC No'}</th>
                 <th className="py-1.5 px-1 font-semibold">LOA Sr No</th>
                 <th className="py-1.5 px-1 font-semibold">Temp Code</th>
                 <th className="py-1.5 px-1 font-semibold w-[20%]">Item Name</th>
@@ -126,10 +126,10 @@ export default function PrintClientBillPage() {
                     <th className="py-1.5 px-1 font-semibold text-center">DI Qty</th>
                   </>
                 )}
-                <th className="py-1.5 px-1 font-semibold text-center">{bill.billType === 'Supply' ? 'MHROV Qty' : 'JMC Qty'}</th>
+                <th className="py-1.5 px-1 font-semibold text-center">{(bill.billType === 'Supply' && bill.stage === '60%') ? 'MHROV Qty' : 'JMC Qty'}</th>
                 <th className="py-1.5 px-1 font-semibold text-center">RA Bill Qty</th>
                 <th className="py-1.5 px-1 font-semibold text-right">BOQ Rate</th>
-                <th className="py-1.5 px-1 font-semibold text-center">GST %</th>
+                <th className="py-1.5 px-1 font-semibold text-center">GST (₹)</th>
                 <th className="py-1.5 px-1 font-semibold text-right">Amount</th>
               </tr>
             </thead>
@@ -154,7 +154,9 @@ export default function PrintClientBillPage() {
                   <td className="py-1.5 px-1 text-center font-medium text-slate-800">{item.sourceDoneQty || 0}</td>
                   <td className="py-1.5 px-1 text-center font-bold text-slate-900">{item.raBillQty}</td>
                   <td className="py-1.5 px-1 text-right text-slate-700">₹{item.boqRate?.toLocaleString('en-IN') || '0'}</td>
-                  <td className="py-1.5 px-1 text-center text-slate-700">18%</td>
+                  <td className="py-1.5 px-1 text-center text-slate-700">
+                    {item.gstAmount === 0 ? '0.00' : item.gstAmount?.toFixed(2) || '0.00'}
+                  </td>
                   <td className="py-1.5 px-1 text-right font-bold text-slate-900">₹{(item.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                 </tr>
               ))}

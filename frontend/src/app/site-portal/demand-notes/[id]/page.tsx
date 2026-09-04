@@ -261,8 +261,7 @@ export default function DemandNoteDetailPage() {
                     currentItems.map((item: any, idx: number) => {
                       const actualIdx = (currentPage - 1) * itemsPerPage + idx;
                       const stockMatch = stockSummary.find(s => 
-                        s.loaSrNo === item.loaSrNo && 
-                        s.activity === item.activity && 
+                        (s.tempCode && item.tempCode && s.tempCode === item.tempCode) || 
                         (s.description === item.itemName || s.itemName === item.itemName)
                       );
                       const inStock = stockMatch ? stockMatch.totalBalanceQty : 0;

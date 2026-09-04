@@ -384,7 +384,7 @@ export default function NewContractorBill() {
                 value={globalCategory}
                 onChange={(e) => setGlobalCategory(e.target.value)}
               >
-                <option value="Supply">Supply</option>
+                <option value="JMC Done">JMC Done</option>
                 <option value="Erection">Erection</option>
               </select>
             </div>
@@ -518,10 +518,10 @@ export default function NewContractorBill() {
                           type="number"
                           value={item.jmcDoneQty}
                           onChange={e => handleItemChange(idx, 'jmcDoneQty', Number(e.target.value))}
-                          disabled={stage !== '90%'}
-                          className={stage !== '90%' ? 'bg-slate-100' : ''}
+                          disabled={globalCategory !== 'JMC Done'}
+                          className={globalCategory !== 'JMC Done' ? 'bg-slate-100' : ''}
                         />
-                        {stage === '90%' && (() => {
+                        {globalCategory === 'JMC Done' && (() => {
                           const ai = availableItems.find(a => a._id === item.itemId);
                           const tc = String(ai?.dynamicData?.tempCode || ai?.tempCode || item.tempCode || '').trim();
                           const loaNo = String(ai?.dynamicData?.sku || ai?.loaSerialNo || item.loaSerialNo || '').trim();
@@ -536,8 +536,8 @@ export default function NewContractorBill() {
                         type="number"
                         value={item.erectedQty}
                         onChange={e => handleItemChange(idx, 'erectedQty', Number(e.target.value))}
-                        disabled={stage === '90%'}
-                        className={stage === '90%' ? 'bg-slate-100' : ''}
+                        disabled={globalCategory === 'JMC Done'}
+                        className={globalCategory === 'JMC Done' ? 'bg-slate-100' : ''}
                       />
                     </td>
                     <td className="p-2">
@@ -550,20 +550,14 @@ export default function NewContractorBill() {
                     <td className="p-2 font-bold text-slate-800 whitespace-nowrap">
                       {(() => {
                         const percentage = parseInt(stage) || 0;
-                        let qty = 0;
-                        let baseAmt = 0;
-                        let totalAmt = 0;
+                        const qty = globalCategory === 'JMC Done' ? (item.jmcDoneQty || 0) : (item.erectedQty || 0);
+                        const baseAmt = qty * (item.rate || 0) * (percentage / 100);
                         
-                        if (stage === '90%') {
-                          qty = item.jmcDoneQty || 0;
-                          baseAmt = qty * (item.rate || 0) * 0.9;
-                          const gstAmt = (qty * (item.rate || 0)) * ((item.gstRate || 0) / 100);
-                          totalAmt = baseAmt + gstAmt;
-                        } else {
-                          qty = (item.erectedQty || 0) * percentage / 100;
-                          baseAmt = qty * (item.rate || 0);
-                          totalAmt = baseAmt * (1 + (item.gstRate || 0) / 100);
-                        }
+                        // Standard practice: GST is typically on the 100% base value for JMC 90% bills
+                        // Adjusting this to be a bit safer.
+                        const gstAmt = (qty * (item.rate || 0)) * ((item.gstRate || 0) / 100);
+                        const totalAmt = baseAmt + gstAmt;
+                        
                         return `₹${totalAmt.toFixed(2)}`;
                       })()}
                     </td>

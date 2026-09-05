@@ -170,7 +170,7 @@ const buildItemQueryAndSort = (queryParams: any) => {
                   {
                     $and: [
                       { $eq: ["$$field.k", "tempCode"] },
-                      { $eq: [{ $toString: "$$field.v" }, search] }
+                      { $eq: [{ $convert: { input: "$$field.v", to: "string", onError: "", onNull: "" } }, search] }
                     ]
                   },
                   {
@@ -178,7 +178,7 @@ const buildItemQueryAndSort = (queryParams: any) => {
                       { $ne: ["$$field.k", "tempCode"] },
                       {
                         $regexMatch: {
-                          input: { $toString: "$$field.v" },
+                          input: { $convert: { input: "$$field.v", to: "string", onError: "", onNull: "" } },
                           regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
                           options: "i"
                         }

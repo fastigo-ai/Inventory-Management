@@ -513,7 +513,7 @@ export default function EditContractorWorkOrderPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-visible mb-6">
         <div className="p-6 border-b border-slate-200">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>

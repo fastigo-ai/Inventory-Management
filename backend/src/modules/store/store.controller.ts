@@ -527,7 +527,10 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
   if (circleFilter) {
     assignmentFilter.$or = [
       { circle: { $regex: new RegExp(`^${circleFilter}$`, 'i') } },
-      { division: { $regex: new RegExp(`^${circleFilter}$`, 'i') } }
+      { division: { $regex: new RegExp(`^${circleFilter}$`, 'i') } },
+      { circle: { $exists: false } },
+      { circle: null },
+      { circle: '' }
     ];
   }
 
@@ -536,7 +539,10 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
   if (circleFilter) {
     returnsFilter.$or = [
       { circle: { $regex: new RegExp(`^${circleFilter}$`, 'i') } },
-      { division: { $regex: new RegExp(`^${circleFilter}$`, 'i') } }
+      { division: { $regex: new RegExp(`^${circleFilter}$`, 'i') } },
+      { circle: { $exists: false } },
+      { circle: null },
+      { circle: '' }
     ];
   }
 
@@ -545,7 +551,10 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
   if (circleFilter) {
     wipJmcFilter.$or = [
       { circle: { $regex: new RegExp(`^${circleFilter}$`, 'i') } },
-      { division: { $regex: new RegExp(`^${circleFilter}$`, 'i') } }
+      { division: { $regex: new RegExp(`^${circleFilter}$`, 'i') } },
+      { circle: { $exists: false } },
+      { circle: null },
+      { circle: '' }
     ];
   }
 
@@ -792,7 +801,8 @@ export const getStockSummary = asyncHandler(async (req: Request, res: Response) 
   if (!resolvedContractorId && contractorName) {
     const mongoose = require('mongoose');
     const Contractor = mongoose.models.Contractor || mongoose.model('Contractor');
-    const searchRegex = new RegExp(`^${String(contractorName).trim()}$`, 'i');
+    const escaped = String(contractorName).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const searchRegex = new RegExp(`^${escaped}$`, 'i');
     const c = await Contractor.findOne({
       $or: [
         { 'dynamicData.companyName': { $regex: searchRegex } },
@@ -824,7 +834,8 @@ export const getAdminStockSummary = asyncHandler(async (req: Request, res: Respo
   if (!resolvedContractorId && contractorName) {
     const mongoose = require('mongoose');
     const Contractor = mongoose.models.Contractor || mongoose.model('Contractor');
-    const searchRegex = new RegExp(`^${String(contractorName).trim()}$`, 'i');
+    const escaped = String(contractorName).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const searchRegex = new RegExp(`^${escaped}$`, 'i');
     const c = await Contractor.findOne({
       $or: [
         { 'dynamicData.companyName': { $regex: searchRegex } },

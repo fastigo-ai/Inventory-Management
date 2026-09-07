@@ -29,3 +29,12 @@ export const updateClientBillStatus = async (id: string, data: { status: string,
   const response = await api.patch(`/client-billing/${id}/status`, data);
   return response.data;
 };
+
+export const getClientBillingAnalytics = async () => {
+  try {
+    const response = await api.get('/client-billing/analytics');
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};

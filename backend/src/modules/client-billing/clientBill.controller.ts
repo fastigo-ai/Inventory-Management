@@ -365,3 +365,73 @@ export const getClientBillingLedger = asyncHandler(async (req: Request, res: Res
 
   return res.status(200).json(new ApiResponse(200, ledger, 'Client Billing Ledger fetched successfully'));
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET CLIENT BILLING ANALYTICS
+// ─────────────────────────────────────────────────────────────────────────────
+export const getClientBillingAnalytics = asyncHandler(async (req: any, res: Response) => {
+  let query: any = { status: { $ne: 'Rejected' } };
+
+  const escapeRegExp = (string: string) => {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  };
+
+  if (req.user?.role?.name !== 'Super Admin') {
+    if (req.user?.assignedCircle && req.user.assignedCircle !== 'All') {
+      query.circle = { $regex: new RegExp(`^${escapeRegExp(req.user.assignedCircle)}$`, 'i') };
+    }
+    if (req.user?.assignedPackage && req.user.assignedPackage !== 'All') {
+      query.package = { $regex: new RegExp(`^${escapeRegExp(req.user.assignedPackage)}$`, 'i') };
+    }
+  }
+
+  if (req.query.circle && req.query.circle !== 'All') {
+    query.circle = { $regex: new RegExp(`^${escapeRegExp(String(req.query.circle))}$`, 'i') };
+  }
+  if (req.query.package && req.query.package !== 'All') {
+    query.package = { $regex: new RegExp(`^${escapeRegExp(String(req.query.package))}$`, 'i') };
+  }
+
+  // Aggregate by billType and stage to calculate totals correctly
+  const bills = await ClientBill.find(query).select('billType stage status items createdAt');
+
+  let supplyTotal = 0;
+  let supplyCount = 0;
+  let erectionTotal = 0;
+  let erectionCount = 0;
+  let unpaidTotal = 0;
+  let unpaidCount = 0;
+
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+  bills.forEach((bill: any) => {
+    // Calculate total amount for this bill
+    let billTotal = 0;
+    if (bill.items && bill.items.length > 0) {
+      billTotal = bill.items.reduce((sum: number, item: any) => sum + (Number(item.totalAmount) || 0) + (Number(item.gstAmount) || 0), 0);
+    }
+
+    if (bill.billType === 'Supply') {
+      supplyTotal += billTotal;
+      supplyCount++;
+    } else if (bill.billType === 'Erection') {
+      erectionTotal += billTotal;
+      erectionCount++;
+    }
+
+    // Unpaid (Aging) Logic
+    if (['Pending PM Approval', 'Pending PD Approval', 'Pending HO Approval'].includes(bill.status) && new Date(bill.createdAt) < sevenDaysAgo) {
+      unpaidTotal += billTotal;
+      unpaidCount++;
+    }
+  });
+
+  return res.status(200).json(new ApiResponse(200, {
+    supplyTotal,
+    supplyCount,
+    erectionTotal,
+    erectionCount,
+    unpaidTotal,
+    unpaidCount
+  }, 'Client Billing analytics fetched successfully'));
+});

@@ -7,17 +7,30 @@ import { Plus, Search, FileText, CheckCircle, Clock, XCircle, FileClock } from '
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { getClientBills } from '@/features/billing/api/client-billing.api';
+import { getClientBills, getClientBillingAnalytics } from '@/features/billing/api/client-billing.api';
 
 export default function ClientBillingPage() {
   const router = useRouter();
   const [bills, setBills] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [analytics, setAnalytics] = useState<any>(null);
 
   useEffect(() => {
     fetchBills();
+    fetchAnalytics();
   }, []);
+
+  const fetchAnalytics = async () => {
+    try {
+      const res = await getClientBillingAnalytics();
+      if (res.success) {
+        setAnalytics(res.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch client billing analytics', error);
+    }
+  };
 
   const fetchBills = async () => {
     try {
@@ -59,14 +72,46 @@ export default function ClientBillingPage() {
           <p className="text-slate-500 mt-1">Manage Supply and Erection Running Account Bills.</p>
         </div>
         <Link href="/billing/client-billing/new">
-          <Button className="bg-indigo-600 hover:bg-indigo-700">
-            <Plus className="w-4 h-4 mr-2" />
+          <Button className="flex items-center gap-2">
+            <Plus className="w-4 h-4" />
             Create RA Bill
           </Button>
         </Link>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      {analytics && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+            <h3 className="text-sm font-semibold text-slate-500">Supply Billed (60%, 30%, 10%)</h3>
+            <p className="text-2xl font-bold text-slate-800 mt-1">
+              ₹ {analytics.supplyTotal?.toLocaleString('en-IN') || 0}
+            </p>
+            <p className="text-xs text-slate-400 mt-1">
+              {analytics.supplyCount || 0} Invoices
+            </p>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+            <h3 className="text-sm font-semibold text-slate-500">Erection Billed</h3>
+            <p className="text-2xl font-bold text-slate-800 mt-1">
+              ₹ {analytics.erectionTotal?.toLocaleString('en-IN') || 0}
+            </p>
+            <p className="text-xs text-slate-400 mt-1">
+              {analytics.erectionCount || 0} Invoices
+            </p>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+            <h3 className="text-sm font-semibold text-slate-500">Total Unpaid (Approved/Submitted)</h3>
+            <p className="text-2xl font-bold text-rose-600 mt-1">
+              ₹ {analytics.unpaidTotal?.toLocaleString('en-IN') || 0}
+            </p>
+            <p className="text-xs text-slate-400 mt-1">
+              {analytics.unpaidCount || 0} invoices aging over 7 days
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row gap-4 items-center justify-between">
           <div className="relative w-full sm:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />

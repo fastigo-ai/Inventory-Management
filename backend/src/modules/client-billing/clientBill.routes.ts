@@ -7,7 +7,8 @@ import {
   updateClientBillStatus,
   updateClientBill,
   getErectionReferences,
-  getClientBillingLedger
+  getClientBillingLedger,
+  getClientBillingAnalytics
 } from './clientBill.controller';
 
 import multer from 'multer';
@@ -19,6 +20,7 @@ router.use(authenticate);
 
 router.post('/', upload.any(), createClientBill);
 router.get('/ledger', getClientBillingLedger);
+router.get('/analytics', getClientBillingAnalytics);
 router.get('/erection-references', getErectionReferences);
 router.get('/', getClientBills);
 router.get('/:id', getClientBillById);

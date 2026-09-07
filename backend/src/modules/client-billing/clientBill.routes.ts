@@ -8,7 +8,8 @@ import {
   updateClientBill,
   getErectionReferences,
   getClientBillingLedger,
-  getClientBillingAnalytics
+  getClientBillingAnalytics,
+  deleteClientBill
 } from './clientBill.controller';
 
 import multer from 'multer';
@@ -26,5 +27,6 @@ router.get('/', getClientBills);
 router.get('/:id', getClientBillById);
 router.put('/:id', upload.any(), updateClientBill);
 router.patch('/:id/status', updateClientBillStatus);
+router.delete('/:id', deleteClientBill);
 
 export default router;

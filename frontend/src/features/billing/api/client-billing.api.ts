@@ -38,3 +38,8 @@ export const getClientBillingAnalytics = async () => {
     throw error;
   }
 };
+
+export const deleteClientBill = async (id: string) => {
+  const response = await api.delete(`/client-billing/${id}`);
+  return response.data;
+};

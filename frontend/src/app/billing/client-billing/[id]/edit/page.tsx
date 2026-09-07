@@ -24,6 +24,7 @@ export default function EditClientBillPage() {
   const [mhrovDoc, setMhrovDoc] = useState<File | null>(null);
   const [additionalDocs, setAdditionalDocs] = useState<File[]>([]);
   const [items, setItems] = useState<any[]>([]);
+  const [existingDocs, setExistingDocs] = useState<any>({});
   
   const [formData, setFormData] = useState({
     raBillNo: '',
@@ -61,6 +62,12 @@ export default function EditClientBillPage() {
           raBillDate: new Date(bill.raBillDate).toISOString().split('T')[0],
           stage: bill.stage,
           referenceIds: bill.referenceIds || []
+        });
+        setExistingDocs({
+          invoiceDocUrl: bill.invoiceDocUrl,
+          diDocUrl: bill.diDocUrl,
+          mhrovDocUrl: bill.mhrovDocUrl,
+          additionalDocsUrls: bill.additionalDocsUrls || []
         });
         setItems(bill.items || []);
       } catch (error) {
@@ -250,7 +257,8 @@ export default function EditClientBillPage() {
       updatedItems[index].boqRate = val;
     }
     
-    updatedItems[index].totalAmount = updatedItems[index].raBillQty * updatedItems[index].boqRate;
+    const percentage = parseInt(formData.stage) || 100;
+    updatedItems[index].totalAmount = Number((updatedItems[index].raBillQty * updatedItems[index].boqRate * (percentage / 100)).toFixed(2));
     setItems(updatedItems);
   };
 
@@ -259,9 +267,9 @@ export default function EditClientBillPage() {
     if (!formData.raBillNo) return toast.error('RA Bill No is required');
     if (formData.referenceIds.length === 0) return toast.error('Source reference is required');
     
-    if (!invoiceDoc) return toast.error('Invoice document is mandatory');
-    if (!diDoc) return toast.error('DI document is mandatory');
-    if (!mhrovDoc) return toast.error('MHROV document is mandatory');
+    if (!invoiceDoc && !existingDocs?.invoiceDocUrl) return toast.error('Invoice document is mandatory');
+    if (!diDoc && !existingDocs?.diDocUrl) return toast.error('DI document is mandatory');
+    if (!mhrovDoc && !existingDocs?.mhrovDocUrl) return toast.error('MHROV document is mandatory');
     
     setIsSubmitting(true);
     try {
@@ -420,20 +428,30 @@ export default function EditClientBillPage() {
           <h2 className="text-lg font-semibold text-slate-800 border-b border-slate-100 pb-3">Documents Upload</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Invoice Copy <span className="text-rose-500">*</span></label>
-              <Input type="file" required onChange={e => setInvoiceDoc(e.target.files?.[0] || null)} />
+              <label className="text-sm font-medium text-slate-700">Invoice Copy</label>
+              <Input type="file" onChange={e => setInvoiceDoc(e.target.files?.[0] || null)} />
+              {existingDocs.invoiceDocUrl && <p className="text-xs text-slate-500"><a href={existingDocs.invoiceDocUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">View Current File</a></p>}
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">DI Copy <span className="text-rose-500">*</span></label>
-              <Input type="file" required onChange={e => setDiDoc(e.target.files?.[0] || null)} />
+              <label className="text-sm font-medium text-slate-700">DI Copy</label>
+              <Input type="file" onChange={e => setDiDoc(e.target.files?.[0] || null)} />
+              {existingDocs.diDocUrl && <p className="text-xs text-slate-500"><a href={existingDocs.diDocUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">View Current File</a></p>}
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">MHROV Copy <span className="text-rose-500">*</span></label>
-              <Input type="file" required onChange={e => setMhrovDoc(e.target.files?.[0] || null)} />
+              <label className="text-sm font-medium text-slate-700">MHROV Copy</label>
+              <Input type="file" onChange={e => setMhrovDoc(e.target.files?.[0] || null)} />
+              {existingDocs.mhrovDocUrl && <p className="text-xs text-slate-500"><a href={existingDocs.mhrovDocUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">View Current File</a></p>}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">Additional Documents</label>
               <Input type="file" multiple onChange={e => setAdditionalDocs(Array.from(e.target.files || []))} />
+              {existingDocs.additionalDocsUrls?.length > 0 && (
+                <div className="text-xs text-slate-500 space-y-1 mt-1">
+                  {existingDocs.additionalDocsUrls.map((doc: any, i: number) => (
+                    <div key={i}><a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">{doc.name || `Current File ${i + 1}`}</a></div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

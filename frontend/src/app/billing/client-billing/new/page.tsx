@@ -240,7 +240,8 @@ export default function NewClientBillPage() {
       updatedItems[index].boqRate = val;
     }
     
-    updatedItems[index].totalAmount = updatedItems[index].raBillQty * updatedItems[index].boqRate;
+    const percentage = parseInt(formData.stage) || 100;
+    updatedItems[index].totalAmount = Number((updatedItems[index].raBillQty * updatedItems[index].boqRate * (percentage / 100)).toFixed(2));
     setItems(updatedItems);
   };
 

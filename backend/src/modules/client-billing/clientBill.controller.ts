@@ -293,43 +293,51 @@ export const updateClientBillStatus = asyncHandler(async (req: any, res: Respons
 
       if (supplySource) {
         if (bill.stage === '90%') {
-          // Auto-create Supply 30% Draft
-          const thirtyPctItems = buildAutoSupplyItems(supplySource.items as any[], 30);
-          const supplyDraft = new ClientBill({
-            raBillNo: `${supplySource.raBillNo}-S30-AUTO`,
-            raBillDate: new Date(),
-            billType: 'Supply',
-            stage: '30%',
-            referenceType: supplySource.referenceType,
-            referenceIds: supplySource.referenceIds,
-            items: thirtyPctItems,
-            circle: bill.circle,
-            package: bill.package,
-            createdBy: req.user._id,
-            status: 'Draft',
-            autoCreated: true,
-            parentBillId: bill._id
-          });
-          await supplyDraft.save();
+          // Check if auto-bill already exists to prevent duplicates on re-approval
+          const existingDraft = await ClientBill.findOne({ parentBillId: bill._id, stage: '30%' });
+          if (!existingDraft) {
+            // Auto-create Supply 30% Draft
+            const thirtyPctItems = buildAutoSupplyItems(supplySource.items as any[], 30);
+            const supplyDraft = new ClientBill({
+              raBillNo: `${supplySource.raBillNo}-S30-AUTO`,
+              raBillDate: new Date(),
+              billType: 'Supply',
+              stage: '30%',
+              referenceType: supplySource.referenceType,
+              referenceIds: supplySource.referenceIds,
+              items: thirtyPctItems,
+              circle: bill.circle,
+              package: bill.package,
+              createdBy: req.user._id,
+              status: 'Draft',
+              autoCreated: true,
+              parentBillId: bill._id
+            });
+            await supplyDraft.save();
+          }
         } else if (bill.stage === '10%') {
-          // Auto-create Supply 10% Draft
-          const tenPctItems = buildAutoSupplyItems(supplySource.items as any[], 10);
-          const supplyDraft = new ClientBill({
-            raBillNo: `${supplySource.raBillNo}-S10-AUTO`,
-            raBillDate: new Date(),
-            billType: 'Supply',
-            stage: '10%',
-            referenceType: supplySource.referenceType,
-            referenceIds: supplySource.referenceIds,
-            items: tenPctItems,
-            circle: bill.circle,
-            package: bill.package,
-            createdBy: req.user._id,
-            status: 'Draft',
-            autoCreated: true,
-            parentBillId: bill._id
-          });
-          await supplyDraft.save();
+          // Check if auto-bill already exists to prevent duplicates on re-approval
+          const existingDraft = await ClientBill.findOne({ parentBillId: bill._id, stage: '10%' });
+          if (!existingDraft) {
+            // Auto-create Supply 10% Draft
+            const tenPctItems = buildAutoSupplyItems(supplySource.items as any[], 10);
+            const supplyDraft = new ClientBill({
+              raBillNo: `${supplySource.raBillNo}-S10-AUTO`,
+              raBillDate: new Date(),
+              billType: 'Supply',
+              stage: '10%',
+              referenceType: supplySource.referenceType,
+              referenceIds: supplySource.referenceIds,
+              items: tenPctItems,
+              circle: bill.circle,
+              package: bill.package,
+              createdBy: req.user._id,
+              status: 'Draft',
+              autoCreated: true,
+              parentBillId: bill._id
+            });
+            await supplyDraft.save();
+          }
         }
       }
     }
@@ -434,4 +442,25 @@ export const getClientBillingAnalytics = asyncHandler(async (req: any, res: Resp
     unpaidTotal,
     unpaidCount
   }, 'Client Billing analytics fetched successfully'));
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DELETE CLIENT BILL
+// ─────────────────────────────────────────────────────────────────────────────
+export const deleteClientBill = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  
+  const bill = await ClientBill.findById(id);
+  if (!bill) {
+    return res.status(404).json(new ApiResponse(404, null, 'Client Bill not found'));
+  }
+
+  // Optional: Check if the bill is in a state that allows deletion (e.g., Draft or Rejected)
+  if (bill.status !== 'Draft' && bill.status !== 'Rejected') {
+    return res.status(400).json(new ApiResponse(400, null, `Cannot delete a bill in ${bill.status} status`));
+  }
+
+  await ClientBill.findByIdAndDelete(id);
+
+  return res.status(200).json(new ApiResponse(200, null, 'Client Bill deleted successfully'));
 });

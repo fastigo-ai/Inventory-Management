@@ -3,8 +3,8 @@
 import React, { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { getClientBillById, updateClientBillStatus } from '@/features/billing/api/client-billing.api';
-import { FileText, Edit, Printer, ArrowLeft, Download, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { getClientBillById, updateClientBillStatus, deleteClientBill } from '@/features/billing/api/client-billing.api';
+import { FileText, Edit, Printer, ArrowLeft, Download, Clock, CheckCircle, XCircle, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
@@ -65,6 +65,20 @@ export default function ClientBillDetailsPage({ params }: { params: Promise<{ id
       }
     } catch (error) {
       toast.error('Failed to update status');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm('Are you sure you want to delete this bill? This action cannot be undone.')) return;
+    
+    try {
+      const res = await deleteClientBill(bill._id);
+      if (res.success) {
+        toast.success('Bill deleted successfully');
+        router.push('/billing/client-billing');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to delete bill');
     }
   };
 
@@ -146,6 +160,10 @@ export default function ClientBillDetailsPage({ params }: { params: Promise<{ id
               Edit Bill
             </Button>
           </Link>
+          <Button variant="outline" onClick={handleDelete} className="border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800">
+            <Trash2 className="w-4 h-4 mr-2" />
+            Delete
+          </Button>
           <Link href={`/billing/client-billing/${bill._id}/print`}>
             <Button className="bg-indigo-600 hover:bg-indigo-700">
               <Printer className="w-4 h-4 mr-2" />

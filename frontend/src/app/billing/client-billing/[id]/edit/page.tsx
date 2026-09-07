@@ -465,7 +465,7 @@ export default function EditClientBillPage() {
                           {billType === 'Supply' && (
                             <>
                               <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{item.diNo || '-'}</td>
-                              <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{item.diDate || '-'}</td>
+                              <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{item.diDate ? new Date(item.diDate).toLocaleDateString('en-GB') : '-'}</td>
                               <td className="px-4 py-3 text-slate-500 text-center">{item.diQty || 0}</td>
                             </>
                           )}

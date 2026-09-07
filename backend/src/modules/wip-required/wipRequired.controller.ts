@@ -231,7 +231,7 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
           let isHeader = false;
           for (let c = 0; c < row.length; c++) {
             const h = normLabel(row[c]);
-            if (h && (h.includes("loa") || h.includes("sched") || h.includes("activity") || h.includes("desc") || h.includes("unit") || h.includes("sr no") || h.includes("sr.") || h.includes("s.no") || h.includes("item") || h.includes("qty") || h.includes("quantity"))) {
+            if (h && (h.includes("loa") || h.includes("code") || h.includes("temp") || h.includes("sched") || h.includes("activity") || h.includes("desc") || h.includes("unit") || h.includes("sr no") || h.includes("sr.") || h.includes("s.no") || h.includes("item") || h.includes("qty") || h.includes("quantity"))) {
               isHeader = true;
               break;
             }
@@ -253,19 +253,20 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
 
         // Dynamically find columns based on the header row
         const headerRow = rows[headerRowIdx];
-        let loaIdx = -1, schedIdx = -1, activityIdx = -1, descIdx = -1, unitIdx = -1;
+        let loaIdx = -1, tempCodeIdx = -1, schedIdx = -1, activityIdx = -1, descIdx = -1, unitIdx = -1;
         
         for (let c = 0; c < headerRow.length; c++) {
           const h = normLabel(headerRow[c]);
           if (!h) continue;
           if (h.includes("loa") && loaIdx === -1) loaIdx = c;
+          else if (h.includes("code") && tempCodeIdx === -1) tempCodeIdx = c;
           else if (h.includes("sched") && schedIdx === -1) schedIdx = c;
           else if (h.includes("activity") && activityIdx === -1) activityIdx = c;
           else if (h.includes("desc") && descIdx === -1) descIdx = c;
           else if (h.includes("unit") && unitIdx === -1) unitIdx = c;
         }
 
-        let startSiteCol = Math.max(loaIdx, schedIdx, activityIdx, descIdx, unitIdx) + 1;
+        let startSiteCol = Math.max(loaIdx, tempCodeIdx, schedIdx, activityIdx, descIdx, unitIdx) + 1;
         if (startSiteCol <= 0) {
           startSiteCol = 5;
           loaIdx = 0; schedIdx = 1; activityIdx = 2; descIdx = 3; unitIdx = 4;
@@ -308,12 +309,13 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
           if (!row) continue;
           
           const loa = loaIdx !== -1 ? row[loaIdx] : null;
+          const tempCodeVal = tempCodeIdx !== -1 ? row[tempCodeIdx] : null;
           const sched = schedIdx !== -1 ? row[schedIdx] : null;
           const activity = activityIdx !== -1 ? row[activityIdx] : null;
           const desc = descIdx !== -1 ? row[descIdx] : null;
           const unit = unitIdx !== -1 ? row[unitIdx] : null;
           
-          if (!loa && !sched && !activity && !desc) continue;
+          if (!loa && !tempCodeVal && !sched && !activity && !desc) continue;
           
           if (!unit || String(unit).trim() === '') {
             if (desc) currentActivityGroup = String(desc).trim();
@@ -327,7 +329,7 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
             if (!isNaN(numQty)) {
               originalSum += numQty;
               recordsBySite[c].push({
-                loa, sched, activity: activity || currentActivityGroup, description: desc || activity, unit, quantity: numQty
+                loa, tempCode: tempCodeVal, sched, activity: activity || currentActivityGroup, description: desc || activity, unit, quantity: numQty
               });
             }
           }
@@ -390,10 +392,20 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
             let itemId = null;
             let finalActivity = sr.activity || '';
             let finalLoaSerialNo = sr.loa || '';
+            let finalTempCode = sr.tempCode || '';
 
-            // 1. Strict mapping by SKU / LOA Serial No
+            // 1. Strict mapping by SKU / LOA Serial No or Temp Code
             if (sr.loa && allItems.length > 0) {
               const matchedItem = allItems.find((i: any) => String(i.dynamicData?.sku) === String(sr.loa));
+              if (matchedItem) {
+                itemId = matchedItem._id;
+                if (!finalActivity && matchedItem.dynamicData?.activity) {
+                   finalActivity = matchedItem.dynamicData.activity;
+                }
+              }
+            }
+            if (!itemId && sr.tempCode && allItems.length > 0) {
+              const matchedItem = allItems.find((i: any) => String(i.dynamicData?.tempCode) === String(sr.tempCode));
               if (matchedItem) {
                 itemId = matchedItem._id;
                 if (!finalActivity && matchedItem.dynamicData?.activity) {
@@ -418,6 +430,9 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
                   if (!finalLoaSerialNo && matchedItem.dynamicData?.sku) {
                      finalLoaSerialNo = matchedItem.dynamicData.sku;
                   }
+                  if (!finalTempCode && matchedItem.dynamicData?.tempCode) {
+                     finalTempCode = matchedItem.dynamicData.tempCode;
+                  }
                 }
               }
             }
@@ -427,8 +442,9 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
             }
 
             wipItems.push({
-              itemId,
+              itemId: itemId || undefined,
               loaSerialNo: finalLoaSerialNo,
+              tempCode: finalTempCode,
               activity: finalActivity,
               description: sr.description || '',
               unit: sr.unit || '',

@@ -3,6 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IWipRequiredItem {
   itemId?: mongoose.Types.ObjectId;
   loaSerialNo: string;
+  tempCode?: string;
   activity: string;
   description: string;
   unit: string;
@@ -37,6 +38,7 @@ export interface IWipRequiredRegister extends Document {
 const WipRequiredItemSchema = new Schema<IWipRequiredItem>({
   itemId: { type: Schema.Types.ObjectId, ref: 'Item' },
   loaSerialNo: { type: String, default: '' },
+  tempCode: { type: String, default: '' },
   activity: { type: String, default: '' },
   description: { type: String, default: '' },
   unit: { type: String, default: '' },

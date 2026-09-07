@@ -8,6 +8,7 @@ export interface IClientBillItem {
   itemName: string;
   diNo?: string;
   diDate?: Date;
+  diQty?: number;
   sourceDoneQty: number;
   raBillQty: number;
   boqRate: number;
@@ -49,6 +50,7 @@ const clientBillItemSchema = new Schema<IClientBillItem>({
   itemName: { type: String, required: true },
   diNo: { type: String },
   diDate: { type: Date },
+  diQty: { type: Number, default: 0 },
   sourceDoneQty: { type: Number, required: true, default: 0 },
   raBillQty: { type: Number, required: true, default: 0 },
   boqRate: { type: Number, required: true, default: 0 },

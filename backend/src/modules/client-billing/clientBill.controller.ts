@@ -3,6 +3,7 @@ import { ClientBill } from './clientBill.schema';
 import { ApiResponse } from '../../core/utils/ApiResponse';
 import { asyncHandler } from '../../core/utils/asyncHandler';
 import { v2 as cloudinary } from 'cloudinary';
+import { ContractorInvoice } from '../contractor-billing/contractorInvoice.schema';
 
 const uploadToCloudinary = (buffer: Buffer, folder: string): Promise<any> => {
   return new Promise((resolve, reject) => {
@@ -17,19 +18,38 @@ const uploadToCloudinary = (buffer: Buffer, folder: string): Promise<any> => {
   });
 };
 
-export const createClientBill = asyncHandler(async (req: any, res: Response) => {
-  const { raBillNo, raBillDate, billType, stage, referenceType, referenceIds, items, status } = req.body;
-  
-  if (req.user?.role?.name !== 'Super Admin' && (!req.user?.assignedCircle || !req.user?.assignedPackage)) {
-    return res.status(400).json(new ApiResponse(400, null, 'User missing assigned circle/package'));
-  }
-  
-  let parsedItems = [];
-  try { parsedItems = typeof items === 'string' ? JSON.parse(items) : items; } catch (e) {}
-  let parsedReferenceIds = [];
-  try { parsedReferenceIds = typeof referenceIds === 'string' ? JSON.parse(referenceIds) : referenceIds; } catch (e) {}
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: Build items array for an auto-created Supply bill from an approved
+// Supply 60% bill, at the given percentage with 0% GST
+// ─────────────────────────────────────────────────────────────────────────────
+const buildAutoSupplyItems = (sourceItems: any[], percentage: number) => {
+  return sourceItems.map((item: any) => {
+    const base = Number(item.boqRate) || 0;
+    const qty = Number(item.raBillQty) || 0;
+    const fullBase = qty * base;
+    const billedBase = Number((fullBase * (percentage / 100)).toFixed(2));
+    return {
+      loaSrNo: item.loaSrNo,
+      itemId: item.itemId,
+      tempCode: item.tempCode,
+      refNumber: item.refNumber,
+      itemName: item.itemName,
+      diNo: item.diNo,
+      diDate: item.diDate,
+      diQty: item.diQty,
+      sourceDoneQty: item.sourceDoneQty,
+      raBillQty: item.raBillQty,
+      boqRate: base,
+      totalAmount: billedBase,
+      gstAmount: 0  // 0% GST for 30% and 10% supply stages
+    };
+  });
+};
 
-  const files = req.files as Express.Multer.File[];
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: Parse uploaded files and return URLs
+// ─────────────────────────────────────────────────────────────────────────────
+const parseUploadedFiles = async (files: Express.Multer.File[]) => {
   let invoiceDocUrl = '';
   let diDocUrl = '';
   let mhrovDocUrl = '';
@@ -38,17 +58,31 @@ export const createClientBill = asyncHandler(async (req: any, res: Response) => 
   if (files && files.length > 0) {
     for (const file of files) {
       const result = await uploadToCloudinary(file.buffer, 'client-bills');
-      if (file.fieldname === 'invoiceDoc') {
-        invoiceDocUrl = result.secure_url;
-      } else if (file.fieldname === 'diDoc') {
-        diDocUrl = result.secure_url;
-      } else if (file.fieldname === 'mhrovDoc') {
-        mhrovDocUrl = result.secure_url;
-      } else if (file.fieldname === 'additionalDocs') {
-        additionalDocsUrls.push({ name: file.originalname, url: result.secure_url });
-      }
+      if (file.fieldname === 'invoiceDoc') invoiceDocUrl = result.secure_url;
+      else if (file.fieldname === 'diDoc') diDocUrl = result.secure_url;
+      else if (file.fieldname === 'mhrovDoc') mhrovDocUrl = result.secure_url;
+      else if (file.fieldname === 'additionalDocs') additionalDocsUrls.push({ name: file.originalname, url: result.secure_url });
     }
   }
+  return { invoiceDocUrl, diDocUrl, mhrovDocUrl, additionalDocsUrls };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CREATE CLIENT BILL
+// ─────────────────────────────────────────────────────────────────────────────
+export const createClientBill = asyncHandler(async (req: any, res: Response) => {
+  const { raBillNo, raBillDate, billType, stage, referenceType, referenceIds, items, status, linkedSupplyBillId } = req.body;
+
+  if (req.user?.role?.name !== 'Super Admin' && (!req.user?.assignedCircle || !req.user?.assignedPackage)) {
+    return res.status(400).json(new ApiResponse(400, null, 'User missing assigned circle/package'));
+  }
+
+  let parsedItems = [];
+  try { parsedItems = typeof items === 'string' ? JSON.parse(items) : items; } catch (e) {}
+  let parsedReferenceIds = [];
+  try { parsedReferenceIds = typeof referenceIds === 'string' ? JSON.parse(referenceIds) : referenceIds; } catch (e) {}
+
+  const { invoiceDocUrl, diDocUrl, mhrovDocUrl, additionalDocsUrls } = await parseUploadedFiles(req.files as Express.Multer.File[]);
 
   const clientBill = new ClientBill({
     raBillNo,
@@ -65,20 +99,24 @@ export const createClientBill = asyncHandler(async (req: any, res: Response) => 
     circle: req.user.assignedCircle,
     package: req.user.assignedPackage,
     createdBy: req.user._id,
-    status: status || 'Pending PM Approval'
+    status: status || 'Pending PM Approval',
+    linkedSupplyBillId: linkedSupplyBillId || undefined
   });
-  
+
   await clientBill.save();
   return res.status(201).json(new ApiResponse(201, clientBill, 'Client Bill created successfully'));
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// UPDATE CLIENT BILL
+// ─────────────────────────────────────────────────────────────────────────────
 export const updateClientBill = asyncHandler(async (req: any, res: Response) => {
   const { id } = req.params;
   const bill = await ClientBill.findById(id);
-  
+
   if (!bill) return res.status(404).json(new ApiResponse(404, null, 'Client Bill not found'));
-  
-  const { raBillNo, raBillDate, billType, stage, referenceType, referenceIds, items, status } = req.body;
+
+  const { raBillNo, raBillDate, billType, stage, referenceType, referenceIds, items, status, linkedSupplyBillId } = req.body;
 
   let parsedItems = [];
   try { parsedItems = typeof items === 'string' ? JSON.parse(items) : items; } catch (e) {}
@@ -113,14 +151,18 @@ export const updateClientBill = asyncHandler(async (req: any, res: Response) => 
   bill.diDocUrl = diDocUrl;
   bill.mhrovDocUrl = mhrovDocUrl;
   bill.additionalDocsUrls = additionalDocsUrls;
+  if (linkedSupplyBillId) bill.linkedSupplyBillId = linkedSupplyBillId;
 
   await bill.save();
   return res.status(200).json(new ApiResponse(200, bill, 'Client Bill updated successfully'));
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// GET ALL CLIENT BILLS
+// ─────────────────────────────────────────────────────────────────────────────
 export const getClientBills = asyncHandler(async (req: any, res: Response) => {
   let query: any = {};
-  
+
   const escapeRegExp = (string: string) => {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   };
@@ -133,7 +175,7 @@ export const getClientBills = asyncHandler(async (req: any, res: Response) => {
       query.package = { $regex: new RegExp(`^${escapeRegExp(req.user.assignedPackage)}$`, 'i') };
     }
   }
-  
+
   if (req.query.circle && req.query.circle !== 'All') {
     query.circle = { $regex: new RegExp(`^${escapeRegExp(String(req.query.circle))}$`, 'i') };
   }
@@ -143,78 +185,147 @@ export const getClientBills = asyncHandler(async (req: any, res: Response) => {
 
   const bills = await ClientBill.find(query)
     .populate('createdBy', 'name email role')
+    .populate('parentBillId', 'raBillNo billType stage')
     .sort({ createdAt: -1 });
   return res.status(200).json(new ApiResponse(200, bills, 'Client Bills fetched successfully'));
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// GET CLIENT BILL BY ID
+// ─────────────────────────────────────────────────────────────────────────────
 export const getClientBillById = asyncHandler(async (req: Request, res: Response) => {
-  const bill = await ClientBill.findById(req.params.id);
+  const bill = await ClientBill.findById(req.params.id)
+    .populate('createdBy', 'name email')
+    .populate('parentBillId', 'raBillNo billType stage');
   if (!bill) {
     return res.status(404).json(new ApiResponse(404, null, 'Client Bill not found'));
   }
   return res.status(200).json(new ApiResponse(200, bill, 'Client Bill fetched successfully'));
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// GET ERECTION REFERENCES — Returns Contractor 90% Invoices that are fully
+// approved (Payment Processed), so the HO billing team can select them for
+// the Client Erection 90% Bill. Populates jmcId so the JMC number shows.
+// ─────────────────────────────────────────────────────────────────────────────
+export const getErectionReferences = asyncHandler(async (req: any, res: Response) => {
+  const filter: any = {
+    stage: '90%',
+    status: 'Payment Processed'
+  };
+
+  // Scope to user's circle/package if not Super Admin
+  if (req.user?.role?.name !== 'Super Admin') {
+    // ContractorInvoice has workOrderId — we filter via the work order's circle if stored
+    // For now, return all fully-approved 90% invoices and let the frontend/user filter
+  }
+
+  const invoices = await ContractorInvoice.find(filter)
+    .populate('jmcId', 'jmcNumber date circle package items')
+    .populate('contractorId', 'name')
+    .sort({ createdAt: -1 })
+    .lean();
+
+  // Shape the response so each invoice exposes its JMC as the "reference" the
+  // frontend dropdown expects: _id, jmcNumber, items (from jmcId)
+  const shaped = invoices.map((inv: any) => ({
+    _id: inv._id,
+    jmcNumber: inv.jmcId?.jmcNumber || inv.invoiceNumber,
+    date: inv.date,
+    contractorName: inv.contractorId?.name || '',
+    invoiceNumber: inv.invoiceNumber,
+    jmcId: inv.jmcId,
+    items: inv.jmcId?.items || inv.lineItems || []
+  }));
+
+  return res.status(200).json(new ApiResponse(200, shaped, 'Erection references fetched successfully'));
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UPDATE CLIENT BILL STATUS — with auto-trigger logic
+// ─────────────────────────────────────────────────────────────────────────────
 export const updateClientBillStatus = asyncHandler(async (req: any, res: Response) => {
   const { id } = req.params;
   const { status, rejectionRemarks } = req.body;
   const bill = await ClientBill.findById(id);
-  
+
   if (!bill) {
     return res.status(404).json(new ApiResponse(404, null, 'Client Bill not found'));
   }
-  
+
   bill.status = status;
-  
-  if (status === 'Pending PM Approval') {
-    // submitted by Site Engineer
-  } else if (status === 'Pending PD Approval') {
+
+  if (status === 'Pending PD Approval') {
     bill.pmApprovedBy = req.user._id;
     bill.pmApprovedAt = new Date();
   } else if (status === 'Approved') {
     bill.pdApprovedBy = req.user._id;
     bill.pdApprovedAt = new Date();
-    
-    // Automation Logic
+
+    // ── AUTO-TRIGGER LOGIC ────────────────────────────────────────────────
     if (bill.billType === 'Erection') {
-      if (bill.stage === '90%') {
-        const supplyDraft = new ClientBill({
-          raBillNo: `${bill.raBillNo}-AUTO-SUPPLY-30`,
-          raBillDate: new Date(),
-          billType: 'Supply',
-          stage: '30%',
-          referenceType: bill.referenceType,
-          referenceIds: bill.referenceIds,
-          items: bill.items, // Needs to map to supply BOQ rates on frontend or here
-          circle: bill.circle,
-          package: bill.package,
-          createdBy: req.user._id,
-          status: 'Draft'
-        });
-        await supplyDraft.save();
-      } else if (bill.stage === '10%') {
-        const supplyDraft = new ClientBill({
-          raBillNo: `${bill.raBillNo}-AUTO-SUPPLY-10`,
-          raBillDate: new Date(),
-          billType: 'Supply',
-          stage: '10%',
-          referenceType: bill.referenceType,
-          referenceIds: bill.referenceIds,
-          items: bill.items,
-          circle: bill.circle,
-          package: bill.package,
-          createdBy: req.user._id,
-          status: 'Draft'
-        });
-        await supplyDraft.save();
+
+      // Find the linked Supply 60% bill for this circle/package
+      // Prefer: explicitly set linkedSupplyBillId on the erection bill
+      let supplySource = bill.linkedSupplyBillId
+        ? await ClientBill.findById(bill.linkedSupplyBillId)
+        : await ClientBill.findOne({
+            billType: 'Supply',
+            stage: '60%',
+            status: 'Approved',
+            circle: bill.circle,
+            package: bill.package
+          }).sort({ createdAt: -1 });
+
+      if (supplySource) {
+        if (bill.stage === '90%') {
+          // Auto-create Supply 30% Draft
+          const thirtyPctItems = buildAutoSupplyItems(supplySource.items as any[], 30);
+          const supplyDraft = new ClientBill({
+            raBillNo: `${supplySource.raBillNo}-S30-AUTO`,
+            raBillDate: new Date(),
+            billType: 'Supply',
+            stage: '30%',
+            referenceType: supplySource.referenceType,
+            referenceIds: supplySource.referenceIds,
+            items: thirtyPctItems,
+            circle: bill.circle,
+            package: bill.package,
+            createdBy: req.user._id,
+            status: 'Draft',
+            autoCreated: true,
+            parentBillId: bill._id
+          });
+          await supplyDraft.save();
+        } else if (bill.stage === '10%') {
+          // Auto-create Supply 10% Draft
+          const tenPctItems = buildAutoSupplyItems(supplySource.items as any[], 10);
+          const supplyDraft = new ClientBill({
+            raBillNo: `${supplySource.raBillNo}-S10-AUTO`,
+            raBillDate: new Date(),
+            billType: 'Supply',
+            stage: '10%',
+            referenceType: supplySource.referenceType,
+            referenceIds: supplySource.referenceIds,
+            items: tenPctItems,
+            circle: bill.circle,
+            package: bill.package,
+            createdBy: req.user._id,
+            status: 'Draft',
+            autoCreated: true,
+            parentBillId: bill._id
+          });
+          await supplyDraft.save();
+        }
       }
     }
+    // ── END AUTO-TRIGGER ──────────────────────────────────────────────────
   } else if (status === 'Rejected') {
     bill.rejectedBy = req.user._id;
     bill.rejectedAt = new Date();
     bill.rejectionRemarks = rejectionRemarks;
   }
-  
+
   await bill.save();
   return res.status(200).json(new ApiResponse(200, bill, `Client Bill status updated to ${status}`));
 });

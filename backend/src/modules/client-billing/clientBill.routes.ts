@@ -5,7 +5,8 @@ import {
   getClientBills,
   getClientBillById,
   updateClientBillStatus,
-  updateClientBill
+  updateClientBill,
+  getErectionReferences
 } from './clientBill.controller';
 
 import multer from 'multer';
@@ -16,7 +17,8 @@ const upload = multer({ storage: multer.memoryStorage() });
 router.use(authenticate);
 
 router.post('/', upload.any(), createClientBill);
-router.put('/:id', upload.any(), updateClientBill); // Needs to be created
+router.put('/:id', upload.any(), updateClientBill);
+router.get('/erection-references', getErectionReferences);
 router.get('/', getClientBills);
 router.get('/:id', getClientBillById);
 router.patch('/:id/status', updateClientBillStatus);

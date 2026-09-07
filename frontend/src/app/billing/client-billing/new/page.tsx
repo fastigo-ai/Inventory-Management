@@ -15,47 +15,74 @@ export default function NewClientBillPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [billType, setBillType] = useState<'Supply' | 'Erection'>('Supply');
   const [referenceList, setReferenceList] = useState<any[]>([]);
-  
+  const [supplyBillList, setSupplyBillList] = useState<any[]>([]); // For erection bills: list of approved Supply 60% bills
+  const [linkedSupplyBillId, setLinkedSupplyBillId] = useState<string>('');
+
   const [invoiceDoc, setInvoiceDoc] = useState<File | null>(null);
   const [diDoc, setDiDoc] = useState<File | null>(null);
   const [mhrovDoc, setMhrovDoc] = useState<File | null>(null);
   const [additionalDocs, setAdditionalDocs] = useState<File[]>([]);
   const [items, setItems] = useState<any[]>([]);
-  
+
   const [formData, setFormData] = useState({
     raBillNo: '',
     raBillDate: new Date().toISOString().split('T')[0],
     stage: '60%',
     referenceIds: [] as string[]
   });
-
   // Whenever billType changes, fetch the corresponding approved documents
   useEffect(() => {
     fetchReferences();
     setFormData(prev => ({ ...prev, referenceIds: [] }));
     setItems([]);
+    if (billType === 'Erection') {
+      fetchApprovedSupplyBills();
+    } else {
+      setSupplyBillList([]);
+      setLinkedSupplyBillId('');
+    }
   }, [billType, formData.stage]);
 
   const fetchReferences = async () => {
     try {
       if (billType === 'Supply' && formData.stage === '60%') {
+        // Supply 60% uses MHROV
         const res = await api.get('/store/mhrov?status=Approved');
         if (res.data?.success) setReferenceList(res.data.data);
-      } else {
-        // Erection, OR Supply at 30% / 10% uses JMC
+      } else if (billType === 'Erection' && formData.stage === '90%') {
+        // Erection 90% uses JMCs from APPROVED contractor 90% invoices only
+        const res = await api.get('/client-billing/erection-references');
+        if (res.data?.success) setReferenceList(res.data.data);
+      } else if (formData.stage === '10%') {
+        // Final settlement (both Supply & Erection 10%) uses JMC + Handover Certificates
         const [jmcRes, hcRes] = await Promise.all([
           api.get('/jmc?status=Approved'),
-          (formData.stage === '10%') ? api.get('/contractor-billing/handover-certificates?status=Issued') : Promise.resolve({ data: { success: true, data: [] } })
+          api.get('/contractor-billing/handover-certificates?status=Issued')
         ]);
         let combined: any[] = [];
         if (jmcRes.data?.success) combined = [...combined, ...jmcRes.data.data];
         if (hcRes.data?.success) combined = [...combined, ...hcRes.data.data];
         setReferenceList(combined);
+      } else {
+        // Supply 30% and Erection stages use approved JMCs
+        const jmcRes = await api.get('/jmc?status=Approved');
+        if (jmcRes.data?.success) setReferenceList(jmcRes.data.data);
       }
     } catch (err) {
       console.error(err);
     }
   };
+
+  // Fetch the list of approved Supply 60% bills so the user can link one to this erection bill
+  const fetchApprovedSupplyBills = async () => {
+    try {
+      const res = await api.get('/client-billing?billType=Supply&stage=60%&status=Approved');
+      if (res.data?.success) setSupplyBillList(res.data.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
 
   const handleAddReference = (refId: string) => {
     if (!refId) return;
@@ -134,9 +161,15 @@ export default function NewClientBillPage() {
             itemName: itemName,
             diNo: i.diId?.diNumber || '',
             diDate: i.diId?.date ? new Date(i.diId.date).toISOString().split('T')[0] : '',
-            diQty: i.diId?.lineItems?.find((diItem: any) => String(diItem.itemId) === String(itemObj?._id))?.quantity 
-                || i.diId?.items?.find((diItem: any) => String(diItem.itemId) === String(itemObj?._id))?.quantity 
-                || 0,
+            diQty: (() => {
+              const itemIdStr = String(itemObj?._id || itemObj?.id || i.itemId);
+              const loaMatch = String(loaSrNo);
+              const match = i.diId?.lineItems?.find((diItem: any) => String(diItem.itemId) === itemIdStr && String(diItem.loaSerialNo) === loaMatch)
+                         || i.diId?.items?.find((diItem: any) => String(diItem.itemId) === itemIdStr && String(diItem.loaSerialNo) === loaMatch)
+                         || i.diId?.lineItems?.find((diItem: any) => String(diItem.itemId) === itemIdStr)
+                         || i.diId?.items?.find((diItem: any) => String(diItem.itemId) === itemIdStr);
+              return match?.quantity || 0;
+            })(),
             sourceDoneQty: doneQty,
             raBillQty: doneQty,
             boqRate: finalBaseRate,
@@ -240,6 +273,9 @@ export default function NewClientBillPage() {
       payload.append('referenceIds', JSON.stringify(formData.referenceIds));
       payload.append('items', JSON.stringify(items));
       payload.append('status', 'Pending PM Approval');
+      if (billType === 'Erection' && linkedSupplyBillId) {
+        payload.append('linkedSupplyBillId', linkedSupplyBillId);
+      }
 
       if (invoiceDoc) payload.append('invoiceDoc', invoiceDoc);
       if (diDoc) payload.append('diDoc', diDoc);
@@ -316,6 +352,33 @@ export default function NewClientBillPage() {
                 )}
               </select>
             </div>
+
+            {/* Linked Supply 60% Bill — shown only for Erection bills */}
+            {billType === 'Erection' && (
+              <div className="space-y-2 col-span-1 md:col-span-2 lg:col-span-4">
+                <label className="text-sm font-medium text-slate-700">
+                  Link to Supply 60% Bill{' '}
+                  <span className="text-xs font-normal text-slate-500">(Optional — used to auto-generate Supply 30%/10% on approval)</span>
+                </label>
+                <select
+                  className="w-full flex h-10 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+                  value={linkedSupplyBillId}
+                  onChange={(e) => setLinkedSupplyBillId(e.target.value)}
+                >
+                  <option value="">— Select an approved Supply 60% Bill —</option>
+                  {supplyBillList.map((b: any) => (
+                    <option key={b._id} value={b._id}>
+                      {b.raBillNo} — {b.circle} / {b.package}
+                    </option>
+                  ))}
+                </select>
+                {linkedSupplyBillId && (
+                  <p className="text-xs text-amber-600">
+                    ⚡ When this Erection bill is approved, the system will auto-create a Supply {formData.stage === '90%' ? '30%' : '10%'} Draft bill from the linked Supply 60% bill.
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">Source Documents <span className="text-rose-500">*</span></label>

@@ -196,9 +196,16 @@ export default function ApprovalsDashboardPage() {
                 return (
                   <tr key={bill._id} className="hover:bg-slate-50">
                     <td className="px-4 py-4 font-medium text-slate-900 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-slate-400" />
-                        {billNo || 'N/A'}
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-slate-400" />
+                          {billNo || 'N/A'}
+                        </div>
+                        {isClient && bill.autoCreated && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-200 w-fit">
+                            ⚡ Auto-Generated
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-4">
@@ -206,6 +213,9 @@ export default function ApprovalsDashboardPage() {
                         <>
                           <span className="font-semibold">{bill.billType}</span>
                           <div className="text-xs text-slate-500">{bill.stage}</div>
+                          {bill.parentBillId && (
+                            <div className="text-[10px] text-amber-600 mt-0.5">From: {bill.parentBillId?.raBillNo}</div>
+                          )}
                         </>
                       ) : (
                         <>

@@ -64,17 +64,27 @@ export default function EditClientBillPage() {
   const fetchReferences = async () => {
     try {
       if (billType === 'Supply' && formData.stage === '60%') {
+        // Supply 60% uses MHROV
         const res = await api.get('/store/mhrov?status=Approved');
         if (res.data?.success) setReferenceList(res.data.data);
-      } else {
+      } else if (billType === 'Erection' && formData.stage === '90%') {
+        // Erection 90% uses JMCs from APPROVED contractor 90% invoices only
+        const res = await api.get('/client-billing/erection-references');
+        if (res.data?.success) setReferenceList(res.data.data);
+      } else if (formData.stage === '10%') {
+        // Final settlement uses JMC + Handover Certificates
         const [jmcRes, hcRes] = await Promise.all([
           api.get('/jmc?status=Approved'),
-          (formData.stage === '10%') ? api.get('/contractor-billing/handover-certificates?status=Issued') : Promise.resolve({ data: { success: true, data: [] } })
+          api.get('/contractor-billing/handover-certificates?status=Issued')
         ]);
         let combined: any[] = [];
         if (jmcRes.data?.success) combined = [...combined, ...jmcRes.data.data];
         if (hcRes.data?.success) combined = [...combined, ...hcRes.data.data];
         setReferenceList(combined);
+      } else {
+        // Supply 30% and other erection stages use approved JMCs
+        const jmcRes = await api.get('/jmc?status=Approved');
+        if (jmcRes.data?.success) setReferenceList(jmcRes.data.data);
       }
     } catch (err) {
       console.error(err);
@@ -158,9 +168,15 @@ export default function EditClientBillPage() {
             itemName: itemName,
             diNo: i.diId?.diNumber || '',
             diDate: i.diId?.date ? new Date(i.diId.date).toISOString().split('T')[0] : '',
-            diQty: i.diId?.lineItems?.find((diItem: any) => String(diItem.itemId) === String(itemObj?._id))?.quantity 
-                || i.diId?.items?.find((diItem: any) => String(diItem.itemId) === String(itemObj?._id))?.quantity 
-                || 0,
+            diQty: (() => {
+              const itemIdStr = String(itemObj?._id || itemObj?.id || i.itemId);
+              const loaMatch = String(loaSrNo);
+              const match = i.diId?.lineItems?.find((diItem: any) => String(diItem.itemId) === itemIdStr && String(diItem.loaSerialNo) === loaMatch)
+                         || i.diId?.items?.find((diItem: any) => String(diItem.itemId) === itemIdStr && String(diItem.loaSerialNo) === loaMatch)
+                         || i.diId?.lineItems?.find((diItem: any) => String(diItem.itemId) === itemIdStr)
+                         || i.diId?.items?.find((diItem: any) => String(diItem.itemId) === itemIdStr);
+              return match?.quantity || 0;
+            })(),
             sourceDoneQty: doneQty,
             raBillQty: doneQty,
             boqRate: finalBaseRate,

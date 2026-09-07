@@ -40,6 +40,10 @@ export interface IClientBill extends Document {
   rejectedBy?: mongoose.Types.ObjectId;
   rejectedAt?: Date;
   rejectionRemarks?: string;
+  // Auto-trigger support
+  autoCreated?: boolean;
+  parentBillId?: mongoose.Types.ObjectId; // The erection bill that triggered auto-creation
+  linkedSupplyBillId?: mongoose.Types.ObjectId; // On an erection bill: the Supply 60% bill to use for auto-creating 30%/10%
   createdAt: Date;
   updatedAt: Date;
 }
@@ -91,7 +95,11 @@ const clientBillSchema = new Schema<IClientBill>(
     pdApprovedAt: { type: Date },
     rejectedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     rejectedAt: { type: Date },
-    rejectionRemarks: { type: String }
+    rejectionRemarks: { type: String },
+    // Auto-trigger support
+    autoCreated: { type: Boolean, default: false },
+    parentBillId: { type: Schema.Types.ObjectId, ref: 'ClientBill' },
+    linkedSupplyBillId: { type: Schema.Types.ObjectId, ref: 'ClientBill' }
   },
   { timestamps: true }
 );

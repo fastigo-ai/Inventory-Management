@@ -324,7 +324,14 @@ export default function NewClientBillPage() {
               <select 
                 className="w-full flex h-10 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
                 value={billType}
-                onChange={(e) => setBillType(e.target.value as 'Supply' | 'Erection')}
+                onChange={(e) => {
+                  const newBillType = e.target.value as 'Supply' | 'Erection';
+                  setBillType(newBillType);
+                  setFormData(prev => ({
+                    ...prev,
+                    stage: newBillType === 'Supply' ? '60%' : '90%'
+                  }));
+                }}
               >
                 <option value="Supply">Supply Bill</option>
                 <option value="Erection">Erection Bill</option>

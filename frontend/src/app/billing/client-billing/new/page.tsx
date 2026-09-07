@@ -30,17 +30,26 @@ export default function NewClientBillPage() {
     stage: '60%',
     referenceIds: [] as string[]
   });
-  // Whenever billType changes, fetch the corresponding approved documents
+  // When billType changes, reset the stage to default and clear items/references
   useEffect(() => {
-    fetchReferences();
-    setFormData(prev => ({ ...prev, referenceIds: [] }));
+    setFormData(prev => ({ 
+      ...prev, 
+      stage: billType === 'Supply' ? '60%' : '90%',
+      referenceIds: [] 
+    }));
     setItems([]);
+    
     if (billType === 'Erection') {
       fetchApprovedSupplyBills();
     } else {
       setSupplyBillList([]);
       setLinkedSupplyBillId('');
     }
+  }, [billType]);
+
+  // Whenever billType or stage changes, fetch the corresponding approved documents
+  useEffect(() => {
+    fetchReferences();
   }, [billType, formData.stage]);
 
   const fetchReferences = async () => {

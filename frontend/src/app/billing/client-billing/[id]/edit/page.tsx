@@ -32,7 +32,19 @@ export default function EditClientBillPage() {
     referenceIds: [] as string[]
   });
 
-  // Whenever billType changes, fetch the corresponding approved documents
+  // When billType changes manually by user, reset the stage to default
+  useEffect(() => {
+    // Only reset if it's an invalid combination
+    setFormData(prev => {
+      const isInvalidSupply = billType === 'Supply' && !['60%', '30%', '10%'].includes(prev.stage);
+      const isInvalidErection = billType === 'Erection' && !['90%', '10%'].includes(prev.stage);
+      if (isInvalidSupply) return { ...prev, stage: '60%' };
+      if (isInvalidErection) return { ...prev, stage: '90%' };
+      return prev;
+    });
+  }, [billType]);
+
+  // Whenever billType or stage changes, fetch the corresponding approved documents
   useEffect(() => {
     fetchReferences();
   }, [billType, formData.stage]);

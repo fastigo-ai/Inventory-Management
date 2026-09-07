@@ -4,6 +4,8 @@ import { ApiResponse } from '../../core/utils/ApiResponse';
 import { asyncHandler } from '../../core/utils/asyncHandler';
 import { v2 as cloudinary } from 'cloudinary';
 import { ContractorInvoice } from '../contractor-billing/contractorInvoice.schema';
+import { validateClientLedgerLimits, updateClientLedgerOnApproval } from './clientBillingLedger.utils';
+import { ClientBillingLedger } from './clientBillingLedger.schema';
 
 const uploadToCloudinary = (buffer: Buffer, folder: string): Promise<any> => {
   return new Promise((resolve, reject) => {
@@ -82,6 +84,11 @@ export const createClientBill = asyncHandler(async (req: any, res: Response) => 
   let parsedReferenceIds = [];
   try { parsedReferenceIds = typeof referenceIds === 'string' ? JSON.parse(referenceIds) : referenceIds; } catch (e) {}
 
+  const validation = await validateClientLedgerLimits(req.user.assignedCircle, req.user.assignedPackage, parsedItems, billType, stage);
+  if (!validation.valid) {
+    return res.status(400).json(new ApiResponse(400, null, validation.message));
+  }
+
   const { invoiceDocUrl, diDocUrl, mhrovDocUrl, additionalDocsUrls } = await parseUploadedFiles(req.files as Express.Multer.File[]);
 
   const clientBill = new ClientBill({
@@ -122,6 +129,11 @@ export const updateClientBill = asyncHandler(async (req: any, res: Response) => 
   try { parsedItems = typeof items === 'string' ? JSON.parse(items) : items; } catch (e) {}
   let parsedReferenceIds = [];
   try { parsedReferenceIds = typeof referenceIds === 'string' ? JSON.parse(referenceIds) : referenceIds; } catch (e) {}
+
+  const validation = await validateClientLedgerLimits(bill.circle, bill.package, parsedItems, billType || bill.billType, stage || bill.stage, id);
+  if (!validation.valid) {
+    return res.status(400).json(new ApiResponse(400, null, validation.message));
+  }
 
   const files = req.files as Express.Multer.File[];
   let invoiceDocUrl = bill.invoiceDocUrl;
@@ -253,12 +265,14 @@ export const updateClientBillStatus = asyncHandler(async (req: any, res: Respons
     return res.status(404).json(new ApiResponse(404, null, 'Client Bill not found'));
   }
 
+  const previousStatus = bill.status;
   bill.status = status;
 
   if (status === 'Pending PD Approval') {
     bill.pmApprovedBy = req.user._id;
     bill.pmApprovedAt = new Date();
-  } else if (status === 'Approved') {
+  } else if (previousStatus !== 'Approved' && status === 'Approved') {
+    await updateClientLedgerOnApproval(bill);
     bill.pdApprovedBy = req.user._id;
     bill.pdApprovedAt = new Date();
 
@@ -328,4 +342,26 @@ export const updateClientBillStatus = asyncHandler(async (req: any, res: Respons
 
   await bill.save();
   return res.status(200).json(new ApiResponse(200, bill, `Client Bill status updated to ${status}`));
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET CLIENT BILLING LEDGER
+// ─────────────────────────────────────────────────────────────────────────────
+export const getClientBillingLedger = asyncHandler(async (req: Request, res: Response) => {
+  const { circle, package: packageStr } = req.query;
+  
+  if (!circle || !packageStr) {
+    return res.status(400).json(new ApiResponse(400, null, 'Circle and Package are required'));
+  }
+
+  const ledger = await ClientBillingLedger.findOne({
+    circle: { $regex: new RegExp(`^${circle}$`, 'i') },
+    package: { $regex: new RegExp(`^${packageStr}$`, 'i') }
+  }).populate('items.itemId', 'name description sku tempCode');
+
+  if (!ledger) {
+    return res.status(200).json(new ApiResponse(200, { items: [] }, 'No ledger found for this circle/package'));
+  }
+
+  return res.status(200).json(new ApiResponse(200, ledger, 'Client Billing Ledger fetched successfully'));
 });

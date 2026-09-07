@@ -5,6 +5,7 @@ export interface IClientBillItem {
   loaSrNo: string;
   itemId?: mongoose.Types.ObjectId;
   tempCode?: string;
+  refNumber?: string;
   itemName: string;
   diNo?: string;
   diDate?: Date;
@@ -47,6 +48,7 @@ const clientBillItemSchema = new Schema<IClientBillItem>({
   loaSrNo: { type: String },
   itemId: { type: Schema.Types.ObjectId, ref: 'Item' },
   tempCode: { type: String },
+  refNumber: { type: String },
   itemName: { type: String, required: true },
   diNo: { type: String },
   diDate: { type: Date },

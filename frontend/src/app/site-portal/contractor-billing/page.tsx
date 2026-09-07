@@ -119,21 +119,21 @@ export default function ContractorBillingDashboard() {
       {analytics && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
           <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
-            <h3 className="text-sm font-semibold text-slate-500">Stage 1 Billed</h3>
+            <h3 className="text-sm font-semibold text-slate-500">Supply (60%) Billed</h3>
             <p className="text-2xl font-bold text-slate-800 mt-1">
-              ₹ {analytics.stageBreakdown?.find((s: any) => s._id.includes('Stage 1'))?.totalAmount?.toLocaleString('en-IN') || 0}
+              ₹ {analytics.stageBreakdown?.find((s: any) => s._id === '60%')?.totalAmount?.toLocaleString('en-IN') || 0}
             </p>
             <p className="text-xs text-slate-400 mt-1">
-              {analytics.stageBreakdown?.find((s: any) => s._id.includes('Stage 1'))?.count || 0} Invoices
+              {analytics.stageBreakdown?.find((s: any) => s._id === '60%')?.count || 0} Invoices
             </p>
           </div>
           <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
-            <h3 className="text-sm font-semibold text-slate-500">Stage 2 Billed</h3>
+            <h3 className="text-sm font-semibold text-slate-500">Erection (90%) Billed</h3>
             <p className="text-2xl font-bold text-slate-800 mt-1">
-              ₹ {analytics.stageBreakdown?.find((s: any) => s._id.includes('Stage 2'))?.totalAmount?.toLocaleString('en-IN') || 0}
+              ₹ {analytics.stageBreakdown?.find((s: any) => s._id === '90%')?.totalAmount?.toLocaleString('en-IN') || 0}
             </p>
             <p className="text-xs text-slate-400 mt-1">
-              {analytics.stageBreakdown?.find((s: any) => s._id.includes('Stage 2'))?.count || 0} Invoices
+              {analytics.stageBreakdown?.find((s: any) => s._id === '90%')?.count || 0} Invoices
             </p>
           </div>
           <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200">

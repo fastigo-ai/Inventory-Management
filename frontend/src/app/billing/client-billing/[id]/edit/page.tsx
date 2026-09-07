@@ -317,12 +317,11 @@ export default function EditClientBillPage() {
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
-      <div className="flex items-center gap-4">
-        <Link href="/billing/client-billing">
-          <Button variant="ghost" size="icon" className="rounded-full hover:bg-slate-200">
-            <ArrowLeft className="w-5 h-5 text-slate-600" />
-          </Button>
-        </Link>
+      <div className="mb-6">
+        <Button variant="ghost" onClick={() => router.back()} className="mb-4 -ml-4 text-slate-600 hover:text-slate-900">
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to RA Bills
+        </Button>
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Edit RA Bill</h1>
           <p className="text-slate-500 mt-1">Modify an existing Client Running Account Bill.</p>

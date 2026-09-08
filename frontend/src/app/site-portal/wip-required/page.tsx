@@ -12,16 +12,39 @@ import { WipRequiredBulkUploadModal } from "@/features/site-portal/components/Wi
 
 export default function WipRegisterPage() {
   const [entries, setEntries] = useState<any[]>([]);
+  const [aggregates, setAggregates] = useState({ totalClaimed: 0, totalApproved: 0 });
   const [loading, setLoading] = useState(true);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [selectedContractor, setSelectedContractor] = useState<string>('All');
   const [contractorsList, setContractorsList] = useState<any[]>([]);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const router = useRouter();
+
+  // Server-side Pagination & Search state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [pageSize, setPageSize] = useState(30);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  // Debounce search
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setCurrentPage(1); // Reset to page 1 on new search
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
 
   useEffect(() => {
     fetchContractors();
-    fetchWips();
   }, []);
+
+  useEffect(() => {
+    fetchWips();
+  }, [selectedContractor, startDate, endDate, currentPage, pageSize, debouncedSearchTerm]);
 
   const fetchContractors = async () => {
     try {
@@ -35,8 +58,21 @@ export default function WipRegisterPage() {
   const fetchWips = async () => {
     try {
       setLoading(true);
-      const res = await getWipRequireds();
-      setEntries(res.data?.data || []);
+      const params: any = {
+        page: currentPage,
+        limit: pageSize,
+      };
+      if (debouncedSearchTerm) params.search = debouncedSearchTerm;
+      if (selectedContractor !== 'All') params.contractorId = selectedContractor;
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+
+      const res = await getWipRequireds(params);
+      const payload = res.data?.data || {};
+      setEntries(payload.data || []);
+      setTotalItems(payload.total || 0);
+      setTotalPages(payload.totalPages || 1);
+      setAggregates(payload.aggregates || { totalClaimed: 0, totalApproved: 0 });
     } catch (error) {
       console.error(error);
     } finally {
@@ -44,52 +80,67 @@ export default function WipRegisterPage() {
     }
   };
 
-  
-  const exportData = () => {
-    const headers = ['Number', 'Date', 'Contractor', 'Package', 'Circle', 'Activity', 'LOA Sr No', 'Temp Code', 'Claimed Qty', 'Approved Qty', 'Rate', 'Amount', 'Status'];
-    const rows: any[] = [];
-    entries.forEach((entry: any) => {
-      const contractor = entry.contractorId?.name || entry.contractorId?.vendorName || entry.contractorId?.dynamicData?.companyName || 'Unknown';
-      const date = new Date(entry.date).toLocaleDateString();
-      if (entry.items && entry.items.length > 0) {
-        entry.items.forEach((item: any) => {
-          rows.push([
-            entry.jmcNumber || entry.wipNumber || '',
-            date,
-            contractor,
-            entry.package || '',
-            entry.circle || '',
-            item.activity || '',
-            item.loaSrNo || item.loaSerialNo || '',
-            item.tempCode || '',
-            item.claimedQty || 0,
-            item.approvedQty || 0,
-            item.rate || 0,
-            item.amount || 0,
-            entry.status || ''
-          ]);
-        });
-      } else {
-          rows.push([
-            entry.jmcNumber || entry.wipNumber || '',
-            date,
-            contractor,
-            entry.package || '',
-            entry.circle || '',
-            '', '', '', 0, 0, 0, 0, entry.status || ''
-          ]);
-      }
-    });
+  const exportData = async () => {
+    try {
+      // Fetch all filtered data for export
+      const params: any = { limit: 'all' };
+      if (debouncedSearchTerm) params.search = debouncedSearchTerm;
+      if (selectedContractor !== 'All') params.contractorId = selectedContractor;
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
 
-    const csvContent = headers.join(",") + "\n" + rows.map(e => e.map((cell: any) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", "WipRequired_Export.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      const res = await getWipRequireds(params);
+      const payload = res.data?.data || {};
+      const allEntries = payload.data || [];
+
+      const headers = ['Number', 'Date', 'Contractor', 'Package', 'Circle', 'Activity', 'LOA Sr No', 'Temp Code', 'Claimed Qty', 'Approved Qty', 'Rate', 'Amount', 'Status'];
+      const rows: any[] = [];
+      allEntries.forEach((entry: any) => {
+        const contractor = entry.contractorId?.name || entry.contractorId?.vendorName || entry.contractorId?.dynamicData?.companyName || 'Unknown';
+        const date = new Date(entry.date).toLocaleDateString();
+        if (entry.items && entry.items.length > 0) {
+          entry.items.forEach((item: any) => {
+            rows.push([
+              entry.jmcNumber || entry.wipNumber || '',
+              date,
+              contractor,
+              entry.package || '',
+              entry.circle || '',
+              item.activity || '',
+              item.loaSrNo || item.loaSerialNo || '',
+              item.tempCode || '',
+              item.claimedQty || 0,
+              item.approvedQty || 0,
+              item.rate || 0,
+              item.amount || 0,
+              entry.status || ''
+            ]);
+          });
+        } else {
+            rows.push([
+              entry.jmcNumber || entry.wipNumber || '',
+              date,
+              contractor,
+              entry.package || '',
+              entry.circle || '',
+              '', '', '', 0, 0, 0, 0, entry.status || ''
+            ]);
+        }
+      });
+
+      const csvContent = headers.join(",") + "\n" + rows.map(e => e.map((cell: any) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", "WipRequired_Export.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to export data.');
+    }
   };
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
@@ -105,21 +156,13 @@ export default function WipRegisterPage() {
     }
   };
 
-  const {
-    paginatedData,
-    searchTerm,
-    setSearchTerm,
-    pageSize,
-    setPageSize,
-    currentPage,
-    setCurrentPage,
-    totalPages,
-    totalItems
-  } = useClientTable(entries);
+  // Replace useClientTable paginatedData with actual entries
+  const paginatedData = entries;
 
-  const totalWips = entries.length;
-  const totalClaimedValue = entries.reduce((acc, curr) => acc + (Number(curr.claimedAmount) || 0), 0);
-  const totalApprovedValue = entries.reduce((acc, curr) => acc + (Number(curr.approvedAmount) || 0), 0);
+  // Business Insights Computations from Server Aggregates
+  const totalWips = totalItems;
+  const totalClaimedValue = aggregates.totalClaimed || 0;
+  const totalApprovedValue = aggregates.totalApproved || 0;
   const activeContractorsCount = selectedContractor === 'All' ? contractorsList.length : 1;
 
   return (

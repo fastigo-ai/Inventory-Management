@@ -1,6 +1,6 @@
 import { api } from '@/shared/api/axios';
 
-export const getJmcs = async (params?: { contractorId?: string, startDate?: string, endDate?: string }) => {
+export const getJmcs = async (params?: any) => {
   return api.get('/jmc', { params });
 };
 

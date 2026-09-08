@@ -62,12 +62,15 @@ export const createJmc = asyncHandler(async (req: Request, res: Response) => {
 
 export const getJmcs = asyncHandler(async (req: Request, res: Response) => {
   const user = (req as any).user;
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = req.query.limit === 'all' ? 0 : parseInt(req.query.limit as string) || 30;
+  const search = req.query.search as string;
   const filter: any = {};
 
   if (user && user.role?.name === 'Contractor' && user.contractorId) {
-    filter.contractorId = user.contractorId;
+    filter.contractorId = new mongoose.Types.ObjectId(user.contractorId);
   } else if (req.query.contractorId && req.query.contractorId !== 'All') {
-    filter.contractorId = req.query.contractorId;
+    filter.contractorId = new mongoose.Types.ObjectId(req.query.contractorId as string);
   }
 
   if (req.query.startDate || req.query.endDate) {
@@ -76,18 +79,59 @@ export const getJmcs = asyncHandler(async (req: Request, res: Response) => {
       filter.date.$gte = new Date(req.query.startDate as string);
     }
     if (req.query.endDate) {
-      filter.date.$lte = new Date(req.query.endDate as string);
+      const end = new Date(req.query.endDate as string);
+      end.setHours(23, 59, 59, 999);
+      filter.date.$lte = end;
     }
   }
 
-  const jmcs = await JmcRegister.find(filter)
-    .populate('contractorId', 'name vendorName dynamicData')
-    .populate('workOrderId', 'workOrderNumber')
-    .populate('items.itemId')
-    .sort({ createdAt: 1 });
+  if (search && search.trim() !== '') {
+    filter.jmcNumber = { $regex: search, $options: 'i' };
+  }
+
+  const skip = (page - 1) * limit;
+
+  const [total, jmcs, aggregateResult] = await Promise.all([
+    JmcRegister.countDocuments(filter),
+    limit > 0 
+      ? JmcRegister.find(filter)
+          .populate('contractorId', 'name vendorName dynamicData')
+          .populate('workOrderId', 'workOrderNumber')
+          .populate('items.itemId')
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .lean()
+      : JmcRegister.find(filter)
+          .populate('contractorId', 'name vendorName dynamicData')
+          .populate('workOrderId', 'workOrderNumber')
+          .populate('items.itemId')
+          .sort({ createdAt: -1 })
+          .lean(),
+    JmcRegister.aggregate([
+      { $match: filter },
+      {
+        $group: {
+          _id: null,
+          totalClaimed: { $sum: "$claimedAmount" },
+          totalApproved: { $sum: "$approvedAmount" },
+        }
+      }
+    ])
+  ]);
+
+  const totalPages = limit > 0 ? Math.ceil(total / limit) : 1;
+  const aggregates = aggregateResult.length > 0 ? aggregateResult[0] : { totalClaimed: 0, totalApproved: 0 };
 
   res.status(200).json(
-    new ApiResponse(200, jmcs, 'JMC Register entries fetched successfully')
+    new ApiResponse(200, {
+      data: jmcs,
+      total,
+      page,
+      limit,
+      totalPages,
+      aggregates
+    }, 'JMC Register entries fetched successfully')
   );
 });
 

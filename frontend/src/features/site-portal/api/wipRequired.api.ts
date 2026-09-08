@@ -1,7 +1,7 @@
 import { api } from '@/shared/api/axios';
 
-export const getWipRequireds = async () => {
-  return api.get('/wip-required');
+export const getWipRequireds = async (params?: any) => {
+  return api.get('/wip-required', { params });
 };
 
 export const getWipRequiredById = async (id: string) => {

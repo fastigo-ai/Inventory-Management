@@ -61,32 +61,72 @@ export const createWip = asyncHandler(async (req: Request, res: Response) => {
 
 export const getWips = asyncHandler(async (req: Request, res: Response) => {
   const user = (req as any).user;
-  const { contractorId, startDate, endDate } = req.query;
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = req.query.limit === 'all' ? 0 : parseInt(req.query.limit as string) || 30;
+  const search = req.query.search as string;
   const filter: any = {};
 
   if (user && user.role?.name === 'Contractor' && user.contractorId) {
-    filter.contractorId = user.contractorId;
-  } else if (contractorId) {
-    filter.contractorId = contractorId;
+    filter.contractorId = new mongoose.Types.ObjectId(user.contractorId);
+  } else if (req.query.contractorId && req.query.contractorId !== 'All') {
+    filter.contractorId = new mongoose.Types.ObjectId(req.query.contractorId as string);
   }
 
-  if (startDate || endDate) {
+  if (req.query.startDate || req.query.endDate) {
     filter.date = {};
-    if (startDate) filter.date.$gte = new Date(startDate as string);
-    if (endDate) {
-      const end = new Date(endDate as string);
+    if (req.query.startDate) filter.date.$gte = new Date(req.query.startDate as string);
+    if (req.query.endDate) {
+      const end = new Date(req.query.endDate as string);
       end.setHours(23, 59, 59, 999);
       filter.date.$lte = end;
     }
   }
 
-  const wips = await WipRegister.find(filter)
-    .populate('contractorId', 'name vendorName dynamicData')
-    .populate('workOrderId', 'workOrderNumber')
-    .sort({ createdAt: 1 });
+  if (search && search.trim() !== '') {
+    filter.wipNumber = { $regex: search, $options: 'i' };
+  }
+
+  const skip = (page - 1) * limit;
+
+  const [total, wips, aggregateResult] = await Promise.all([
+    WipRegister.countDocuments(filter),
+    limit > 0 
+      ? WipRegister.find(filter)
+          .populate('contractorId', 'name vendorName dynamicData')
+          .populate('workOrderId', 'workOrderNumber')
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .lean()
+      : WipRegister.find(filter)
+          .populate('contractorId', 'name vendorName dynamicData')
+          .populate('workOrderId', 'workOrderNumber')
+          .sort({ createdAt: -1 })
+          .lean(),
+    WipRegister.aggregate([
+      { $match: filter },
+      {
+        $group: {
+          _id: null,
+          totalClaimed: { $sum: "$claimedAmount" },
+          totalApproved: { $sum: "$approvedAmount" },
+        }
+      }
+    ])
+  ]);
+
+  const totalPages = limit > 0 ? Math.ceil(total / limit) : 1;
+  const aggregates = aggregateResult.length > 0 ? aggregateResult[0] : { totalClaimed: 0, totalApproved: 0 };
 
   res.status(200).json(
-    new ApiResponse(200, wips, 'WIP Register entries fetched successfully')
+    new ApiResponse(200, {
+      data: wips,
+      total,
+      page,
+      limit,
+      totalPages,
+      aggregates
+    }, 'WIP Register entries fetched successfully')
   );
 });
 

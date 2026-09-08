@@ -239,7 +239,12 @@ export default function WipRegisterPage() {
                 <tbody className="divide-y divide-slate-100">
                   {loading ? (
                     <tr>
-                      <td colSpan={9} className="px-6 py-8 text-center text-slate-500">Loading...</td>
+                      <td colSpan={9} className="px-6 py-16">
+                        <div className="flex flex-col items-center justify-center">
+                          <div className="w-8 h-8 border-4 border-[#0076f2] border-t-transparent rounded-full animate-spin"></div>
+                          <p className="mt-3 text-sm font-medium text-slate-500">Loading data...</p>
+                        </div>
+                      </td>
                     </tr>
                   ) : paginatedData.length === 0 ? (
                     <tr>

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { getWipRequireds, deleteWipRequired } from "@/features/site-portal/api/wipRequired.api";
-import { FileText, Plus, Trash2, Download, Edit } from "lucide-react";
+import { getContractors } from "@/features/contractors/api/contractors.api";
+import { FileText, Plus, Trash2, Download, Edit, Eye, Users, IndianRupee } from "lucide-react";
 import { useClientTable } from "@/shared/hooks/useClientTable";
 import { DataTableTopControls, DataTableBottomControls } from "@/shared/components/DataTableControls";
 import { useRouter } from "next/navigation";
@@ -13,11 +14,23 @@ export default function WipRegisterPage() {
   const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [selectedContractor, setSelectedContractor] = useState<string>('All');
+  const [contractorsList, setContractorsList] = useState<any[]>([]);
   const router = useRouter();
 
   useEffect(() => {
+    fetchContractors();
     fetchWips();
   }, []);
+
+  const fetchContractors = async () => {
+    try {
+      const res = await getContractors();
+      setContractorsList(res?.data || res || []);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const fetchWips = async () => {
     try {
@@ -104,27 +117,102 @@ export default function WipRegisterPage() {
     totalItems
   } = useClientTable(entries);
 
+  const totalWips = entries.length;
+  const totalClaimedValue = entries.reduce((acc, curr) => acc + (Number(curr.claimedAmount) || 0), 0);
+  const totalApprovedValue = entries.reduce((acc, curr) => acc + (Number(curr.approvedAmount) || 0), 0);
+  const activeContractorsCount = selectedContractor === 'All' ? contractorsList.length : 1;
+
   return (
-    <div className="flex-1 bg-white min-h-screen p-6">
-      <div className="max-w-[1200px] mx-auto">
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
-          <h1 className="text-2xl font-bold text-slate-800 whitespace-nowrap">WIP To Be Required</h1>
-          
-          <div className="flex flex-wrap items-center gap-3">
-            <Button variant="outline" onClick={exportData} className="bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 rounded-lg shadow-sm whitespace-nowrap">
-              <Download className="mr-2 h-4 w-4" /> Export Data
-            </Button>
-            <Button variant="outline" onClick={() => setUploadModalOpen(true)} className="rounded-lg shadow-sm whitespace-nowrap">
-              <FileText className="mr-2 h-4 w-4" /> Bulk Upload WIP
-            </Button>
-            <Button 
-              onClick={() => router.push('/site-portal/wip-required/new')}
-              className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm whitespace-nowrap"
-            >
-              <Plus className="mr-2 h-4 w-4" /> New WIP Entry
-            </Button>
-          </div>
+    <div className="flex-1 bg-[#f8fafc] min-h-screen p-6">
+      <div className="max-w-[1400px] mx-auto">
+        {/* Breadcrumb */}
+        <div className="mb-1">
+          <span className="text-xs text-slate-400 font-medium">Site Portal &gt; WIP To Be Required</span>
         </div>
+
+        {/* Page Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-slate-800">WIP To Be Required</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Track and manage WIP required entries with contractor details, claims and approvals.</p>
+        </div>
+
+        {/* Filters Row */}
+        <div className="flex flex-wrap items-center gap-3 mb-5">
+          {contractorsList.length > 0 && (
+            <select 
+              className="h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm min-w-[180px]"
+              value={selectedContractor}
+              onChange={(e) => setSelectedContractor(e.target.value)}
+            >
+              <option value="All">All Contractors</option>
+              {contractorsList.map((contractor: any) => (
+                <option key={contractor._id} value={contractor._id}>
+                  {contractor.name || contractor.vendorName || contractor.dynamicData?.companyName || 'Unknown'}
+                </option>
+              ))}
+            </select>
+          )}
+          <div className="flex-1" />
+          <Button variant="outline" onClick={exportData} className="bg-red-50 text-red-600 border-red-200 hover:bg-red-100 rounded-lg shadow-sm whitespace-nowrap font-semibold">
+            <Download className="mr-2 h-4 w-4" /> Export Data
+          </Button>
+          <Button variant="outline" onClick={() => setUploadModalOpen(true)} className="rounded-lg shadow-sm whitespace-nowrap">
+            <FileText className="mr-2 h-4 w-4" /> Bulk Upload WIP
+          </Button>
+        </div>
+
+        {/* New Entry Button */}
+        <div className="mb-5">
+          <Button 
+            onClick={() => router.push('/site-portal/wip-required/new')}
+            className="bg-[#0076f2] hover:bg-[#005fc4] text-white rounded-lg shadow-sm whitespace-nowrap px-5"
+          >
+            <Plus className="mr-2 h-4 w-4" /> New WIP Entry
+          </Button>
+        </div>
+
+        {/* Business Insights Dashboard */}
+        {!loading && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center">
+                <FileText className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 font-medium mb-0.5">Total WIPs</p>
+                <p className="text-2xl font-bold text-slate-800">{totalWips}</p>
+              </div>
+            </div>
+            <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center">
+                <Users className="w-6 h-6 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 font-medium mb-0.5">Active Contractors</p>
+                <p className="text-2xl font-bold text-slate-800">{activeContractorsCount}</p>
+              </div>
+            </div>
+            <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center">
+                <IndianRupee className="w-6 h-6 text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 font-medium mb-0.5">Total Claimed Value</p>
+                <p className="text-2xl font-bold text-slate-800">₹{totalClaimedValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+              </div>
+            </div>
+            <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center">
+                <IndianRupee className="w-6 h-6 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 font-medium mb-0.5">Total Approved Value</p>
+                <p className="text-2xl font-bold text-slate-800">₹{totalApprovedValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
           <DataTableTopControls
             searchTerm={searchTerm}
@@ -168,32 +256,46 @@ export default function WipRegisterPage() {
                         onClick={() => router.push(`/site-portal/wip-required/${entry._id}`)}
                       >
                         <td className="px-6 py-4 font-medium text-blue-600">{entry.wipRequiredNumber}</td>
-                        <td className="px-6 py-4">{new Date(entry.date).toLocaleDateString()}</td>
-                        <td className="px-6 py-4">{entry.contractorId?.dynamicData?.companyName || entry.contractorId?.dynamicData?.displayName || entry.contractorId?.name || entry.contractorId?.vendorName || '-'}</td>
-                        <td className="px-6 py-4">{entry.package || '-'}</td>
-                        <td className="px-6 py-4">{entry.circle || '-'}</td>
+                        <td className="px-6 py-4 text-slate-600">{new Date(entry.date).toLocaleDateString()}</td>
+                        <td className="px-6 py-4 text-slate-700">{entry.contractorId?.dynamicData?.companyName || entry.contractorId?.dynamicData?.displayName || entry.contractorId?.name || entry.contractorId?.vendorName || '-'}</td>
+                        <td className="px-6 py-4 text-slate-600">{entry.package || '-'}</td>
+                        <td className="px-6 py-4 text-slate-600">{entry.circle || '-'}</td>
                         <td className="px-6 py-4 font-medium text-slate-700">{(entry.claimedAmount || 0).toFixed(2)}</td>
-                        <td className="px-6 py-4 font-medium text-green-700">{(entry.approvedAmount || 0).toFixed(2)}</td>
+                        <td className="px-6 py-4 font-semibold text-green-700">{(entry.approvedAmount || 0).toFixed(2)}</td>
                         <td className="px-6 py-4">
                           <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide ${entry.status === 'Approved' ? 'bg-emerald-100 text-emerald-700' : entry.status === 'Submitted' ? 'bg-blue-100 text-blue-700' : entry.status === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'}`}>
                             {entry.status}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-right flex justify-end gap-2">
-                          {entry.status !== 'Approved' && (
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex justify-end items-center gap-1">
                             <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                router.push(`/site-portal/wip-required/${entry._id}`);
-                              }} 
-                              className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-full transition-colors"
+                              onClick={(e) => { e.stopPropagation(); router.push(`/site-portal/wip-required/${entry._id}`); }} 
+                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                              title="View"
                             >
-                              <Edit className="w-4 h-4" />
+                              <Eye className="w-4 h-4" />
                             </button>
-                          )}
-                          <button onClick={(e) => handleDelete(e, entry._id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                            {entry.status !== 'Approved' && (
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  router.push(`/site-portal/wip-required/${entry._id}`);
+                                }} 
+                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors"
+                                title="Edit"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                            )}
+                            <button 
+                              onClick={(e) => handleDelete(e, entry._id)} 
+                              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))

@@ -82,7 +82,8 @@ export default function WipRegisterFormPage() {
     if (formData.contractorId && formData.package && formData.circle) {
       import('@/features/site-portal/api/wipRequired.api').then(api => {
         (api as any).getWipRequireds({ contractorId: formData.contractorId }).then((res: any) => {
-          const fetched = res?.data?.data || (Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []));
+          const payload = res?.data?.data || {};
+          const fetched = payload.data || (Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []));
           const filtered = fetched.filter((j: any) => j.package === formData.package && j.circle === formData.circle && j.status === 'Approved');
           setPreviousData(filtered);
         }).catch(console.error);
@@ -115,7 +116,12 @@ export default function WipRegisterFormPage() {
         setFormData({
           ...data,
           date: data.date ? new Date(data.date).toISOString().split('T')[0] : "",
-          contractorId: data.contractorId?._id || data.contractorId
+          contractorId: data.contractorId?._id || data.contractorId,
+          items: data.items?.map((item: any) => ({
+            ...item,
+            loaSrNo: item.loaSrNo || item.loaSerialNo || '',
+            tempCode: item.tempCode || ''
+          })) || []
         });
       }
     } catch (err) {
@@ -124,6 +130,35 @@ export default function WipRegisterFormPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (availableItems.length > 0 && formData.items.length > 0 && !isNew) {
+      let changed = false;
+      const newItems = formData.items.map(item => {
+        if (item.tempCode && item.totalLoaQty > 0) return item;
+        const match = availableItems.find(ai => 
+          (item.loaSrNo && (String(ai.dynamicData?.sku) === String(item.loaSrNo) || String(ai.dynamicData?.loaSrNo) === String(item.loaSrNo))) || 
+          (item.activity && ai.dynamicData?.activity === item.activity && ai.dynamicData?.description === item.description)
+        );
+        if (match) {
+           let updated = { ...item };
+           if (!updated.tempCode) {
+             updated.tempCode = match.rawItem?.tempCode || match.dynamicData?.tempCode || '';
+             if (updated.tempCode) changed = true;
+           }
+           if (!updated.totalLoaQty || updated.totalLoaQty === 0) {
+             updated.totalLoaQty = Number(match.dynamicData?.loaQty || match.dynamicData?.loaQuantity || match.dynamicData?.totalLoaQuantity || match.dynamicData?.qty || match.dynamicData?.quantity || 0);
+             if (updated.totalLoaQty > 0) changed = true;
+           }
+           return updated;
+        }
+        return item;
+      });
+      if (changed) {
+        setFormData(prev => ({ ...prev, items: newItems }));
+      }
+    }
+  }, [availableItems, isNew]);
 
   const handleItemChange = (index: number, field: string, value: any) => {
     const newItems = [...formData.items];
@@ -279,6 +314,7 @@ export default function WipRegisterFormPage() {
                   <option value="">Select Contractor</option>
                   {contractors
                     .filter(c => {
+                      if (c._id === formData.contractorId) return true;
                       if (!formData.circle) return true;
                       const locs = c.location || c.assignedLocations || c.dynamicData?.assignedCircle || c.dynamicData?.circle || c.dynamicData?.assignedCircles || '';
                       return locs.includes(formData.circle);

@@ -107,14 +107,16 @@ export default function JmcRegisterFormPage() {
 
   useEffect(() => {
     if (formData.contractorId) {
-      getJmcs({ contractorId: formData.contractorId }).then(res => {
-        const jmcs = res?.data?.data || (Array.isArray(res?.data) ? res.data : []);
-        setPreviousJmcs(jmcs);
+      getJmcs({ contractorId: formData.contractorId }).then((res: any) => {
+        const payload = res?.data?.data || {};
+        const jmcs = payload.data || (Array.isArray(res?.data?.data) ? res.data.data : (Array.isArray(res?.data) ? res.data : []));
+        const filtered = jmcs.filter((j: any) => j.package === formData.package && j.circle === formData.circle && j.status === 'Approved');
+        setPreviousJmcs(filtered);
       }).catch(console.error);
     } else {
       setPreviousJmcs([]);
     }
-  }, [formData.contractorId]);
+  }, [formData.contractorId, formData.package, formData.circle]);
 
   // Automatically recalculate previous quantities for existing items when historical JMCs arrive
   useEffect(() => {
@@ -318,6 +320,7 @@ export default function JmcRegisterFormPage() {
                   <option value="">Select Contractor</option>
                   {contractors
                     .filter(c => {
+                      if (c._id === formData.contractorId) return true;
                       if (!formData.circle) return true;
                       const locs = c.location || c.assignedLocations || c.dynamicData?.assignedCircle || c.dynamicData?.circle || c.dynamicData?.assignedCircles || '';
                       return locs.includes(formData.circle);

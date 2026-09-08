@@ -82,7 +82,8 @@ export default function WipRegisterFormPage() {
     if (formData.contractorId && formData.package && formData.circle) {
       import('@/features/site-portal/api/wipRequired.api').then(api => {
         (api as any).getWipRequireds({ contractorId: formData.contractorId }).then((res: any) => {
-          const fetched = res?.data?.data || (Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []));
+          const payload = res?.data?.data || {};
+          const fetched = payload.data || (Array.isArray(res?.data?.data) ? res.data.data : (Array.isArray(res?.data) ? res.data : []));
           const filtered = fetched.filter((j: any) => j.package === formData.package && j.circle === formData.circle && j.status === 'Approved');
           setPreviousData(filtered);
         }).catch(console.error);
@@ -279,6 +280,7 @@ export default function WipRegisterFormPage() {
                   <option value="">Select Contractor</option>
                   {contractors
                     .filter(c => {
+                      if (c._id === formData.contractorId) return true;
                       if (!formData.circle) return true;
                       const locs = c.location || c.assignedLocations || c.dynamicData?.assignedCircle || c.dynamicData?.circle || c.dynamicData?.assignedCircles || '';
                       return locs.includes(formData.circle);

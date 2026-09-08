@@ -70,9 +70,16 @@ export function WipBulkUploadModal({ open, onOpenChange, onSuccess }: Props) {
         </DialogHeader>
 
         <div className="py-4 space-y-4">
-          <p className="text-sm text-gray-500">
-            Select one or more Excel (.xlsx) files. The system will unpivot the data, match contractors and items, and generate WIP Drafts.
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-500">
+              Select one or more Excel (.xlsx) files. The system will unpivot the data, match contractors and items, and generate WIP Drafts.
+            </p>
+            <a href="/wip_consumed_bulk_upload_sample.xlsx" download className="shrink-0 ml-3">
+              <Button type="button" variant="outline" size="sm" className="bg-white hover:bg-slate-50 text-[#0076f2] border-[#0076f2]/20 text-xs">
+                Download Sample
+              </Button>
+            </a>
+          </div>
           <Input 
             type="file" 
             accept=".xlsx" 

@@ -280,7 +280,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
         let isHeader = false;
         for (let c = 0; c < row.length; c++) {
           const h = normLabel(row[c]);
-          if (h && (h.includes("loa") || h.includes("sched") || h.includes("activity") || h.includes("desc") || h.includes("unit") || h.includes("sr no") || h.includes("sr.") || h.includes("s.no") || h.includes("item") || h.includes("qty") || h.includes("quantity"))) {
+          if (h && (h.includes("loa") || h.includes("code") || h.includes("temp") || h.includes("sched") || h.includes("activity") || h.includes("desc") || h.includes("unit") || h.includes("sr no") || h.includes("sr.") || h.includes("s.no") || h.includes("item") || h.includes("qty") || h.includes("quantity"))) {
             isHeader = true;
             break;
           }
@@ -298,19 +298,20 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
 
       const maxCol = rows.reduce((max, r) => Math.max(max, r.length), 0);
       const headerRow = rows[headerRowIdx];
-      let loaIdx = -1, schedIdx = -1, activityIdx = -1, descIdx = -1, unitIdx = -1;
+      let loaIdx = -1, tempCodeIdx = -1, schedIdx = -1, activityIdx = -1, descIdx = -1, unitIdx = -1;
 
       for (let c = 0; c < headerRow.length; c++) {
         const h = normLabel(headerRow[c]);
         if (!h) continue;
         if (h.includes("loa") && loaIdx === -1) loaIdx = c;
+        else if (h.includes("code") && tempCodeIdx === -1) tempCodeIdx = c;
         else if (h.includes("sched") && schedIdx === -1) schedIdx = c;
         else if (h.includes("activity") && activityIdx === -1) activityIdx = c;
         else if (h.includes("desc") && descIdx === -1) descIdx = c;
         else if (h.includes("unit") && unitIdx === -1) unitIdx = c;
       }
 
-      let startSiteCol = Math.max(loaIdx, schedIdx, activityIdx, descIdx, unitIdx) + 1;
+      let startSiteCol = Math.max(loaIdx, tempCodeIdx, schedIdx, activityIdx, descIdx, unitIdx) + 1;
       if (startSiteCol <= 0) {
         startSiteCol = 5;
         loaIdx = 0; schedIdx = 1; activityIdx = 2; descIdx = 3; unitIdx = 4;
@@ -347,12 +348,13 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
         if (!row) continue;
 
         const loa = loaIdx !== -1 ? row[loaIdx] : null;
+        const tempCodeVal = tempCodeIdx !== -1 ? row[tempCodeIdx] : null;
         const sched = schedIdx !== -1 ? row[schedIdx] : null;
         const activity = activityIdx !== -1 ? row[activityIdx] : null;
         const desc = descIdx !== -1 ? row[descIdx] : null;
         const unit = unitIdx !== -1 ? row[unitIdx] : null;
 
-        if (!loa && !sched && !activity && !desc) continue;
+        if (!loa && !tempCodeVal && !sched && !activity && !desc) continue;
 
         if (!unit || String(unit).trim() === '') {
           if (desc) currentActivityGroup = String(desc).trim();
@@ -364,7 +366,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
           const numQty = parseFloat(qty);
           if (!isNaN(numQty)) {
             recordsBySite[c].push({
-              loa, sched, activity: activity || currentActivityGroup, description: desc || activity, unit, quantity: numQty
+              loa, tempCode: tempCodeVal, sched, activity: activity || currentActivityGroup, description: desc || activity, unit, quantity: numQty
             });
           }
         }
@@ -376,57 +378,74 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
     return sheets;
   };
 
-  // â”€â”€â”€ HELPER: resolve an item â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const resolveItem = (sr: any, uploadedCircle: string): { itemId: any; activity: string; loaSerialNo: string } | null => {
-    let itemId = null;
+  // ——— HELPER: resolve an item ———————————————————————————————————————
+  const resolveItem = (sr: any, uploadedCircle: string): { itemId: any; activity: string; loaSerialNo: string; loaSrNo: string; tempCode: string; totalLoaQty: number } | null => {
     let finalActivity = sr.activity || '';
     let finalLoaSerialNo = sr.loa || '';
+    
+    // Multi-criteria matching: score each item by LOA, tempCode, description, and circle
+    let matchedItemObj: any = null;
+    let bestScore = 0;
 
-    // 1. Strict LOA/SKU match (circle-agnostic)
-    if (sr.loa && allItems.length > 0) {
-      const matchedItem = allItems.find((i: any) => String(i.dynamicData?.sku) === String(sr.loa));
-      if (matchedItem) {
-        itemId = matchedItem._id;
-        if (!finalActivity && matchedItem.dynamicData?.activity) finalActivity = matchedItem.dynamicData.activity;
-      }
-    }
+    for (const item of allItems) {
+      let score = 0;
 
-    // 2. Description match within circle
-    if (!itemId && sr.description && allItems.length > 0) {
-      let candidateItems = allItems;
+      // Circle match (weight 1)
       if (uploadedCircle) {
-        candidateItems = candidateItems.filter((i: any) => {
-          const c = i.dynamicData?.circle || '';
-          return c.toLowerCase() === uploadedCircle.toLowerCase() ||
-                 c.toLowerCase().includes(uploadedCircle.toLowerCase()) ||
-                 uploadedCircle.toLowerCase().includes(c.toLowerCase());
-        });
+        const itemCircle = (item.dynamicData?.circle || '').toLowerCase();
+        const uc = uploadedCircle.toLowerCase();
+        if (itemCircle && (itemCircle === uc || itemCircle.includes(uc) || uc.includes(itemCircle))) {
+          score += 1;
+        }
       }
 
-      if (candidateItems.length === 0) return null; // No items in this circle at all
+      // LOA Serial No match (weight 3 — strongest signal)
+      if (sr.loa) {
+        const itemLoa = String(item.dynamicData?.sku || item.dynamicData?.loaSrNo || '');
+        if (itemLoa && itemLoa === String(sr.loa)) {
+          score += 3;
+        }
+      }
 
-      const descriptions = candidateItems.map((i: any) => String(i.dynamicData?.description || i.dynamicData?.name || '')).filter(Boolean);
-      if (descriptions.length > 0) {
-        const bestMatch = stringSimilarity.findBestMatch(String(sr.description), descriptions);
-        if (bestMatch.bestMatch.rating > 0.4) {
-          const matchedItem = candidateItems.find((i: any) => {
-            const desc = String(i.dynamicData?.description || i.dynamicData?.name || '');
-            return desc === bestMatch.bestMatch.target;
-          });
-          if (matchedItem) {
-            itemId = matchedItem._id;
-            if (!finalActivity && matchedItem.dynamicData?.activity) finalActivity = matchedItem.dynamicData.activity;
-            if (!finalLoaSerialNo && matchedItem.dynamicData?.sku) finalLoaSerialNo = matchedItem.dynamicData.sku;
+      // Temp Code match (weight 2)
+      if (sr.tempCode) {
+        const itemTempCode = String(item.dynamicData?.tempCode || '');
+        if (itemTempCode && itemTempCode === String(sr.tempCode)) {
+          score += 2;
+        }
+      }
+
+      // Description / Item Name match — fuzzy (weight 0-1)
+      if (sr.description) {
+        const itemDesc = String(item.dynamicData?.description || item.dynamicData?.name || '');
+        if (itemDesc) {
+          const similarity = stringSimilarity.compareTwoStrings(String(sr.description), itemDesc);
+          if (similarity > 0.3) {
+            score += similarity;
           }
         }
       }
+
+      if (score > bestScore) {
+        bestScore = score;
+        matchedItemObj = item;
+      }
     }
 
-    if (!itemId) return null;
-    return { itemId, activity: finalActivity, loaSerialNo: finalLoaSerialNo };
+    // Require at least a LOA or tempCode match (score >= 2), or a strong description+circle match (score >= 1.4)
+    if (bestScore < 1.4) return null;
+
+    return { 
+      itemId: matchedItemObj._id, 
+      activity: matchedItemObj.dynamicData?.activity || finalActivity, 
+      loaSerialNo: matchedItemObj.dynamicData?.sku || matchedItemObj.dynamicData?.loaSrNo || finalLoaSerialNo,
+      loaSrNo: matchedItemObj.dynamicData?.sku || matchedItemObj.dynamicData?.loaSrNo || finalLoaSerialNo,
+      tempCode: matchedItemObj.dynamicData?.tempCode || matchedItemObj.rawItem?.tempCode || sr.tempCode || '',
+      totalLoaQty: Number(matchedItemObj.dynamicData?.loaQty || matchedItemObj.dynamicData?.loaQuantity || matchedItemObj.dynamicData?.totalLoaQuantity || matchedItemObj.dynamicData?.qty || matchedItemObj.dynamicData?.quantity || 0)
+    };
   };
 
-  // â”€â”€â”€ PASS 1: Parse + Validate â€” collect ALL errors, save NOTHING â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ——— PASS 1: Parse + Validate — collect ALL errors, save NOTHING ——————————————————
   const validationErrors: { sourceFile: string; sheetName: string; description: string; circle: string }[] = [];
   const parsedSheets: any[] = [];
 
@@ -537,6 +556,9 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
         jmcItems.push({
           itemId: resolved.itemId,
           loaSerialNo: resolved.loaSerialNo,
+          loaSrNo: resolved.loaSrNo,
+          tempCode: resolved.tempCode,
+          totalLoaQty: resolved.totalLoaQty,
           activity: resolved.activity,
           description: sr.description || '',
           unit: sr.unit || '',

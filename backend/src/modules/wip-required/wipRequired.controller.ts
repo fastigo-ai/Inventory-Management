@@ -441,53 +441,78 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
           // Map Items
           const wipItems = [];
           let claimedAmount = 0;
+          const uploadedCircle = (user as any).assignedCircle || meta.Circle || '';
+
           for (const sr of siteRecords) {
             let itemId = null;
             let finalActivity = sr.activity || '';
             let finalLoaSerialNo = sr.loa || '';
             let finalTempCode = sr.tempCode || '';
 
-            // 1. Strict mapping by SKU / LOA Serial No or Temp Code
-            if (sr.loa && allItems.length > 0) {
-              const matchedItem = allItems.find((i: any) => String(i.dynamicData?.sku) === String(sr.loa));
-              if (matchedItem) {
-                itemId = matchedItem._id;
-                if (!finalActivity && matchedItem.dynamicData?.activity) {
-                   finalActivity = matchedItem.dynamicData.activity;
+            // Multi-criteria matching: score each item by LOA, tempCode, description, and circle
+            let matchedItemObj: any = null;
+            let bestScore = 0;
+
+            for (const item of allItems) {
+              let score = 0;
+
+              // Circle match (weight 1)
+              if (uploadedCircle) {
+                const itemCircle = (item.dynamicData?.circle || '').toLowerCase();
+                const uc = uploadedCircle.toLowerCase();
+                if (itemCircle && (itemCircle === uc || itemCircle.includes(uc) || uc.includes(itemCircle))) {
+                  score += 1;
                 }
               }
-            }
-            if (!itemId && sr.tempCode && allItems.length > 0) {
-              const matchedItem = allItems.find((i: any) => String(i.dynamicData?.tempCode) === String(sr.tempCode));
-              if (matchedItem) {
-                itemId = matchedItem._id;
-                if (!finalActivity && matchedItem.dynamicData?.activity) {
-                   finalActivity = matchedItem.dynamicData.activity;
+
+              // LOA Serial No match (weight 3 — strongest signal)
+              if (sr.loa) {
+                const itemLoa = String(item.dynamicData?.sku || item.dynamicData?.loaSrNo || '');
+                if (itemLoa && itemLoa === String(sr.loa)) {
+                  score += 3;
                 }
+              }
+
+              // Temp Code match (weight 2)
+              if (sr.tempCode) {
+                const itemTempCode = String(item.dynamicData?.tempCode || '');
+                if (itemTempCode && itemTempCode === String(sr.tempCode)) {
+                  score += 2;
+                }
+              }
+
+              // Description / Item Name match — fuzzy (weight 0-1)
+              if (sr.description) {
+                const itemDesc = String(item.dynamicData?.description || item.dynamicData?.name || '');
+                if (itemDesc) {
+                  const similarity = stringSimilarity.compareTwoStrings(String(sr.description), itemDesc);
+                  if (similarity > 0.3) {
+                    score += similarity;
+                  }
+                }
+              }
+
+              if (score > bestScore) {
+                bestScore = score;
+                matchedItemObj = item;
               }
             }
 
-            // 2. Fallback to Description matching
-            if (!itemId && sr.description && itemNames.length > 0) {
-              const bestMatch = stringSimilarity.findBestMatch(String(sr.description), itemNames);
-              if (bestMatch.bestMatch.rating > 0.6) {
-                const matchedItem = allItems.find((i: any) => {
-                  const desc = String(i.dynamicData?.description || i.dynamicData?.name || '');
-                  return desc === bestMatch.bestMatch.target;
-                });
-                if (matchedItem) {
-                  itemId = matchedItem._id;
-                  if (!finalActivity && matchedItem.dynamicData?.activity) {
-                     finalActivity = matchedItem.dynamicData.activity;
-                  }
-                  if (!finalLoaSerialNo && matchedItem.dynamicData?.sku) {
-                     finalLoaSerialNo = matchedItem.dynamicData.sku;
-                  }
-                  if (!finalTempCode && matchedItem.dynamicData?.tempCode) {
-                     finalTempCode = matchedItem.dynamicData.tempCode;
-                  }
-                }
-              }
+            // Require at least a LOA or tempCode match (score >= 2), or a strong description+circle match (score >= 1.4)
+            if (bestScore < 1.4) {
+              matchedItemObj = null;
+            }
+
+            let finalTotalLoaQty = 0;
+            let finalLoaSrNo = finalLoaSerialNo;
+
+            if (matchedItemObj) {
+              itemId = matchedItemObj._id;
+              finalActivity = matchedItemObj.dynamicData?.activity || finalActivity;
+              finalLoaSerialNo = matchedItemObj.dynamicData?.sku || matchedItemObj.dynamicData?.loaSrNo || finalLoaSerialNo;
+              finalLoaSrNo = matchedItemObj.dynamicData?.sku || matchedItemObj.dynamicData?.loaSrNo || finalLoaSrNo;
+              finalTempCode = matchedItemObj.dynamicData?.tempCode || matchedItemObj.rawItem?.tempCode || finalTempCode;
+              finalTotalLoaQty = Number(matchedItemObj.dynamicData?.loaQty || matchedItemObj.dynamicData?.loaQuantity || matchedItemObj.dynamicData?.totalLoaQuantity || matchedItemObj.dynamicData?.qty || matchedItemObj.dynamicData?.quantity || 0);
             }
 
             if (!itemId) {
@@ -497,7 +522,9 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
             wipItems.push({
               itemId: itemId || undefined,
               loaSerialNo: finalLoaSerialNo,
+              loaSrNo: finalLoaSrNo,
               tempCode: finalTempCode,
+              totalLoaQty: finalTotalLoaQty,
               activity: finalActivity,
               description: sr.description || '',
               unit: sr.unit || '',

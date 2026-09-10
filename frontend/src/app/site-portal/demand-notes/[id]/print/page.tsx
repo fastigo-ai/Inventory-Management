@@ -53,7 +53,17 @@ export default function DemandNotePrintPage() {
   }
 
   return (
-    <div className="bg-white min-h-screen w-full print:p-0 p-8 flex justify-center text-black font-serif">
+    <>
+      <div className="bg-white min-h-screen w-full print:p-0 p-8 flex justify-center text-black font-serif relative">
+      <div className="print:hidden absolute top-8 left-8 z-50">
+        <button 
+          onClick={() => { window.history.length > 1 ? router.back() : window.close(); window.close(); }}
+          className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg shadow-lg transition-all font-sans text-sm font-medium"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+          Back / Close
+        </button>
+      </div>
       {/* A4 Size Container */}
       <div className="w-[210mm] min-h-[297mm] bg-white border border-slate-200 print:border-none shadow-lg print:shadow-none p-[10mm]">
         
@@ -204,5 +214,6 @@ export default function DemandNotePrintPage() {
 
       </div>
     </div>
+    </>
   );
 }

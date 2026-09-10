@@ -523,7 +523,7 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
   if (packageFilter) inwardFilter.package = packageFilter;
 
   const assignmentFilter: any = { status: 'Sent' };
-  if (contractorFilter) assignmentFilter.contractorId = contractorFilter;
+  // if (contractorFilter) assignmentFilter.contractorId = contractorFilter; // Removed so we fetch ALL assignments to get true store balance
   if (circleFilter) {
     assignmentFilter.$or = [
       { circle: { $regex: new RegExp(`^${circleFilter}$`, 'i') } },
@@ -535,7 +535,7 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
   }
 
   const returnsFilter: any = { status: 'Submitted' };
-  if (contractorFilter) returnsFilter.contractorId = contractorFilter;
+  // if (contractorFilter) returnsFilter.contractorId = contractorFilter; // Removed so we fetch ALL returns to get true store balance
   if (circleFilter) {
     returnsFilter.$or = [
       { circle: { $regex: new RegExp(`^${circleFilter}$`, 'i') } },
@@ -559,6 +559,17 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
   }
 
 
+  const mhrovFilter: any = {};
+  if (circleFilter) {
+    mhrovFilter.$or = [
+      { circle: { $regex: new RegExp(`^${circleFilter}$`, 'i') } },
+      { division: { $regex: new RegExp(`^${circleFilter}$`, 'i') } },
+      { circle: { $exists: false } },
+      { circle: null },
+      { circle: '' }
+    ];
+  }
+
   console.log("Fetching DB collections in parallel...");
   // Fetch all collections in parallel to massively improve performance (fixes Axios timeouts)
   const [
@@ -568,7 +579,8 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
     contractorReturns,
     transfers,
     wipRecords,
-    jmcRecords
+    jmcRecords,
+    mhrovs
   ] = await Promise.all([
     Item.find({ isDeleted: false }).lean(),
     StoreInwardEntry.find(inwardFilter).lean(),
@@ -576,7 +588,8 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
     ContractorReturn.find(returnsFilter).lean(),
     StoreTransfer.find({ status: 'RECEIVED' }).lean(),
     WipRegister.find(wipJmcFilter).lean(),
-    JmcRegister.find(wipJmcFilter).lean()
+    JmcRegister.find(wipJmcFilter).lean(),
+    Mhrov.find(mhrovFilter).lean()
   ]);
   console.log("Fetched all DB collections successfully!");
 
@@ -589,25 +602,34 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
     const activity = data.activity || data.itemActivity || 'Uncategorized Activity';
     const loaSrNo = data.loaSrNo || data.loaSerialNo || data.loaSerialNumber || data.sku || '';
     
-    summaryMap[tempCode] = {
-      itemId: item._id,
-      sr: 0,
-      tempCode: tempCode,
-      activity: activity,
-      hsnCode: data.hsnCode || data.hsn_code || '-',
-      description: data.name || data.description || '-',
-      unit: data.unit || 'Nos',
-      loaSrNo: loaSrNo,
-      challanQty: 0,
-      receivedQty: 0,
+    const cLower = circleFilter ? circleFilter.toLowerCase() : '';
+    const circleLoaQty = Number(cLower ? (data[`${cLower}LoaQuantity`] || 0) : (data.loaQuantity || 0));
+
+    if (!summaryMap[tempCode]) {
+      summaryMap[tempCode] = {
+        itemId: item._id,
+        sr: 0,
+        tempCode: tempCode,
+        activity: activity,
+        hsnCode: data.hsnCode || data.hsn_code || '-',
+        description: data.name || data.description || '-',
+        unit: data.unit || 'Nos',
+        loaSrNo: loaSrNo,
+        circleLoaQty: circleLoaQty,
+        challanQty: 0,
+        receivedQty: 0,
       rejectedQty: 0,
       acceptedQty: 0,
+      mhrovQty: 0,
       receivedFromOtherStore: 0,
       totalInStockAfterReceive: 0,
       transferToOtherStore: 0,
       contractorsIssuedQty: 0,
       contractorsReturnQty: 0,
       contractorsActualIssued: 0,
+      allContractorsIssuedQty: 0,
+      allContractorsReturnQty: 0,
+      allContractorsActualIssued: 0,
       wipConsumed: 0,
       jmcDone: 0,
       totalBalanceQty: 0,
@@ -630,6 +652,9 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
       taxableAmount: 0,
       gst: '-'
     };
+    } else {
+      summaryMap[tempCode].circleLoaQty += circleLoaQty;
+    }
   });
 
   // Calculate Inwards
@@ -671,22 +696,50 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
     }
   });
 
+  // Calculate MRHOV Qty
+  mhrovs.forEach((mhrov: any) => {
+    (mhrov.items || []).forEach((it: any) => {
+      const tc = it.tempCode || '';
+      if (summaryMap[tc]) {
+        summaryMap[tc].mhrovQty += Number(it.mhrovDoneQty || 0);
+      }
+    });
+  });
+
   // Calculate Contractor Assignments
   assignments.forEach(assignment => {
+    const isThisContractor = contractorFilter ? (
+      assignment.contractorId?.toString() === String(contractorId).trim() || 
+      String(assignment.contractorId) === String(contractorId).trim()
+    ) : true;
+    
     assignment.lineItems?.forEach((line: any) => {
       const tc = line.tempCode || '';
       if (summaryMap[tc]) {
-        summaryMap[tc].contractorsIssuedQty += (line.quantity || 0);
+        const qty = line.quantity || 0;
+        summaryMap[tc].allContractorsIssuedQty += qty;
+        if (isThisContractor) {
+          summaryMap[tc].contractorsIssuedQty += qty;
+        }
       }
     });
   });
 
   // Calculate Contractor Returns
   contractorReturns.forEach(ret => {
+    const isThisContractor = contractorFilter ? (
+      ret.contractorId?.toString() === String(contractorId).trim() || 
+      String(ret.contractorId) === String(contractorId).trim()
+    ) : true;
+
     ret.lineItems?.forEach((line: any) => {
       const tc = line.tempCode || '';
       if (summaryMap[tc]) {
-        summaryMap[tc].contractorsReturnQty += (line.quantity || 0);
+        const qty = line.quantity || 0;
+        summaryMap[tc].allContractorsReturnQty += qty;
+        if (isThisContractor) {
+          summaryMap[tc].contractorsReturnQty += qty;
+        }
       }
     });
   });
@@ -714,6 +767,7 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
   // Derived fields for contractors
   Object.values(summaryMap).forEach((sm: any) => {
     sm.contractorsActualIssued = sm.contractorsIssuedQty - sm.contractorsReturnQty;
+    sm.allContractorsActualIssued = sm.allContractorsIssuedQty - sm.allContractorsReturnQty;
   });
 
   // Calculate Transfers
@@ -741,7 +795,7 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
   // Final Balance Calculation & format output
   let result = Object.values(summaryMap).map((row: any, index) => {
     row.sr = index + 1;
-    row.totalBalanceQty = row.totalInStockAfterReceive - row.transferToOtherStore - row.contractorsActualIssued;
+    row.totalBalanceQty = row.totalInStockAfterReceive - row.transferToOtherStore - row.allContractorsActualIssued;
     return row;
   });
 

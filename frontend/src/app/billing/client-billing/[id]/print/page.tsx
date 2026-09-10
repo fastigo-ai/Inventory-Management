@@ -50,6 +50,15 @@ export default function PrintClientBillPage() {
 
   return (
     <>
+      <div className="print:hidden fixed top-6 left-72 z-50">
+        <button 
+          onClick={() => { window.history.length > 1 ? router.back() : window.close(); window.close(); }}
+          className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg shadow-lg transition-all font-sans text-sm font-medium"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+          Back / Close
+        </button>
+      </div>
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
           @page { size: landscape; margin: 10mm; }

@@ -249,6 +249,7 @@ export default function WipRegisterPage() {
                     <th className="px-6 py-4">Date</th>
                     <th className="px-6 py-4">Contractor</th>
                     <th className="px-6 py-4">Package</th>
+                    <th className="px-6 py-4">Location</th>
                     <th className="px-6 py-4">Circle</th>
                     <th className="px-6 py-4">Claimed (₹)</th>
                     <th className="px-6 py-4">Approved (₹)</th>
@@ -284,6 +285,7 @@ export default function WipRegisterPage() {
                         <td className="px-6 py-4 text-slate-600">{new Date(entry.date).toLocaleDateString()}</td>
                         <td className="px-6 py-4 text-slate-700">{entry.contractorId?.name || entry.contractorId?.vendorName || entry.contractorId?.dynamicData?.companyName || entry.contractorId?.dynamicData?.name || '-'}</td>
                         <td className="px-6 py-4 text-slate-600">{entry.package || '-'}</td>
+                        <td className="px-6 py-4 text-slate-600">{entry.location || '-'}</td>
                         <td className="px-6 py-4 text-slate-600">{entry.circle || '-'}</td>
                         <td className="px-6 py-4 font-medium text-slate-700">{(entry.claimedAmount || 0).toFixed(2)}</td>
                         <td className="px-6 py-4 font-semibold text-green-700">{(entry.approvedAmount || 0).toFixed(2)}</td>

@@ -251,6 +251,8 @@ export default function DemandNoteDetailPage() {
                     <th className="px-6 py-4">Item Name</th>
                     <th className="px-6 py-4">Activity</th>
                     <th className="px-6 py-4">LOA Sr No</th>
+                    <th className="px-6 py-4 text-center">LOA Qty</th>
+                    <th className="px-6 py-4 text-center">Invoice Qty</th>
                     <th className="px-6 py-4">Unit</th>
                     <th className="px-6 py-4 text-center">In Stock</th>
                     <th className="px-6 py-4 font-bold text-indigo-700 bg-indigo-50/50">Demand Qty</th>
@@ -265,6 +267,8 @@ export default function DemandNoteDetailPage() {
                         (s.description === item.itemName || s.itemName === item.itemName)
                       );
                       const inStock = stockMatch ? stockMatch.totalBalanceQty : 0;
+                      const circleLoaQty = stockMatch ? (stockMatch.circleLoaQty || 0) : 0;
+                      const invoiceQty = stockMatch ? ((stockMatch.acceptedQty || 0) + (stockMatch.mhrovQty || 0)) : 0;
                       return (
                       <tr key={actualIdx} className="hover:bg-slate-50 transition-colors">
                         <td className="px-6 py-4 text-slate-500">{actualIdx + 1}</td>
@@ -272,6 +276,8 @@ export default function DemandNoteDetailPage() {
                         <td className="px-6 py-4 text-slate-700 max-w-sm truncate" title={item.itemName}>{item.itemName}</td>
                         <td className="px-6 py-4 text-slate-500">{item.activity || '-'}</td>
                         <td className="px-6 py-4 text-slate-500 font-mono">{item.loaSrNo || '-'}</td>
+                        <td className="px-6 py-4 text-center text-sm font-medium text-slate-700">{(circleLoaQty || circleLoaQty === 0) ? Math.round(Number(circleLoaQty)) : '-'}</td>
+                        <td className="px-6 py-4 text-center text-sm font-medium text-slate-700">{(invoiceQty || invoiceQty === 0) ? Math.round(Number(invoiceQty)) : '-'}</td>
                         <td className="px-6 py-4 text-slate-500">{item.unit || '-'}</td>
                         <td className="px-6 py-4 text-center font-medium text-emerald-600">{Math.round(Number(inStock))}</td>
                         <td className="px-6 py-4 font-bold text-indigo-600 bg-indigo-50/30">{Math.round(Number(item.demandQty))}</td>

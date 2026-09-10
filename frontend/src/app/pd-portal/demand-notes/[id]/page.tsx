@@ -334,10 +334,12 @@ export default function DemandNoteDetailPage() {
                 <th className="px-6 py-4">Item Name</th>
                 <th className="px-6 py-4">Activity</th>
                 <th className="px-6 py-4">LOA Sr No</th>
+                <th className="px-6 py-4 text-center">LOA Qty</th>
+                <th className="px-6 py-4 text-center">Invoice Qty</th>
                 <th className="px-6 py-4">Unit</th>
                 <th className="px-6 py-4 text-center">In Stock</th>
                 <th className="px-6 py-4 text-center">Till Issued</th>
-                <th className="px-6 py-4 text-center">Consumption</th>
+                <th className="px-6 py-4 text-center">WIP Consumed</th>
                 <th className="px-6 py-4 text-center">JMC Done</th>
                 <th className="px-6 py-4 font-bold text-indigo-700 bg-indigo-50/50">Demand Qty</th>
               </tr>
@@ -357,15 +359,21 @@ export default function DemandNoteDetailPage() {
                   const tillIssued = stockMatch ? stockMatch.contractorsActualIssued : 0;
                   const consumption = stockMatch ? (stockMatch.wipConsumed || stockMatch.consumedQty || 0) : 0;
                   const jmcDone = stockMatch ? (stockMatch.jmcDone || 0) : 0;
+                  const circleLoaQty = stockMatch ? (stockMatch.circleLoaQty || 0) : 0;
+                  const invoiceQty = stockMatch ? ((stockMatch.acceptedQty || 0) + (stockMatch.mhrovQty || 0)) : 0;
                   return (
                   <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 text-slate-500">{idx + 1}</td>
-                    <td className="px-6 py-4 font-medium text-slate-700">{item.tempCode || '-'}</td>
-                    <td className="px-6 py-4 text-slate-700 max-w-sm truncate" title={item.itemName}>{item.itemName}</td>
-                    <td className="px-6 py-4 text-slate-500">{item.activity || '-'}</td>
-                    <td className="px-6 py-4 text-slate-500 font-mono">{item.loaSrNo || '-'}</td>
-                    <td className="px-6 py-4 text-slate-500">{item.unit || '-'}</td>
-                    <td className="px-6 py-4 text-center font-medium text-emerald-600">{Math.round(Number(inStock || 0))}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600">{idx + 1}</td>
+                    <td className="px-6 py-4 font-medium text-slate-900">{item.tempCode || '-'}</td>
+                    <td className="px-6 py-4 text-sm text-slate-700 max-w-xs truncate" title={item.itemName}>{item.itemName}</td>
+                    <td className="px-6 py-4 text-sm text-slate-500 max-w-xs truncate" title={item.activity}>{item.activity || '-'}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600">{item.loaSrNo || '-'}</td>
+                    <td className="px-6 py-4 text-center text-sm font-medium text-slate-700">{(circleLoaQty || circleLoaQty === 0) ? Math.round(Number(circleLoaQty)) : '-'}</td>
+                    <td className="px-6 py-4 text-center text-sm font-medium text-slate-700">{(invoiceQty || invoiceQty === 0) ? Math.round(Number(invoiceQty)) : '-'}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600">{item.unit || 'Nos'}</td>
+                    <td className={`px-6 py-4 text-center font-bold ${inStock > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      {Math.round(Number(inStock || 0))}
+                    </td>
                     <td className="px-6 py-4 text-center font-medium text-blue-600">{Math.round(Number(tillIssued || 0))}</td>
                     <td className="px-6 py-4 text-center font-medium text-orange-600">{Math.round(Number(consumption || 0))}</td>
                     <td className="px-6 py-4 text-center font-medium text-purple-600">{Math.round(Number(jmcDone || 0))}</td>

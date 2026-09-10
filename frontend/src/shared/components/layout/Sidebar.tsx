@@ -213,7 +213,7 @@ export function Sidebar() {
     }
 
     if (user?.role?.name === 'Project Manager') {
-      return item.title === 'Home' || item.title === 'Project Manager Portal';
+      return item.title === 'Home' || item.title === 'Project Manager Portal' || item.title === 'Reports' || item.title === 'Items';
     }
 
     if (user?.role?.name === 'Project Director') {
@@ -296,7 +296,9 @@ export function Sidebar() {
               {/* Children (Dropdown) */}
               {hasChildren && isItemExpanded && (
                 <div className="mt-1 space-y-1 pb-1 relative before:absolute before:inset-y-0 before:left-[21px] before:w-px before:bg-slate-800">
-                  {item.children!.map((child) => (
+                  {item.children!
+                    .filter(child => !(user?.role?.name === 'Project Manager' && child.title === 'Activity Logs'))
+                    .map((child) => (
                     <Link
                       key={child.title}
                       href={child.href || '#'}

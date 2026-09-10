@@ -177,6 +177,19 @@ export default function EditDIRegistrationPage() {
       return;
     }
 
+    if (lineItems.length === 0) {
+      alert("Please add at least one item.");
+      return;
+    }
+
+    for (let i = 0; i < lineItems.length; i++) {
+      const item = lineItems[i];
+      if (!item.package || !item.circle || (!item.sku && !item.loaSerialNo && !item.searchQuery) || !item.tempCode || !item.itemName || !item.unit) {
+        alert(`Please fill all required item fields (Package, Circle, LOA Serial No, Temp Code, Item Name, Unit) for row ${i + 1}.`);
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
       const itemsToSave = lineItems.map(item => ({
@@ -384,7 +397,15 @@ export default function EditDIRegistrationPage() {
                       value={item.package || ''}
                       onChange={(e) => {
                         updateLineItem(index, 'package', e.target.value);
-                        updateLineItem(index, 'circle', ''); // Reset circle when package changes
+                        updateLineItem(index, 'circle', ''); 
+                        updateLineItem(index, 'itemId', '');
+                        updateLineItem(index, 'itemName', '');
+                        updateLineItem(index, 'sku', '');
+                        updateLineItem(index, 'tempCode', '');
+                        updateLineItem(index, 'searchQuery', '');
+                        updateLineItem(index, 'unit', '');
+                        updateLineItem(index, 'orderedQuantity', 0);
+                        updateLineItem(index, 'diQuantity', 0);
                       }}
                       className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-slate-950"
                     >
@@ -398,7 +419,17 @@ export default function EditDIRegistrationPage() {
                   <td className="px-4 py-3">
                     <select
                       value={item.circle || ''}
-                      onChange={(e) => updateLineItem(index, 'circle', e.target.value)}
+                      onChange={(e) => {
+                        updateLineItem(index, 'circle', e.target.value);
+                        updateLineItem(index, 'itemId', '');
+                        updateLineItem(index, 'itemName', '');
+                        updateLineItem(index, 'sku', '');
+                        updateLineItem(index, 'tempCode', '');
+                        updateLineItem(index, 'searchQuery', '');
+                        updateLineItem(index, 'unit', '');
+                        updateLineItem(index, 'orderedQuantity', 0);
+                        updateLineItem(index, 'diQuantity', 0);
+                      }}
                       className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-slate-950 disabled:bg-slate-50 disabled:text-slate-400"
                       disabled={!item.package}
                     >
@@ -427,7 +458,7 @@ export default function EditDIRegistrationPage() {
                   </td>
 
                   {/* 3. LOA SERIAL NO */}
-                  <td className="px-4 py-3 relative item-dropdown-container">
+                  <td className="px-4 py-3 item-dropdown-container">
                     {item.readOnly ? (
                       <Input 
                         value={item.sku || ''} 
@@ -435,7 +466,7 @@ export default function EditDIRegistrationPage() {
                         className="border-transparent bg-transparent h-8 shadow-none focus-visible:ring-0 px-0 font-medium"
                       />
                     ) : (
-                      <div className="relative">
+                      <div className={`relative ${openDropdownId === index ? 'z-50' : 'z-10'}`}>
                         <div className="relative w-full flex items-center border border-slate-200 rounded-md overflow-hidden bg-white shadow-sm h-8">
                           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2" />
                           <input
@@ -465,18 +496,7 @@ export default function EditDIRegistrationPage() {
                             <div className="max-h-60 overflow-y-auto py-1">
                               {items
                                 .filter(it => {
-                                  const effectivePkg = item.package;
-                                  const effectiveCircle = item.circle;
 
-                                  if (effectivePkg) {
-                                    const itPkg = String(it.dynamicData?.package || it.package || '').trim();
-                                    const normPkg = effectivePkg.includes("Package 1") ? "Package 1" : "Package 2";
-                                    if (itPkg && !itPkg.includes(normPkg)) return false;
-                                  }
-                                  if (effectiveCircle) {
-                                    const itCircle = String(it.dynamicData?.circle || it.circle || '').trim();
-                                    if (itCircle && !itCircle.toLowerCase().includes(effectiveCircle.toLowerCase())) return false;
-                                  }
 
                                   const val = (item.searchQuery ?? '').toLowerCase();
                                   const sku = String(it.dynamicData?.loaSerialNo || it.dynamicData?.loaSerialNumber || it.dynamicData?.['LOA Serial No.'] || it.dynamicData?.loa || it.dynamicData?.sku || it.dynamicData?.tempCode || '').toLowerCase();
@@ -497,8 +517,8 @@ export default function EditDIRegistrationPage() {
                                         updateLineItem(index, 'itemName', name);
                                         updateLineItem(index, 'sku', sku);
                                         updateLineItem(index, 'tempCode', it.dynamicData?.tempCode || '');
-                                        updateLineItem(index, 'package', it.dynamicData?.package || item.package || poLineItem?.package1 || poLineItem?.package || '');
-                                        updateLineItem(index, 'circle', it.dynamicData?.circle || item.circle || poLineItem?.circle || '');
+                                        updateLineItem(index, 'package', item.package || it.dynamicData?.package || poLineItem?.package1 || poLineItem?.package || '');
+                                        updateLineItem(index, 'circle', item.circle || it.dynamicData?.circle || poLineItem?.circle || '');
                                         updateLineItem(index, 'orderedQuantity', poLineItem ? (poLineItem.quantity || 0) : 0);
                                         updateLineItem(index, 'unit', it.dynamicData?.unit || it.unit || poLineItem?.unit || 'Nos');
                                         updateLineItem(index, 'searchQuery', sku);
@@ -526,7 +546,7 @@ export default function EditDIRegistrationPage() {
                         className="border-transparent bg-transparent h-8 shadow-none focus-visible:ring-0 px-0 font-medium"
                       />
                     ) : (
-                      <div className="relative">
+                      <div className={`relative ${openTempCodeDropdownId === index ? 'z-50' : 'z-10'}`}>
                         <div className="relative w-full flex items-center border border-slate-200 rounded-md overflow-hidden bg-white shadow-sm h-8">
                           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2" />
                           <input
@@ -556,18 +576,7 @@ export default function EditDIRegistrationPage() {
                             <div className="max-h-60 overflow-y-auto py-1">
                               {items
                                 .filter(it => {
-                                  const effectivePkg = item.package;
-                                  const effectiveCircle = item.circle;
 
-                                  if (effectivePkg) {
-                                    const itPkg = String(it.dynamicData?.package || it.package || '').trim();
-                                    const normPkg = effectivePkg.includes("Package 1") ? "Package 1" : "Package 2";
-                                    if (itPkg && !itPkg.includes(normPkg)) return false;
-                                  }
-                                  if (effectiveCircle) {
-                                    const itCircle = String(it.dynamicData?.circle || it.circle || '').trim();
-                                    if (itCircle && !itCircle.toLowerCase().includes(effectiveCircle.toLowerCase())) return false;
-                                  }
 
                                   const val = (item.tempCode ?? '').toLowerCase();
                                   const tempCode = String(it.dynamicData?.tempCode || it.tempCode || '').toLowerCase();
@@ -589,8 +598,8 @@ export default function EditDIRegistrationPage() {
                                         updateLineItem(index, 'itemName', name);
                                         updateLineItem(index, 'sku', sku);
                                         updateLineItem(index, 'tempCode', tempCode);
-                                        updateLineItem(index, 'package', it.dynamicData?.package || item.package || poLineItem?.package1 || poLineItem?.package || '');
-                                        updateLineItem(index, 'circle', it.dynamicData?.circle || item.circle || poLineItem?.circle || '');
+                                        updateLineItem(index, 'package', item.package || it.dynamicData?.package || poLineItem?.package1 || poLineItem?.package || '');
+                                        updateLineItem(index, 'circle', item.circle || it.dynamicData?.circle || poLineItem?.circle || '');
                                         updateLineItem(index, 'orderedQuantity', poLineItem ? (poLineItem.quantity || 0) : 0);
                                         updateLineItem(index, 'unit', it.dynamicData?.unit || it.unit || poLineItem?.unit || 'Nos');
                                         updateLineItem(index, 'searchQuery', sku);
@@ -622,10 +631,10 @@ export default function EditDIRegistrationPage() {
                       <Input 
                         value={item.itemName || ''} 
                         readOnly
-                        className="border-transparent bg-transparent h-8 shadow-none focus-visible:ring-0 px-0 font-medium"
+                        className="border-transparent bg-transparent h-8 shadow-none focus-visible:ring-0 px-0 font-medium text-slate-600"
                       />
                     ) : (
-                      <div className="relative">
+                      <div className={`relative ${openNameDropdownId === index ? 'z-50' : 'z-10'}`}>
                         <div className="relative w-full flex items-center border border-slate-200 rounded-md overflow-hidden bg-white shadow-sm h-8">
                           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2" />
                           <input
@@ -655,18 +664,6 @@ export default function EditDIRegistrationPage() {
                             <div className="max-h-60 overflow-y-auto py-1">
                               {items
                                 .filter(it => {
-                                  const effectivePkg = item.package;
-                                  const effectiveCircle = item.circle;
-
-                                  if (effectivePkg) {
-                                    const itPkg = String(it.dynamicData?.package || it.package || '').trim();
-                                    const normPkg = effectivePkg.includes("Package 1") ? "Package 1" : "Package 2";
-                                    if (itPkg && !itPkg.includes(normPkg)) return false;
-                                  }
-                                  if (effectiveCircle) {
-                                    const itCircle = String(it.dynamicData?.circle || it.circle || '').trim();
-                                    if (itCircle && !itCircle.toLowerCase().includes(effectiveCircle.toLowerCase())) return false;
-                                  }
 
                                   const val = (item.itemName ?? '').toLowerCase();
                                   const name = String(it.dynamicData?.name || it.dynamicData?.itemDescription || it.name || '').toLowerCase();
@@ -688,8 +685,8 @@ export default function EditDIRegistrationPage() {
                                         updateLineItem(index, 'itemName', name);
                                         updateLineItem(index, 'sku', sku);
                                         updateLineItem(index, 'tempCode', tempCode);
-                                        updateLineItem(index, 'package', it.dynamicData?.package || item.package || poLineItem?.package1 || poLineItem?.package || '');
-                                        updateLineItem(index, 'circle', it.dynamicData?.circle || item.circle || poLineItem?.circle || '');
+                                        updateLineItem(index, 'package', item.package || it.dynamicData?.package || poLineItem?.package1 || poLineItem?.package || '');
+                                        updateLineItem(index, 'circle', item.circle || it.dynamicData?.circle || poLineItem?.circle || '');
                                         updateLineItem(index, 'orderedQuantity', poLineItem ? (poLineItem.quantity || 0) : 0);
                                         updateLineItem(index, 'unit', it.dynamicData?.unit || it.unit || poLineItem?.unit || 'Nos');
                                         updateLineItem(index, 'searchQuery', sku);
@@ -964,18 +961,7 @@ export default function EditDIRegistrationPage() {
               </button>
             </div>
 
-            <div className="px-6 py-3 border-b border-slate-200 bg-slate-50">
-              <div className="relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Search items by LOA Serial No, name, or code..."
-                  className="w-full border border-slate-200 rounded-md pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white shadow-sm"
-                  value={bulkSearchQuery}
-                  onChange={(e) => setBulkSearchQuery(e.target.value)}
-                />
-              </div>
-            </div>
+
 
             <div className="flex-1 overflow-y-auto p-2">
               <table className="w-full text-sm text-left">
@@ -997,24 +983,15 @@ export default function EditDIRegistrationPage() {
                     </th>
                     <th className="px-2 py-2">
                       <div className="font-bold text-slate-500 mb-1">LOA Serial No / SKU</div>
-                      <select className="w-full border border-slate-200 rounded text-xs py-1 px-1 bg-white text-slate-700 font-normal outline-none focus:border-blue-500 max-w-[120px]" value={bulkFilters.sku} onChange={e => setBulkFilters({...bulkFilters, sku: e.target.value})}>
-                        <option value="">All</option>
-                        {Array.from(new Set(items.map(item => String(item.dynamicData?.loaSerialNo || item.dynamicData?.loaSerialNumber || item.dynamicData?.['LOA Serial No.'] || item.dynamicData?.loa || item.dynamicData?.sku || item.dynamicData?.tempCode || '')).filter(Boolean))).map(val => <option key={val} value={val}>{val}</option>)}
-                      </select>
+                      <input type="text" placeholder="Search..." className="w-full border border-slate-200 rounded text-xs py-1 px-2 bg-white text-slate-700 font-normal outline-none focus:border-blue-500 max-w-[120px]" value={bulkFilters.sku} onChange={e => setBulkFilters({...bulkFilters, sku: e.target.value})} />
                     </th>
                     <th className="px-2 py-2">
                       <div className="font-bold text-slate-500 mb-1">Temp Code</div>
-                      <select className="w-full border border-slate-200 rounded text-xs py-1 px-1 bg-white text-slate-700 font-normal outline-none focus:border-blue-500 max-w-[100px]" value={bulkFilters.tempCode} onChange={e => setBulkFilters({...bulkFilters, tempCode: e.target.value})}>
-                        <option value="">All</option>
-                        {Array.from(new Set(items.map(item => String(item.dynamicData?.tempCode || item.tempCode || '')).filter(Boolean))).map(val => <option key={val} value={val}>{val}</option>)}
-                      </select>
+                      <input type="text" placeholder="Search..." className="w-full border border-slate-200 rounded text-xs py-1 px-2 bg-white text-slate-700 font-normal outline-none focus:border-blue-500 max-w-[100px]" value={bulkFilters.tempCode} onChange={e => setBulkFilters({...bulkFilters, tempCode: e.target.value})} />
                     </th>
                     <th className="px-2 py-2">
                       <div className="font-bold text-slate-500 mb-1">Item Name</div>
-                      <select className="w-full border border-slate-200 rounded text-xs py-1 px-1 bg-white text-slate-700 font-normal outline-none focus:border-blue-500 max-w-[150px]" value={bulkFilters.name} onChange={e => setBulkFilters({...bulkFilters, name: e.target.value})}>
-                        <option value="">All</option>
-                        {Array.from(new Set(items.map(item => String(item.dynamicData?.name || item.dynamicData?.itemDescription || item.name || '')).filter(Boolean))).map(val => <option key={val} value={val} className="truncate" title={val}>{val}</option>)}
-                      </select>
+                      <input type="text" placeholder="Search..." className="w-full border border-slate-200 rounded text-xs py-1 px-2 bg-white text-slate-700 font-normal outline-none focus:border-blue-500 max-w-[150px]" value={bulkFilters.name} onChange={e => setBulkFilters({...bulkFilters, name: e.target.value})} />
                     </th>
                     <th className="px-2 py-2">
                       <div className="font-bold text-slate-500 mb-1">Package</div>
@@ -1051,9 +1028,9 @@ export default function EditDIRegistrationPage() {
                       
                       const matchesGlobal = !query || searchSku.includes(query) || searchName.includes(query) || searchCode.includes(query);
                       
-                      const matchesSku = !bulkFilters.sku || skuRaw === bulkFilters.sku;
-                      const matchesTempCode = !bulkFilters.tempCode || codeRaw === bulkFilters.tempCode;
-                      const matchesName = !bulkFilters.name || nameRaw === bulkFilters.name;
+                      const matchesSku = !bulkFilters.sku || searchSku.includes(bulkFilters.sku.toLowerCase());
+                      const matchesTempCode = !bulkFilters.tempCode || searchCode.includes(bulkFilters.tempCode.toLowerCase());
+                      const matchesName = !bulkFilters.name || searchName.includes(bulkFilters.name.toLowerCase());
                       const matchesPackage = !bulkFilters.package || pkgRaw === bulkFilters.package;
                       const matchesCircle = !bulkFilters.circle || circleRaw === bulkFilters.circle;
                       

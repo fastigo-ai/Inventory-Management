@@ -23,9 +23,12 @@ export interface IWipRegister extends Document {
   contractorId: mongoose.Types.ObjectId;
   workOrderId?: mongoose.Types.ObjectId;
   package: string;
+  location?: string;
+  feeder?: string;
   circle: string;
   division: string;
   subDivision: string;
+  subStation?: string;
   items: IWipItem[];
   claimedAmount: number;
   approvedAmount: number;
@@ -61,9 +64,12 @@ const WipRegisterSchema = new Schema<IWipRegister>(
     contractorId: { type: Schema.Types.ObjectId, ref: 'Contractor', required: true, index: true },
     workOrderId: { type: Schema.Types.ObjectId, ref: 'ContractorWorkOrder' },
     package: { type: String, default: '' },
+    location: { type: String, default: '' },
+    feeder: { type: String, default: '' },
     circle: { type: String, default: '' },
     division: { type: String, default: '' },
     subDivision: { type: String, default: '' },
+    subStation: { type: String, default: '' },
     items: [WipItemSchema],
     claimedAmount: { type: Number, default: 0 },
     approvedAmount: { type: Number, default: 0 },

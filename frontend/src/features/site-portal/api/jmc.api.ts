@@ -27,3 +27,11 @@ export const uploadJmcExcel = async (formData: FormData, onUploadProgress?: (pro
   });
   return response.data;
 };
+
+export const exportJmcTemplate = async (params?: any) => {
+  const response = await api.get('/jmc/export/template', {
+    params,
+    responseType: 'blob'
+  });
+  return response.data;
+};

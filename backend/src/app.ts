@@ -31,6 +31,7 @@ import wipRequiredRoutes from './modules/wip-required/wipRequired.routes';
 import billingRoutes from './modules/contractor-billing/billing.routes';
 import clientBillRoutes from './modules/client-billing/clientBill.routes';
 import { errorHandler } from './core/middlewares/error.middleware';
+import sseRoutes from './core/routes/sse.routes';
 
 import { contextMiddleware } from './core/middlewares/context.middleware';
 import rateLimit from 'express-rate-limit';
@@ -116,6 +117,7 @@ apiRouter.use('/wip', wipRoutes);
 apiRouter.use('/wip-required', wipRequiredRoutes);
 apiRouter.use('/contractor-billing', billingRoutes);
 apiRouter.use('/client-billing', clientBillRoutes);
+apiRouter.use('/sse', sseRoutes);
 
 // Mount API routes on both / and /api to handle DigitalOcean path stripping
 app.use('/', apiRouter);

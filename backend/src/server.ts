@@ -49,6 +49,8 @@ connectDB()
     server = app.listen(Number(PORT), '0.0.0.0', () => {
       console.log(`Server is running on port ${PORT}`);
     });
+    // Set server timeout to 10 minutes (600,000 ms) to allow for large JMC sheet uploads
+    server.setTimeout(600000);
   })
   .catch((err) => {
     console.error('MongoDB connection failed!', err);

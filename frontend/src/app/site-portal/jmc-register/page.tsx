@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getJmcs, deleteJmc } from "@/features/site-portal/api/jmc.api";
+import { getJmcs, deleteJmc, exportJmcTemplate } from "@/features/site-portal/api/jmc.api";
 import { getContractors } from "@/features/contractors/api/contractors.api";
 import { FileText, Plus, Trash2, Download, Edit, Eye, MoreVertical, TrendingUp, Users, IndianRupee } from "lucide-react";
 import { useClientTable } from "@/shared/hooks/useClientTable";
@@ -82,58 +82,17 @@ export default function JmcRegisterPage() {
 
   const exportData = async () => {
     try {
-      // Fetch all filtered data for export
       const params: any = { limit: 'all' };
       if (debouncedSearchTerm) params.search = debouncedSearchTerm;
       if (selectedContractor !== 'All') params.contractorId = selectedContractor;
       if (startDate) params.startDate = startDate;
       if (endDate) params.endDate = endDate;
 
-      const res = await getJmcs(params);
-      const payload = res.data?.data || {};
-      const allEntries = payload.data || [];
-
-      const headers = ['Number', 'Date', 'Contractor', 'Package', 'Circle', 'Activity', 'LOA Sr No', 'Temp Code', 'Claimed Qty', 'Approved Qty', 'Rate', 'Amount', 'Status'];
-      const rows: any[] = [];
-      allEntries.forEach((entry: any) => {
-        const contractor = entry.contractorId?.name || entry.contractorId?.vendorName || entry.contractorId?.dynamicData?.companyName || 'Unknown';
-        const date = new Date(entry.date).toLocaleDateString();
-        if (entry.items && entry.items.length > 0) {
-          entry.items.forEach((item: any) => {
-            rows.push([
-              entry.jmcNumber || entry.wipNumber || '',
-              date,
-              contractor,
-              entry.package || '',
-              entry.circle || '',
-              item.activity || '',
-              item.loaSrNo || item.loaSerialNo || '',
-              item.tempCode || '',
-              item.claimedQty || 0,
-              item.approvedQty || 0,
-              item.rate || 0,
-              item.amount || 0,
-              entry.status || ''
-            ]);
-          });
-        } else {
-            rows.push([
-              entry.jmcNumber || entry.wipNumber || '',
-              date,
-              contractor,
-              entry.package || '',
-              entry.circle || '',
-              '', '', '', 0, 0, 0, 0, entry.status || ''
-            ]);
-        }
-      });
-
-      const csvContent = headers.join(",") + "\n" + rows.map(e => e.map((cell: any) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const blob = await exportJmcTemplate(params);
+      const url = window.URL.createObjectURL(new Blob([blob]));
       const link = document.createElement("a");
-      const url = URL.createObjectURL(blob);
-      link.setAttribute("href", url);
-      link.setAttribute("download", "Jmc_Export.csv");
+      link.href = url;
+      link.setAttribute("download", "Jmc_Export.xlsx");
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

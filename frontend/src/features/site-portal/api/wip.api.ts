@@ -30,3 +30,11 @@ export const uploadWipExcel = async (formData: FormData, onUploadProgress?: (pro
   });
   return response.data;
 };
+
+export const exportWipTemplate = async (params?: any) => {
+  const response = await api.get('/wip/export/template', {
+    params,
+    responseType: 'blob'
+  });
+  return response.data;
+};

@@ -12,11 +12,14 @@ import {
   uploadJmcExcel
 } from './jmc.controller';
 
+import { exportJmcExcel } from './jmc.export';
+
 const router = Router();
 
 router.use(authenticate);
 
 router.post('/upload', requireRole(['Admin', 'Site Manager']), upload.array('files'), uploadJmcExcel);
+router.get('/export/template', exportJmcExcel);
 
 router.route('/')
   .get(getJmcs)

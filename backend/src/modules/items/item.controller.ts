@@ -15,6 +15,7 @@ import { ContractorAssignment } from '../contractors/contractorAssignment.schema
 import { asyncHandler } from '../../core/utils/asyncHandler';
 import { ApiResponse } from '../../core/utils/ApiResponse';
 import { ApiError } from '../../core/utils/ApiError';
+import { sseService } from '../../core/utils/sse.service';
 
 const validateDynamicData = async (data: any, metadataFields: any[], currentItemId?: string) => {
   const errors: string[] = [];
@@ -493,6 +494,16 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(400, 'No CSV file uploaded');
   }
 
+  const clientId = (req.query.clientId as string) || (req.body.clientId as string);
+
+  if (clientId) {
+    sseService.sendEvent(clientId, { stage: 'started', progress: 0, message: 'Item Import Started' });
+  }
+
+  if (clientId) {
+    sseService.sendEvent(clientId, { stage: 'parsing', progress: 5, message: 'Fetching metadata...' });
+  }
+
   const metadata = await Metadata.findOne({ entityName: 'Item' });
   if (!metadata) {
     throw new ApiError(500, 'Item metadata configuration missing');
@@ -500,6 +511,10 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
 
   const errors: any[] = [];
   const validItems: any[] = [];
+
+  if (clientId) {
+    sseService.sendEvent(clientId, { stage: 'parsing', progress: 10, message: 'Parsing CSV file...' });
+  }
 
   const parser = parseAndSanitizeCsv(req.file.buffer);
 
@@ -661,7 +676,12 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
 
   if (errors.length > 0) {
     // If ANY row has an error, abort the entire import
+    if (clientId) sseService.sendEvent(clientId, { stage: 'ERROR', progress: 100, message: 'Import failed due to validation errors.' });
     return res.status(400).json(new ApiResponse(400, { errors }, 'Import failed due to validation errors. No items were imported.'));
+  }
+
+  if (clientId) {
+    sseService.sendEvent(clientId, { stage: 'inserting', progress: 40, message: `Validated ${validItems.length} items. Starting database upsert...` });
   }
 
   // Batch Upsert Logic (Update if exists by unique composite key, else Insert)
@@ -780,8 +800,19 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
       }
       
       if (chunkOps.length > 0) {
+        if (clientId) {
+          sseService.sendEvent(clientId, { 
+            stage: 'inserting', 
+            progress: 40 + (validItems.indexOf(chunk[0]) / validItems.length) * 40, 
+            message: `Saving chunk of ${chunk.length} items...` 
+          });
+        }
         await Item.bulkWrite(chunkOps);
       }
+    }
+
+    if (clientId) {
+      sseService.sendEvent(clientId, { stage: 'inserting', progress: 85, message: 'Rebuilding summary and metrics...' });
     }
 
     // Update Metadata Activity Options if new activities are imported
@@ -824,6 +855,10 @@ export const importItems = asyncHandler(async (req: Request, res: Response) => {
         }
       }
     }
+  }
+
+  if (clientId) {
+    sseService.sendEvent(clientId, { stage: 'COMPLETED', progress: 100, message: `Successfully imported ${validItems.length} items.` });
   }
 
   res.status(200).json(new ApiResponse(200, { successCount: validItems.length }, 'Import processed successfully (updated or added items).'));

@@ -114,56 +114,110 @@ export const getSitePortalDashboardSummary = asyncHandler(async (req: any, res: 
   const Mhrov = mongoose.model('Mhrov');
   const Contractor = mongoose.model('Contractor');
 
-  // Build query for JMC and WIP
-  const baseQuery: any = { package: assignedPackage, circle: assignedCircle };
+  // Build match query for JMC and WIP
+  const matchQuery: any = { package: assignedPackage, circle: assignedCircle };
   if (contractorId) {
-    baseQuery.contractorId = contractorId;
+    matchQuery.contractorId = new mongoose.Types.ObjectId(contractorId);
   }
 
-  const jmcs = await JmcRegister.find(baseQuery).populate('contractorId', 'dynamicData');
-  const wips = await WipRegister.find(baseQuery).populate('contractorId', 'dynamicData');
+  // Helper to build the aggregation pipeline
+  const buildPipeline = (isTempCodeFiltered: boolean) => {
+    const pipeline: any[] = [
+      { $match: matchQuery },
+      { $unwind: "$items" }
+    ];
 
-  // Metrics
+    if (isTempCodeFiltered && tempCode) {
+      pipeline.push({ $match: { "items.tempCode": tempCode } });
+    }
+
+    pipeline.push(
+      {
+        $lookup: {
+          from: "contractors",
+          localField: "contractorId",
+          foreignField: "_id",
+          as: "contractorDoc"
+        }
+      },
+      { $unwind: { path: "$contractorDoc", preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          contractor: { $ifNull: ["$contractorDoc.dynamicData.displayName", "Unknown"] },
+          item: { $ifNull: ["$items.description", { $ifNull: ["$items.activity", { $ifNull: ["$items.tempCode", "Unknown"] }] }] },
+          tempCode: "$items.tempCode",
+          qty: {
+            $add: [
+              { $convert: { input: "$items.claimedQty", to: "double", onError: 0, onNull: 0 } },
+              { $convert: { input: "$items.approvedQty", to: "double", onError: 0, onNull: 0 } }
+            ]
+          }
+        }
+      },
+      {
+        $group: {
+          _id: { contractor: "$contractor", item: "$item", tempCode: "$tempCode" },
+          totalQty: { $sum: "$qty" }
+        }
+      }
+    );
+    return pipeline;
+  };
+
+  const [jmcAggFiltered, wipAggFiltered, jmcAggUnfiltered, wipAggUnfiltered] = await Promise.all([
+    JmcRegister.aggregate(buildPipeline(true)),
+    WipRegister.aggregate(buildPipeline(true)),
+    tempCode ? JmcRegister.aggregate(buildPipeline(false)) : Promise.resolve([]),
+    tempCode ? WipRegister.aggregate(buildPipeline(false)) : Promise.resolve([])
+  ]);
+
+  const jmcResults = tempCode ? jmcAggFiltered : jmcAggUnfiltered;
+  const wipResults = tempCode ? wipAggFiltered : wipAggUnfiltered;
+  const allJmcForTempCodes = tempCode ? jmcAggUnfiltered : jmcAggFiltered;
+  const allWipForTempCodes = tempCode ? wipAggUnfiltered : wipAggFiltered;
+
   let totalJmcQty = 0;
   let totalWipQty = 0;
   const contractorStats: Record<string, { contractor: string, jmcQty: number, wipQty: number }> = {};
   const itemStats: Record<string, { item: string, jmcQty: number, wipQty: number }> = {};
   const availableTempCodes = new Set<string>();
 
-  jmcs.forEach(jmc => {
-    const cName = jmc.contractorId?.dynamicData?.displayName || 'Unknown';
-    if (!contractorStats[cName]) contractorStats[cName] = { contractor: cName, jmcQty: 0, wipQty: 0 };
-    
-    jmc.items.forEach((item: any) => {
-      if (item.tempCode) availableTempCodes.add(item.tempCode);
-      if (tempCode && item.tempCode !== tempCode) return;
-
-      const qty = (Number(item.claimedQty) || 0) + (Number(item.approvedQty) || 0);
-      totalJmcQty += qty;
-      contractorStats[cName].jmcQty += qty;
-
-      const itemName = item.description || item.activity || item.tempCode || 'Unknown';
-      if (!itemStats[itemName]) itemStats[itemName] = { item: itemName, jmcQty: 0, wipQty: 0 };
-      itemStats[itemName].jmcQty += qty;
-    });
+  // Extract all available temp codes (ignoring the tempCode filter)
+  allJmcForTempCodes.forEach((res: any) => {
+    if (res._id.tempCode) availableTempCodes.add(res._id.tempCode);
+  });
+  allWipForTempCodes.forEach((res: any) => {
+    if (res._id.tempCode) availableTempCodes.add(res._id.tempCode);
   });
 
-  wips.forEach(wip => {
-    const cName = wip.contractorId?.dynamicData?.displayName || 'Unknown';
+  // Process JMC Aggregation Results
+  jmcResults.forEach((res: any) => {
+    const cName = res._id.contractor;
+    const itemName = res._id.item;
+    const qty = res.totalQty;
+
+    totalJmcQty += qty;
+
     if (!contractorStats[cName]) contractorStats[cName] = { contractor: cName, jmcQty: 0, wipQty: 0 };
-    
-    wip.items.forEach((item: any) => {
-      if (item.tempCode) availableTempCodes.add(item.tempCode);
-      if (tempCode && item.tempCode !== tempCode) return;
+    contractorStats[cName].jmcQty += qty;
 
-      const qty = (Number(item.claimedQty) || 0) + (Number(item.approvedQty) || 0);
-      totalWipQty += qty;
-      contractorStats[cName].wipQty += qty;
+    if (!itemStats[itemName]) itemStats[itemName] = { item: itemName, jmcQty: 0, wipQty: 0 };
+    itemStats[itemName].jmcQty += qty;
+  });
 
-      const itemName = item.description || item.activity || item.tempCode || 'Unknown';
-      if (!itemStats[itemName]) itemStats[itemName] = { item: itemName, jmcQty: 0, wipQty: 0 };
-      itemStats[itemName].wipQty += qty;
-    });
+  // Process WIP Aggregation Results
+  wipResults.forEach((res: any) => {
+    const cName = res._id.contractor;
+    const itemName = res._id.item;
+    const qty = res.totalQty;
+
+    totalWipQty += qty;
+
+    if (!contractorStats[cName]) contractorStats[cName] = { contractor: cName, jmcQty: 0, wipQty: 0 };
+    contractorStats[cName].wipQty += qty;
+
+    if (!itemStats[itemName]) itemStats[itemName] = { item: itemName, jmcQty: 0, wipQty: 0 };
+    itemStats[itemName].wipQty += qty;
   });
 
   // Demand Notes Filter
@@ -233,43 +287,80 @@ export const getPMPortalDashboardSummary = asyncHandler(async (req: any, res: Re
   });
   
   // 2. Contractor Progress (JMC Approved Amounts)
-  const jmcs = await JmcRegister.find({ ...baseQuery }).populate('contractorId', 'dynamicData');
-  
+  const jmcAgg = await JmcRegister.aggregate([
+    { $match: baseQuery },
+    {
+      $lookup: {
+        from: "contractors",
+        localField: "contractorId",
+        foreignField: "_id",
+        as: "contractorDoc"
+      }
+    },
+    { $unwind: { path: "$contractorDoc", preserveNullAndEmptyArrays: true } },
+    {
+      $group: {
+        _id: { $ifNull: ["$contractorDoc.dynamicData.displayName", { $ifNull: ["$contractorDoc.dynamicData.companyName", "Unknown"] }] },
+        totalJmcAmount: { $sum: { $convert: { input: "$claimedAmount", to: "double", onError: 0, onNull: 0 } } },
+        approvedJmcAmount: { 
+          $sum: {
+            $cond: [
+              { $eq: ["$status", "Approved"] },
+              { $convert: { input: { $ifNull: ["$approvedAmount", "$claimedAmount"] }, to: "double", onError: 0, onNull: 0 } },
+              0
+            ]
+          }
+        }
+      }
+    }
+  ]);
+
   const contractorStats: Record<string, { contractor: string, approvedJmcAmount: number, totalJmcAmount: number }> = {};
-  
   let totalApprovedJmcAmount = 0;
-  
-  jmcs.forEach(jmc => {
-    const cName = jmc.contractorId?.dynamicData?.displayName || jmc.contractorId?.dynamicData?.companyName || 'Unknown';
-    if (!contractorStats[cName]) {
-      contractorStats[cName] = { contractor: cName, approvedJmcAmount: 0, totalJmcAmount: 0 };
-    }
-    
-    contractorStats[cName].totalJmcAmount += (jmc.claimedAmount || 0);
-    
-    if (jmc.status === 'Approved') {
-      contractorStats[cName].approvedJmcAmount += (jmc.approvedAmount || jmc.claimedAmount || 0);
-      totalApprovedJmcAmount += (jmc.approvedAmount || jmc.claimedAmount || 0);
-    }
+
+  jmcAgg.forEach((res: any) => {
+    const cName = res._id;
+    contractorStats[cName] = { 
+      contractor: cName, 
+      approvedJmcAmount: res.approvedJmcAmount, 
+      totalJmcAmount: res.totalJmcAmount 
+    };
+    totalApprovedJmcAmount += res.approvedJmcAmount;
   });
 
   // 3. Material Consumption
-  // For Material Consumption we can sum up WIP Consumed quantity and MHROV quantity.
-  let totalWipQty = 0;
-  const wips = await WipRegister.find(baseQuery);
-  wips.forEach(wip => {
-    wip.items?.forEach((item: any) => {
-      totalWipQty += (Number(item.claimedQty) || 0) + (Number(item.approvedQty) || 0);
-    });
-  });
+  const wipAgg = await WipRegister.aggregate([
+    { $match: baseQuery },
+    { $unwind: "$items" },
+    {
+      $group: {
+        _id: null,
+        totalWipQty: {
+          $sum: {
+            $add: [
+              { $convert: { input: "$items.claimedQty", to: "double", onError: 0, onNull: 0 } },
+              { $convert: { input: "$items.approvedQty", to: "double", onError: 0, onNull: 0 } }
+            ]
+          }
+        }
+      }
+    }
+  ]);
+  const totalWipQty = wipAgg.length > 0 ? wipAgg[0].totalWipQty : 0;
 
-  let totalMhrovQty = 0;
-  const mhrovs = await Mhrov.find(baseQuery);
-  mhrovs.forEach(mhrov => {
-    mhrov.items?.forEach((item: any) => {
-      totalMhrovQty += (Number(item.quantity) || 0);
-    });
-  });
+  const mhrovAgg = await Mhrov.aggregate([
+    { $match: baseQuery },
+    { $unwind: "$items" },
+    {
+      $group: {
+        _id: null,
+        totalMhrovQty: {
+          $sum: { $convert: { input: "$items.quantity", to: "double", onError: 0, onNull: 0 } }
+        }
+      }
+    }
+  ]);
+  const totalMhrovQty = mhrovAgg.length > 0 ? mhrovAgg[0].totalMhrovQty : 0;
 
   res.status(200).json(new ApiResponse(200, {
     pendingApprovals: {
@@ -323,42 +414,80 @@ export const getPDPortalDashboardSummary = asyncHandler(async (req: any, res: Re
   });
   
   // 2. Contractor Progress (JMC Approved Amounts)
-  const jmcs = await JmcRegister.find({ ...baseQuery }).populate('contractorId', 'dynamicData');
-  
+  const jmcAgg = await JmcRegister.aggregate([
+    { $match: baseQuery },
+    {
+      $lookup: {
+        from: "contractors",
+        localField: "contractorId",
+        foreignField: "_id",
+        as: "contractorDoc"
+      }
+    },
+    { $unwind: { path: "$contractorDoc", preserveNullAndEmptyArrays: true } },
+    {
+      $group: {
+        _id: { $ifNull: ["$contractorDoc.dynamicData.displayName", { $ifNull: ["$contractorDoc.dynamicData.companyName", "Unknown"] }] },
+        totalJmcAmount: { $sum: { $convert: { input: "$claimedAmount", to: "double", onError: 0, onNull: 0 } } },
+        approvedJmcAmount: { 
+          $sum: {
+            $cond: [
+              { $eq: ["$status", "Approved"] },
+              { $convert: { input: { $ifNull: ["$approvedAmount", "$claimedAmount"] }, to: "double", onError: 0, onNull: 0 } },
+              0
+            ]
+          }
+        }
+      }
+    }
+  ]);
+
   const contractorStats: Record<string, { contractor: string, approvedJmcAmount: number, totalJmcAmount: number }> = {};
-  
   let totalApprovedJmcAmount = 0;
-  
-  jmcs.forEach(jmc => {
-    const cName = jmc.contractorId?.dynamicData?.displayName || jmc.contractorId?.dynamicData?.companyName || 'Unknown';
-    if (!contractorStats[cName]) {
-      contractorStats[cName] = { contractor: cName, approvedJmcAmount: 0, totalJmcAmount: 0 };
-    }
-    
-    contractorStats[cName].totalJmcAmount += (jmc.claimedAmount || 0);
-    
-    if (jmc.status === 'Approved') {
-      contractorStats[cName].approvedJmcAmount += (jmc.approvedAmount || jmc.claimedAmount || 0);
-      totalApprovedJmcAmount += (jmc.approvedAmount || jmc.claimedAmount || 0);
-    }
+
+  jmcAgg.forEach((res: any) => {
+    const cName = res._id;
+    contractorStats[cName] = { 
+      contractor: cName, 
+      approvedJmcAmount: res.approvedJmcAmount, 
+      totalJmcAmount: res.totalJmcAmount 
+    };
+    totalApprovedJmcAmount += res.approvedJmcAmount;
   });
 
   // 3. Material Consumption
-  let totalWipQty = 0;
-  const wips = await WipRegister.find(baseQuery);
-  wips.forEach(wip => {
-    wip.items?.forEach((item: any) => {
-      totalWipQty += (Number(item.claimedQty) || 0) + (Number(item.approvedQty) || 0);
-    });
-  });
+  const wipAgg = await WipRegister.aggregate([
+    { $match: baseQuery },
+    { $unwind: "$items" },
+    {
+      $group: {
+        _id: null,
+        totalWipQty: {
+          $sum: {
+            $add: [
+              { $convert: { input: "$items.claimedQty", to: "double", onError: 0, onNull: 0 } },
+              { $convert: { input: "$items.approvedQty", to: "double", onError: 0, onNull: 0 } }
+            ]
+          }
+        }
+      }
+    }
+  ]);
+  const totalWipQty = wipAgg.length > 0 ? wipAgg[0].totalWipQty : 0;
 
-  let totalMhrovQty = 0;
-  const mhrovs = await Mhrov.find(baseQuery);
-  mhrovs.forEach(mhrov => {
-    mhrov.items?.forEach((item: any) => {
-      totalMhrovQty += (Number(item.quantity) || 0);
-    });
-  });
+  const mhrovAgg = await Mhrov.aggregate([
+    { $match: baseQuery },
+    { $unwind: "$items" },
+    {
+      $group: {
+        _id: null,
+        totalMhrovQty: {
+          $sum: { $convert: { input: "$items.quantity", to: "double", onError: 0, onNull: 0 } }
+        }
+      }
+    }
+  ]);
+  const totalMhrovQty = mhrovAgg.length > 0 ? mhrovAgg[0].totalMhrovQty : 0;
 
   res.status(200).json(new ApiResponse(200, {
     pendingApprovals: {

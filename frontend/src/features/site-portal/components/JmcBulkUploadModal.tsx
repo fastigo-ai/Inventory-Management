@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { uploadJmcExcel } from '../api/jmc.api';
+import { API_BASE_URL } from '@/shared/api/axios';
 
 interface Props {
   open: boolean;
@@ -19,6 +20,7 @@ export function JmcBulkUploadModal({ open, onOpenChange, onSuccess }: Props) {
   const [result, setResult] = useState<any>(null);
 
   const [missingItems, setMissingItems] = useState<any[]>([]);
+  const [stageMessage, setStageMessage] = useState<string>('');
 
   const handleUpload = async () => {
     if (!files || files.length === 0) return;
@@ -34,17 +36,33 @@ export function JmcBulkUploadModal({ open, onOpenChange, onSuccess }: Props) {
       for (let i = 0; i < files.length; i++) {
         formData.append('files', files[i]);
       }
-      formData.append('conflictStrategy', conflictStrategy);
+      const clientId = Math.random().toString(36).substring(2, 15);
+      formData.append('clientId', clientId);
 
-      const res = await uploadJmcExcel(formData, (progressEvent: any) => {
-        const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
-        setProgress(percentCompleted);
-        if (percentCompleted >= 100) {
-          setStatus('processing');
+      // Connect to SSE before starting the upload
+      const eventSource = new EventSource(`${API_BASE_URL}/api/sse/events?clientId=${clientId}`);
+      
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.progress) setProgress(data.progress);
+        if (data.message) setStageMessage(data.message);
+        
+        if (data.stage === 'COMPLETED' || data.stage === 'ERROR') {
+          eventSource.close();
         }
-      });
+      };
 
+      eventSource.onerror = () => {
+        eventSource.close();
+      };
+
+      const res = await uploadJmcExcel(formData);
+
+      eventSource.close();
+      
       setStatus('complete');
+      setStageMessage('Complete!');
+      setProgress(100);
       setResult(res.data);
       if (res.data?.flagged?.length === 0) {
         onSuccess();
@@ -52,6 +70,7 @@ export function JmcBulkUploadModal({ open, onOpenChange, onSuccess }: Props) {
           onOpenChange(false);
           setStatus('idle');
           setProgress(0);
+          setStageMessage('');
         }, 2000);
       } else {
         onSuccess(); // Still refresh list for saved records
@@ -124,16 +143,14 @@ export function JmcBulkUploadModal({ open, onOpenChange, onSuccess }: Props) {
             <div className="space-y-2">
               <div className="flex justify-between text-xs font-medium text-slate-600">
                 <span>
-                  {status === 'uploading' && 'Uploading files...'}
-                  {status === 'processing' && 'Processing and importing data...'}
-                  {status === 'complete' && 'Complete!'}
+                  {stageMessage || (status === 'uploading' ? 'Uploading files...' : 'Processing...')}
                 </span>
-                <span>{status === 'uploading' ? `${progress}%` : '100%'}</span>
+                <span>{progress}%</span>
               </div>
               <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                 <div 
                   className={`h-2 rounded-full transition-all duration-300 ${status === 'complete' ? 'bg-green-500' : 'bg-blue-600'}`}
-                  style={{ width: status === 'uploading' ? `${progress}%` : '100%' }}
+                  style={{ width: `${progress}%` }}
                 ></div>
               </div>
             </div>

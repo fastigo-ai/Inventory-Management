@@ -24,9 +24,11 @@ export interface IJmcRegister extends Document {
   workOrderId?: mongoose.Types.ObjectId;
   package: string;
   location: string;
+  feeder?: string;
   circle: string;
   division: string;
   subDivision: string;
+  subStation?: string;
   items: IJmcItem[];
   claimedAmount: number;
   approvedAmount: number;
@@ -63,9 +65,11 @@ const JmcRegisterSchema = new Schema<IJmcRegister>(
     workOrderId: { type: Schema.Types.ObjectId, ref: 'ContractorWorkOrder' },
     package: { type: String, default: '' },
     location: { type: String, default: '' },
+    feeder: { type: String, default: '' },
     circle: { type: String, default: '' },
     division: { type: String, default: '' },
     subDivision: { type: String, default: '' },
+    subStation: { type: String, default: '' },
     items: [JmcItemSchema],
     claimedAmount: { type: Number, default: 0 },
     approvedAmount: { type: Number, default: 0 },

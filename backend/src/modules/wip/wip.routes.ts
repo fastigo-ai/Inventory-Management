@@ -16,7 +16,10 @@ const router = Router();
 
 router.use(authenticate);
 
+import { exportWipExcel } from './wip.export';
+
 router.post('/upload', requireRole(['Admin', 'Site Manager']), upload.array('files'), uploadWipExcel);
+router.get('/export/template', exportWipExcel);
 
 router.route('/')
   .get(getWips)

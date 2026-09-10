@@ -1,8 +1,9 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/auth.store';
 
-// Use the relative path in the browser to go through Next.js rewrites, ensuring no CORS/binding issues
-export const API_BASE_URL = typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_API_URL || '');
+// Bypass Next.js proxy in local development to avoid proxy timeouts on large file uploads (like 75 JMC sheets)
+const isDev = process.env.NODE_ENV === 'development';
+export const API_BASE_URL = isDev ? 'http://localhost:5000' : (typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_API_URL || ''));
 
 export const api = axios.create({
   baseURL: `${API_BASE_URL}/api`,

@@ -372,6 +372,7 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
           
           if (!unit || String(unit).trim() === '') {
             if (desc) currentActivityGroup = String(desc).trim();
+            continue;
           }
           
           for (const c of siteCols) {
@@ -399,11 +400,6 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
 
           const meta = siteMeta[c];
           
-          let tidySum = siteRecords.reduce((sum, r) => sum + r.quantity, 0);
-          let isSumMismatch = Math.abs(tidySum - originalSum) > 1e-6; // Wait, originalSum is total across ALL site columns!
-          // Actually, Python script original_sum was across all site cols, tidy_sum was across all tidy records.
-          // Since we save per site_col, this check is different. Let's just calculate it.
-
           // Find Contractor
           let contractorId = null;
           const contractorNameStr = meta.Contractor ? String(meta.Contractor) : "";
@@ -440,7 +436,6 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
           
           // Map Items
           const wipItems = [];
-          let claimedAmount = 0;
           const uploadedCircle = (user as any).assignedCircle || meta.Circle || '';
 
           for (const sr of siteRecords) {
@@ -449,58 +444,21 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
             let finalLoaSerialNo = sr.loa || '';
             let finalTempCode = sr.tempCode || '';
 
-            // Multi-criteria matching: score each item by LOA, tempCode, description, and circle
             let matchedItemObj: any = null;
-            let bestScore = 0;
 
             for (const item of allItems) {
-              let score = 0;
+              const itemCircle = (item.dynamicData?.circle || '').toLowerCase().trim();
+              const sheetCircle = (uploadedCircle || '').toLowerCase().trim();
+              const isCircleMatch = itemCircle === sheetCircle || itemCircle.includes(sheetCircle) || sheetCircle.includes(itemCircle);
 
-              // Circle match (weight 1)
-              if (uploadedCircle) {
-                const itemCircle = (item.dynamicData?.circle || '').toLowerCase();
-                const uc = uploadedCircle.toLowerCase();
-                if (itemCircle && (itemCircle === uc || itemCircle.includes(uc) || uc.includes(itemCircle))) {
-                  score += 1;
-                }
-              }
+              const itemSku = String(item.dynamicData?.sku || item.dynamicData?.loaSrNo || '').toLowerCase().trim();
+              const sheetSku = String(sr.loa || '').toLowerCase().trim();
+              const isSkuMatch = itemSku === sheetSku;
 
-              // LOA Serial No match (weight 3 — strongest signal)
-              if (sr.loa) {
-                const itemLoa = String(item.dynamicData?.sku || item.dynamicData?.loaSrNo || '');
-                if (itemLoa && itemLoa === String(sr.loa)) {
-                  score += 3;
-                }
-              }
-
-              // Temp Code match (weight 2)
-              if (sr.tempCode) {
-                const itemTempCode = String(item.dynamicData?.tempCode || '');
-                if (itemTempCode && itemTempCode === String(sr.tempCode)) {
-                  score += 2;
-                }
-              }
-
-              // Description / Item Name match — fuzzy (weight 0-1)
-              if (sr.description) {
-                const itemDesc = String(item.dynamicData?.description || item.dynamicData?.name || '');
-                if (itemDesc) {
-                  const similarity = stringSimilarity.compareTwoStrings(String(sr.description), itemDesc);
-                  if (similarity > 0.3) {
-                    score += similarity;
-                  }
-                }
-              }
-
-              if (score > bestScore) {
-                bestScore = score;
+              if (isCircleMatch && isSkuMatch) {
                 matchedItemObj = item;
+                break;
               }
-            }
-
-            // Require at least a LOA or tempCode match (score >= 2), or a strong description+circle match (score >= 1.4)
-            if (bestScore < 1.4) {
-              matchedItemObj = null;
             }
 
             let finalTotalLoaQty = 0;
@@ -516,7 +474,9 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
             }
 
             if (!itemId) {
-              flagged.push({ sourceFile, sheetName, issue: `Item '${sr.description}' not found in Master Item List. Saving without Item ID.` });
+              flagged.push({ sourceFile, sheetName, issue: `Item '${sr.description}' with SKU '${sr.loa}' not found in Master Item List for circle '${uploadedCircle}'. Sheet rejected.` });
+              sheetHasErrors = true;
+              break;
             }
 
             wipItems.push({
@@ -579,10 +539,13 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
             wipRequiredNumber,
             date: new Date(),
             contractorId: contractorId || null,
-            package: (user as any).assignedPackage || meta.Location || meta.DrawingNo || '',
+            package: (user as any).assignedPackage || meta.DrawingNo || '',
+            location: meta.Location || '',
+            feeder: meta.Feeder || '',
             circle: (user as any).assignedCircle || meta.Circle || '',
             division: meta.Division || '',
             subDivision: meta.SubDivision || '',
+            subStation: meta.SubStation || '',
             items: wipItems,
             claimedAmount: 0,
             approvedAmount: 0,

@@ -9,6 +9,7 @@ import * as xlsx from 'xlsx';
 import stringSimilarity from 'string-similarity';
 import mongoose from 'mongoose';
 import cloudinary from '../../core/utils/cloudinary';
+import { sseService } from '../../core/utils/sse.service';
 
 const uploadToCloudinary = (buffer: Buffer, folder: string): Promise<any> => {
   return new Promise((resolve, reject) => {
@@ -23,12 +24,28 @@ const uploadToCloudinary = (buffer: Buffer, folder: string): Promise<any> => {
   });
 };
 
+const getNextWipSequence = async (): Promise<{ currentCount: number, yearStr: string }> => {
+  const yearStr = new Date().getFullYear().toString().slice(-2);
+  const lastDoc = await WipRegister.findOne({ wipNumber: new RegExp(`^WIP/${yearStr}/`) }).sort({ createdAt: -1 });
+  let count = 0;
+  if (lastDoc && lastDoc.wipNumber) {
+    const parts = lastDoc.wipNumber.split('/');
+    if (parts.length === 3) {
+      count = parseInt(parts[2], 10);
+    }
+  }
+  if (isNaN(count) || count === 0) {
+    count = await WipRegister.countDocuments({ wipNumber: new RegExp(`^WIP/${yearStr}/`) });
+  }
+  return { currentCount: count, yearStr };
+};
+
 export const createWip = asyncHandler(async (req: Request, res: Response) => {
   const data = req.body;
   const user = (req as any).user;
 
-  const count = await WipRegister.countDocuments();
-  data.wipNumber = `WIP/${new Date().getFullYear().toString().slice(-2)}/${(count + 1).toString().padStart(4, '0')}`;
+  const { currentCount, yearStr } = await getNextWipSequence();
+  data.wipNumber = `WIP/${yearStr}/${(currentCount + 1).toString().padStart(4, '0')}`;
   data.createdBy = user._id;
 
   let drawingSheetUrl = '';
@@ -210,6 +227,7 @@ const METADATA_LABELS: Record<string, string> = {
   "Location :": "Location",
   "Drawing No :": "DrawingNo",
   "Name of Contractor": "Contractor",
+  "WIP Number :": "WipNumber",
 };
 
 function normLabel(v: any): string {
@@ -222,9 +240,22 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
     return res.status(400).json(new ApiResponse(400, null, 'No files uploaded'));
   }
 
+  const clientId = (req.query.clientId as string) || (req.body.clientId as string);
+  
+  if (clientId) {
+    sseService.sendEvent(clientId, { stage: 'started', progress: 0, message: 'WIP Bulk Import Started' });
+    await new Promise(r => setTimeout(r, 50));
+  }
+
   const user = (req as any).user;
+  const conflictStrategy = req.body.conflictStrategy || 'skip';
   const flagged: any[] = [];
   let totalSaved = 0;
+
+  if (clientId) {
+    sseService.sendEvent(clientId, { stage: 'parsing', progress: 5, message: 'Fetching metadata...' });
+    await new Promise(r => setTimeout(r, 50));
+  }
 
   // Pre-fetch all contractors and items for matching
   const allContractors = await Contractor.find({}).lean();
@@ -234,10 +265,18 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
   // We'll map by item name / description
   const itemNames = allItems.map((i: any) => i.name).filter(Boolean);
 
-  let initialCount = await WipRegister.countDocuments();
+  let { currentCount: initialCount, yearStr } = await getNextWipSequence();
 
-  for (const file of req.files) {
+  const totalFiles = req.files.length;
+  for (let fileIdx = 0; fileIdx < totalFiles; fileIdx++) {
+    const file = req.files[fileIdx];
     try {
+      if (clientId) sseService.sendEvent(clientId, { 
+        stage: 'parsing', 
+        progress: 10 + (fileIdx / totalFiles) * 20, 
+        message: `Reading file ${fileIdx + 1} of ${totalFiles}: ${file.originalname}...` 
+      });
+
       const workbook = xlsx.read(file.buffer, { type: 'buffer' });
       const sourceFile = file.originalname;
 
@@ -266,7 +305,8 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
                else if (norm.includes("feeder")) field = "Feeder";
                else if (norm.includes("location") || norm.includes("site")) field = "Location";
                else if (norm.includes("drawing")) field = "DrawingNo";
-               else if (norm.includes("contractor") || norm.includes("agency") || norm.includes("name of contractor")) field = "Contractor";
+               else if (norm.includes("contractor") || norm.includes("agency")) field = "Contractor";
+               else if (norm.includes("wip number") || norm.includes("wip no")) field = "WipNumber";
                
                if (field) {
                  metaRows[r] = field;
@@ -365,6 +405,7 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
           
           if (!unit || String(unit).trim() === '') {
             if (desc) currentActivityGroup = String(desc).trim();
+            continue;
           }
           
           for (const c of siteCols) {
@@ -393,9 +434,7 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
           const meta = siteMeta[c];
           
           let tidySum = siteRecords.reduce((sum, r) => sum + r.quantity, 0);
-          let isSumMismatch = Math.abs(tidySum - originalSum) > 1e-6; // Wait, originalSum is total across ALL site columns!
-          // Actually, Python script original_sum was across all site cols, tidy_sum was across all tidy records.
-          // Since we save per site_col, this check is different. Let's just calculate it.
+          let isSumMismatch = Math.abs(tidySum - originalSum) > 1e-6; 
 
           // Find Contractor
           let contractorId = null;
@@ -435,6 +474,15 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
           const wipItems = [];
           let claimedAmount = 0;
           const uploadedCircle = (user as any).assignedCircle || meta.Circle || '';
+          
+          if (clientId) {
+          sseService.sendEvent(clientId, {
+            stage: 'validation',
+            progress: 40 + (fileIdx / totalFiles) * 40,
+            message: `Validating and mapping ${siteRecords.length} items for column ${c}...`
+          });
+          await new Promise(r => setTimeout(r, 10)); // let node flush
+        }
 
           for (const sr of siteRecords) {
             let itemId = null;
@@ -442,58 +490,21 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
             let finalLoaSerialNo = sr.loa || '';
             let finalTempCode = sr.tempCode || '';
 
-            // Multi-criteria matching: score each item by LOA, tempCode, description, and circle
             let matchedItemObj: any = null;
-            let bestScore = 0;
 
             for (const item of allItems) {
-              let score = 0;
+              const itemCircle = (item.dynamicData?.circle || '').toLowerCase().trim();
+              const sheetCircle = (uploadedCircle || '').toLowerCase().trim();
+              const isCircleMatch = itemCircle === sheetCircle || itemCircle.includes(sheetCircle) || sheetCircle.includes(itemCircle);
 
-              // Circle match (weight 1)
-              if (uploadedCircle) {
-                const itemCircle = (item.dynamicData?.circle || '').toLowerCase();
-                const uc = uploadedCircle.toLowerCase();
-                if (itemCircle && (itemCircle === uc || itemCircle.includes(uc) || uc.includes(itemCircle))) {
-                  score += 1;
-                }
-              }
+              const itemSku = String(item.dynamicData?.sku || item.dynamicData?.loaSrNo || '').toLowerCase().trim();
+              const sheetSku = String(sr.loa || '').toLowerCase().trim();
+              const isSkuMatch = itemSku === sheetSku;
 
-              // LOA Serial No match (weight 3 — strongest signal)
-              if (sr.loa) {
-                const itemLoa = String(item.dynamicData?.sku || item.dynamicData?.loaSrNo || '');
-                if (itemLoa && itemLoa === String(sr.loa)) {
-                  score += 3;
-                }
-              }
-
-              // Temp Code match (weight 2)
-              if (sr.tempCode) {
-                const itemTempCode = String(item.dynamicData?.tempCode || '');
-                if (itemTempCode && itemTempCode === String(sr.tempCode)) {
-                  score += 2;
-                }
-              }
-
-              // Description / Item Name match — fuzzy (weight 0-1)
-              if (sr.description) {
-                const itemDesc = String(item.dynamicData?.description || item.dynamicData?.name || '');
-                if (itemDesc) {
-                  const similarity = stringSimilarity.compareTwoStrings(String(sr.description), itemDesc);
-                  if (similarity > 0.3) {
-                    score += similarity;
-                  }
-                }
-              }
-
-              if (score > bestScore) {
-                bestScore = score;
+              if (isCircleMatch && isSkuMatch) {
                 matchedItemObj = item;
+                break;
               }
-            }
-
-            // Require at least a LOA or tempCode match (score >= 2), or a strong description+circle match (score >= 1.4)
-            if (bestScore < 1.4) {
-              matchedItemObj = null;
             }
 
             let finalTotalLoaQty = 0;
@@ -509,8 +520,9 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
             }
 
             if (!itemId) {
-              flagged.push({ sourceFile, sheetName, issue: `Item '${sr.description}' not found in Master Item List. Saving without Item ID.` });
-              // We don't skip the entire sheet or the item anymore. We allow it to save without itemId.
+              flagged.push({ sourceFile, sheetName, issue: `Item '${sr.description}' with SKU '${sr.loa}' not found in Master Item List for circle '${uploadedCircle}'. Sheet rejected.` });
+              sheetHasErrors = true;
+              break;
             }
 
             wipItems.push({
@@ -566,34 +578,81 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
              }
           }
 
-          initialCount++;
-          const wipNumber = `WIP/${new Date().getFullYear().toString().slice(-2)}/${initialCount.toString().padStart(4, '0')}`;
+          const existingWipNo = meta.WipNumber || null;
 
-          sheetWipsToCreate.push({
-            wipNumber,
-            date: new Date(),
-            contractorId: contractorId || null,
-            package: (user as any).assignedPackage || meta.Location || meta.DrawingNo || '',
-            circle: (user as any).assignedCircle || meta.Circle || '',
-            division: meta.Division || '',
-            subDivision: meta.SubDivision || '',
-            items: wipItems,
-            claimedAmount: 0,
-            approvedAmount: 0,
-            status: 'Submitted',
-            remarks: `Uploaded from ${sourceFile} (${sheetName}). ${!meta.Contractor ? 'Warning: No contractor name found in sheet.' : ''}`.trim(),
-            createdBy: user._id
-          });
+          if (existingWipNo) {
+             sheetWipsToCreate.push({
+               isUpdate: true,
+               wipNumber: existingWipNo,
+               date: new Date(),
+               contractorId: contractorId || null,
+               package: (user as any).assignedPackage || meta.DrawingNo || '',
+               location: meta.Location || '',
+               feeder: meta.Feeder || '',
+               circle: (user as any).assignedCircle || meta.Circle || '',
+               division: meta.Division || '',
+               subDivision: meta.SubDivision || '',
+               subStation: meta.SubStation || '',
+               items: wipItems,
+               remarks: `Updated via Bulk Upload from ${sourceFile} (${sheetName}).`,
+             });
+          } else {
+             initialCount++;
+             const wipNumber = `WIP/${yearStr}/${initialCount.toString().padStart(4, '0')}`;
+
+             sheetWipsToCreate.push({
+               wipNumber,
+               date: new Date(),
+               contractorId: contractorId || null,
+               package: (user as any).assignedPackage || meta.DrawingNo || '',
+               location: meta.Location || '',
+               feeder: meta.Feeder || '',
+               circle: (user as any).assignedCircle || meta.Circle || '',
+               division: meta.Division || '',
+               subDivision: meta.SubDivision || '',
+               subStation: meta.SubStation || '',
+               items: wipItems,
+               claimedAmount: 0,
+               approvedAmount: 0,
+               status: 'Submitted',
+               remarks: `Uploaded from ${sourceFile} (${sheetName}). ${!meta.Contractor ? 'Warning: No contractor name found in sheet.' : ''}`.trim(),
+               createdBy: user._id
+             });
+          }
         }
 
         if (!sheetHasErrors && sheetWipsToCreate.length > 0) {
-          await WipRegister.insertMany(sheetWipsToCreate);
+          if (clientId) {
+            sseService.sendEvent(clientId, {
+              stage: 'inserting',
+              progress: 80,
+              message: `Saving/Updating ${sheetWipsToCreate.length} WIP records...`
+            });
+            await new Promise(r => setTimeout(r, 10)); // flush
+          }
+          
+          for (const doc of sheetWipsToCreate) {
+             if (doc.isUpdate) {
+                const { isUpdate, wipNumber, ...updateData } = doc;
+                await WipRegister.findOneAndUpdate({ wipNumber: doc.wipNumber }, { $set: updateData });
+             } else {
+                await WipRegister.create(doc);
+             }
+          }
           totalSaved += sheetWipsToCreate.length;
         }
       }
     } catch (e: any) {
       flagged.push({ sourceFile: file.originalname, issue: e.message });
     }
+  }
+
+  if (clientId) {
+    sseService.sendEvent(clientId, {
+      stage: 'COMPLETED',
+      progress: 100,
+      message: `Successfully imported ${totalSaved} WIP records.`
+    });
   }
 
   res.status(200).json(

@@ -215,6 +215,7 @@ const METADATA_LABELS: Record<string, string> = {
   "Location :": "Location",
   "Drawing No :": "DrawingNo",
   "Name of Contractor": "Contractor",
+  "JMC Number :": "JmcNumber",
 };
 
 function normLabel(v: any): string {
@@ -267,6 +268,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
             else if (norm.includes("location") || norm.includes("site")) field = "Location";
             else if (norm.includes("drawing")) field = "DrawingNo";
             else if (norm.includes("contractor") || norm.includes("agency")) field = "Contractor";
+            else if (norm.includes("jmc number") || norm.includes("jmc no")) field = "JmcNumber";
 
             if (field) {
               metaRows[r] = field;
@@ -615,25 +617,43 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
         }
       }
 
-      initialCount++;
-      const jmcNumber = `JMC/${new Date().getFullYear().toString().slice(-2)}/${initialCount.toString().padStart(4, '0')}`;
+      const existingJmcNo = meta.JmcNumber || null;
 
-      await JmcRegister.create({
-        jmcNumber,
-        date: new Date(),
-        contractorId: contractorId || null,
-        package: pkg,
-        location: loc,
-        circle: circ,
-        division: div,
-        subDivision: subDiv,
-        items: jmcItems,
-        claimedAmount: 0,
-        approvedAmount: 0,
-        status: 'Submitted',
-        remarks: `Uploaded from ${sourceFile} (${sheetName}). ${!meta.Contractor ? 'Warning: No contractor name found in sheet.' : ''}`.trim(),
-        createdBy: user._id
-      });
+      if (existingJmcNo) {
+        await JmcRegister.findOneAndUpdate({ jmcNumber: existingJmcNo }, {
+          $set: {
+            date: new Date(),
+            contractorId: contractorId || null,
+            package: pkg,
+            location: loc,
+            circle: circ,
+            division: div,
+            subDivision: subDiv,
+            items: jmcItems,
+            remarks: `Updated via Bulk Upload from ${sourceFile} (${sheetName}).`,
+          }
+        });
+      } else {
+        initialCount++;
+        const jmcNumber = `JMC/${new Date().getFullYear().toString().slice(-2)}/${initialCount.toString().padStart(4, '0')}`;
+
+        await JmcRegister.create({
+          jmcNumber,
+          date: new Date(),
+          contractorId: contractorId || null,
+          package: pkg,
+          location: loc,
+          circle: circ,
+          division: div,
+          subDivision: subDiv,
+          items: jmcItems,
+          claimedAmount: 0,
+          approvedAmount: 0,
+          status: 'Submitted',
+          remarks: `Uploaded from ${sourceFile} (${sheetName}). ${!meta.Contractor ? 'Warning: No contractor name found in sheet.' : ''}`.trim(),
+          createdBy: user._id
+        });
+      }
 
       totalSaved++;
     }

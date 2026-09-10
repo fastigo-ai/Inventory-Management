@@ -99,6 +99,11 @@ export const getWips = asyncHandler(async (req: Request, res: Response) => {
     }
   }
 
+  if (req.query.location) filter.location = { $regex: new RegExp(req.query.location as string, 'i') };
+  if (req.query.feeder) filter.feeder = { $regex: new RegExp(req.query.feeder as string, 'i') };
+  if (req.query.subDivision) filter.subDivision = { $regex: new RegExp(req.query.subDivision as string, 'i') };
+  if (req.query.subStation) filter.subStation = { $regex: new RegExp(req.query.subStation as string, 'i') };
+
   if (search && search.trim() !== '') {
     filter.wipNumber = { $regex: search, $options: 'i' };
   }

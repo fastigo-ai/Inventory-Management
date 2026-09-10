@@ -5,7 +5,7 @@ import { ApiResponse } from '../../core/utils/ApiResponse';
 import * as xlsx from 'xlsx';
 
 export const exportJmcExcel = asyncHandler(async (req: Request, res: Response) => {
-  const { contractorId, startDate, endDate, search } = req.query;
+  const { contractorId, startDate, endDate, search, location, feeder, subDivision, subStation } = req.query;
 
   const filter: any = {};
   if (contractorId) filter.contractorId = contractorId;
@@ -14,6 +14,11 @@ export const exportJmcExcel = asyncHandler(async (req: Request, res: Response) =
     if (startDate) filter.date.$gte = new Date(startDate as string);
     if (endDate) filter.date.$lte = new Date(endDate as string);
   }
+
+  if (location) filter.location = { $regex: new RegExp(location as string, 'i') };
+  if (feeder) filter.feeder = { $regex: new RegExp(feeder as string, 'i') };
+  if (subDivision) filter.subDivision = { $regex: new RegExp(subDivision as string, 'i') };
+  if (subStation) filter.subStation = { $regex: new RegExp(subStation as string, 'i') };
 
   if (search) {
     const searchRegex = new RegExp(search as string, 'i');

@@ -75,7 +75,7 @@ export default function EditDIRegistrationPage() {
     // Load POs and Items on mount
     Promise.all([
       getPurchaseOrders(),
-      getItems({ limit: 1000 }),
+      getItems({ limit: 5000 }),
       getVendors({ limit: 5000 }),
       getDIById(id as string)
     ]).then(([posRes, itemsRes, vendorsRes, diRes]) => {
@@ -496,10 +496,9 @@ export default function EditDIRegistrationPage() {
                             <div className="max-h-60 overflow-y-auto py-1">
                               {items
                                 .filter(it => {
-
-
                                   const val = (item.searchQuery ?? '').toLowerCase();
                                   const sku = String(it.dynamicData?.loaSerialNo || it.dynamicData?.loaSerialNumber || it.dynamicData?.['LOA Serial No.'] || it.dynamicData?.loa || it.dynamicData?.sku || it.dynamicData?.tempCode || '').toLowerCase();
+                                  
                                   return sku.includes(val);
                                 })
                                 .map(it => {
@@ -526,7 +525,11 @@ export default function EditDIRegistrationPage() {
                                       }}
                                     >
                                       <span className="text-sm text-slate-800 font-medium">{name}</span>
-                                      <span className="text-[10px] text-slate-500">LOA/SKU: {sku}</span>
+                                      <span className="text-[10px] text-slate-500">
+                                        LOA/SKU: {sku} | Temp Code: {it.dynamicData?.tempCode || it.tempCode || '--'}
+                                        {(it.dynamicData?.package || it.package) ? ` | Pkg: ${it.dynamicData?.package || it.package}` : ''}
+                                        {(it.dynamicData?.circle || it.circle) ? ` | Circle: ${it.dynamicData?.circle || it.circle}` : ''}
+                                      </span>
                                     </div>
                                   );
                                 })}
@@ -576,10 +579,14 @@ export default function EditDIRegistrationPage() {
                             <div className="max-h-60 overflow-y-auto py-1">
                               {items
                                 .filter(it => {
-
-
                                   const val = (item.tempCode ?? '').toLowerCase();
                                   const tempCode = String(it.dynamicData?.tempCode || it.tempCode || '').toLowerCase();
+
+                                  const pkg = item.package || '';
+                                  const circ = item.circle || '';
+                                  if (pkg && it.dynamicData?.package && pkg !== it.dynamicData.package) return false;
+                                  if (circ && it.dynamicData?.circle && circ !== it.dynamicData.circle) return false;
+
                                   return tempCode.includes(val);
                                 })
                                 .map(it => {
@@ -607,13 +614,23 @@ export default function EditDIRegistrationPage() {
                                       }}
                                     >
                                       <span className="text-sm text-slate-800 font-medium">{name}</span>
-                                      <span className="text-[10px] text-slate-500">LOA/SKU: {sku} | Temp Code: {tempCode || '--'}</span>
+                                      <span className="text-[10px] text-slate-500">
+                                        LOA/SKU: {sku} | Temp Code: {tempCode || '--'}
+                                        {(it.dynamicData?.package || it.package) ? ` | Pkg: ${it.dynamicData?.package || it.package}` : ''}
+                                        {(it.dynamicData?.circle || it.circle) ? ` | Circle: ${it.dynamicData?.circle || it.circle}` : ''}
+                                      </span>
                                     </div>
                                   );
                                 })}
                               {items.filter(it => {
                                 const val = (item.tempCode ?? '').toLowerCase();
                                 const tempCode = String(it.dynamicData?.tempCode || it.tempCode || '').toLowerCase();
+
+                                const pkg = item.package || '';
+                                const circ = item.circle || '';
+                                if (pkg && it.dynamicData?.package && pkg !== it.dynamicData.package) return false;
+                                if (circ && it.dynamicData?.circle && circ !== it.dynamicData.circle) return false;
+
                                 return tempCode.includes(val);
                               }).length === 0 && (
                                 <div className="px-3 py-3 text-xs text-slate-500 text-center">No items found</div>
@@ -663,10 +680,14 @@ export default function EditDIRegistrationPage() {
                           >
                             <div className="max-h-60 overflow-y-auto py-1">
                               {items
-                                .filter(it => {
-
-                                  const val = (item.itemName ?? '').toLowerCase();
+                                .filter(it => {                                  const val = (item.itemName ?? '').toLowerCase();
                                   const name = String(it.dynamicData?.name || it.dynamicData?.itemDescription || it.name || '').toLowerCase();
+
+                                  const pkg = item.package || '';
+                                  const circ = item.circle || '';
+                                  if (pkg && it.dynamicData?.package && pkg !== it.dynamicData.package) return false;
+                                  if (circ && it.dynamicData?.circle && circ !== it.dynamicData.circle) return false;
+
                                   return name.includes(val);
                                 })
                                 .map(it => {
@@ -694,13 +715,23 @@ export default function EditDIRegistrationPage() {
                                       }}
                                     >
                                       <span className="text-sm text-slate-800 font-medium">{name}</span>
-                                      <span className="text-[10px] text-slate-500">LOA/SKU: {sku} | Temp Code: {tempCode || '--'}</span>
+                                      <span className="text-[10px] text-slate-500">
+                                        LOA/SKU: {sku} | Temp Code: {tempCode || '--'}
+                                        {(it.dynamicData?.package || it.package) ? ` | Pkg: ${it.dynamicData?.package || it.package}` : ''}
+                                        {(it.dynamicData?.circle || it.circle) ? ` | Circle: ${it.dynamicData?.circle || it.circle}` : ''}
+                                      </span>
                                     </div>
                                   );
                                 })}
                               {items.filter(it => {
                                 const val = (item.itemName ?? '').toLowerCase();
                                 const name = String(it.dynamicData?.name || it.dynamicData?.itemDescription || it.name || '').toLowerCase();
+
+                                const pkg = item.package || '';
+                                const circ = item.circle || '';
+                                if (pkg && it.dynamicData?.package && pkg !== it.dynamicData.package) return false;
+                                if (circ && it.dynamicData?.circle && circ !== it.dynamicData.circle) return false;
+
                                 return name.includes(val);
                               }).length === 0 && (
                                 <div className="px-3 py-3 text-xs text-slate-500 text-center">No items found</div>

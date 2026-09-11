@@ -136,7 +136,7 @@ export default function NewPurchaseInvoicePage() {
     // Load vendors on mount
     getVendors({ limit: 100 }).then(res => setVendors(res.vendors || res));
     getPurchaseOrders().then(res => setPurchaseOrders(Array.isArray(res.data) ? res.data : (res.data?.pos || res.data || [])));
-    getItems({ limit: 1000 }).then(res => setItemsList(res.items || res.data || res));
+    getItems({ limit: 5000 }).then(res => setItemsList(res.items || res.data || res));
     getDIs({ limit: 1000 }).then(res => {
       if (res.data) {
         setDis(Array.isArray(res.data) ? res.data : (res.data.dis || []));
@@ -838,8 +838,24 @@ export default function NewPurchaseInvoicePage() {
                       lineItems.map((item, index) => {
                         const allPackages = Array.from(new Set(itemsList.map(i => i.dynamicData?.package).filter(Boolean)));
                         const circles = Array.from(new Set(itemsList.map(i => i.dynamicData?.circle).filter(Boolean)));
-                        const tempCodes = Array.from(new Set(itemsList.map(i => i.dynamicData?.tempCode).filter(Boolean)));
-                        const itemNames = Array.from(new Set(itemsList.map(i => i.dynamicData?.name || i.dynamicData?.itemDescription || i._id)));
+                        // Build per-item option lists (not deduped) so each circle shows up separately
+                        const currentPkg = item.package || '';
+                        const currentCirc = item.circle || '';
+                        const itemsForDropdown = itemsList.filter(i => {
+                          if (currentPkg && i.dynamicData?.package && currentPkg !== i.dynamicData.package) return false;
+                          if (currentCirc && i.dynamicData?.circle && currentCirc !== i.dynamicData.circle) return false;
+                          return true;
+                        });
+                        const tempCodes = itemsForDropdown.map(i => ({
+                          value: i._id,
+                          label: `${i.dynamicData?.tempCode || ''}${i.dynamicData?.circle ? ` — ${i.dynamicData.circle}` : ''}${i.dynamicData?.package ? ` (${i.dynamicData.package})` : ''}`,
+                          tempCode: i.dynamicData?.tempCode || ''
+                        })).filter(o => o.tempCode);
+                        const itemNames = itemsForDropdown.map(i => ({
+                          value: i._id,
+                          label: `${i.dynamicData?.name || i.dynamicData?.itemDescription || ''}${i.dynamicData?.circle ? ` — ${i.dynamicData.circle}` : ''}`,
+                          name: i.dynamicData?.name || i.dynamicData?.itemDescription || ''
+                        })).filter(o => o.name);
 
                         const getDVal = (d: any, ...keys: string[]): string => {
                           if (!d) return '';
@@ -892,18 +908,21 @@ export default function NewPurchaseInvoicePage() {
                           }).filter(v => v && v.trim() !== '')
                         ));
 
+                        // handleItemSelection: identifier is now _id for tempCode/name, raw value for others
                         const handleItemSelection = (identifier: string, type: 'name' | 'tempCode' | 'description' | 'loaSerialNo') => {
-                          const selectedItem = itemsList.find(i => {
-                            if (type === 'name') return (i.dynamicData?.name || i.dynamicData?.itemDescription || i._id) === identifier;
-                            if (type === 'tempCode') return (i.dynamicData?.tempCode || i.dynamicData?.sku || i.dynamicData?.itemCode) === identifier;
-                            if (type === 'description') return (i.dynamicData?.description || i.dynamicData?.itemDescription) === identifier;
-                            if (type === 'loaSerialNo') {
+                          let selectedItem: any;
+                          if (type === 'tempCode' || type === 'name') {
+                            // identifier is the item _id
+                            selectedItem = itemsList.find(i => i._id === identifier);
+                          } else if (type === 'description') {
+                            selectedItem = itemsList.find(i => (i.dynamicData?.description || i.dynamicData?.itemDescription) === identifier);
+                          } else if (type === 'loaSerialNo') {
+                            selectedItem = itemsList.find(i => {
                               const d = i.dynamicData || {};
                               const loaKey = Object.keys(d).find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === 'loaserialno' || k.toLowerCase().replace(/[^a-z0-9]/g, '') === 'loaserial' || k.toLowerCase() === 'sku');
                               return (loaKey ? String(d[loaKey]) : '') === String(identifier);
-                            }
-                            return false;
-                          });
+                            });
+                          }
                           if (selectedItem) {
                              const d = selectedItem.dynamicData || {};
                              const getVal = (key: string) => {
@@ -1020,11 +1039,11 @@ export default function NewPurchaseInvoicePage() {
                             <td className="px-2 py-2">
                               {item.isManual ? (
                                 <Select
-                                  options={tempCodes.map(tc => ({ value: tc, label: tc }))}
-                                  value={item.tempCode ? { value: item.tempCode, label: item.tempCode } : null}
+                                  options={tempCodes}
+                                  value={item.itemId ? (tempCodes.find(o => o.value === item.itemId) || (item.tempCode ? { value: item.itemId || '', label: item.tempCode } : null)) : null}
                                   onChange={(selected: any) => {
                                     if (selected) handleItemSelection(selected.value as string, 'tempCode');
-                                    else updateLineItem(index, 'tempCode', '');
+                                    else { updateLineItem(index, 'tempCode', ''); updateLineItem(index, 'itemId', ''); }
                                   }}
                                   onInputChange={(inputValue, { action }) => {
                                     if (action === 'input-change') updateLineItem(index, 'tempCode', inputValue);
@@ -1049,11 +1068,11 @@ export default function NewPurchaseInvoicePage() {
                             <td className="px-2 py-2">
                               {item.isManual ? (
                                 <Select
-                                  options={itemNames.map(n => ({ value: n, label: n }))}
-                                  value={item.itemName ? { value: item.itemName, label: item.itemName } : null}
+                                  options={itemNames}
+                                  value={item.itemId ? (itemNames.find(o => o.value === item.itemId) || (item.itemName ? { value: item.itemId || '', label: item.itemName } : null)) : null}
                                   onChange={(selected: any) => {
                                     if (selected) handleItemSelection(selected.value as string, 'name');
-                                    else updateLineItem(index, 'itemName', '');
+                                    else { updateLineItem(index, 'itemName', ''); updateLineItem(index, 'itemId', ''); }
                                   }}
                                   onInputChange={(inputValue, { action }) => {
                                     if (action === 'input-change') updateLineItem(index, 'itemName', inputValue);

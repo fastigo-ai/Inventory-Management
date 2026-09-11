@@ -70,7 +70,7 @@ export default function NewDIRegistrationPage() {
   useEffect(() => {
     // Load POs and Items on mount
     getPurchaseOrders().then(res => setPurchaseOrders(Array.isArray(res.data) ? res.data : (res.data?.pos || res.data || [])));
-    getItems({ limit: 1000 }).then(res => setItems(Array.isArray(res) ? res : (res?.items || [])));
+    getItems({ limit: 5000 }).then(res => setItems(Array.isArray(res) ? res : (res?.items || [])));
     getVendors({ limit: 5000 }).then(res => setVendors(Array.isArray(res) ? res : (res?.vendors || res || [])));
     
     // Default Date
@@ -446,11 +446,10 @@ export default function NewDIRegistrationPage() {
                             <div className="max-h-60 overflow-y-auto py-1">
                               {items
                                 .filter(it => {
-
-
                                   const val = (item.searchQuery ?? '').toLowerCase();
                                   const sku = String(it.dynamicData?.loaSerialNo || it.dynamicData?.loaSerialNumber || it.dynamicData?.['LOA Serial No.'] || it.dynamicData?.loa || it.dynamicData?.sku || it.dynamicData?.tempCode || '').toLowerCase();
                                   const tempCode = String(it.dynamicData?.tempCode || it.tempCode || '').toLowerCase();
+                                  
                                   return sku.includes(val) || tempCode.includes(val);
                                 })
                                 .map(it => {
@@ -478,7 +477,11 @@ export default function NewDIRegistrationPage() {
                                       }}
                                     >
                                       <span className="text-sm text-slate-800 font-medium">{name}</span>
-                                      <span className="text-[10px] text-slate-500">LOA/SKU: {sku} | Temp Code: {tempCode || '--'}</span>
+                                      <span className="text-[10px] text-slate-500">
+                                        LOA/SKU: {sku} | Temp Code: {tempCode || '--'}
+                                        {(it.dynamicData?.package || it.package) ? ` | Pkg: ${it.dynamicData?.package || it.package}` : ''}
+                                        {(it.dynamicData?.circle || it.circle) ? ` | Circle: ${it.dynamicData?.circle || it.circle}` : ''}
+                                      </span>
                                     </div>
                                   );
                                 })}
@@ -528,10 +531,14 @@ export default function NewDIRegistrationPage() {
                             <div className="max-h-60 overflow-y-auto py-1">
                               {items
                                 .filter(it => {
-
-
                                   const val = (item.tempCode ?? '').toLowerCase();
                                   const tempCode = String(it.dynamicData?.tempCode || it.tempCode || '').toLowerCase();
+
+                                  const pkg = item.package || '';
+                                  const circ = item.circle || '';
+                                  if (pkg && it.dynamicData?.package && pkg !== it.dynamicData.package) return false;
+                                  if (circ && it.dynamicData?.circle && circ !== it.dynamicData.circle) return false;
+
                                   return tempCode.includes(val);
                                 })
                                 .map(it => {
@@ -559,7 +566,11 @@ export default function NewDIRegistrationPage() {
                                       }}
                                     >
                                       <span className="text-sm text-slate-800 font-medium">{name}</span>
-                                      <span className="text-[10px] text-slate-500">LOA/SKU: {sku} | Temp Code: {tempCode || '--'}</span>
+                                      <span className="text-[10px] text-slate-500">
+                                        LOA/SKU: {sku} | Temp Code: {tempCode || '--'}
+                                        {(it.dynamicData?.package || it.package) ? ` | Pkg: ${it.dynamicData?.package || it.package}` : ''}
+                                        {(it.dynamicData?.circle || it.circle) ? ` | Circle: ${it.dynamicData?.circle || it.circle}` : ''}
+                                      </span>
                                     </div>
                                   );
                                 })}
@@ -609,10 +620,14 @@ export default function NewDIRegistrationPage() {
                             <div className="max-h-60 overflow-y-auto py-1">
                               {items
                                 .filter(it => {
-
-
                                   const val = (item.itemName ?? '').toLowerCase();
                                   const name = String(it.dynamicData?.name || it.name || '').toLowerCase();
+
+                                  const pkg = item.package || '';
+                                  const circ = item.circle || '';
+                                  if (pkg && it.dynamicData?.package && pkg !== it.dynamicData.package) return false;
+                                  if (circ && it.dynamicData?.circle && circ !== it.dynamicData.circle) return false;
+
                                   return name.includes(val);
                                 })
                                 .map(it => {
@@ -640,7 +655,11 @@ export default function NewDIRegistrationPage() {
                                       }}
                                     >
                                       <span className="text-sm text-slate-800 font-medium">{name}</span>
-                                      <span className="text-[10px] text-slate-500">LOA/SKU: {sku} | Temp Code: {tempCode || '--'}</span>
+                                      <span className="text-[10px] text-slate-500">
+                                        LOA/SKU: {sku} | Temp Code: {tempCode || '--'}
+                                        {(it.dynamicData?.package || it.package) ? ` | Pkg: ${it.dynamicData?.package || it.package}` : ''}
+                                        {(it.dynamicData?.circle || it.circle) ? ` | Circle: ${it.dynamicData?.circle || it.circle}` : ''}
+                                      </span>
                                     </div>
                                   );
                                 })}

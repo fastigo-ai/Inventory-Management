@@ -70,6 +70,16 @@ export const bulkImportInwardEntries = async (data: any[]) => {
   return response.data;
 };
 
+export const getInwardEntriesByInvoice = async (invoiceId: string, params?: { circle?: string; package?: string; subcircle?: string }) => {
+  const response = await api.get(`/store/inventory/inward/by-invoice/${invoiceId}`, { params });
+  return response.data;
+};
+
+export const bulkUpdateInwardEntries = async (invoiceId: string, data: { commonFields: any; items: any[]; status?: string }) => {
+  const response = await api.put(`/store/inventory/inward/bulk-update/${invoiceId}`, data);
+  return response.data;
+};
+
 export const queryInwardEntries = async (params: any) => {
   const response = await api.get('/store/inventory/inward', { params });
   return response.data;

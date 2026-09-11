@@ -1615,6 +1615,144 @@ export const updateInwardEntry = asyncHandler(async (req: Request, res: Response
   res.status(200).json(new ApiResponse(200, updated, 'Inward Entry updated successfully'));
 });
 
+// Get all inward entries for a given purchaseInvoiceId — scoped by circle + package for Store Managers
+export const getInwardEntriesByInvoice = asyncHandler(async (req: Request, res: Response) => {
+  const { invoiceId } = req.params;
+  const user = (req as any).user;
+  const { circle: circleParam, package: pkgParam, subcircle: subcircleParam } = req.query;
+
+  if (!mongoose.Types.ObjectId.isValid(invoiceId as string)) {
+    throw new ApiError(400, 'Invalid invoice ID');
+  }
+
+  const isAdmin = user?.role?.name === 'Admin' || user?.role?.name === 'Super Admin' || user?.role?.permissions?.includes('*');
+
+  const filter: any = {
+    purchaseInvoiceId: new mongoose.Types.ObjectId(invoiceId as string),
+  };
+
+  if (!isAdmin) {
+    // Store Manager: scope to their assigned circle + subcircle + package (same as getPendingStoreReceipts)
+    if (user.assignedPackage) {
+      const normalizedPkg = user.assignedPackage.replace(/\s+/g, '');
+      const regexStr = normalizedPkg.split('').map((char: string) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*');
+      filter.package = { $regex: new RegExp(`^\\s*${regexStr}\\s*$`, 'i') };
+    }
+    if (user.assignedCircle) {
+      filter.circle = { $in: expandCircle(user.assignedCircle) || [user.assignedCircle] };
+    }
+    if (user.assignedSubcircle) {
+      filter.subcircle = { $regex: new RegExp(`^\\s*${user.assignedSubcircle.trim()}\\s*$`, 'i') };
+    }
+  } else {
+    // Admin: allow optional query param filters for scoping to a specific circle+subcircle+package group
+    if (circleParam && circleParam !== 'All') {
+      filter.circle = { $in: expandCircle(circleParam as string) || [circleParam as string] };
+    }
+    if (subcircleParam && subcircleParam !== 'All') {
+      filter.subcircle = { $regex: new RegExp(`^\\s*${(subcircleParam as string).trim()}\\s*$`, 'i') };
+    }
+    if (pkgParam && pkgParam !== 'All') {
+      const normalizedPkg = (pkgParam as string).replace(/\s+/g, '');
+      const regexStr = normalizedPkg.split('').map((char: string) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*');
+      filter.package = { $regex: new RegExp(`^\\s*${regexStr}\\s*$`, 'i') };
+    }
+  }
+
+  const entries = await StoreInwardEntry.find(filter).lean();
+  res.status(200).json(new ApiResponse(200, entries, 'Entries fetched successfully'));
+});
+
+
+// Bulk update all inward entries (Bulk GRN submission) — with circle + package ownership validation
+export const bulkUpdateInwardEntries = asyncHandler(async (req: Request, res: Response) => {
+  const { invoiceId } = req.params;
+  const { commonFields, items, status } = req.body;
+  const user = (req as any).user;
+
+  if (!mongoose.Types.ObjectId.isValid(invoiceId as string)) {
+    throw new ApiError(400, 'Invalid invoice ID');
+  }
+
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    throw new ApiError(400, 'No items provided for bulk update');
+  }
+
+  const isAdmin = user?.role?.name === 'Admin' || user?.role?.name === 'Super Admin' || user?.role?.permissions?.includes('*');
+
+  // Build allowed circles/subcircle/package for the requesting user (for validation)
+  const allowedCircles = isAdmin ? null : (expandCircle(user.assignedCircle) || (user.assignedCircle ? [user.assignedCircle] : null));
+  const allowedSubcircleRegex = (!isAdmin && user.assignedSubcircle)
+    ? new RegExp(`^\\s*${user.assignedSubcircle.trim()}\\s*$`, 'i')
+    : null;
+  const allowedPackageRegex = (!isAdmin && user.assignedPackage)
+    ? (() => {
+        const normalizedPkg = user.assignedPackage.replace(/\s+/g, '');
+        const regexStr = normalizedPkg.split('').map((char: string) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*');
+        return new RegExp(`^\\s*${regexStr}\\s*$`, 'i');
+      })()
+    : null;
+
+  const submissionStatus: string = status || 'SUBMITTED';
+  const results: any[] = [];
+
+  for (const item of items) {
+    const entry = await StoreInwardEntry.findById(item._id);
+    if (!entry) continue;
+    if (entry.status === 'VOIDED') continue;
+
+    // ── Ownership validation for non-admins (circle + subcircle + package) ──
+    if (!isAdmin) {
+      if (allowedCircles && entry.circle && !allowedCircles.some(c => c.toLowerCase() === entry.circle!.toLowerCase())) {
+        throw new ApiError(403, `Forbidden: Item "${entry.itemName || item._id}" belongs to circle "${entry.circle}" which is outside your assigned circle.`);
+      }
+      if (allowedSubcircleRegex && entry.subcircle && !allowedSubcircleRegex.test(entry.subcircle)) {
+        throw new ApiError(403, `Forbidden: Item "${entry.itemName || item._id}" belongs to sub-circle "${entry.subcircle}" which is outside your assigned sub-circle.`);
+      }
+      if (allowedPackageRegex && entry.package && !allowedPackageRegex.test(entry.package)) {
+        throw new ApiError(403, `Forbidden: Item "${entry.itemName || item._id}" belongs to package "${entry.package}" which is outside your assigned package.`);
+      }
+    }
+
+    const originalStatus = entry.status;
+
+    // Apply common header fields to every entry
+    if (commonFields) {
+      const allowedCommonFields = [
+        'invoiceNumber', 'invoiceDate', 'challanNumber', 'transportName',
+        'truckNumber', 'grNumber', 'grDate', 'biltyNumber', 'receivedDate', 'remarks'
+      ];
+      for (const field of allowedCommonFields) {
+        if (commonFields[field] !== undefined) {
+          (entry as any)[field] = commonFields[field];
+        }
+      }
+    }
+
+    // Apply item-specific fields
+    const itemFields = ['invoiceQty', 'challanQty', 'rejectedQty', 'rate', 'hsnCode', 'unit', 'srt', 'act', 'packingList'];
+    for (const field of itemFields) {
+      if (item[field] !== undefined) {
+        (entry as any)[field] = item[field];
+      }
+    }
+
+    entry.status = submissionStatus as any;
+    entry.updatedBy = user._id;
+
+    const updated = await entry.save();
+
+    if (updated && (updated.status === 'SUBMITTED' || updated.status === 'APPROVED') && originalStatus !== 'SUBMITTED' && originalStatus !== 'APPROVED') {
+      await processInwardStockUpdate(updated._id.toString());
+    }
+
+    results.push(updated);
+  }
+
+  res.status(200).json(new ApiResponse(200, results, `${results.length} entries updated successfully`));
+});
+
+
 export const voidInwardEntry = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const user = (req as any).user;

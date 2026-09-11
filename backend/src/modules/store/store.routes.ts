@@ -37,6 +37,8 @@ import {
   importStoreTransfers,
   bulkImportInwardEntries,
   getStoreReceiptFilterOptions,
+  getInwardEntriesByInvoice,
+  bulkUpdateInwardEntries,
   importReceivedStoreTransfers,
   queryDILineItemsForMhrov,
   getMhrovDIFilterOptions
@@ -63,6 +65,8 @@ router.route('/inventory/inward')
 router.get('/inventory/inward/filter-options', getInwardFilterOptions);
 
 router.route('/inventory/inward/bulk-import').post(bulkImportInwardEntries);
+router.route('/inventory/inward/by-invoice/:invoiceId').get(getInwardEntriesByInvoice);
+router.route('/inventory/inward/bulk-update/:invoiceId').put(bulkUpdateInwardEntries);
 
 router.post('/inventory/inward/import', upload.single('file'), importInwardRegistrations);
 

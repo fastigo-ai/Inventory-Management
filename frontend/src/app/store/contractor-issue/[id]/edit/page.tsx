@@ -467,8 +467,8 @@ export default function StoreContractorIssueEditPage() {
           <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center rounded-t-lg">
             <h2 className="text-sm font-semibold text-slate-800">Materials Issued</h2>
           </div>
-          <div className="">
-            <table className="w-full text-sm text-left">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left min-w-[1000px]">
               <thead className="bg-slate-100 border-b border-slate-200 text-slate-600 text-[11px] uppercase tracking-wider">
                 <tr>
                   <th className="px-4 py-3 font-medium w-[5%] text-center">Sr. No.</th>

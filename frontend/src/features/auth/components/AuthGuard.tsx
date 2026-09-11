@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/shared/store/auth.store";
 import { api } from "@/shared/api/axios";
 import { Loader2 } from "lucide-react";
+import { hasAccessToRoute } from "@/lib/permissions";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, login, logout, isLoading, setLoading } = useAuthStore();
@@ -31,6 +32,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         router.push('/login');
       } else if (isAuthenticated && pathname === '/login') {
         router.push('/');
+      } else if (isAuthenticated) {
+        // Enforce Route Based Permissions
+        const { user } = useAuthStore.getState();
+        if (!hasAccessToRoute(pathname, user)) {
+          router.push('/');
+        }
       }
     }
   }, [isLoading, isAuthenticated, pathname, router]);
@@ -47,6 +54,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   // Prevent flash of protected content before redirect
   if (!isAuthenticated && pathname !== '/login') {
     return null; 
+  }
+
+  if (isAuthenticated && !hasAccessToRoute(pathname, useAuthStore.getState().user)) {
+    return null;
   }
 
   return <>{children}</>;

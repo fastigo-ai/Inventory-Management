@@ -42,7 +42,7 @@ export default function StoreContractorIssuePage() {
         startDate: startDate || undefined,
         endDate: endDate || undefined,
       });
-      const url = window.URL.createObjectURL(new Blob([blob]));
+      const url = window.URL.createObjectURL(new Blob([blob], { type: 'text/csv;charset=utf-8;' }));
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', 'contractor_issues.csv');

@@ -67,10 +67,24 @@ export const getJmcs = asyncHandler(async (req: Request, res: Response) => {
   const search = req.query.search as string;
   const filter: any = {};
 
+  const isAdmin = user?.role?.name === 'Admin' || user?.role?.name === 'Super Admin' || user?.role?.permissions?.includes('*');
+
   if (user && user.role?.name === 'Contractor' && user.contractorId) {
     filter.contractorId = new mongoose.Types.ObjectId(user.contractorId);
   } else if (req.query.contractorId && req.query.contractorId !== 'All') {
     filter.contractorId = new mongoose.Types.ObjectId(req.query.contractorId as string);
+  }
+
+  if (!isAdmin && user?.assignedCircle) {
+    const SUB_STORE_MAP: Record<string, string[]> = {
+      'Solan': ['Solan', 'Kumarhatti', 'Nalagarh'],
+      'Nahan': ['Nahan'],
+      'Rohru': ['Rohru'],
+      'Rampur': ['Rampur'],
+    };
+    const allowedCircles = SUB_STORE_MAP[user.assignedCircle] || [user.assignedCircle];
+    const regexCircles = allowedCircles.map(c => new RegExp(`^${c}$`, 'i'));
+    filter.circle = { $in: regexCircles };
   }
 
   if (req.query.startDate || req.query.endDate) {

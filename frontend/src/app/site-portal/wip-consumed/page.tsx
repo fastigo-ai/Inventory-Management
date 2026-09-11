@@ -88,7 +88,7 @@ export default function WipRegisterPage() {
       if (debouncedFilters.subStation) params.subStation = debouncedFilters.subStation;
 
       const res = await getWips(params);
-      const payload = res.data?.data || {};
+      const payload = res.data || {};
       setEntries(payload.data || []);
       setTotalItems(payload.total || 0);
       setTotalPages(payload.totalPages || 1);

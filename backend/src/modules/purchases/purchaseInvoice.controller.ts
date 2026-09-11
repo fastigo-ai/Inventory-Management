@@ -54,7 +54,7 @@ export const createPurchaseInvoice = async (req: Request, res: Response): Promis
     
     if (prData.lineItems) {
       prData.lineItems = prData.lineItems.map((item: any) => {
-        const qty = Number(item.quantity || item.invoiceQuantity || item.act || 0);
+        const qty = Number(item.totalInvoiceQuantity) || (Number(item.srt || 0) + Number(item.act || 0));
         const rate = Number(item.rate || 0);
         const amount = qty * rate;
 
@@ -197,7 +197,7 @@ export const createPurchaseInvoice = async (req: Request, res: Response): Promis
         taxableAmount: item.amount,
         serialNumber: item.loaSerialNo,
         status: 'PENDING_RECEIPT',
-        packingList: [{ packType: 'BOX', quantity: item.invoiceQuantity || 0 }] // default packing
+        packingList: [{ packType: 'BOX', quantity: item.quantity || 0 }] // default packing
       }));
       await StoreInwardEntry.insertMany(inwardEntries);
 

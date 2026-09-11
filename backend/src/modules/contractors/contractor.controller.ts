@@ -846,6 +846,37 @@ export const exportContractorAssignments = asyncHandler(async (req: Request, res
     ];
   }
   
+  const user = (req as any).user;
+  const isAdmin = user?.role?.name === 'Admin' || user?.role?.name === 'Super Admin' || user?.role?.permissions?.includes('*');
+
+  const SUB_STORE_MAP: Record<string, string[]> = {
+    'Solan': ['Solan', 'Kumarhatti', 'Nalagarh'],
+    'Nahan': ['Nahan'],
+    'Rohru': ['Rohru'],
+    'Rampur': ['Rampur'],
+  };
+
+  if (!isAdmin && user && user.role?.name === 'Store Manager') {
+    if (user.assignedCircle) {
+      const allowedCircles = SUB_STORE_MAP[user.assignedCircle] || [user.assignedCircle];
+      const regexCircles = allowedCircles.map(c => new RegExp(`^${c}$`, 'i'));
+      
+      const scopeFilter = {
+        $or: [
+          { location: { $in: regexCircles } },
+          { circle: { $in: regexCircles } }
+        ]
+      };
+      
+      if (filter.$or) {
+        filter.$and = [{ $or: filter.$or }, scopeFilter];
+        delete filter.$or;
+      } else {
+        filter.$or = scopeFilter.$or;
+      }
+    }
+  }
+  
   const assignments = await ContractorAssignment.find(filter)
     .populate('contractorId', 'name farmName companyName dynamicData')
     .sort({ date: -1 });
@@ -890,7 +921,14 @@ export const exportContractorAssignments = asyncHandler(async (req: Request, res
         item.rate || 0,
         item.amount || 0
       ];
-      csv += row.map(v => typeof v === 'string' && v.includes(',') ? `"${v}"` : v).join(',') + '\\n';
+      csv += row.map(v => {
+        if (v === null || v === undefined) return '';
+        const str = String(v);
+        if (/[,"\n\r]/.test(str)) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      }).join(',') + '\n';
     });
   });
   

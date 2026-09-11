@@ -1065,6 +1065,7 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
         assignmentsByMin[minNo] = {
           contractorId: contractor._id,
           location: circle || 'Store',
+          circle: circle || '',
           assignmentNumber: minNo,
           date: parseCsvDate(row['Date']) || new Date(),
           demandNo: row['DemandNo'] || '',

@@ -128,6 +128,14 @@ export default function NewDIRegistrationPage() {
     });
   };
 
+  const updateLineItemBatch = (index: number, fields: Record<string, any>) => {
+    setLineItems(prev => {
+      const newItems = [...prev];
+      newItems[index] = { ...newItems[index], ...fields };
+      return newItems;
+    });
+  };
+
   const removeLineItem = (index: number) => {
     const newItems = [...lineItems];
     newItems.splice(index, 1);
@@ -346,16 +354,18 @@ export default function NewDIRegistrationPage() {
                     <select
                       value={item.package || ''}
                       onChange={(e) => {
-                        updateLineItem(index, 'package', e.target.value);
-                        updateLineItem(index, 'circle', ''); 
-                        updateLineItem(index, 'itemId', '');
-                        updateLineItem(index, 'itemName', '');
-                        updateLineItem(index, 'sku', '');
-                        updateLineItem(index, 'tempCode', '');
-                        updateLineItem(index, 'searchQuery', '');
-                        updateLineItem(index, 'unit', '');
-                        updateLineItem(index, 'orderedQuantity', 0);
-                        updateLineItem(index, 'diQuantity', 0);
+                        updateLineItemBatch(index, {
+                          package: e.target.value,
+                          circle: '',
+                          itemId: '',
+                          itemName: '',
+                          sku: '',
+                          tempCode: '',
+                          searchQuery: '',
+                          unit: '',
+                          orderedQuantity: 0,
+                          diQuantity: 0,
+                        });
                       }}
                       className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-slate-950"
                     >
@@ -370,15 +380,17 @@ export default function NewDIRegistrationPage() {
                     <select
                       value={item.circle || ''}
                       onChange={(e) => {
-                        updateLineItem(index, 'circle', e.target.value);
-                        updateLineItem(index, 'itemId', '');
-                        updateLineItem(index, 'itemName', '');
-                        updateLineItem(index, 'sku', '');
-                        updateLineItem(index, 'tempCode', '');
-                        updateLineItem(index, 'searchQuery', '');
-                        updateLineItem(index, 'unit', '');
-                        updateLineItem(index, 'orderedQuantity', 0);
-                        updateLineItem(index, 'diQuantity', 0);
+                        updateLineItemBatch(index, {
+                          circle: e.target.value,
+                          itemId: '',
+                          itemName: '',
+                          sku: '',
+                          tempCode: '',
+                          searchQuery: '',
+                          unit: '',
+                          orderedQuantity: 0,
+                          diQuantity: 0,
+                        });
                       }}
                       className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-slate-950 disabled:bg-slate-50 disabled:text-slate-400"
                       disabled={!item.package}
@@ -464,15 +476,17 @@ export default function NewDIRegistrationPage() {
                                         const po = purchaseOrders.find(p => p._id === purchaseOrderId);
                                         const poLineItem = po?.lineItems?.find((li: any) => li.itemId === it._id);
                                         
-                                        updateLineItem(index, 'itemId', it._id);
-                                        updateLineItem(index, 'itemName', name);
-                                        updateLineItem(index, 'sku', sku);
-                                        updateLineItem(index, 'tempCode', tempCode);
-                                        updateLineItem(index, 'package', item.package || it.dynamicData?.package || poLineItem?.package1 || poLineItem?.package || '');
-                                        updateLineItem(index, 'circle', item.circle || it.dynamicData?.circle || poLineItem?.circle || '');
-                                        updateLineItem(index, 'orderedQuantity', poLineItem ? (poLineItem.quantity || 0) : 0);
-                                        updateLineItem(index, 'unit', it.dynamicData?.unit || it.unit || poLineItem?.unit || 'Nos');
-                                        updateLineItem(index, 'searchQuery', sku);
+                                        updateLineItemBatch(index, {
+                                          itemId: it._id,
+                                          itemName: name,
+                                          sku: sku,
+                                          tempCode: tempCode,
+                                          package: item.package || it.dynamicData?.package || poLineItem?.package1 || poLineItem?.package || '',
+                                          circle: item.circle || it.dynamicData?.circle || poLineItem?.circle || '',
+                                          orderedQuantity: poLineItem ? (poLineItem.quantity || 0) : 0,
+                                          unit: it.dynamicData?.unit || it.unit || poLineItem?.unit || 'Nos',
+                                          searchQuery: sku,
+                                        });
                                         setOpenDropdownId(null);
                                       }}
                                     >
@@ -533,12 +547,6 @@ export default function NewDIRegistrationPage() {
                                 .filter(it => {
                                   const val = (item.tempCode ?? '').toLowerCase();
                                   const tempCode = String(it.dynamicData?.tempCode || it.tempCode || '').toLowerCase();
-
-                                  const pkg = item.package || '';
-                                  const circ = item.circle || '';
-                                  if (pkg && it.dynamicData?.package && pkg !== it.dynamicData.package) return false;
-                                  if (circ && it.dynamicData?.circle && circ !== it.dynamicData.circle) return false;
-
                                   return tempCode.includes(val);
                                 })
                                 .map(it => {
@@ -553,15 +561,17 @@ export default function NewDIRegistrationPage() {
                                         const po = purchaseOrders.find(p => p._id === purchaseOrderId);
                                         const poLineItem = po?.lineItems?.find((li: any) => li.itemId === it._id);
                                         
-                                        updateLineItem(index, 'itemId', it._id);
-                                        updateLineItem(index, 'itemName', name);
-                                        updateLineItem(index, 'sku', sku);
-                                        updateLineItem(index, 'tempCode', tempCode);
-                                        updateLineItem(index, 'package', item.package || it.dynamicData?.package || poLineItem?.package1 || poLineItem?.package || '');
-                                        updateLineItem(index, 'circle', item.circle || it.dynamicData?.circle || poLineItem?.circle || '');
-                                        updateLineItem(index, 'orderedQuantity', poLineItem ? (poLineItem.quantity || 0) : 0);
-                                        updateLineItem(index, 'unit', it.dynamicData?.unit || it.unit || poLineItem?.unit || 'Nos');
-                                        updateLineItem(index, 'searchQuery', sku);
+                                        updateLineItemBatch(index, {
+                                          itemId: it._id,
+                                          itemName: name,
+                                          sku: sku,
+                                          tempCode: tempCode,
+                                          package: item.package || it.dynamicData?.package || poLineItem?.package1 || poLineItem?.package || '',
+                                          circle: item.circle || it.dynamicData?.circle || poLineItem?.circle || '',
+                                          orderedQuantity: poLineItem ? (poLineItem.quantity || 0) : 0,
+                                          unit: it.dynamicData?.unit || it.unit || poLineItem?.unit || 'Nos',
+                                          searchQuery: sku,
+                                        });
                                         setOpenTempCodeDropdownId(null);
                                       }}
                                     >
@@ -622,12 +632,6 @@ export default function NewDIRegistrationPage() {
                                 .filter(it => {
                                   const val = (item.itemName ?? '').toLowerCase();
                                   const name = String(it.dynamicData?.name || it.name || '').toLowerCase();
-
-                                  const pkg = item.package || '';
-                                  const circ = item.circle || '';
-                                  if (pkg && it.dynamicData?.package && pkg !== it.dynamicData.package) return false;
-                                  if (circ && it.dynamicData?.circle && circ !== it.dynamicData.circle) return false;
-
                                   return name.includes(val);
                                 })
                                 .map(it => {
@@ -642,15 +646,17 @@ export default function NewDIRegistrationPage() {
                                         const po = purchaseOrders.find(p => p._id === purchaseOrderId);
                                         const poLineItem = po?.lineItems?.find((li: any) => li.itemId === it._id);
                                         
-                                        updateLineItem(index, 'itemId', it._id);
-                                        updateLineItem(index, 'itemName', name);
-                                        updateLineItem(index, 'sku', sku);
-                                        updateLineItem(index, 'tempCode', tempCode);
-                                        updateLineItem(index, 'package', item.package || it.dynamicData?.package || poLineItem?.package1 || poLineItem?.package || '');
-                                        updateLineItem(index, 'circle', item.circle || it.dynamicData?.circle || poLineItem?.circle || '');
-                                        updateLineItem(index, 'orderedQuantity', poLineItem ? (poLineItem.quantity || 0) : 0);
-                                        updateLineItem(index, 'unit', it.dynamicData?.unit || it.unit || poLineItem?.unit || 'Nos');
-                                        updateLineItem(index, 'searchQuery', sku);
+                                        updateLineItemBatch(index, {
+                                          itemId: it._id,
+                                          itemName: name,
+                                          sku: sku,
+                                          tempCode: tempCode,
+                                          package: item.package || it.dynamicData?.package || poLineItem?.package1 || poLineItem?.package || '',
+                                          circle: item.circle || it.dynamicData?.circle || poLineItem?.circle || '',
+                                          orderedQuantity: poLineItem ? (poLineItem.quantity || 0) : 0,
+                                          unit: it.dynamicData?.unit || it.unit || poLineItem?.unit || 'Nos',
+                                          searchQuery: sku,
+                                        });
                                         setOpenNameDropdownId(null);
                                       }}
                                     >

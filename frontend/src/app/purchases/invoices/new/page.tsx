@@ -841,11 +841,7 @@ export default function NewPurchaseInvoicePage() {
                         // Build per-item option lists (not deduped) so each circle shows up separately
                         const currentPkg = item.package || '';
                         const currentCirc = item.circle || '';
-                        const itemsForDropdown = itemsList.filter(i => {
-                          if (currentPkg && i.dynamicData?.package && currentPkg !== i.dynamicData.package) return false;
-                          if (currentCirc && i.dynamicData?.circle && currentCirc !== i.dynamicData.circle) return false;
-                          return true;
-                        });
+                        const itemsForDropdown = itemsList;
                         const tempCodes = itemsForDropdown.map(i => ({
                           value: i._id,
                           label: `${i.dynamicData?.tempCode || ''}${i.dynamicData?.circle ? ` — ${i.dynamicData.circle}` : ''}${i.dynamicData?.package ? ` (${i.dynamicData.package})` : ''}`,

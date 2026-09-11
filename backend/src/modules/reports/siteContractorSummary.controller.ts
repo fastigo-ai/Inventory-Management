@@ -33,10 +33,12 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
 
   const circleFilter = (circle && circle !== 'All Circles' && circle !== 'All' && circle !== 'all') ? String(circle) : undefined;
 
+  const circleRegex = circleFilter ? new RegExp(`^${circleFilter}$`, 'i') : undefined;
+
   // Pre-fetch all items to build a mapping of SKU -> Temp Code & Name
   const itemQuery: any = { isDeleted: false };
-  if (pkgRegex) itemQuery['dynamicData.package'] = { $regex: pkgRegex };
-  if (circleFilter) itemQuery['dynamicData.circle'] = circleFilter;
+  if (pkgRegex) itemQuery.$or = [{ 'dynamicData.package': { $regex: pkgRegex } }, { 'dynamicData.package': { $in: ['', null] } }];
+  if (circleRegex) itemQuery['dynamicData.circle'] = { $regex: circleRegex };
   const allItems = await Item.find(itemQuery).lean();
   
   const skuMap: Record<string, { tempCode: string, name: string }> = {};
@@ -51,8 +53,8 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
 
   // Find the relevant work orders to get the baseline items and quantities
   const woQuery: any = { contractorId: contractorFilter };
-  if (pkgRegex) woQuery.package = { $regex: pkgRegex };
-  if (circleFilter) woQuery.circle = circleFilter;
+  if (pkgRegex) woQuery.$or = [{ package: { $regex: pkgRegex } }, { package: { $in: ['', null] } }];
+  if (circleRegex) woQuery.circle = { $regex: circleRegex };
 
   const workOrders = await ContractorWorkOrder.find(woQuery).populate('items.itemId').lean();
 
@@ -108,8 +110,6 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
       if (!rowByItemId.has(itemIdStr)) rowByItemId.set(itemIdStr, rowObj);
     }
 
-    // Keep the first item name encountered if it was generic like "Steel Tubular Poles" but a better one "STP 9 MTR" comes in?
-    // Usually we just keep the first one. We don't overwrite.
     return rowObj;
   };
 
@@ -126,17 +126,23 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
 
   // Query conditions for registers
   const regQuery: any = { contractorId: contractorFilter, status: { $ne: 'Rejected' } };
-  if (pkgRegex) regQuery.package = { $regex: pkgRegex };
-  if (circleFilter) regQuery.circle = circleFilter;
+  if (pkgRegex) regQuery.$or = [{ package: { $regex: pkgRegex } }, { package: { $in: ['', null] } }];
+  if (circleRegex) regQuery.circle = { $regex: circleRegex };
 
   const assignQuery: any = { contractorId: contractorFilter, status: { $ne: 'Cancelled' } };
+  if (pkgRegex) assignQuery.$or = [{ package: { $regex: pkgRegex } }, { package: { $in: ['', null] } }];
+  if (circleRegex) assignQuery.circle = { $regex: circleRegex };
+
+  const returnQuery: any = { contractorId: contractorFilter, status: { $ne: 'Cancelled' } };
+  if (pkgRegex) returnQuery.$or = [{ package: { $regex: pkgRegex } }, { package: { $in: ['', null] } }];
+  if (circleRegex) returnQuery.circle = { $regex: circleRegex };
 
   const [jmcRecords, wipRecords, wipReqRecords, assignments, returns] = await Promise.all([
     JmcRegister.find(regQuery).lean(),
     WipRegister.find(regQuery).lean(),
     WipRequiredRegister.find(regQuery).lean(),
     ContractorAssignment.find(assignQuery).lean(),
-    ContractorReturn.find({ contractorId: contractorFilter, status: { $ne: 'Cancelled' } }).lean()
+    ContractorReturn.find(returnQuery).lean()
   ]);
 
   // Aggregate JMC

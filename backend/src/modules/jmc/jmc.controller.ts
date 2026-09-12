@@ -447,9 +447,14 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
       if (sr.description) {
         const itemDesc = String(item.dynamicData?.description || item.dynamicData?.name || '');
         if (itemDesc) {
-          const similarity = stringSimilarity.compareTwoStrings(String(sr.description), itemDesc);
-          if (similarity > 0.3) {
-            score += similarity;
+          if (String(sr.description).toLowerCase() === itemDesc.toLowerCase()) {
+            score += 1;
+          } else if (score < 2) { 
+            // Only run expensive fuzzy match if we don't already have a strong LOA/TempCode match
+            const similarity = stringSimilarity.compareTwoStrings(String(sr.description), itemDesc);
+            if (similarity > 0.3) {
+              score += similarity;
+            }
           }
         }
       }

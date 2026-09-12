@@ -336,14 +336,20 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
             if (labelFound) break;
           }
           let isHeader = false;
+          let matchCount = 0;
           for (let c = 0; c < row.length; c++) {
             const h = normLabel(row[c]);
-            if (h && (h.includes("loa") || h.includes("code") || h.includes("temp") || h.includes("sched") || h.includes("activity") || h.includes("desc") || h.includes("unit") || h.includes("sr no") || h.includes("sr.") || h.includes("s.no") || h.includes("item") || h.includes("qty") || h.includes("quantity"))) {
-              isHeader = true;
-              break;
+            if (h && (
+              h.includes("loa") || h.includes("code") || h.includes("temp code") || h === "temp" || 
+              h.includes("sched") || h.includes("activity") || h === "description" || h.includes("desc") || 
+              h === "unit" || h.includes("sr no") || h.includes("sr.") || h.includes("s.no") || 
+              h.includes("item") || h.includes("qty") || h.includes("quantity")
+            )) {
+              matchCount++;
             }
           }
-          if (isHeader) {
+          if (matchCount >= 2) {
+            isHeader = true;
             headerRowIdx = r;
             break;
           }

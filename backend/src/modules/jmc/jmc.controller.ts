@@ -279,7 +279,8 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
           if (cell) {
             const norm = normLabel(cell);
             let field = null;
-            if (norm.includes("circle")) field = "Circle";
+            if (norm.includes("circle") && !norm.includes("sub")) field = "Circle";
+            else if (norm.includes("sub") && norm.includes("circle")) field = "SubCircle";
             else if (norm.includes("division") && !norm.includes("sub")) field = "Division";
             else if (norm.includes("sub") && (norm.includes("div") || norm.includes("division"))) field = "SubDivision";
             else if (norm.includes("sub") && (norm.includes("station") || norm.includes("stn"))) field = "SubStation";
@@ -299,14 +300,20 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
         }
 
         let isHeader = false;
+        let matchCount = 0;
         for (let c = 0; c < row.length; c++) {
           const h = normLabel(row[c]);
-          if (h && (h.includes("loa") || h.includes("code") || h.includes("temp") || h.includes("sched") || h.includes("activity") || h.includes("desc") || h.includes("unit") || h.includes("sr no") || h.includes("sr.") || h.includes("s.no") || h.includes("item") || h.includes("qty") || h.includes("quantity"))) {
-            isHeader = true;
-            break;
+          if (h && (
+            h.includes("loa") || h.includes("code") || h.includes("temp code") || h === "temp" || 
+            h.includes("sched") || h.includes("activity") || h === "description" || h.includes("desc") || 
+            h === "unit" || h.includes("sr no") || h.includes("sr.") || h.includes("s.no") || 
+            h.includes("item") || h.includes("qty") || h.includes("quantity")
+          )) {
+            matchCount++;
           }
         }
-        if (isHeader) {
+        if (matchCount >= 2) {
+          isHeader = true;
           headerRowIdx = r;
           break;
         }
@@ -533,10 +540,11 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
       const meta = siteMeta[c];
       const pkg = (user as any).assignedPackage || meta.Location || meta.DrawingNo || '';
       const circ = (user as any).assignedCircle || meta.Circle || '';
+      const subCirc = meta.SubCircle || '';
       const div = meta.Division || '';
       const subDiv = meta.SubDivision || '';
       const loc = meta.Location || '';
-      const uploadedCircle = circ;
+      const uploadedCircle = subCirc || circ;
 
       // Resolve contractor
       let contractorId = null;
@@ -559,8 +567,9 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
           return name === fallbackName;
         });
         if (!newContractor) {
-          const payload = {
-            dynamicData: { companyName: fallbackName, name: fallbackName, vendorName: fallbackName },
+          const payload = { 
+            dynamicData: { companyName: fallbackName, name: fallbackName, vendorName: fallbackName, circle: uploadedCircle },
+            location: uploadedCircle,
             isActive: true
           };
           newContractor = await Contractor.create(payload);
@@ -646,6 +655,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
             package: pkg,
             location: loc,
             circle: circ,
+            subCircle: subCirc,
             division: div,
             subDivision: subDiv,
             items: jmcItems,
@@ -663,6 +673,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
           package: pkg,
           location: loc,
           circle: circ,
+          subCircle: subCirc,
           division: div,
           subDivision: subDiv,
           items: jmcItems,

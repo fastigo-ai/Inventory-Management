@@ -30,6 +30,7 @@ export default function WipRegisterFormPage() {
     contractorId: "",
     package: user?.assignedPackage || "",
     circle: user?.assignedCircle || "",
+    subCircle: "",
     division: "",
     subDivision: "",
     status: "Approved",
@@ -282,8 +283,14 @@ export default function WipRegisterFormPage() {
                     .filter(c => {
                       if (c._id === formData.contractorId) return true;
                       if (!formData.circle) return true;
-                      const locs = c.location || c.assignedLocations || c.dynamicData?.assignedCircle || c.dynamicData?.circle || c.dynamicData?.assignedCircles || '';
-                      return locs.includes(formData.circle);
+                      
+                      const targetLocs = [formData.circle, formData.subCircle].filter(Boolean).map(l => l.toLowerCase());
+                      let locs = c.location || '';
+                      if (c.assignedLocations && Array.isArray(c.assignedLocations)) locs += ' ' + c.assignedLocations.join(' ');
+                      locs += ' ' + (c.dynamicData?.assignedCircle || c.dynamicData?.circle || c.dynamicData?.assignedCircles || '');
+                      locs = locs.toLowerCase();
+
+                      return targetLocs.some(tl => locs.includes(tl));
                     })
                     .map((c: any) => {
                       const displayName = c.dynamicData?.displayName || c.dynamicData?.companyName || c.dynamicData?.name || c.dynamicData?.vendorName || c._id;

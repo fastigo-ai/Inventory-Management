@@ -60,6 +60,35 @@ export const getWorkOrders = asyncHandler(async (req: AuthRequest, res: Response
       filter.status = status;
     }
   }
+
+  const user = req.user as any;
+  const isAdmin = user?.role?.name === 'Admin' || user?.role?.name === 'Super Admin' || user?.role?.permissions?.includes('*');
+  
+  if (!isAdmin && user?.assignedCircle) {
+    const SUB_STORE_MAP: Record<string, string[]> = {
+      'Solan': ['Solan', 'Kumarhatti', 'Nalagarh'],
+      'Nahan': ['Nahan'],
+      'Rohru': ['Rohru'],
+      'Rampur': ['Rampur'],
+    };
+    const allowedCircles = SUB_STORE_MAP[user.assignedCircle] || [user.assignedCircle];
+    const regexCircles = allowedCircles.map(c => new RegExp(`^${c}$`, 'i'));
+    
+    // If frontend sent a circle, make sure it's allowed
+    if (filter.circle) {
+      const requestedRegex = new RegExp(`^${filter.circle}$`, 'i');
+      const isAllowed = allowedCircles.some(c => c.toLowerCase() === (filter.circle as string).toLowerCase());
+      if (!isAllowed) {
+        return res.status(403).json(new ApiResponse(403, null, 'Forbidden: Cannot access work orders for this circle.'));
+      }
+      filter.circle = requestedRegex;
+    } else {
+      filter.circle = { $in: regexCircles };
+    }
+  } else if (filter.circle) {
+     filter.circle = new RegExp(`^${filter.circle}$`, 'i');
+  }
+
   if (search) {
     const searchStr = String(search);
     if (/^\d+$/.test(searchStr)) {

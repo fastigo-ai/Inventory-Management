@@ -38,6 +38,8 @@ import rateLimit from 'express-rate-limit';
 
 const app: Express = express();
 
+// Trust proxy for production environment to allow express-rate-limit to read X-Forwarded-For header
+app.set('trust proxy', 1);
 // Global API Rate Limiter
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes

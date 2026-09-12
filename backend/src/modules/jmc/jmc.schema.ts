@@ -26,6 +26,7 @@ export interface IJmcRegister extends Document {
   location: string;
   feeder?: string;
   circle: string;
+  subCircle?: string;
   division: string;
   subDivision: string;
   subStation?: string;
@@ -67,6 +68,7 @@ const JmcRegisterSchema = new Schema<IJmcRegister>(
     location: { type: String, default: '' },
     feeder: { type: String, default: '' },
     circle: { type: String, default: '' },
+    subCircle: { type: String, default: '' },
     division: { type: String, default: '' },
     subDivision: { type: String, default: '' },
     subStation: { type: String, default: '' },

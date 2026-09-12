@@ -57,6 +57,7 @@ export default function JmcRegisterFormPage() {
     contractorId: "",
     package: user?.assignedPackage || "",
     circle: user?.assignedCircle || "",
+    subCircle: "",
     division: "",
     subDivision: "",
     status: "Approved",
@@ -228,6 +229,7 @@ export default function JmcRegisterFormPage() {
       payload.append('contractorId', formData.contractorId);
       payload.append('package', formData.package);
       payload.append('circle', formData.circle);
+      payload.append('subCircle', formData.subCircle);
       payload.append('division', formData.division);
       payload.append('subDivision', formData.subDivision);
       payload.append('remarks', formData.remarks);
@@ -354,6 +356,20 @@ export default function JmcRegisterFormPage() {
                 <label className="text-xs font-medium text-slate-500 block mb-1">Circle</label>
                 <Input value={formData.circle} readOnly className="bg-slate-50 text-slate-500" placeholder="Auto-filled from your profile" />
               </div>
+              {formData.circle?.toLowerCase() === 'solan' && (
+                <div>
+                  <label className="text-xs font-medium text-slate-500 block mb-1">Sub Circle *</label>
+                  <select 
+                    className="w-full h-9 rounded-md border border-slate-200 px-3 text-sm focus:border-blue-500 focus:ring-blue-500 bg-white"
+                    value={formData.subCircle}
+                    onChange={e => setFormData({...formData, subCircle: e.target.value})}
+                  >
+                    <option value="">Select Sub Circle</option>
+                    <option value="Kumarhatti">Kumarhatti</option>
+                    <option value="Nalagarh">Nalagarh</option>
+                  </select>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-slate-500 block mb-1">Division</label>

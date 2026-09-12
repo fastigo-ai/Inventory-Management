@@ -63,6 +63,7 @@ export const exportJmcExcel = asyncHandler(async (req: Request, res: Response) =
   const contractorRow = ["Name of Contractor", "", "", "", ""];
   // Row 2: Name Of Circle
   const circleRow = ["Name Of Circle :", "", "", "", ""];
+  const subCircleRow = ["Name Of Sub Circle :", "", "", "", ""];
   // Row 3: Name Of Division
   const divRow = ["Name Of Division :", "", "", "", ""];
   // Row 4: Name Of Sub/Division
@@ -85,6 +86,7 @@ export const exportJmcExcel = asyncHandler(async (req: Request, res: Response) =
     const contractorName = jmc.contractorId?.name || jmc.contractorId?.vendorName || jmc.contractorId?.dynamicData?.companyName || jmc.contractorId?.dynamicData?.name || '';
     contractorRow.push(contractorName);
     circleRow.push(jmc.circle || '');
+    subCircleRow.push(jmc.subCircle || '');
     divRow.push(jmc.division || '');
     subDivRow.push(jmc.subDivision || '');
     subStnRow.push(jmc.subStation || '');
@@ -95,7 +97,7 @@ export const exportJmcExcel = asyncHandler(async (req: Request, res: Response) =
     statusRow.push(jmc.status || '');
   });
 
-  wsData.push(contractorRow, circleRow, divRow, subDivRow, subStnRow, feederRow, locRow, drawRow, jmcNoRow, statusRow);
+  wsData.push(contractorRow, circleRow, subCircleRow, divRow, subDivRow, subStnRow, feederRow, locRow, drawRow, jmcNoRow, statusRow);
 
   // Header row
   const headerRow = ["LOA SR NO", "Sched", "Activity", "Description", "Unit"];

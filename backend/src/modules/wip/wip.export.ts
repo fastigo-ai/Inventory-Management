@@ -63,6 +63,7 @@ export const exportWipExcel = asyncHandler(async (req: Request, res: Response) =
   const contractorRow = ["Name of Contractor", "", "", "", ""];
   // Row 2: Name Of Circle
   const circleRow = ["Name Of Circle :", "", "", "", ""];
+  const subCircleRow = ["Name Of Sub Circle :", "", "", "", ""];
   // Row 3: Name Of Division
   const divRow = ["Name Of Division :", "", "", "", ""];
   // Row 4: Name Of Sub/Division
@@ -85,6 +86,7 @@ export const exportWipExcel = asyncHandler(async (req: Request, res: Response) =
     const contractorName = wip.contractorId?.name || wip.contractorId?.vendorName || wip.contractorId?.dynamicData?.companyName || wip.contractorId?.dynamicData?.name || '';
     contractorRow.push(contractorName);
     circleRow.push(wip.circle || '');
+    subCircleRow.push(wip.subCircle || '');
     divRow.push(wip.division || '');
     subDivRow.push(wip.subDivision || '');
     subStnRow.push(wip.subStation || '');
@@ -95,7 +97,7 @@ export const exportWipExcel = asyncHandler(async (req: Request, res: Response) =
     statusRow.push(wip.status || '');
   });
 
-  wsData.push(contractorRow, circleRow, divRow, subDivRow, subStnRow, feederRow, locRow, drawRow, wipNoRow, statusRow);
+  wsData.push(contractorRow, circleRow, subCircleRow, divRow, subDivRow, subStnRow, feederRow, locRow, drawRow, wipNoRow, statusRow);
 
   // Header row
   const headerRow = ["LOA SR NO", "Sched", "Activity", "Description", "Unit"];

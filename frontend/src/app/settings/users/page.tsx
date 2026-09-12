@@ -28,7 +28,8 @@ export default function UsersPage() {
     password: '',
     roleId: '',
     assignedPackage: '',
-    assignedCircle: ''
+    assignedCircle: '',
+    assignedSubcircle: ''
   });
 
   const [editFormData, setEditFormData] = useState({
@@ -39,7 +40,8 @@ export default function UsersPage() {
     password: '',
     roleId: '',
     assignedPackage: '',
-    assignedCircle: ''
+    assignedCircle: '',
+    assignedSubcircle: ''
   });
 
   useEffect(() => {
@@ -69,7 +71,8 @@ export default function UsersPage() {
       password: '', 
       roleId: roles[0]?._id || '', 
       assignedPackage: '', 
-      assignedCircle: '' 
+      assignedCircle: '',
+      assignedSubcircle: ''
     });
     setIsCreateModalOpen(true);
   };
@@ -83,7 +86,8 @@ export default function UsersPage() {
       password: '', // blank by default unless they want to change password
       roleId: user.role?._id || roles[0]?._id || '',
       assignedPackage: user.assignedPackage || '',
-      assignedCircle: user.assignedCircle || ''
+      assignedCircle: user.assignedCircle || '',
+      assignedSubcircle: user.assignedSubcircle || ''
     });
     setIsEditModalOpen(true);
   };
@@ -125,6 +129,7 @@ export default function UsersPage() {
       roleId: editFormData.roleId,
       assignedPackage: editFormData.assignedPackage,
       assignedCircle: editFormData.assignedCircle,
+      assignedSubcircle: editFormData.assignedSubcircle,
       ...(editFormData.password ? { password: editFormData.password } : {})
     };
 
@@ -310,7 +315,7 @@ export default function UsersPage() {
                 <select
                   className="w-full h-10 rounded-md border border-slate-300 px-3 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
                   value={formData.assignedCircle}
-                  onChange={e => setFormData({ ...formData, assignedCircle: e.target.value })}
+                  onChange={e => setFormData({ ...formData, assignedCircle: e.target.value, assignedSubcircle: '' })}
                 >
                   <option value="">Select Circle</option>
                   <option value="Solan">Solan</option>
@@ -320,6 +325,20 @@ export default function UsersPage() {
                   <option value="Shimla">Shimla</option>
                 </select>
               </div>
+              {formData.assignedCircle?.toLowerCase() === 'solan' && (
+                <div>
+                  <label className="text-sm font-medium text-slate-700 block mb-1">Subcircle (Optional)</label>
+                  <select
+                    className="w-full h-10 rounded-md border border-slate-300 px-3 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                    value={formData.assignedSubcircle}
+                    onChange={e => setFormData({ ...formData, assignedSubcircle: e.target.value })}
+                  >
+                    <option value="">All</option>
+                    <option value="Kumarhatti">Kumarhatti</option>
+                    <option value="Nalagarh">Nalagarh</option>
+                  </select>
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -401,7 +420,7 @@ export default function UsersPage() {
                 <select
                   className="w-full h-10 rounded-md border border-slate-300 px-3 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
                   value={editFormData.assignedCircle}
-                  onChange={e => setEditFormData({ ...editFormData, assignedCircle: e.target.value })}
+                  onChange={e => setEditFormData({ ...editFormData, assignedCircle: e.target.value, assignedSubcircle: '' })}
                 >
                   <option value="">Select Circle</option>
                   <option value="SOLAN">SOLAN</option>
@@ -411,6 +430,20 @@ export default function UsersPage() {
                   <option value="SHIMLA">SHIMLA</option>
                 </select>
               </div>
+              {editFormData.assignedCircle?.toLowerCase() === 'solan' && (
+                <div>
+                  <label className="text-sm font-medium text-slate-700 block mb-1">Subcircle (Optional)</label>
+                  <select
+                    className="w-full h-10 rounded-md border border-slate-300 px-3 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                    value={editFormData.assignedSubcircle}
+                    onChange={e => setEditFormData({ ...editFormData, assignedSubcircle: e.target.value })}
+                  >
+                    <option value="">All</option>
+                    <option value="Kumarhatti">Kumarhatti</option>
+                    <option value="Nalagarh">Nalagarh</option>
+                  </select>
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>

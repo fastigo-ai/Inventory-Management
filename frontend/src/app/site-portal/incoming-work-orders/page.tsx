@@ -14,14 +14,18 @@ export default function IncomingWorkOrdersPage() {
   const [selectedCircle, setSelectedCircle] = useState('');
   const [selectedDivision, setSelectedDivision] = useState('');
 
-  const circles = ['Solan', 'Nahan', 'Rampur', 'Rohru'];
+  const circles = ['Solan', 'Kumarhatti', 'Nalagarh', 'Nahan', 'Rampur', 'Rohru'];
 
   const getDivisions = (circle: string) => {
     switch (circle?.toLowerCase()) {
       case 'nahan':
         return ['Nahan', 'Rajgarh', 'Poanta'];
       case 'solan':
-        return ['Solan', 'Nalagarh', 'Baddhi', 'Parwahoo', 'Arki'];
+        return ['Solan', 'Baddhi', 'Parwahoo', 'Arki'];
+      case 'kumarhatti':
+        return ['Kumarhatti'];
+      case 'nalagarh':
+        return ['Nalagarh'];
       default:
         return [];
     }

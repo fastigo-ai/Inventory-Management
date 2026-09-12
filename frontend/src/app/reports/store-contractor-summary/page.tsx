@@ -218,7 +218,7 @@ export default function StoreContractorSummaryPage() {
     doc.save(`Store_Contractor_Summary_${(contractorName || 'All').replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.pdf`);
   };
 
-  const circles = ['Nahan', 'Solan', 'Rampur', 'Rohru'];
+  const circles = ['Nahan', 'Solan', 'Kumarhatti', 'Nalagarh', 'Rampur', 'Rohru'];
   const packages = ['Package 1(S/N)', 'Package 2(R/R)'];
 
   return (

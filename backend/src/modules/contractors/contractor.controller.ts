@@ -624,7 +624,22 @@ export const importContractors = asyncHandler(async (req: Request, res: Response
 });
 
 export const getContractorReturns = asyncHandler(async (req: Request, res: Response) => {
-  const returns = await ContractorReturn.find()
+  const user = (req as any).user;
+  let filter: any = {};
+
+  if (user && user.role?.name === 'Store Manager' && user.assignedCircle) {
+    const SUB_STORE_MAP: Record<string, string[]> = {
+      'Solan': ['Solan', 'Nalagarh', 'Kumarhatti'],
+      'Nahan': ['Nahan'],
+      'Rohru': ['Rohru'],
+      'Rampur': ['Rampur'],
+    };
+    const allowedCircles = SUB_STORE_MAP[user.assignedCircle] || [user.assignedCircle];
+    const regexCircles = allowedCircles.map(c => new RegExp(`^${c}$`, 'i'));
+    filter.circle = { $in: regexCircles };
+  }
+
+  const returns = await ContractorReturn.find(filter)
     .populate('contractorId', 'dynamicData')
     .sort({ createdAt: 1 });
 

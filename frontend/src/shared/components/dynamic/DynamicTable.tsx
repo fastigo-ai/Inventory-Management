@@ -492,6 +492,15 @@ export function DynamicTable({
                     <option value={20}>20</option>
                     <option value={50}>50</option>
                     <option value={100}>100</option>
+                    <option value={250}>250</option>
+                    <option value={450}>450</option>
+                    <option value={550}>550</option>
+                    <option value={650}>650</option>
+                    <option value={1000}>1000</option>
+                    <option value={1500}>1500</option>
+                    <option value={2000}>2000</option>
+                    <option value={2500}>2500</option>
+                    <option value={3000}>3000</option>
                  </select>
                )}
             </div>

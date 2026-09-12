@@ -37,6 +37,13 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
       return;
     }
 
+    // Dynamic Override: Map subcircle to primary circle for this request
+    // This allows the entire backend to securely filter data to the subcircle level
+    // without modifying the database hierarchy or 15+ controller files.
+    if (user.assignedSubcircle) {
+      user.assignedCircle = user.assignedSubcircle;
+    }
+
     req.user = user;
     
     // Attach user to context

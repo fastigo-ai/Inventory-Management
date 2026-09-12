@@ -7,7 +7,7 @@ import { ApiError } from '../../core/utils/ApiError';
 import { ApiResponse } from '../../core/utils/ApiResponse';
 
 export const createUser = asyncHandler(async (req: Request, res: Response) => {
-  const { firstName, lastName, email, password, roleId, assignedPackage, assignedCircle } = req.body;
+  const { firstName, lastName, email, password, roleId, assignedPackage, assignedCircle, assignedSubcircle } = req.body;
 
   const existingUser = await User.findOne({ email });
   if (existingUser) {
@@ -29,7 +29,8 @@ export const createUser = asyncHandler(async (req: Request, res: Response) => {
     password: hashedPassword,
     role: role._id,
     assignedPackage,
-    assignedCircle
+    assignedCircle,
+    assignedSubcircle
   });
 
   const userResponse = user.toJSON();
@@ -65,7 +66,7 @@ export const updateUserRole = asyncHandler(async (req: Request, res: Response) =
 
 export const updateUser = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { firstName, lastName, email, password, roleId, assignedPackage, assignedCircle } = req.body;
+  const { firstName, lastName, email, password, roleId, assignedPackage, assignedCircle, assignedSubcircle } = req.body;
 
   const user = await User.findById(id);
   if (!user) {
@@ -94,6 +95,7 @@ export const updateUser = asyncHandler(async (req: Request, res: Response) => {
   // Allow setting package/circle to empty string/null/undefined
   user.assignedPackage = assignedPackage;
   user.assignedCircle = assignedCircle;
+  user.assignedSubcircle = assignedSubcircle;
 
   if (password) {
     const salt = await bcrypt.genSalt(10);

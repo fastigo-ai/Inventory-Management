@@ -658,6 +658,7 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
             await new Promise(r => setTimeout(r, 10)); // flush
           }
           
+          let savedCount = 0;
           for (const doc of sheetWipsToCreate) {
              if (doc.isUpdate) {
                 const { isUpdate, wipNumber, ...updateData } = doc;
@@ -686,6 +687,15 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
                     }
                   }
                 }
+             }
+             
+             savedCount++;
+             if (savedCount % 10 === 0 && clientId) {
+               sseService.sendEvent(clientId, {
+                 stage: 'inserting',
+                 progress: 80 + Math.floor((savedCount / sheetWipsToCreate.length) * 19),
+                 message: `Saving/Updating ${savedCount} of ${sheetWipsToCreate.length} WIP records...`
+               });
              }
           }
           totalSaved += sheetWipsToCreate.length;

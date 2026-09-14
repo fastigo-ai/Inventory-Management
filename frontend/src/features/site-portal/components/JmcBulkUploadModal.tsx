@@ -168,6 +168,7 @@ export function JmcBulkUploadModal({ open, onOpenChange, onSuccess }: Props) {
                     <span className="font-medium">{item.description}</span>
                     {item.circle && <span className="text-red-500"> (Circle: {item.circle})</span>}
                     {item.sheet && <span className="text-red-400"> — Sheet: {item.sheet}</span>}
+                    {item.row && <span className="text-red-400">, Row: {item.row}</span>}
                   </li>
                 ))}
               </ul>

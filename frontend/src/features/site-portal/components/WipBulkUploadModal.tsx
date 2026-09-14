@@ -17,6 +17,8 @@ export function WipBulkUploadModal({ open, onOpenChange, onSuccess }: Props) {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
   const [result, setResult] = useState<any>(null);
+
+  const [missingItems, setMissingItems] = useState<any[]>([]);
   const [stageMessage, setStageMessage] = useState<string>('');
 
   const handleUpload = async () => {
@@ -27,6 +29,7 @@ export function WipBulkUploadModal({ open, onOpenChange, onSuccess }: Props) {
       setProgress(0);
       setError('');
       setResult(null);
+      setMissingItems([]);
 
       const clientId = Math.random().toString(36).substring(2, 15);
       const formData = new FormData();
@@ -72,7 +75,13 @@ export function WipBulkUploadModal({ open, onOpenChange, onSuccess }: Props) {
         onSuccess(); // Still refresh list for saved records
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Error uploading files');
+      const responseData = err.response?.data;
+      if (responseData?.data?.missingItems?.length > 0) {
+        setMissingItems(responseData.data.missingItems);
+        setError(responseData.message || 'Import rejected due to missing items.');
+      } else {
+        setError(responseData?.message || 'Error uploading files');
+      }
       setStatus('idle');
       setProgress(0);
     }
@@ -125,7 +134,24 @@ export function WipBulkUploadModal({ open, onOpenChange, onSuccess }: Props) {
             </div>
           )}
 
-          {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-md">{error}</div>}
+          {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-md border border-red-100">{error}</div>}
+
+          {missingItems.length > 0 && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-md space-y-2">
+              <p className="text-sm font-semibold text-red-700">❌ Items not found in Master Item List ({missingItems.length}):</p>
+              <p className="text-xs text-red-600">Please add these items to the Item Master first, then re-import.</p>
+              <ul className="list-disc pl-4 space-y-1 max-h-40 overflow-y-auto text-xs text-red-700">
+                {missingItems.map((item: any, i: number) => (
+                  <li key={i}>
+                    <span className="font-medium">{item.description}</span>
+                    {item.circle && <span className="text-red-500"> (Circle: {item.circle})</span>}
+                    {item.sheet && <span className="text-red-400"> — Sheet: {item.sheet}</span>}
+                    {item.row && <span className="text-red-400">, Row: {item.row}</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           
           {result && status === 'complete' && (
             <div className="p-3 bg-blue-50 border border-blue-100 text-blue-800 text-sm rounded-md space-y-2">

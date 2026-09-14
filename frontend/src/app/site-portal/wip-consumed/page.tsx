@@ -28,11 +28,12 @@ export default function WipRegisterPage() {
   
   const [locationFilter, setLocationFilter] = useState('');
   const [feederFilter, setFeederFilter] = useState('');
+  const [divisionFilter, setDivisionFilter] = useState('');
   const [subDivisionFilter, setSubDivisionFilter] = useState('');
   const [subStationFilter, setSubStationFilter] = useState('');
 
   const [debouncedFilters, setDebouncedFilters] = useState({
-    location: '', feeder: '', subDivision: '', subStation: ''
+    location: '', feeder: '', division: '', subDivision: '', subStation: ''
   });
 
   const [pageSize, setPageSize] = useState(30);
@@ -47,13 +48,14 @@ export default function WipRegisterPage() {
       setDebouncedFilters({
         location: locationFilter,
         feeder: feederFilter,
+        division: divisionFilter,
         subDivision: subDivisionFilter,
         subStation: subStationFilter
       });
       setCurrentPage(1); // Reset to page 1 on new search
     }, 500);
     return () => clearTimeout(handler);
-  }, [searchTerm, locationFilter, feederFilter, subDivisionFilter, subStationFilter]);
+  }, [searchTerm, locationFilter, feederFilter, divisionFilter, subDivisionFilter, subStationFilter]);
 
   useEffect(() => {
     fetchContractors();
@@ -85,6 +87,7 @@ export default function WipRegisterPage() {
       if (endDate) params.endDate = endDate;
       if (debouncedFilters.location) params.location = debouncedFilters.location;
       if (debouncedFilters.feeder) params.feeder = debouncedFilters.feeder;
+      if (debouncedFilters.division) params.division = debouncedFilters.division;
       if (debouncedFilters.subDivision) params.subDivision = debouncedFilters.subDivision;
       if (debouncedFilters.subStation) params.subStation = debouncedFilters.subStation;
 
@@ -212,6 +215,13 @@ export default function WipRegisterPage() {
             placeholder="Feeder..." 
             value={feederFilter} 
             onChange={(e) => setFeederFilter(e.target.value)}
+            className="h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm w-[130px]"
+          />
+          <input 
+            type="text" 
+            placeholder="Division..." 
+            value={divisionFilter} 
+            onChange={(e) => setDivisionFilter(e.target.value)}
             className="h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm w-[130px]"
           />
           <input 

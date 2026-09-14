@@ -25,6 +25,16 @@ export default function WipRegisterPage() {
   // Server-side Pagination & Search state
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [locationFilter, setLocationFilter] = useState('');
+  const [feederFilter, setFeederFilter] = useState('');
+  const [divisionFilter, setDivisionFilter] = useState('');
+  const [subDivisionFilter, setSubDivisionFilter] = useState('');
+  const [subStationFilter, setSubStationFilter] = useState('');
+
+  const [debouncedFilters, setDebouncedFilters] = useState({
+    location: '', feeder: '', division: '', subDivision: '', subStation: ''
+  });
+
   const [pageSize, setPageSize] = useState(30);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -34,10 +44,17 @@ export default function WipRegisterPage() {
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
+      setDebouncedFilters({
+        location: locationFilter,
+        feeder: feederFilter,
+        division: divisionFilter,
+        subDivision: subDivisionFilter,
+        subStation: subStationFilter
+      });
       setCurrentPage(1); // Reset to page 1 on new search
     }, 500);
     return () => clearTimeout(handler);
-  }, [searchTerm]);
+  }, [searchTerm, locationFilter, feederFilter, divisionFilter, subDivisionFilter, subStationFilter]);
 
   useEffect(() => {
     fetchContractors();
@@ -45,7 +62,7 @@ export default function WipRegisterPage() {
 
   useEffect(() => {
     fetchWips();
-  }, [selectedContractor, startDate, endDate, currentPage, pageSize, debouncedSearchTerm]);
+  }, [selectedContractor, startDate, endDate, currentPage, pageSize, debouncedSearchTerm, debouncedFilters]);
 
   const fetchContractors = async () => {
     try {
@@ -67,6 +84,11 @@ export default function WipRegisterPage() {
       if (selectedContractor !== 'All') params.contractorId = selectedContractor;
       if (startDate) params.startDate = startDate;
       if (endDate) params.endDate = endDate;
+      if (debouncedFilters.location) params.location = debouncedFilters.location;
+      if (debouncedFilters.feeder) params.feeder = debouncedFilters.feeder;
+      if (debouncedFilters.division) params.division = debouncedFilters.division;
+      if (debouncedFilters.subDivision) params.subDivision = debouncedFilters.subDivision;
+      if (debouncedFilters.subStation) params.subStation = debouncedFilters.subStation;
 
       const res = await getWipRequireds(params);
       const payload = res.data?.data || {};
@@ -199,6 +221,41 @@ export default function WipRegisterPage() {
               ))}
             </select>
           )}
+          <input 
+            type="text" 
+            placeholder="Location..." 
+            value={locationFilter} 
+            onChange={(e) => setLocationFilter(e.target.value)}
+            className="h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm w-[130px]"
+          />
+          <input 
+            type="text" 
+            placeholder="Feeder..." 
+            value={feederFilter} 
+            onChange={(e) => setFeederFilter(e.target.value)}
+            className="h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm w-[130px]"
+          />
+          <input 
+            type="text" 
+            placeholder="Division..." 
+            value={divisionFilter} 
+            onChange={(e) => setDivisionFilter(e.target.value)}
+            className="h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm w-[130px]"
+          />
+          <input 
+            type="text" 
+            placeholder="SubDivision..." 
+            value={subDivisionFilter} 
+            onChange={(e) => setSubDivisionFilter(e.target.value)}
+            className="h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm w-[130px]"
+          />
+          <input 
+            type="text" 
+            placeholder="SubStation..." 
+            value={subStationFilter} 
+            onChange={(e) => setSubStationFilter(e.target.value)}
+            className="h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm w-[130px]"
+          />
           <div className="flex-1" />
           <Button variant="outline" onClick={exportData} disabled={isExporting} className="bg-red-50 text-red-600 border-red-200 hover:bg-red-100 rounded-lg shadow-sm whitespace-nowrap font-semibold">
             {isExporting ? 'Exporting...' : <><Download className="mr-2 h-4 w-4" /> Export Data

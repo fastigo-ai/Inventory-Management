@@ -43,6 +43,7 @@ export default function SiteContractorSummaryPage() {
   // Table & Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const [hideZero, setHideZero] = useState(false);
+  const [viewMode, setViewMode] = useState<'item' | 'activity'>('item');
 
   useEffect(() => {
     const fetchInitial = async () => {
@@ -111,6 +112,41 @@ export default function SiteContractorSummaryPage() {
       return true;
     });
   }, [rawItems, searchQuery, hideZero]);
+
+  const displayData = useMemo(() => {
+    if (viewMode === 'item') return filteredData;
+    
+    // Group by Activity
+    const activityMap = new Map<string, any>();
+    filteredData.forEach(row => {
+      const act = (row.activity || 'Uncategorized').trim();
+      if (!activityMap.has(act)) {
+        activityMap.set(act, {
+          activity: act,
+          jmcDone: 0,
+          wipConsumed: 0,
+          wipRequired: 0,
+          totalWip: 0,
+          totalIwipJmc: 0,
+          totalIssued: 0,
+          totalReturned: 0,
+          todayTotalBalance: 0,
+          finalBalQty: 0
+        });
+      }
+      const agg = activityMap.get(act);
+      agg.jmcDone += (row.jmcDone || 0);
+      agg.wipConsumed += (row.wipConsumed || 0);
+      agg.wipRequired += (row.wipRequired || 0);
+      agg.totalWip += (row.totalWip || 0);
+      agg.totalIwipJmc += (row.totalIwipJmc || 0);
+      agg.totalIssued += (row.totalIssued || 0);
+      agg.totalReturned += (row.totalReturned || 0);
+      agg.todayTotalBalance += (row.todayTotalBalance || 0);
+      agg.finalBalQty += (row.finalBalQty || 0);
+    });
+    return Array.from(activityMap.values()).sort((a, b) => a.activity.localeCompare(b.activity));
+  }, [filteredData, viewMode]);
 
   // Calculate totals for KPI cards
   const totals = useMemo(() => {
@@ -188,14 +224,22 @@ export default function SiteContractorSummaryPage() {
   };
 
   const exportCsv = () => {
-    if (!filteredData.length) return;
-    const headers = [
-      'Temp Code', 'Item Name', 'JMC Done', 'WIP Consumed', 'WIP To Be Required',
+    if (!displayData.length) return;
+    const headers = viewMode === 'item' ? [
+      'Temp Code', 'Item Name', 'Activity', 'JMC Done', 'WIP Consumed', 'WIP To Be Required',
+      'Total WIP', 'Total IWIP+JMC Qty', 'Total Issued from Store', 'Return',
+      'Today Total Balance', 'Final Bal Qty as per BOM'
+    ] : [
+      'Activity', 'JMC Done', 'WIP Consumed', 'WIP To Be Required',
       'Total WIP', 'Total IWIP+JMC Qty', 'Total Issued from Store', 'Return',
       'Today Total Balance', 'Final Bal Qty as per BOM'
     ];
-    const rows = filteredData.map(r => [
-      `"${r.tempCode || ''}"`, `"${(r.itemName || '').replace(/"/g, '""')}"`, r.jmcDone || 0, r.wipConsumed || 0, r.wipRequired || 0,
+    const rows = displayData.map(r => viewMode === 'item' ? [
+      `"${r.tempCode || ''}"`, `"${(r.itemName || '').replace(/"/g, '""')}"`, `"${r.activity || ''}"`, r.jmcDone || 0, r.wipConsumed || 0, r.wipRequired || 0,
+      r.totalWip || 0, r.totalIwipJmc || 0, r.totalIssued || 0, r.totalReturned || 0,
+      r.todayTotalBalance || 0, r.finalBalQty || 0
+    ] : [
+      `"${r.activity || ''}"`, r.jmcDone || 0, r.wipConsumed || 0, r.wipRequired || 0,
       r.totalWip || 0, r.totalIwipJmc || 0, r.totalIssued || 0, r.totalReturned || 0,
       r.todayTotalBalance || 0, r.finalBalQty || 0
     ]);
@@ -239,7 +283,7 @@ export default function SiteContractorSummaryPage() {
 
               <button
                 onClick={exportCsv}
-                disabled={isLoading || !filteredData.length}
+                disabled={isLoading || !displayData.length}
                 className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 rounded-lg shadow-xs transition-all disabled:opacity-50 cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" />
@@ -413,6 +457,23 @@ export default function SiteContractorSummaryPage() {
 
             {/* Table Search & Live Filters Bar */}
             <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <div className="inline-flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+                  <button 
+                    onClick={() => setViewMode('item')}
+                    className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${viewMode === 'item' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    By Item
+                  </button>
+                  <button 
+                    onClick={() => setViewMode('activity')}
+                    className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${viewMode === 'activity' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    By Activity
+                  </button>
+                </div>
+              </div>
+
               <div className="relative w-full md:w-80">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                 <input 
@@ -444,7 +505,7 @@ export default function SiteContractorSummaryPage() {
                 </label>
 
                 <div className="text-xs text-slate-500 border-l border-slate-200 pl-4 font-medium">
-                  Showing <span className="font-semibold text-slate-800">{filteredData.length}</span> of <span className="font-semibold text-slate-800">{rawItems.length}</span> items
+                  Showing <span className="font-semibold text-slate-800">{displayData.length}</span> items
                 </div>
               </div>
             </div>
@@ -479,8 +540,15 @@ export default function SiteContractorSummaryPage() {
               <table className="w-full text-xs text-left border-collapse min-w-[1280px]">
                 <thead>
                   <tr className="bg-slate-100/80 border-b border-slate-200 text-slate-700 font-semibold uppercase tracking-wider">
-                    <th className="p-3 border-r border-slate-200/60 w-24">Temp Code</th>
-                    <th className="p-3 border-r border-slate-200/60 min-w-[220px]">Item Description</th>
+                    {viewMode === 'item' ? (
+                      <>
+                        <th className="p-3 border-r border-slate-200/60 w-24">Temp Code</th>
+                        <th className="p-3 border-r border-slate-200/60 min-w-[220px]">Item Description</th>
+                        <th className="p-3 border-r border-slate-200/60 min-w-[120px]">Activity</th>
+                      </>
+                    ) : (
+                      <th className="p-3 border-r border-slate-200/60 min-w-[220px]">Activity</th>
+                    )}
                     <th className="p-3 border-r border-slate-200/60 text-right w-24 bg-emerald-50/50 text-emerald-900">JMC Done</th>
                     <th className="p-3 border-r border-slate-200/60 text-right w-28 bg-purple-50/40 text-purple-900">WIP Consumed</th>
                     <th className="p-3 border-r border-slate-200/60 text-right w-28 bg-purple-50/40 text-purple-900">WIP Required</th>
@@ -490,20 +558,33 @@ export default function SiteContractorSummaryPage() {
                     <th className="p-3 border-r border-slate-200/60 text-right w-24 bg-amber-50/50 text-amber-900">Returned</th>
                     <th className="p-3 border-r border-slate-200/60 text-right w-32 bg-indigo-100/70 text-indigo-950 font-bold">Store Balance</th>
                     <th className="p-3 border-r border-slate-200/60 text-right w-28 font-bold">Final Bal (BOM)</th>
-                    <th className="p-3 text-center min-w-[160px]">Action Required</th>
+                    {viewMode === 'item' && (
+                      <th className="p-3 text-center min-w-[160px]">Action Required</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200/70 text-slate-700">
-                  {filteredData.map((row, i) => {
+                  {displayData.map((row, i) => {
                     const isNeg = (row.finalBalQty || 0) < 0;
                     return (
                       <tr key={i} className="hover:bg-indigo-50/30 transition-colors">
-                        <td className="p-3 font-mono font-semibold text-slate-900 border-r border-slate-200/50">
-                          {row.tempCode || '-'}
-                        </td>
-                        <td className="p-3 border-r border-slate-200/50 font-medium text-slate-800">
-                          {row.itemName}
-                        </td>
+                        {viewMode === 'item' ? (
+                          <>
+                            <td className="p-3 font-mono font-semibold text-slate-900 border-r border-slate-200/50">
+                              {row.tempCode || '-'}
+                            </td>
+                            <td className="p-3 border-r border-slate-200/50 font-medium text-slate-800">
+                              {row.itemName}
+                            </td>
+                            <td className="p-3 border-r border-slate-200/50 text-slate-600">
+                              {row.activity || '-'}
+                            </td>
+                          </>
+                        ) : (
+                          <td className="p-3 border-r border-slate-200/50 font-semibold text-slate-800">
+                            {row.activity}
+                          </td>
+                        )}
                         <td className="p-3 text-right font-mono border-r border-slate-200/50 bg-emerald-50/20 text-emerald-900">
                           {(row.jmcDone || 0).toLocaleString()}
                         </td>
@@ -533,25 +614,27 @@ export default function SiteContractorSummaryPage() {
                             {(row.finalBalQty || 0).toLocaleString()}
                           </span>
                         </td>
-                        <td className="p-2 text-center">
-                          <select
-                            className="w-full text-xs py-1 px-2 bg-white border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-2xs cursor-pointer"
-                            onChange={(e) => handleActionChange(e.target.value, row)}
-                            defaultValue=""
-                          >
-                            <option value="" disabled>Select Action</option>
-                            <option value="demand-issue">1. Demand for Issue Qty</option>
-                            <option value="demand-return">2. Demand to Return Qty</option>
-                            <option value="nil">3. NO Balance - NIL</option>
-                          </select>
-                        </td>
+                        {viewMode === 'item' && (
+                          <td className="p-2 text-center">
+                            <select
+                              className="w-full text-xs py-1 px-2 bg-white border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-2xs cursor-pointer"
+                              onChange={(e) => handleActionChange(e.target.value, row)}
+                              defaultValue=""
+                            >
+                              <option value="" disabled>Select Action</option>
+                              <option value="demand-issue">1. Demand for Issue Qty</option>
+                              <option value="demand-return">2. Demand to Return Qty</option>
+                              <option value="nil">3. NO Balance - NIL</option>
+                            </select>
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
                 </tbody>
                 <tfoot>
                   <tr className="bg-slate-900 text-white font-bold text-xs border-t-2 border-slate-700">
-                    <td colSpan={2} className="p-3.5 uppercase tracking-wider text-slate-200">
+                    <td colSpan={viewMode === 'item' ? 3 : 1} className="p-3.5 uppercase tracking-wider text-slate-200">
                       Total Summary
                     </td>
                     <td className="p-3.5 text-right font-mono text-emerald-300">

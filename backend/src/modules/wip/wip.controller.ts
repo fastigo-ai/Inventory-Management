@@ -115,6 +115,7 @@ export const getWips = asyncHandler(async (req: Request, res: Response) => {
 
   if (req.query.location) filter.location = { $regex: new RegExp(req.query.location as string, 'i') };
   if (req.query.feeder) filter.feeder = { $regex: new RegExp(req.query.feeder as string, 'i') };
+  if (req.query.division) filter.division = { $regex: new RegExp(req.query.division as string, 'i') };
   if (req.query.subDivision) filter.subDivision = { $regex: new RegExp(req.query.subDivision as string, 'i') };
   if (req.query.subStation) filter.subStation = { $regex: new RegExp(req.query.subStation as string, 'i') };
 
@@ -396,11 +397,96 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
           }
         }
 
+        const globalMeta: any = {};
+        for (const [rIdxStr, field] of Object.entries(metaRows)) {
+          const rIdx = Number(rIdxStr);
+          const rowData = rows[rIdx];
+          let foundLabel = false;
+          let val = null;
+          for (let i = 0; i < rowData.length; i++) {
+            const cell = rowData[i];
+            if (cell !== null && cell !== undefined && String(cell).trim() !== '') {
+              const strCell = String(cell).trim();
+              if (!foundLabel) {
+                foundLabel = true;
+                if (strCell.includes(':')) {
+                  const parts = strCell.split(':');
+                  if (parts.length > 1 && parts[1].trim() !== '') {
+                    val = parts.slice(1).join(':').trim();
+                    break;
+                  }
+                } else {
+                  const lower = strCell.toLowerCase();
+                  if (field === 'Contractor' && lower.includes('agency')) {
+                     const potentialVal = strCell.substring(lower.indexOf('agency') + 6).replace(/^[^a-zA-Z0-9]+/, '').trim();
+                     if (potentialVal) { val = potentialVal; break; }
+                  } else if (field === 'Contractor' && lower.includes('contractor')) {
+                     const potentialVal = strCell.substring(lower.indexOf('contractor') + 10).replace(/^[^a-zA-Z0-9]+/, '').trim();
+                     if (potentialVal) { val = potentialVal; break; }
+                  } else if (field === 'Circle' && lower.includes('circle')) {
+                     const potentialVal = strCell.substring(lower.indexOf('circle') + 6).replace(/^[^a-zA-Z0-9]+/, '').trim();
+                     if (potentialVal) { val = potentialVal; break; }
+                  }
+                }
+              } else {
+                val = cell;
+                break;
+              }
+            }
+          }
+          globalMeta[field] = val;
+        }
+
+        // AGGRESSIVE FALLBACK for Contractor
+        if (!globalMeta['Contractor']) {
+          for (let r = 0; r < Math.min(30, rows.length); r++) {
+            const row = rows[r];
+            if (!row) continue;
+            for (let c = 0; c < row.length; c++) {
+              if (row[c] && typeof row[c] === 'string') {
+                const norm = normLabel(row[c]);
+                if (norm.includes('contractor') || norm.includes('agency')) {
+                  // Try inline colon split
+                  if (row[c].includes(':')) {
+                    const parts = row[c].split(':');
+                    if (parts.length > 1 && parts[1].trim()) {
+                      globalMeta['Contractor'] = parts.slice(1).join(':').trim();
+                      break;
+                    }
+                  }
+                  // Scan right for value
+                  for (let scanC = c + 1; scanC < row.length; scanC++) {
+                    if (row[scanC] && String(row[scanC]).trim()) {
+                      globalMeta['Contractor'] = String(row[scanC]).trim();
+                      break;
+                    }
+                  }
+                }
+              }
+              if (globalMeta['Contractor']) break;
+            }
+            if (globalMeta['Contractor']) break;
+          }
+        }
+
         const siteMeta: Record<number, any> = {};
         for (const c of siteCols) {
-          const d: any = {};
-          for (const [rIdx, field] of Object.entries(metaRows)) {
-            d[field] = rows[Number(rIdx)][c];
+          const d: any = { ...globalMeta };
+          for (const [rIdxStr, field] of Object.entries(metaRows)) {
+            const rIdx = Number(rIdxStr);
+            let cellVal = rows[rIdx][c];
+            if (cellVal === null || cellVal === undefined || String(cellVal).trim() === '') {
+              for (let left = c - 1; left >= startSiteCol; left--) {
+                const leftVal = rows[rIdx][left];
+                if (leftVal !== null && leftVal !== undefined && String(leftVal).trim() !== '') {
+                  cellVal = leftVal;
+                  break;
+                }
+              }
+            }
+            if (cellVal !== null && cellVal !== undefined && String(cellVal).trim() !== '') {
+              d[field] = cellVal;
+            }
           }
           d.Status = rows[headerRowIdx][c];
           siteMeta[c] = d;
@@ -441,7 +527,7 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
             if (!isNaN(numQty)) {
               originalSum += numQty;
               recordsBySite[c].push({
-                loa, tempCode: tempCodeVal, sched, activity: activity || currentActivityGroup, description: desc || activity, unit, quantity: numQty
+                loa, tempCode: tempCodeVal, sched, activity: activity || currentActivityGroup, description: desc || activity, unit, quantity: numQty, excelRow: r + 1
               });
             }
           }
@@ -473,6 +559,14 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
           let contractorId = null;
           const contractorNameStr = meta.Contractor ? String(meta.Contractor) : "";
           const uploadedCircle = (user as any).assignedCircle || meta.Circle || '';
+
+          console.log(`=== DEBUG WIP PARSER ===`);
+          console.log(`Sheet: ${sheetName}, Column: ${c} (Site: ${meta.Location || meta.SubStation || meta.Division || meta.Circle})`);
+          console.log(`globalMeta:`, globalMeta);
+          console.log(`siteMeta[c]:`, meta);
+          console.log(`contractorNameStr evaluated to: '${contractorNameStr}'`);
+          console.log(`contractorNames available:`, contractorNames.length);
+          console.log(`========================`);
           
           if (contractorNameStr && contractorNames.length > 0) {
             const bestMatch = stringSimilarity.findBestMatch(contractorNameStr, contractorNames);
@@ -487,7 +581,8 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
 
           // If still no contractorId, reject the WIP import for this site
           if (!contractorId) {
-            return res.status(400).json(new ApiResponse(400, null, `Validation Error: Contractor '${contractorNameStr || 'Unknown'}' not found in the database. Please add this contractor first before importing.`));
+            const siteHeader = meta.Location || meta.SubStation || meta.Division || meta.Circle || `Column ${c}`;
+            return res.status(400).json(new ApiResponse(400, null, `Validation Error in sheet '${sheetName}' (Site: ${siteHeader}): Contractor '${contractorNameStr || 'Unknown'}' not found in the database. Please add this contractor first before importing.`));
           }
           
           // Map Items
@@ -541,7 +636,7 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
             }
 
             if (!itemId) {
-              flagged.push({ sourceFile, sheetName, issue: `Item '${sr.description}' with SKU '${sr.loa}' not found in Master Item List for circle '${uploadedCircle}'. Sheet rejected.` });
+              flagged.push({ sourceFile, sheetName, issue: `Item '${sr.description}' with SKU '${sr.loa}' not found in Master Item List for circle '${uploadedCircle}'. Sheet rejected. (Row: ${sr.excelRow})` });
               sheetHasErrors = true;
               break;
             }

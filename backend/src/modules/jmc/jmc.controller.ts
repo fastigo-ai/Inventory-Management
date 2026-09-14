@@ -109,6 +109,7 @@ export const getJmcs = asyncHandler(async (req: Request, res: Response) => {
 
   if (req.query.location) filter.location = { $regex: new RegExp(req.query.location as string, 'i') };
   if (req.query.feeder) filter.feeder = { $regex: new RegExp(req.query.feeder as string, 'i') };
+  if (req.query.division) filter.division = { $regex: new RegExp(req.query.division as string, 'i') };
   if (req.query.subDivision) filter.subDivision = { $regex: new RegExp(req.query.subDivision as string, 'i') };
   if (req.query.subStation) filter.subStation = { $regex: new RegExp(req.query.subStation as string, 'i') };
 
@@ -392,11 +393,64 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
         }
       }
 
+      const globalMeta: any = {};
+      for (const [rIdxStr, field] of Object.entries(metaRows)) {
+        const rIdx = Number(rIdxStr);
+        const rowData = rows[rIdx];
+        let foundLabel = false;
+        let val = null;
+        for (let i = 0; i < rowData.length; i++) {
+          const cell = rowData[i];
+          if (cell !== null && cell !== undefined && String(cell).trim() !== '') {
+            const strCell = String(cell).trim();
+            if (!foundLabel) {
+              foundLabel = true;
+              if (strCell.includes(':')) {
+                const parts = strCell.split(':');
+                if (parts.length > 1 && parts[1].trim() !== '') {
+                  val = parts.slice(1).join(':').trim();
+                  break;
+                }
+              } else {
+                const lower = strCell.toLowerCase();
+                if (field === 'Contractor' && lower.includes('agency')) {
+                   const potentialVal = strCell.substring(lower.indexOf('agency') + 6).replace(/^[^a-zA-Z0-9]+/, '').trim();
+                   if (potentialVal) { val = potentialVal; break; }
+                } else if (field === 'Contractor' && lower.includes('contractor')) {
+                   const potentialVal = strCell.substring(lower.indexOf('contractor') + 10).replace(/^[^a-zA-Z0-9]+/, '').trim();
+                   if (potentialVal) { val = potentialVal; break; }
+                } else if (field === 'Circle' && lower.includes('circle')) {
+                   const potentialVal = strCell.substring(lower.indexOf('circle') + 6).replace(/^[^a-zA-Z0-9]+/, '').trim();
+                   if (potentialVal) { val = potentialVal; break; }
+                }
+              }
+            } else {
+              val = cell;
+              break;
+            }
+          }
+        }
+        globalMeta[field] = val;
+      }
+
       const siteMeta: Record<number, any> = {};
       for (const c of siteCols) {
-        const d: any = {};
-        for (const [rIdx, field] of Object.entries(metaRows)) {
-          d[field] = rows[Number(rIdx)][c];
+        const d: any = { ...globalMeta };
+        for (const [rIdxStr, field] of Object.entries(metaRows)) {
+          const rIdx = Number(rIdxStr);
+          let cellVal = rows[rIdx][c];
+          if (cellVal === null || cellVal === undefined || String(cellVal).trim() === '') {
+            for (let left = c - 1; left >= startSiteCol; left--) {
+              const leftVal = rows[rIdx][left];
+              if (leftVal !== null && leftVal !== undefined && String(leftVal).trim() !== '') {
+                cellVal = leftVal;
+                break;
+              }
+            }
+          }
+          if (cellVal !== null && cellVal !== undefined && String(cellVal).trim() !== '') {
+            d[field] = cellVal;
+          }
         }
         d.Status = rows[headerRowIdx][c];
         siteMeta[c] = d;
@@ -517,7 +571,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
   // Helper to yield event loop
   const yieldLoop = () => new Promise(resolve => setImmediate(resolve));
 
-  const validationErrors: { sourceFile: string; sheetName: string; description: string; circle: string }[] = [];
+  const validationErrors: { sourceFile: string; sheetName: string; description: string; circle: string; row?: number }[] = [];
   const parsedSheets: any[] = [];
   const totalFiles = req.files ? (req.files as any[]).length : 0;
   let fileIdx = 0;
@@ -570,7 +624,8 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
                 sourceFile,
                 sheetName,
                 description: sr.description || sr.activity || 'Unknown item',
-                circle: uploadedCircle
+                circle: uploadedCircle,
+                row: sr.excelRow
               });
             }
           }
@@ -598,7 +653,8 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
           file: e.sourceFile,
           sheet: e.sheetName,
           description: e.description,
-          circle: e.circle
+          circle: e.circle,
+          row: e.row
         }))
       }
     });
@@ -661,7 +717,8 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
       }
 
       if (!contractorId) {
-        return res.status(400).json(new ApiResponse(400, null, `Validation Error: Contractor '${contractorNameStr || 'Unknown'}' not found in the database. Please add this contractor first before importing.`));
+        const siteHeader = meta.Location || meta.SubStation || meta.Division || meta.Circle || `Column ${c}`;
+        return res.status(400).json(new ApiResponse(400, null, `Validation Error in sheet '${sheetName}' (Site: ${siteHeader}): Contractor '${contractorNameStr || 'Unknown'}' not found in the database. Please add this contractor first before importing.`));
       }
 
       // Build items (all will resolve since pass 1 validated them)

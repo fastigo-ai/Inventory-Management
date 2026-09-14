@@ -95,6 +95,11 @@ export const getWipRequireds = asyncHandler(async (req: Request, res: Response) 
       filter.date.$lte = end;
     }
   }
+  if (req.query.location) filter.location = { $regex: new RegExp(req.query.location as string, 'i') };
+  if (req.query.feeder) filter.feeder = { $regex: new RegExp(req.query.feeder as string, 'i') };
+  if (req.query.division) filter.division = { $regex: new RegExp(req.query.division as string, 'i') };
+  if (req.query.subDivision) filter.subDivision = { $regex: new RegExp(req.query.subDivision as string, 'i') };
+  if (req.query.subStation) filter.subStation = { $regex: new RegExp(req.query.subStation as string, 'i') };
 
   if (search && search.trim() !== '') {
     filter.wipRequiredNumber = { $regex: search, $options: 'i' };
@@ -352,11 +357,64 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
           }
         }
 
+        const globalMeta: any = {};
+        for (const [rIdxStr, field] of Object.entries(metaRows)) {
+          const rIdx = Number(rIdxStr);
+          const rowData = rows[rIdx];
+          let foundLabel = false;
+          let val = null;
+          for (let i = 0; i < rowData.length; i++) {
+            const cell = rowData[i];
+            if (cell !== null && cell !== undefined && String(cell).trim() !== '') {
+              const strCell = String(cell).trim();
+              if (!foundLabel) {
+                foundLabel = true;
+                if (strCell.includes(':')) {
+                  const parts = strCell.split(':');
+                  if (parts.length > 1 && parts[1].trim() !== '') {
+                    val = parts.slice(1).join(':').trim();
+                    break;
+                  }
+                } else {
+                  const lower = strCell.toLowerCase();
+                  if (field === 'Contractor' && lower.includes('agency')) {
+                     const potentialVal = strCell.substring(lower.indexOf('agency') + 6).replace(/^[^a-zA-Z0-9]+/, '').trim();
+                     if (potentialVal) { val = potentialVal; break; }
+                  } else if (field === 'Contractor' && lower.includes('contractor')) {
+                     const potentialVal = strCell.substring(lower.indexOf('contractor') + 10).replace(/^[^a-zA-Z0-9]+/, '').trim();
+                     if (potentialVal) { val = potentialVal; break; }
+                  } else if (field === 'Circle' && lower.includes('circle')) {
+                     const potentialVal = strCell.substring(lower.indexOf('circle') + 6).replace(/^[^a-zA-Z0-9]+/, '').trim();
+                     if (potentialVal) { val = potentialVal; break; }
+                  }
+                }
+              } else {
+                val = cell;
+                break;
+              }
+            }
+          }
+          globalMeta[field] = val;
+        }
+
         const siteMeta: Record<number, any> = {};
         for (const c of siteCols) {
-          const d: any = {};
-          for (const [rIdx, field] of Object.entries(metaRows)) {
-            d[field] = rows[Number(rIdx)][c];
+          const d: any = { ...globalMeta };
+          for (const [rIdxStr, field] of Object.entries(metaRows)) {
+            const rIdx = Number(rIdxStr);
+            let cellVal = rows[rIdx][c];
+            if (cellVal === null || cellVal === undefined || String(cellVal).trim() === '') {
+              for (let left = c - 1; left >= startSiteCol; left--) {
+                const leftVal = rows[rIdx][left];
+                if (leftVal !== null && leftVal !== undefined && String(leftVal).trim() !== '') {
+                  cellVal = leftVal;
+                  break;
+                }
+              }
+            }
+            if (cellVal !== null && cellVal !== undefined && String(cellVal).trim() !== '') {
+              d[field] = cellVal;
+            }
           }
           d.Status = rows[headerRowIdx][c];
           siteMeta[c] = d;
@@ -397,7 +455,7 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
             if (!isNaN(numQty)) {
               originalSum += numQty;
               recordsBySite[c].push({
-                loa, tempCode: tempCodeVal, sched, activity: activity || currentActivityGroup, description: desc || activity, unit, quantity: numQty
+                loa, tempCode: tempCodeVal, sched, activity: activity || currentActivityGroup, description: desc || activity, unit, quantity: numQty, excelRow: r + 1
               });
             }
           }
@@ -440,7 +498,8 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
 
           // If still no contractorId, reject the WIP import for this site
           if (!contractorId) {
-            return res.status(400).json(new ApiResponse(400, null, `Validation Error: Contractor '${contractorNameStr || 'Unknown'}' not found in the database. Please add this contractor first before importing.`));
+            const siteHeader = meta.Location || meta.SubStation || meta.Division || meta.Circle || `Column ${c}`;
+            return res.status(400).json(new ApiResponse(400, null, `Validation Error in sheet '${sheetName}' (Site: ${siteHeader}): Contractor '${contractorNameStr || 'Unknown'}' not found in the database. Please add this contractor first before importing.`));
           }
           
           // Map Items
@@ -482,7 +541,7 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
             }
 
             if (!itemId) {
-              flagged.push({ sourceFile, sheetName, issue: `Item '${sr.description}' with SKU '${sr.loa}' not found in Master Item List for circle '${uploadedCircle}'. Sheet rejected.` });
+              flagged.push({ sourceFile, sheetName, issue: `Item '${sr.description}' with SKU '${sr.loa}' not found in Master Item List for circle '${uploadedCircle}'. Sheet rejected.`, description: sr.description, circle: uploadedCircle, row: sr.excelRow });
               sheetHasErrors = true;
               break;
             }

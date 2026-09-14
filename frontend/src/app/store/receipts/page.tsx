@@ -10,12 +10,13 @@ import {
   getStoreReceiptFilterOptions,
 } from "@/features/store/api/store.api";
 import Papa from "papaparse";
-import { Download, Upload, Lock, Search, FileText, XCircle, ChevronRight, Package, CheckCircle2 } from "lucide-react";
+import { Download, Upload, Lock, Search, FileText, XCircle, ChevronRight, Package, CheckCircle2, Clock } from "lucide-react";
 import { DataTableBottomControls } from "@/shared/components/DataTableControls";
 import { useAuthStore } from "@/shared/store/auth.store";
 import { voidInwardEntry } from "@/features/store/api/store.api";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { formatDistanceToNow, format } from "date-fns";
 
 // Group flat entries array into invoices
 function groupByInvoice(entries: any[]) {
@@ -407,6 +408,12 @@ export default function StoreReceiptsPage() {
                           {group.poNumber !== '-' && (
                             <div className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
                               <FileText className="w-3 h-3" /> PO: {group.poNumber}
+                            </div>
+                          )}
+                          {firstItem?.createdAt && (
+                            <div className="text-[11px] text-slate-400 mt-1.5 flex items-center gap-1 font-medium">
+                              <Clock className="w-3 h-3" />
+                              {formatDistanceToNow(new Date(firstItem.createdAt), { addSuffix: true })} ({format(new Date(firstItem.createdAt), 'MMM d, yyyy')})
                             </div>
                           )}
                         </td>

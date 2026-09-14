@@ -536,6 +536,7 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
 
             let finalTotalLoaQty = 0;
             let finalLoaSrNo = finalLoaSerialNo;
+            let finalUnit = sr.unit || '';
 
             if (matchedItemObj) {
               itemId = matchedItemObj._id;
@@ -544,6 +545,7 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
               finalLoaSrNo = matchedItemObj.dynamicData?.sku || matchedItemObj.dynamicData?.loaSrNo || finalLoaSrNo;
               finalTempCode = matchedItemObj.dynamicData?.tempCode || matchedItemObj.rawItem?.tempCode || finalTempCode;
               finalTotalLoaQty = Number(matchedItemObj.dynamicData?.loaQty || matchedItemObj.dynamicData?.loaQuantity || matchedItemObj.dynamicData?.totalLoaQuantity || matchedItemObj.dynamicData?.qty || matchedItemObj.dynamicData?.quantity || 0);
+              finalUnit = matchedItemObj.dynamicData?.uom || matchedItemObj.dynamicData?.unit || matchedItemObj.uom || matchedItemObj.unit || finalUnit;
             }
 
             if (!itemId) {
@@ -560,7 +562,7 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
               totalLoaQty: finalTotalLoaQty,
               activity: finalActivity,
               description: sr.description || '',
-              unit: sr.unit || '',
+              unit: finalUnit,
               prevQty: 0,
               claimedQty: sr.quantity,
               approvedQty: 0,

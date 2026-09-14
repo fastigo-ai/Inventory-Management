@@ -121,7 +121,7 @@ export const getAssignments = asyncHandler(async (req: Request, res: Response) =
     'Rampur': ['Rampur'],
   };
 
-  if (user && user.role?.name === 'Store Manager') {
+  if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
     if (user.assignedCircle) {
       const allowedCircles = SUB_STORE_MAP[user.assignedCircle] || [user.assignedCircle];
       const regexCircles = allowedCircles.map(c => new RegExp(`^${c}$`, 'i'));
@@ -188,7 +188,7 @@ export const getAssignmentSummary = asyncHandler(async (req: Request, res: Respo
     'Rampur': ['Rampur'],
   };
 
-  if (user && user.role?.name === 'Store Manager') {
+  if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
     if (user.assignedCircle) {
       const allowedCircles = SUB_STORE_MAP[user.assignedCircle] || [user.assignedCircle];
       // Use $in directly without regex for exact matches, much faster
@@ -871,7 +871,7 @@ export const exportContractorAssignments = asyncHandler(async (req: Request, res
     'Rampur': ['Rampur'],
   };
 
-  if (!isAdmin && user && user.role?.name === 'Store Manager') {
+  if (!isAdmin && user) {
     if (user.assignedCircle) {
       const allowedCircles = SUB_STORE_MAP[user.assignedCircle] || [user.assignedCircle];
       const regexCircles = allowedCircles.map(c => new RegExp(`^${c}$`, 'i'));

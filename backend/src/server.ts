@@ -1,6 +1,12 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+import mongoose from 'mongoose';
+import { auditPlugin } from './core/plugins/audit.plugin';
+// Register the audit plugin globally BEFORE any models are loaded
+mongoose.plugin(auditPlugin);
+
+import { loadAuditSettingsCache } from './core/plugins/auditCache';
 import app from './app';
 import connectDB from './core/database';
 import User from './modules/users/user.model';
@@ -19,6 +25,9 @@ process.on('uncaughtException', (err) => {
 
 connectDB()
   .then(async () => {
+    // Load audit settings into memory
+    await loadAuditSettingsCache();
+
     // Auto-seed admin user for production deployments
     try {
       const adminExists = await User.findOne({ email: 'admin@admin.com' });

@@ -1,11 +1,12 @@
 import mongoose, { Schema } from 'mongoose';
 import AuditLog, { AuditAction, IAuditChange } from '../../modules/audit/auditLog.model';
 import { getContext } from '../utils/context';
+import { getAuditSettingsForEntity } from './auditCache';
 
 export interface AuditPluginOptions {
-  entityName: string;
+  entityName?: string; // Optional now, since we can infer it
   ignoredFields?: string[];
-  track?: boolean;
+  track?: boolean; // Can override global settings
 }
 
 const defaultIgnoredFields = ['updatedAt', 'createdAt', '__v', 'password', 'passwordHash', 'refreshToken', 'loginTime', 'lastSeen'];
@@ -17,13 +18,52 @@ const isEqual = (a: any, b: any): boolean => {
   return JSON.stringify(a) === JSON.stringify(b);
 };
 
-export function auditPlugin(schema: Schema, options: AuditPluginOptions) {
-  if (options.track === false) return;
+// Helper to resolve entity name from document or query
+const getEntityName = (docOrQuery: any, options: AuditPluginOptions): string => {
+  if (options?.entityName) return options.entityName;
+  if (docOrQuery?.constructor?.modelName) return docOrQuery.constructor.modelName;
+  if (docOrQuery?.model?.modelName) return docOrQuery.model.modelName;
+  return 'UnknownEntity';
+};
 
-  const entityType = options.entityName;
-  const ignoredFields = [...defaultIgnoredFields, ...(options.ignoredFields || [])];
+// Helper to determine if a field should be tracked based on dynamic settings
+const shouldTrackField = (field: string, entityName: string, options: AuditPluginOptions): boolean => {
+  const settings = getAuditSettingsForEntity(entityName);
+  
+  // If no dynamic settings yet, fallback to default behavior (track all except default ignored)
+  if (!settings) {
+    const ignored = [...defaultIgnoredFields, ...(options.ignoredFields || [])];
+    return !ignored.includes(field) && field !== '_id';
+  }
 
+  // If we have settings, check if the entity is active at all
+  if (!settings.isActive) return false;
+  if (field === '_id') return false;
+
+  const alwaysIgnore = ['password', 'passwordHash', 'refreshToken', '__v'];
+  if (alwaysIgnore.includes(field)) return false;
+
+  if (settings.trackAllFields) {
+    // Track everything EXCEPT ignored fields
+    return !settings.ignoredFields.includes(field);
+  } else {
+    // Track ONLY tracked fields
+    return settings.trackedFields.includes(field);
+  }
+};
+
+const isEntityTracked = (entityName: string, options: AuditPluginOptions): boolean => {
+  if (options.track === false) return false; // Hard override
+  
+  const settings = getAuditSettingsForEntity(entityName);
+  if (!settings) return options.track !== false; // If no DB config, track by default unless explicitly disabled in code
+  
+  return settings.isActive;
+};
+
+export function auditPlugin(schema: Schema, options: AuditPluginOptions = {}) {
   const createLog = async (
+    entityType: string,
     docId: any,
     action: AuditAction,
     changes: IAuditChange[],
@@ -64,6 +104,9 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions) {
 
   // --- SAVE HOOKS ---
   schema.pre('save', async function (this: any) {
+    const entityType = getEntityName(this, options);
+    if (!isEntityTracked(entityType, options)) return;
+
     if (!this.isNew) {
       try {
         const original = await (this.constructor as any).findById(this._id).lean();
@@ -76,15 +119,17 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions) {
   });
 
   schema.post('save', async function (doc: any) {
+    const entityType = getEntityName(doc, options);
+    if (!isEntityTracked(entityType, options)) return;
+
     try {
       const action = doc.$locals?.original ? AuditAction.UPDATE : AuditAction.CREATE;
       const changes: IAuditChange[] = [];
 
       if (action === AuditAction.CREATE) {
-        // Log all fields for create, except ignored
         const obj: Record<string, any> = doc.toObject();
         for (const key of Object.keys(obj)) {
-          if (!ignoredFields.includes(key) && key !== '_id') {
+          if (shouldTrackField(key, entityType, options)) {
             changes.push({ field: key, newValue: obj[key] });
           }
         }
@@ -92,9 +137,8 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions) {
         const original: Record<string, any> = doc.$locals?.original || {};
         const current: Record<string, any> = doc.toObject();
         
-        // Find modified paths (top level for simplicity, deep diff can be added for arrays)
         for (const key of Object.keys(current)) {
-          if (ignoredFields.includes(key) || key === '_id') continue;
+          if (!shouldTrackField(key, entityType, options)) continue;
           
           if (!isEqual(original[key], current[key])) {
             changes.push({
@@ -105,9 +149,8 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions) {
           }
         }
         
-        // Also check if any fields were deleted
         for (const key of Object.keys(original)) {
-          if (ignoredFields.includes(key) || key === '_id') continue;
+          if (!shouldTrackField(key, entityType, options)) continue;
           if (current[key] === undefined && original[key] !== undefined) {
              changes.push({
                field: key,
@@ -118,7 +161,7 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions) {
         }
       }
 
-      await createLog(doc._id, action, changes);
+      await createLog(entityType, doc._id, action, changes);
     } catch (err) {
       console.error('Audit plugin save error:', err);
     }
@@ -126,6 +169,9 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions) {
 
   // --- FIND ONE AND UPDATE HOOKS ---
   schema.pre('findOneAndUpdate', async function (this: any) {
+    const entityType = getEntityName(this, options);
+    if (!isEntityTracked(entityType, options)) return;
+
     try {
       const docToUpdate = await this.model.findOne(this.getQuery()).lean();
       this.$locals = this.$locals || {};
@@ -138,19 +184,21 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions) {
   schema.post('findOneAndUpdate', async function (this: any, doc: any) {
     if (!doc) return;
     
+    const entityType = getEntityName(this, options);
+    if (!isEntityTracked(entityType, options)) return;
+    
     try {
       const original: Record<string, any> = this.$locals?.original || {};
       const current: Record<string, any> = doc.toObject ? doc.toObject() : doc;
       const changes: IAuditChange[] = [];
       
-      // If it's a soft delete
       if (current.isDeleted === true && original.isDeleted !== true) {
-        await createLog(doc._id, AuditAction.DELETE, [{ field: 'isDeleted', oldValue: false, newValue: true }]);
+        await createLog(entityType, doc._id, AuditAction.DELETE, [{ field: 'isDeleted', oldValue: false, newValue: true }]);
         return;
       }
 
       for (const key of Object.keys(current)) {
-        if (ignoredFields.includes(key) || key === '_id') continue;
+        if (!shouldTrackField(key, entityType, options)) continue;
         
         if (!isEqual(original[key], current[key])) {
           changes.push({
@@ -162,7 +210,7 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions) {
       }
 
       for (const key of Object.keys(original)) {
-        if (ignoredFields.includes(key) || key === '_id') continue;
+        if (!shouldTrackField(key, entityType, options)) continue;
         if (current[key] === undefined && original[key] !== undefined) {
            changes.push({
              field: key,
@@ -172,7 +220,7 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions) {
         }
       }
 
-      await createLog(doc._id, AuditAction.UPDATE, changes);
+      await createLog(entityType, doc._id, AuditAction.UPDATE, changes);
     } catch (err) {
       console.error('Audit plugin findOneAndUpdate error:', err);
     }
@@ -180,6 +228,9 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions) {
   
   // --- DELETE HOOKS ---
   schema.pre('findOneAndDelete', async function (this: any) {
+    const entityType = getEntityName(this, options);
+    if (!isEntityTracked(entityType, options)) return;
+
     try {
       const docToDelete = await this.model.findOne(this.getQuery()).lean();
       this.$locals = this.$locals || {};
@@ -191,19 +242,22 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions) {
 
   schema.post('findOneAndDelete', async function (this: any, doc: any) {
     if (!doc) return;
+    const entityType = getEntityName(this, options);
+    if (!isEntityTracked(entityType, options)) return;
+
     try {
-      const original = this.$locals?.original || {};
-      // For hard deletes, maybe we want to log the whole object, or just record DELETE
-      await createLog(doc._id, AuditAction.DELETE, []);
+      await createLog(entityType, doc._id, AuditAction.DELETE, []);
     } catch (err) {
       console.error('Audit plugin findOneAndDelete error:', err);
     }
   });
   
   // Update Many (Bulk Updates)
-  schema.post('updateMany', async function (res: any) {
+  schema.post('updateMany', async function (this: any, res: any) {
+    const entityType = getEntityName(this, options);
+    if (!isEntityTracked(entityType, options)) return;
+
     try {
-       // We can't easily get all updated docs, so we record a bulk action
        if (res.modifiedCount > 0) {
           const ctx = getContext();
           const performedBy = ctx?.userId ? new mongoose.Types.ObjectId(ctx.userId) : undefined;

@@ -177,7 +177,7 @@ export const getDIs = asyncHandler(async (req: Request, res: Response) => {
   if (purchaseOrderId) filter.purchaseOrderId = purchaseOrderId;
   if (status) filter.status = status;
 
-  if (user && user.role?.name === 'Store Manager') {
+  if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
     if (user.assignedPackage) filter.package = user.assignedPackage;
     if (user.assignedCircle) filter.circle = user.assignedCircle;
   }

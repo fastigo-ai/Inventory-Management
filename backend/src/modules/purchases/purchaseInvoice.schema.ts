@@ -206,6 +206,6 @@ purchaseInvoiceSchema.pre('save', function() {
 });
 
 import { auditPlugin } from '../../core/plugins/audit.plugin';
-purchaseInvoiceSchema.plugin(auditPlugin, { entityName: 'PurchaseInvoice', track: true });
+// Removed manual plugin attachment; it is now global
 
 export const PurchaseInvoice = mongoose.models.PurchaseInvoice || mongoose.model<IPurchaseInvoice>('PurchaseInvoice', purchaseInvoiceSchema);

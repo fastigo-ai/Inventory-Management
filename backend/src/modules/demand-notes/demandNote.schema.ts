@@ -121,6 +121,6 @@ const demandNoteSchema = new Schema<IDemandNote>(
 demandNoteSchema.index({ createdAt: -1 });
 
 import { auditPlugin } from '../../core/plugins/audit.plugin';
-demandNoteSchema.plugin(auditPlugin, { entityName: 'DemandNote', track: true });
+// Removed manual plugin attachment; it is now global
 
 export default mongoose.model<IDemandNote>('DemandNote', demandNoteSchema);

@@ -407,7 +407,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
   };
 
   // ——— HELPER: resolve an item ———————————————————————————————————————
-  const resolveItem = (sr: any, uploadedCircle: string): { itemId: any; activity: string; loaSerialNo: string; loaSrNo: string; tempCode: string; totalLoaQty: number } | null => {
+  const resolveItem = (sr: any, uploadedCircle: string): { itemId: any; activity: string; loaSerialNo: string; loaSrNo: string; tempCode: string; totalLoaQty: number; unit: string } | null => {
     let finalActivity = sr.activity || '';
     let finalLoaSerialNo = sr.loa || '';
     
@@ -474,7 +474,8 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
       loaSerialNo: matchedItemObj.dynamicData?.sku || matchedItemObj.dynamicData?.loaSrNo || finalLoaSerialNo,
       loaSrNo: matchedItemObj.dynamicData?.sku || matchedItemObj.dynamicData?.loaSrNo || finalLoaSerialNo,
       tempCode: matchedItemObj.dynamicData?.tempCode || matchedItemObj.rawItem?.tempCode || sr.tempCode || '',
-      totalLoaQty: Number(matchedItemObj.dynamicData?.loaQty || matchedItemObj.dynamicData?.loaQuantity || matchedItemObj.dynamicData?.totalLoaQuantity || matchedItemObj.dynamicData?.qty || matchedItemObj.dynamicData?.quantity || 0)
+      totalLoaQty: Number(matchedItemObj.dynamicData?.loaQty || matchedItemObj.dynamicData?.loaQuantity || matchedItemObj.dynamicData?.totalLoaQuantity || matchedItemObj.dynamicData?.qty || matchedItemObj.dynamicData?.quantity || 0),
+      unit: matchedItemObj.dynamicData?.uom || matchedItemObj.dynamicData?.unit || matchedItemObj.uom || matchedItemObj.unit || sr.unit || ''
     };
   };
 
@@ -596,7 +597,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
           totalLoaQty: resolved.totalLoaQty,
           activity: resolved.activity,
           description: sr.description || '',
-          unit: sr.unit || '',
+          unit: resolved.unit || sr.unit || '',
           prevQty: 0,
           claimedQty: sr.quantity,
           approvedQty: 0,

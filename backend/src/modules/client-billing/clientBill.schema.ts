@@ -107,6 +107,6 @@ const clientBillSchema = new Schema<IClientBill>(
 // We need an index to ensure unique RA Bill Nos per circle/package (or globally depending on business logic)
 clientBillSchema.index({ raBillNo: 1 }, { unique: true });
 
-clientBillSchema.plugin(auditPlugin, { entityName: 'ClientBill', track: true });
+// Removed manual plugin attachment; it is now global
 
 export const ClientBill = mongoose.model<IClientBill>('ClientBill', clientBillSchema);

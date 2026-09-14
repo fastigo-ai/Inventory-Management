@@ -34,6 +34,6 @@ ItemSchema.index({ 'dynamicData.package': 1, isDeleted: 1 });
 ItemSchema.index({ 'dynamicData.tempCode': 1, isDeleted: 1 });
 
 import { auditPlugin } from '../../core/plugins/audit.plugin';
-ItemSchema.plugin(auditPlugin, { entityName: 'Item', track: true });
+// Removed manual plugin attachment; it is now global
 
 export default mongoose.models.Item || mongoose.model<IItem>('Item', ItemSchema);

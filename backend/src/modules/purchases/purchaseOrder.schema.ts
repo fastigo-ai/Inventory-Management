@@ -172,6 +172,6 @@ purchaseOrderSchema.index({ date: -1 });
 purchaseOrderSchema.index({ createdAt: -1 });
 
 import { auditPlugin } from '../../core/plugins/audit.plugin';
-purchaseOrderSchema.plugin(auditPlugin, { entityName: 'PurchaseOrder', track: true });
+// Removed manual plugin attachment; it is now global
 
 export const PurchaseOrder = mongoose.models.PurchaseOrder || mongoose.model<IPurchaseOrder>('PurchaseOrder', purchaseOrderSchema);

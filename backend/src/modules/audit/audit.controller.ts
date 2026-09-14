@@ -4,6 +4,8 @@ import { asyncHandler } from '../../core/utils/asyncHandler';
 import { ApiResponse } from '../../core/utils/ApiResponse';
 import { AuthRequest } from '../../core/middlewares/auth.middleware';
 import mongoose from 'mongoose';
+import AuditSettings from './auditSettings.model';
+import { refreshAuditSettingsCache } from '../../core/plugins/auditCache';
 
 export const getAuditLogs = asyncHandler(async (req: Request, res: Response) => {
   const { entityType, entityId, action, userId, search, startDate, endDate, page: pageQuery, limit: limitQuery } = req.query;
@@ -143,3 +145,47 @@ export const createAuditLog = async (params: {
     console.error('createAuditLog error:', err);
   }
 };
+
+/**
+ * GET /api/audit/settings
+ * Fetches all audit settings and merges them with all registered Mongoose models.
+ */
+export const getAuditSettings = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const settings = await AuditSettings.find({}).lean();
+  
+  // Get all registered models in the system
+  const modelNames = mongoose.modelNames().sort();
+  
+  const mergedSettings = modelNames.map(modelName => {
+    const existing = settings.find(s => s.entityName === modelName);
+    return existing || {
+      entityName: modelName,
+      isActive: false, // Default unconfigured models to false
+      trackAllFields: true,
+      trackedFields: [],
+      ignoredFields: [],
+    };
+  });
+
+  res.status(200).json(new ApiResponse(200, mergedSettings, 'Audit settings fetched successfully'));
+});
+
+/**
+ * PUT /api/audit/settings/:entityName
+ * Upserts audit settings for a specific entity and refreshes the cache.
+ */
+export const updateAuditSettings = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { entityName } = req.params;
+  const { isActive, trackAllFields, trackedFields, ignoredFields } = req.body;
+
+  const updated = await AuditSettings.findOneAndUpdate(
+    { entityName },
+    { isActive, trackAllFields, trackedFields, ignoredFields },
+    { new: true, upsert: true } // Create if doesn't exist
+  );
+
+  // Refresh the in-memory cache so the plugin picks it up immediately
+  await refreshAuditSettingsCache();
+
+  res.status(200).json(new ApiResponse(200, updated, 'Audit settings updated successfully'));
+});

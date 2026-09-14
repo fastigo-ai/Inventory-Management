@@ -68,6 +68,6 @@ const diSchema = new Schema<IDI>(
 diSchema.index({ createdAt: -1 });
 
 import { auditPlugin } from '../../core/plugins/audit.plugin';
-diSchema.plugin(auditPlugin, { entityName: 'DI', track: true });
+// Removed manual plugin attachment; it is now global
 
 export const DI = mongoose.models.DI || mongoose.model<IDI>('DI', diSchema);

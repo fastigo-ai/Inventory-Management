@@ -25,7 +25,7 @@ export const getPendingDIs = asyncHandler(async (req: Request, res: Response) =>
   const user = (req as any).user;
   const filter: any = { status: { $in: ['Active', 'Pending Receipt', 'Received'] } }; // Keeping old statuses temporarily for backward compatibility with existing DB entries
   
-  if (user && user.role?.name === 'Store Manager') {
+  if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
     if (user.assignedPackage) filter.package = user.assignedPackage;
     if (user.assignedCircle) {
       const allowedCircles = expandCircle(user.assignedCircle) || [user.assignedCircle];
@@ -928,7 +928,7 @@ export const getStoreTransfers = asyncHandler(async (req: Request, res: Response
   
   let filter: any = {};
 
-  const storeNameRaw = circle || (user && user.role?.name === 'Store Manager' ? user.assignedCircle : '');
+  const storeNameRaw = circle || (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*') ? user.assignedCircle : '');
   const cleanStoreName = storeNameRaw ? String(storeNameRaw).replace(/store/i, '').trim() : '';
   const expandedStoreNames = expandCircle(cleanStoreName) || [cleanStoreName];
   if (cleanStoreName) {
@@ -1305,7 +1305,7 @@ export const getStoreReceiptFilterOptions = asyncHandler(async (req: Request, re
   const baseFilter: any = { purchaseInvoiceId: { $exists: true } };
 
   // Scope filter to assigned package/circle/subcircle for Store Managers
-  if (user && user.role?.name === 'Store Manager') {
+  if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
     if (user.assignedPackage) {
       const normalizedPkg = user.assignedPackage.replace(/\s+/g, '');
       const regexStr = normalizedPkg.split('').map((char: string) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*');
@@ -1345,7 +1345,7 @@ export const getPendingStoreReceipts = asyncHandler(async (req: Request, res: Re
   
   const filter: any = { status: { $in: ['PENDING_RECEIPT', 'APPROVED'] }, purchaseInvoiceId: { $exists: true } };
   
-  if (user && user.role?.name === 'Store Manager') {
+  if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
     if (user.assignedPackage) {
       const normalizedPkg = user.assignedPackage.replace(/\s+/g, '');
       const regexStr = normalizedPkg.split('').map((char: string) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*');
@@ -1473,7 +1473,7 @@ export const getInwardRegister = asyncHandler(async (req: Request, res: Response
     filter.status = { $in: ['PENDING_RECEIPT', 'APPROVED', 'VERIFIED', 'INWARDED', 'SUBMITTED'] };
   }
   
-  if (user && user.role?.name === 'Store Manager') {
+  if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
     if (user.assignedPackage) {
       const normalizedPkg = user.assignedPackage.replace(/\s+/g, '');
       const regexStr = normalizedPkg.split('').map((char: string) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*');
@@ -2599,7 +2599,7 @@ export const getMhrovs = asyncHandler(async (req: Request, res: Response) => {
   const user = (req as any).user;
   const filter: any = {};
   
-  if (user && user.role?.name === 'Store Manager') {
+  if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
     if (user.assignedPackage) filter.package = user.assignedPackage;
     if (user.assignedCircle) filter.circle = { $in: expandCircle(user.assignedCircle) || [user.assignedCircle] };
   }
@@ -2617,21 +2617,27 @@ export const exportMhrovs = asyncHandler(async (req: Request, res: Response) => 
   const user = (req as any).user;
   const filter: any = {};
   
-  if (user && user.role?.name === 'Store Manager') {
+  if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
     if (user.assignedPackage) filter.package = user.assignedPackage;
     if (user.assignedCircle) filter.circle = { $in: expandCircle(user.assignedCircle) || [user.assignedCircle] };
   }
 
-  const mhrovs = await Mhrov.find(filter).populate("inwardEntries").sort({ createdAt: 1 }).lean();
+  const mhrovs = await Mhrov.find(filter)
+    .populate("inwardEntries")
+    .populate("items.diId")
+    .populate("items.itemId")
+    .sort({ createdAt: 1 })
+    .lean();
 
   const csvData = mhrovs.flatMap(m => {
     if (!m.items || m.items.length === 0) return [];
     return m.items.map(item => {
       let inwardEntry = {} as any;
+      let diDoc = item.diId as any;
+      let itemDoc = item.itemId as any;
+
       if (item.inwardEntryId) {
         inwardEntry = (m.inwardEntries as any[]).find(entry => entry._id.toString() === item.inwardEntryId!.toString()) || {} as any;
-      } else if (item.diId) {
-        inwardEntry = { diRefNo: "N/A" }; // Placeholder, full DI population can be added later if needed
       }
       
       return {
@@ -2640,13 +2646,13 @@ export const exportMhrovs = asyncHandler(async (req: Request, res: Response) => 
         "Status": m.status || '',
         "Package": m.package || '',
         "Circle": m.circle || '',
-        "DI No": inwardEntry.diRefNo || '',
-        "Vendor Name": inwardEntry.vendorName || '',
-        "Invoice No": inwardEntry.invoiceNumber || inwardEntry.inwardId || '',
-        "PO No": inwardEntry.poNumber || '',
-        "Item Name": inwardEntry.itemName || '',
-        "LOA Serial No": inwardEntry.serialNumber || '',
-        "Temp Code": inwardEntry.tempCode || '',
+        "DI No": inwardEntry.diRefNo || diDoc?.diNumber || '',
+        "Vendor Name": inwardEntry.vendorName || diDoc?.vendorName || '',
+        "PI / Invoice No": inwardEntry.invoiceNumber || inwardEntry.inwardId || '',
+        "PO No": inwardEntry.poNumber || diDoc?.poNumber || '',
+        "Item Name": inwardEntry.itemName || itemDoc?.dynamicData?.name || itemDoc?.dynamicData?.description || itemDoc?.name || '',
+        "LOA Serial No": inwardEntry.serialNumber || itemDoc?.dynamicData?.sku || itemDoc?.sku || itemDoc?.dynamicData?.loaSerialNo || '',
+        "Temp Code": inwardEntry.tempCode || itemDoc?.dynamicData?.tempCode || '',
         "MHROV Done Qty": item.mhrovDoneQty || 0
       };
     });
@@ -3160,7 +3166,7 @@ export const getMhrovDashboardData = asyncHandler(async (req: Request, res: Resp
   const filter: any = { status: { $in: ['VERIFIED', 'APPROVED'] } };
   const mhrovFilter: any = {};
   
-  if (user && user.role?.name === 'Store Manager') {
+  if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
     if (user.assignedPackage) {
       filter.package = user.assignedPackage;
       mhrovFilter.package = user.assignedPackage;

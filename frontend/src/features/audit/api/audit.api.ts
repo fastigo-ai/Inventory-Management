@@ -49,3 +49,21 @@ export const getAuditLogs = async (params: {
   const response = await api.get(qs ? `/audit?${qs}` : '/audit');
   return response.data.data;
 };
+
+export interface AuditSetting {
+  entityName: string;
+  isActive: boolean;
+  trackAllFields: boolean;
+  trackedFields: string[];
+  ignoredFields: string[];
+}
+
+export const getAuditSettings = async (): Promise<AuditSetting[]> => {
+  const response = await api.get('/audit/settings');
+  return response.data.data;
+};
+
+export const updateAuditSettings = async (entityName: string, data: Partial<AuditSetting>): Promise<AuditSetting> => {
+  const response = await api.put(`/audit/settings/${entityName}`, data);
+  return response.data.data;
+};

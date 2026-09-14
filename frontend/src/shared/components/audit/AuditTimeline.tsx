@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { getAuditLogs } from '@/features/audit/api/audit.api';
 import { Loader2, User, Clock, FileText, CheckCircle, AlertCircle, Edit, Plus, Trash, RotateCcw } from 'lucide-react';
 import { format, isToday, isYesterday, isThisWeek, parseISO } from 'date-fns';
+import { useAuthStore } from '@/shared/store/auth.store';
 
 interface AuditTimelineProps {
   entityType: string;
@@ -11,6 +12,9 @@ interface AuditTimelineProps {
 }
 
 export function AuditTimeline({ entityType, entityId }: AuditTimelineProps) {
+  const { user } = useAuthStore();
+  const isAdmin = user?.role?.name === 'Admin' || user?.role?.name === 'Super Admin' || user?.role?.permissions?.includes('*');
+
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -18,8 +22,14 @@ export function AuditTimeline({ entityType, entityId }: AuditTimelineProps) {
   const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
-    loadInitialLogs();
-  }, [entityType, entityId]);
+    if (isAdmin) {
+      loadInitialLogs();
+    }
+  }, [entityType, entityId, isAdmin]);
+
+  if (!isAdmin) {
+    return null;
+  }
 
   const loadInitialLogs = async () => {
     setLoading(true);

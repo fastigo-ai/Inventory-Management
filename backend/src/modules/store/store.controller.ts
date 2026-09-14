@@ -1306,7 +1306,7 @@ export const getStoreReceiptFilterOptions = asyncHandler(async (req: Request, re
 
   // Scope filter to assigned package/circle/subcircle for Store Managers
   if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
-    if (user.assignedPackage) {
+    if (user.assignedPackage && user.assignedPackage.trim()) {
       const normalizedPkg = user.assignedPackage.replace(/\s+/g, '');
       const regexStr = normalizedPkg.split('').map((char: string) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*');
       baseFilter.package = { $regex: new RegExp(`^\\s*${regexStr}\\s*$`, 'i') };
@@ -1346,7 +1346,7 @@ export const getPendingStoreReceipts = asyncHandler(async (req: Request, res: Re
   const filter: any = { status: { $in: ['PENDING_RECEIPT', 'APPROVED'] }, purchaseInvoiceId: { $exists: true } };
   
   if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
-    if (user.assignedPackage) {
+    if (user.assignedPackage && user.assignedPackage.trim()) {
       const normalizedPkg = user.assignedPackage.replace(/\s+/g, '');
       const regexStr = normalizedPkg.split('').map((char: string) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*');
       filter.package = { $regex: new RegExp(`^\\s*${regexStr}\\s*$`, 'i') };
@@ -1474,7 +1474,7 @@ export const getInwardRegister = asyncHandler(async (req: Request, res: Response
   }
   
   if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
-    if (user.assignedPackage) {
+    if (user.assignedPackage && user.assignedPackage.trim()) {
       const normalizedPkg = user.assignedPackage.replace(/\s+/g, '');
       const regexStr = normalizedPkg.split('').map((char: string) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*');
       filter.package = { $regex: new RegExp(`^\\s*${regexStr}\\s*$`, 'i') };
@@ -1633,7 +1633,7 @@ export const getInwardEntriesByInvoice = asyncHandler(async (req: Request, res: 
 
   if (!isAdmin) {
     // Store Manager: scope to their assigned circle + subcircle + package (same as getPendingStoreReceipts)
-    if (user.assignedPackage) {
+    if (user.assignedPackage && user.assignedPackage.trim()) {
       const normalizedPkg = user.assignedPackage.replace(/\s+/g, '');
       const regexStr = normalizedPkg.split('').map((char: string) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*');
       filter.package = { $regex: new RegExp(`^\\s*${regexStr}\\s*$`, 'i') };
@@ -1685,7 +1685,7 @@ export const bulkUpdateInwardEntries = asyncHandler(async (req: Request, res: Re
   const allowedSubcircleRegex = (!isAdmin && user.assignedSubcircle)
     ? new RegExp(`^\\s*${user.assignedSubcircle.trim()}\\s*$`, 'i')
     : null;
-  const allowedPackageRegex = (!isAdmin && user.assignedPackage)
+  const allowedPackageRegex = (!isAdmin && user.assignedPackage && user.assignedPackage.trim())
     ? (() => {
         const normalizedPkg = user.assignedPackage.replace(/\s+/g, '');
         const regexStr = normalizedPkg.split('').map((char: string) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*');
@@ -3167,7 +3167,7 @@ export const getMhrovDashboardData = asyncHandler(async (req: Request, res: Resp
   const mhrovFilter: any = {};
   
   if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
-    if (user.assignedPackage) {
+    if (user.assignedPackage && user.assignedPackage.trim()) {
       filter.package = user.assignedPackage;
       mhrovFilter.package = user.assignedPackage;
     }

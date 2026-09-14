@@ -362,6 +362,8 @@ export default function WipRegisterPage() {
               setCurrentPage={setCurrentPage}
               totalPages={totalPages}
               totalItems={totalItems}
+              pageSize={pageSize}
+              setPageSize={setPageSize}
             />
         </div>
       </div>

@@ -284,6 +284,15 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
   // We'll map by item name / description
   const itemNames = allItems.map((i: any) => i.name).filter(Boolean);
 
+  const itemsByLoa = new Map<string, any[]>();
+  for (const item of allItems) {
+    const sku = String(item.dynamicData?.sku || item.dynamicData?.loaSrNo || '').toLowerCase().trim();
+    if (sku) {
+      if (!itemsByLoa.has(sku)) itemsByLoa.set(sku, []);
+      itemsByLoa.get(sku)?.push(item);
+    }
+  }
+
   let { currentCount: initialCount, yearStr } = await getNextWipSequence();
 
   const totalFiles = req.files.length;
@@ -510,19 +519,16 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
             let finalTempCode = sr.tempCode || '';
 
             let matchedItemObj: any = null;
-
-            for (const item of allItems) {
-              const itemCircle = (item.dynamicData?.circle || '').toLowerCase().trim();
-              const sheetCircle = (uploadedCircle || '').toLowerCase().trim();
-              const isCircleMatch = itemCircle === sheetCircle || itemCircle.includes(sheetCircle) || sheetCircle.includes(itemCircle);
-
-              const itemSku = String(item.dynamicData?.sku || item.dynamicData?.loaSrNo || '').toLowerCase().trim();
-              const sheetSku = String(sr.loa || '').toLowerCase().trim();
-              const isSkuMatch = itemSku === sheetSku;
-
-              if (isCircleMatch && isSkuMatch) {
-                matchedItemObj = item;
-                break;
+            const sheetSku = String(sr.loa || '').toLowerCase().trim();
+            const sheetCircle = (uploadedCircle || '').toLowerCase().trim();
+            
+            if (sheetSku) {
+              const matches = itemsByLoa.get(sheetSku);
+              if (matches && matches.length > 0) {
+                matchedItemObj = matches.find((item: any) => {
+                  const itemCircle = (item.dynamicData?.circle || '').toLowerCase().trim();
+                  return itemCircle === sheetCircle || itemCircle.includes(sheetCircle) || sheetCircle.includes(itemCircle);
+                }) || matches[0];
               }
             }
 

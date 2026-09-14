@@ -391,6 +391,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
 
         if (!unit || String(unit).trim() === '') {
           if (desc) currentActivityGroup = String(desc).trim();
+          continue;
         }
 
         for (const c of siteCols) {

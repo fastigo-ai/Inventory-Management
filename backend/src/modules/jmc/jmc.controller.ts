@@ -9,7 +9,7 @@ import * as xlsx from 'xlsx';
 import stringSimilarity from 'string-similarity';
 import mongoose from 'mongoose';
 import cloudinary from '../../core/utils/cloudinary';
-
+import { sseService } from '../../core/utils/sse.service';
 const uploadToCloudinary = (buffer: Buffer, folder: string): Promise<any> => {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
@@ -249,6 +249,11 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
 
   const user = (req as any).user;
   const conflictStrategy = req.body.conflictStrategy || 'skip';
+  const clientId = req.body.clientId;
+
+  if (clientId) {
+    sseService.sendEvent(clientId, { stage: 'parsing', progress: 5, message: 'Fetching metadata...' });
+  }
 
   // Pre-fetch all contractors and items for matching
   const allContractors = await Contractor.find({}).lean();
@@ -256,7 +261,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
   
   const allItems = await Item.find({}).lean();
 
-  // â”€â”€â”€ HELPER: parse one file into structured site-records â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ——— HELPER: parse one file into structured site-records —————————————————â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const parseFile = (file: any) => {
     const workbook = xlsx.read(file.buffer, { type: 'buffer' });
     const sourceFile = file.originalname;
@@ -479,17 +484,36 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
     };
   };
 
-  // ——— PASS 1: Parse + Validate — collect ALL errors, save NOTHING ——————————————————
   const validationErrors: { sourceFile: string; sheetName: string; description: string; circle: string }[] = [];
   const parsedSheets: any[] = [];
+  const totalFiles = req.files ? (req.files as any[]).length : 0;
+  let fileIdx = 0;
 
   for (const file of (req.files as any[])) {
     try {
+      if (clientId) {
+        sseService.sendEvent(clientId, { 
+          stage: 'parsing', 
+          progress: 10 + (fileIdx / totalFiles) * 20, 
+          message: `Reading file ${fileIdx + 1} of ${totalFiles}: ${file.originalname}...` 
+        });
+      }
+      
       const sheets = parseFile(file);
       for (const sheet of sheets) {
         if (sheet.skipped) continue;
         const { sourceFile, sheetName, siteCols, siteMeta, recordsBySite } = sheet;
+        
+        let colIdx = 0;
         for (const c of siteCols) {
+          if (clientId) {
+            sseService.sendEvent(clientId, {
+              stage: 'validation',
+              progress: 30 + (fileIdx / totalFiles) * 30 + (colIdx / siteCols.length) * 10,
+              message: `Validating and mapping ${recordsBySite[c].length} items for column ${c}...`
+            });
+          }
+          
           const meta = siteMeta[c];
           const uploadedCircle = (user as any).assignedCircle || meta.Circle || '';
           for (const sr of recordsBySite[c]) {
@@ -503,12 +527,14 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
               });
             }
           }
+          colIdx++;
         }
         parsedSheets.push(sheet);
       }
     } catch (e: any) {
       validationErrors.push({ sourceFile: file.originalname, sheetName: '', description: `Parse error: ${e.message}`, circle: '' });
     }
+    fileIdx++;
   }
 
   // If ANY item failed validation â€” stop. Return errors, save nothing.
@@ -531,17 +557,30 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
     });
   }
 
-  // â”€â”€â”€ PASS 2: All validated â€” now save â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ——— PASS 2: All validated — now save ————————————————————————————————————
   const flagged: any[] = [];
   let totalSaved = 0;
   let initialCount = await JmcRegister.countDocuments();
+  let savedSheetsIdx = 0;
 
   for (const sheet of parsedSheets) {
     const { sourceFile, sheetName, siteCols, siteMeta, recordsBySite } = sheet;
 
+    let colIdx = 0;
     for (const c of siteCols) {
+      if (clientId) {
+        sseService.sendEvent(clientId, {
+          stage: 'saving',
+          progress: 70 + (savedSheetsIdx / parsedSheets.length) * 30 + (colIdx / siteCols.length) * 10,
+          message: `Saving drafts for sheet ${savedSheetsIdx + 1} of ${parsedSheets.length}, column ${c}...`
+        });
+      }
+      
       const siteRecords = recordsBySite[c];
-      if (siteRecords.length === 0) continue;
+      if (siteRecords.length === 0) {
+        colIdx++;
+        continue;
+      }
 
       const meta = siteMeta[c];
       const pkg = (user as any).assignedPackage || meta.Location || meta.DrawingNo || '';
@@ -567,22 +606,12 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
       }
 
       if (!contractorId) {
-        const fallbackName = contractorNameStr || 'Unknown Contractor (Auto-created)';
-        let newContractor = allContractors.find((c: any) => {
-          const name = c.name || c.dynamicData?.companyName || c.dynamicData?.displayName || c.dynamicData?.name;
-          return name === fallbackName;
+        flagged.push({ 
+          sourceFile, 
+          sheetName, 
+          issue: `Contractor '${contractorNameStr || 'Unknown'}' not found in the database. Please add this contractor first before importing.` 
         });
-        if (!newContractor) {
-          const payload = { 
-            dynamicData: { companyName: fallbackName, name: fallbackName, vendorName: fallbackName, circle: uploadedCircle },
-            location: uploadedCircle,
-            isActive: true
-          };
-          newContractor = await Contractor.create(payload);
-          allContractors.push(newContractor as any);
-          contractorNames.push(fallbackName);
-        }
-        contractorId = (newContractor as any)._id;
+        continue;
       }
 
       // Build items (all will resolve since pass 1 validated them)
@@ -692,7 +721,17 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
       }
 
       totalSaved++;
+      colIdx++;
     }
+    savedSheetsIdx++;
+  }
+
+  if (clientId) {
+    sseService.sendEvent(clientId, {
+      stage: 'COMPLETED',
+      progress: 100,
+      message: 'Upload and processing complete!'
+    });
   }
 
   res.status(200).json(

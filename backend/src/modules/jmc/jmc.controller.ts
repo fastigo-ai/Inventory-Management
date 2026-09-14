@@ -28,8 +28,16 @@ export const createJmc = asyncHandler(async (req: Request, res: Response) => {
   const data = req.body;
   const user = (req as any).user;
 
-  const count = await JmcRegister.countDocuments();
-  data.jmcNumber = `JMC/${new Date().getFullYear().toString().slice(-2)}/${(count + 1).toString().padStart(4, '0')}`;
+  const currentYearStr = new Date().getFullYear().toString().slice(-2);
+  const lastJmc = await JmcRegister.findOne({ jmcNumber: new RegExp(`^JMC/${currentYearStr}/`) }).sort({ jmcNumber: -1 }).select('jmcNumber').lean();
+  let count = 0;
+  if (lastJmc && lastJmc.jmcNumber) {
+    const parts = lastJmc.jmcNumber.split('/');
+    if (parts.length === 3) {
+      count = parseInt(parts[2], 10) || 0;
+    }
+  }
+  data.jmcNumber = `JMC/${currentYearStr}/${(count + 1).toString().padStart(4, '0')}`;
   data.createdBy = user._id;
 
   let drawingSheetUrl = '';
@@ -599,7 +607,15 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
   // ——— PASS 2: All validated — now save ————————————————————————————————————
   const flagged: any[] = [];
   let totalSaved = 0;
-  let initialCount = await JmcRegister.countDocuments();
+  const currentYearStr = new Date().getFullYear().toString().slice(-2);
+  const lastJmc = await JmcRegister.findOne({ jmcNumber: new RegExp(`^JMC/${currentYearStr}/`) }).sort({ jmcNumber: -1 }).select('jmcNumber').lean();
+  let initialCount = 0;
+  if (lastJmc && lastJmc.jmcNumber) {
+    const parts = lastJmc.jmcNumber.split('/');
+    if (parts.length === 3) {
+      initialCount = parseInt(parts[2], 10) || 0;
+    }
+  }
   let savedSheetsIdx = 0;
 
   for (const sheet of parsedSheets) {
@@ -742,7 +758,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
         });
       } else {
         initialCount++;
-        const jmcNumber = `JMC/${new Date().getFullYear().toString().slice(-2)}/${initialCount.toString().padStart(4, '0')}`;
+        const jmcNumber = `JMC/${currentYearStr}/${initialCount.toString().padStart(4, '0')}`;
 
         await JmcRegister.create({
           jmcNumber,

@@ -22,6 +22,9 @@ class SseService {
       progress: 0,
       message: 'SSE Connection Established'
     });
+    if (typeof (res as any).flush === 'function') {
+      (res as any).flush();
+    }
   }
 
   /**
@@ -42,6 +45,11 @@ class SseService {
     const res = this.clients.get(clientId);
     if (res) {
       res.write(`data: ${JSON.stringify(payload)}\n\n`);
+      
+      // Flush the buffer if compression middleware is used
+      if (typeof (res as any).flush === 'function') {
+        (res as any).flush();
+      }
       
       // If the stage is "COMPLETED" or "ERROR", close the connection
       if (payload.stage === 'COMPLETED' || payload.stage === 'ERROR') {

@@ -896,9 +896,9 @@ export const exportContractorAssignments = asyncHandler(async (req: Request, res
     .populate('contractorId', 'name farmName companyName dynamicData')
     .sort({ date: -1 });
     
-  const headers = ['MinNo', 'Date', 'ContractorName', 'Circle', 'DemandNo', 'DemandBookNo', 'DemandDate', 'ContractorFarmName', 'SupervisorEngineer', 'Division', 'SubDivision', 'SubStation', 'Feeder', 'VehicleNo', 'MinBookNo', 'MinDate', 'IssuedTfsSrNo', 'Remarks', 'ItemName', 'TempCode', 'LoaSrNo', 'Unit', 'HsnCode', 'DemandQty', 'IssuedQty', 'Rate', 'Amount'];
+  const headers = ['MinNo', 'Date', 'ContractorName', 'Circle', 'DemandNo', 'DemandBookNo', 'DemandDate', 'ContractorFarmName', 'SupervisorEngineer', 'Division', 'SubDivision', 'SubStation', 'Feeder', 'VehicleNo', 'MinBookNo', 'MinDate', 'IssuedTfsSrNo', 'Remarks', 'ItemName', 'TempCode', 'LoaSrNo', 'Unit', 'HsnCode', 'DemandQty', 'IssuedQty', 'Rate', 'Amount', 'Activity'];
   
-  let csv = headers.join(',') + '\\n';
+  let csv = headers.join(',') + '\n';
   
   assignments.forEach((assignment: any) => {
     const contractorName = assignment.contractorId?.name || assignment.contractorId?.companyName || assignment.contractorId?.dynamicData?.displayName || assignment.contractorId?.dynamicData?.name || '';
@@ -934,7 +934,8 @@ export const exportContractorAssignments = asyncHandler(async (req: Request, res
         item.demandQty || 0,
         item.quantity || 0,
         item.rate || 0,
-        item.amount || 0
+        item.amount || 0,
+        item.activity || ''
       ];
       csv += row.map(v => {
         if (v === null || v === undefined) return '';

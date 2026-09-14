@@ -343,11 +343,11 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
 
         let isHeader = false;
         let matchCount = 0;
-        for (let c = 0; c < row.length; c++) {
+        for (let c = 0; c < 5; c++) {
           const h = normLabel(row[c]);
           if (h && (
             h.includes("loa") || h.includes("code") || h.includes("temp code") || h === "temp" || 
-            h.includes("sched") || h.includes("activity") || h === "description" || h.includes("desc") || 
+            h.includes("sched") || h.includes("activity") || h === "description" || h.includes("desc") || h.includes("disc") || 
             h === "unit" || h.includes("sr no") || h.includes("sr.") || h.includes("s.no") || 
             h.includes("item") || h.includes("qty") || h.includes("quantity")
           )) {
@@ -377,7 +377,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
         else if (h.includes("code") && tempCodeIdx === -1) tempCodeIdx = c;
         else if (h.includes("sched") && schedIdx === -1) schedIdx = c;
         else if (h.includes("activity") && activityIdx === -1) activityIdx = c;
-        else if (h.includes("desc") && descIdx === -1) descIdx = c;
+        else if ((h.includes("desc") || h.includes("disc")) && descIdx === -1) descIdx = c;
         else if (h.includes("unit") && unitIdx === -1) unitIdx = c;
       }
 
@@ -603,8 +603,17 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
           if ((user as any).assignedCircle && meta.Circle) {
             const assigned = String((user as any).assignedCircle).trim().toLowerCase();
             const sheetCirc = String(meta.Circle).trim().toLowerCase();
-            if (assigned !== sheetCirc) {
-              return res.status(403).json(new ApiResponse(403, null, `Permission Denied: You are assigned to circle '${(user as any).assignedCircle}', but the sheet '${sheetName}' contains data for circle '${meta.Circle}'. Please upload sheets only for your assigned circle.`));
+            
+            const SUB_STORE_MAP: Record<string, string[]> = {
+              'solan': ['solan', 'kumarhatti', 'nalagarh'],
+              'nahan': ['nahan'],
+              'rohru': ['rohru'],
+              'rampur': ['rampur'],
+            };
+            
+            const allowedCircles = SUB_STORE_MAP[assigned] || [assigned];
+            if (!allowedCircles.includes(sheetCirc)) {
+              return res.status(403).json(new ApiResponse(403, null, `Permission Denied: You are assigned to circle '${(user as any).assignedCircle}', but the sheet '${sheetName}' contains data for circle '${meta.Circle}'. Please upload sheets only for your assigned circle (Allowed: ${allowedCircles.join(', ')}).`));
             }
           }
           

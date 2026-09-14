@@ -296,12 +296,15 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
             if (labelFound) break;
           }
           let isHeader = false;
-          for (let c = 0; c < row.length; c++) {
+          let matchCount = 0;
+          for (let c = 0; c < 5; c++) {
             const h = normLabel(row[c]);
-            if (h && (h.includes("loa") || h.includes("code") || h.includes("temp") || h.includes("sched") || h.includes("activity") || h.includes("desc") || h.includes("unit") || h.includes("sr no") || h.includes("sr.") || h.includes("s.no") || h.includes("item") || h.includes("qty") || h.includes("quantity"))) {
-              isHeader = true;
-              break;
+            if (h && (h.includes("loa") || h.includes("code") || h.includes("temp") || h.includes("sched") || h.includes("activity") || h.includes("desc") || h.includes("disc") || h.includes("unit") || h.includes("sr no") || h.includes("sr.") || h.includes("s.no") || h.includes("item") || h.includes("qty") || h.includes("quantity"))) {
+              matchCount++;
             }
+          }
+          if (matchCount >= 2) {
+            isHeader = true;
           }
           if (isHeader) {
             headerRowIdx = r;
@@ -329,7 +332,7 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
           else if (h.includes("code") && tempCodeIdx === -1) tempCodeIdx = c;
           else if (h.includes("sched") && schedIdx === -1) schedIdx = c;
           else if (h.includes("activity") && activityIdx === -1) activityIdx = c;
-          else if (h.includes("desc") && descIdx === -1) descIdx = c;
+          else if ((h.includes("desc") || h.includes("disc")) && descIdx === -1) descIdx = c;
           else if (h.includes("unit") && unitIdx === -1) unitIdx = c;
         }
 
@@ -410,15 +413,26 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
         for (const c of siteCols) {
           if (sheetHasErrors) break;
           const siteRecords = recordsBySite[c];
-          if (siteRecords.length === 0) continue;
-
           const meta = siteMeta[c];
+          if (siteRecords.length === 0) {
+            flagged.push({ sourceFile, sheetName, issue: `Skipped column for ${meta.Location || 'Unknown Location'} because no valid item quantities were found under it.` });
+            continue;
+          }
           
           if ((user as any).assignedCircle && meta.Circle) {
             const assigned = String((user as any).assignedCircle).trim().toLowerCase();
             const sheetCirc = String(meta.Circle).trim().toLowerCase();
-            if (assigned !== sheetCirc) {
-              return res.status(403).json(new ApiResponse(403, null, `Permission Denied: You are assigned to circle '${(user as any).assignedCircle}', but the sheet '${sheetName}' contains data for circle '${meta.Circle}'. Please upload sheets only for your assigned circle.`));
+            
+            const SUB_STORE_MAP: Record<string, string[]> = {
+              'solan': ['solan', 'kumarhatti', 'nalagarh'],
+              'nahan': ['nahan'],
+              'rohru': ['rohru'],
+              'rampur': ['rampur'],
+            };
+            
+            const allowedCircles = SUB_STORE_MAP[assigned] || [assigned];
+            if (!allowedCircles.includes(sheetCirc)) {
+              return res.status(403).json(new ApiResponse(403, null, `Permission Denied: You are assigned to circle '${(user as any).assignedCircle}', but the sheet '${sheetName}' contains data for circle '${meta.Circle}'. Please upload sheets only for your assigned circle (Allowed: ${allowedCircles.join(', ')}).`));
             }
           }
           

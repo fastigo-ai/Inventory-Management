@@ -8,3 +8,4 @@
   - Apply DRY principles—extract reusable code into utility functions or shared services.
   - Always use clear, descriptive naming for variables and functions.
   - Implement robust error handling and ensure type safety throughout the codebase.
+-**while code pushing do the run build**

@@ -487,12 +487,7 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
 
           // If still no contractorId, reject the WIP import for this site
           if (!contractorId) {
-            flagged.push({ 
-              sourceFile, 
-              sheetName, 
-              issue: `Contractor '${contractorNameStr || 'Unknown'}' not found in the database. Please add this contractor first before importing.` 
-            });
-            continue;
+            return res.status(400).json(new ApiResponse(400, null, `Validation Error: Contractor '${contractorNameStr || 'Unknown'}' not found in the database. Please add this contractor first before importing.`));
           }
           
           // Map Items

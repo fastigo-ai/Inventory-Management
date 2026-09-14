@@ -661,12 +661,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
       }
 
       if (!contractorId) {
-        flagged.push({ 
-          sourceFile, 
-          sheetName, 
-          issue: `Contractor '${contractorNameStr || 'Unknown'}' not found in the database. Please add this contractor first before importing.` 
-        });
-        continue;
+        return res.status(400).json(new ApiResponse(400, null, `Validation Error: Contractor '${contractorNameStr || 'Unknown'}' not found in the database. Please add this contractor first before importing.`));
       }
 
       // Build items (all will resolve since pass 1 validated them)

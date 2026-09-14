@@ -438,25 +438,9 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
             }
           }
 
-          // If still no contractorId, we must create one dynamically to prevent validation failure
+          // If still no contractorId, reject the WIP import for this site
           if (!contractorId) {
-            const fallbackName = contractorNameStr || 'Unknown Contractor (Auto-created)';
-            let newContractor = allContractors.find((c: any) => {
-              const name = c.name || c.dynamicData?.companyName || c.dynamicData?.displayName || c.dynamicData?.name;
-              return name === fallbackName;
-            });
-            if (!newContractor) {
-              const payload = { 
-                dynamicData: { companyName: fallbackName, name: fallbackName, vendorName: fallbackName, circle: uploadedCircle },
-                location: uploadedCircle,
-                isActive: true
-              };
-              console.log("CREATING CONTRACTOR WITH PAYLOAD:", JSON.stringify(payload));
-              newContractor = await Contractor.create(payload);
-              allContractors.push(newContractor as any);
-              contractorNames.push(fallbackName);
-            }
-            contractorId = newContractor._id;
+            return res.status(400).json(new ApiResponse(400, null, `Validation Error: Contractor '${contractorNameStr || 'Unknown'}' not found in the database. Please add this contractor first before importing.`));
           }
           
           // Map Items

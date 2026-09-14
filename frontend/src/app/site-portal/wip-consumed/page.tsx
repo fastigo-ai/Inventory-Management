@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { WipBulkUploadModal } from "@/features/site-portal/components/WipBulkUploadModal";
 
 export default function WipRegisterPage() {
+  const [isExporting, setIsExporting] = useState(false);
   const [entries, setEntries] = useState<any[]>([]);
   const [aggregates, setAggregates] = useState({ totalClaimed: 0, totalApproved: 0 });
   const [loading, setLoading] = useState(true);
@@ -102,6 +103,7 @@ export default function WipRegisterPage() {
 
   const exportData = async () => {
     try {
+      setIsExporting(true);
       const params: any = { limit: 'all' };
       if (debouncedSearchTerm) params.search = debouncedSearchTerm;
       if (selectedContractor !== 'All') params.contractorId = selectedContractor;
@@ -123,6 +125,8 @@ export default function WipRegisterPage() {
     } catch (err) {
       console.error(err);
       alert('Failed to export data.');
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -225,8 +229,9 @@ export default function WipRegisterPage() {
             className="h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm w-[130px]"
           />
           <div className="flex-1" />
-          <Button variant="outline" onClick={exportData} className="bg-red-50 text-red-600 border-red-200 hover:bg-red-100 rounded-lg shadow-sm whitespace-nowrap font-semibold">
-            <Download className="mr-2 h-4 w-4" /> Export Data
+          <Button variant="outline" onClick={exportData} disabled={isExporting} className="bg-red-50 text-red-600 border-red-200 hover:bg-red-100 rounded-lg shadow-sm whitespace-nowrap font-semibold">
+            {isExporting ? 'Exporting...' : <><Download className="mr-2 h-4 w-4" /> Export Data
+          </>}
           </Button>
           <Button variant="outline" onClick={() => setUploadModalOpen(true)} className="rounded-lg shadow-sm whitespace-nowrap">
             <FileText className="mr-2 h-4 w-4" /> Bulk Upload WIP

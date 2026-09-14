@@ -14,6 +14,7 @@ import { BulkImportContractorReturnModal } from "./BulkImportContractorReturnMod
 
 export default function StoreContractorReturnPage() {
   const router = useRouter();
+  const [isExporting, setIsExporting] = useState(false);
   const [returns, setReturns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -117,11 +118,12 @@ export default function StoreContractorReturnPage() {
             <Button 
               variant="outline" 
               className="text-slate-600 border-green-200 hover:bg-green-50"
-              onClick={handleExport}
+              onClick={handleExport} disabled={isExporting}
             >
-              <Download className="w-4 h-4 mr-2" />
+            {isExporting ? 'Exporting...' : <><Download className="w-4 h-4 mr-2" />
               Bulk Export
-            </Button>
+            </>}
+          </Button>
             <Button 
               variant="outline" 
               className="text-slate-600 border-blue-200 hover:bg-blue-50"

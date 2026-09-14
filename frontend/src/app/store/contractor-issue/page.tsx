@@ -12,6 +12,7 @@ import { useDebounce } from "@/shared/hooks/useDebounce";
 import { Search } from "lucide-react";
 
 export default function StoreContractorIssuePage() {
+  const [isExporting, setIsExporting] = useState(false);
   const [assignments, setAssignments] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -36,6 +37,7 @@ export default function StoreContractorIssuePage() {
 
   const handleExport = async () => {
     try {
+      setIsExporting(true);
       const blob = await exportAssignments({
         search: debouncedSearch,
         contractorId: contractorId || undefined,
@@ -54,6 +56,8 @@ export default function StoreContractorIssuePage() {
     } catch (err) {
       console.error(err);
       toast.error('Failed to export data');
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -128,10 +132,11 @@ export default function StoreContractorIssuePage() {
             <p className="text-sm text-slate-500 mt-1">Issue stock to contractors from your local inventory</p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" onClick={handleExport} className="text-green-700 border-green-200 hover:bg-green-50">
-              <Download className="w-4 h-4 mr-2" />
+            <Button variant="outline" onClick={handleExport} disabled={isExporting} className="text-green-700 border-green-200 hover:bg-green-50">
+            {isExporting ? 'Exporting...' : <><Download className="w-4 h-4 mr-2" />
               Export CSV
-            </Button>
+            </>}
+          </Button>
             <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
               <Upload className="w-4 h-4 mr-2" />
               Import CSV

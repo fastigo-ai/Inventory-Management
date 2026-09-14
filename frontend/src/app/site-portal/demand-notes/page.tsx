@@ -9,6 +9,7 @@ import ImportDNModal from './ImportDNModal';
 import { useAuditTracker } from '@/shared/hooks/useAuditTracker';
 
 export default function DemandNotesList() {
+  const [isExporting, setIsExporting] = useState(false);
   const [demandNotes, setDemandNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -217,9 +218,10 @@ export default function DemandNotesList() {
         {/* Right: Actions */}
         <div className="flex flex-col gap-3 w-full sm:w-auto">
           <div className="flex gap-3">
-            <button onClick={handleExportCSV} className="flex-1 sm:flex-none bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-5 py-2.5 rounded-xl flex justify-center items-center gap-2 text-sm font-bold shadow-sm transition-all whitespace-nowrap">
-              <Download className="w-4 h-4" /> Export CSV
-            </button>
+            <button onClick={handleExportCSV} disabled={isExporting} className="flex-1 sm:flex-none bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-5 py-2.5 rounded-xl flex justify-center items-center gap-2 text-sm font-bold shadow-sm transition-all whitespace-nowrap">
+            {isExporting ? 'Exporting...' : <><Download className="w-4 h-4" /> Export CSV
+            </>}
+          </button>
             <button onClick={() => setIsImportModalOpen(true)} className="flex-1 sm:flex-none bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-5 py-2.5 rounded-xl flex justify-center items-center gap-2 text-sm font-bold shadow-sm transition-all whitespace-nowrap">
               <Upload className="w-4 h-4" /> Import CSV
             </button>

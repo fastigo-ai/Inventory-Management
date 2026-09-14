@@ -484,6 +484,9 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
     };
   };
 
+  // Helper to yield event loop
+  const yieldLoop = () => new Promise(resolve => setImmediate(resolve));
+
   const validationErrors: { sourceFile: string; sheetName: string; description: string; circle: string }[] = [];
   const parsedSheets: any[] = [];
   const totalFiles = req.files ? (req.files as any[]).length : 0;
@@ -516,7 +519,12 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
           
           const meta = siteMeta[c];
           const uploadedCircle = (user as any).assignedCircle || meta.Circle || '';
+          
+          let count = 0;
           for (const sr of recordsBySite[c]) {
+            count++;
+            if (count % 50 === 0) await yieldLoop();
+            
             const resolved = resolveItem(sr, uploadedCircle);
             if (!resolved) {
               validationErrors.push({
@@ -616,7 +624,11 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
 
       // Build items (all will resolve since pass 1 validated them)
       const jmcItems: any[] = [];
+      let count = 0;
       for (const sr of siteRecords) {
+        count++;
+        if (count % 50 === 0) await yieldLoop();
+        
         const resolved = resolveItem(sr, uploadedCircle)!;
         jmcItems.push({
           itemId: resolved.itemId,

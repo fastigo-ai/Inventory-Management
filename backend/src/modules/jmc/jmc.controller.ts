@@ -436,7 +436,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
           const numQty = parseFloat(qty);
           if (!isNaN(numQty)) {
             recordsBySite[c].push({
-              loa, tempCode: tempCodeVal, sched, activity: activity || currentActivityGroup, description: desc || activity, unit, quantity: numQty
+              rowNum: r + 1, loa, tempCode: tempCodeVal, sched, activity: activity || currentActivityGroup, description: desc || activity, unit, quantity: numQty
             });
           }
         }
@@ -566,7 +566,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
               validationErrors.push({
                 sourceFile,
                 sheetName,
-                description: sr.description || sr.activity || 'Unknown item',
+                description: `Row ${sr.rowNum}: ${sr.description || sr.activity || 'Unknown item'}`,
                 circle: uploadedCircle
               });
             }

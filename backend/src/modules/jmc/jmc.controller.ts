@@ -261,6 +261,28 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
   
   const allItems = await Item.find({}).lean();
 
+  const itemsByTempCode = new Map<string, any[]>();
+  const itemsByLoa = new Map<string, any[]>();
+  const itemsByCircle = new Map<string, any[]>();
+  
+  for (const item of allItems) {
+    const tempCode = String(item.dynamicData?.tempCode || '').trim().toLowerCase();
+    if (tempCode) {
+      if (!itemsByTempCode.has(tempCode)) itemsByTempCode.set(tempCode, []);
+      itemsByTempCode.get(tempCode)?.push(item);
+    }
+    const loa = String(item.dynamicData?.sku || item.dynamicData?.loaSrNo || '').trim().toLowerCase();
+    if (loa) {
+      if (!itemsByLoa.has(loa)) itemsByLoa.set(loa, []);
+      itemsByLoa.get(loa)?.push(item);
+    }
+    const circle = String(item.dynamicData?.circle || '').trim().toLowerCase();
+    if (circle) {
+      if (!itemsByCircle.has(circle)) itemsByCircle.set(circle, []);
+      itemsByCircle.get(circle)?.push(item);
+    }
+  }
+
   // ——— HELPER: parse one file into structured site-records —————————————————â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const parseFile = (file: any) => {
     const workbook = xlsx.read(file.buffer, { type: 'buffer' });
@@ -414,75 +436,74 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
 
   // ——— HELPER: resolve an item ———————————————————————————————————————
   const resolveItem = (sr: any, uploadedCircle: string): { itemId: any; activity: string; loaSerialNo: string; loaSrNo: string; tempCode: string; totalLoaQty: number; unit: string } | null => {
-    let finalActivity = sr.activity || '';
-    let finalLoaSerialNo = sr.loa || '';
-    
-    // Multi-criteria matching: score each item by LOA, tempCode, description, and circle
+    const uc = uploadedCircle ? uploadedCircle.toLowerCase() : '';
     let matchedItemObj: any = null;
-    let bestScore = 0;
 
-    for (const item of allItems) {
-      let score = 0;
-
-      // Circle match (weight 1)
-      if (uploadedCircle) {
-        const itemCircle = (item.dynamicData?.circle || '').toLowerCase();
-        const uc = uploadedCircle.toLowerCase();
-        if (itemCircle && (itemCircle === uc || itemCircle.includes(uc) || uc.includes(itemCircle))) {
-          score += 1;
+    const formatMatch = (item: any) => ({
+      itemId: item._id, 
+      activity: item.dynamicData?.activity || sr.activity || '', 
+      loaSerialNo: item.dynamicData?.sku || item.dynamicData?.loaSrNo || sr.loaSerialNo || '',
+      loaSrNo: item.dynamicData?.sku || item.dynamicData?.loaSrNo || sr.loaSerialNo || '',
+      tempCode: item.dynamicData?.tempCode || item.rawItem?.tempCode || sr.tempCode || '',
+      totalLoaQty: Number(item.dynamicData?.loaQty || item.dynamicData?.loaQuantity || item.dynamicData?.totalLoaQuantity || item.dynamicData?.qty || item.dynamicData?.quantity || 0),
+      unit: item.dynamicData?.uom || item.dynamicData?.unit || item.uom || item.unit || sr.unit || ''
+    });
+    
+    // Exact LOA Match (Strongest)
+    if (sr.loaSerialNo || sr.loa) {
+      const loa = String(sr.loaSerialNo || sr.loa).trim().toLowerCase();
+      if (loa) {
+        const matches = itemsByLoa.get(loa);
+        if (matches && matches.length > 0) {
+          const circleMatch = matches.find(i => {
+            const itemCircle = String(i.dynamicData?.circle || '').toLowerCase();
+            return itemCircle === uc || itemCircle.includes(uc) || uc.includes(itemCircle);
+          });
+          return formatMatch(circleMatch || matches[0]);
         }
       }
-
-      // LOA Serial No match (weight 3 — strongest signal)
-      if (sr.loa) {
-        const itemLoa = String(item.dynamicData?.sku || item.dynamicData?.loaSrNo || '');
-        if (itemLoa && itemLoa === String(sr.loa)) {
-          score += 3;
+    }
+    
+    // Exact TempCode Match
+    if (sr.tempCode) {
+      const tempCode = String(sr.tempCode).trim().toLowerCase();
+      if (tempCode) {
+        const matches = itemsByTempCode.get(tempCode);
+        if (matches && matches.length > 0) {
+          const circleMatch = matches.find(i => {
+            const itemCircle = String(i.dynamicData?.circle || '').toLowerCase();
+            return itemCircle === uc || itemCircle.includes(uc) || uc.includes(itemCircle);
+          });
+          return formatMatch(circleMatch || matches[0]);
         }
-      }
-
-      // Temp Code match (weight 2)
-      if (sr.tempCode) {
-        const itemTempCode = String(item.dynamicData?.tempCode || '');
-        if (itemTempCode && itemTempCode === String(sr.tempCode)) {
-          score += 2;
-        }
-      }
-
-      // Description / Item Name match — fuzzy (weight 0-1)
-      if (sr.description) {
-        const itemDesc = String(item.dynamicData?.description || item.dynamicData?.name || '');
-        if (itemDesc) {
-          if (String(sr.description).toLowerCase() === itemDesc.toLowerCase()) {
-            score += 1;
-          } else if (score < 2) { 
-            // Only run expensive fuzzy match if we don't already have a strong LOA/TempCode match
-            const similarity = stringSimilarity.compareTwoStrings(String(sr.description), itemDesc);
-            if (similarity > 0.3) {
-              score += similarity;
-            }
-          }
-        }
-      }
-
-      if (score > bestScore) {
-        bestScore = score;
-        matchedItemObj = item;
       }
     }
 
-    // Require at least a LOA or tempCode match (score >= 2), or a strong description+circle match (score >= 1.4)
-    if (bestScore < 1.4) return null;
+    // Fuzzy Description Match (Fallback)
+    if (sr.description) {
+       // Search within the same circle if possible to reduce space, else search all
+       const candidates = itemsByCircle.get(uc) || allItems;
+       let bestScore = 0;
+       let bestMatch = null;
+       for (const item of candidates) {
+         const itemDesc = String(item.dynamicData?.description || item.dynamicData?.name || '');
+         if (itemDesc) {
+           if (String(sr.description).toLowerCase() === itemDesc.toLowerCase()) {
+             return formatMatch(item); // Exact description match
+           }
+           const similarity = stringSimilarity.compareTwoStrings(String(sr.description).toLowerCase(), itemDesc.toLowerCase());
+           if (similarity > bestScore) {
+             bestScore = similarity;
+             bestMatch = item;
+           }
+         }
+       }
+       if (bestScore > 0.4 && bestMatch) {
+         return formatMatch(bestMatch);
+       }
+    }
 
-    return { 
-      itemId: matchedItemObj._id, 
-      activity: matchedItemObj.dynamicData?.activity || finalActivity, 
-      loaSerialNo: matchedItemObj.dynamicData?.sku || matchedItemObj.dynamicData?.loaSrNo || finalLoaSerialNo,
-      loaSrNo: matchedItemObj.dynamicData?.sku || matchedItemObj.dynamicData?.loaSrNo || finalLoaSerialNo,
-      tempCode: matchedItemObj.dynamicData?.tempCode || matchedItemObj.rawItem?.tempCode || sr.tempCode || '',
-      totalLoaQty: Number(matchedItemObj.dynamicData?.loaQty || matchedItemObj.dynamicData?.loaQuantity || matchedItemObj.dynamicData?.totalLoaQuantity || matchedItemObj.dynamicData?.qty || matchedItemObj.dynamicData?.quantity || 0),
-      unit: matchedItemObj.dynamicData?.uom || matchedItemObj.dynamicData?.unit || matchedItemObj.uom || matchedItemObj.unit || sr.unit || ''
-    };
+    return null;
   };
 
   // Helper to yield event loop

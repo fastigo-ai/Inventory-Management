@@ -56,7 +56,8 @@ const isEntityTracked = (entityName: string, options: AuditPluginOptions): boole
   if (options.track === false) return false; // Hard override
   
   const settings = getAuditSettingsForEntity(entityName);
-  if (!settings) return options.track !== false; // If no DB config, track by default unless explicitly disabled in code
+  // If no DB config, track by default unless explicitly disabled in code (which is handled above)
+  if (!settings) return true; 
   
   return settings.isActive;
 };

@@ -285,6 +285,15 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
   // We'll map by item name / description
   const itemNames = allItems.map((i: any) => i.name).filter(Boolean);
 
+  const itemsByLoa = new Map<string, any[]>();
+  for (const item of allItems) {
+    const sku = String(item.dynamicData?.sku || item.dynamicData?.loaSrNo || '').toLowerCase().trim();
+    if (sku) {
+      if (!itemsByLoa.has(sku)) itemsByLoa.set(sku, []);
+      itemsByLoa.get(sku)?.push(item);
+    }
+  }
+
   let { currentCount: initialCount, yearStr } = await getNextWipSequence();
 
   const totalFiles = req.files.length;
@@ -527,7 +536,7 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
             if (!isNaN(numQty)) {
               originalSum += numQty;
               recordsBySite[c].push({
-                loa, tempCode: tempCodeVal, sched, activity: activity || currentActivityGroup, description: desc || activity, unit, quantity: numQty, excelRow: r + 1
+                rowNum: r + 1, loa, tempCode: tempCodeVal, sched, activity: activity || currentActivityGroup, description: desc || activity, unit, quantity: numQty
               });
             }
           }
@@ -605,19 +614,16 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
             let finalTempCode = sr.tempCode || '';
 
             let matchedItemObj: any = null;
-
-            for (const item of allItems) {
-              const itemCircle = (item.dynamicData?.circle || '').toLowerCase().trim();
-              const sheetCircle = (uploadedCircle || '').toLowerCase().trim();
-              const isCircleMatch = itemCircle === sheetCircle || itemCircle.includes(sheetCircle) || sheetCircle.includes(itemCircle);
-
-              const itemSku = String(item.dynamicData?.sku || item.dynamicData?.loaSrNo || '').toLowerCase().trim();
-              const sheetSku = String(sr.loa || '').toLowerCase().trim();
-              const isSkuMatch = itemSku === sheetSku;
-
-              if (isCircleMatch && isSkuMatch) {
-                matchedItemObj = item;
-                break;
+            const sheetSku = String(sr.loa || '').toLowerCase().trim();
+            const sheetCircle = (uploadedCircle || '').toLowerCase().trim();
+            
+            if (sheetSku) {
+              const matches = itemsByLoa.get(sheetSku);
+              if (matches && matches.length > 0) {
+                matchedItemObj = matches.find((item: any) => {
+                  const itemCircle = (item.dynamicData?.circle || '').toLowerCase().trim();
+                  return itemCircle === sheetCircle || itemCircle.includes(sheetCircle) || sheetCircle.includes(itemCircle);
+                }) || matches[0];
               }
             }
 
@@ -636,7 +642,7 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
             }
 
             if (!itemId) {
-              flagged.push({ sourceFile, sheetName, issue: `Item '${sr.description}' with SKU '${sr.loa}' not found in Master Item List for circle '${uploadedCircle}'. Sheet rejected. (Row: ${sr.excelRow})` });
+              flagged.push({ sourceFile, sheetName, issue: `Row ${sr.rowNum}: Item '${sr.description}' with SKU '${sr.loa}' not found in Master Item List for circle '${uploadedCircle}'. Sheet rejected.` });
               sheetHasErrors = true;
               break;
             }
@@ -747,6 +753,7 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
             await new Promise(r => setTimeout(r, 10)); // flush
           }
           
+          let savedCount = 0;
           for (const doc of sheetWipsToCreate) {
              if (doc.isUpdate) {
                 const { isUpdate, wipNumber, ...updateData } = doc;
@@ -775,6 +782,15 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
                     }
                   }
                 }
+             }
+             
+             savedCount++;
+             if (savedCount % 10 === 0 && clientId) {
+               sseService.sendEvent(clientId, {
+                 stage: 'inserting',
+                 progress: 80 + Math.floor((savedCount / sheetWipsToCreate.length) * 19),
+                 message: `Saving/Updating ${savedCount} of ${sheetWipsToCreate.length} WIP records...`
+               });
              }
           }
           totalSaved += sheetWipsToCreate.length;

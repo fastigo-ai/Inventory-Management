@@ -273,6 +273,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
   const itemsByTempCode = new Map<string, any[]>();
   const itemsByLoa = new Map<string, any[]>();
   const itemsByCircle = new Map<string, any[]>();
+  const itemsByDescription = new Map<string, any[]>();
   
   for (const item of allItems) {
     const tempCode = String(item.dynamicData?.tempCode || '').trim().toLowerCase();
@@ -289,6 +290,11 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
     if (circle) {
       if (!itemsByCircle.has(circle)) itemsByCircle.set(circle, []);
       itemsByCircle.get(circle)?.push(item);
+    }
+    const desc = String(item.dynamicData?.description || item.dynamicData?.name || '').trim().toLowerCase();
+    if (desc) {
+      if (!itemsByDescription.has(desc)) itemsByDescription.set(desc, []);
+      itemsByDescription.get(desc)?.push(item);
     }
   }
 
@@ -484,7 +490,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
           const numQty = parseFloat(qty);
           if (!isNaN(numQty)) {
             recordsBySite[c].push({
-              loa, tempCode: tempCodeVal, sched, activity: activity || currentActivityGroup, description: desc || activity, unit, quantity: numQty
+              rowNum: r + 1, loa, tempCode: tempCodeVal, sched, activity: activity || currentActivityGroup, description: desc || activity, unit, quantity: numQty
             });
           }
         }
@@ -541,27 +547,18 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
       }
     }
 
-    // Fuzzy Description Match (Fallback)
+    // Exact Description Match (Fallback)
     if (sr.description) {
-       // Search within the same circle if possible to reduce space, else search all
-       const candidates = itemsByCircle.get(uc) || allItems;
-       let bestScore = 0;
-       let bestMatch = null;
-       for (const item of candidates) {
-         const itemDesc = String(item.dynamicData?.description || item.dynamicData?.name || '');
-         if (itemDesc) {
-           if (String(sr.description).toLowerCase() === itemDesc.toLowerCase()) {
-             return formatMatch(item); // Exact description match
-           }
-           const similarity = stringSimilarity.compareTwoStrings(String(sr.description).toLowerCase(), itemDesc.toLowerCase());
-           if (similarity > bestScore) {
-             bestScore = similarity;
-             bestMatch = item;
-           }
+       const searchDesc = String(sr.description).trim().toLowerCase();
+       if (searchDesc) {
+         const matches = itemsByDescription.get(searchDesc);
+         if (matches && matches.length > 0) {
+           const circleMatch = matches.find(i => {
+             const itemCircle = String(i.dynamicData?.circle || '').toLowerCase();
+             return itemCircle === uc || itemCircle.includes(uc) || uc.includes(itemCircle);
+           });
+           return formatMatch(circleMatch || matches[0]);
          }
-       }
-       if (bestScore > 0.4 && bestMatch) {
-         return formatMatch(bestMatch);
        }
     }
 
@@ -623,9 +620,9 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
               validationErrors.push({
                 sourceFile,
                 sheetName,
-                description: sr.description || sr.activity || 'Unknown item',
+                description: `Row ${sr.rowNum}: ${sr.description || sr.activity || 'Unknown item'}`,
                 circle: uploadedCircle,
-                row: sr.excelRow
+                row: sr.rowNum
               });
             }
           }

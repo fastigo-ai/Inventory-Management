@@ -402,6 +402,8 @@ export default function JmcRegisterPage() {
               setCurrentPage={setCurrentPage}
               totalPages={totalPages}
               totalItems={totalItems}
+              pageSize={pageSize}
+              setPageSize={setPageSize}
             />
         </div>
       </div>

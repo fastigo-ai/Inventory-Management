@@ -519,6 +519,15 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
           }
           
           const meta = siteMeta[c];
+          
+          if ((user as any).assignedCircle && meta.Circle) {
+            const assigned = String((user as any).assignedCircle).trim().toLowerCase();
+            const sheetCirc = String(meta.Circle).trim().toLowerCase();
+            if (assigned !== sheetCirc) {
+              return res.status(403).json(new ApiResponse(403, null, `Permission Denied: You are assigned to circle '${(user as any).assignedCircle}', but the sheet '${sheetName}' contains data for circle '${meta.Circle}'. Please upload sheets only for your assigned circle.`));
+            }
+          }
+          
           const uploadedCircle = (user as any).assignedCircle || meta.Circle || '';
           
           let count = 0;

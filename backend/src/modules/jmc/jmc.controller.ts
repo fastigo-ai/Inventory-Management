@@ -487,27 +487,17 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
       }
     }
 
-    // Fuzzy Description Match (Fallback)
+    // Exact Description Match (Fallback)
     if (sr.description) {
-       // Search within the same circle if possible to reduce space, else search all
-       const candidates = itemsByCircle.get(uc) || allItems;
-       let bestScore = 0;
-       let bestMatch = null;
-       for (const item of candidates) {
-         const itemDesc = String(item.dynamicData?.description || item.dynamicData?.name || '');
-         if (itemDesc) {
-           if (String(sr.description).toLowerCase() === itemDesc.toLowerCase()) {
-             return formatMatch(item); // Exact description match
-           }
-           const similarity = stringSimilarity.compareTwoStrings(String(sr.description).toLowerCase(), itemDesc.toLowerCase());
-           if (similarity > bestScore) {
-             bestScore = similarity;
-             bestMatch = item;
+       const searchDesc = String(sr.description).trim().toLowerCase();
+       if (searchDesc) {
+         const candidates = itemsByCircle.get(uc) || allItems;
+         for (const item of candidates) {
+           const itemDesc = String(item.dynamicData?.description || item.dynamicData?.name || '').trim().toLowerCase();
+           if (itemDesc === searchDesc) {
+             return formatMatch(item);
            }
          }
-       }
-       if (bestScore > 0.4 && bestMatch) {
-         return formatMatch(bestMatch);
        }
     }
 

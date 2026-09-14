@@ -34,6 +34,7 @@ export function WipBulkUploadModal({ open, onOpenChange, onSuccess }: Props) {
         formData.append('files', files[i]);
       }
       formData.append('clientId', clientId);
+      formData.append('conflictStrategy', conflictStrategy);
 
       // Connect to SSE before starting the upload
       const eventSource = new EventSource(`${API_BASE_URL}/api/sse/events?clientId=${clientId}`);

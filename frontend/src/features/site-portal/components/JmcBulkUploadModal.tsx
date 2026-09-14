@@ -38,6 +38,7 @@ export function JmcBulkUploadModal({ open, onOpenChange, onSuccess }: Props) {
       }
       const clientId = Math.random().toString(36).substring(2, 15);
       formData.append('clientId', clientId);
+      formData.append('conflictStrategy', conflictStrategy);
 
       // Connect to SSE before starting the upload
       const eventSource = new EventSource(`${API_BASE_URL}/api/sse/events?clientId=${clientId}`);

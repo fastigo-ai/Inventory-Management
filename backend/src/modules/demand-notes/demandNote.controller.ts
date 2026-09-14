@@ -301,13 +301,24 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
   }
 
   // 6. Compute commercial and master fields
-  const circleLoaQty = Number(woItem?.circleLoaQty || summary?.loaQty || item?.dynamicData?.circleLoaQty || item?.dynamicData?.loaQty || 0);
-  const totalPackageLoaQty = Number(item?.dynamicData?.totalPackageLoaQty || item?.dynamicData?.totalLoaQty || 0);
+  let derivedCircleLoaQty = 0;
+  let derivedBomQty = 0;
+  if (circleFilter && item?.dynamicData) {
+     const cleanCircle = String(circleFilter).toLowerCase().replace(/\s+/g, '');
+     const cKey = cleanCircle + 'LoaQuantity';
+     if (item.dynamicData[cKey]) derivedCircleLoaQty = Number(item.dynamicData[cKey]);
+     
+     const bKey = cleanCircle + 'BomQuantity';
+     if (item.dynamicData[bKey]) derivedBomQty = Number(item.dynamicData[bKey]);
+  }
+
+  const circleLoaQty = Number(woItem?.circleLoaQty || summary?.loaQty || derivedCircleLoaQty || item?.dynamicData?.circleLoaQty || item?.dynamicData?.loaQuantity || 0);
+  const totalPackageLoaQty = Number(item?.dynamicData?.totalPackageLoaQty || item?.dynamicData?.totalLoaQty || item?.dynamicData?.loaQuantity || 0);
   const woQty = Number(woItem?.woQty || 0);
-  const bomQty = Number(woItem?.circleBomQty || summary?.bomQty || item?.dynamicData?.circleBomQty || item?.dynamicData?.bomQty || 0);
-  const contractorErectionRate = Number(woItem?.contractorErectionRate || item?.dynamicData?.contractorErectionRate || item?.dynamicData?.rate || 0);
+  const bomQty = Number(woItem?.circleBomQty || summary?.bomQty || derivedBomQty || item?.dynamicData?.circleBomQty || item?.dynamicData?.bomQuantity || 0);
+  const contractorErectionRate = Number(woItem?.contractorErectionRate || item?.dynamicData?.contractorErectionRate || item?.dynamicData?.rate || item?.dynamicData?.erectionRateWithGst || 0);
   const amount = Number(woItem?.amount || (woQty * contractorErectionRate) || 0);
-  const gstType = woItem?.gstType || item?.dynamicData?.gstType || 'Intra';
+  const gstType = woItem?.gstType || item?.dynamicData?.gstType || 'Intra State';
   const gstAmount = Number(woItem?.gstAmount || (amount * 0.18) || 0);
   const totalAmount = Number(woItem?.totalAmount || (amount + gstAmount) || 0);
 

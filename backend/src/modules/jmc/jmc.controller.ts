@@ -752,26 +752,46 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
           }
         });
       } else {
-        initialCount++;
-        const jmcNumber = `JMC/${currentYearStr}/${initialCount.toString().padStart(4, '0')}`;
+        let saved = false;
+        let attempts = 0;
+        while (!saved && attempts < 10) {
+          try {
+            initialCount++;
+            const jmcNumber = `JMC/${currentYearStr}/${initialCount.toString().padStart(4, '0')}`;
 
-        await JmcRegister.create({
-          jmcNumber,
-          date: new Date(),
-          contractorId: contractorId || null,
-          package: pkg,
-          location: loc,
-          circle: circ,
-          subCircle: subCirc,
-          division: div,
-          subDivision: subDiv,
-          items: jmcItems,
-          claimedAmount: 0,
-          approvedAmount: 0,
-          status: 'Submitted',
-          remarks: `Uploaded from ${sourceFile} (${sheetName}). ${!meta.Contractor ? 'Warning: No contractor name found in sheet.' : ''}`.trim(),
-          createdBy: user._id
-        });
+            await JmcRegister.create({
+              jmcNumber,
+              date: new Date(),
+              contractorId: contractorId || null,
+              package: pkg,
+              location: loc,
+              circle: circ,
+              subCircle: subCirc,
+              division: div,
+              subDivision: subDiv,
+              items: jmcItems,
+              claimedAmount: 0,
+              approvedAmount: 0,
+              status: 'Submitted',
+              remarks: `Uploaded from ${sourceFile} (${sheetName}). ${!meta.Contractor ? 'Warning: No contractor name found in sheet.' : ''}`.trim(),
+              createdBy: user._id
+            });
+            saved = true;
+          } catch (err: any) {
+            if (err.code === 11000 && err.keyPattern && err.keyPattern.jmcNumber) {
+              attempts++;
+              const latest = await JmcRegister.findOne({ jmcNumber: new RegExp(`^JMC/${currentYearStr}/`) }).sort({ jmcNumber: -1 }).select('jmcNumber').lean();
+              if (latest && latest.jmcNumber) {
+                const parts = latest.jmcNumber.split('/');
+                if (parts.length === 3) {
+                  initialCount = parseInt(parts[2], 10) || initialCount;
+                }
+              }
+            } else {
+              throw err;
+            }
+          }
+        }
       }
 
       totalSaved++;

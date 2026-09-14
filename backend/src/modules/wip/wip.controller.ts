@@ -657,7 +657,29 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
                 const { isUpdate, wipNumber, ...updateData } = doc;
                 await WipRegister.findOneAndUpdate({ wipNumber: doc.wipNumber }, { $set: updateData });
              } else {
-                await WipRegister.create(doc);
+                let saved = false;
+                let attempts = 0;
+                while (!saved && attempts < 10) {
+                  try {
+                    await WipRegister.create(doc);
+                    saved = true;
+                  } catch (err: any) {
+                    if (err.code === 11000 && err.keyPattern && err.keyPattern.wipNumber) {
+                      attempts++;
+                      const latest = await WipRegister.findOne({ wipNumber: new RegExp(`^WIP/${yearStr}/`) }).sort({ wipNumber: -1 }).select('wipNumber').lean();
+                      if (latest && latest.wipNumber) {
+                        const parts = latest.wipNumber.split('/');
+                        if (parts.length === 3) {
+                          initialCount = parseInt(parts[2], 10) || initialCount;
+                        }
+                      }
+                      initialCount++;
+                      doc.wipNumber = `WIP/${yearStr}/${initialCount.toString().padStart(4, '0')}`;
+                    } else {
+                      throw err;
+                    }
+                  }
+                }
              }
           }
           totalSaved += sheetWipsToCreate.length;

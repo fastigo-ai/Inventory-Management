@@ -564,7 +564,25 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
         }
 
         if (!sheetHasErrors && sheetWipsToCreate.length > 0) {
-          await WipRequiredRegister.insertMany(sheetWipsToCreate);
+          for (const doc of sheetWipsToCreate) {
+            let saved = false;
+            let attempts = 0;
+            while (!saved && attempts < 10) {
+              try {
+                await WipRequiredRegister.create(doc);
+                saved = true;
+              } catch (err: any) {
+                if (err.code === 11000 && err.keyPattern && err.keyPattern.wipRequiredNumber) {
+                  attempts++;
+                  initialCount = await WipRequiredRegister.countDocuments();
+                  initialCount++;
+                  doc.wipRequiredNumber = `WIP/${new Date().getFullYear().toString().slice(-2)}/${initialCount.toString().padStart(4, '0')}`;
+                } else {
+                  throw err;
+                }
+              }
+            }
+          }
           totalSaved += sheetWipsToCreate.length;
         }
       }

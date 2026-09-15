@@ -616,6 +616,8 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
           await new Promise(r => setTimeout(r, 10)); // let node flush
         }
 
+          const seenItems = new Map<string, number>();
+
           for (const sr of siteRecords) {
             let itemId = null;
             let finalActivity = sr.activity || '';
@@ -654,6 +656,15 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
               flagged.push({ sourceFile, sheetName, issue: `Row ${sr.rowNum}: Item '${sr.description}' with SKU '${sr.loa}' not found in Master Item List for circle '${uploadedCircle}'. Sheet rejected.` });
               sheetHasErrors = true;
               break;
+            } else {
+              const idStr = itemId.toString();
+              if (seenItems.has(idStr)) {
+                flagged.push({ sourceFile, sheetName, issue: `Row ${sr.rowNum}: Duplicate item found. This item was already listed on row ${seenItems.get(idStr)}. Sheet rejected.` });
+                sheetHasErrors = true;
+                break;
+              } else {
+                seenItems.set(idStr, sr.rowNum);
+              }
             }
 
             wipItems.push({

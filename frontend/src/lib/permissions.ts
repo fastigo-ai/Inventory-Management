@@ -52,11 +52,11 @@ export const hasAccessToRoute = (pathname: string, user: User | null): boolean =
 
   // Project Manager and Project Director special logic
   if (user.role?.name === 'Project Manager') {
-    return ['Project Manager Portal', 'Reports', 'Items'].some(mod => requiredModules.includes(mod));
+    return ['Project Manager Portal', 'Reports', 'Items', 'Billing'].some(mod => requiredModules.includes(mod));
   }
   
   if (user.role?.name === 'Project Director') {
-    return ['Project Director Portal', 'Reports', 'Items'].some(mod => requiredModules.includes(mod));
+    return ['Project Director Portal', 'Reports', 'Items', 'Billing'].some(mod => requiredModules.includes(mod));
   }
 
   // Main role-based check against the required modules for this route

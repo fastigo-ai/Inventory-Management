@@ -1155,7 +1155,12 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
 
       if (shouldBypassAsHistorical) {
          const tempCode = row['TempCode'] || row['tempCode'];
-         const itemName = row['ItemName'] || row['itemName'] || row['Item Name'];
+         const itemName = row['ItemName'] || row['itemName'] || row['Item Name'] || row['ItemDescription'] || row['itemDescription'];
+         
+         if (!tempCode && !itemName && !row['InvoiceNumber'] && !row['AcceptedQty']) {
+           continue;
+         }
+
          let itemData = null;
          if (tempCode) {
            itemData = await Item.findOne({ 'dynamicData.tempCode': String(tempCode).trim() });

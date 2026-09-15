@@ -6,6 +6,8 @@ import { ContractorAssignment } from '../../contractors/contractorAssignment.sch
 import { ContractorInvoice } from '../../contractor-billing/contractorInvoice.schema';
 import { ContractorReturn } from '../../contractors/contractorReturn.schema';
 import { JmcRegister } from '../../jmc/jmc.schema';
+import { WipRegister } from '../../wip/wip.schema';
+import { WipRequiredRegister } from '../../wip-required/wipRequired.schema';
 import { DI } from '../../di/di.schema';
 import { StoreInwardEntry } from '../../store/storeInwardEntry.schema';
 import { Mhrov } from '../../store/mhrov.schema';
@@ -1155,7 +1157,7 @@ async function computeItemMatrixSummary(params: {
   };
 
   // 1-5. Run all 7 transaction queries concurrently in parallel with tight field projection
-  const [dis, inwards, mhrovs, mins, jmcs, contractorInvoices, pis] = await Promise.all([
+  const [dis, inwards, mhrovs, mins, jmcs, contractorInvoices, pis, wips, wipReqs] = await Promise.all([
     DI.find(
       { status: { $ne: 'Cancelled' } },
       { circle: 1, 'lineItems.quantity': 1, 'lineItems.itemId': 1, 'lineItems.tempCode': 1, 'lineItems.loaSerialNo': 1, 'lineItems.loaSrNo': 1, 'lineItems.circle': 1 }
@@ -1183,6 +1185,14 @@ async function computeItemMatrixSummary(params: {
     PurchaseInvoice.find(
       { status: { $ne: 'Cancelled' } },
       { circle: 1, 'lineItems.quantity': 1, 'lineItems.act': 1, 'lineItems.itemId': 1, 'lineItems.tempCode': 1, 'lineItems.loaSerialNo': 1, 'lineItems.loaSrNo': 1, 'lineItems.circle': 1 }
+    ).lean(),
+    WipRegister.find(
+      { status: { $nin: ['Rejected', 'Cancelled'] } },
+      { circle: 1, 'items.approvedQty': 1, 'items.claimedQty': 1, 'items.itemId': 1, 'items.tempCode': 1, 'items.loaSerialNo': 1, 'items.loaSrNo': 1, 'items.circle': 1 }
+    ).lean(),
+    WipRequiredRegister.find(
+      { status: { $nin: ['Rejected', 'Cancelled'] } },
+      { circle: 1, 'items.approvedQty': 1, 'items.claimedQty': 1, 'items.itemId': 1, 'items.tempCode': 1, 'items.loaSerialNo': 1, 'items.loaSrNo': 1, 'items.circle': 1 }
     ).lean()
   ]);
 
@@ -1555,6 +1565,112 @@ async function computeItemMatrixSummary(params: {
     });
   });
 
+  // 6. WIP Consumed
+  const wipConsumedMap = new Map<string, Record<string, number>>();
+  wips.forEach(doc => {
+    const docCirc = ((doc as any).circle || '').toLowerCase();
+    ((doc as any).items || []).forEach((line: any) => {
+      const qty = Number(line.approvedQty || line.claimedQty || 0);
+      if (qty > 0) {
+        const lineCirc = (line.circle || docCirc || '').toLowerCase();
+        const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku, line.package || (doc as any).package, lineCirc);
+        if (targetTCs.length === 1) {
+           const tc = targetTCs[0];
+           if (!wipConsumedMap.has(tc)) wipConsumedMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
+           const obj = wipConsumedMap.get(tc)!;
+           if (lineCirc.includes('solan')) obj.solan += qty;
+           else if (lineCirc.includes('nahan')) obj.nahan += qty;
+           else if (lineCirc.includes('rampur')) obj.rampur += qty;
+           else if (lineCirc.includes('rohru')) obj.rohru += qty;
+           else obj.nahan += qty;
+        } else if (targetTCs.length > 1) {
+           let totalLoaQty = 0;
+           targetTCs.forEach(tc => {
+              const grp = groupedItemsMap.get(tc);
+              if (grp) {
+                 if (lineCirc.includes('solan')) totalLoaQty += grp.solanLoaQty;
+                 else if (lineCirc.includes('nahan')) totalLoaQty += grp.nahanLoaQty;
+                 else if (lineCirc.includes('rampur')) totalLoaQty += grp.rampurLoaQty;
+                 else if (lineCirc.includes('rohru')) totalLoaQty += grp.rohruLoaQty;
+              }
+           });
+           targetTCs.forEach(tc => {
+              const grp = groupedItemsMap.get(tc);
+              if (grp) {
+                 let myLoaQty = 0;
+                 if (lineCirc.includes('solan')) myLoaQty = grp.solanLoaQty;
+                 else if (lineCirc.includes('nahan')) myLoaQty = grp.nahanLoaQty;
+                 else if (lineCirc.includes('rampur')) myLoaQty = grp.rampurLoaQty;
+                 else if (lineCirc.includes('rohru')) myLoaQty = grp.rohruLoaQty;
+                 
+                 const distributedQty = totalLoaQty > 0 ? (qty * (myLoaQty / totalLoaQty)) : (qty / targetTCs.length);
+                 if (!wipConsumedMap.has(tc)) wipConsumedMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
+                 const obj = wipConsumedMap.get(tc)!;
+                 if (lineCirc.includes('solan')) obj.solan += distributedQty;
+                 else if (lineCirc.includes('nahan')) obj.nahan += distributedQty;
+                 else if (lineCirc.includes('rampur')) obj.rampur += distributedQty;
+                 else if (lineCirc.includes('rohru')) obj.rohru += distributedQty;
+                 else obj.nahan += distributedQty;
+              }
+           });
+        }
+      }
+    });
+  });
+
+  // 7. WIP Required
+  const wipRequiredMap = new Map<string, Record<string, number>>();
+  wipReqs.forEach(doc => {
+    const docCirc = ((doc as any).circle || '').toLowerCase();
+    ((doc as any).items || []).forEach((line: any) => {
+      const qty = Number(line.approvedQty || line.claimedQty || 0);
+      if (qty > 0) {
+        const lineCirc = (line.circle || docCirc || '').toLowerCase();
+        const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku, line.package || (doc as any).package, lineCirc);
+        if (targetTCs.length === 1) {
+           const tc = targetTCs[0];
+           if (!wipRequiredMap.has(tc)) wipRequiredMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
+           const obj = wipRequiredMap.get(tc)!;
+           if (lineCirc.includes('solan')) obj.solan += qty;
+           else if (lineCirc.includes('nahan')) obj.nahan += qty;
+           else if (lineCirc.includes('rampur')) obj.rampur += qty;
+           else if (lineCirc.includes('rohru')) obj.rohru += qty;
+           else obj.nahan += qty;
+        } else if (targetTCs.length > 1) {
+           let totalLoaQty = 0;
+           targetTCs.forEach(tc => {
+              const grp = groupedItemsMap.get(tc);
+              if (grp) {
+                 if (lineCirc.includes('solan')) totalLoaQty += grp.solanLoaQty;
+                 else if (lineCirc.includes('nahan')) totalLoaQty += grp.nahanLoaQty;
+                 else if (lineCirc.includes('rampur')) totalLoaQty += grp.rampurLoaQty;
+                 else if (lineCirc.includes('rohru')) totalLoaQty += grp.rohruLoaQty;
+              }
+           });
+           targetTCs.forEach(tc => {
+              const grp = groupedItemsMap.get(tc);
+              if (grp) {
+                 let myLoaQty = 0;
+                 if (lineCirc.includes('solan')) myLoaQty = grp.solanLoaQty;
+                 else if (lineCirc.includes('nahan')) myLoaQty = grp.nahanLoaQty;
+                 else if (lineCirc.includes('rampur')) myLoaQty = grp.rampurLoaQty;
+                 else if (lineCirc.includes('rohru')) myLoaQty = grp.rohruLoaQty;
+                 
+                 const distributedQty = totalLoaQty > 0 ? (qty * (myLoaQty / totalLoaQty)) : (qty / targetTCs.length);
+                 if (!wipRequiredMap.has(tc)) wipRequiredMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
+                 const obj = wipRequiredMap.get(tc)!;
+                 if (lineCirc.includes('solan')) obj.solan += distributedQty;
+                 else if (lineCirc.includes('nahan')) obj.nahan += distributedQty;
+                 else if (lineCirc.includes('rampur')) obj.rampur += distributedQty;
+                 else if (lineCirc.includes('rohru')) obj.rohru += distributedQty;
+                 else obj.nahan += distributedQty;
+              }
+           });
+        }
+      }
+    });
+  });
+
   // Build matrix rows for grouped items
   const matrixRows = Array.from(groupedItemsMap.entries()).map(([groupKey, grp], idx) => {
     const tc = grp.tempCode;
@@ -1578,6 +1694,8 @@ async function computeItemMatrixSummary(params: {
     const imcObj = imcMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
     const supObj = supplyBilledMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
     const erecObj = erectionMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
+    const wipConsObj = wipConsumedMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
+    const wipReqObj = wipRequiredMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
 
     const tCirc = (targetCircle as string).toUpperCase();
     const evalCircle = (tCirc === 'ALL' || !tCirc) ? itemCircle : tCirc;
@@ -1713,6 +1831,18 @@ async function computeItemMatrixSummary(params: {
       erectionBilledRampur: erecObj.rampur,
       erectionBilledRohru: erecObj.rohru,
 
+      // Flat WIP Consumed
+      wipConsumedNahan: wipConsObj.nahan,
+      wipConsumedSolan: wipConsObj.solan,
+      wipConsumedRampur: wipConsObj.rampur,
+      wipConsumedRohru: wipConsObj.rohru,
+
+      // Flat WIP Required
+      wipRequiredNahan: wipReqObj.nahan,
+      wipRequiredSolan: wipReqObj.solan,
+      wipRequiredRampur: wipReqObj.rampur,
+      wipRequiredRohru: wipReqObj.rohru,
+
       // Flat Balances
       balDiLoa,
       balDiBom,
@@ -1732,6 +1862,8 @@ async function computeItemMatrixSummary(params: {
       imc: imcObj,
       supplyBilled: supObj,
       erectionBilled: erecObj,
+      wipConsumed: wipConsObj,
+      wipRequired: wipReqObj,
       balances: {
         diVsLoa: balDiLoa,
         diVsBom: balDiBom,

@@ -4,7 +4,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getItemMatrixSummary } from '@/features/reports/api/reports.api';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-
 import { useUrlFilters } from '@/shared/hooks/useUrlFilters';
 
 export default function ItemSummaryMatrixPage() {
@@ -28,6 +27,8 @@ export default function ItemSummaryMatrixPage() {
   const [showImc, setShowImc] = useState(true);
   const [showSupplyBill, setShowSupplyBill] = useState(true);
   const [showErectionBill, setShowErectionBill] = useState(true);
+  const [showWipConsumed, setShowWipConsumed] = useState(true);
+  const [showWipRequired, setShowWipRequired] = useState(true);
 
   const [totalItems, setTotalItems] = useState(0);
 
@@ -116,6 +117,16 @@ export default function ItemSummaryMatrixPage() {
       acc.erecRampur += (r.erectionBilledRampur || 0);
       acc.erecRohru += (r.erectionBilledRohru || 0);
 
+      acc.wipConsSolan += (r.wipConsumedSolan || 0);
+      acc.wipConsNahan += (r.wipConsumedNahan || 0);
+      acc.wipConsRampur += (r.wipConsumedRampur || 0);
+      acc.wipConsRohru += (r.wipConsumedRohru || 0);
+
+      acc.wipReqSolan += (r.wipRequiredSolan || 0);
+      acc.wipReqNahan += (r.wipRequiredNahan || 0);
+      acc.wipReqRampur += (r.wipRequiredRampur || 0);
+      acc.wipReqRohru += (r.wipRequiredRohru || 0);
+
       acc.balDiLoa += (r.balDiLoa || 0);
       acc.balDiBom += (r.balDiBom || 0);
       acc.balMrn += (r.balMrn || 0);
@@ -143,6 +154,8 @@ export default function ItemSummaryMatrixPage() {
       imcSolan: 0, imcNahan: 0, imcRampur: 0, imcRohru: 0,
       supSolan: 0, supNahan: 0, supRampur: 0, supRohru: 0,
       erecSolan: 0, erecNahan: 0, erecRampur: 0, erecRohru: 0,
+      wipConsSolan: 0, wipConsNahan: 0, wipConsRampur: 0, wipConsRohru: 0,
+      wipReqSolan: 0, wipReqNahan: 0, wipReqRampur: 0, wipReqRohru: 0,
       balDiLoa: 0, balDiBom: 0, balMrn: 0, balImc: 0, balSupplyBill: 0, balErectionBill: 0,
       balTotals: {
         solan: { diVsLoa: 0, diVsBom: 0, mrn: 0, imc: 0, supplyBill: 0, erectionBill: 0 },
@@ -176,6 +189,8 @@ export default function ItemSummaryMatrixPage() {
       'Total JMC Solan', 'Total JMC Nahan', 'Total JMC Rampur', 'Total JMC Rohru',
       'Total Supply Billed Solan', 'Total Supply Billed Nahan', 'Total Supply Billed Rampur', 'Total Supply Billed Rohru',
       'Total Erection Billed Solan', 'Total Erection Billed Nahan', 'Total Erection Billed Rampur', 'Total Erection Billed Rohru',
+      'Total WIP Consumed Solan', 'Total WIP Consumed Nahan', 'Total WIP Consumed Rampur', 'Total WIP Consumed Rohru',
+      'Total WIP Required Solan', 'Total WIP Required Nahan', 'Total WIP Required Rampur', 'Total WIP Required Rohru',
       ...['SOLAN', 'NAHAN', 'RAMPUR', 'ROHRU'].flatMap(c => [
         `Bal for DI (${c})`, `Bal for Dispatch (${c})`,
         `Bal for IR (${c})`, `Bal for MRHOv (${c})`, `Bal for JMC (${c})`,
@@ -202,6 +217,8 @@ export default function ItemSummaryMatrixPage() {
         cv('solan', r.imcSolan), cv('nahan', r.imcNahan), cv('rampur', r.imcRampur), cv('rohru', r.imcRohru),
         cv('solan', r.supplyBilledSolan), cv('nahan', r.supplyBilledNahan), cv('rampur', r.supplyBilledRampur), cv('rohru', r.supplyBilledRohru),
         cv('solan', r.erectionBilledSolan), cv('nahan', r.erectionBilledNahan), cv('rampur', r.erectionBilledRampur), cv('rohru', r.erectionBilledRohru),
+        cv('solan', r.wipConsumedSolan), cv('nahan', r.wipConsumedNahan), cv('rampur', r.wipConsumedRampur), cv('rohru', r.wipConsumedRohru),
+        cv('solan', r.wipRequiredSolan), cv('nahan', r.wipRequiredNahan), cv('rampur', r.wipRequiredRampur), cv('rohru', r.wipRequiredRohru),
         ...['solan', 'nahan', 'rampur', 'rohru'].flatMap(c => {
           if (!itemCirc.includes(c)) return ['-', '-', '-', '-', '-', '-', '-'];
           const b = r.allBalances ? r.allBalances[c] : (r.balances || {});
@@ -247,6 +264,8 @@ export default function ItemSummaryMatrixPage() {
       'Total JMC Solan', 'Total JMC Nahan', 'Total JMC Rampur', 'Total JMC Rohru',
       'Total Supply Billed Solan', 'Total Supply Billed Nahan', 'Total Supply Billed Rampur', 'Total Supply Billed Rohru',
       'Total Erection Billed Solan', 'Total Erection Billed Nahan', 'Total Erection Billed Rampur', 'Total Erection Billed Rohru',
+      'Total WIP Consumed Solan', 'Total WIP Consumed Nahan', 'Total WIP Consumed Rampur', 'Total WIP Consumed Rohru',
+      'Total WIP Required Solan', 'Total WIP Required Nahan', 'Total WIP Required Rampur', 'Total WIP Required Rohru',
       ...['SOLAN', 'NAHAN', 'RAMPUR', 'ROHRU'].flatMap(c => [
         `Bal for DI against ${c} LOA`, `Bal for Dispatch against ${c} LOA`,
         `Bal for IR-${c}`, `Bal for MRHOv-${c}`, `Bal for JMC-${c}`,
@@ -268,6 +287,8 @@ export default function ItemSummaryMatrixPage() {
         cv('solan', r.imcSolan), cv('nahan', r.imcNahan), cv('rampur', r.imcRampur), cv('rohru', r.imcRohru),
         cv('solan', r.supplyBilledSolan), cv('nahan', r.supplyBilledNahan), cv('rampur', r.supplyBilledRampur), cv('rohru', r.supplyBilledRohru),
         cv('solan', r.erectionBilledSolan), cv('nahan', r.erectionBilledNahan), cv('rampur', r.erectionBilledRampur), cv('rohru', r.erectionBilledRohru),
+        cv('solan', r.wipConsumedSolan), cv('nahan', r.wipConsumedNahan), cv('rampur', r.wipConsumedRampur), cv('rohru', r.wipConsumedRohru),
+        cv('solan', r.wipRequiredSolan), cv('nahan', r.wipRequiredNahan), cv('rampur', r.wipRequiredRampur), cv('rohru', r.wipRequiredRohru),
         ...['solan', 'nahan', 'rampur', 'rohru'].flatMap(c => {
           if (!itemCirc.includes(c)) return ['', '', '', '', '', '', ''];
           const b = r.allBalances ? r.allBalances[c] : (r.balances || {});
@@ -466,6 +487,14 @@ export default function ItemSummaryMatrixPage() {
             <input type="checkbox" checked={showErectionBill} onChange={e => setShowErectionBill(e.target.checked)} className="rounded text-indigo-600 focus:ring-indigo-500" />
             Erection Bill / RA
           </label>
+          <label className="flex items-center gap-1.5 cursor-pointer hover:text-indigo-600">
+            <input type="checkbox" checked={showWipConsumed} onChange={e => setShowWipConsumed(e.target.checked)} className="rounded text-indigo-600 focus:ring-indigo-500" />
+            WIP Consumed
+          </label>
+          <label className="flex items-center gap-1.5 cursor-pointer hover:text-indigo-600">
+            <input type="checkbox" checked={showWipRequired} onChange={e => setShowWipRequired(e.target.checked)} className="rounded text-indigo-600 focus:ring-indigo-500" />
+            WIP Required
+          </label>
         </div>
       </div>
 
@@ -521,6 +550,9 @@ export default function ItemSummaryMatrixPage() {
                   
                   {showErectionBill && <th className="p-2 min-w-[100px] bg-violet-50 text-right font-bold text-violet-900">Erection Bill RA</th>}
                   {showErectionBill && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900">Bal for Erection Bill</th>}
+
+                  {showWipConsumed && <th className="p-2 min-w-[100px] bg-pink-50 text-right font-bold text-pink-900">WIP Consumed</th>}
+                  {showWipRequired && <th className="p-2 min-w-[100px] bg-teal-50 text-right font-bold text-teal-900">WIP Required</th>}
                 </tr>
               </thead>
 
@@ -548,6 +580,9 @@ export default function ItemSummaryMatrixPage() {
                     const supplyBillQty = r.supplyBilledSolan || r.supplyBilledNahan || r.supplyBilledRampur || r.supplyBilledRohru || 0;
                     const erectionBillQty = r.erectionBilledSolan || r.erectionBilledNahan || r.erectionBilledRampur || r.erectionBilledRohru || 0;
                     
+                    const wipConsQty = r.wipConsumedSolan || r.wipConsumedNahan || r.wipConsumedRampur || r.wipConsumedRohru || r.wipConsumed?.solan || r.wipConsumed?.nahan || r.wipConsumed?.rampur || r.wipConsumed?.rohru || 0;
+                    const wipReqQty = r.wipRequiredSolan || r.wipRequiredNahan || r.wipRequiredRampur || r.wipRequiredRohru || r.wipRequired?.solan || r.wipRequired?.nahan || r.wipRequired?.rampur || r.wipRequired?.rohru || 0;
+
                     const itemCircleKey = c === 'solan' || c === 'nahan' || c === 'rampur' || c === 'rohru' ? c : 'solan';
                     const bal = r.allBalances ? r.allBalances[itemCircleKey] : (r.balances || {});
 
@@ -596,6 +631,9 @@ export default function ItemSummaryMatrixPage() {
                         
                         {showErectionBill && <td className="p-2 text-right text-violet-900 font-medium bg-violet-50/20">{fmtQty(erectionBillQty)}</td>}
                         {showErectionBill && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{fmtBal(bal?.erectionBill)}</td>}
+
+                        {showWipConsumed && <td className="p-2 text-right text-pink-900 font-medium bg-pink-50/20">{fmtQty(wipConsQty)}</td>}
+                        {showWipRequired && <td className="p-2 text-right text-teal-900 font-medium bg-teal-50/20">{fmtQty(wipReqQty)}</td>}
                       </tr>
                     );
                   })

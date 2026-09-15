@@ -1352,13 +1352,16 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
   let successCount = 0;
   for (const payload of validPayloads) {
     try {
-      const draftFilter: any = { 
-        status: 'DRAFT',
-        purchaseInvoiceId: payload.purchaseInvoiceId,
-        serialNumber: payload.serialNumber
-      };
+      let entry = null;
+      if (payload.entryType !== 'HISTORICAL') {
+         const draftFilter: any = { 
+           status: 'DRAFT',
+           purchaseInvoiceId: payload.purchaseInvoiceId,
+           serialNumber: payload.serialNumber
+         };
+         entry = await StoreInwardEntry.findOne(draftFilter);
+      }
       
-      let entry = await StoreInwardEntry.findOne(draftFilter);
       if (entry) {
         await StoreInwardEntry.findByIdAndUpdate(entry._id, payload);
       } else {
@@ -1427,9 +1430,10 @@ export const getPendingStoreReceipts = asyncHandler(async (req: Request, res: Re
   } = req.query;
   
   const filter: any = { 
-    status: { $in: ['PENDING_RECEIPT', 'APPROVED'] }, 
-    $or: [{ purchaseInvoiceId: { $exists: true } }, { entryType: 'HISTORICAL' }]
+    status: { $in: ['PENDING_RECEIPT', 'APPROVED'] }
   };
+  
+  const baseOrConditions = [{ purchaseInvoiceId: { $exists: true } }, { entryType: 'HISTORICAL' }];
   
   if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
     if (user.assignedPackage && user.assignedPackage.trim()) {
@@ -1547,7 +1551,7 @@ export const getInwardRegister = asyncHandler(async (req: Request, res: Response
   const { status } = req.query;
   
   const filter: any = { 
-    purchaseInvoiceId: { $exists: true } 
+    $or: [{ purchaseInvoiceId: { $exists: true } }, { entryType: 'HISTORICAL' }]
   };
 
   if (status === 'PENDING_RECEIPT') {

@@ -143,25 +143,7 @@ export function StockSummaryTable({ data, isLoading }: StockSummaryTableProps) {
     <div className="flex flex-col gap-6">
       
       {/* FUTURISTIC ANALYTICS DASHBOARD */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Card 1 */}
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-5 text-white shadow-md relative overflow-hidden group">
-          <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-xl group-hover:scale-110 transition-transform duration-500"></div>
-          <div className="flex items-start justify-between relative z-10">
-            <div>
-              <p className="text-blue-100 text-sm font-medium mb-1">Total Inventory Value</p>
-              <h3 className="text-3xl font-bold tracking-tight">₹{totalInventoryValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</h3>
-              <p className="text-blue-100/80 text-xs mt-2 flex items-center">
-                <TrendingUp className="w-3 h-3 mr-1" /> Estimated Real-Time Value
-              </p>
-            </div>
-            <div className="p-3 bg-white/20 rounded-lg backdrop-blur-sm">
-              <Calculator className="w-6 h-6 text-white" />
-            </div>
-          </div>
-        </div>
-
-        {/* Card 2 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-5 text-white shadow-md relative overflow-hidden group">
           <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/5 rounded-full blur-xl group-hover:scale-110 transition-transform duration-500"></div>
           <div className="flex items-start justify-between relative z-10">

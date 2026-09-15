@@ -46,6 +46,7 @@ export interface IDemandNote extends Document {
   locationDrawingUrl?: string;
   pmApprovedBy?: mongoose.Types.ObjectId;
   pmApprovedAt?: Date;
+  pmApprovalRemarks?: string;
   pdApprovedBy?: mongoose.Types.ObjectId;
   pdApprovedAt?: Date;
   rejectedBy?: mongoose.Types.ObjectId;
@@ -108,6 +109,7 @@ const demandNoteSchema = new Schema<IDemandNote>(
     locationDrawingUrl: { type: String },
     pmApprovedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     pmApprovedAt: { type: Date },
+    pmApprovalRemarks: { type: String },
     pdApprovedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     pdApprovedAt: { type: Date },
     rejectedBy: { type: Schema.Types.ObjectId, ref: 'User' },

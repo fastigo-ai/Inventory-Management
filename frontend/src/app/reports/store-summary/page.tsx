@@ -56,7 +56,7 @@ export default function StoreSummaryPage() {
 
   const { filters, setFilter, debouncedFilters } = useUrlFilters({
     circle: user?.assignedCircle || '',
-    store: '',
+    store: user?.assignedSubcircle || '',
     pkg: '',
     search: '',
     tempCode: '',
@@ -484,7 +484,8 @@ export default function StoreSummaryPage() {
               <select
                 value={store}
                 onChange={(e) => setStore(e.target.value)}
-                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer pr-1"
+                disabled={isStoreManager && !!user?.assignedSubcircle}
+                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer pr-1 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <option value="">All Stores</option>
                 {stores.map(s => (

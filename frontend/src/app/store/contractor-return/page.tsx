@@ -194,7 +194,10 @@ export default function StoreContractorReturnPage() {
                             <td className="px-6 py-4">{a.contractorId?.name || a.contractorId?.dynamicData?.displayName || 'Unknown'}</td>
                             <td className="px-6 py-4">
                               <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                                a.status === 'Submitted' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'
+                                a.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                                a.status === 'Draft' ? 'bg-slate-100 text-slate-800' :
+                                a.status === 'Cancelled' ? 'bg-red-100 text-red-800' :
+                                'bg-slate-100 text-slate-800'
                               }`}>
                                 {a.status}
                               </span>

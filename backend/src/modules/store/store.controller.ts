@@ -1351,11 +1351,10 @@ export const getPendingStoreReceipts = asyncHandler(async (req: Request, res: Re
       const regexStr = normalizedPkg.split('').map((char: string) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*');
       filter.package = { $regex: new RegExp(`^\\s*${regexStr}\\s*$`, 'i') };
     }
-    if (user.assignedCircle) {
-      filter.circle = { $in: expandCircle(user.assignedCircle) || [user.assignedCircle] };
-    }
     if (user.assignedSubcircle) {
       filter.subcircle = { $regex: new RegExp(`^\\s*${user.assignedSubcircle.trim()}\\s*$`, 'i') };
+    } else if (user.assignedCircle) {
+      filter.circle = { $in: expandCircle(user.assignedCircle) || [user.assignedCircle] };
     }
   } else if (user && (user.role?.name === 'Admin' || user.role?.name === 'Super Admin' || user.role?.permissions?.includes('*'))) {
     if (pkg && pkg !== 'All') filter.package = pkg;
@@ -1479,7 +1478,9 @@ export const getInwardRegister = asyncHandler(async (req: Request, res: Response
       const regexStr = normalizedPkg.split('').map((char: string) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*');
       filter.package = { $regex: new RegExp(`^\\s*${regexStr}\\s*$`, 'i') };
     }
-    if (user.assignedCircle) {
+    if (user.assignedSubcircle) {
+      filter.subcircle = { $regex: new RegExp(`^\\s*${user.assignedSubcircle.trim()}\\s*$`, 'i') };
+    } else if (user.assignedCircle) {
       filter.circle = { $in: expandCircle(user.assignedCircle) || [user.assignedCircle] };
     }
   }

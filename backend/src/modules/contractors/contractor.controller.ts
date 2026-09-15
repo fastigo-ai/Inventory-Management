@@ -645,16 +645,21 @@ export const getContractorReturns = asyncHandler(async (req: Request, res: Respo
   const user = (req as any).user;
   let filter: any = {};
 
-  if (user && user.role?.name === 'Store Manager' && user.assignedCircle) {
-    const SUB_STORE_MAP: Record<string, string[]> = {
-      'Solan': ['Solan', 'Nalagarh', 'Kumarhatti'],
-      'Nahan': ['Nahan'],
-      'Rohru': ['Rohru'],
-      'Rampur': ['Rampur'],
-    };
-    const allowedCircles = SUB_STORE_MAP[user.assignedCircle] || [user.assignedCircle];
-    const regexCircles = allowedCircles.map(c => new RegExp(`^${c}$`, 'i'));
-    filter.circle = { $in: regexCircles };
+  if (user && user.role?.name === 'Store Manager') {
+    if (user.assignedSubcircle) {
+      filter.circle = { $regex: new RegExp(`^${user.assignedSubcircle.trim()}$`, 'i') };
+    } else if (user.assignedCircle) {
+      const SUB_STORE_MAP: Record<string, string[]> = {
+        'solan': ['Solan', 'Nalagarh', 'Kumarhatti'],
+        'nahan': ['Nahan'],
+        'rohru': ['Rohru'],
+        'rampur': ['Rampur'],
+      };
+      const normalizedCircle = user.assignedCircle.trim().toLowerCase();
+      const allowedCircles = SUB_STORE_MAP[normalizedCircle] || [user.assignedCircle];
+      const regexCircles = allowedCircles.map(c => new RegExp(`^${c}$`, 'i'));
+      filter.circle = { $in: regexCircles };
+    }
   }
 
   const returns = await ContractorReturn.find(filter)
@@ -821,7 +826,7 @@ export const bulkImportContractorReturns = asyncHandler(async (req: Request, res
           feeder: row['Name of Feeder'] || '',
           issuedTfsSrNo: row['Return TFS Sr No.'] || '',
           remarks: row['Remarks'] || '',
-          status: 'Submitted',
+          status: 'Approved',
           circle: (req as any).user?.assignedCircle || '',
           createdBy: (req as any).user?._id,
           lineItems: []

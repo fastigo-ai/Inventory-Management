@@ -47,7 +47,7 @@ export const hasAccessToRoute = (pathname: string, user: User | null): boolean =
 
   // Backward compatibility for Store Manager
   if (user.role?.name === 'Store Manager') {
-    return ['Stock Inward', 'Stock Outward'].some(mod => requiredModules.includes(mod));
+    return ['Stock Inward', 'Stock Outward', 'Reports'].some(mod => requiredModules.includes(mod));
   }
 
   // Project Manager and Project Director special logic

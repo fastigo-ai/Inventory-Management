@@ -18,14 +18,7 @@ export function PendingActions({ summary = {} }: { summary?: any }) {
         </h3>
         
         <div className="flex flex-col gap-4">
-          <div>
-            <p className="text-indigo-100 text-sm mb-1">Total Inventory Value</p>
-            <div className="flex items-baseline gap-1">
-              <span className="text-xl">₹</span>
-              <span className="text-4xl font-bold tracking-tight">{totalValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
-            </div>
-          </div>
-          <div className="w-full h-px bg-white/20"></div>
+
           <div>
             <p className="text-indigo-100 text-sm mb-1">Total Stocked SKUs</p>
             <p className="text-2xl font-bold tracking-tight">{totalItems}</p>

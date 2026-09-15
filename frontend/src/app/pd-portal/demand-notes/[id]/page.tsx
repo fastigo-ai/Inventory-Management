@@ -307,8 +307,14 @@ export default function DemandNoteDetailPage() {
               <span className="text-sm text-slate-500">Remarks</span>
               <span className="col-span-2 text-sm font-medium text-slate-800">{demandNote.remarks || 'No remarks provided'}</span>
             </div>
+            {demandNote.pmApprovalRemarks && (
+              <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-slate-100">
+                <span className="text-sm text-slate-500">PM Approval Remarks</span>
+                <span className="col-span-2 text-sm font-medium text-slate-800">{demandNote.pmApprovalRemarks}</span>
+              </div>
+            )}
             {demandNote.status === 'Rejected' && (
-              <div className="grid grid-cols-3 gap-2 mt-2">
+              <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-slate-100">
                 <span className="text-sm text-slate-500">Rejection Reason</span>
                 <span className="col-span-2 text-sm font-medium text-red-600">{demandNote.rejectionRemarks || 'No reason provided'}</span>
               </div>

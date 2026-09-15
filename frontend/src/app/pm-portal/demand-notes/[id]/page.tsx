@@ -21,6 +21,10 @@ export default function DemandNoteDetailPage() {
   const [rejectionRemarks, setRejectionRemarks] = useState('');
   const [isRejecting, setIsRejecting] = useState(false);
 
+  const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
+  const [approvalRemarks, setApprovalRemarks] = useState('');
+  const [isApproving, setIsApproving] = useState(false);
+
   const fetchDemandNote = async () => {
     try {
       setIsLoading(true);
@@ -56,17 +60,26 @@ export default function DemandNoteDetailPage() {
     if (id) fetchDemandNote();
   }, [id]);
 
-  const handleApprove = async () => {
+  const handleApprove = () => {
+    setIsApproveModalOpen(true);
+  };
+
+  const confirmApproval = async () => {
     try {
-      setIsLoading(true);
-      const res = await updateDemandNote(demandNote._id, { status: 'Pending PD Approval' });
+      setIsApproving(true);
+      const res = await updateDemandNote(demandNote._id, { 
+        status: 'Pending PD Approval', 
+        pmApprovalRemarks: approvalRemarks 
+      });
       if (res.success) {
         toast.success('Demand Note approved successfully');
+        setIsApproveModalOpen(false);
         fetchDemandNote();
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to approve demand note');
-      setIsLoading(false);
+    } finally {
+      setIsApproving(false);
     }
   };
 
@@ -331,6 +344,7 @@ export default function DemandNoteDetailPage() {
                 <th className="px-6 py-4 text-center">Invoice Qty</th>
                 <th className="px-6 py-4">Unit</th>
                 <th className="px-6 py-4 text-center">In Stock</th>
+                <th className="px-6 py-4 text-center text-amber-700 bg-amber-50">Contractor Bal</th>
                 <th className="px-6 py-4 text-center">Till Issued</th>
                 <th className="px-6 py-4 text-center">WIP Consumed</th>
                 <th className="px-6 py-4 text-center">JMC Done</th>
@@ -354,6 +368,7 @@ export default function DemandNoteDetailPage() {
                   const jmcDone = stockMatch ? (stockMatch.jmcDone || 0) : 0;
                   const circleLoaQty = stockMatch ? (stockMatch.circleLoaQty || 0) : 0;
                   const invoiceQty = stockMatch ? ((stockMatch.acceptedQty || 0) + (stockMatch.mhrovQty || 0)) : 0;
+                  const contractorBalance = (tillIssued || 0) - (consumption || 0) - (jmcDone || 0);
                   return (
                   <tr key={idx} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4 text-sm text-slate-600">{idx + 1}</td>
@@ -367,6 +382,7 @@ export default function DemandNoteDetailPage() {
                     <td className={`px-6 py-4 text-center font-bold ${inStock > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                       {Math.round(Number(inStock || 0))}
                     </td>
+                    <td className="px-6 py-4 text-center font-bold text-amber-600 bg-amber-50/30">{Math.round(Number(contractorBalance || 0))}</td>
                     <td className="px-6 py-4 text-center font-medium text-blue-600">{Math.round(Number(tillIssued || 0))}</td>
                     <td className="px-6 py-4 text-center font-medium text-orange-600">{Math.round(Number(consumption || 0))}</td>
                     <td className="px-6 py-4 text-center font-medium text-purple-600">{Math.round(Number(jmcDone || 0))}</td>
@@ -427,6 +443,50 @@ export default function DemandNoteDetailPage() {
               >
                 {isRejecting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                 Confirm Rejection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Approve Modal */}
+      {isApproveModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="p-6 border-b border-slate-200 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+                <CheckCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">Approve Demand Note</h3>
+                <p className="text-sm text-slate-500 mt-1">Add optional remarks for the PD before approving.</p>
+              </div>
+            </div>
+            <div className="p-6">
+              <label className="block text-sm font-medium text-slate-700 mb-2">PM Approval Remarks</label>
+              <textarea
+                value={approvalRemarks}
+                onChange={(e) => setApprovalRemarks(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-sm"
+                rows={4}
+                placeholder="Enter remarks for the PD portal (optional)..."
+              />
+            </div>
+            <div className="p-6 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
+              <button
+                onClick={() => setIsApproveModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                disabled={isApproving}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmApproval}
+                disabled={isApproving}
+                className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2"
+              >
+                {isApproving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Approve & Sign
               </button>
             </div>
           </div>

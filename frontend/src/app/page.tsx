@@ -143,14 +143,14 @@ export default function Home() {
           <div className="flex-1 w-full max-w-[1400px] mx-auto flex flex-col gap-6">
             {isStoreManager && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Link href="/reports/store-summary" className="flex flex-col items-center justify-center p-8 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors shadow-sm">
+                <button onClick={() => window.location.href = '/reports/store-summary'} className="flex flex-col items-center justify-center p-8 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors shadow-sm cursor-pointer">
                   <Package className="w-12 h-12 text-blue-600 mb-4" />
                   <span className="text-xl font-bold text-blue-900">Store Itemised Summary</span>
-                </Link>
-                <Link href="/reports/store-contractor-summary" className="flex flex-col items-center justify-center p-8 bg-indigo-50 border border-indigo-200 rounded-xl hover:bg-indigo-100 transition-colors shadow-sm">
+                </button>
+                <button onClick={() => window.location.href = '/reports/store-contractor-summary'} className="flex flex-col items-center justify-center p-8 bg-indigo-50 border border-indigo-200 rounded-xl hover:bg-indigo-100 transition-colors shadow-sm cursor-pointer">
                   <Building className="w-12 h-12 text-indigo-600 mb-4" />
                   <span className="text-xl font-bold text-indigo-900">Store Contractor Summary</span>
-                </Link>
+                </button>
               </div>
             )}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden p-6">

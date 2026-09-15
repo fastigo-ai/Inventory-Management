@@ -22,6 +22,25 @@ import { formatDistanceToNow, format } from "date-fns";
 function groupByInvoice(entries: any[]) {
   const map: Record<string, { invoiceKey: string; purchaseInvoiceId: string; invoiceNumber: string; vendorName: string; poNumber: string; circle: string; subcircle: string; package: string; items: any[] }> = {};
   for (const entry of entries) {
+    if (entry.entryType === 'HISTORICAL') {
+      const key = `HISTORICAL_${entry.circle || ''}_${entry.subcircle || ''}_${entry.package || ''}`;
+      if (!map[key]) {
+        map[key] = {
+          invoiceKey: key,
+          purchaseInvoiceId: 'HISTORICAL',
+          invoiceNumber: 'HISTORICAL',
+          vendorName: 'Historical Opening Balance',
+          poNumber: '-',
+          circle: entry.circle || '-',
+          subcircle: entry.subcircle || '',
+          package: entry.package || '-',
+          items: [],
+        };
+      }
+      map[key].items.push(entry);
+      continue;
+    }
+
     // purchaseInvoiceId may be a populated object or a plain ObjectId string
     const invoiceIdRaw = entry.purchaseInvoiceId;
     const invoiceIdStr = invoiceIdRaw?._id?.toString() || invoiceIdRaw?.toString() || '';

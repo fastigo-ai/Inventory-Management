@@ -1136,6 +1136,67 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
   for (const row of rawRows) {
     try {
       const invoiceNumber = row['InvoiceNumber'] || row['Invoice Number'] || row['invoiceNumber'];
+      const isHistorical = invoiceNumber === 'HISTORICAL' || !invoiceNumber;
+      
+      const userObj = (req as any).user;
+      const isStoreManager = userObj?.role?.name === 'Store Manager';
+      const isTargetSubcircle = ['Nalagarh', 'Kumarhatti'].includes(userObj?.assignedSubcircle);
+
+      if (isHistorical && isStoreManager && isTargetSubcircle) {
+         const tempCode = row['TempCode'] || row['tempCode'];
+         const itemName = row['ItemName'] || row['itemName'] || row['Item Name'];
+         let itemData = null;
+         if (tempCode) {
+           itemData = await Item.findOne({ tempCode });
+         } else if (itemName) {
+           itemData = await Item.findOne({ name: { $regex: new RegExp(`^${itemName}$`, 'i') } });
+         }
+
+         if (!itemData) {
+            errors.push(`Historical Item not found: ${tempCode || itemName}`);
+            continue;
+         }
+
+         const acceptedQty = Number(row['AcceptedQty'] || row['acceptedQty'] || row['ReceivedQty'] || 0);
+         if (acceptedQty < 0) {
+           errors.push(`Accepted Qty cannot be negative for Historical Entry`);
+           continue;
+         }
+
+         const rate = row['Rate'] !== undefined && row['Rate'] !== '' ? Number(row['Rate']) : 0;
+         const taxableAmount = row['TaxableAmount'] !== undefined && row['TaxableAmount'] !== '' ? Number(row['TaxableAmount']) : acceptedQty * rate;
+         const cgst = row['Cgst'] !== undefined && row['Cgst'] !== '' ? Number(row['Cgst']) : 0;
+         const sgst = row['Sgst'] !== undefined && row['Sgst'] !== '' ? Number(row['Sgst']) : 0;
+         const igst = row['Igst'] !== undefined && row['Igst'] !== '' ? Number(row['Igst']) : 0;
+         const amount = row['Amount'] !== undefined && row['Amount'] !== '' ? Number(row['Amount']) : (taxableAmount + cgst + sgst + igst);
+
+         validPayloads.push({
+           inwardId: row['InwardId'] || row['Inward ID'] || row['inwardId'] || `INW-HIST-${Math.floor(1000 + Math.random() * 9000)}`,
+           entryType: 'HISTORICAL',
+           vendorName: 'Historical Opening Balance',
+           invoiceNumber: 'HISTORICAL',
+           receivedDate: row['ReceivedDate'] ? new Date(row['ReceivedDate']) : new Date(),
+           unit: row['Unit'] || itemData.unit || 'Nos',
+           invoiceQty: acceptedQty,
+           totalQty: acceptedQty,
+           challanQty: Number(row['ChallanQty'] || row['challanQty'] || 0),
+           rejectedQty: Number(row['RejectedQty'] || row['rejectedQty'] || 0),
+           rate, amount, taxableAmount, cgst, sgst, igst,
+           tempCode: itemData.tempCode,
+           itemId: itemData._id,
+           itemName: itemData.name,
+           itemDescription: itemData.description,
+           circle: row['Circle'] || userObj?.assignedCircle || '',
+           subcircle: row['Subcircle'] || userObj?.assignedSubcircle || '',
+           package: row['Package'] || userObj?.assignedPackage || '',
+           status: 'APPROVED',
+           packingList: [{ packType: 'BOX', quantity: acceptedQty }],
+           createdBy: userObj?._id,
+           remarks: row['Remarks'] || 'Historical Opening Balance'
+         });
+         continue; 
+      }
+
       if (!invoiceNumber) {
         errors.push(`Row missing Invoice Number`);
         continue;
@@ -1302,7 +1363,7 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
 
 export const getStoreReceiptFilterOptions = asyncHandler(async (req: Request, res: Response) => {
   const user = (req as any).user;
-  const baseFilter: any = { purchaseInvoiceId: { $exists: true } };
+  const baseFilter: any = { $or: [{ purchaseInvoiceId: { $exists: true } }, { entryType: 'HISTORICAL' }] };
 
   // Scope filter to assigned package/circle/subcircle for Store Managers
   if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
@@ -1343,7 +1404,10 @@ export const getPendingStoreReceipts = asyncHandler(async (req: Request, res: Re
     export: exportAll
   } = req.query;
   
-  const filter: any = { status: { $in: ['PENDING_RECEIPT', 'APPROVED'] }, purchaseInvoiceId: { $exists: true } };
+  const filter: any = { 
+    status: { $in: ['PENDING_RECEIPT', 'APPROVED'] }, 
+    $or: [{ purchaseInvoiceId: { $exists: true } }, { entryType: 'HISTORICAL' }]
+  };
   
   if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
     if (user.assignedPackage && user.assignedPackage.trim()) {
@@ -1622,15 +1686,20 @@ export const getInwardEntriesByInvoice = asyncHandler(async (req: Request, res: 
   const user = (req as any).user;
   const { circle: circleParam, package: pkgParam, subcircle: subcircleParam } = req.query;
 
-  if (!mongoose.Types.ObjectId.isValid(invoiceId as string)) {
+  const isHistorical = invoiceId === 'HISTORICAL';
+
+  if (!isHistorical && !mongoose.Types.ObjectId.isValid(invoiceId as string)) {
     throw new ApiError(400, 'Invalid invoice ID');
   }
 
   const isAdmin = user?.role?.name === 'Admin' || user?.role?.name === 'Super Admin' || user?.role?.permissions?.includes('*');
 
-  const filter: any = {
-    purchaseInvoiceId: new mongoose.Types.ObjectId(invoiceId as string),
-  };
+  const filter: any = {};
+  if (isHistorical) {
+    filter.entryType = 'HISTORICAL';
+  } else {
+    filter.purchaseInvoiceId = new mongoose.Types.ObjectId(invoiceId as string);
+  }
 
   if (!isAdmin) {
     // Store Manager: scope to their assigned circle + subcircle + package (same as getPendingStoreReceipts)

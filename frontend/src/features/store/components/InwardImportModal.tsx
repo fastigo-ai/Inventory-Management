@@ -77,9 +77,9 @@ export function InwardImportModal({ isOpen, onClose, onSuccess }: InwardImportMo
   };
 
   const downloadSampleCsv = () => {
-    const headers = "InvoiceNumber,ItemName,LoaSerialNo,ChallanQty,RejectedQty,AcceptedQty,TransportName,TruckNumber,GrNumber,GrDate,ReceivedDate,PoNumber,PoDate,BillingFrom,VendorName,InvoiceDate,Unit,InvoiceQty,TotalQty,Rate,Amount,TaxableAmount,TempCode,ItemDescription,HsnCode,ChallanNumber,BiltyNumber,Gst,Cgst,Sgst,Igst,DiRefNo,Circle,Package,Remarks\n";
-    const sampleRow1 = "INV-1001,Optical Fiber,SN-1234,10,0,10,Fastigo Logistics,MH-12-AB-1234,GR-991,2026-07-20,2026-07-22,PO-2001,2026-07-01,HQ,Vendor A,2026-07-15,Nos,10,100,500,5900,5000,TC-1,High Speed Fiber,8544,CH-441,BL-771,18%,450,450,0,DI-001,Circle 1,Pkg A,Delivered safely\n";
-    const sampleRow2 = "INV-1001,Router,SN-9988,5,1,4,Fastigo Logistics,MH-12-AB-1234,GR-991,2026-07-20,2026-07-22,PO-2001,2026-07-01,HQ,Vendor A,2026-07-15,Nos,5,50,2000,9440,8000,TC-2,Enterprise Router,8517,CH-441,BL-771,18%,720,720,0,DI-001,Circle 1,Pkg A,1 box damaged\n";
+    const headers = "InvoiceNumber,ItemName,LoaSerialNo,ChallanQty,RejectedQty,AcceptedQty,TransportName,TruckNumber,GrNumber,GrDate,ReceivedDate,PoNumber,PoDate,BillingFrom,VendorName,InvoiceDate,Unit,InvoiceQty,TotalQty,Rate,Amount,TaxableAmount,TempCode,ItemDescription,HsnCode,ChallanNumber,BiltyNumber,Gst,Cgst,Sgst,Igst,DiRefNo,Circle,Subcircle,Package,Remarks\n";
+    const sampleRow1 = "INV-1001,Optical Fiber,SN-1234,10,0,10,Fastigo Logistics,MH-12-AB-1234,GR-991,2026-07-20,2026-07-22,PO-2001,2026-07-01,HQ,Vendor A,2026-07-15,Nos,10,100,500,5900,5000,TC-1,High Speed Fiber,8544,CH-441,BL-771,18%,450,450,0,DI-001,Circle 1,Subdiv 1,Pkg A,Delivered safely\n";
+    const sampleRow2 = "INV-1001,Router,SN-9988,5,1,4,Fastigo Logistics,MH-12-AB-1234,GR-991,2026-07-20,2026-07-22,PO-2001,2026-07-01,HQ,Vendor A,2026-07-15,Nos,5,50,2000,9440,8000,TC-2,Enterprise Router,8517,CH-441,BL-771,18%,720,720,0,DI-001,Circle 1,Subdiv 2,Pkg A,1 box damaged\n";
     const csvContent = headers + sampleRow1 + sampleRow2;
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });

@@ -8,6 +8,7 @@ export interface User {
   role: any;
   assignedPackage?: string;
   assignedCircle?: string;
+  assignedSubcircle?: string;
 }
 
 interface AuthState {

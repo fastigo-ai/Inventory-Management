@@ -1136,13 +1136,24 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
   for (const row of rawRows) {
     try {
       const invoiceNumber = row['InvoiceNumber'] || row['Invoice Number'] || row['invoiceNumber'];
-      const isHistorical = invoiceNumber === 'HISTORICAL' || !invoiceNumber;
       
       const userObj = (req as any).user;
       const isStoreManager = userObj?.role?.name === 'Store Manager';
       const isTargetSubcircle = ['Nalagarh', 'Kumarhatti'].includes(userObj?.assignedSubcircle);
 
-      if (isHistorical && isStoreManager && isTargetSubcircle) {
+      let invoice = null;
+      let isInvoiceValid = false;
+
+      if (invoiceNumber && invoiceNumber !== 'HISTORICAL') {
+         invoice = await PurchaseInvoice.findOne({ invoiceNumber });
+         if (invoice && (invoice.status === 'Pending Receipt' || invoice.status === 'Partially Received')) {
+            isInvoiceValid = true;
+         }
+      }
+
+      const shouldBypassAsHistorical = isStoreManager && isTargetSubcircle && (!invoiceNumber || invoiceNumber === 'HISTORICAL' || !isInvoiceValid);
+
+      if (shouldBypassAsHistorical) {
          const tempCode = row['TempCode'] || row['tempCode'];
          const itemName = row['ItemName'] || row['itemName'] || row['Item Name'];
          let itemData = null;
@@ -1174,7 +1185,7 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
            inwardId: row['InwardId'] || row['Inward ID'] || row['inwardId'] || `INW-HIST-${Math.floor(1000 + Math.random() * 9000)}`,
            entryType: 'HISTORICAL',
            vendorName: 'Historical Opening Balance',
-           invoiceNumber: 'HISTORICAL',
+           invoiceNumber: invoiceNumber || 'HISTORICAL',
            receivedDate: row['ReceivedDate'] ? new Date(row['ReceivedDate']) : new Date(),
            unit: row['Unit'] || itemData.unit || 'Nos',
            invoiceQty: acceptedQty,
@@ -1202,7 +1213,6 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
         continue;
       }
 
-      const invoice = await PurchaseInvoice.findOne({ invoiceNumber });
       if (!invoice) {
         errors.push(`Invoice not found: ${invoiceNumber}`);
         continue;

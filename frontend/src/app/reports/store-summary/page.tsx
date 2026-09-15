@@ -135,6 +135,19 @@ export default function StoreSummaryPage() {
     setPage(1);
   }, [circle, store, pkg, search, tempCode, itemName, hideZeroBalance, viewMode, limit]);
 
+  // Auto-set Circle based on Store/Subcircle
+  useEffect(() => {
+    if (store === 'Kumarhatti' || store === 'Nalagarh' || store === 'Solan') {
+      if (circle !== 'Solan') setCircle('Solan');
+    } else if (store === 'Nahan' && circle !== 'Nahan') {
+      setCircle('Nahan');
+    } else if (store === 'Rampur' && circle !== 'Rampur') {
+      setCircle('Rampur');
+    } else if (store === 'Rohru' && circle !== 'Rohru') {
+      setCircle('Rohru');
+    }
+  }, [store]);
+
   // Helper function to fetch all data for exports if no rows are selected
   const fetchAllForExport = async () => {
     if (selectedItems.size > 0) {

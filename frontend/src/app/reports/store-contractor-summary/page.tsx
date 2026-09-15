@@ -114,6 +114,19 @@ export default function StoreContractorSummaryPage() {
     setPage(1);
   }, [contractorName, circle, store, pkg, search, hideZero, limit]);
 
+  // Auto-set Circle based on Store/Subcircle
+  useEffect(() => {
+    if (store === 'Kumarhatti' || store === 'Nalagarh' || store === 'Solan') {
+      if (circle !== 'Solan') setCircle('Solan');
+    } else if (store === 'Nahan' && circle !== 'Nahan') {
+      setCircle('Nahan');
+    } else if (store === 'Rampur' && circle !== 'Rampur') {
+      setCircle('Rampur');
+    } else if (store === 'Rohru' && circle !== 'Rohru') {
+      setCircle('Rohru');
+    }
+  }, [store]);
+
   const fetchAllForExport = async () => {
     if (selectedItems.size > 0) {
       return data.filter((r, i) => selectedItems.has(r.loaSerialNo || r.tempCode || String(i)));

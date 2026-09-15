@@ -122,7 +122,14 @@ export const getAssignments = asyncHandler(async (req: Request, res: Response) =
   };
 
   if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
-    if (user.assignedCircle) {
+    if (user.assignedPackage && user.assignedPackage.trim()) {
+      const normalizedPkg = user.assignedPackage.replace(/\s+/g, '');
+      const regexStr = normalizedPkg.split('').map((char: string) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*');
+      filter.package = { $regex: new RegExp(`^\\s*${regexStr}\\s*$`, 'i') };
+    }
+    if (user.assignedSubcircle) {
+      filter.subcircle = { $regex: new RegExp(`^\\s*${user.assignedSubcircle.trim()}\\s*$`, 'i') };
+    } else if (user.assignedCircle) {
       const allowedCircles = SUB_STORE_MAP[user.assignedCircle] || [user.assignedCircle];
       const regexCircles = allowedCircles.map(c => new RegExp(`^${c}$`, 'i'));
       filter.$or = [
@@ -189,9 +196,15 @@ export const getAssignmentSummary = asyncHandler(async (req: Request, res: Respo
   };
 
   if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
-    if (user.assignedCircle) {
+    if (user.assignedPackage && user.assignedPackage.trim()) {
+      const normalizedPkg = user.assignedPackage.replace(/\s+/g, '');
+      const regexStr = normalizedPkg.split('').map((char: string) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*');
+      filter.package = { $regex: new RegExp(`^\\s*${regexStr}\\s*$`, 'i') };
+    }
+    if (user.assignedSubcircle) {
+      filter.subcircle = { $regex: new RegExp(`^\\s*${user.assignedSubcircle.trim()}\\s*$`, 'i') };
+    } else if (user.assignedCircle) {
       const allowedCircles = SUB_STORE_MAP[user.assignedCircle] || [user.assignedCircle];
-      // Use $in directly without regex for exact matches, much faster
       filter.location = { $in: allowedCircles.map(c => new RegExp(`^${c}$`, 'i')) };
     }
   }
@@ -1019,6 +1032,7 @@ export const exportContractorAssignments = asyncHandler(async (req: Request, res
 });
 
 export const importContractorAssignments = asyncHandler(async (req: Request, res: Response) => {
+  const user = (req as any).user;
   if (!req.file) {
     throw new ApiError(400, 'Please upload a CSV file');
   }
@@ -1147,6 +1161,8 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
           contractorId: contractor._id,
           location: circle || 'Store',
           circle: circle || '',
+          subcircle: user?.assignedSubcircle || '',
+          package: user?.assignedPackage || '',
           assignmentNumber: minNo,
           date: parseCsvDate(row['Date']) || new Date(),
           demandNo: row['DemandNo'] || '',

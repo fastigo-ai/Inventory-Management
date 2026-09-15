@@ -619,6 +619,8 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
           
           const uploadedCircle = (user as any).assignedCircle || meta.Circle || '';
           
+          const seenItems = new Map<string, number>();
+
           let count = 0;
           for (const sr of recordsBySite[c]) {
             count++;
@@ -629,10 +631,23 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
               validationErrors.push({
                 sourceFile,
                 sheetName,
-                description: `Row ${sr.rowNum}: ${sr.description || sr.activity || 'Unknown item'}`,
+                description: `Row ${sr.rowNum}: ${sr.description || sr.activity || 'Unknown item'} (Not found in Master)`,
                 circle: uploadedCircle,
                 row: sr.rowNum
               });
+            } else {
+              const idStr = resolved.itemId.toString();
+              if (seenItems.has(idStr)) {
+                validationErrors.push({
+                  sourceFile,
+                  sheetName,
+                  description: `Row ${sr.rowNum}: Duplicate item found. This item was already listed on row ${seenItems.get(idStr)}.`,
+                  circle: uploadedCircle,
+                  row: sr.rowNum
+                });
+              } else {
+                seenItems.set(idStr, sr.rowNum);
+              }
             }
           }
           colIdx++;

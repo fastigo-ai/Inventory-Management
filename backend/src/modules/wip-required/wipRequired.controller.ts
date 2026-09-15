@@ -519,6 +519,8 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
           // Map Items
           const wipItems = [];
 
+          const seenItems = new Map<string, number>();
+
           for (const sr of siteRecords) {
             let itemId = null;
             let finalActivity = sr.activity || '';
@@ -555,9 +557,18 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
             }
 
             if (!itemId) {
-              flagged.push({ sourceFile, sheetName, issue: `Item '${sr.description}' with SKU '${sr.loa}' not found in Master Item List for circle '${uploadedCircle}'. Sheet rejected.`, description: sr.description, circle: uploadedCircle, row: sr.excelRow });
+              flagged.push({ sourceFile, sheetName, issue: `Row ${sr.rowNum || sr.excelRow || 'unknown'}: Item '${sr.description}' with SKU '${sr.loa}' not found in Master Item List for circle '${uploadedCircle}'. Sheet rejected.`, description: sr.description, circle: uploadedCircle, row: sr.rowNum || sr.excelRow });
               sheetHasErrors = true;
               break;
+            } else {
+              const idStr = itemId.toString();
+              if (seenItems.has(idStr)) {
+                flagged.push({ sourceFile, sheetName, issue: `Row ${sr.rowNum || sr.excelRow || 'unknown'}: Duplicate item found. This item was already listed on row ${seenItems.get(idStr)}. Sheet rejected.`, description: sr.description, circle: uploadedCircle, row: sr.rowNum || sr.excelRow });
+                sheetHasErrors = true;
+                break;
+              } else {
+                seenItems.set(idStr, sr.rowNum || sr.excelRow || 0);
+              }
             }
 
             wipItems.push({

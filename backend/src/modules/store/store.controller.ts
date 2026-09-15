@@ -534,7 +534,7 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
     ];
   }
 
-  const returnsFilter: any = { status: 'Submitted' };
+  const returnsFilter: any = { status: { $in: ['Submitted', 'Approved'] } };
   // if (contractorFilter) returnsFilter.contractorId = contractorFilter; // Removed so we fetch ALL returns to get true store balance
   if (circleFilter) {
     returnsFilter.$or = [

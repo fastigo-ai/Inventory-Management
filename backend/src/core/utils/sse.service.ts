@@ -44,15 +44,24 @@ class SseService {
   public sendEvent(clientId: string, payload: SseEventPayload) {
     const res = this.clients.get(clientId);
     if (res) {
-      res.write(`data: ${JSON.stringify(payload)}\n\n`);
-      
-      // Flush the buffer if compression middleware is used
-      if (typeof (res as any).flush === 'function') {
-        (res as any).flush();
+      if (res.writableEnded || res.closed) {
+        this.removeClient(clientId);
+        return;
       }
-      
-      // If the stage is "COMPLETED" or "ERROR", close the connection
-      if (payload.stage === 'COMPLETED' || payload.stage === 'ERROR') {
+      try {
+        res.write(`data: ${JSON.stringify(payload)}\n\n`);
+        
+        // Flush the buffer if compression middleware is used
+        if (typeof (res as any).flush === 'function') {
+          (res as any).flush();
+        }
+        
+        // If the stage is "COMPLETED" or "ERROR", close the connection
+        if (payload.stage === 'COMPLETED' || payload.stage === 'ERROR') {
+          this.removeClient(clientId);
+        }
+      } catch (error) {
+        console.error(`Error sending SSE event to client ${clientId}:`, error);
         this.removeClient(clientId);
       }
     }

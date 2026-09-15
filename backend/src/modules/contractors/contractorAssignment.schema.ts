@@ -22,7 +22,8 @@ export interface IContractorAssignment extends Document {
   orderNumber?: string;
   date: Date;
   circle?: string;
-  
+  subcircle?: string;
+  package?: string;
   // MIN Specific Fields
   demandNo?: string;
   demandBookNo?: string;
@@ -81,6 +82,8 @@ const contractorAssignmentSchema = new Schema<IContractorAssignment>(
     orderNumber: { type: String },
     date: { type: Date, required: true, default: Date.now, index: true },
     circle: { type: String, index: true },
+    subcircle: { type: String, index: true },
+    package: { type: String, index: true },
 
     // MIN Specific Fields
     demandNo: { type: String },

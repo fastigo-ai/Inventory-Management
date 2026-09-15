@@ -1180,11 +1180,11 @@ async function computeItemMatrixSummary(params: {
       { circle: 1, 'items.approvedQty': 1, 'items.claimedQty': 1, 'items.itemId': 1, 'items.tempCode': 1, 'items.loaSerialNo': 1, 'items.loaSrNo': 1, 'items.circle': 1 }
     ).lean(),
     ClientBill.find(
-      { billType: 'Erection', status: { $nin: ['Draft', 'Rejected', 'Cancelled'] } },
+      { billType: 'Erection', status: { $nin: ['Draft', 'Rejected'] as any[] } },
       { circle: 1, package: 1, 'items.raBillQty': 1, 'items.itemId': 1, 'items.tempCode': 1, 'items.loaSrNo': 1 }
     ).lean(),
     ClientBill.find(
-      { billType: 'Supply', status: { $nin: ['Draft', 'Rejected', 'Cancelled'] } },
+      { billType: 'Supply', status: { $nin: ['Draft', 'Rejected'] as any[] } },
       { circle: 1, package: 1, 'items.raBillQty': 1, 'items.itemId': 1, 'items.tempCode': 1, 'items.loaSrNo': 1 }
     ).lean(),
     WipRegister.find(

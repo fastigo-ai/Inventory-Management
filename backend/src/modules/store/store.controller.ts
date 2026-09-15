@@ -1158,9 +1158,9 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
          const itemName = row['ItemName'] || row['itemName'] || row['Item Name'];
          let itemData = null;
          if (tempCode) {
-           itemData = await Item.findOne({ tempCode });
+           itemData = await Item.findOne({ 'dynamicData.tempCode': String(tempCode).trim() });
          } else if (itemName) {
-           itemData = await Item.findOne({ name: { $regex: new RegExp(`^${itemName}$`, 'i') } });
+           itemData = await Item.findOne({ 'dynamicData.name': { $regex: new RegExp(`^${String(itemName).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } });
          }
 
          if (!itemData) {
@@ -1187,16 +1187,16 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
            vendorName: 'Historical Opening Balance',
            invoiceNumber: invoiceNumber || 'HISTORICAL',
            receivedDate: row['ReceivedDate'] ? new Date(row['ReceivedDate']) : new Date(),
-           unit: row['Unit'] || itemData.unit || 'Nos',
+           unit: row['Unit'] || itemData.dynamicData?.unit || 'Nos',
            invoiceQty: acceptedQty,
            totalQty: acceptedQty,
            challanQty: Number(row['ChallanQty'] || row['challanQty'] || 0),
            rejectedQty: Number(row['RejectedQty'] || row['rejectedQty'] || 0),
            rate, amount, taxableAmount, cgst, sgst, igst,
-           tempCode: itemData.tempCode,
+           tempCode: itemData.dynamicData?.tempCode,
            itemId: itemData._id,
-           itemName: itemData.name,
-           itemDescription: itemData.description,
+           itemName: itemData.dynamicData?.name,
+           itemDescription: itemData.dynamicData?.description,
            circle: row['Circle'] || userObj?.assignedCircle || '',
            subcircle: row['Subcircle'] || userObj?.assignedSubcircle || '',
            package: row['Package'] || userObj?.assignedPackage || '',
@@ -1359,6 +1359,13 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
       } else {
         await StoreInwardEntry.create([payload]);
       }
+      
+      // If it's an instantly-approved historical bypass, rebuild stock so it reflects immediately
+      if (payload.entryType === 'HISTORICAL' && payload.status === 'APPROVED' && payload.itemId) {
+         const { SummaryService } = await import('../reports/summary/summary.service');
+         await SummaryService.rebuildForItem(payload.itemId.toString());
+      }
+      
       successCount++;
     } catch (err: any) {
       // Very rare unless DB issues during save

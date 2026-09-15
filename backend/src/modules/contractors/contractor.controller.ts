@@ -205,7 +205,11 @@ export const getAssignmentSummary = asyncHandler(async (req: Request, res: Respo
       filter.subcircle = { $regex: new RegExp(`^\\s*${user.assignedSubcircle.trim()}\\s*$`, 'i') };
     } else if (user.assignedCircle) {
       const allowedCircles = SUB_STORE_MAP[user.assignedCircle] || [user.assignedCircle];
-      filter.location = { $in: allowedCircles.map(c => new RegExp(`^${c}$`, 'i')) };
+      const regexCircles = allowedCircles.map(c => new RegExp(`^${c}$`, 'i'));
+      filter.$or = [
+        { location: { $in: regexCircles } },
+        { circle: { $in: regexCircles } }
+      ];
     }
   }
 

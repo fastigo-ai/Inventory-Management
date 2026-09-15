@@ -230,8 +230,8 @@ export default function StoreSummaryPage() {
     doc.save(`Store_Itemised_Summary_${(circle || store || 'all').toUpperCase()}_${new Date().toISOString().slice(0,10)}.pdf`);
   };
 
-  const circles = ['Nahan', 'Solan', 'Kumarhatti', 'Nalagarh', 'Rampur', 'Rohru'];
-  const stores = ['Nahan', 'Solan', 'Kumarhatti', 'Rampur', 'Nalagarh', 'Noida', 'Head Office'];
+  const circles = ['Solan', 'Nahan', 'Rampur', 'Rohru'];
+  const stores = ['Nalagarh', 'Kumarhatti', 'Solan', 'Nahan', 'Rampur', 'Rohru', 'Noida', 'Head Office'];
   const packages = ['Package 1(S/N)', 'Package 2(R/R)'];
 
   return (

@@ -39,6 +39,7 @@ export default function StoreContractorSummaryPage() {
   const { filters, setFilter, debouncedFilters } = useUrlFilters({
     contractorName: 'A K Contractor',
     circle: user?.assignedCircle || '',
+    store: user?.assignedSubcircle || '',
     pkg: '',
     search: '',
     hideZero: 'true',
@@ -46,13 +47,14 @@ export default function StoreContractorSummaryPage() {
     limit: '50'
   }, 500);
 
-  const { contractorName, circle, pkg, search } = filters;
+  const { contractorName, circle, store, pkg, search } = filters;
   const hideZero = filters.hideZero === 'true';
   const page = Number(filters.page);
   const limit = Number(filters.limit);
 
   const setContractorName = (val: string) => setFilter('contractorName', val);
   const setCircle = (val: string) => setFilter('circle', val);
+  const setStore = (val: string) => setFilter('store', val);
   const setPkg = (val: string) => setFilter('pkg', val);
   const setSearch = (val: string) => setFilter('search', val);
   const setHideZero = (val: boolean | ((prev: boolean) => boolean)) => setFilter('hideZero', (typeof val === 'function' ? val(hideZero) : val).toString());
@@ -75,7 +77,7 @@ export default function StoreContractorSummaryPage() {
     try {
       const res = await getStoreContractorSummary({
         contractorName: debouncedFilters.contractorName || undefined,
-        circle: debouncedFilters.circle || undefined,
+        circle: debouncedFilters.store || debouncedFilters.circle || undefined, // Backend accepts circle as location regex (matches subcircle too)
         package: debouncedFilters.pkg || undefined,
         search: debouncedFilters.search || undefined,
         hideZero: debouncedFilters.hideZero === 'true',
@@ -110,7 +112,7 @@ export default function StoreContractorSummaryPage() {
   // Reset page to 1 when filters change (ignoring page/limit)
   useEffect(() => {
     setPage(1);
-  }, [contractorName, circle, pkg, search, hideZero, limit]);
+  }, [contractorName, circle, store, pkg, search, hideZero, limit]);
 
   const fetchAllForExport = async () => {
     if (selectedItems.size > 0) {
@@ -121,7 +123,7 @@ export default function StoreContractorSummaryPage() {
     try {
       const res = await getStoreContractorSummary({
         contractorName: contractorName || undefined,
-        circle: circle || undefined,
+        circle: store || circle || undefined,
         package: pkg || undefined,
         search: search || undefined,
         hideZero,
@@ -146,7 +148,7 @@ export default function StoreContractorSummaryPage() {
       'LOA Sr. No.': r.loaSerialNo || '-',
       'Temp Code': r.tempCode || '-',
       'Item Name': r.itemName || '-',
-      'Circle': r.circle || circle || 'All Circles',
+      'Circle': r.circle || circle || store || 'All Circles',
       'Package': r.package || pkg || 'All Packages',
       'Unit': r.unit || 'Nos',
       'Total Issued Qty': Math.round(r.totalIssuedQty || 0),
@@ -218,7 +220,8 @@ export default function StoreContractorSummaryPage() {
     doc.save(`Store_Contractor_Summary_${(contractorName || 'All').replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.pdf`);
   };
 
-  const circles = ['Nahan', 'Solan', 'Kumarhatti', 'Nalagarh', 'Rampur', 'Rohru'];
+  const circles = ['Solan', 'Nahan', 'Rampur', 'Rohru'];
+  const stores = ['Nalagarh', 'Kumarhatti', 'Solan', 'Nahan', 'Rampur', 'Rohru', 'Noida', 'Head Office'];
   const packages = ['Package 1(S/N)', 'Package 2(R/R)'];
 
   return (
@@ -326,7 +329,7 @@ export default function StoreContractorSummaryPage() {
       <div className="max-w-7xl mx-auto w-full p-6 flex flex-col gap-6">
         {/* Filter Controls Bar (Exact Match with Excel Header Controls) */}
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             {/* Contractor Name Selector */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
@@ -360,6 +363,25 @@ export default function StoreContractorSummaryPage() {
                 <option value="">All Circles</option>
                 {circles.map(c => (
                   <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Store Location Select */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5 text-blue-600" />
+                Store/Subcircle:
+              </label>
+              <select
+                value={store}
+                onChange={(e) => setStore(e.target.value)}
+                disabled={isStoreManager && !!user?.assignedSubcircle}
+                className="w-full text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50"
+              >
+                <option value="">All Stores</option>
+                {stores.map(s => (
+                  <option key={s} value={s}>{s}</option>
                 ))}
               </select>
             </div>
@@ -467,7 +489,7 @@ export default function StoreContractorSummaryPage() {
                   </tr>
                 ) : (
                   data.map((r, i) => {
-                    const rowCircle = r.circle || circle || 'All Circles';
+                    const rowCircle = r.circle || circle || store || 'All Circles';
                     const rowPkg = r.package || pkg || 'All Packages';
 
                     const rowKey = r.loaSerialNo || r.tempCode || String(i);

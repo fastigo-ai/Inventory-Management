@@ -3,14 +3,14 @@ import dotenv from 'dotenv';
 import path from 'path';
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
-import Item from '../modules/items/item.model';
+import { ContractorAssignment } from '../modules/contractors/contractorAssignment.schema';
 
 async function check() {
   await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/inventory-management');
   console.log('Connected.');
   
-  const sand = await Item.findOne({ 'dynamicData.name': /Sand/i });
-  console.log('Sand:', sand ? `${sand.dynamicData?.name} (tempCode: ${sand.dynamicData?.tempCode})` : 'Not Found');
+  const count = await ContractorAssignment.countDocuments();
+  console.log(`Remaining MINs: ${count}`);
   
   process.exit(0);
 }

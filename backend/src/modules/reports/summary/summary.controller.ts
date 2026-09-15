@@ -510,27 +510,22 @@ export async function computeStoreItemisedSummary(params: {
   }
 
   // Circle, Store, or Package matching regex
-  let locMatch = store && store !== 'all' ? store : (circle && circle !== 'all' ? circle : null);
-  
-  if (locMatch) {
-    const expanded = expandCircle(locMatch);
-    if (expanded && expanded.length > 0) {
-      locMatch = expanded.join('|');
-    }
-  } else if (pkg && pkg !== 'all') {
+  // 1. Determine Item Filter Regex (Items belong to Circles, not Stores)
+  let itemLocMatch = circle && circle !== 'all' ? circle : null;
+  if (!itemLocMatch && pkg && pkg !== 'all') {
     if (pkg.includes('Package 1')) {
-      locMatch = 'Solan|Kumarhatti|Nalagarh|Nahan';
+      itemLocMatch = 'Solan|Nahan';
     } else if (pkg.includes('Package 2')) {
-      locMatch = 'Rampur|Rohru';
+      itemLocMatch = 'Rampur|Rohru';
     }
   }
-  const locRegex = locMatch ? new RegExp(locMatch, 'i') : null;
+  const itemLocRegex = itemLocMatch ? new RegExp(itemLocMatch, 'i') : null;
 
-  if (locRegex) {
+  if (itemLocRegex) {
     const locCondition = {
       $or: [
-        { 'dynamicData.circle': locRegex },
-        { circle: locRegex }
+        { 'dynamicData.circle': itemLocRegex },
+        { circle: itemLocRegex }
       ]
     };
     if (itemFilter.$or) {
@@ -540,6 +535,23 @@ export async function computeStoreItemisedSummary(params: {
       itemFilter.$or = locCondition.$or;
     }
   }
+
+  // 2. Determine Transaction Filter Regex (Transactions belong to Stores, which map to Circles)
+  let transLocMatch = store && store !== 'all' ? store : (circle && circle !== 'all' ? circle : null);
+  
+  if (transLocMatch) {
+    const expanded = expandCircle(transLocMatch);
+    if (expanded && expanded.length > 0) {
+      transLocMatch = expanded.join('|');
+    }
+  } else if (pkg && pkg !== 'all') {
+    if (pkg.includes('Package 1')) {
+      transLocMatch = 'Solan|Kumarhatti|Nalagarh|Nahan';
+    } else if (pkg.includes('Package 2')) {
+      transLocMatch = 'Rampur|Rohru';
+    }
+  }
+  const transLocRegex = transLocMatch ? new RegExp(transLocMatch, 'i') : null;
 
   const items = await Item.find(itemFilter).lean();
 
@@ -582,8 +594,8 @@ export async function computeStoreItemisedSummary(params: {
 
     // 1. Inward Receipts
     const inwardFilter: any = {};
-    if (locRegex) {
-      inwardFilter.$or = [{ circle: locRegex }, { subcircle: locRegex }, { billingFrom: locRegex }, { store: locRegex }];
+    if (transLocRegex) {
+      inwardFilter.$or = [{ circle: transLocRegex }, { subcircle: transLocRegex }, { billingFrom: transLocRegex }, { store: transLocRegex }];
     }
     const inwards = await StoreInwardEntry.find(inwardFilter).lean();
     inwards.forEach(doc => {
@@ -602,8 +614,8 @@ export async function computeStoreItemisedSummary(params: {
 
     // 2. Contractor Assignments (MINs)
     const assignFilter: any = { status: { $ne: 'Cancelled' } };
-    if (locRegex) {
-      assignFilter.$or = [{ location: locRegex }, { division: locRegex }, { 'lineItems.circle': locRegex }];
+    if (transLocRegex) {
+      assignFilter.$or = [{ location: transLocRegex }, { circle: transLocRegex }, { subcircle: transLocRegex }, { division: transLocRegex }, { 'lineItems.circle': transLocRegex }];
     }
     const assignments = await ContractorAssignment.find(assignFilter).lean();
     assignments.forEach(doc => {
@@ -624,8 +636,8 @@ export async function computeStoreItemisedSummary(params: {
 
     // 3. Contractor Returns
     const returnFilter: any = {};
-    if (locRegex) {
-      returnFilter.$or = [{ store: locRegex }, { circle: locRegex }, { division: locRegex }];
+    if (transLocRegex) {
+      returnFilter.$or = [{ store: transLocRegex }, { circle: transLocRegex }, { subcircle: transLocRegex }, { division: transLocRegex }];
     }
     const returns = await ContractorReturn.find(returnFilter).lean();
     returns.forEach(doc => {
@@ -646,8 +658,8 @@ export async function computeStoreItemisedSummary(params: {
 
     // 4. Store Transfers Out (Outward Register)
     const transferOutFilter: any = { registerType: 'OUTWARD', status: { $nin: ['Cancelled', 'REJECTED', 'CANCELLED'] } };
-    if (locRegex) {
-      transferOutFilter.fromStore = locRegex;
+    if (transLocRegex) {
+      transferOutFilter.fromStore = transLocRegex;
     }
     const transfersOut = await StoreTransfer.find(transferOutFilter).lean();
     transfersOut.forEach(doc => {
@@ -668,8 +680,8 @@ export async function computeStoreItemisedSummary(params: {
 
     // 5. Store Transfers In (Incoming / Received at Store)
     const transferInFilter: any = { status: { $in: ['RECEIVED', 'IN_TRANSIT'] } };
-    if (locRegex) {
-      transferInFilter.toStore = locRegex;
+    if (transLocRegex) {
+      transferInFilter.toStore = transLocRegex;
     }
     const transfersIn = await StoreTransfer.find(transferInFilter).lean();
     transfersIn.forEach(doc => {
@@ -698,7 +710,7 @@ export async function computeStoreItemisedSummary(params: {
       return r;
     });
 
-    if (hideZeroBalance || locRegex || (pkg && pkg !== 'all')) {
+    if (hideZeroBalance || transLocRegex || (pkg && pkg !== 'all')) {
       rows = rows.filter(r => r.receiptQty > 0 || r.issuedQty > 0 || r.returnedQty > 0 || r.transferOutQty > 0 || r.transferInQty > 0 || r.balAtStore !== 0);
     }
 
@@ -763,8 +775,8 @@ export async function computeStoreItemisedSummary(params: {
     });
 
     const inwardFilter: any = {};
-    if (locRegex) {
-      inwardFilter.$or = [{ circle: locRegex }, { subcircle: locRegex }, { billingFrom: locRegex }, { store: locRegex }];
+    if (transLocRegex) {
+      inwardFilter.$or = [{ circle: transLocRegex }, { subcircle: transLocRegex }, { billingFrom: transLocRegex }, { store: transLocRegex }];
     }
     const inwards = await StoreInwardEntry.find(inwardFilter).lean();
     inwards.forEach(doc => {
@@ -776,8 +788,8 @@ export async function computeStoreItemisedSummary(params: {
     });
 
     const assignFilter: any = { status: { $ne: 'Cancelled' } };
-    if (locRegex) {
-      assignFilter.$or = [{ location: locRegex }, { division: locRegex }, { 'lineItems.circle': locRegex }];
+    if (transLocRegex) {
+      assignFilter.$or = [{ location: transLocRegex }, { division: transLocRegex }, { 'lineItems.circle': transLocRegex }];
     }
     const assignments = await ContractorAssignment.find(assignFilter).lean();
     assignments.forEach(doc => {
@@ -791,8 +803,8 @@ export async function computeStoreItemisedSummary(params: {
     });
 
     const returnFilter: any = {};
-    if (locRegex) {
-      returnFilter.$or = [{ store: locRegex }, { circle: locRegex }];
+    if (transLocRegex) {
+      returnFilter.$or = [{ store: transLocRegex }, { circle: transLocRegex }];
     }
     const returns = await ContractorReturn.find(returnFilter).lean();
     returns.forEach(doc => {
@@ -806,8 +818,8 @@ export async function computeStoreItemisedSummary(params: {
     });
 
     const transferOutFilter: any = { status: { $nin: ['Cancelled', 'REJECTED', 'CANCELLED'] } };
-    if (locRegex) {
-      transferOutFilter.fromStore = locRegex;
+    if (transLocRegex) {
+      transferOutFilter.fromStore = transLocRegex;
     }
     const transfersOut = await StoreTransfer.find(transferOutFilter).lean();
     transfersOut.forEach(doc => {
@@ -821,8 +833,8 @@ export async function computeStoreItemisedSummary(params: {
     });
 
     const transferInFilter: any = { status: { $nin: ['Cancelled', 'REJECTED', 'CANCELLED'] } };
-    if (locRegex) {
-      transferInFilter.toStore = locRegex;
+    if (transLocRegex) {
+      transferInFilter.toStore = transLocRegex;
     }
     const transfersIn = await StoreTransfer.find(transferInFilter).lean();
     transfersIn.forEach(doc => {
@@ -840,7 +852,7 @@ export async function computeStoreItemisedSummary(params: {
       return row;
     });
 
-    if (hideZeroBalance || locRegex || (pkg && pkg !== 'all')) {
+    if (hideZeroBalance || transLocRegex || (pkg && pkg !== 'all')) {
       rows = rows.filter(r => r.receiptQty > 0 || r.issuedQty > 0 || r.returnedQty > 0 || r.transferOutQty > 0 || r.transferInQty > 0 || r.balAtStore !== 0);
     }
 
@@ -1924,7 +1936,7 @@ export const getItemMatrixSummary = asyncHandler(async (req: Request, res: Respo
  * Store Contractor Summary (FROM CIRCLE STORE - Contractor Wise)
  */
 export const getStoreContractorSummary = asyncHandler(async (req: Request, res: Response) => {
-  const { contractorName, circle, package: pkg, search, hideZero, page = '1', limit = '50' } = req.query;
+  const { contractorName, circle, store, package: pkg, search, hideZero, page = '1', limit = '50' } = req.query;
 
   const pageNum = parseInt(page as string, 10) || 1;
   const limitNum = parseInt(limit as string, 10) || 50;
@@ -1958,30 +1970,36 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
 
   const items = await Item.find(itemFilter).lean();
 
-  // Group master items by LOA Sr No / SKU / TempCode
+  // Group master items by LOA Sr No or TempCode depending on contractor selection
+  const isAllContractors = !contractorName || contractorName === 'all';
   const groupMap = new Map<string, any>();
   const itemIdToKeyMap = new Map<string, string>();
-  const tempCodeToKeyMap = new Map<string, string>();
+  const tempCodeToKeyMap = new Map<string, Set<string>>();
 
   items.forEach(it => {
     const d = it.dynamicData || {};
-    const loaSr = String(d.loaSerialNo || d.loaSrNo || d.sku || d.tempCode || it.sku || it.tempCode || '').trim() || it._id.toString();
     const tc = String(d.tempCode || it.tempCode || '').trim();
+    const tempNum = Number(tc);
+    const hasValidTemp = !isNaN(tempNum) && tempNum > 0;
     const name = String(d.name || d.itemName || d.description || it.name || '').trim();
-    const unit = String(d.unit || it.unit || 'NOS').trim();
-    const pkgVal = String(d.package || it.package || '').trim();
-    const circVal = String(d.circle || it.circle || '').trim();
+    const loaSrVal = String(d.loaSerialNo || d.loaSrNo || d.sku || it.sku || '').trim();
+    
+    const defaultLoaSr = loaSrVal || tc || it._id.toString();
 
-    if (!groupMap.has(loaSr)) {
-      const tempNum = Number(tc);
-      groupMap.set(loaSr, {
-        loaSerialNo: loaSr,
+    let groupKey = defaultLoaSr;
+    if (isAllContractors) {
+      groupKey = hasValidTemp ? `TEMP_${tc}` : `NAME_${name.toLowerCase()}`;
+    }
+
+    if (!groupMap.has(groupKey)) {
+      groupMap.set(groupKey, {
+        loaSerialNo: isAllContractors ? '-' : defaultLoaSr,
         tempCode: tc || '-',
-        tempNum: !isNaN(tempNum) && tempNum > 0 ? tempNum : 999999,
+        tempNum: hasValidTemp ? tempNum : 999999,
         itemName: name,
-        unit,
-        package: pkgVal,
-        circle: circVal,
+        unit: String(d.unit || it.unit || 'NOS').trim(),
+        package: String(d.package || it.package || '').trim(),
+        circle: String(d.circle || it.circle || '').trim(),
         itemIds: new Set<string>(),
         totalIssuedQty: 0,
         totalReturnQty: 0,
@@ -1989,10 +2007,16 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
       });
     }
 
-    const grp = groupMap.get(loaSr)!;
+    const grp = groupMap.get(groupKey)!;
     grp.itemIds.add(it._id.toString());
-    itemIdToKeyMap.set(it._id.toString(), loaSr);
-    if (tc) tempCodeToKeyMap.set(tc, loaSr);
+    itemIdToKeyMap.set(it._id.toString(), groupKey);
+    
+    if (tc) {
+      if (!tempCodeToKeyMap.has(tc)) {
+        tempCodeToKeyMap.set(tc, new Set<string>());
+      }
+      tempCodeToKeyMap.get(tc)!.add(groupKey);
+    }
 
     if (!grp.itemName && name) grp.itemName = name;
     if (!grp.tempCode && tc) grp.tempCode = tc;
@@ -2004,15 +2028,18 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
     if (idStr && itemIdToKeyMap.has(idStr)) {
       keys.add(itemIdToKeyMap.get(idStr)!);
     }
+    
     const loaSr = String(lineLoaSrNo || '').trim();
     if (loaSr && groupMap.has(loaSr)) keys.add(loaSr);
+    
     const tc = String(lineTempCode || '').trim();
     if (tc) {
       if (tempCodeToKeyMap.has(tc)) {
-        keys.add(tempCodeToKeyMap.get(tc)!);
+        tempCodeToKeyMap.get(tc)!.forEach(k => keys.add(k));
       }
-      if (groupMap.has(tc)) {
-        keys.add(tc);
+      if (groupMap.has(tc)) keys.add(tc);
+      if (isAllContractors && groupMap.has(`TEMP_${tc}`)) {
+        keys.add(`TEMP_${tc}`);
       }
     }
     return Array.from(keys);
@@ -2023,13 +2050,15 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
   if (contractorName && contractorName !== 'all') {
     assignFilter.contractorFarmName = { $regex: new RegExp(`^${contractorName.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') };
   }
-  if (circle && circle !== 'all') {
-    const expanded = expandCircle(circle as string);
-    const cMatch = expanded && expanded.length > 0 ? expanded.join('|') : circle.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  let transLocMatch = store && store !== 'all' ? store : (circle && circle !== 'all' ? circle : null);
+  if (transLocMatch) {
+    const expanded = expandCircle(transLocMatch as string);
+    const cMatch = expanded && expanded.length > 0 ? expanded.join('|') : transLocMatch.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const cRegex = new RegExp(`(${cMatch})`, 'i');
     assignFilter.$or = [
       { location: cRegex },
       { circle: cRegex },
+      { subcircle: cRegex },
       { division: cRegex },
       { 'lineItems.circle': cRegex }
     ];
@@ -2044,15 +2073,15 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
     (doc.lineItems || []).forEach((line: any) => {
       const qty = Number(line.quantity || line.demandQty || 0);
       if (qty > 0) {
-        const targetKeys = getTargetKeys(line.itemId, line.tempCode, line.loaSerialNo || line.sku);
+        const targetKeys = getTargetKeys(line.itemId, line.tempCode, line.loaSrNo || line.loaSerialNo || line.sku);
         targetKeys.forEach(key => {
           if (groupMap.has(key)) {
             const grp = groupMap.get(key)!;
             grp.totalIssuedQty += qty;
-            if (docCirc) grp.circle = docCirc;
-            else if (line.circle) grp.circle = line.circle;
-            if (docPkg) grp.package = docPkg;
-            else if (line.package) grp.package = line.package;
+            if (!grp.circle && docCirc) grp.circle = docCirc;
+            else if (!grp.circle && line.circle) grp.circle = line.circle;
+            if (!grp.package && docPkg) grp.package = docPkg;
+            else if (!grp.package && line.package) grp.package = line.package;
           }
         });
       }
@@ -2064,14 +2093,15 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
   if (contractorName && contractorName !== 'all') {
     returnFilter.contractorFarmName = { $regex: new RegExp(`^${contractorName.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') };
   }
-  if (circle && circle !== 'all') {
-    const expanded = expandCircle(circle as string);
-    const cMatch = expanded && expanded.length > 0 ? expanded.join('|') : circle.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if (transLocMatch) {
+    const expanded = expandCircle(transLocMatch as string);
+    const cMatch = expanded && expanded.length > 0 ? expanded.join('|') : transLocMatch.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const cRegex = new RegExp(`(${cMatch})`, 'i');
     returnFilter.$or = [
-      { circle: cRegex },
       { store: cRegex },
-      { location: cRegex }
+      { circle: cRegex },
+      { subcircle: cRegex },
+      { division: cRegex }
     ];
   }
 

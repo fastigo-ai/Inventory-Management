@@ -65,6 +65,7 @@ export default function StoreContractorSummaryPage() {
   const [totalItems, setTotalItems] = useState(0);
 
   // Selection State
+  const getRowKey = (r: any, i: number) => r.loaSerialNo && r.loaSerialNo !== '-' ? r.loaSerialNo : (r.tempCode && r.tempCode !== '-' ? r.tempCode : r.itemName || String(i));
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
   // Reset selection when data changes
@@ -77,7 +78,8 @@ export default function StoreContractorSummaryPage() {
     try {
       const res = await getStoreContractorSummary({
         contractorName: debouncedFilters.contractorName || undefined,
-        circle: debouncedFilters.store || debouncedFilters.circle || undefined, // Backend accepts circle as location regex (matches subcircle too)
+        circle: debouncedFilters.circle || undefined,
+        store: debouncedFilters.store || undefined,
         package: debouncedFilters.pkg || undefined,
         search: debouncedFilters.search || undefined,
         hideZero: debouncedFilters.hideZero === 'true',
@@ -129,14 +131,15 @@ export default function StoreContractorSummaryPage() {
 
   const fetchAllForExport = async () => {
     if (selectedItems.size > 0) {
-      return data.filter((r, i) => selectedItems.has(r.loaSerialNo || r.tempCode || String(i)));
+      return data.filter((r, i) => selectedItems.has(getRowKey(r, i)));
     }
     
     setExporting(true);
     try {
       const res = await getStoreContractorSummary({
         contractorName: contractorName || undefined,
-        circle: store || circle || undefined,
+        circle: circle || undefined,
+        store: store || undefined,
         package: pkg || undefined,
         search: search || undefined,
         hideZero,
@@ -303,7 +306,7 @@ export default function StoreContractorSummaryPage() {
             {/* Quick Stat Pill Badges */}
             <div className="flex items-center gap-3">
               {(() => {
-                const selectedRows = data.filter((r, i) => selectedItems.has(r.loaSerialNo || r.tempCode || String(i)));
+                const selectedRows = data.filter((r, i) => selectedItems.has(getRowKey(r, i)));
                 const activeTotals = selectedRows.length > 0 ? selectedRows.reduce((acc, r) => ({
                   totalIssuedQty: acc.totalIssuedQty + (Math.round(r.totalIssuedQty || 0)),
                   totalReturnQty: acc.totalReturnQty + (Math.round(r.totalReturnQty || 0)),
@@ -460,7 +463,7 @@ export default function StoreContractorSummaryPage() {
                       checked={data.length > 0 && selectedItems.size === data.length}
                       onChange={(e) => {
                         if (e.target.checked) {
-                          setSelectedItems(new Set(data.map((r, i) => r.loaSerialNo || r.tempCode || String(i))));
+                          setSelectedItems(new Set(data.map((r, i) => getRowKey(r, i))));
                         } else {
                           setSelectedItems(new Set());
                         }
@@ -505,7 +508,7 @@ export default function StoreContractorSummaryPage() {
                     const rowCircle = r.circle || circle || store || 'All Circles';
                     const rowPkg = r.package || pkg || 'All Packages';
 
-                    const rowKey = r.loaSerialNo || r.tempCode || String(i);
+                    const rowKey = getRowKey(r, i);
                     const isSelected = selectedItems.has(rowKey);
 
                     return (
@@ -575,7 +578,7 @@ export default function StoreContractorSummaryPage() {
               {!loading && data.length > 0 && (
                 <tfoot className="bg-slate-900 text-white font-extrabold text-xs divide-x divide-slate-800">
                   {(() => {
-                    const selectedRows = data.filter((r, i) => selectedItems.has(r.loaSerialNo || r.tempCode || String(i)));
+                    const selectedRows = data.filter((r, i) => selectedItems.has(getRowKey(r, i)));
                     const activeTotals = selectedRows.length > 0 ? selectedRows.reduce((acc, r) => ({
                       totalIssuedQty: acc.totalIssuedQty + (Math.round(r.totalIssuedQty || 0)),
                       totalReturnQty: acc.totalReturnQty + (Math.round(r.totalReturnQty || 0)),

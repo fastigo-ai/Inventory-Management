@@ -60,6 +60,7 @@ export const exportStoreItemisedSummary = async (filters: StoreItemisedFilter) =
 export interface StoreContractorFilter {
   contractorName?: string;
   circle?: string;
+  store?: string;
   package?: string;
   search?: string;
   hideZero?: boolean;

@@ -598,8 +598,16 @@ function DemandNoteForm() {
               {contractorsList
                 .filter(c => {
                   if (!formData.circle) return true;
-                  const locs = c.location || c.assignedLocations || c.dynamicData?.assignedCircle || c.dynamicData?.circle || c.dynamicData?.assignedCircles || '';
-                  return locs.includes(formData.circle);
+                  const query = formData.circle.toLowerCase().trim();
+                  const allLocs = [
+                    c.location,
+                    ...(Array.isArray(c.assignedLocations) ? c.assignedLocations : [c.assignedLocations]),
+                    c.dynamicData?.assignedCircle,
+                    c.dynamicData?.circle,
+                    ...(Array.isArray(c.dynamicData?.assignedCircles) ? c.dynamicData?.assignedCircles : [c.dynamicData?.assignedCircles])
+                  ].filter(Boolean).map(l => String(l).toLowerCase());
+                  
+                  return allLocs.some(l => l.includes(query));
                 })
                 .map(c => {
                   const displayName = c.dynamicData?.displayName || c.dynamicData?.companyName || c.dynamicData?.name || c.dynamicData?.vendorName || c._id;

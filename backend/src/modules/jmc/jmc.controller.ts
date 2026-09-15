@@ -706,6 +706,8 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
       const div = meta.Division || '';
       const subDiv = meta.SubDivision || '';
       const loc = meta.Location || '';
+      const subStn = meta.SubStation || '';
+      const feeder = meta.Feeder || '';
       const uploadedCircle = subCirc || circ;
 
       // Resolve contractor
@@ -755,7 +757,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
 
       // Compute prevQty
       const pastApprovedJmcs = await JmcRegister.find({
-        contractorId: contractorId || null, package: pkg, location: loc, circle: circ, division: div, subDivision: subDiv, status: 'Approved'
+        contractorId: contractorId || null, package: pkg, location: loc, circle: circ, division: div, subDivision: subDiv, subStation: subStn, feeder, status: 'Approved'
       }).lean();
 
       const prevQtyMap: Record<string, number> = {};
@@ -771,7 +773,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
         if (item.itemId) item.prevQty = prevQtyMap[item.itemId.toString()] || 0;
       }
 
-      const existingJmc = await JmcRegister.findOne({ contractorId: contractorId || null, package: pkg, location: loc, circle: circ, division: div, subDivision: subDiv });
+      const existingJmc = await JmcRegister.findOne({ contractorId: contractorId || null, package: pkg, location: loc, circle: circ, division: div, subDivision: subDiv, subStation: subStn, feeder });
 
       if (existingJmc) {
         if (conflictStrategy === 'skip') {
@@ -786,7 +788,17 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
           }
         } else if (conflictStrategy === 'update') {
           if (existingJmc.status !== 'Approved') {
-            existingJmc.items.push(...jmcItems);
+            for (const newItem of jmcItems) {
+              const existingItem = existingJmc.items.find((i: any) => 
+                (i.itemId && newItem.itemId && i.itemId.toString() === newItem.itemId.toString()) ||
+                (!i.itemId && !newItem.itemId && i.description === newItem.description && i.activity === newItem.activity)
+              );
+              if (existingItem) {
+                existingItem.claimedQty = (existingItem.claimedQty || 0) + (newItem.claimedQty || 0);
+              } else {
+                existingJmc.items.push(newItem);
+              }
+            }
             await existingJmc.save();
             totalSaved++;
             continue;
@@ -810,6 +822,8 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
             subCircle: subCirc,
             division: div,
             subDivision: subDiv,
+            subStation: subStn,
+            feeder,
             items: jmcItems,
             remarks: `Updated via Bulk Upload from ${sourceFile} (${sheetName}).`,
           }
@@ -832,6 +846,8 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
               subCircle: subCirc,
               division: div,
               subDivision: subDiv,
+              subStation: subStn,
+              feeder,
               items: jmcItems,
               claimedAmount: 0,
               approvedAmount: 0,

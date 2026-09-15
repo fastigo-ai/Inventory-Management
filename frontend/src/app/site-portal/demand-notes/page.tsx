@@ -278,6 +278,7 @@ export default function DemandNotesList() {
                   <tr>
                     <th className="px-6 py-5">DN NUMBER</th>
                     <th className="px-6 py-5">PACKAGE / CIRCLE</th>
+                    <th className="px-6 py-5">CONTRACTOR</th>
                     <th className="px-6 py-5">STATUS</th>
                     <th className="px-6 py-5">CREATED DATE</th>
                     <th className="px-6 py-5">CREATED BY</th>
@@ -287,7 +288,7 @@ export default function DemandNotesList() {
                 <tbody className="divide-y divide-slate-100">
                   {currentData.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-slate-500 font-medium">No demand notes found.</td>
+                      <td colSpan={7} className="px-6 py-12 text-center text-slate-500 font-medium">No demand notes found.</td>
                     </tr>
                   ) : (
                     currentData.map((dn) => (
@@ -299,6 +300,9 @@ export default function DemandNotesList() {
                         </td>
                         <td className="px-6 py-4.5 text-slate-700 font-semibold">
                           {dn.package} <span className="text-slate-300 font-normal mx-1">/</span> {dn.circle}
+                        </td>
+                        <td className="px-6 py-4.5 text-slate-600 font-medium truncate max-w-[200px]" title={dn.contractor?.name || dn.contractorName}>
+                          {dn.contractor?.name || dn.contractorName || '-'}
                         </td>
                         <td className="px-6 py-4.5">
                           {getStatusBadge(dn.status)}

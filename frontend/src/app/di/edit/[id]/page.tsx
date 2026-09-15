@@ -36,8 +36,10 @@ export default function EditDIRegistrationPage() {
   const [diCircle, setDiCircle] = useState("");
   
   const [lineItems, setLineItems] = useState<any[]>([]);
-  const [attachments, setAttachments] = useState<File[]>([]);
-  const [existingAttachments, setExistingAttachments] = useState<any[]>([]);
+  const [diLetterCopy, setDiLetterCopy] = useState<File | null>(null);
+  const [inspectionReportCopy, setInspectionReportCopy] = useState<File | null>(null);
+  const [existingDiLetterCopy, setExistingDiLetterCopy] = useState<{name: string, url: string} | null>(null);
+  const [existingInspectionReportCopy, setExistingInspectionReportCopy] = useState<{name: string, url: string} | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
@@ -109,7 +111,18 @@ export default function EditDIRegistrationPage() {
             unit: masterItem?.dynamicData?.unit || masterItem?.unit || li.unit || poLineItem?.unit || 'Nos'
           };
         }));
-        setExistingAttachments(diRes.attachments || []);
+        if (diRes.diLetterCopyUrl) {
+          setExistingDiLetterCopy({
+            name: diRes.diLetterCopyUrl.split('/').pop() || 'di_letter_copy.pdf',
+            url: diRes.diLetterCopyUrl
+          });
+        }
+        if (diRes.inspectionReportCopyUrl) {
+          setExistingInspectionReportCopy({
+            name: diRes.inspectionReportCopyUrl.split('/').pop() || 'inspection_report.pdf',
+            url: diRes.inspectionReportCopyUrl
+          });
+        }
       }
       setTimeout(() => setIsInitialLoad(false), 100);
     }).catch(console.error);
@@ -168,10 +181,7 @@ export default function EditDIRegistrationPage() {
   };
 
   const handleSave = async (status: string) => {
-    if (!purchaseOrderId) {
-      alert("Please select a Purchase Order.");
-      return;
-    }
+
     if (!diNumber) {
       alert("Please enter a DI Number.");
       return;
@@ -216,12 +226,21 @@ export default function EditDIRegistrationPage() {
 
       formData.append('lineItems', JSON.stringify(itemsToSave));
 
-      if (existingAttachments.length > 0) {
-        formData.append('existingAttachments', JSON.stringify(existingAttachments));
+      if (diLetterCopy) {
+        formData.append('diLetterCopyUrl', diLetterCopy);
+      } else if (existingDiLetterCopy) {
+        formData.append('existingDiLetterCopyUrl', existingDiLetterCopy.url);
+      } else {
+        formData.append('removeDiLetterCopyUrl', 'true');
       }
-      attachments.forEach(file => {
-        formData.append('files', file);
-      });
+
+      if (inspectionReportCopy) {
+        formData.append('inspectionReportCopyUrl', inspectionReportCopy);
+      } else if (existingInspectionReportCopy) {
+        formData.append('existingInspectionReportCopyUrl', existingInspectionReportCopy.url);
+      } else {
+        formData.append('removeInspectionReportCopyUrl', 'true');
+      }
 
       await updateDI(id as string, formData as any);
       router.push('/di'); // Assuming we will have a list page
@@ -848,95 +867,108 @@ export default function EditDIRegistrationPage() {
               />
             </div>
             <div>
-              <label className="text-[13px] font-medium text-slate-700 mb-2 block">Attachments (PDF Only)</label>
+              <label className="text-[13px] font-medium text-slate-700 mb-2 block">DI Letter Copy (PDF Only)</label>
               
-              <div className="mt-1 flex justify-center rounded-lg border border-dashed border-slate-300 px-6 py-8 hover:bg-slate-50 transition-colors bg-white relative group">
+              <div className="mt-1 flex justify-center rounded-lg border border-dashed border-slate-300 px-6 py-6 hover:bg-slate-50 transition-colors bg-white relative group">
                 <div className="text-center">
-                  <UploadCloud className="mx-auto h-10 w-10 text-slate-300 group-hover:text-blue-500 transition-colors" aria-hidden="true" />
-                  <div className="mt-4 flex text-sm leading-6 text-slate-600 justify-center">
-                    <label
-                      htmlFor="file-upload"
-                      className="relative cursor-pointer rounded-md bg-transparent font-semibold text-blue-600 focus-within:outline-none hover:text-blue-500"
-                    >
-                      <span>Upload files</span>
+                  <UploadCloud className="mx-auto h-8 w-8 text-slate-300 group-hover:text-blue-500 transition-colors" aria-hidden="true" />
+                  <div className="mt-2 flex text-sm leading-6 text-slate-600 justify-center">
+                    <label className="relative cursor-pointer rounded-md bg-transparent font-semibold text-blue-600 focus-within:outline-none hover:text-blue-500">
+                      <span>Upload file</span>
                       <input 
-                        id="file-upload" 
-                        name="file-upload" 
                         type="file" 
                         className="sr-only" 
                         accept="application/pdf"
-                        multiple
                         onChange={(e) => {
-                          if (e.target.files) {
-                            const files = Array.from(e.target.files);
-                            const validFiles = files.filter(f => f.type === 'application/pdf');
-                            if (validFiles.length !== files.length) {
+                          if (e.target.files && e.target.files[0]) {
+                            if (e.target.files[0].type !== 'application/pdf') {
                               alert('Only PDF files are allowed.');
+                              return;
                             }
-                            setAttachments(prev => [...prev, ...validFiles]);
+                            setDiLetterCopy(e.target.files[0]);
                           }
                           e.target.value = '';
                         }}
                       />
                     </label>
-                    <p className="pl-1">or drag and drop</p>
                   </div>
-                  <p className="text-xs leading-5 text-slate-500 mt-1">PDF documents up to 10MB</p>
+                  <p className="text-xs leading-5 text-slate-500">Only .pdf supported (up to 10MB)</p>
                 </div>
               </div>
+              {diLetterCopy ? (
+                <div className="mt-2 flex items-center justify-between py-2 px-3 border border-slate-200 rounded-md bg-white">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-blue-500" />
+                    <span className="text-sm font-medium text-slate-700 truncate w-48">{diLetterCopy.name}</span>
+                  </div>
+                  <button onClick={() => setDiLetterCopy(null)} className="text-slate-400 hover:text-red-500">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : existingDiLetterCopy ? (
+                <div className="mt-2 flex items-center justify-between py-2 px-3 border border-slate-200 rounded-md bg-white">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-blue-500" />
+                    <a href={existingDiLetterCopy.url.startsWith('http') ? existingDiLetterCopy.url : `${API_BASE_URL}${existingDiLetterCopy.url}`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-blue-600 hover:underline truncate w-48">{existingDiLetterCopy.name}</a>
+                    <span className="text-[10px] text-slate-400">Existing</span>
+                  </div>
+                  <button onClick={() => setExistingDiLetterCopy(null)} className="text-slate-400 hover:text-red-500">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : null}
+            </div>
 
-              {(existingAttachments.length > 0 || attachments.length > 0) && (
-                <ul role="list" className="mt-4 divide-y divide-slate-100 rounded-md border border-slate-200 bg-white">
-                  {existingAttachments.map((file, index) => (
-                    <li key={`existing-${index}`} className="flex items-center justify-between py-3 pl-3 pr-4 text-sm leading-6 hover:bg-slate-50 transition-colors">
-                      <div className="flex w-0 flex-1 items-center">
-                        <FileText className="h-5 w-5 flex-shrink-0 text-slate-400" aria-hidden="true" />
-                        <div className="ml-4 flex min-w-0 flex-1 gap-2">
-                          {file.url ? (
-                            <a href={file.url.startsWith('http') ? file.url : `${API_BASE_URL}${file.url}`} target="_blank" rel="noopener noreferrer" className="truncate font-medium text-blue-600 hover:underline">
-                              {file.name}
-                            </a>
-                          ) : (
-                            <span className="truncate font-medium text-slate-700">{file.name}</span>
-                          )}
-                          <span className="flex-shrink-0 text-slate-400">Already Uploaded</span>
-                        </div>
-                      </div>
-                      <div className="ml-4 flex-shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => setExistingAttachments(existingAttachments.filter((_, i) => i !== index))}
-                          className="font-medium text-slate-400 hover:text-red-500 p-1.5 rounded-md hover:bg-red-50 transition-colors"
-                          title="Remove file"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                  {attachments.map((file, index) => (
-                    <li key={`new-${index}`} className="flex items-center justify-between py-3 pl-3 pr-4 text-sm leading-6 hover:bg-slate-50 transition-colors">
-                      <div className="flex w-0 flex-1 items-center">
-                        <FileText className="h-5 w-5 flex-shrink-0 text-blue-500" aria-hidden="true" />
-                        <div className="ml-4 flex min-w-0 flex-1 gap-2">
-                          <span className="truncate font-medium text-slate-700">{file.name}</span>
-                          <span className="flex-shrink-0 text-slate-400">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
-                        </div>
-                      </div>
-                      <div className="ml-4 flex-shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => setAttachments(attachments.filter((_, i) => i !== index))}
-                          className="font-medium text-slate-400 hover:text-red-500 p-1.5 rounded-md hover:bg-red-50 transition-colors"
-                          title="Remove file"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
+            <div className="mt-4">
+              <label className="text-[13px] font-medium text-slate-700 mb-2 block">Inspection Report Copy (PDF Only)</label>
+              <div className="mt-1 flex justify-center rounded-lg border border-dashed border-slate-300 px-6 py-6 hover:bg-slate-50 transition-colors bg-white relative group">
+                <div className="text-center">
+                  <UploadCloud className="mx-auto h-8 w-8 text-slate-300 group-hover:text-blue-500 transition-colors" aria-hidden="true" />
+                  <div className="mt-2 flex text-sm leading-6 text-slate-600 justify-center">
+                    <label className="relative cursor-pointer rounded-md bg-transparent font-semibold text-blue-600 focus-within:outline-none hover:text-blue-500">
+                      <span>Upload file</span>
+                      <input 
+                        type="file" 
+                        className="sr-only" 
+                        accept="application/pdf"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            if (e.target.files[0].type !== 'application/pdf') {
+                              alert('Only PDF files are allowed.');
+                              return;
+                            }
+                            setInspectionReportCopy(e.target.files[0]);
+                          }
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <p className="text-xs leading-5 text-slate-500">Only .pdf supported (up to 10MB)</p>
+                </div>
+              </div>
+              {inspectionReportCopy ? (
+                <div className="mt-2 flex items-center justify-between py-2 px-3 border border-slate-200 rounded-md bg-white">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-blue-500" />
+                    <span className="text-sm font-medium text-slate-700 truncate w-48">{inspectionReportCopy.name}</span>
+                  </div>
+                  <button onClick={() => setInspectionReportCopy(null)} className="text-slate-400 hover:text-red-500">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : existingInspectionReportCopy ? (
+                <div className="mt-2 flex items-center justify-between py-2 px-3 border border-slate-200 rounded-md bg-white">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-blue-500" />
+                    <a href={existingInspectionReportCopy.url.startsWith('http') ? existingInspectionReportCopy.url : `${API_BASE_URL}${existingInspectionReportCopy.url}`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-blue-600 hover:underline truncate w-48">{existingInspectionReportCopy.name}</a>
+                    <span className="text-[10px] text-slate-400">Existing</span>
+                  </div>
+                  <button onClick={() => setExistingInspectionReportCopy(null)} className="text-slate-400 hover:text-red-500">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

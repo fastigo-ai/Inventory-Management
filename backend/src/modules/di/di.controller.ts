@@ -483,9 +483,14 @@ export const updateDI = asyncHandler(async (req: Request, res: Response) => {
   const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
   if (files?.['diLetterCopyUrl']?.[0]) {
     existingDI.diLetterCopyUrl = `/uploads/dis/${files['diLetterCopyUrl'][0].filename}`;
+  } else if (data.removeDiLetterCopyUrl === 'true') {
+    existingDI.diLetterCopyUrl = undefined;
   }
+
   if (files?.['inspectionReportCopyUrl']?.[0]) {
     existingDI.inspectionReportCopyUrl = `/uploads/dis/${files['inspectionReportCopyUrl'][0].filename}`;
+  } else if (data.removeInspectionReportCopyUrl === 'true') {
+    existingDI.inspectionReportCopyUrl = undefined;
   }
 
   // Check Lifecycle State

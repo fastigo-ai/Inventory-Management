@@ -37,7 +37,7 @@ export default function StoreContractorSummaryPage() {
   const [exporting, setExporting] = useState(false);
 
   const { filters, setFilter, debouncedFilters } = useUrlFilters({
-    contractorName: 'A K Contractor',
+    contractorName: 'all',
     circle: user?.assignedCircle || '',
     store: user?.assignedSubcircle || '',
     pkg: '',

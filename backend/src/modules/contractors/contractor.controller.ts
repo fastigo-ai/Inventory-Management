@@ -255,9 +255,12 @@ export const createAssignment = asyncHandler(async (req: Request, res: Response)
     throw new ApiError(400, 'Assignment Number, Contractor, and Line Items are required');
   }
 
-  const existing = await ContractorAssignment.findOne({ assignmentNumber: assignmentData.assignmentNumber });
+  const existing = await ContractorAssignment.findOne({ 
+    assignmentNumber: assignmentData.assignmentNumber,
+    subcircle: assignmentData.subcircle
+  });
   if (existing) {
-    throw new ApiError(400, 'Assignment with this number already exists');
+    throw new ApiError(400, `Assignment with number ${assignmentData.assignmentNumber} already exists in this subcircle`);
   }
 
   const newAssignment = await ContractorAssignment.create(assignmentData);
@@ -1193,7 +1196,7 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
         if (overwriteExisting) {
           const bulkOps = payloads.map((payload: any) => ({
             updateOne: {
-              filter: { assignmentNumber: payload.assignmentNumber },
+              filter: { assignmentNumber: payload.assignmentNumber, subcircle: payload.subcircle },
               update: { $set: payload },
               upsert: true
             }
@@ -1202,27 +1205,25 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
           const result = await ContractorAssignment.bulkWrite(bulkOps);
           successCount += payloads.length;
         } else {
-          // If not overwriting, we need to filter out existing MINs
+          // If not overwriting, we filter out existing MINs for this subcircle
+          const subcircles = Array.from(new Set(payloads.map((p: any) => p.subcircle)));
           const existingMins = await ContractorAssignment.find({
-            assignmentNumber: { $in: payloads.map((p: any) => p.assignmentNumber) }
-          }).select('assignmentNumber').lean();
+            assignmentNumber: { $in: payloads.map((p: any) => p.assignmentNumber) },
+            subcircle: { $in: subcircles }
+          }).select('assignmentNumber subcircle').lean();
           
-          const existingMinSet = new Set(existingMins.map(e => e.assignmentNumber));
+          const existingMinSet = new Set(existingMins.map(e => `${e.assignmentNumber}_${e.subcircle}`));
           
           const validPayloads = [];
           for (const payload of payloads as any[]) {
-            if (existingMinSet.has(payload.assignmentNumber)) {
+            if (existingMinSet.has(`${payload.assignmentNumber}_${payload.subcircle}`)) {
               errors.push(`Assignment/MIN ${payload.assignmentNumber} already exists. Skipping.`);
             } else {
               validPayloads.push(payload);
             }
           }
 
-          if (errors.length > 0) {
-             return res.status(400).json(
-               new ApiResponse(400, { errors }, 'Import failed due to duplicate assignment numbers. No data was imported.')
-             );
-          }
+          // We do NOT abort the import if there are duplicate errors. We gracefully skip them.
 
           if (validPayloads.length > 0) {
             await ContractorAssignment.insertMany(validPayloads);

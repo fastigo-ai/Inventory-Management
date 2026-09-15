@@ -77,7 +77,7 @@ const contractorAssignmentSchema = new Schema<IContractorAssignment>(
   {
     contractorId: { type: Schema.Types.ObjectId, ref: 'Contractor', required: true, index: true },
     location: { type: String, index: true },
-    assignmentNumber: { type: String, required: true, unique: true },
+    assignmentNumber: { type: String, required: true },
     orderNumber: { type: String },
     date: { type: Date, required: true, default: Date.now, index: true },
     circle: { type: String, index: true },

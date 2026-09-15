@@ -270,6 +270,12 @@ export const createAssignment = asyncHandler(async (req: Request, res: Response)
     );
   }
 
+  if (newAssignment && newAssignment.lineItems) {
+    newAssignment.lineItems.forEach((li: any) => {
+      if (li.itemId) SummaryService.rebuildForItem(li.itemId.toString()).catch(console.error);
+    });
+  }
+
   res.status(201).json(new ApiResponse(201, newAssignment, 'Contractor Assignment created successfully'));
 });
 
@@ -293,6 +299,12 @@ export const updateAssignment = asyncHandler(async (req: Request, res: Response)
     { new: true, runValidators: true }
   );
 
+  if (updatedAssignment && updatedAssignment.lineItems) {
+    updatedAssignment.lineItems.forEach((li: any) => {
+      if (li.itemId) SummaryService.rebuildForItem(li.itemId.toString()).catch(console.error);
+    });
+  }
+
   res.status(200).json(new ApiResponse(200, updatedAssignment, 'Contractor Assignment updated successfully'));
 });
 
@@ -310,6 +322,12 @@ export const cancelAssignment = asyncHandler(async (req: Request, res: Response)
 
   assignment.status = 'Cancelled';
   await assignment.save();
+
+  if (assignment && assignment.lineItems) {
+    assignment.lineItems.forEach((li: any) => {
+      if (li.itemId) SummaryService.rebuildForItem(li.itemId.toString()).catch(console.error);
+    });
+  }
 
   res.status(200).json(new ApiResponse(200, assignment, 'Contractor Assignment cancelled successfully'));
 });
@@ -665,6 +683,12 @@ export const createContractorReturn = asyncHandler(async (req: Request, res: Res
   }
   const newReturn = await ContractorReturn.create(data);
 
+  if (newReturn && newReturn.lineItems) {
+    newReturn.lineItems.forEach((li: any) => {
+      if (li.itemId) SummaryService.rebuildForItem(li.itemId.toString()).catch(console.error);
+    });
+  }
+
   res.status(201).json(
     new ApiResponse(201, newReturn, 'Contractor return created successfully')
   );
@@ -683,6 +707,13 @@ export const updateContractorReturn = asyncHandler(async (req: Request, res: Res
   const data = req.body;
   const returnObj = await ContractorReturn.findByIdAndUpdate(id, data, { new: true });
   if (!returnObj) throw new ApiError(404, 'Contractor return not found');
+
+  if (returnObj && returnObj.lineItems) {
+    returnObj.lineItems.forEach((li: any) => {
+      if (li.itemId) SummaryService.rebuildForItem(li.itemId.toString()).catch(console.error);
+    });
+  }
+
   res.status(200).json(new ApiResponse(200, returnObj, 'Contractor return updated successfully'));
 });
 
@@ -690,6 +721,13 @@ export const deleteContractorReturn = asyncHandler(async (req: Request, res: Res
   const { id } = req.params;
   const returnObj = await ContractorReturn.findByIdAndDelete(id);
   if (!returnObj) throw new ApiError(404, 'Contractor return not found');
+
+  if (returnObj && returnObj.lineItems) {
+    returnObj.lineItems.forEach((li: any) => {
+      if (li.itemId) SummaryService.rebuildForItem(li.itemId.toString()).catch(console.error);
+    });
+  }
+
   res.status(200).json(new ApiResponse(200, null, 'Contractor return deleted successfully'));
 });
 
@@ -707,7 +745,6 @@ export const bulkImportContractorReturns = asyncHandler(async (req: Request, res
   let successCount = 0;
   
   const returnsByChallan: Record<string, any> = {};
-  const itemCache = new Map();
   
   // Pre-fetch all Contractors for robust matching
   const allContractors = await Contractor.find({}).lean();
@@ -716,6 +753,15 @@ export const bulkImportContractorReturns = asyncHandler(async (req: Request, res
     if (c.name) contractorCache.set(c.name.replace(/\s+/g, '').toLowerCase(), c);
     if (c.dynamicData?.displayName) contractorCache.set(c.dynamicData.displayName.replace(/\s+/g, '').toLowerCase(), c);
     if (c.dynamicData?.companyName) contractorCache.set(c.dynamicData.companyName.replace(/\s+/g, '').toLowerCase(), c);
+  }
+
+  // Pre-fetch all Items for O(1) matching instead of N+1 regex queries
+  const allItems = await Item.find({}).select('_id itemCode description hsnCode unit dynamicData').lean();
+  const itemCacheByTempCode = new Map();
+  const itemCacheByName = new Map();
+  for (const it of allItems) {
+    if (it.dynamicData?.tempCode) itemCacheByTempCode.set(String(it.dynamicData.tempCode).trim(), it);
+    if (it.dynamicData?.description) itemCacheByName.set(String(it.dynamicData.description).trim().toLowerCase(), it);
   }
 
   for await (const row of parser) {
@@ -745,16 +791,11 @@ export const bulkImportContractorReturns = asyncHandler(async (req: Request, res
       const returnQty = Number(row['Return QTY.'] || row['ReturnQty'] || 0);
 
       let item = null;
-      const cacheKey = `${tempCode}_${itemName}`;
-      if (itemCache.has(cacheKey)) {
-        item = itemCache.get(cacheKey);
-      } else {
-        if (tempCode) item = await Item.findOne({ 'dynamicData.tempCode': tempCode });
-        if (!item && itemName) {
-          const escapedItemName = itemName.replace(new RegExp('[.*+?^${}()|\\\\[\\\\]\\\\\\\\]', 'g'), '\\$&');
-          item = await Item.findOne({ 'dynamicData.description': { $regex: new RegExp(`^\\s*${escapedItemName}\\s*$`, 'i') } });
-        }
-        if (item) itemCache.set(cacheKey, item);
+      if (tempCode) {
+        item = itemCacheByTempCode.get(String(tempCode).trim());
+      }
+      if (!item && itemName) {
+        item = itemCacheByName.get(String(itemName).trim().toLowerCase());
       }
 
       const lineItem = {
@@ -781,6 +822,8 @@ export const bulkImportContractorReturns = asyncHandler(async (req: Request, res
           issuedTfsSrNo: row['Return TFS Sr No.'] || '',
           remarks: row['Remarks'] || '',
           status: 'Submitted',
+          circle: (req as any).user?.assignedCircle || '',
+          createdBy: (req as any).user?._id,
           lineItems: []
         };
       }
@@ -808,14 +851,28 @@ export const bulkImportContractorReturns = asyncHandler(async (req: Request, res
   }
 
   // Pass 2: Save Data
+  const affectedItemIds = new Set<string>();
+  
   for (const challanNo of Object.keys(returnsByChallan)) {
     try {
       const payload = returnsByChallan[challanNo];
       await ContractorReturn.create([payload]);
+      
+      if (payload.lineItems && Array.isArray(payload.lineItems)) {
+        payload.lineItems.forEach((li: any) => {
+          if (li.itemId) affectedItemIds.add(li.itemId.toString());
+        });
+      }
+      
       successCount++;
     } catch (err: any) {
       console.error(`Error saving Challan ${challanNo}:`, err);
     }
+  }
+
+  // Trigger rebuilds for all affected items so global stock balance updates
+  for (const id of Array.from(affectedItemIds)) {
+    SummaryService.rebuildForItem(id).catch(console.error);
   }
 
   res.status(200).json(

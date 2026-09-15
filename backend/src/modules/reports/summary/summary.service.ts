@@ -16,6 +16,13 @@ interface UpdateSummaryParams {
     actQty?: number;
     srtQty?: number;
     billedQty?: number;
+    transferInQty?: number;
+    transferOutQty?: number;
+    issuedQty?: number;
+    returnedQty?: number;
+  };
+  setFields?: {
+    stockBalance?: number;
   };
   session?: ClientSession;
 }
@@ -39,8 +46,17 @@ export class SummaryService {
       }
     }
 
-    if (Object.keys(incObj).length === 0) {
-      return; // Nothing to increment
+    const setObj: any = {};
+    if (params.setFields) {
+      for (const [k, v] of Object.entries(params.setFields)) {
+        if (v !== undefined) {
+          setObj[k] = v;
+        }
+      }
+    }
+
+    if (Object.keys(incObj).length === 0 && Object.keys(setObj).length === 0) {
+      return; // Nothing to update
     }
 
     // Try to find if the record exists to increment, otherwise we need to get the item name for upsert.
@@ -93,14 +109,19 @@ export class SummaryService {
     if (companyId) filter['companyId'] = companyId;
     if (warehouseId) filter['warehouseId'] = warehouseId;
 
-    const update = {
-      $inc: incObj,
+    const update: any = {
       $setOnInsert: {
         itemName,
         loaSerialNo,
         tempCode
       }
     };
+    if (Object.keys(incObj).length > 0) {
+      update.$inc = incObj;
+    }
+    if (Object.keys(setObj).length > 0) {
+      update.$set = setObj;
+    }
 
     await ItemSummary.findOneAndUpdate(filter, update, {
       upsert: true,
@@ -271,6 +292,98 @@ export class SummaryService {
             });
           }
         }
+      }
+
+      // 7. Rebuild from StoreTransfers
+      const { StoreTransfer } = await import('../../store/storeTransfer.schema');
+      const transfers = await StoreTransfer.find({ 'items.itemId': itemId });
+      for (const t of transfers) {
+        for (const line of t.items) {
+          if (line.itemId?.toString() === itemIdStr) {
+            const qty = Number(line.receivedQty || (line as any).transferQty || line.dispatchedQty || 0);
+            if (qty > 0) {
+              const fromCircle = t.fromStore?.toLowerCase().replace(/\s+/g, '') || 'default';
+              const toCircle = t.toStore?.toLowerCase().replace(/\s+/g, '') || 'default';
+              const pkg = (t as any).package || '';
+              
+              await SummaryService.updateSummary({
+                itemId,
+                circle: fromCircle,
+                package: pkg,
+                increments: { transferOutQty: qty },
+                companyId: item.companyId?.toString()
+              });
+              
+              await SummaryService.updateSummary({
+                itemId,
+                circle: toCircle,
+                package: pkg,
+                increments: { transferInQty: qty },
+                companyId: item.companyId?.toString()
+              });
+            }
+          }
+        }
+      }
+
+      // 8. Rebuild from ContractorAssignments (MIN)
+      const { ContractorAssignment } = await import('../../contractors/contractorAssignment.schema');
+      const assignments = await ContractorAssignment.find({ 'lineItems.itemId': itemId, status: { $ne: 'Cancelled' } });
+      for (const a of assignments) {
+        for (const line of a.lineItems) {
+          if (line.itemId?.toString() === itemIdStr) {
+            const qty = Number(line.quantity || line.acceptedQuantity || line.issuedQty || 0);
+            if (qty > 0) {
+              await SummaryService.updateSummary({
+                itemId,
+                circle: a.circle || '',
+                package: a.package || '',
+                increments: { issuedQty: qty },
+                companyId: item.companyId?.toString()
+              });
+            }
+          }
+        }
+      }
+
+      // 9. Rebuild from ContractorReturns
+      const { ContractorReturn } = await import('../../contractors/contractorReturn.schema');
+      const returns = await ContractorReturn.find({ 'lineItems.itemId': itemId });
+      for (const r of returns) {
+        for (const line of r.lineItems) {
+          if (line.itemId?.toString() === itemIdStr) {
+            const qty = Number(line.returnQty || line.acceptedQuantity || 0);
+            if (qty > 0) {
+              await SummaryService.updateSummary({
+                itemId,
+                circle: r.circle || '',
+                package: r.package || '',
+                increments: { returnedQty: qty },
+                companyId: item.companyId?.toString()
+              });
+            }
+          }
+        }
+      }
+
+      // 10. Compute total real-time stock balance across all circles/packages and update Master Item
+      const allSummaries = await ItemSummary.find({ itemId });
+      let totalStockBalance = 0;
+      
+      for (const s of allSummaries) {
+        const act = s.actQty || 0;
+        const tin = s.transferInQty || 0;
+        const tout = s.transferOutQty || 0;
+        const iss = s.issuedQty || 0;
+        const ret = s.returnedQty || 0;
+        totalStockBalance += (act + tin + ret - iss - tout);
+      }
+      
+      if (item) {
+        item.dynamicData = item.dynamicData || {};
+        item.dynamicData.stock = totalStockBalance;
+        item.markModified('dynamicData');
+        await item.save();
       }
 
     } catch (error) {

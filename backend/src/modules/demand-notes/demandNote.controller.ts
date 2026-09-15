@@ -214,35 +214,24 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
 
   // 4. Calculate Stock Balance in store
   let stockBal = 0;
-  if (summary) {
-    stockBal = Math.max(0, (summary.actQty || 0) - (summary.billedQty || 0) - (summary.srtQty || 0));
-    
-    // Fix: ItemSummary.actQty tracks total inwards but does not subtract contractor issues.
-    // We must subtract the total quantity issued to ALL contractors for this item.
-    let totalIssuedQty = 0;
-    if (item?._id) {
-      const allAssignments = await mongoose.model('ContractorAssignment').find({
-        'lineItems.itemId': item._id,
-        status: { $ne: 'Cancelled' }
-      }).lean() as any[];
-      
-      allAssignments.forEach(asg => {
-        asg.lineItems?.forEach((li: any) => {
-          if (String(li.itemId) === String(item._id)) {
-            totalIssuedQty += (Number(li.quantity || li.acceptedQuantity || li.issuedQty) || 0);
-          }
-        });
-      });
-    }
-    
-    stockBal = Math.max(0, stockBal - totalIssuedQty);
-  }
-  if (!stockBal && item?.dynamicData) {
-    stockBal = Number(item.dynamicData.stockBal || item.dynamicData.stockBalance || item.dynamicData.quantity || 0);
-  }
-
   let transferFromOther = 0;
   let transferToOther = 0;
+
+  if (summary) {
+    const act = summary.actQty || 0;
+    const tin = summary.transferInQty || 0;
+    const tout = summary.transferOutQty || 0;
+    const iss = summary.issuedQty || 0;
+    const ret = summary.returnedQty || 0;
+    
+    stockBal = Math.max(0, act + tin + ret - iss - tout);
+    transferFromOther = tin;
+    transferToOther = tout;
+  }
+  
+  if (!stockBal && item?.dynamicData) {
+    stockBal = Number(item.dynamicData.stockBal || item.dynamicData.stockBalance || item.dynamicData.stock || item.dynamicData.quantity || 0);
+  }
 
   // 5. Calculate JMC and WIP Quantities based on contractor, package, circle and item match
   let jmcQty = 0;

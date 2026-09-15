@@ -18,6 +18,11 @@ export interface IItemSummary extends Document {
   srtQty: number;
   billedQty: number;
   
+  transferInQty: number;
+  transferOutQty: number;
+  issuedQty: number;
+  returnedQty: number;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -40,6 +45,11 @@ const itemSummarySchema = new Schema<IItemSummary>(
     actQty: { type: Number, default: 0 },
     srtQty: { type: Number, default: 0 },
     billedQty: { type: Number, default: 0 },
+    
+    transferInQty: { type: Number, default: 0 },
+    transferOutQty: { type: Number, default: 0 },
+    issuedQty: { type: Number, default: 0 },
+    returnedQty: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

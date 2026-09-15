@@ -4,6 +4,7 @@ import { PurchaseOrder } from '../../purchases/purchaseOrder.schema';
 import { PurchaseInvoice } from '../../purchases/purchaseInvoice.schema';
 import { ContractorAssignment } from '../../contractors/contractorAssignment.schema';
 import { ContractorInvoice } from '../../contractor-billing/contractorInvoice.schema';
+import { ClientBill } from '../../client-billing/clientBill.schema';
 import { ContractorReturn } from '../../contractors/contractorReturn.schema';
 import { JmcRegister } from '../../jmc/jmc.schema';
 import { WipRegister } from '../../wip/wip.schema';
@@ -1178,13 +1179,13 @@ async function computeItemMatrixSummary(params: {
       { status: { $nin: ['Rejected', 'Cancelled'] } },
       { circle: 1, 'items.approvedQty': 1, 'items.claimedQty': 1, 'items.itemId': 1, 'items.tempCode': 1, 'items.loaSerialNo': 1, 'items.loaSrNo': 1, 'items.circle': 1 }
     ).lean(),
-    ContractorInvoice.find(
-      { status: { $ne: 'Cancelled' as any } },
-      { circle: 1, 'lineItems.quantity': 1, 'lineItems.installedQty': 1, 'lineItems.itemId': 1, 'lineItems.tempCode': 1, 'lineItems.loaSerialNo': 1, 'lineItems.loaSrNo': 1, 'lineItems.circle': 1 }
+    ClientBill.find(
+      { billType: 'Erection', status: { $nin: ['Draft', 'Rejected', 'Cancelled'] } },
+      { circle: 1, package: 1, 'items.raBillQty': 1, 'items.itemId': 1, 'items.tempCode': 1, 'items.loaSrNo': 1 }
     ).lean(),
-    PurchaseInvoice.find(
-      { status: { $ne: 'Cancelled' } },
-      { circle: 1, 'lineItems.quantity': 1, 'lineItems.act': 1, 'lineItems.itemId': 1, 'lineItems.tempCode': 1, 'lineItems.loaSerialNo': 1, 'lineItems.loaSrNo': 1, 'lineItems.circle': 1 }
+    ClientBill.find(
+      { billType: 'Supply', status: { $nin: ['Draft', 'Rejected', 'Cancelled'] } },
+      { circle: 1, package: 1, 'items.raBillQty': 1, 'items.itemId': 1, 'items.tempCode': 1, 'items.loaSrNo': 1 }
     ).lean(),
     WipRegister.find(
       { status: { $nin: ['Rejected', 'Cancelled'] } },
@@ -1463,8 +1464,8 @@ async function computeItemMatrixSummary(params: {
   const erectionMap = new Map<string, Record<string, number>>();
   contractorInvoices.forEach(doc => {
     const docCirc = ((doc as any).circle || '').toLowerCase();
-    ((doc as any).lineItems || []).forEach((line: any) => {
-      const qty = Number(line.quantity || line.installedQty || 0);
+    ((doc as any).items || []).forEach((line: any) => {
+      const qty = Number(line.raBillQty || 0);
       if (qty > 0) {
         const lineCirc = (line.circle || docCirc || '').toLowerCase();
         const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku, line.package || (doc as any).package, lineCirc);
@@ -1512,12 +1513,12 @@ async function computeItemMatrixSummary(params: {
     });
   });
 
-  // 5. Supply Billed (Purchase Invoice)
+  // 5. Supply Billed (Client Bill - Supply)
   const supplyBilledMap = new Map<string, Record<string, number>>();
   pis.forEach(doc => {
-    const docCirc = (doc.circle || '').toLowerCase();
-    (doc.lineItems || []).forEach((line: any) => {
-      const qty = Number(line.quantity || line.act || 0);
+    const docCirc = ((doc as any).circle || '').toLowerCase();
+    ((doc as any).items || []).forEach((line: any) => {
+      const qty = Number(line.raBillQty || 0);
       if (qty > 0) {
         const lineCirc = (line.circle || docCirc || '').toLowerCase();
         const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku, line.package || (doc as any).package, lineCirc);

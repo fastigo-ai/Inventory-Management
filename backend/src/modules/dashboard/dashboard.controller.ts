@@ -113,9 +113,17 @@ export const getSitePortalDashboardSummary = asyncHandler(async (req: any, res: 
   const DemandNote = mongoose.model('DemandNote');
   const Mhrov = mongoose.model('Mhrov');
   const Contractor = mongoose.model('Contractor');
+  
+  console.log(`[Dashboard] User ${user.email} fetching summary for Package: "${assignedPackage}", Circle: "${assignedCircle}"`);
 
   // Build match query for JMC and WIP
-  const matchQuery: any = { package: assignedPackage, circle: assignedCircle };
+  const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const flexibleRegex = (str: string) => str.replace(/\s+/g, '').split('').map(c => escapeRegex(c)).join('\\s*');
+  
+  const matchQuery: any = { 
+    package: { $regex: new RegExp(`^${flexibleRegex(assignedPackage)}$`, 'i') }, 
+    circle: { $regex: new RegExp(`^${flexibleRegex(assignedCircle)}$`, 'i') } 
+  };
   if (contractorId) {
     matchQuery.contractorId = new mongoose.Types.ObjectId(contractorId);
   }
@@ -221,7 +229,10 @@ export const getSitePortalDashboardSummary = asyncHandler(async (req: any, res: 
   });
 
   // Demand Notes Filter
-  const dnQuery: any = { package: assignedPackage, circle: assignedCircle };
+  const dnQuery: any = { 
+    package: { $regex: new RegExp(`^${flexibleRegex(assignedPackage)}$`, 'i') }, 
+    circle: { $regex: new RegExp(`^${flexibleRegex(assignedCircle)}$`, 'i') } 
+  };
   if (contractorId) {
     const c = await Contractor.findById(contractorId);
     if (c) dnQuery.contractorName = c.dynamicData?.displayName || c.dynamicData?.companyName;
@@ -234,7 +245,10 @@ export const getSitePortalDashboardSummary = asyncHandler(async (req: any, res: 
   const approvedDemandNotes = await DemandNote.countDocuments({ ...dnQuery, status: 'Approved' });
 
   // MHROV Filter (Not filtering by contractor/tempCode to keep it general for the package, unless specified later)
-  const totalMhrovs = await Mhrov.countDocuments({ package: assignedPackage, circle: assignedCircle });
+  const totalMhrovs = await Mhrov.countDocuments({ 
+    package: { $regex: new RegExp(`^${flexibleRegex(assignedPackage)}$`, 'i') }, 
+    circle: { $regex: new RegExp(`^${flexibleRegex(assignedCircle)}$`, 'i') } 
+  });
 
   res.status(200).json(new ApiResponse(200, {
     totalJmcQty,

@@ -49,10 +49,13 @@ export default function StoreSummaryPage() {
     returnedQty: 0,
     transferOutQty: 0,
     transferInQty: 0,
-    balAtStore: 0
+    balAtStore: 0,
+    diQty: 0,
+    mhrovQty: 0
   });
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [showCircleDropdown, setShowCircleDropdown] = useState(false);
 
   const { filters, setFilter, debouncedFilters } = useUrlFilters({
     circle: user?.assignedCircle || '',
@@ -188,6 +191,8 @@ export default function StoreSummaryPage() {
       'CIRCLE': row.circle || circle || 'All Circles',
       'PACKAGE': row.package || pkg || 'All Packages',
       'UNIT': row.unit || 'No',
+      'TOTAL DI QTY': row.diQty || 0,
+      'TOTAL MRHOV QTY': row.mhrovQty || 0,
       'TOTAL RECEIPT QTY': row.receiptQty || 0,
       'TOTAL ISSUED TO CONTRACTOR': row.issuedQty || 0,
       'TOTAL RETURNED BY CONTRACTOR': row.returnedQty || 0,
@@ -213,13 +218,16 @@ export default function StoreSummaryPage() {
     doc.setFontSize(10);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 22);
     
+    doc.setFontSize(8);
     autoTable(doc, {
       startY: 28,
-      head: [['SR', 'TEMP', 'ITEM NAME', 'RECEIPT', 'ISSUED', 'RETURNED', 'T-OUT', 'T-IN', 'BALANCE']],
+      head: [['SR', 'TEMP', 'ITEM NAME', 'DI QTY', 'MRHOV QTY', 'RECEIPT', 'ISSUED', 'RETURNED', 'T-OUT', 'T-IN', 'BALANCE']],
       body: exportData.map((row: any, i: number) => [
         i + 1,
         row.tempCode || '-',
-        row.name || row.itemName || '-',
+        (row.name || row.itemName || '-').substring(0, 30),
+        row.diQty?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0',
+        row.mhrovQty?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0',
         row.receiptQty?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0',
         row.issuedQty?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0',
         row.returnedQty?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0',
@@ -227,15 +235,18 @@ export default function StoreSummaryPage() {
         row.transferInQty?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0',
         row.balAtStore?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0'
       ]),
-      headStyles: { fillColor: [226, 239, 217], textColor: [51, 65, 85], fontStyle: 'bold' },
+      headStyles: { fillColor: [226, 239, 217], textColor: [51, 65, 85], fontStyle: 'bold', fontSize: 7 },
+      bodyStyles: { fontSize: 7 },
       didParseCell: function(data) {
         if (data.section === 'head') {
-          if (data.column.index === 3) data.cell.styles.fillColor = [226, 239, 217]; // green for receipts
-          if (data.column.index === 4) data.cell.styles.fillColor = [253, 246, 235]; // orange for issued
-          if (data.column.index === 5) data.cell.styles.fillColor = [239, 246, 255]; // blue for returned
-          if (data.column.index === 6) data.cell.styles.fillColor = [254, 242, 242]; // red for transfer out
-          if (data.column.index === 7) data.cell.styles.fillColor = [240, 253, 250]; // teal for transfer in
-          if (data.column.index === 8) data.cell.styles.fillColor = [238, 242, 255]; // indigo for balance
+          if (data.column.index === 3) data.cell.styles.fillColor = [253, 246, 235]; 
+          if (data.column.index === 4) data.cell.styles.fillColor = [253, 246, 235]; 
+          if (data.column.index === 5) data.cell.styles.fillColor = [226, 239, 217]; // green for receipts
+          if (data.column.index === 6) data.cell.styles.fillColor = [253, 246, 235]; // orange for issued
+          if (data.column.index === 7) data.cell.styles.fillColor = [239, 246, 255]; // blue for returned
+          if (data.column.index === 8) data.cell.styles.fillColor = [254, 242, 242]; // red for transfer out
+          if (data.column.index === 9) data.cell.styles.fillColor = [240, 253, 250]; // teal for transfer in
+          if (data.column.index === 10) data.cell.styles.fillColor = [238, 242, 255]; // indigo for balance
         }
       }
     });
@@ -465,29 +476,75 @@ export default function StoreSummaryPage() {
             </div>
 
             {/* Circle Select */}
-            <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
+            <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 relative">
               <MapPin className="w-3.5 h-3.5 text-slate-400" />
               <span className="text-[11px] font-semibold text-slate-500 uppercase">Circle:</span>
-              <select
-                value={circle}
-                onChange={(e) => setCircle(e.target.value)}
-                disabled={isStoreManager && !!user?.assignedCircle}
-                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer pr-1 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <option value="">All Circles</option>
-                {(pkg === '' || pkg === 'Package 1(S/N)') && (
-                  <>
-                    <option value="Solan">Solan</option>
-                    <option value="Nahan">Nahan</option>
-                  </>
-                )}
-                {(pkg === '' || pkg === 'Package 2(R/R)') && (
-                  <>
-                    <option value="Rampur">Rampur</option>
-                    <option value="Rohru">Rohru</option>
-                  </>
-                )}
-              </select>
+              {(user?.role?.name === 'Purchase' || user?.role?.name === 'Admin' || user?.role?.name === 'Super Admin') ? (
+                <div className="relative">
+                  <div 
+                    onClick={() => setShowCircleDropdown(!showCircleDropdown)}
+                    className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer pr-1 min-w-[80px]"
+                  >
+                    {circle ? (circle.split(',').length > 1 ? 'Multiple' : circle) : 'All Circles'}
+                  </div>
+                  {showCircleDropdown && (
+                    <div className="absolute top-full mt-2 left-0 w-48 bg-white border border-slate-200 rounded-lg shadow-xl z-50 p-2 flex flex-col gap-1">
+                      <div className="text-xs font-bold text-slate-500 mb-1 px-1">Select Circles</div>
+                      {['Solan', 'Nahan', 'Rampur', 'Rohru'].map(c => {
+                        const isSelected = circle ? circle.split(',').includes(c) : false;
+                        return (
+                          <label key={c} className="flex items-center gap-2 px-2 py-1.5 hover:bg-slate-50 rounded cursor-pointer text-xs font-semibold text-slate-700">
+                            <input 
+                              type="checkbox" 
+                              checked={isSelected}
+                              onChange={(e) => {
+                                const currentCircles = circle ? circle.split(',').filter(Boolean) : [];
+                                if (e.target.checked) {
+                                  setCircle([...currentCircles, c].join(','));
+                                } else {
+                                  setCircle(currentCircles.filter(x => x !== c).join(','));
+                                }
+                              }}
+                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            {c}
+                          </label>
+                        );
+                      })}
+                      <button 
+                        onClick={() => { setCircle(''); setShowCircleDropdown(false); }}
+                        className="mt-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 text-left px-2"
+                      >
+                        Clear All
+                      </button>
+                    </div>
+                  )}
+                  {showCircleDropdown && (
+                    <div className="fixed inset-0 z-40" onClick={() => setShowCircleDropdown(false)}></div>
+                  )}
+                </div>
+              ) : (
+                <select
+                  value={circle}
+                  onChange={(e) => setCircle(e.target.value)}
+                  disabled={isStoreManager && !!user?.assignedCircle}
+                  className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer pr-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="">All Circles</option>
+                  {(pkg === '' || pkg === 'Package 1(S/N)') && (
+                    <>
+                      <option value="Solan">Solan</option>
+                      <option value="Nahan">Nahan</option>
+                    </>
+                  )}
+                  {(pkg === '' || pkg === 'Package 2(R/R)') && (
+                    <>
+                      <option value="Rampur">Rampur</option>
+                      <option value="Rohru">Rohru</option>
+                    </>
+                  )}
+                </select>
+              )}
             </div>
 
             {/* Store Location Select */}
@@ -564,6 +621,8 @@ export default function StoreSummaryPage() {
                   <th className="py-3.5 px-4 w-28 text-center border-r border-slate-200/60">Circle</th>
                   <th className="py-3.5 px-4 w-32 text-center border-r border-slate-200/60">Package</th>
                   <th className="py-3.5 px-4 w-20 text-center border-r border-slate-200/60">Unit</th>
+                  <th className="py-3.5 px-4 text-right bg-blue-50/50 text-blue-900 border-r border-slate-200/60 font-extrabold">DI Qty</th>
+                  <th className="py-3.5 px-4 text-right bg-blue-50/50 text-blue-900 border-r border-slate-200/60 font-extrabold">MRHOV Qty</th>
                   <th className="py-3.5 px-4 text-right bg-emerald-50/50 text-emerald-900 border-r border-slate-200/60 font-extrabold">Total Receipt Qty</th>
                   <th className="py-3.5 px-4 text-right bg-amber-50/50 text-amber-900 border-r border-slate-200/60 font-extrabold">Total Issued to Contractor</th>
                   <th className="py-3.5 px-4 text-right bg-blue-50/50 text-blue-900 border-r border-slate-200/60 font-extrabold">Total Returned by Contractor</th>
@@ -650,6 +709,12 @@ export default function StoreSummaryPage() {
                         </td>
                         <td className="py-3 px-4 text-center text-slate-600 font-semibold border-r border-slate-100">
                           {item.unit || 'Nos'}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono font-semibold text-blue-800 bg-blue-50/20 border-r border-slate-100">
+                          {item.diQty ? Number(item.diQty).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '-'}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono font-semibold text-blue-800 bg-blue-50/20 border-r border-slate-100">
+                          {item.mhrovQty ? Number(item.mhrovQty).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '-'}
                         </td>
                         <td className="py-3 px-4 text-right font-mono font-semibold text-slate-800 bg-emerald-50/20 border-r border-slate-100">
                           {item.receiptQty ? Number(item.receiptQty).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '-'}

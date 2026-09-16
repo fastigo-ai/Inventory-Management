@@ -585,7 +585,9 @@ export async function computeStoreItemisedSummary(params: {
           returnedQty: 0,
           transferOutQty: 0,
           transferInQty: 0,
-          balAtStore: 0
+          balAtStore: 0,
+          diQty: 0,
+          mhrovQty: 0
         });
       }
 
@@ -700,6 +702,48 @@ export async function computeStoreItemisedSummary(params: {
       });
     });
 
+    // 6. DI (Dispatch Instructions)
+    const diFilter: any = { status: { $ne: 'Cancelled' } };
+    if (transLocRegex) {
+      diFilter.$or = [{ circle: transLocRegex }, { 'lineItems.circle': transLocRegex }];
+    }
+    const dis = await DI.find(diFilter).lean();
+    dis.forEach(doc => {
+      (doc.lineItems || []).forEach((li: any) => {
+        const idStr = li.itemId ? li.itemId.toString() : null;
+        const qty = Number(li.quantity || 0);
+        const temp = String(li.tempCode || '').trim();
+        const name = String(li.itemName || '').trim().toLowerCase();
+
+        for (const grp of groupMap.values()) {
+          if ((idStr && grp.itemIds.has(idStr)) || (temp && temp !== '-' && grp.tempCode === temp) || (name && grp.name.toLowerCase() === name)) {
+            grp.diQty += qty;
+            break;
+          }
+        }
+      });
+    });
+
+    // 7. MHROV (Material Receipt and Hand Over Voucher)
+    const mhrovFilter: any = {};
+    if (transLocRegex) {
+      mhrovFilter.circle = transLocRegex;
+    }
+    const mhrovs = await Mhrov.find(mhrovFilter).lean();
+    mhrovs.forEach(doc => {
+      (doc.items || []).forEach((it: any) => {
+        const idStr = it.itemId ? it.itemId.toString() : null;
+        const qty = Number(it.mhrovDoneQty || 0);
+        
+        for (const grp of groupMap.values()) {
+          if (idStr && grp.itemIds.has(idStr)) {
+            grp.mhrovQty += qty;
+            break;
+          }
+        }
+      });
+    });
+
     let rows = Array.from(groupMap.values()).map(r => {
       r.balAtStore = r.receiptQty - r.issuedQty + r.returnedQty - r.transferOutQty + r.transferInQty;
       if (circle && circle !== 'all') {
@@ -727,6 +771,8 @@ export async function computeStoreItemisedSummary(params: {
       acc.transferOutQty += curr.transferOutQty;
       acc.transferInQty += curr.transferInQty;
       acc.balAtStore += curr.balAtStore;
+      acc.diQty += curr.diQty;
+      acc.mhrovQty += curr.mhrovQty;
       return acc;
     }, {
       receiptQty: 0,

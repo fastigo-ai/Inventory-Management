@@ -11,6 +11,7 @@ export const ROUTE_PERMISSIONS_MAP: Record<string, string[]> = {
   '/store': ['Stock Inward', 'Stock Outward'],
   '/settings': ['Settings', 'System Admin'],
   '/ho-billing': ['HO Billing Portal'],
+  '/site-portal/contractor-summary': ['Site Portal', 'Reports'],
   '/site-portal': ['Site Portal'],
   '/pm-portal': ['Project Manager Portal'],
   '/pd-portal': ['Project Director Portal'],

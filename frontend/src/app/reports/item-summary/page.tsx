@@ -658,6 +658,8 @@ export default function ItemSummaryMatrixPage() {
                   let totalJmc = 0;
                   let totalSupplyBill = 0;
                   let totalErectionBill = 0;
+                  let totalWipConsumed = 0;
+                  let totalWipRequired = 0;
                   
                   let totalBalDiLoa = 0;
                   let totalBalDiBom = 0;
@@ -677,6 +679,8 @@ export default function ItemSummaryMatrixPage() {
                     totalJmc += (r.imcSolan || r.imcNahan || r.imcRampur || r.imcRohru || r.imc?.solan || r.imc?.nahan || r.imc?.rampur || r.imc?.rohru || 0);
                     totalSupplyBill += (r.supplyBilledSolan || r.supplyBilledNahan || r.supplyBilledRampur || r.supplyBilledRohru || 0);
                     totalErectionBill += (r.erectionBilledSolan || r.erectionBilledNahan || r.erectionBilledRampur || r.erectionBilledRohru || 0);
+                    totalWipConsumed += (r.wipConsumedSolan || r.wipConsumedNahan || r.wipConsumedRampur || r.wipConsumedRohru || 0);
+                    totalWipRequired += (r.wipRequiredSolan || r.wipRequiredNahan || r.wipRequiredRampur || r.wipRequiredRohru || 0);
                     
                     const c = String(r.circle || '').toLowerCase();
                     const itemCircleKey = c === 'solan' || c === 'nahan' || c === 'rampur' || c === 'rohru' ? c : 'solan';
@@ -717,6 +721,9 @@ export default function ItemSummaryMatrixPage() {
                       
                       {showErectionBill && <td className="p-2 text-right text-violet-300">{totalErectionBill}</td>}
                       {showErectionBill && <td className="p-2 text-right text-orange-300">{totalBalErectionBill}</td>}
+
+                      {showWipConsumed && <td className="p-2 text-right text-rose-300">{totalWipConsumed}</td>}
+                      {showWipRequired && <td className="p-2 text-right text-emerald-300">{totalWipRequired}</td>}
                     </tr>
                   );
                 })()}

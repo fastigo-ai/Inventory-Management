@@ -65,7 +65,10 @@ export default function StoreContractorSummaryPage() {
   const [totalItems, setTotalItems] = useState(0);
 
   // Selection State
-  const getRowKey = (r: any, i: number) => r.loaSerialNo && r.loaSerialNo !== '-' ? r.loaSerialNo : (r.tempCode && r.tempCode !== '-' ? r.tempCode : r.itemName || String(i));
+  const getRowKey = (r: any, i: number) => {
+    const baseKey = r.loaSerialNo && r.loaSerialNo !== '-' ? String(r.loaSerialNo) : (r.tempCode && r.tempCode !== '-' ? String(r.tempCode) : r.itemName || String(i));
+    return `${baseKey}_${r.circle || 'ALL'}_${r.package || 'ALL'}`;
+  };
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
   // Reset selection when data changes

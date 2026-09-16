@@ -1986,9 +1986,10 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
     
     const defaultLoaSr = loaSrVal || tc || it._id.toString();
 
+    const itemCircle = String(d.circle || it.circle || '').trim().toLowerCase();
     let groupKey = defaultLoaSr;
     if (isAllContractors) {
-      groupKey = hasValidTemp ? `TEMP_${tc}` : `NAME_${name.toLowerCase()}`;
+      groupKey = hasValidTemp ? `TEMP_${tc}_${itemCircle}` : `NAME_${name.toLowerCase()}_${itemCircle}`;
     }
 
     if (!groupMap.has(groupKey)) {
@@ -2022,11 +2023,14 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
     if (!grp.tempCode && tc) grp.tempCode = tc;
   });
 
-  const getTargetKeys = (lineItemId: any, lineTempCode: any, lineLoaSrNo?: any): string[] => {
+  const getTargetKeys = (lineItemId: any, lineTempCode: any, lineLoaSrNo?: any, lineCircle?: string): string[] => {
     const keys = new Set<string>();
     const idStr = lineItemId ? lineItemId.toString() : '';
+    
+    // Exact ID Match (fast path)
     if (idStr && itemIdToKeyMap.has(idStr)) {
       keys.add(itemIdToKeyMap.get(idStr)!);
+      return Array.from(keys);
     }
     
     const loaSr = String(lineLoaSrNo || '').trim();
@@ -2034,12 +2038,27 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
     
     const tc = String(lineTempCode || '').trim();
     if (tc) {
-      if (tempCodeToKeyMap.has(tc)) {
-        tempCodeToKeyMap.get(tc)!.forEach(k => keys.add(k));
-      }
-      if (groupMap.has(tc)) keys.add(tc);
-      if (isAllContractors && groupMap.has(`TEMP_${tc}`)) {
-        keys.add(`TEMP_${tc}`);
+      const cleanLineCircle = String(lineCircle || '').trim().toLowerCase();
+      
+      if (isAllContractors) {
+        // Only target the specific circle group if known
+        if (cleanLineCircle) {
+           const specificKey = `TEMP_${tc}_${cleanLineCircle}`;
+           if (groupMap.has(specificKey)) {
+             keys.add(specificKey);
+             return Array.from(keys);
+           }
+        }
+        
+        // Fallback: If no circle known, or we couldn't match the specific one, add to all
+        if (tempCodeToKeyMap.has(tc)) {
+          tempCodeToKeyMap.get(tc)!.forEach(k => keys.add(k));
+        }
+      } else {
+        if (tempCodeToKeyMap.has(tc)) {
+          tempCodeToKeyMap.get(tc)!.forEach(k => keys.add(k));
+        }
+        if (groupMap.has(tc)) keys.add(tc);
       }
     }
     return Array.from(keys);
@@ -2073,7 +2092,7 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
     (doc.lineItems || []).forEach((line: any) => {
       const qty = Number(line.quantity || line.demandQty || 0);
       if (qty > 0) {
-        const targetKeys = getTargetKeys(line.itemId, line.tempCode, line.loaSrNo || line.loaSerialNo || line.sku);
+        const targetKeys = getTargetKeys(line.itemId, line.tempCode, line.loaSrNo || line.loaSerialNo || line.sku, docCirc || line.circle);
         targetKeys.forEach(key => {
           if (groupMap.has(key)) {
             const grp = groupMap.get(key)!;
@@ -2110,7 +2129,7 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
     (doc.lineItems || doc.items || []).forEach((line: any) => {
       const qty = Number(line.quantity || 0);
       if (qty > 0) {
-        const targetKeys = getTargetKeys(line.itemId, line.tempCode, line.loaSerialNo || line.sku);
+        const targetKeys = getTargetKeys(line.itemId, line.tempCode, line.loaSerialNo || line.sku, doc.circle || doc.store || line.circle);
         targetKeys.forEach(key => {
           if (groupMap.has(key)) {
             groupMap.get(key)!.totalReturnQty += qty;

@@ -52,7 +52,7 @@ export default function SiteContractorSummaryPage() {
         const list = cRes?.data?.contractors || cRes?.contractors || [];
         setContractors(list);
         if (list.length > 0 && !filters.contractorId) {
-          setFilters(f => ({ ...f, contractorId: list[0]._id }));
+          setFilters(f => ({ ...f, contractorId: 'ALL' }));
         }
       } catch (err) {
         console.error('Error fetching contractors', err);
@@ -68,17 +68,19 @@ export default function SiteContractorSummaryPage() {
   }, [filters.contractorId, filters.package, filters.circle]);
 
   const fetchReport = async () => {
-    if (!filters.contractorId) {
-      toast.error('Please select a contractor');
-      return;
-    }
     try {
       setIsLoading(true);
-      const res = await getSiteContractorSummary(filters);
+      const payload = { ...filters };
+      if (!payload.contractorId) payload.contractorId = 'ALL';
+      const res = await getSiteContractorSummary(payload);
       setRawItems(res.data || []);
-      const c = contractors.find(c => c._id === filters.contractorId);
-      if (c) {
-        setContractorName(c.dynamicData?.companyName || c.dynamicData?.displayName || c.name || '');
+      if (payload.contractorId === 'ALL') {
+        setContractorName('All Contractors');
+      } else {
+        const c = contractors.find(c => c._id === payload.contractorId);
+        if (c) {
+          setContractorName(c.dynamicData?.companyName || c.dynamicData?.displayName || c.name || '');
+        }
       }
     } catch (err) {
       toast.error('Failed to fetch summary report');
@@ -181,8 +183,8 @@ export default function SiteContractorSummaryPage() {
       if (row.itemId) qs.set('itemId', row.itemId);
       if (row.itemName) qs.set('itemName', row.itemName);
       if (row.activity) qs.set('activity', row.activity);
-      if (filters.contractorId) qs.set('contractorId', filters.contractorId);
-      if (contractorName) qs.set('contractorName', contractorName);
+      if (filters.contractorId && filters.contractorId !== 'ALL') qs.set('contractorId', filters.contractorId);
+      if (contractorName && contractorName !== 'All Contractors') qs.set('contractorName', contractorName);
       if (filters.package) qs.set('package', filters.package);
       if (filters.circle) qs.set('circle', filters.circle);
       if (row.finalBalQty !== undefined && row.finalBalQty !== null) {
@@ -211,8 +213,8 @@ export default function SiteContractorSummaryPage() {
       if (row.itemId) qs.set('itemId', row.itemId);
       if (row.itemName) qs.set('itemName', row.itemName);
       if (row.activity) qs.set('activity', row.activity);
-      if (filters.contractorId) qs.set('contractorId', filters.contractorId);
-      if (contractorName) qs.set('contractorName', contractorName);
+      if (filters.contractorId && filters.contractorId !== 'ALL') qs.set('contractorId', filters.contractorId);
+      if (contractorName && contractorName !== 'All Contractors') qs.set('contractorName', contractorName);
       if (filters.package) qs.set('package', filters.package);
       if (filters.circle) qs.set('circle', filters.circle);
       if (row.todayTotalBalance !== undefined && row.todayTotalBalance !== null) {
@@ -274,7 +276,7 @@ export default function SiteContractorSummaryPage() {
             <div className="flex items-center gap-3">
               <button
                 onClick={fetchReport}
-                disabled={isLoading || !filters.contractorId}
+                disabled={isLoading}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-all shadow-xs disabled:opacity-50 cursor-pointer"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
@@ -323,7 +325,7 @@ export default function SiteContractorSummaryPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wider">
-                Select Contractor <span className="text-red-500">*</span>
+                Contractor
               </label>
               <div className="relative">
                 <select 
@@ -331,7 +333,7 @@ export default function SiteContractorSummaryPage() {
                   onChange={(e) => setFilters(f => ({ ...f, contractorId: e.target.value }))}
                   className="w-full h-10 pl-3 pr-8 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-2xs"
                 >
-                  <option value="">-- Choose Contractor --</option>
+                  <option value="ALL">All Contractors</option>
                   {contractors.map(c => (
                     <option key={c._id} value={c._id}>
                       {c.dynamicData?.companyName || c.dynamicData?.displayName || c.name || c._id}
@@ -379,7 +381,7 @@ export default function SiteContractorSummaryPage() {
 
             <button
               onClick={fetchReport}
-              disabled={isLoading || !filters.contractorId}
+              disabled={isLoading}
               className="h-10 px-6 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 active:from-indigo-800 active:to-violet-800 text-white text-sm font-semibold rounded-xl shadow-sm transition-all disabled:opacity-50 cursor-pointer"
             >
               {isLoading ? (

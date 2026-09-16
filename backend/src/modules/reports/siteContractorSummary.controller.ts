@@ -14,13 +14,12 @@ import Item from '../items/item.model';
 export const getSiteContractorSummary = asyncHandler(async (req: Request, res: Response) => {
   const { contractorId, package: pkg, circle } = req.query;
 
-  if (!contractorId) {
-    throw new ApiError(400, 'Contractor ID is required');
+  let contractorFilter: any = undefined;
+  if (contractorId && contractorId !== 'ALL' && contractorId !== 'all') {
+    const cIdStr = String(contractorId).trim();
+    const cIdObj = mongoose.Types.ObjectId.isValid(cIdStr) ? new mongoose.Types.ObjectId(cIdStr) : cIdStr;
+    contractorFilter = { $in: [cIdStr, cIdObj] };
   }
-
-  const cIdStr = String(contractorId).trim();
-  const cIdObj = mongoose.Types.ObjectId.isValid(cIdStr) ? new mongoose.Types.ObjectId(cIdStr) : cIdStr;
-  const contractorFilter = { $in: [cIdStr, cIdObj] };
 
   let pkgRegex: RegExp | undefined = undefined;
   if (pkg && pkg !== 'All Packages' && pkg !== 'All' && pkg !== 'all') {
@@ -52,7 +51,8 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
   });
 
   // Find the relevant work orders to get the baseline items and quantities
-  const woQuery: any = { contractorId: contractorFilter };
+  const woQuery: any = {};
+  if (contractorFilter) woQuery.contractorId = contractorFilter;
   if (pkgRegex) woQuery.$or = [{ package: { $regex: pkgRegex } }, { package: { $in: ['', null] } }];
   if (circleRegex) woQuery.circle = { $regex: circleRegex };
 
@@ -125,15 +125,18 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
   });
 
   // Query conditions for registers
-  const regQuery: any = { contractorId: contractorFilter, status: { $ne: 'Rejected' } };
+  const regQuery: any = { status: { $ne: 'Rejected' } };
+  if (contractorFilter) regQuery.contractorId = contractorFilter;
   if (pkgRegex) regQuery.$or = [{ package: { $regex: pkgRegex } }, { package: { $in: ['', null] } }];
   if (circleRegex) regQuery.circle = { $regex: circleRegex };
 
-  const assignQuery: any = { contractorId: contractorFilter, status: { $ne: 'Cancelled' } };
+  const assignQuery: any = { status: { $ne: 'Cancelled' } };
+  if (contractorFilter) assignQuery.contractorId = contractorFilter;
   if (pkgRegex) assignQuery.$or = [{ package: { $regex: pkgRegex } }, { package: { $in: ['', null] } }];
   if (circleRegex) assignQuery.circle = { $regex: circleRegex };
 
-  const returnQuery: any = { contractorId: contractorFilter, status: { $ne: 'Cancelled' } };
+  const returnQuery: any = { status: { $ne: 'Cancelled' } };
+  if (contractorFilter) returnQuery.contractorId = contractorFilter;
   if (pkgRegex) returnQuery.$or = [{ package: { $regex: pkgRegex } }, { package: { $in: ['', null] } }];
   if (circleRegex) returnQuery.circle = { $regex: circleRegex };
 

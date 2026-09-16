@@ -73,7 +73,8 @@ const navItems: NavItem[] = [
       { title: 'Contractor Summary', href: '/reports/contractor-summary' },
       { title: 'Store Itemised Summary', href: '/reports/store-summary' },
       { title: 'Store Contractor Summary', href: '/reports/store-contractor-summary' },
-      { title: 'Site Contractor Summary', href: '/site-portal/contractor-summary' }
+      { title: 'Site Contractor Summary', href: '/site-portal/contractor-summary' },
+      { title: 'Activity Contractor Summary', href: '/reports/activity-contractor-summary' }
     ]
   },
   {
@@ -116,7 +117,9 @@ const navItems: NavItem[] = [
     icon: <Shield className="w-5 h-5" />,
     children: [
       { title: 'User Management', href: '/settings/users' },
-      { title: 'Roles & Permissions', href: '/settings/roles' }
+      { title: 'Roles & Permissions', href: '/settings/roles' },
+      { title: 'System Logs', href: '/settings/system-logs' },
+      { title: 'Audit Trail Config', href: '/settings/audit' }
     ]
   },
   {

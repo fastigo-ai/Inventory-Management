@@ -35,7 +35,7 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
   const circleRegex = circleFilter ? new RegExp(`^${circleFilter}$`, 'i') : undefined;
 
   // Pre-fetch all items to build a mapping of SKU -> Temp Code & Name
-  const itemQuery: any = { isDeleted: false };
+  const itemQuery: any = { isDeleted: { $ne: true } };
   if (pkgRegex) itemQuery.$or = [{ 'dynamicData.package': { $regex: pkgRegex } }, { 'dynamicData.package': { $in: ['', null] } }];
   if (circleRegex) itemQuery['dynamicData.circle'] = { $regex: circleRegex };
   const allItems = await Item.find(itemQuery).lean();
@@ -60,35 +60,25 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
 
   // Build the baseline report from Work Order Items
   const reportMap: Record<string, any> = {};
-  const rowByLoaSrNo = new Map<string, any>();
-  const rowByTempCode = new Map<string, any>();
-  const rowByActivity = new Map<string, any>();
-  const rowByItemId = new Map<string, any>();
+  // Helper to normalize activity strings for consistent matching
+  const normalizeActivity = (act: string) => (act || '').replace(/\s+/g, '').toLowerCase();
 
-  const getOrAddRow = (itemIdStr: string, loaSrNo: string, tempCode: string, activity: string, itemName: string) => {
-    const cleanLoa = (loaSrNo || '').trim().toLowerCase();
-    const cleanTemp = (tempCode || '').trim().toLowerCase();
+  const getOrAddRow = (itemIdStr: string, loaSrNo: string, tempCode: string | number, activity: string, itemName: string) => {
+    const cleanLoa = String(loaSrNo || '').trim().toLowerCase();
+    const cleanTemp = String(tempCode || '').trim().toLowerCase();
 
+    const actKey = normalizeActivity(activity);
+    
     let primaryKey = '';
     if (cleanTemp) {
-      primaryKey = cleanTemp;
+      primaryKey = `${actKey}_temp_${cleanTemp}`;
     } else if (cleanLoa) {
-      primaryKey = cleanLoa;
+      primaryKey = `${actKey}_loa_${cleanLoa}`;
     } else {
       primaryKey = itemIdStr;
     }
 
     let rowObj = reportMap[primaryKey];
-
-    if (!rowObj && cleanTemp) {
-      rowObj = rowByTempCode.get(cleanTemp);
-    }
-    if (!rowObj && cleanLoa) {
-      rowObj = rowByLoaSrNo.get(cleanLoa);
-    }
-    if (!rowObj) {
-      rowObj = rowByItemId.get(itemIdStr);
-    }
 
     if (!rowObj) {
       rowObj = {
@@ -104,14 +94,22 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
         bomQty: 0
       };
       reportMap[primaryKey] = rowObj;
-
-      if (cleanTemp && !rowByTempCode.has(cleanTemp)) rowByTempCode.set(cleanTemp, rowObj);
-      if (cleanLoa && !rowByLoaSrNo.has(cleanLoa)) rowByLoaSrNo.set(cleanLoa, rowObj);
-      if (!rowByItemId.has(itemIdStr)) rowByItemId.set(itemIdStr, rowObj);
     }
 
     return rowObj;
   };
+
+  // Seed reportMap with all items first so Master Item activities take precedence
+  allItems.forEach(item => {
+    const act = normalizeActivity(item.dynamicData?.activity);
+    if (act) {
+       const itemIdStr = item._id.toString();
+       const sku = String(item.dynamicData?.sku || item.dynamicData?.loaSerialNo || item.dynamicData?.loaSrNo || '');
+       const tempCode = String(item.dynamicData?.tempCode || '');
+       const itemName = String(item.dynamicData?.name || item.dynamicData?.description || item.name || '');
+       getOrAddRow(itemIdStr, sku, tempCode, item.dynamicData?.activity || '', itemName);
+    }
+  });
 
   workOrders.forEach(wo => {
     wo.items.forEach((item: any) => {
@@ -209,6 +207,8 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
       row.totalReturned += (Number(item.quantity) || 0);
     });
   });
+
+  // Moved to top
 
   // Calculate final numbers
   const summaryData = Object.values(reportMap).map(row => {

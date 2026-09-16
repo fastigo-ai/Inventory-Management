@@ -16,7 +16,17 @@ export const getAuditLogs = asyncHandler(async (req: Request, res: Response) => 
 
   if (entityType) query.entityType = entityType;
   if (entityId) query.entityId = entityId;
-  if (action) query.action = action;
+  
+  if (action) {
+    if (Array.isArray(action)) {
+      query.action = { $in: action };
+    } else if (typeof action === 'string' && action.includes(',')) {
+      query.action = { $in: action.split(',') };
+    } else {
+      query.action = action;
+    }
+  }
+  
   if (userId) query.performedBy = userId;
 
   // Date range filter

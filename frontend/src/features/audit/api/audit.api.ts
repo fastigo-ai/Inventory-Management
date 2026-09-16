@@ -26,7 +26,7 @@ export const trackAuditEvents = async (events: AuditEvent[]) => {
 export const getAuditLogs = async (params: {
   entityType?: string;
   entityId?: string;
-  action?: string;
+  action?: string | string[];
   userId?: string;
   search?: string;
   startDate?: string;
@@ -37,7 +37,15 @@ export const getAuditLogs = async (params: {
   const query = new URLSearchParams();
   if (params.entityType) query.append('entityType', params.entityType);
   if (params.entityId) query.append('entityId', params.entityId);
-  if (params.action) query.append('action', params.action);
+  
+  if (params.action) {
+    if (Array.isArray(params.action)) {
+      query.append('action', params.action.join(','));
+    } else {
+      query.append('action', params.action);
+    }
+  }
+  
   if (params.userId) query.append('userId', params.userId);
   if (params.search) query.append('search', params.search);
   if (params.startDate) query.append('startDate', params.startDate);

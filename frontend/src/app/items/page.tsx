@@ -293,8 +293,8 @@ const handleColumnFilterChange = (columnName: string, value: string) => {
 
       {/* Metrics Dashboard */}
       {metrics && !isDeleted && (
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-2">
-          {/* Total Items in Solan/Nahan */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+          {/* Items per Circle */}
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm transition-all hover:shadow-md">
             <h3 className="text-[13px] font-semibold text-slate-700 mb-4 uppercase tracking-wider flex items-center">
               <div className="w-2 h-2 rounded-full bg-blue-500 mr-2"></div>
@@ -343,9 +343,45 @@ const handleColumnFilterChange = (columnName: string, value: string) => {
               });
               return row;
             });
+            
+            // For the new Circle Summary table
+            const circleSummaryData = circleNames.map(c => {
+              const activitiesInCircle = metrics.circleActivityStats.filter((s: any) => s._id?.circle === c);
+              const uniqueActivitiesCount = activitiesInCircle.length;
+              const totalItemsCount = activitiesInCircle.reduce((sum: number, s: any) => sum + s.count, 0);
+              return { circle: c, activities: uniqueActivitiesCount, items: totalItemsCount };
+            }).sort((a, b) => b.items - a.items);
 
             return (
               <>
+                {/* Circle Summary Table */}
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm transition-all hover:shadow-md">
+                  <h3 className="text-[13px] font-semibold text-slate-700 mb-4 uppercase tracking-wider flex items-center">
+                    <div className="w-2 h-2 rounded-full bg-indigo-500 mr-2"></div>
+                    Circle Summary
+                  </h3>
+                  <div style={{ height: 250, overflowY: 'auto' }} className="custom-scrollbar relative border border-slate-100 rounded-md">
+                    <table className="w-full text-left text-xs text-slate-600">
+                      <thead className="sticky top-0 bg-slate-50 text-slate-700 shadow-sm">
+                        <tr>
+                          <th className="px-3 py-2 font-semibold">Circle</th>
+                          <th className="px-3 py-2 font-semibold text-center">Activities</th>
+                          <th className="px-3 py-2 font-semibold text-center">Items</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {circleSummaryData.map((row, i) => (
+                          <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                            <td className="px-3 py-2 font-medium">{row.circle}</td>
+                            <td className="px-3 py-2 text-center text-emerald-600 font-semibold">{row.activities}</td>
+                            <td className="px-3 py-2 text-center text-blue-600 font-semibold">{row.items}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
                 {/* Total Activity Items per Activity */}
                 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm transition-all hover:shadow-md">
                   <h3 className="text-[13px] font-semibold text-slate-700 mb-4 uppercase tracking-wider flex items-center justify-between">

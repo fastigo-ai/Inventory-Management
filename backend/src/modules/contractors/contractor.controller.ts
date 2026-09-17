@@ -1150,6 +1150,11 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
         continue;
       }
 
+      if (circle && String(item.dynamicData?.circle || '').trim().toLowerCase() !== String(circle).trim().toLowerCase()) {
+        errors.push(`Circle mismatch for item '${itemName || tempCode}' in MIN ${minNo}. Expected '${item.dynamicData?.circle || ''}', found '${circle}'`);
+        continue;
+      }
+
       if (activity && String(item.dynamicData?.activity || '').trim().toLowerCase() !== String(activity).trim().toLowerCase()) {
         errors.push(`Activity mismatch for item '${itemName || tempCode}' in MIN ${minNo}. Expected '${item.dynamicData?.activity || ''}', found '${activity}'`);
         continue;

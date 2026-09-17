@@ -15,7 +15,9 @@ export interface IDILineItem {
   mhrovStatus?: 'PENDING' | 'PARTIAL' | 'COMPLETED';
 }
 
-export interface IDI extends Document {
+import { ITrackingPlugin } from '../../core/plugins/tracking.plugin';
+
+export interface IDI extends Document, ITrackingPlugin {
   diNumber: string;
   purchaseOrderId?: mongoose.Types.ObjectId;
   poNumber?: string;
@@ -69,5 +71,7 @@ diSchema.index({ createdAt: -1 });
 
 import { auditPlugin } from '../../core/plugins/audit.plugin';
 // Removed manual plugin attachment; it is now global
+import { trackingPlugin } from '../../core/plugins/tracking.plugin';
+diSchema.plugin(trackingPlugin);
 
 export const DI = mongoose.models.DI || mongoose.model<IDI>('DI', diSchema);

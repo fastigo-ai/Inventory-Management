@@ -12,6 +12,7 @@ import { ValidationService } from '../../core/document-engine/validation/validat
 import { RelationsService } from '../../core/document-engine/relations/relations.service';
 import { DI } from '../di/di.schema';
 import { reverseInwardStockUpdate } from '../store/store.controller';
+import { validateLineItemsUnit } from '../../utils/itemValidation.util';
 
 export const createPurchaseInvoice = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -53,6 +54,13 @@ export const createPurchaseInvoice = async (req: Request, res: Response): Promis
     }
     
     if (prData.lineItems) {
+      // Validate units against Master Item List
+      const validation = await validateLineItemsUnit(prData.lineItems);
+      if (!validation.isValid) {
+        res.status(400).json({ success: false, message: validation.message });
+        return;
+      }
+
       prData.lineItems = prData.lineItems.map((item: any) => {
         const qty = Number(item.totalInvoiceQuantity) || (Number(item.srt || 0) + Number(item.act || 0));
         const rate = Number(item.rate || 0);
@@ -503,6 +511,13 @@ export const updatePurchaseInvoice = async (req: Request, res: Response): Promis
     updateData.status = 'Paid';
 
     if (updateData.lineItems) {
+      // Validate units against Master Item List
+      const validation = await validateLineItemsUnit(updateData.lineItems);
+      if (!validation.isValid) {
+        res.status(400).json({ success: false, message: validation.message });
+        return;
+      }
+
       updateData.lineItems = updateData.lineItems.map((item: any) => {
         const qty = Number(item.quantity || item.invoiceQuantity || item.act || 0);
         const rate = Number(item.rate || 0);

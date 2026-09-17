@@ -18,7 +18,9 @@ export interface IPurchaseOrderLineItem {
   isCanceled?: boolean;
 }
 
-export interface IPurchaseOrder extends Document {
+import { ITrackingPlugin } from '../../core/plugins/tracking.plugin';
+
+export interface IPurchaseOrder extends Document, ITrackingPlugin {
   vendorName: string;
   location?: string;
   deliveryAddressType?: 'Locations' | 'Customer';
@@ -173,5 +175,7 @@ purchaseOrderSchema.index({ createdAt: -1 });
 
 import { auditPlugin } from '../../core/plugins/audit.plugin';
 // Removed manual plugin attachment; it is now global
+import { trackingPlugin } from '../../core/plugins/tracking.plugin';
+purchaseOrderSchema.plugin(trackingPlugin);
 
 export const PurchaseOrder = mongoose.models.PurchaseOrder || mongoose.model<IPurchaseOrder>('PurchaseOrder', purchaseOrderSchema);

@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { validateLineItemsUnit } from '../../utils/itemValidation.util';
 import { PurchaseOrder } from './purchaseOrder.schema';
 import { Pr } from './pr.schema';
 import { DI } from '../di/di.schema';
@@ -61,6 +62,12 @@ export const createPurchaseOrder = async (req: Request, res: Response) => {
       name: file.originalname,
       url: `/uploads/purchases/${file.filename}`
     })) : [];
+
+    // Validate units against Master Item List
+    const validation = await validateLineItemsUnit(parsedLineItems);
+    if (!validation.isValid) {
+      return res.status(400).json({ success: false, message: validation.message });
+    }
 
     // Recalculate financials to prevent tampering
     let calculatedSubTotal = 0;
@@ -296,6 +303,12 @@ export const updatePurchaseOrder = async (req: Request, res: Response) => {
         name: file.originalname,
         url: `/uploads/purchases/${file.filename}`
       }));
+    }
+
+    // Validate units against Master Item List
+    const validation = await validateLineItemsUnit(parsedLineItems);
+    if (!validation.isValid) {
+      return res.status(400).json({ success: false, message: validation.message });
     }
 
     // Recalculate financials to prevent tampering

@@ -29,7 +29,9 @@ export interface IPurchaseInvoiceLineItem {
   gstType?: 'Intra State' | 'Inter State';
 }
 
-export interface IPurchaseInvoice extends Document {
+import { ITrackingPlugin } from '../../core/plugins/tracking.plugin';
+
+export interface IPurchaseInvoice extends Document, ITrackingPlugin {
   invoiceNumber: string;
   vendorName: string;
   purchaseOrderId?: mongoose.Types.ObjectId;
@@ -207,5 +209,7 @@ purchaseInvoiceSchema.pre('save', function() {
 
 import { auditPlugin } from '../../core/plugins/audit.plugin';
 // Removed manual plugin attachment; it is now global
+import { trackingPlugin } from '../../core/plugins/tracking.plugin';
+purchaseInvoiceSchema.plugin(trackingPlugin);
 
 export const PurchaseInvoice = mongoose.models.PurchaseInvoice || mongoose.model<IPurchaseInvoice>('PurchaseInvoice', purchaseInvoiceSchema);

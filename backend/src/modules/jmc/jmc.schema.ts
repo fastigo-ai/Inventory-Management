@@ -17,7 +17,9 @@ export interface IJmcItem {
   remarks: string;
 }
 
-export interface IJmcRegister extends Document {
+import { ITrackingPlugin } from '../../core/plugins/tracking.plugin';
+
+export interface IJmcRegister extends Document, ITrackingPlugin {
   jmcNumber: string;
   date: Date;
   contractorId: mongoose.Types.ObjectId;
@@ -77,7 +79,6 @@ const JmcRegisterSchema = new Schema<IJmcRegister>(
     approvedAmount: { type: Number, default: 0 },
     status: { type: String, enum: ['Draft', 'Submitted', 'Approved', 'Rejected'], default: 'Draft', index: true },
     remarks: { type: String, default: '' },
-    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     drawingSheetUrl: { type: String, default: '' }
   },
   { timestamps: true }
@@ -86,5 +87,8 @@ const JmcRegisterSchema = new Schema<IJmcRegister>(
 JmcRegisterSchema.index({ createdAt: -1 });
 JmcRegisterSchema.index({ contractorId: 1, circle: 1, status: 1 });
 JmcRegisterSchema.index({ circle: 1, status: 1 });
+
+import { trackingPlugin } from '../../core/plugins/tracking.plugin';
+JmcRegisterSchema.plugin(trackingPlugin);
 
 export const JmcRegister = mongoose.models.JmcRegister || mongoose.model<IJmcRegister>('JmcRegister', JmcRegisterSchema);

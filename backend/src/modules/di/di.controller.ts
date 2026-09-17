@@ -14,6 +14,7 @@ import { DocumentRelation } from '../../core/document-engine/relations/documentR
 import { PurchaseInvoice } from '../purchases/purchaseInvoice.schema';
 import { StoreInwardEntry } from '../store/storeInwardEntry.schema';
 import { AllocationService } from '../../core/document-engine/allocation/allocation.service';
+import { validateLineItemsUnit } from '../../utils/itemValidation.util';
 
 async function getDiLifecycleState(di: any) {
   const [invoices, inwards] = await Promise.all([
@@ -114,6 +115,12 @@ export const createDI = asyncHandler(async (req: Request, res: Response) => {
     inspectionReportCopyUrl
   };
   
+  // Validate units against Master Item List
+  const validation = await validateLineItemsUnit(parsedLineItems);
+  if (!validation.isValid) {
+    throw new ApiError(400, validation.message);
+  }
+
   // Basic validation
   if (!diData.diNumber || !diData.lineItems || diData.lineItems.length === 0) {
     throw new ApiError(400, 'DI Number and Line Items are required');
@@ -477,6 +484,12 @@ export const updateDI = asyncHandler(async (req: Request, res: Response) => {
         mhrovStatus
       };
     });
+  }
+
+  // Validate units against Master Item List
+  const validation = await validateLineItemsUnit(parsedLineItems);
+  if (!validation.isValid) {
+    throw new ApiError(400, validation.message);
   }
 
   // Process new attachments

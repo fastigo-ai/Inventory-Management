@@ -953,8 +953,22 @@ export const exportContractorAssignments = asyncHandler(async (req: Request, res
     'Rampur': ['Rampur'],
   };
 
-  if (!isAdmin && user) {
-    if (user.assignedCircle) {
+  if (user && !isAdmin) {
+    if (user.assignedPackage && user.assignedPackage.trim()) {
+      const normalizedPkg = user.assignedPackage.replace(/\s+/g, '');
+      const regexStr = normalizedPkg.split('').map((char: string) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*');
+      filter.package = { $regex: new RegExp(`^\\s*${regexStr}\\s*$`, 'i') };
+    }
+    
+    if (user.assignedSubcircle) {
+      const subcircleRegex = { $regex: new RegExp(`^\\s*${user.assignedSubcircle.trim()}\\s*$`, 'i') };
+      if (filter.$or) {
+        filter.$and = [{ $or: filter.$or }, { subcircle: subcircleRegex }];
+        delete filter.$or;
+      } else {
+        filter.subcircle = subcircleRegex;
+      }
+    } else if (user.assignedCircle) {
       const allowedCircles = SUB_STORE_MAP[user.assignedCircle] || [user.assignedCircle];
       const regexCircles = allowedCircles.map(c => new RegExp(`^${c}$`, 'i'));
       

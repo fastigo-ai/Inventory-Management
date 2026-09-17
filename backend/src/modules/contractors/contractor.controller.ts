@@ -1117,6 +1117,9 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
       const itemName = row['ItemName'] || row['Description of Material'] || '';
       const tempCode = row['TempCode'] || row['Temp Code'] || '';
       const circle = row['Circle'] || row['circle'] || '';
+      const activity = row['Activity'] || row['activity'] || '';
+      const loaSrNo = row['LoaSrNo'] || row['Loa Sr No'] || row['Loa Sr. No'] || '';
+      const unit = row['Unit'] || row['unit'] || '';
       
       if (!itemName && !tempCode) {
         errors.push(`Row missing ItemName/TempCode for MIN ${minNo}`);
@@ -1147,6 +1150,27 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
         continue;
       }
 
+      if (activity && String(item.dynamicData?.activity || '').trim().toLowerCase() !== String(activity).trim().toLowerCase()) {
+        errors.push(`Activity mismatch for item '${itemName || tempCode}' in MIN ${minNo}. Expected '${item.dynamicData?.activity || ''}', found '${activity}'`);
+        continue;
+      }
+      if (loaSrNo && String(item.dynamicData?.loaSerialNo || '').trim().toLowerCase() !== String(loaSrNo).trim().toLowerCase()) {
+        errors.push(`LOA Serial No mismatch for item '${itemName || tempCode}' in MIN ${minNo}. Expected '${item.dynamicData?.loaSerialNo || ''}', found '${loaSrNo}'`);
+        continue;
+      }
+      if (unit && String(item.dynamicData?.unit || '').trim().toLowerCase() !== String(unit).trim().toLowerCase()) {
+        errors.push(`Unit mismatch for item '${itemName || tempCode}' in MIN ${minNo}. Expected '${item.dynamicData?.unit || ''}', found '${unit}'`);
+        continue;
+      }
+      if (itemName && String(item.dynamicData?.name || '').trim().toLowerCase() !== String(itemName).trim().toLowerCase()) {
+        errors.push(`Item Name mismatch for item '${itemName || tempCode}' in MIN ${minNo}. Expected '${item.dynamicData?.name || ''}', found '${itemName}'`);
+        continue;
+      }
+      if (tempCode && String(item.dynamicData?.tempCode || '').trim().toLowerCase() !== String(tempCode).trim().toLowerCase()) {
+        errors.push(`TempCode mismatch for item '${itemName || tempCode}' in MIN ${minNo}. Expected '${item.dynamicData?.tempCode || ''}', found '${tempCode}'`);
+        continue;
+      }
+
       const demandQty = Number(row['DemandQty'] || row['Demand Qty'] || 0);
       const quantity = Number(row['Quantity'] || row['IssuedQty'] || row['Issued Qty'] || 0);
       if (quantity < 0) {
@@ -1155,23 +1179,23 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
       }
       const rate = Number(row['Rate'] || 0);
       const amount = Number(row['Amount'] || (quantity * rate));
-      const unit = row['Unit'] || item?.unit || 'Nos';
+      const finalUnit = unit || item?.unit || 'Nos';
       const hsnCode = row['HsnCode'] || item?.hsnCode || '';
-      const activity = row['Activity'] || row['activity'] || item?.dynamicData?.activity || item?.dynamicData?.Activity || '';
-      const loaSrNo = row['LoaSrNo'] || row['LoaSerialNo'] || row['SerialNo'] || row['LoaSerialNumber'] || item?.dynamicData?.loaSrNo || item?.dynamicData?.loaSerialNo || item?.dynamicData?.sku || '';
+      const finalActivity = activity || item?.dynamicData?.activity || item?.dynamicData?.Activity || '';
+      const finalLoaSrNo = loaSrNo || row['LoaSerialNo'] || row['SerialNo'] || row['LoaSerialNumber'] || item?.dynamicData?.loaSrNo || item?.dynamicData?.loaSerialNo || item?.dynamicData?.sku || '';
 
       const lineItem = {
         itemId: item?._id,
         itemName: itemName || item?.description || 'Unknown Item',
         tempCode: tempCode || item?.itemCode || '',
-        unit,
+        unit: finalUnit,
         hsnCode,
         demandQty,
         quantity,
         rate,
         amount,
-        activity,
-        loaSrNo
+        activity: finalActivity,
+        loaSrNo: finalLoaSrNo
       };
 
       if (!assignmentsByMin[minNo]) {

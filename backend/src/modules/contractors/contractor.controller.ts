@@ -1060,6 +1060,17 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
   const errors: string[] = [];
   let successCount = 0;
   
+  // Get expected circle based on user's assignment
+  let expectedCsvCircle = user?.assignedCircle || '';
+  if (['kumarhatti', 'nalagarh'].includes(expectedCsvCircle.toLowerCase())) {
+    expectedCsvCircle = 'Solan';
+  }
+
+  // Also determine what to save for subcircle
+  const saveSubcircle = ['kumarhatti', 'nalagarh'].includes((user?.assignedCircle || '').toLowerCase())
+    ? user.assignedCircle
+    : (user?.assignedSubcircle || '');
+  
   // Group rows by MinNo or AssignmentNumber
   const assignmentsByMin: Record<string, any> = {};
   // Caches to prevent massive DB query roundtrips
@@ -1127,6 +1138,11 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
       }
       if (!circle) {
         errors.push(`Row missing Circle for MIN ${minNo}`);
+        continue;
+      }
+
+      if (expectedCsvCircle && circle.trim().toLowerCase() !== expectedCsvCircle.toLowerCase()) {
+        errors.push(`Invalid Circle for MIN ${minNo}. You can only upload MINs for the '${expectedCsvCircle}' circle.`);
         continue;
       }
 
@@ -1208,7 +1224,7 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
           contractorId: contractor._id,
           location: circle || 'Store',
           circle: circle || '',
-          subcircle: user?.assignedSubcircle || '',
+          subcircle: saveSubcircle || '',
           package: user?.assignedPackage || '',
           assignmentNumber: minNo,
           date: parseCsvDate(row['Date']) || new Date(),

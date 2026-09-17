@@ -92,6 +92,9 @@ app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'UP', message: 'ERP Backend is running.' });
 });
 
+import { setupSwagger } from './core/utils/swagger';
+setupSwagger(app);
+
 const apiRouter = express.Router();
 apiRouter.use('/auth', authRoutes);
 apiRouter.use('/roles', roleRoutes);

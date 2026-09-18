@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -497,10 +497,9 @@ export default function StoreContractorIssueNewPage() {
               <thead className="bg-slate-100 border-b border-slate-200 text-slate-600 text-[11px] uppercase tracking-wider">
                 <tr>
                   <th className="px-4 py-3 font-medium w-[5%] text-center">Sr. No.</th>
-                  <th className="px-4 py-3 font-medium w-[20%]">Description of Material</th>
+                  <th className="px-4 py-3 font-medium w-[25%]">Description of Material</th>
                   <th className="px-4 py-3 font-medium w-[12%]">Temp Code</th>
                   <th className="px-4 py-3 font-medium w-[10%]">LOA Sr No</th>
-                  <th className="px-4 py-3 font-medium w-[15%]">Activity</th>
                   <th className="px-4 py-3 font-medium w-[10%]">HSN Code</th>
                   <th className="px-4 py-3 font-medium w-[8%]">UNIT</th>
                   <th className="px-4 py-3 font-medium w-[8%] text-center">In Stock</th>
@@ -509,55 +508,69 @@ export default function StoreContractorIssueNewPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {lineItems.map((item, index) => (
-                  <tr key={index} className="hover:bg-slate-50/50">
-                    <td className="p-4 align-top text-center text-slate-500 pt-6">
-                      {index + 1}
-                    </td>
-                    <td className="p-4 align-top pt-6 text-slate-700 text-xs font-medium">
-                      {item.itemName || 'N/A'}
-                    </td>
-                    <td className="p-4 align-top pt-6 text-slate-700 text-xs font-mono">
-                      {item.tempCode || 'N/A'}
-                    </td>
-                    <td className="p-4 align-top pt-6 text-slate-700 text-xs font-mono">
-                      {item.loaSrNo || 'N/A'}
-                    </td>
-                    <td className="p-4 align-top pt-6 text-slate-700 text-xs">
-                      {item.activity || 'N/A'}
-                    </td>
-                    <td className="p-4 align-top pt-6 text-slate-700 text-xs">
-                      {item.hsnCode || '-'}
-                    </td>
-                    <td className="p-4 align-top pt-6 text-slate-700 text-xs font-medium">
-                      {item.unit}
-                    </td>
-                    <td className="p-4 align-top pt-6 text-center text-slate-700 font-semibold">
-                      {item.availableQty}
-                    </td>
-                    <td className="p-4 align-top">
-                      <Input 
-                        type="number"
-                        min={0}
-                        value={item.demandQty}
-                        readOnly
-                        className="h-9 w-full text-center bg-slate-50 text-slate-500 cursor-not-allowed"
-                      />
-                    </td>
-                    <td className="p-4 align-top">
-                      <Input 
-                        type="number"
-                        min={1}
-                        max={item.availableQty}
-                        value={item.quantity}
-                        onChange={(e) => updateLineItem(index, 'quantity', e.target.value)}
-                        className={`h-9 w-full text-center font-bold text-blue-700 ${item.quantity > item.availableQty ? 'border-red-500 bg-red-50 text-red-700' : ''}`}
-                      />
-                      {item.quantity > item.availableQty && (
-                        <p className="text-[10px] text-red-500 mt-1 absolute">Exceeds stock</p>
-                      )}
-                    </td>
-                  </tr>
+                {Object.entries(
+                  lineItems.reduce((acc, item, index) => {
+                    const act = item.activity || 'N/A';
+                    if (!acc[act]) acc[act] = [];
+                    acc[act].push({ ...item, originalIndex: index });
+                    return acc;
+                  }, {} as Record<string, any[]>)
+                ).map(([activity, items]) => (
+                  <React.Fragment key={activity}>
+                    {/* Activity Group Header */}
+                    <tr className="bg-slate-50">
+                      <td colSpan={9} className="px-4 py-2 text-xs font-semibold text-slate-800 border-y border-slate-200">
+                        {activity}
+                      </td>
+                    </tr>
+                    {(items as any[]).map((item, localIdx) => (
+                      <tr key={item.originalIndex} className="hover:bg-slate-50 transition-colors">
+                        <td className="p-4 align-top text-center text-slate-500 pt-6">
+                          {localIdx + 1}
+                        </td>
+                        <td className="p-4 align-top pt-6 text-slate-700 text-xs font-medium">
+                          {item.itemName || 'N/A'}
+                        </td>
+                        <td className="p-4 align-top pt-6 text-slate-700 text-xs font-mono">
+                          {item.tempCode || 'N/A'}
+                        </td>
+                        <td className="p-4 align-top pt-6 text-slate-700 text-xs font-mono">
+                          {item.loaSrNo || 'N/A'}
+                        </td>
+                        <td className="p-4 align-top pt-6 text-slate-700 text-xs">
+                          {item.hsnCode || '-'}
+                        </td>
+                        <td className="p-4 align-top pt-6 text-slate-700 text-xs font-medium">
+                          {item.unit}
+                        </td>
+                        <td className="p-4 align-top pt-6 text-center text-slate-700 font-semibold">
+                          {item.availableQty}
+                        </td>
+                        <td className="p-4 align-top">
+                          <Input 
+                            type="number"
+                            min={0}
+                            value={item.demandQty}
+                            readOnly
+                            className="h-9 w-full text-center bg-slate-50 text-slate-500 cursor-not-allowed"
+                          />
+                        </td>
+                        <td className="p-4 align-top">
+                          <Input 
+                            type="number"
+                            min={1}
+                            max={item.availableQty}
+                            value={item.quantity}
+                            onChange={(e) => updateLineItem(item.originalIndex, 'quantity', e.target.value)}
+                            className={`h-9 w-full text-center font-bold text-blue-700 ${item.quantity > item.availableQty ? 'border-red-500 bg-red-50 text-red-700' : ''}`}
+                          />
+                          {item.quantity > item.availableQty && (
+                            <p className="text-[10px] text-red-500 mt-1 absolute">Exceeds stock</p>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

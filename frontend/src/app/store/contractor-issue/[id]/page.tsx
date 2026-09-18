@@ -149,7 +149,6 @@ export default function ContractorIssueDetailPage() {
                 <th className="px-6 py-4 print:px-2 print:py-2">S.No</th>
                 <th className="px-6 py-4 min-w-[250px] print:min-w-0 print:px-2 print:py-2">Item Description</th>
                 <th className="px-6 py-4 print:px-2 print:py-2">LOA Sr No</th>
-                <th className="px-6 py-4 print:px-2 print:py-2">Activity</th>
                 <th className="px-6 py-4 print:px-2 print:py-2">HSN Code</th>
                 <th className="px-6 py-4 print:px-2 print:py-2">Unit</th>
                 <th className="px-6 py-4 text-right print:px-2 print:py-2">Demand Qty</th>
@@ -164,36 +163,48 @@ export default function ContractorIssueDetailPage() {
                   </td>
                 </tr>
               ) : (
-                issue.lineItems.map((item: any, idx: number) => (
-                  <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 print:px-2 print:py-2 font-medium text-slate-600">
-                      {idx + 1}
-                    </td>
-                    <td className="px-6 py-4 print:px-2 print:py-2">
-                      <p className="font-semibold text-slate-800">{item.itemName}</p>
-                      {item.tempCode && <p className="text-xs font-mono text-slate-500 mt-1">{item.tempCode}</p>}
-                    </td>
-                    <td className="px-6 py-4 print:px-2 print:py-2 font-mono text-xs text-slate-600">
-                      {item.loaSrNo || '-'}
-                    </td>
-                    <td className="px-6 py-4 print:px-2 print:py-2">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800">
-                        {item.activity || '-'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 print:px-2 print:py-2 text-slate-600 font-mono text-xs">
-                      {item.hsnCode || '-'}
-                    </td>
-                    <td className="px-6 py-4 print:px-2 print:py-2 text-slate-600">
-                      {item.unit || '-'}
-                    </td>
-                    <td className="px-6 py-4 print:px-2 print:py-2 text-right font-medium text-slate-600">
-                      {item.demandQty || '-'}
-                    </td>
-                    <td className="px-6 py-4 print:px-2 print:py-2 text-right font-bold text-[#0076f2]">
-                      {item.quantity}
-                    </td>
-                  </tr>
+                Object.entries(
+                  issue.lineItems.reduce((acc: Record<string, any[]>, item: any, index: number) => {
+                    const act = item.activity || 'N/A';
+                    if (!acc[act]) acc[act] = [];
+                    acc[act].push({ ...item, originalIndex: index });
+                    return acc;
+                  }, {})
+                ).map(([activity, items]) => (
+                  <React.Fragment key={activity}>
+                    {/* Activity Group Header */}
+                    <tr className="bg-slate-50">
+                      <td colSpan={7} className="px-6 py-2 text-xs font-semibold text-slate-800 border-y border-slate-200">
+                        {activity}
+                      </td>
+                    </tr>
+                    {(items as any[]).map((item: any, localIdx: number) => (
+                      <tr key={item.originalIndex} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-4 print:px-2 print:py-2 font-medium text-slate-600">
+                          {localIdx + 1}
+                        </td>
+                        <td className="px-6 py-4 print:px-2 print:py-2">
+                          <p className="font-semibold text-slate-800">{item.itemName}</p>
+                          {item.tempCode && <p className="text-xs font-mono text-slate-500 mt-1">{item.tempCode}</p>}
+                        </td>
+                        <td className="px-6 py-4 print:px-2 print:py-2 font-mono text-xs text-slate-600">
+                          {item.loaSrNo || '-'}
+                        </td>
+                        <td className="px-6 py-4 print:px-2 print:py-2 text-slate-600 font-mono text-xs">
+                          {item.hsnCode || '-'}
+                        </td>
+                        <td className="px-6 py-4 print:px-2 print:py-2 text-slate-600">
+                          {item.unit || '-'}
+                        </td>
+                        <td className="px-6 py-4 print:px-2 print:py-2 text-right font-medium text-slate-600">
+                          {item.demandQty || '-'}
+                        </td>
+                        <td className="px-6 py-4 print:px-2 print:py-2 text-right font-bold text-[#0076f2]">
+                          {item.quantity}
+                        </td>
+                      </tr>
+                    ))}
+                  </React.Fragment>
                 ))
               )}
             </tbody>

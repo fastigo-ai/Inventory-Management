@@ -25,13 +25,15 @@ export const getContractors = asyncHandler(async (req: Request, res: Response) =
   const conditions = [];
 
   if (location) {
+    const locStr = String(location).trim();
+    const locRegex = new RegExp(`^${locStr}$`, 'i');
     conditions.push({
       $or: [
-        { location: location },
-        { assignedLocations: location },
-        { 'dynamicData.circle': location },
-        { 'dynamicData.assignedCircle': location },
-        { 'dynamicData.assignedCircles': location },
+        { location: locRegex },
+        { assignedLocations: locRegex },
+        { 'dynamicData.circle': locRegex },
+        { 'dynamicData.assignedCircle': locRegex },
+        { 'dynamicData.assignedCircles': locRegex },
         // Substring match in case it's a comma separated string
         { 'dynamicData.assignedCircle': { $regex: location, $options: 'i' } }
       ]
@@ -1115,6 +1117,12 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
         continue;
       }
 
+      const minDateRaw = row['Date'] || row['MinDate'] || row['MIN Date'] || row['minDate'] || '';
+      if (!minDateRaw) {
+        errors.push(`Row missing Date for MIN ${minNo}`);
+        continue;
+      }
+
       // Find Contractor
       const cleanContractorName = contractorName.trim();
       const contractorKey = cleanContractorName.replace(/\s+/g, '').toLowerCase();
@@ -1179,7 +1187,9 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
         errors.push(`LOA Serial No mismatch for item '${itemName || tempCode}' in MIN ${minNo}. Expected '${item.dynamicData?.loaSerialNo || ''}', found '${loaSrNo}'`);
         continue;
       }
-      if (unit && String(item.dynamicData?.unit || '').trim().toLowerCase() !== String(unit).trim().toLowerCase()) {
+      const expectedUnit = String(item.dynamicData?.unit || '').trim().toLowerCase().replace(/\.$/, '');
+      const providedUnit = String(unit).trim().toLowerCase().replace(/\.$/, '');
+      if (unit && expectedUnit !== providedUnit) {
         errors.push(`Unit mismatch for item '${itemName || tempCode}' in MIN ${minNo}. Expected '${item.dynamicData?.unit || ''}', found '${unit}'`);
         continue;
       }
@@ -1227,7 +1237,7 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
           subcircle: saveSubcircle || '',
           package: user?.assignedPackage || '',
           assignmentNumber: minNo,
-          date: parseCsvDate(row['Date']) || new Date(),
+          date: parseCsvDate(minDateRaw) || new Date(),
           demandNo: row['DemandNo'] || '',
           demandBookNo: row['DemandBookNo'] || '',
           demandDate: parseCsvDate(row['DemandDate']),
@@ -1240,7 +1250,7 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
           vehicleNo: row['VehicleNo'] || '',
           minNo: minNo,
           minBookNo: row['MinBookNo'] || '',
-          minDate: parseCsvDate(row['MinDate']) || new Date(),
+          minDate: parseCsvDate(minDateRaw) || new Date(),
           issuedTfsSrNo: row['IssuedTfsSrNo'] || '',
           remarks: row['Remarks'] || '',
           subTotal: 0,

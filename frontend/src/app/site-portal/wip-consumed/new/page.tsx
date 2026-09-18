@@ -33,6 +33,10 @@ export default function WipRegisterFormPage() {
     subCircle: "",
     division: "",
     subDivision: "",
+    subStation: "",
+    feeder: "",
+    location: "",
+    drawingNo: "",
     status: "Approved",
     remarks: "",
     items: [
@@ -178,9 +182,14 @@ export default function WipRegisterFormPage() {
       payload.append('contractorId', formData.contractorId);
       payload.append('package', formData.package);
       payload.append('circle', formData.circle);
-      payload.append('division', formData.division);
-      payload.append('subDivision', formData.subDivision);
-      payload.append('remarks', formData.remarks);
+      payload.append('division', formData.division || '');
+      payload.append('subDivision', formData.subDivision || '');
+      payload.append('subCircle', formData.subCircle || '');
+      payload.append('subStation', formData.subStation || '');
+      payload.append('feeder', formData.feeder || '');
+      payload.append('location', formData.location || '');
+      payload.append('drawingNo', formData.drawingNo || '');
+      payload.append('remarks', formData.remarks || '');
       payload.append('status', statusToSave);
       payload.append('items', JSON.stringify(formData.items));
       if (file) {
@@ -315,6 +324,63 @@ export default function WipRegisterFormPage() {
                 <label className="text-xs font-medium text-slate-500 block mb-1">Circle</label>
                 <Input value={formData.circle} readOnly className="bg-slate-50 text-slate-500" placeholder="Auto-filled from your profile" />
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-slate-500 block mb-1">Sub Circle</label>
+                  <select 
+                    className="w-full h-9 rounded-md border border-slate-200 px-3 text-sm focus:border-blue-500 focus:ring-blue-500 bg-white disabled:bg-slate-100 disabled:text-slate-400"
+                    value={formData.subCircle || ''}
+                    onChange={e => setFormData({...formData, subCircle: e.target.value})}
+                    disabled={formData.circle?.toLowerCase() !== 'solan'}
+                  >
+                    <option value="">Select Sub Circle</option>
+                    <option value="Kumarhatti">Kumarhatti</option>
+                    <option value="Nalagarh">Nalagarh</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-500 block mb-1">Division</label>
+                  <Input 
+                    value={formData.division || ''} 
+                    onChange={e => setFormData({...formData, division: e.target.value})} 
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-500 block mb-1">Sub Division</label>
+                  <Input 
+                    value={formData.subDivision || ''} 
+                    onChange={e => setFormData({...formData, subDivision: e.target.value})} 
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-500 block mb-1">Sub Station</label>
+                  <Input 
+                    value={formData.subStation || ''} 
+                    onChange={e => setFormData({...formData, subStation: e.target.value})} 
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-500 block mb-1">Feeder</label>
+                  <Input 
+                    value={formData.feeder || ''} 
+                    onChange={e => setFormData({...formData, feeder: e.target.value})} 
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-500 block mb-1">Location</label>
+                  <Input 
+                    value={formData.location || ''} 
+                    onChange={e => setFormData({...formData, location: e.target.value})} 
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-500 block mb-1">Drawing No</label>
+                  <Input 
+                    value={formData.drawingNo || ''} 
+                    onChange={e => setFormData({...formData, drawingNo: e.target.value})} 
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -399,18 +465,22 @@ export default function WipRegisterFormPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {formData.items.map((item, index) => {
-                  const showDivider = index > 0 && item.activity !== formData.items[index - 1].activity;
-                  return (
-                    <React.Fragment key={index}>
-                      {showDivider && (
-                        <tr>
-                          <td colSpan={10} className="p-0 border-0">
-                            <div className="h-[3px] bg-slate-300 w-full"></div>
-                          </td>
-                        </tr>
-                      )}
-                      <tr className="hover:bg-slate-50 transition-colors">
+                {Object.entries(
+                  formData.items.reduce((acc: any, item: any, index: number) => {
+                    const act = item.activity || 'Uncategorized';
+                    if (!acc[act]) acc[act] = [];
+                    acc[act].push({ item, index });
+                    return acc;
+                  }, {})
+                ).map(([activity, groupedItems]: [string, any]) => (
+                  <React.Fragment key={activity}>
+                    <tr className="bg-slate-200/60">
+                      <td colSpan={14} className="px-4 py-2 font-bold text-slate-800 uppercase border-y border-slate-300">
+                        {activity}
+                      </td>
+                    </tr>
+                    {groupedItems.map(({ item, index }: { item: any, index: number }) => (
+                      <tr key={index} className="hover:bg-slate-50 transition-colors">
                         <td className="px-4 py-2 border-r border-slate-100">
                           <Input title={item.loaSrNo} value={item.loaSrNo || ''} 
                             onChange={e => handleItemChange(index, 'loaSrNo', e.target.value)} 
@@ -486,9 +556,9 @@ export default function WipRegisterFormPage() {
                           </button>
                         </td>
                       </tr>
-                    </React.Fragment>
-                  );
-                })}
+                    ))}
+                  </React.Fragment>
+                ))}
                 {formData.items.length === 0 && (
                   <tr>
                     <td colSpan={10} className="px-6 py-8 text-center text-slate-500">

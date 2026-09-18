@@ -33,7 +33,7 @@ export const createPurchaseInvoice = async (req: Request, res: Response): Promis
       prData.billingCompany = { name: prData.billingFrom };
     } else if (prData.purchaseOrderId) {
       const PurchaseOrder = mongoose.model('PurchaseOrder');
-      const po: any = await PurchaseOrder.findById(prData.purchaseOrderId).lean();
+      const po: any = await PurchaseOrder.findOne({ _id: prData.purchaseOrderId, isDeleted: { $ne: true } }).lean();
       if (po && po.billingCompany && po.billingCompany.name) {
         prData.billingCompany = { name: po.billingCompany.name };
       } else if (po && po.billingFrom) {
@@ -152,7 +152,7 @@ export const createPurchaseInvoice = async (req: Request, res: Response): Promis
       await RelationsService.linkDocuments(newPr.purchaseOrderId.toString(), 'PurchaseOrder', newPr._id.toString(), 'PurchaseInvoice');
       
       // Update PO invoiced quantities
-      const po = await PurchaseOrder.findById(newPr.purchaseOrderId);
+      const po = await PurchaseOrder.findOne({ _id: newPr.purchaseOrderId, isDeleted: { $ne: true } });
       if (po && newPr.lineItems) {
         let poUpdated = false;
         newPr.lineItems.forEach((invItem: any) => {
@@ -1113,7 +1113,7 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
 
     const [existingPRs, existingPOs, existingDIs] = await Promise.all([
       PurchaseInvoice.find({ invoiceNumber: { $in: prNumbers } }),
-      poNumbers.length > 0 ? PurchaseOrder.find({ purchaseOrderNumber: { $in: poNumbers } }) : [],
+      poNumbers.length > 0 ? PurchaseOrder.find({ purchaseOrderNumber: { $in: poNumbers }, isDeleted: { $ne: true } }) : [],
       diNumbers.length > 0 ? DI.find({ diNumber: { $in: diNumbers } }) : []
     ]);
 

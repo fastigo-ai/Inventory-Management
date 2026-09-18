@@ -152,7 +152,7 @@ export const updateVendor = asyncHandler(async (req: Request, res: Response) => 
     vendor._id.toString()
   ].filter(Boolean);
   
-  const inUse = await PurchaseOrder.exists({ vendorName: { $in: vendorNameChecks } });
+  const inUse = await PurchaseOrder.exists({ vendorName: { $in: vendorNameChecks }, isDeleted: { $ne: true } });
 
   if (inUse && dynamicData) {
     const criticalFields = ['companyName', 'displayName'];
@@ -195,7 +195,7 @@ export const deleteVendor = asyncHandler(async (req: Request, res: Response) => 
     vendor._id.toString()
   ].filter(Boolean);
 
-  const inUse = await PurchaseOrder.exists({ vendorName: { $in: vendorNameChecks } });
+  const inUse = await PurchaseOrder.exists({ vendorName: { $in: vendorNameChecks }, isDeleted: { $ne: true } });
   
   if (inUse) {
     throw new ApiError(400, 'Cannot delete this vendor as it is linked to one or more Purchase Orders. Please mark it as Inactive instead.');
@@ -664,7 +664,7 @@ export const getVendorTransactions = asyncHandler(async (req: Request, res: Resp
   const vendorNameRegex = new RegExp(`^${escapeRegex(searchPrefix)}`, 'i');
 
   const [purchaseOrders, purchaseInvoices, rawDis] = await Promise.all([
-    PurchaseOrder.find({ vendorName: vendorNameRegex }).select('_id purchaseOrderNumber date status total').sort({ date: 1 }).lean(),
+    PurchaseOrder.find({ vendorName: vendorNameRegex, isDeleted: { $ne: true } }).select('_id purchaseOrderNumber date status total').sort({ date: 1 }).lean(),
     PurchaseInvoice.find({ vendorName: vendorNameRegex }).select('_id invoiceNumber date status total rate quantity amount').sort({ date: 1 }).lean(),
     DI.find({ vendorName: vendorNameRegex }).select('_id diNumber date status lineItems').sort({ date: 1 }).lean()
   ]);

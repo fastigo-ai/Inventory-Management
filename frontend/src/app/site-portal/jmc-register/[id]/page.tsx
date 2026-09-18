@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { createJmc, getJmcById, updateJmc, getJmcs } from "@/features/site-portal/api/jmc.api";
 import { getContractors } from "@/features/contractors/api/contractors.api";
@@ -59,6 +59,11 @@ export default function JmcRegisterFormPage() {
     circle: user?.assignedCircle || "",
     division: "",
     subDivision: "",
+    subCircle: "",
+    subStation: "",
+    feeder: "",
+    location: "",
+    drawingNo: "",
     status: "Approved",
     remarks: "",
     items: [
@@ -91,18 +96,18 @@ export default function JmcRegisterFormPage() {
   }, [user, isNew]);
 
   useEffect(() => {
-    if (formData.package && formData.circle) {
-      getItems({ filters: { package: formData.package, circle: formData.circle }, limit: 1000 }).then(res => {
+    if (formData.circle) {
+      getItems({ filters: { circle: formData.circle }, limit: 10000 }).then(res => {
         const fetched = res?.items || res?.data?.items || (Array.isArray(res) ? res : res.data) || [];
         setAvailableItems(fetched);
       }).catch(console.error);
     } else {
-      getItems({ limit: 1000 }).then(res => {
+      getItems({ limit: 10000 }).then(res => {
         const fetched = res?.items || res?.data?.items || (Array.isArray(res) ? res : res.data) || [];
         setAvailableItems(fetched);
       }).catch(console.error);
     }
-  }, [formData.package, formData.circle]);
+  }, [formData.circle]);
 
 
   useEffect(() => {
@@ -174,7 +179,9 @@ export default function JmcRegisterFormPage() {
   useEffect(() => {
     if (availableItems.length > 0 && formData.items.length > 0 && !isNew) {
       let changed = false;
-      const newItems = formData.items.map(item => {
+      let newItems = [...formData.items];
+      
+      newItems = newItems.map(item => {
         if (item.tempCode && item.totalLoaQty > 0) return item;
         const match = availableItems.find(ai => 
           (item.loaSrNo && (String(ai.dynamicData?.sku) === String(item.loaSrNo) || String(ai.dynamicData?.loaSrNo) === String(item.loaSrNo))) || 
@@ -194,11 +201,56 @@ export default function JmcRegisterFormPage() {
         }
         return item;
       });
+
+      const existingActivities = new Set(newItems.map(i => i.activity).filter(Boolean));
+      
+      existingActivities.forEach(activity => {
+        const lowerActivity = activity.toLowerCase();
+        const activityItems = availableItems.filter(ai => String(ai.dynamicData?.activity || '').trim().toLowerCase() === lowerActivity.trim());
+        activityItems.forEach(ai => {
+          const temp = ai.dynamicData?.tempCode || ai.rawItem?.tempCode || '';
+          const loa = ai.dynamicData?.loaSrNo || ai.dynamicData?.loaSerialNo || ai.dynamicData?.sku || ai.rawItem?.sku || '';
+          const desc = ai.dynamicData?.description || ai.dynamicData?.itemDescription || ai.dynamicData?.name || '';
+          
+          const exists = newItems.find(item => 
+            String(item.activity || '').trim().toLowerCase() === lowerActivity.trim() && (
+              (temp && String(item.tempCode) === String(temp)) || 
+              (loa && String(item.loaSrNo) === String(loa)) ||
+              (item.description === desc)
+            )
+          );
+          
+          if (!exists) {
+            changed = true;
+            newItems.push({
+              activity: activity,
+              tempCode: temp,
+              loaSrNo: loa,
+              description: desc,
+              unit: ai.dynamicData?.unit || ai.dynamicData?.uom || '',
+              totalLoaQty: Number(ai.dynamicData?.loaQty || ai.dynamicData?.loaQuantity || ai.dynamicData?.totalLoaQuantity || ai.dynamicData?.qty || ai.dynamicData?.quantity || 0),
+              prevQty: calcPrevQtyFromJmcs(previousJmcs, temp, loa, desc),
+              claimedQty: 0,
+              approvedQty: 0,
+              rate: 0,
+              amount: 0,
+              remarks: ''
+            });
+          }
+        });
+      });
+
       if (changed) {
+        newItems.sort((a, b) => {
+          if (a.activity !== b.activity) return (a.activity || '').localeCompare(b.activity || '');
+          const numA = parseFloat(a.tempCode || a.loaSrNo || '0');
+          const numB = parseFloat(b.tempCode || b.loaSrNo || '0');
+          return numA - numB;
+        });
         setFormData(prev => ({ ...prev, items: newItems }));
       }
     }
-  }, [availableItems, isNew]);
+  }, [availableItems, isNew, previousJmcs]);
 
   const handleItemChange = (index: number, field: string, value: any) => {
     const newItems = [...formData.items];
@@ -262,9 +314,14 @@ export default function JmcRegisterFormPage() {
       payload.append('contractorId', formData.contractorId);
       payload.append('package', formData.package);
       payload.append('circle', formData.circle);
-      payload.append('division', formData.division);
-      payload.append('subDivision', formData.subDivision);
-      payload.append('remarks', formData.remarks);
+      payload.append('division', formData.division || '');
+      payload.append('subDivision', formData.subDivision || '');
+      payload.append('subCircle', formData.subCircle || '');
+      payload.append('subStation', formData.subStation || '');
+      payload.append('feeder', formData.feeder || '');
+      payload.append('location', formData.location || '');
+      payload.append('drawingNo', formData.drawingNo || '');
+      payload.append('remarks', formData.remarks || '');
       payload.append('status', statusToSave);
       payload.append('claimedAmount', claimedTotal.toString());
       payload.append('approvedAmount', approvedTotal.toString());
@@ -390,6 +447,19 @@ export default function JmcRegisterFormPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
+                  <label className="text-xs font-medium text-slate-500 block mb-1">Sub Circle</label>
+                  <select 
+                    className="w-full h-9 rounded-md border border-slate-200 px-3 text-sm focus:border-blue-500 focus:ring-blue-500 bg-white disabled:bg-slate-100 disabled:text-slate-400"
+                    value={formData.subCircle || ''}
+                    onChange={e => setFormData({...formData, subCircle: e.target.value})}
+                    disabled={formData.circle?.toLowerCase() !== 'solan'}
+                  >
+                    <option value="">Select Sub Circle</option>
+                    <option value="Kumarhatti">Kumarhatti</option>
+                    <option value="Nalagarh">Nalagarh</option>
+                  </select>
+                </div>
+                <div>
                   <label className="text-xs font-medium text-slate-500 block mb-1">Division</label>
                   <Input 
                     value={formData.division} 
@@ -401,6 +471,34 @@ export default function JmcRegisterFormPage() {
                   <Input 
                     value={formData.subDivision} 
                     onChange={e => setFormData({...formData, subDivision: e.target.value})} 
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-500 block mb-1">Sub Station</label>
+                  <Input 
+                    value={formData.subStation || ''} 
+                    onChange={e => setFormData({...formData, subStation: e.target.value})} 
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-500 block mb-1">Feeder</label>
+                  <Input 
+                    value={formData.feeder || ''} 
+                    onChange={e => setFormData({...formData, feeder: e.target.value})} 
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-500 block mb-1">Location</label>
+                  <Input 
+                    value={formData.location || ''} 
+                    onChange={e => setFormData({...formData, location: e.target.value})} 
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-500 block mb-1">Drawing No</label>
+                  <Input 
+                    value={formData.drawingNo || ''} 
+                    onChange={e => setFormData({...formData, drawingNo: e.target.value})} 
                   />
                 </div>
               </div>
@@ -517,9 +615,23 @@ export default function JmcRegisterFormPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {formData.items.map((item, index) => (
-                  <tr key={index} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-2 border-r border-slate-100">
+                {Object.entries(
+                  formData.items.reduce((acc: any, item: any, index: number) => {
+                    const act = item.activity || 'Uncategorized';
+                    if (!acc[act]) acc[act] = [];
+                    acc[act].push({ item, index });
+                    return acc;
+                  }, {})
+                ).map(([activity, groupedItems]: [string, any]) => (
+                  <React.Fragment key={activity}>
+                    <tr className="bg-slate-200/60">
+                      <td colSpan={14} className="px-4 py-2 font-bold text-slate-800 uppercase border-y border-slate-300">
+                        {activity}
+                      </td>
+                    </tr>
+                    {groupedItems.map(({ item, index }: { item: any, index: number }) => (
+                      <tr key={index} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-2 border-r border-slate-100">
                       <Input title={item.activity} value={item.activity || ''} 
                         onChange={e => handleItemChange(index, 'activity', e.target.value)} 
                         className="h-8 text-sm bg-slate-50"
@@ -609,6 +721,8 @@ export default function JmcRegisterFormPage() {
                       </button>
                     </td>
                   </tr>
+                    ))}
+                  </React.Fragment>
                 ))}
                 {formData.items.length === 0 && (
                   <tr>

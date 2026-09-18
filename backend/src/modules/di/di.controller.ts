@@ -134,7 +134,7 @@ export const createDI = asyncHandler(async (req: Request, res: Response) => {
 
   // If purchaseOrderId is provided, look it up to populate missing fields
   if (diData.purchaseOrderId) {
-    const po = await PurchaseOrder.findById(diData.purchaseOrderId);
+    const po = await PurchaseOrder.findOne({ _id: diData.purchaseOrderId, isDeleted: { $ne: true } });
     if (po) {
       if (!diData.vendorName) diData.vendorName = po.vendorName;
       if (!diData.poNumber) diData.poNumber = po.purchaseOrderNumber;
@@ -756,7 +756,7 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
 
     const [existingDIs, existingPOs] = await Promise.all([
       DI.find({ diNumber: { $in: diNumbers } }),
-      poNumbers.length > 0 ? PurchaseOrder.find({ purchaseOrderNumber: { $in: poNumbers } }) : []
+      poNumbers.length > 0 ? PurchaseOrder.find({ purchaseOrderNumber: { $in: poNumbers }, isDeleted: { $ne: true } }) : []
     ]);
 
     // Use Pr dynamically imported model since it might not be strictly typed at the top

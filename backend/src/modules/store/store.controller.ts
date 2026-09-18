@@ -65,7 +65,7 @@ export const getPurchaseInvoicePrefillData = asyncHandler(async (req: Request, r
 
   let po = null;
   if (invoice.purchaseOrderId) {
-    po = await PurchaseOrder.findById(invoice.purchaseOrderId);
+    po = await PurchaseOrder.findOne({ _id: invoice.purchaseOrderId, isDeleted: { $ne: true } });
   }
 
   const invoiceItem = invoice.lineItems && invoice.lineItems.length > 0 ? invoice.lineItems[0] : null;
@@ -124,7 +124,7 @@ export const getDIPrefillData = asyncHandler(async (req: Request, res: Response)
     throw new ApiError(404, 'DI not found');
   }
 
-  const po = di.purchaseOrderId ? await PurchaseOrder.findById(di.purchaseOrderId) : null;
+  const po = di.purchaseOrderId ? await PurchaseOrder.findOne({ _id: di.purchaseOrderId, isDeleted: { $ne: true } }) : null;
   // If no PO is linked, we just proceed with what we have in DI.
 
   // Find if there's any matching Purchase Invoice for this PO (only if PO exists)
@@ -1230,7 +1230,7 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
 
       let po = null;
       if (invoice.purchaseOrderId) {
-        po = await PurchaseOrder.findById(invoice.purchaseOrderId);
+        po = await PurchaseOrder.findOne({ _id: invoice.purchaseOrderId, isDeleted: { $ne: true } });
       }
 
       const loaSerialNo = row['LoaSerialNo'] || row['loaSerialNo'] || row['LOA Serial No'];

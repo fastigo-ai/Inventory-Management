@@ -235,6 +235,7 @@ export const getVendorSummary = asyncHandler(async (req: Request, res: Response)
 
   // Get PO aggregations
   const poSummaries = await PurchaseOrder.aggregate([
+    { $match: { isDeleted: { $ne: true } } },
     { $match: matchQuery },
     { $unwind: "$lineItems" },
     {
@@ -432,7 +433,7 @@ export const getStoreSummary = asyncHandler(async (req: Request, res: Response) 
 export const getVendorDetails = asyncHandler(async (req: Request, res: Response) => {
   const { vendorName } = req.params;
   
-  const pos = await PurchaseOrder.find({ vendorName, status: { $ne: 'Cancelled' } }).sort({ date: 1 });
+  const pos = await PurchaseOrder.find({ vendorName, status: { $ne: 'Cancelled' }, isDeleted: { $ne: true } }).sort({ date: 1 });
   const invoices = await PurchaseInvoice.find({ vendorName, status: { $ne: 'Cancelled' } }).sort({ receiveDate: 1 });
 
   res.status(200).json(new ApiResponse(200, { pos, invoices }, 'Vendor details fetched successfully'));
@@ -466,7 +467,7 @@ export const getContractorDetails = asyncHandler(async (req: Request, res: Respo
 export const getItemDetails = asyncHandler(async (req: Request, res: Response) => {
   const { itemId } = req.params;
   
-  const pos = await PurchaseOrder.find({ "lineItems.itemId": itemId, status: { $ne: 'Cancelled' } }).sort({ date: 1 });
+  const pos = await PurchaseOrder.find({ "lineItems.itemId": itemId, status: { $ne: 'Cancelled' }, isDeleted: { $ne: true } }).sort({ date: 1 });
   const dis = await DI.find({ "lineItems.itemId": itemId, status: { $ne: 'Cancelled' } }).sort({ date: 1 });
   const invoices = await PurchaseInvoice.find({ "lineItems.itemId": itemId, status: { $ne: 'Cancelled' } }).sort({ receiveDate: 1 });
   const mins = await ContractorAssignment.find({ "lineItems.itemId": itemId }).sort({ assignmentDate: 1 });
@@ -1033,14 +1034,18 @@ const MATRIX_CACHE_TTL = 45 * 1000; // 45 seconds
  * Shared Multi-Circle Matrix Engine matching Excel LOA/BOM summary layout
  */
 async function computeItemMatrixSummary(params: {
-  package?: string;
-  circle?: string;
-  targetCircle?: string;
+  package?: string | string[];
+  circle?: string | string[];
+  targetCircle?: string | string[];
   search?: string;
 }) {
-  const { package: pkg, circle, targetCircle = 'SOLAN', search } = params;
+  const { package: pkg, circle, targetCircle = 'ALL', search } = params;
 
-  const cacheKey = `${pkg || ''}___${circle || ''}___${targetCircle || ''}___${search || ''}`;
+  const pkgArray = typeof pkg === 'string' && pkg ? pkg.split(',') : (Array.isArray(pkg) ? pkg : []);
+  const circArray = typeof circle === 'string' && circle ? circle.split(',') : (Array.isArray(circle) ? circle : []);
+  const targCircArray = typeof targetCircle === 'string' && targetCircle ? targetCircle.split(',') : (Array.isArray(targetCircle) ? targetCircle : []);
+
+  const cacheKey = `${pkgArray.sort().join(',')}___${circArray.sort().join(',')}___${targCircArray.sort().join(',')}___${search || ''}`;
   const cached = matrixCache.get(cacheKey);
   if (cached && (Date.now() - cached.timestamp < MATRIX_CACHE_TTL)) {
     return cached.data;
@@ -1048,11 +1053,11 @@ async function computeItemMatrixSummary(params: {
 
   const itemFilter: any = { isDeleted: { $ne: true } };
 
-  if (pkg && pkg !== 'all' && pkg !== '') {
-    itemFilter['dynamicData.package'] = { $regex: new RegExp(pkg.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') };
+  if (pkgArray.length > 0 && !pkgArray.includes('all')) {
+    itemFilter['dynamicData.package'] = { $in: pkgArray.map(p => new RegExp(p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')) };
   }
-  if (circle && circle !== 'all' && circle !== '') {
-    itemFilter['dynamicData.circle'] = { $regex: new RegExp(`^${circle}$`, 'i') };
+  if (circArray.length > 0 && !circArray.includes('all')) {
+    itemFilter['dynamicData.circle'] = { $in: circArray.map(c => new RegExp(`^${c}$`, 'i')) };
   }
   if (search) {
     const searchTerm = search.toString().trim();
@@ -1756,8 +1761,8 @@ async function computeItemMatrixSummary(params: {
     const wipConsObj = wipConsumedMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
     const wipReqObj = wipRequiredMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
 
-    const tCirc = (targetCircle as string).toUpperCase();
-    const evalCircle = (tCirc === 'ALL' || !tCirc) ? itemCircle : tCirc;
+    const tCirc = targCircArray.map(c => c.toUpperCase());
+    const evalCircle = (tCirc.length === 0 || tCirc.includes('ALL')) ? [itemCircle.toUpperCase()] : tCirc;
 
     let targetLoa = 0;
     let targetBom = 0;
@@ -1769,14 +1774,19 @@ async function computeItemMatrixSummary(params: {
     let targetSupBilled = 0;
     let targetErecBilled = 0;
 
-    if (evalCircle.includes('SOLAN')) {
-      targetLoa = solanLoaQty; targetBom = solanBomQty; targetDi = diObj.solan; targetInward = invObj.solan; targetMhrov = mhrovObj.solan; targetMin = minObj.solan; targetImc = imcObj.solan; targetSupBilled = supObj.solan; targetErecBilled = erecObj.solan;
-    } else if (evalCircle.includes('NAHAN')) {
-      targetLoa = nahanLoaQty; targetBom = nahanBomQty; targetDi = diObj.nahan; targetInward = invObj.nahan; targetMhrov = mhrovObj.nahan; targetMin = minObj.nahan; targetImc = imcObj.nahan; targetSupBilled = supObj.nahan; targetErecBilled = erecObj.nahan;
-    } else if (evalCircle.includes('RAMPUR')) {
-      targetLoa = rampurLoaQty; targetBom = rampurBomQty; targetDi = diObj.rampur; targetInward = invObj.rampur; targetMhrov = mhrovObj.rampur; targetMin = minObj.rampur; targetImc = imcObj.rampur; targetSupBilled = supObj.rampur; targetErecBilled = erecObj.rampur;
-    } else if (evalCircle.includes('ROHRU')) {
-      targetLoa = rohruLoaQty; targetBom = rohruBomQty; targetDi = diObj.rohru; targetInward = invObj.rohru; targetMhrov = mhrovObj.rohru; targetMin = minObj.rohru; targetImc = imcObj.rohru; targetSupBilled = supObj.rohru; targetErecBilled = erecObj.rohru;
+    const includesCirc = (c: string) => evalCircle.some(ec => ec.includes(c));
+
+    if (includesCirc('SOLAN')) {
+      targetLoa += solanLoaQty; targetBom += solanBomQty; targetDi += diObj.solan; targetInward += invObj.solan; targetMhrov += mhrovObj.solan; targetMin += minObj.solan; targetImc += imcObj.solan; targetSupBilled += supObj.solan; targetErecBilled += erecObj.solan;
+    }
+    if (includesCirc('NAHAN')) {
+      targetLoa += nahanLoaQty; targetBom += nahanBomQty; targetDi += diObj.nahan; targetInward += invObj.nahan; targetMhrov += mhrovObj.nahan; targetMin += minObj.nahan; targetImc += imcObj.nahan; targetSupBilled += supObj.nahan; targetErecBilled += erecObj.nahan;
+    }
+    if (includesCirc('RAMPUR')) {
+      targetLoa += rampurLoaQty; targetBom += rampurBomQty; targetDi += diObj.rampur; targetInward += invObj.rampur; targetMhrov += mhrovObj.rampur; targetMin += minObj.rampur; targetImc += imcObj.rampur; targetSupBilled += supObj.rampur; targetErecBilled += erecObj.rampur;
+    }
+    if (includesCirc('ROHRU')) {
+      targetLoa += rohruLoaQty; targetBom += rohruBomQty; targetDi += diObj.rohru; targetInward += invObj.rohru; targetMhrov += mhrovObj.rohru; targetMin += minObj.rohru; targetImc += imcObj.rohru; targetSupBilled += supObj.rohru; targetErecBilled += erecObj.rohru;
     }
 
     const balDiLoa = targetLoa - targetDi;
@@ -1952,9 +1962,9 @@ export const getItemMatrixSummary = asyncHandler(async (req: Request, res: Respo
   const { package: pkg, circle, targetCircle, search, page, limit } = req.query;
 
   const rows = await computeItemMatrixSummary({
-    package: pkg as string,
-    circle: circle as string,
-    targetCircle: (targetCircle as string) || 'SOLAN',
+    package: req.query.package as any,
+    circle: req.query.circle as any,
+    targetCircle: req.query.targetCircle as any,
     search: search as string
   });
 

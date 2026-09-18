@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { createJmc, getJmcById, updateJmc, getJmcs } from "@/features/site-portal/api/jmc.api";
 import { getContractors } from "@/features/contractors/api/contractors.api";
@@ -60,6 +60,10 @@ export default function JmcRegisterFormPage() {
     subCircle: "",
     division: "",
     subDivision: "",
+    subStation: "",
+    feeder: "",
+    location: "",
+    drawingNo: "",
     status: "Approved",
     remarks: "",
     items: [
@@ -230,9 +234,14 @@ export default function JmcRegisterFormPage() {
       payload.append('package', formData.package);
       payload.append('circle', formData.circle);
       payload.append('subCircle', formData.subCircle);
-      payload.append('division', formData.division);
-      payload.append('subDivision', formData.subDivision);
-      payload.append('remarks', formData.remarks);
+      payload.append('division', formData.division || '');
+      payload.append('subDivision', formData.subDivision || '');
+      payload.append('subCircle', formData.subCircle || '');
+      payload.append('subStation', formData.subStation || '');
+      payload.append('feeder', formData.feeder || '');
+      payload.append('location', formData.location || '');
+      payload.append('drawingNo', formData.drawingNo || '');
+      payload.append('remarks', formData.remarks || '');
       payload.append('status', statusToSave);
       payload.append('claimedAmount', claimedTotal.toString());
       payload.append('approvedAmount', approvedTotal.toString());
@@ -362,21 +371,21 @@ export default function JmcRegisterFormPage() {
                 <label className="text-xs font-medium text-slate-500 block mb-1">Circle</label>
                 <Input value={formData.circle} readOnly className="bg-slate-50 text-slate-500" placeholder="Auto-filled from your profile" />
               </div>
-              {formData.circle?.toLowerCase() === 'solan' && (
+
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-slate-500 block mb-1">Sub Circle *</label>
+                  <label className="text-xs font-medium text-slate-500 block mb-1">Sub Circle</label>
                   <select 
-                    className="w-full h-9 rounded-md border border-slate-200 px-3 text-sm focus:border-blue-500 focus:ring-blue-500 bg-white"
-                    value={formData.subCircle}
+                    className="w-full h-9 rounded-md border border-slate-200 px-3 text-sm focus:border-blue-500 focus:ring-blue-500 bg-white disabled:bg-slate-100 disabled:text-slate-400"
+                    value={formData.subCircle || ''}
                     onChange={e => setFormData({...formData, subCircle: e.target.value})}
+                    disabled={formData.circle?.toLowerCase() !== 'solan'}
                   >
                     <option value="">Select Sub Circle</option>
                     <option value="Kumarhatti">Kumarhatti</option>
                     <option value="Nalagarh">Nalagarh</option>
                   </select>
                 </div>
-              )}
-              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-slate-500 block mb-1">Division</label>
                   <Input 
@@ -389,6 +398,34 @@ export default function JmcRegisterFormPage() {
                   <Input 
                     value={formData.subDivision} 
                     onChange={e => setFormData({...formData, subDivision: e.target.value})} 
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-500 block mb-1">Sub Station</label>
+                  <Input 
+                    value={formData.subStation || ''} 
+                    onChange={e => setFormData({...formData, subStation: e.target.value})} 
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-500 block mb-1">Feeder</label>
+                  <Input 
+                    value={formData.feeder || ''} 
+                    onChange={e => setFormData({...formData, feeder: e.target.value})} 
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-500 block mb-1">Location</label>
+                  <Input 
+                    value={formData.location || ''} 
+                    onChange={e => setFormData({...formData, location: e.target.value})} 
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-500 block mb-1">Drawing No</label>
+                  <Input 
+                    value={formData.drawingNo || ''} 
+                    onChange={e => setFormData({...formData, drawingNo: e.target.value})} 
                   />
                 </div>
               </div>
@@ -505,9 +542,23 @@ export default function JmcRegisterFormPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {formData.items.map((item, index) => (
-                  <tr key={index} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-2 border-r border-slate-100">
+                {Object.entries(
+                  formData.items.reduce((acc: any, item: any, index: number) => {
+                    const act = item.activity || 'Uncategorized';
+                    if (!acc[act]) acc[act] = [];
+                    acc[act].push({ item, index });
+                    return acc;
+                  }, {})
+                ).map(([activity, groupedItems]: [string, any]) => (
+                  <React.Fragment key={activity}>
+                    <tr className="bg-slate-200/60">
+                      <td colSpan={14} className="px-4 py-2 font-bold text-slate-800 uppercase border-y border-slate-300">
+                        {activity}
+                      </td>
+                    </tr>
+                    {groupedItems.map(({ item, index }: { item: any, index: number }) => (
+                      <tr key={index} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-2 border-r border-slate-100">
                       <Input title={item.activity} value={item.activity || ''} 
                         onChange={e => handleItemChange(index, 'activity', e.target.value)} 
                         className="h-8 text-sm bg-slate-50"
@@ -597,6 +648,8 @@ export default function JmcRegisterFormPage() {
                       </button>
                     </td>
                   </tr>
+                    ))}
+                  </React.Fragment>
                 ))}
                 {formData.items.length === 0 && (
                   <tr>

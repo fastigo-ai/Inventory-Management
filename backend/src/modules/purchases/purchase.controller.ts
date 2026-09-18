@@ -159,7 +159,7 @@ export const getPurchaseOrders = async (req: Request, res: Response) => {
     if (req.query.vendorName) {
       filter.vendorName = req.query.vendorName;
     }
-    const orders = await PurchaseOrder.find(filter).sort({ createdAt: 1 });
+    const orders = await PurchaseOrder.find({ ...filter, isDeleted: { $ne: true } }).sort({ createdAt: 1 });
     res.status(200).json({
       success: true,
       data: orders,
@@ -446,7 +446,7 @@ export const deletePurchaseOrder = async (req: Request, res: Response) => {
       });
     }
 
-    const deletedOrder = await PurchaseOrder.findByIdAndDelete(id);
+    const deletedOrder = await PurchaseOrder.findByIdAndUpdate(id, { isDeleted: true }, { new: true });
     
     if (!deletedOrder) {
       return res.status(404).json({ success: false, message: 'Purchase Order not found' });
@@ -511,7 +511,7 @@ export const exportPurchaseOrders = async (req: Request, res: Response) => {
     if (circle && circle !== 'all') query.circle = circle;
     if (pkg && pkg !== 'all') query.package = pkg;
 
-    const orders = await PurchaseOrder.find(query).sort({ createdAt: -1 }).lean();
+    const orders = await PurchaseOrder.find({ ...query, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).lean();
     
     const rows: any[] = [];
     for (const order of orders) {
@@ -891,6 +891,7 @@ export const getPurchaseAnalytics = async (req: Request, res: Response) => {
 
     // 2. Top Vendors by Spend
     const topVendors = await PurchaseOrder.aggregate([
+      { $match: { isDeleted: { $ne: true } } },
       { $match: { status: { $ne: 'Cancelled' } } },
       { $group: { _id: '$vendorName', totalSpend: { $sum: '$total' }, poCount: { $sum: 1 } } },
       { $sort: { totalSpend: -1 } },

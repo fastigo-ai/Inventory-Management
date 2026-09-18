@@ -5,6 +5,7 @@ import { getItemMatrixSummary } from '@/features/reports/api/reports.api';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useUrlFilters } from '@/shared/hooks/useUrlFilters';
+import Select from 'react-select';
 
 export default function ItemSummaryMatrixPage() {
   const [data, setData] = useState<any[]>([]);
@@ -47,7 +48,7 @@ export default function ItemSummaryMatrixPage() {
         const res = await getItemMatrixSummary({
           package: debouncedFilters.packageFilter || undefined,
           circle: debouncedFilters.circleFilter || undefined,
-          targetCircle: debouncedFilters.targetCircle,
+          targetCircle: debouncedFilters.targetCircle || undefined,
           search: debouncedFilters.search || undefined,
           page: Number(debouncedFilters.page),
           limit: Number(debouncedFilters.limit)
@@ -64,6 +65,40 @@ export default function ItemSummaryMatrixPage() {
     };
     fetchReport();
   }, [debouncedFilters]);
+
+  // Derived options for Circle and Target Circle based on selected packages
+  const selectedPackages = filters.packageFilter ? filters.packageFilter.split(',').filter(Boolean) : [];
+  
+  const circleOptions = useMemo(() => {
+    const showP1 = selectedPackages.length === 0 || selectedPackages.includes('Package 1(S/N)');
+    const showP2 = selectedPackages.length === 0 || selectedPackages.includes('Package 2(R/R)');
+    const opts = [];
+    if (showP1) {
+      opts.push({ value: 'Solan', label: 'Solan' });
+      opts.push({ value: 'Nahan', label: 'Nahan' });
+    }
+    if (showP2) {
+      opts.push({ value: 'Rampur', label: 'Rampur' });
+      opts.push({ value: 'Rohru', label: 'Rohru' });
+    }
+    return opts;
+  }, [selectedPackages]);
+
+  const targetCircleOptions = useMemo(() => {
+    const showP1 = selectedPackages.length === 0 || selectedPackages.includes('Package 1(S/N)');
+    const showP2 = selectedPackages.length === 0 || selectedPackages.includes('Package 2(R/R)');
+    const opts = [];
+    if (showP1) {
+      opts.push({ value: 'SOLAN', label: 'Solan Balances' });
+      opts.push({ value: 'NAHAN', label: 'Nahan Balances' });
+    }
+    if (showP2) {
+      opts.push({ value: 'RAMPUR', label: 'Rampur Balances' });
+      opts.push({ value: 'ROHRU', label: 'Rohru Balances' });
+    }
+    opts.push({ value: 'ALL', label: 'All Circles Combined' });
+    return opts;
+  }, [selectedPackages]);
 
 
   // Totals for current page
@@ -416,45 +451,63 @@ export default function ItemSummaryMatrixPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pb-3 border-b border-slate-100">
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">Choose by Package</label>
-            <select
-              value={filters.packageFilter || ''}
-              onChange={e => { setFilter('packageFilter', e.target.value); setFilter('page', '1'); }}
-              className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 font-medium"
-            >
-              <option value="">All Packages</option>
-              <option value="Package 1(S/N)">Package 1(S/N) / OPE</option>
-              <option value="Package 2(R/R)">Package 2(R/R) / E/W</option>
-            </select>
+            <Select
+              isMulti
+              options={[
+                { value: 'Package 1(S/N)', label: 'Package 1(S/N) / OPE' },
+                { value: 'Package 2(R/R)', label: 'Package 2(R/R) / E/W' }
+              ]}
+              value={(filters.packageFilter ? filters.packageFilter.split(',') : []).map(v => ({ value: v, label: v }))}
+              onChange={(selected) => {
+                const val = selected ? selected.map((s: any) => s.value).join(',') : '';
+                setFilter('packageFilter', val);
+                setFilter('page', '1');
+                
+                // Reset circles if package changes to prevent invalid selections
+                setFilter('circleFilter', '');
+                setFilter('targetCircle', 'ALL');
+              }}
+              className="text-xs font-medium"
+              placeholder="All Packages"
+              styles={{ menu: base => ({ ...base, zIndex: 9999 }) }}
+            />
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">Choose Circle Filter</label>
-            <select
-              value={filters.circleFilter || ''}
-              onChange={e => { setFilter('circleFilter', e.target.value); setFilter('page', '1'); }}
-              className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 font-medium"
-            >
-              <option value="">All Circles</option>
-              <option value="Solan">Solan</option>
-              <option value="Nahan">Nahan</option>
-              <option value="Rampur">Rampur</option>
-              <option value="Rohru">Rohru</option>
-            </select>
+            <Select
+              isMulti
+              options={circleOptions}
+              value={(filters.circleFilter ? filters.circleFilter.split(',') : []).map(v => ({ value: v, label: v }))}
+              onChange={(selected) => {
+                const val = selected ? selected.map((s: any) => s.value).join(',') : '';
+                setFilter('circleFilter', val);
+                setFilter('page', '1');
+              }}
+              className="text-xs font-medium"
+              placeholder="All Circles"
+              styles={{ menu: base => ({ ...base, zIndex: 9999 }) }}
+            />
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">Target Balance Circle</label>
-            <select
-              value={debouncedFilters.targetCircle}
-              onChange={e => { setFilter('targetCircle', e.target.value); setFilter('page', '1'); }}
-              className="w-full text-xs bg-indigo-50 border border-indigo-200 text-indigo-900 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 font-bold"
-            >
-              <option value="SOLAN">Solan Balances</option>
-              <option value="NAHAN">Nahan Balances</option>
-              <option value="RAMPUR">Rampur Balances</option>
-              <option value="ROHRU">Rohru Balances</option>
-              <option value="ALL">All Circles Combined</option>
-            </select>
+            <Select
+              isMulti
+              options={targetCircleOptions}
+              value={(filters.targetCircle ? filters.targetCircle.split(',') : []).map(v => {
+                const opt = targetCircleOptions.find(o => o.value === v);
+                return opt ? opt : { value: v, label: v };
+              })}
+              onChange={(selected) => {
+                const val = selected && selected.length > 0 ? selected.map((s: any) => s.value).join(',') : 'ALL';
+                setFilter('targetCircle', val);
+                setFilter('page', '1');
+              }}
+              className="text-xs font-medium"
+              placeholder="Target Circle"
+              styles={{ menu: base => ({ ...base, zIndex: 9999 }) }}
+            />
           </div>
 
           <div>

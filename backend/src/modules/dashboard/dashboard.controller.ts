@@ -517,3 +517,11 @@ export const getPDPortalDashboardSummary = asyncHandler(async (req: any, res: Re
     }
   }, 'PD Portal Dashboard Data'));
 });
+
+import { buildCeoDashboardSummary } from './ceoDashboard.service';
+
+export const getCeoDashboardSummary = asyncHandler(async (req: any, res: Response) => {
+  const filters = req.query;
+  const data = await buildCeoDashboardSummary(filters);
+  res.status(200).json(new ApiResponse(200, data, 'CEO Dashboard Data Fetched Successfully'));
+});

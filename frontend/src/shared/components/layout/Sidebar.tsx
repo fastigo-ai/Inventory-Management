@@ -169,6 +169,13 @@ const navItems: NavItem[] = [
       { title: 'Client Billing', href: '/billing/client-billing' },
       { title: 'Contractor Billing', href: '/site-portal/contractor-billing' }
     ]
+  },
+  {
+    title: 'CEO Portal',
+    icon: <BarChart2 className="w-5 h-5" />,
+    children: [
+      { title: 'Dashboard', href: '/ceo-portal/dashboard' }
+    ]
   }
 ];
 
@@ -221,6 +228,10 @@ export function Sidebar() {
 
     if (user?.role?.name === 'Project Director') {
       return item.title === 'Home' || item.title === 'Project Director Portal' || item.title === 'Reports' || item.title === 'Items';
+    }
+
+    if (user?.role?.name === 'CEO') {
+      return item.title === 'CEO Portal' || item.title === 'Reports';
     }
 
     // Role-based filtering based on module names

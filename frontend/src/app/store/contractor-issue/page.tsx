@@ -152,40 +152,48 @@ export default function StoreContractorIssuePage() {
 
         {/* Business Insights Dashboard */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4 overflow-hidden">
             <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 flex-shrink-0">
               <FileText className="w-6 h-6" />
             </div>
-            <div>
-              <p className="text-sm font-medium text-slate-500">Total MINs</p>
-              <h3 className="text-2xl font-bold text-slate-900">{summary?.totalMins || 0}</h3>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-slate-500 truncate">Total MINs</p>
+              <h3 className="text-xl sm:text-2xl font-bold text-slate-900 truncate" title={String(summary?.totalMins || 0)}>
+                {summary?.totalMins || 0}
+              </h3>
             </div>
           </div>
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4 overflow-hidden">
             <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 flex-shrink-0">
               <PackageOpen className="w-6 h-6" />
             </div>
-            <div>
-              <p className="text-sm font-medium text-slate-500">Total Items Issued</p>
-              <h3 className="text-2xl font-bold text-slate-900">{summary?.totalItemsIssued || 0}</h3>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-slate-500 truncate">Total Items Issued</p>
+              <h3 className="text-xl sm:text-2xl font-bold text-slate-900 truncate" title={String((summary?.totalItemsIssued || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }))}>
+                {(summary?.totalItemsIssued || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+              </h3>
             </div>
           </div>
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4 overflow-hidden">
             <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 flex-shrink-0">
               <Calculator className="w-6 h-6" />
             </div>
-            <div>
-              <p className="text-sm font-medium text-slate-500">Total Value (₹)</p>
-              <h3 className="text-2xl font-bold text-slate-900">{summary?.totalValue?.toLocaleString('en-IN') || 0}</h3>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-slate-500 truncate">Total Value (₹)</p>
+              <h3 className="text-xl sm:text-2xl font-bold text-slate-900 truncate" title={String(summary?.totalValue?.toLocaleString('en-IN') || 0)}>
+                {summary?.totalValue?.toLocaleString('en-IN') || 0}
+              </h3>
             </div>
           </div>
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4 overflow-hidden">
             <div className="w-12 h-12 rounded-full bg-orange-50 flex items-center justify-center text-orange-600 flex-shrink-0">
               <Users className="w-6 h-6" />
             </div>
-            <div>
-              <p className="text-sm font-medium text-slate-500">Active Contractors</p>
-              <h3 className="text-2xl font-bold text-slate-900">{summary?.activeContractors || 0}</h3>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-slate-500 truncate">Active Contractors</p>
+              <h3 className="text-xl sm:text-2xl font-bold text-slate-900 truncate" title={String(summary?.activeContractors || 0)}>
+                {summary?.activeContractors || 0}
+              </h3>
             </div>
           </div>
         </div>
@@ -288,7 +296,7 @@ export default function StoreContractorIssuePage() {
                             {a.status}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-right font-medium text-slate-700">{totalItems}</td>
+                        <td className="px-6 py-4 text-right font-medium text-slate-700">{totalItems.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
                         <td className="px-6 py-4 flex items-center justify-center gap-2">
                           <Link href={`/store/contractor-issue/${a._id}`}>
                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-blue-600 hover:text-blue-800 hover:bg-blue-50" title="View Details">

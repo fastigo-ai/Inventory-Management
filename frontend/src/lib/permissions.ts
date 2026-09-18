@@ -15,7 +15,8 @@ export const ROUTE_PERMISSIONS_MAP: Record<string, string[]> = {
   '/site-portal': ['Site Portal'],
   '/pm-portal': ['Project Manager Portal'],
   '/pd-portal': ['Project Director Portal'],
-  '/billing': ['Billing']
+  '/billing': ['Billing'],
+  '/ceo-portal': ['CEO Portal']
 };
 
 export const hasAccessToRoute = (pathname: string, user: User | null): boolean => {
@@ -41,8 +42,8 @@ export const hasAccessToRoute = (pathname: string, user: User | null): boolean =
   // 3. User Role and Permissions Check
   const permissions: string[] = user.role?.permissions || [];
   
-  // Super Admin check
-  if (permissions.includes('*') || user.role?.name === 'Super Admin') {
+  // Super Admin and CEO check
+  if (permissions.includes('*') || user.role?.name === 'Super Admin' || user.role?.name === 'CEO') {
     return true;
   }
 

@@ -643,6 +643,18 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
             let finalUnit = sr.unit || '';
 
             if (matchedItemObj) {
+              // Validate Activity
+              if (sr.activity) {
+                const masterActivity = String(matchedItemObj.dynamicData?.activity || '').trim().toLowerCase();
+                const sheetActivity = String(sr.activity).trim().toLowerCase();
+                
+                if (sheetActivity && masterActivity && sheetActivity !== masterActivity) {
+                  flagged.push({ sourceFile, sheetName, issue: `Row ${sr.rowNum || sr.excelRow || 'unknown'}: Activity mismatch. Sheet specifies '${sr.activity}', but Master Item list specifies '${matchedItemObj.dynamicData?.activity || 'Unknown'}'. Sheet rejected.` });
+                  sheetHasErrors = true;
+                  break;
+                }
+              }
+
               itemId = matchedItemObj._id;
               finalActivity = matchedItemObj.dynamicData?.activity || finalActivity;
               finalLoaSerialNo = matchedItemObj.dynamicData?.sku || matchedItemObj.dynamicData?.loaSrNo || finalLoaSerialNo;

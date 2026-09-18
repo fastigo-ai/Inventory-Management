@@ -503,7 +503,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
   };
 
   // ——— HELPER: resolve an item ———————————————————————————————————————
-  const resolveItem = (sr: any, uploadedCircle: string): { itemId: any; activity: string; loaSerialNo: string; loaSrNo: string; tempCode: string; totalLoaQty: number; unit: string } | null => {
+  const resolveItem = (sr: any, uploadedCircle: string): { error?: string; itemId?: any; activity?: string; loaSerialNo?: string; loaSrNo?: string; tempCode?: string; totalLoaQty?: number; unit?: string } | null => {
     const uc = uploadedCircle ? uploadedCircle.toLowerCase() : '';
     let matchedItemObj: any = null;
 
@@ -527,13 +527,13 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
             const itemCircle = String(i.dynamicData?.circle || '').toLowerCase();
             return itemCircle === uc || itemCircle.includes(uc) || uc.includes(itemCircle);
           });
-          return formatMatch(circleMatch || matches[0]);
+          matchedItemObj = circleMatch || matches[0];
         }
       }
     }
     
     // Exact TempCode Match
-    if (sr.tempCode) {
+    if (!matchedItemObj && sr.tempCode) {
       const tempCode = String(sr.tempCode).trim().toLowerCase();
       if (tempCode) {
         const matches = itemsByTempCode.get(tempCode);
@@ -542,13 +542,13 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
             const itemCircle = String(i.dynamicData?.circle || '').toLowerCase();
             return itemCircle === uc || itemCircle.includes(uc) || uc.includes(itemCircle);
           });
-          return formatMatch(circleMatch || matches[0]);
+          matchedItemObj = circleMatch || matches[0];
         }
       }
     }
 
     // Exact Description Match (Fallback)
-    if (sr.description) {
+    if (!matchedItemObj && sr.description) {
        const searchDesc = String(sr.description).trim().toLowerCase();
        if (searchDesc) {
          const matches = itemsByDescription.get(searchDesc);
@@ -557,9 +557,22 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
              const itemCircle = String(i.dynamicData?.circle || '').toLowerCase();
              return itemCircle === uc || itemCircle.includes(uc) || uc.includes(itemCircle);
            });
-           return formatMatch(circleMatch || matches[0]);
+           matchedItemObj = circleMatch || matches[0];
          }
        }
+    }
+
+    if (matchedItemObj) {
+      // Validate Activity
+      if (sr.activity) {
+        const masterActivity = String(matchedItemObj.dynamicData?.activity || '').trim().toLowerCase();
+        const sheetActivity = String(sr.activity).trim().toLowerCase();
+        
+        if (sheetActivity && masterActivity && sheetActivity !== masterActivity) {
+          return { error: `Activity mismatch. Sheet specifies '${sr.activity}', but Master Item list specifies '${matchedItemObj.dynamicData?.activity || 'Unknown'}'` };
+        }
+      }
+      return formatMatch(matchedItemObj);
     }
 
     return null;
@@ -632,6 +645,14 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
                 sourceFile,
                 sheetName,
                 description: `Row ${sr.rowNum}: ${sr.description || sr.activity || 'Unknown item'} (Not found in Master)`,
+                circle: uploadedCircle,
+                row: sr.rowNum
+              });
+            } else if (resolved.error) {
+              validationErrors.push({
+                sourceFile,
+                sheetName,
+                description: `Row ${sr.rowNum}: ${sr.description || sr.activity || 'Unknown item'} - ${resolved.error}`,
                 circle: uploadedCircle,
                 row: sr.rowNum
               });

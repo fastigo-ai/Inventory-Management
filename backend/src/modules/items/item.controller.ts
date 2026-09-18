@@ -323,7 +323,7 @@ export const getItemUsage = asyncHandler(async (req: Request, res: Response) => 
   };
 
   // 1. Purchase Orders
-  const poDocs = await PurchaseOrder.find({ $or: orConditions })
+  const poDocs = await PurchaseOrder.find({ $or: orConditions, isDeleted: { $ne: true } })
     .select('_id purchaseOrderNumber date vendorName status lineItems')
     .sort({ date: 1 })
     .lean();

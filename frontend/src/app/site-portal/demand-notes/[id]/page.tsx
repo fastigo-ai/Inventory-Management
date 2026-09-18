@@ -247,7 +247,7 @@ export default function DemandNoteDetailPage() {
                 <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase">
                   <tr>
                     <th className="px-6 py-4">Sr No</th>
-                    <th className="px-6 py-4">Material Code</th>
+                    <th className="px-6 py-4">Temp Code</th>
                     <th className="px-6 py-4">Item Name</th>
                     <th className="px-6 py-4">Activity</th>
                     <th className="px-6 py-4">LOA Sr No</th>

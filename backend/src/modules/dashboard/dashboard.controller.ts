@@ -70,6 +70,7 @@ export const getDashboardSummary = asyncHandler(async (req: Request, res: Respon
 
   // 4. Executive Financials
   const poSpendResult = await PurchaseOrder.aggregate([
+    { $match: { isDeleted: { $ne: true } } },
     { $match: { status: { $ne: 'Cancelled' } } },
     { $group: { _id: null, totalSpend: { $sum: '$total' } } }
   ]);

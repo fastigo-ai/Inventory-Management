@@ -18,16 +18,18 @@ const router = Router();
 
 router.use(authenticate);
 
-router.post('/upload', requireRole(['Admin', 'Site Manager']), upload.array('files'), uploadJmcExcel);
+const allRoles = ['Admin', 'Site Manager', 'Project Manager', 'Project Director', 'Store Manager', 'System Admin', 'Contractor'];
+
+router.post('/upload', requireRole(allRoles), upload.array('files'), uploadJmcExcel);
 router.get('/export/template', exportJmcExcel);
 
 router.route('/')
   .get(getJmcs)
-  .post(requireRole(['Admin', 'Site Manager', 'Contractor']), upload.single('file'), createJmc);
+  .post(requireRole(allRoles), upload.single('file'), createJmc);
 
 router.route('/:id')
   .get(getJmcById)
-  .put(requireRole(['Admin', 'Site Manager', 'Contractor']), upload.single('file'), updateJmc)
-  .delete(requireRole(['Admin', 'Site Manager', 'Contractor']), deleteJmc);
+  .put(requireRole(allRoles), upload.single('file'), updateJmc)
+  .delete(requireRole(['Admin', 'Site Manager']), deleteJmc);
 
 export default router;

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { uploadWipExcel } from '../api/wip.api';
 import { API_BASE_URL } from '@/shared/api/axios';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 
 interface Props {
   open: boolean;
@@ -145,20 +145,16 @@ export function WipBulkUploadModal({ open, onOpenChange, onSuccess }: Props) {
 
           <div className="space-y-2">
             <p className="text-sm font-medium">If WIP already exists for location:</p>
-            <Select 
+            <select 
               value={conflictStrategy}
-              onValueChange={setConflictStrategy}
+              onChange={(e) => setConflictStrategy(e.target.value)}
               disabled={status === 'uploading' || status === 'processing'}
+              className="w-full mt-2 rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Select strategy" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="skip">Skip existing (Do nothing)</SelectItem>
-                <SelectItem value="replace">Replace existing Draft (Overwrite)</SelectItem>
-                <SelectItem value="update">Update existing Draft (Add quantities)</SelectItem>
-              </SelectContent>
-            </Select>
+              <option value="skip">Skip existing (Do nothing)</option>
+              <option value="replace">Replace existing Draft (Overwrite)</option>
+              <option value="update">Update existing Draft (Add quantities)</option>
+            </select>
           </div>
 
           {(status === 'uploading' || status === 'processing' || status === 'complete') && (

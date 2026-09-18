@@ -517,49 +517,81 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
       unit: item.dynamicData?.uom || item.dynamicData?.unit || item.uom || item.unit || sr.unit || ''
     });
     
-    // Exact LOA Match (Strongest)
-    if (sr.loaSerialNo || sr.loa) {
-      const loa = String(sr.loaSerialNo || sr.loa).trim().toLowerCase();
-      if (loa) {
-        const matches = itemsByLoa.get(loa);
-        if (matches && matches.length > 0) {
-          const circleMatch = matches.find(i => {
-            const itemCircle = String(i.dynamicData?.circle || '').toLowerCase();
-            return itemCircle === uc || itemCircle.includes(uc) || uc.includes(itemCircle);
-          });
-          matchedItemObj = circleMatch || matches[0];
-        }
-      }
+    // Fuzzy string helper (removes all non-alphanumeric characters)
+    const fuzzy = (str: any) => String(str || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+
+    const srLoa = String(sr.loaSerialNo || sr.loa || '').trim().toLowerCase();
+    const srTemp = String(sr.tempCode || '').trim().toLowerCase();
+    const srDescFuzzy = fuzzy(sr.description || sr.itemDescription || '');
+
+    let candidateItems: any[] = [];
+    
+    // First gather all potential candidates from the circle (or all if circle is empty)
+    if (srLoa && itemsByLoa.has(srLoa)) {
+      candidateItems = candidateItems.concat(itemsByLoa.get(srLoa) || []);
+    }
+    if (srTemp && itemsByTempCode.has(srTemp)) {
+      candidateItems = candidateItems.concat(itemsByTempCode.get(srTemp) || []);
+    }
+    if (sr.description) {
+      const descMatches = itemsByDescription.get(String(sr.description).trim().toLowerCase()) || [];
+      candidateItems = candidateItems.concat(descMatches);
     }
     
-    // Exact TempCode Match
-    if (!matchedItemObj && sr.tempCode) {
-      const tempCode = String(sr.tempCode).trim().toLowerCase();
-      if (tempCode) {
-        const matches = itemsByTempCode.get(tempCode);
-        if (matches && matches.length > 0) {
-          const circleMatch = matches.find(i => {
-            const itemCircle = String(i.dynamicData?.circle || '').toLowerCase();
-            return itemCircle === uc || itemCircle.includes(uc) || uc.includes(itemCircle);
-          });
-          matchedItemObj = circleMatch || matches[0];
-        }
-      }
+    // If we couldn't find candidates by exact lookup maps, we need to search the circle manually
+    if (candidateItems.length === 0 && itemsByCircle.has(uc)) {
+       candidateItems = itemsByCircle.get(uc) || [];
     }
 
-    // Exact Description Match (Fallback)
-    if (!matchedItemObj && sr.description) {
-       const searchDesc = String(sr.description).trim().toLowerCase();
-       if (searchDesc) {
-         const matches = itemsByDescription.get(searchDesc);
-         if (matches && matches.length > 0) {
-           const circleMatch = matches.find(i => {
-             const itemCircle = String(i.dynamicData?.circle || '').toLowerCase();
-             return itemCircle === uc || itemCircle.includes(uc) || uc.includes(itemCircle);
-           });
-           matchedItemObj = circleMatch || matches[0];
-         }
-       }
+    // Filter to just the relevant circle
+    if (uc) {
+       candidateItems = candidateItems.filter(i => {
+         const itemCircle = String(i.dynamicData?.circle || '').toLowerCase();
+         return itemCircle === uc || itemCircle.includes(uc) || uc.includes(itemCircle);
+       });
+    }
+
+    // 1. Strict Match: TempCode AND LOA
+    if (!matchedItemObj && srTemp && srLoa) {
+       matchedItemObj = candidateItems.find(i => {
+           const iTemp = String(i.dynamicData?.tempCode || i.rawItem?.tempCode || '').trim().toLowerCase();
+           const iLoa = String(i.dynamicData?.sku || i.dynamicData?.loaSrNo || '').trim().toLowerCase();
+           return iTemp === srTemp && iLoa === srLoa;
+       });
+    }
+
+    // 2. TempCode AND Fuzzy Description
+    if (!matchedItemObj && srTemp && srDescFuzzy) {
+       matchedItemObj = candidateItems.find(i => {
+           const iTemp = String(i.dynamicData?.tempCode || i.rawItem?.tempCode || '').trim().toLowerCase();
+           const iDescFuzzy = fuzzy(i.dynamicData?.description || i.dynamicData?.name);
+           return iTemp === srTemp && iDescFuzzy === srDescFuzzy;
+       });
+    }
+
+    // 3. LOA AND Fuzzy Description
+    if (!matchedItemObj && srLoa && srDescFuzzy) {
+       matchedItemObj = candidateItems.find(i => {
+           const iLoa = String(i.dynamicData?.sku || i.dynamicData?.loaSrNo || '').trim().toLowerCase();
+           const iDescFuzzy = fuzzy(i.dynamicData?.description || i.dynamicData?.name);
+           return iLoa === srLoa && iDescFuzzy === srDescFuzzy;
+       });
+    }
+
+    // 4. Fuzzy Description ONLY (if it uniquely matches, or just take the first)
+    if (!matchedItemObj && srDescFuzzy) {
+       matchedItemObj = candidateItems.find(i => {
+           const iDescFuzzy = fuzzy(i.dynamicData?.description || i.dynamicData?.name);
+           return iDescFuzzy === srDescFuzzy;
+       });
+    }
+    
+    // 5. LOA ONLY (last resort)
+    if (!matchedItemObj && srLoa) {
+       matchedItemObj = candidateItems.find(i => {
+           const iLoa = String(i.dynamicData?.sku || i.dynamicData?.loaSrNo || '').trim().toLowerCase();
+           return iLoa === srLoa;
+       });
     }
 
     if (matchedItemObj) {
@@ -731,6 +763,9 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
       
       const siteRecords = recordsBySite[c];
       if (siteRecords.length === 0) {
+        const meta = siteMeta[c] || {};
+        const siteName = meta.Location || meta.SubStation || meta.Division || meta.Circle || `Column ${c}`;
+        flagged.push({ sourceFile, sheetName, issue: `Site '${siteName}' was skipped because it has no item quantities filled.` });
         colIdx++;
         continue;
       }

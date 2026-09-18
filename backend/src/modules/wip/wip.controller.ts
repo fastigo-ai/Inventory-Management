@@ -680,10 +680,7 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
             } else {
               const idStr = itemId.toString();
               if (seenItems.has(idStr)) {
-                const issueMsg = `Row ${sr.rowNum}: Duplicate item found. This item was already listed on row ${seenItems.get(idStr)}.`;
-                if (!flagged.some(f => f.issue === issueMsg)) flagged.push({ sourceFile, sheetName, issue: issueMsg });
-                sheetHasErrors = true;
-                continue;
+                throw new ApiError(400, `Validation Error in sheet '${sheetName}': Duplicate item found on row ${sr.rowNum || 'unknown'} (Item was already listed on row ${seenItems.get(idStr)}). The entire import has been rejected.`);
               } else {
                 seenItems.set(idStr, sr.rowNum);
               }

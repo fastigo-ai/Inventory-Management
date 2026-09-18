@@ -2411,3 +2411,20 @@ export const getVendorItemisedSummary = asyncHandler(async (req: Request, res: R
     }
   }, 'Vendor itemised summary fetched successfully'));
 });
+
+// ===== Contractor Stock Reconciliation =====
+import { getContractorStockPosition } from './reconciliation.service';
+
+export const getContractorStockReconciliation = asyncHandler(async (req: Request, res: Response) => {
+  const { circle, subcircle, contractorId, tempCode, package: pkg } = req.query;
+
+  const result = await getContractorStockPosition({
+    circle: circle as string,
+    subcircle: subcircle as string,
+    contractorId: contractorId as string,
+    tempCode: tempCode as string,
+    package: pkg as string
+  });
+
+  res.status(200).json(new ApiResponse(200, result, 'Contractor stock reconciliation fetched successfully'));
+});

@@ -32,9 +32,11 @@ router.get('/item-summary/:itemId', getItemDetails);
 
 import { getItemLedger } from './itemLedger.controller';
 import { getSiteContractorSummary } from '../siteContractorSummary.controller';
+import { getContractorStockReconciliation } from './summary.controller';
 
 router.get('/item-ledger', getItemLedger);
 router.get('/site-contractor-summary', getSiteContractorSummary);
+router.get('/contractor-stock-reconciliation', getContractorStockReconciliation);
 
 export default router;
 

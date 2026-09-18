@@ -74,7 +74,8 @@ const navItems: NavItem[] = [
       { title: 'Store Itemised Summary', href: '/reports/store-summary' },
       { title: 'Store Contractor Summary', href: '/reports/store-contractor-summary' },
       { title: 'Site Contractor Summary', href: '/site-portal/contractor-summary' },
-      { title: 'Activity Contractor Summary', href: '/reports/activity-contractor-summary' }
+      { title: 'Activity Contractor Summary', href: '/reports/activity-contractor-summary' },
+      { title: 'Contractor Stock Position', href: '/reports/contractor-stock-reconciliation' }
     ]
   },
   {

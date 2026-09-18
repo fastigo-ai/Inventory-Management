@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { uploadWipExcel } from '../api/wip.api';
 import { API_BASE_URL } from '@/shared/api/axios';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Props {
   open: boolean;
@@ -20,6 +21,7 @@ export function WipBulkUploadModal({ open, onOpenChange, onSuccess }: Props) {
 
   const [missingItems, setMissingItems] = useState<any[]>([]);
   const [stageMessage, setStageMessage] = useState<string>('');
+  const [conflictStrategy, setConflictStrategy] = useState('skip');
 
   const handleUpload = async () => {
     if (!files || files.length === 0) return;
@@ -37,6 +39,7 @@ export function WipBulkUploadModal({ open, onOpenChange, onSuccess }: Props) {
         formData.append('files', files[i]);
       }
       formData.append('clientId', clientId);
+      formData.append('conflictStrategy', conflictStrategy);
 
       // Connect to SSE before starting the upload
       const eventSource = new EventSource(`${API_BASE_URL}/api/sse/events?clientId=${clientId}`);
@@ -139,6 +142,24 @@ export function WipBulkUploadModal({ open, onOpenChange, onSuccess }: Props) {
             onChange={(e) => setFiles(e.target.files)} 
             disabled={status === 'uploading' || status === 'processing'}
           />
+
+          <div className="space-y-2">
+            <p className="text-sm font-medium">If WIP already exists for location:</p>
+            <Select 
+              value={conflictStrategy}
+              onValueChange={setConflictStrategy}
+              disabled={status === 'uploading' || status === 'processing'}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select strategy" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="skip">Skip existing (Do nothing)</SelectItem>
+                <SelectItem value="replace">Replace existing Draft (Overwrite)</SelectItem>
+                <SelectItem value="update">Update existing Draft (Add quantities)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
           {(status === 'uploading' || status === 'processing' || status === 'complete') && (
             <div className="space-y-2">

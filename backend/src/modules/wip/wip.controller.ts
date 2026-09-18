@@ -740,8 +740,63 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
           }
 
           const existingWipNo = meta.WipNumber || null;
-
+          let existingWip = null;
+          
           if (existingWipNo) {
+             existingWip = await WipRegister.findOne({ wipNumber: existingWipNo });
+          } else {
+             existingWip = await WipRegister.findOne({ 
+                contractorId: contractorId || null, 
+                package: (user as any).assignedPackage || meta.DrawingNo || '', 
+                location: meta.Location || '', 
+                circle: (user as any).assignedCircle || meta.Circle || '', 
+                division: meta.Division || '', 
+                subDivision: meta.SubDivision || '', 
+                subStation: meta.SubStation || '', 
+                feeder: meta.Feeder || '' 
+             });
+          }
+
+          if (existingWip) {
+            if (conflictStrategy === 'skip') {
+              flagged.push({ sourceFile, sheetName, issue: `Skipped duplicate WIP Consumed for ${existingWip.circle} - ${existingWip.subDivision} - ${existingWip.location}` });
+              continue;
+            } else if (conflictStrategy === 'replace') {
+              if (existingWip.status !== 'Approved') {
+                await WipRegister.deleteOne({ _id: existingWip._id });
+                existingWip = null; // Proceed to create new
+              } else {
+                flagged.push({ sourceFile, sheetName, issue: `Cannot replace Approved WIP Consumed for ${existingWip.circle} - ${existingWip.subDivision} - ${existingWip.location}` });
+                continue;
+              }
+            } else if (conflictStrategy === 'update') {
+              if (existingWip.status !== 'Approved') {
+                for (const newItem of wipItems) {
+                  const existingItem = existingWip.items.find((i: any) => 
+                    (i.itemId && newItem.itemId && i.itemId.toString() === newItem.itemId.toString()) ||
+                    (!i.itemId && !newItem.itemId && i.description === newItem.description && i.activity === newItem.activity)
+                  );
+                  if (existingItem) {
+                    existingItem.claimedQty = (existingItem.claimedQty || 0) + (newItem.claimedQty || 0);
+                  } else {
+                    existingWip.items.push(newItem as any);
+                  }
+                }
+                
+                sheetWipsToCreate.push({
+                   isDirectUpdateDoc: true,
+                   doc: existingWip
+                } as any);
+                continue;
+              } else {
+                flagged.push({ sourceFile, sheetName, issue: `Cannot update Approved WIP Consumed for ${existingWip.circle} - ${existingWip.subDivision} - ${existingWip.location}` });
+                continue;
+              }
+            }
+          }
+
+          // If we reach here, we are creating a new WIP (or forcing an update by WipNumber if it wasn't found, though it should be found above)
+          if (existingWipNo && !existingWip) {
              sheetWipsToCreate.push({
                isUpdate: true,
                wipNumber: existingWipNo,
@@ -794,7 +849,9 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
           
           let savedCount = 0;
           for (const doc of sheetWipsToCreate) {
-             if (doc.isUpdate) {
+             if (doc.isDirectUpdateDoc) {
+                await doc.doc.save();
+             } else if (doc.isUpdate) {
                 const { isUpdate, wipNumber, ...updateData } = doc;
                 await WipRegister.findOneAndUpdate({ wipNumber: doc.wipNumber }, { $set: updateData });
              } else {

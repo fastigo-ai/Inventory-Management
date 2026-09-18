@@ -60,7 +60,6 @@ export default function JmcRegisterFormPage() {
     subCircle: "",
     division: "",
     subDivision: "",
-    subCircle: "",
     subStation: "",
     feeder: "",
     location: "",

@@ -30,6 +30,7 @@ export default function WipRegisterFormPage() {
     contractorId: "",
     package: user?.assignedPackage || "",
     circle: user?.assignedCircle || "",
+    subCircle: "",
     division: "",
     subDivision: "",
     subStation: "",

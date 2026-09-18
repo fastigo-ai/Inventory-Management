@@ -46,8 +46,28 @@ export function WipBulkUploadModal({ open, onOpenChange, onSuccess }: Props) {
         if (data.progress) setProgress(data.progress);
         if (data.message) setStageMessage(data.message);
         
-        if (data.stage === 'COMPLETED' || data.stage === 'ERROR') {
+        if (data.stage === 'COMPLETED') {
           eventSource.close();
+          setStatus('complete');
+          setStageMessage('Complete!');
+          setProgress(100);
+          setResult(data.data);
+          if (data.data?.flagged?.length === 0) {
+            onSuccess();
+            setTimeout(() => {
+              onOpenChange(false);
+              setStatus('idle');
+              setProgress(0);
+              setStageMessage('');
+            }, 2000);
+          } else {
+            onSuccess();
+          }
+        } else if (data.stage === 'ERROR') {
+          eventSource.close();
+          setError(data.message || 'Background upload failed');
+          setStatus('idle');
+          setProgress(0);
         }
       };
 
@@ -57,22 +77,25 @@ export function WipBulkUploadModal({ open, onOpenChange, onSuccess }: Props) {
 
       const res = await uploadWipExcel(formData);
 
-      eventSource.close();
-
-      setStatus('complete');
-      setStageMessage('Complete!');
-      setProgress(100);
-      setResult(res.data);
-      if (res.data?.flagged?.length === 0) {
-        onSuccess();
-        setTimeout(() => {
-          onOpenChange(false);
-          setStatus('idle');
-          setProgress(0);
-          setStageMessage('');
-        }, 2000);
+      if (res.status === 202) {
+        // Backend started background task, SSE listener will handle completion
       } else {
-        onSuccess(); // Still refresh list for saved records
+        eventSource.close();
+        setStatus('complete');
+        setStageMessage('Complete!');
+        setProgress(100);
+        setResult(res.data);
+        if (res.data?.flagged?.length === 0) {
+          onSuccess();
+          setTimeout(() => {
+            onOpenChange(false);
+            setStatus('idle');
+            setProgress(0);
+            setStageMessage('');
+          }, 2000);
+        } else {
+          onSuccess(); // Still refresh list for saved records
+        }
       }
     } catch (err: any) {
       const responseData = err.response?.data;

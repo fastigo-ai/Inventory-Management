@@ -261,21 +261,25 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
   }
 
   const clientId = (req.query.clientId as string) || (req.body.clientId as string);
-  
-  if (clientId) {
-    sseService.sendEvent(clientId, { stage: 'started', progress: 0, message: 'WIP Bulk Import Started' });
-    await new Promise(r => setTimeout(r, 50));
-  }
-
   const user = (req as any).user;
   const conflictStrategy = req.body.conflictStrategy || 'skip';
-  const flagged: any[] = [];
-  let totalSaved = 0;
+  const files = req.files as Express.Multer.File[];
 
   if (clientId) {
-    sseService.sendEvent(clientId, { stage: 'parsing', progress: 5, message: 'Fetching metadata...' });
-    await new Promise(r => setTimeout(r, 50));
+    res.status(202).json(new ApiResponse(202, null, 'Upload started in background. Please wait for completion.'));
   }
+
+  const processUpload = async () => {
+    try {
+      if (clientId) {
+        sseService.sendEvent(clientId, { stage: 'started', progress: 0, message: 'WIP Bulk Import Started' });
+        await new Promise(r => setTimeout(r, 50));
+        sseService.sendEvent(clientId, { stage: 'parsing', progress: 5, message: 'Fetching metadata...' });
+        await new Promise(r => setTimeout(r, 50));
+      }
+
+      const flagged: any[] = [];
+      let totalSaved = 0;
 
   // Pre-fetch all contractors and items for matching
   const allContractors = await Contractor.find({}).lean();
@@ -296,9 +300,9 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
 
   let { currentCount: initialCount, yearStr } = await getNextWipSequence();
 
-  const totalFiles = req.files.length;
+  const totalFiles = files.length;
   for (let fileIdx = 0; fileIdx < totalFiles; fileIdx++) {
-    const file = req.files[fileIdx];
+    const file = files[fileIdx];
     try {
       if (clientId) sseService.sendEvent(clientId, { 
         stage: 'parsing', 
@@ -547,11 +551,14 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
 
         // For each site column, create a WipRegister
         for (const c of siteCols) {
-          if (sheetHasErrors) break;
           const siteRecords = recordsBySite[c];
-          if (siteRecords.length === 0) continue;
-
-          const meta = siteMeta[c];
+          const meta = siteMeta[c] || {};
+          
+          if (siteRecords.length === 0) {
+            const siteName = meta.Location || meta.SubStation || meta.Division || meta.Circle || `Column ${c}`;
+            flagged.push({ sourceFile, sheetName, issue: `Site '${siteName}' was skipped because it has no item quantities filled.` });
+            continue;
+          }
           
           if ((user as any).assignedCircle && meta.Circle) {
             const assigned = String((user as any).assignedCircle).trim().toLowerCase();
@@ -566,7 +573,7 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
             
             const allowedCircles = SUB_STORE_MAP[assigned] || [assigned];
             if (!allowedCircles.includes(sheetCirc)) {
-              return res.status(403).json(new ApiResponse(403, null, `Permission Denied: You are assigned to circle '${(user as any).assignedCircle}', but the sheet '${sheetName}' contains data for circle '${meta.Circle}'. Please upload sheets only for your assigned circle (Allowed: ${allowedCircles.join(', ')}).`));
+              throw new ApiError(403, `Permission Denied: You are assigned to circle '${(user as any).assignedCircle}', but the sheet '${sheetName}' contains data for circle '${meta.Circle}'. Please upload sheets only for your assigned circle (Allowed: ${allowedCircles.join(', ')}).`);
             }
           }
           
@@ -600,7 +607,7 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
           // If still no contractorId, reject the WIP import for this site
           if (!contractorId) {
             const siteHeader = meta.Location || meta.SubStation || meta.Division || meta.Circle || `Column ${c}`;
-            return res.status(400).json(new ApiResponse(400, null, `Validation Error in sheet '${sheetName}' (Site: ${siteHeader}): Contractor '${contractorNameStr || 'Unknown'}' not found in the database. Please add this contractor first before importing.`));
+            throw new ApiError(400, `Validation Error in sheet '${sheetName}' (Site: ${siteHeader}): Contractor '${contractorNameStr || 'Unknown'}' not found in the database. Please add this contractor first before importing.`);
           }
           
           // Map Items
@@ -649,9 +656,10 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
                 const sheetActivity = String(sr.activity).trim().toLowerCase();
                 
                 if (sheetActivity && masterActivity && sheetActivity !== masterActivity) {
-                  flagged.push({ sourceFile, sheetName, issue: `Row ${sr.rowNum || sr.excelRow || 'unknown'}: Activity mismatch. Sheet specifies '${sr.activity}', but Master Item list specifies '${matchedItemObj.dynamicData?.activity || 'Unknown'}'. Sheet rejected.` });
+                  const issueMsg = `Row ${sr.rowNum || sr.excelRow || 'unknown'}: Activity mismatch. Sheet specifies '${sr.activity}', but Master Item list specifies '${matchedItemObj.dynamicData?.activity || 'Unknown'}'.`;
+                  if (!flagged.some(f => f.issue === issueMsg)) flagged.push({ sourceFile, sheetName, issue: issueMsg });
                   sheetHasErrors = true;
-                  break;
+                  continue;
                 }
               }
 
@@ -665,15 +673,17 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
             }
 
             if (!itemId) {
-              flagged.push({ sourceFile, sheetName, issue: `Row ${sr.rowNum}: Item '${sr.description}' with SKU '${sr.loa}' not found in Master Item List for circle '${uploadedCircle}'. Sheet rejected.` });
+              const issueMsg = `Row ${sr.rowNum}: Item '${sr.description}' with SKU '${sr.loa}' not found in Master Item List for circle '${uploadedCircle}'.`;
+              if (!flagged.some(f => f.issue === issueMsg)) flagged.push({ sourceFile, sheetName, issue: issueMsg });
               sheetHasErrors = true;
-              break;
+              continue;
             } else {
               const idStr = itemId.toString();
               if (seenItems.has(idStr)) {
-                flagged.push({ sourceFile, sheetName, issue: `Row ${sr.rowNum}: Duplicate item found. This item was already listed on row ${seenItems.get(idStr)}. Sheet rejected.` });
+                const issueMsg = `Row ${sr.rowNum}: Duplicate item found. This item was already listed on row ${seenItems.get(idStr)}.`;
+                if (!flagged.some(f => f.issue === issueMsg)) flagged.push({ sourceFile, sheetName, issue: issueMsg });
                 sheetHasErrors = true;
-                break;
+                continue;
               } else {
                 seenItems.set(idStr, sr.rowNum);
               }
@@ -695,7 +705,7 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
             });
           }
 
-          if (sheetHasErrors) break;
+          if (sheetHasErrors) continue;
 
           if (wipItems.length === 0) {
              flagged.push({ sourceFile, sheetName, issue: `No valid matched items found for ${meta.Location || 'Unknown Location'}. Skipped.` });
@@ -837,11 +847,25 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
     sseService.sendEvent(clientId, {
       stage: 'COMPLETED',
       progress: 100,
-      message: `Successfully imported ${totalSaved} WIP records.`
+      message: `Successfully imported ${totalSaved} WIP records.`,
+      data: { totalSaved, flagged }
     });
   }
 
-  res.status(200).json(
-    new ApiResponse(200, { totalSaved, flagged }, `Successfully imported ${totalSaved} WIP records.`)
-  );
+  return { totalSaved, flagged };
+    } catch (err: any) {
+      console.error('WIP background error:', err);
+      if (clientId) {
+        sseService.sendEvent(clientId, { stage: 'ERROR', progress: 0, message: err.message || 'Background upload failed' });
+      }
+      throw err;
+    }
+  };
+
+  if (clientId) {
+    processUpload().catch(e => console.error(e));
+  } else {
+    const result = await processUpload();
+    res.status(200).json(new ApiResponse(200, result, `Successfully imported ${result.totalSaved} WIP records.`));
+  }
 });

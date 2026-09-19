@@ -1,0 +1,3 @@
+- `[ ]` Update Backend JMC Export (`backend/src/modules/jmc/jmc.export.ts`)
+- `[ ]` Update Frontend WIP Required Export (`frontend/src/app/site-portal/wip-required/page.tsx`)
+- `[ ]` Update Frontend WIP Consumed Export (`frontend/src/app/site-portal/wip-consumed/page.tsx`)

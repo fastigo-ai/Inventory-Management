@@ -86,7 +86,8 @@ function DemandNoteForm() {
     // Fetch contractors for the dropdown
     const fetchAllContractors = async () => {
       try {
-        const res = await getContractors();
+        const locationParam = user?.assignedCircle || undefined;
+        const res = await getContractors(locationParam);
         if (res && res.data) {
           setContractorsList(res.data);
         } else if (Array.isArray(res)) {

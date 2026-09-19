@@ -1,11 +1,11 @@
 import { Request, Response } from 'express';
-import { WipRegister } from './wip.schema';
+import { WipRequiredRegister } from './wipRequired.schema';
 import { asyncHandler } from '../../core/utils/asyncHandler';
 import { ApiResponse } from '../../core/utils/ApiResponse';
 import * as xlsx from 'xlsx';
 import Item from '../items/item.model';
 
-export const exportWipExcel = asyncHandler(async (req: Request, res: Response) => {
+export const exportWipRequiredExcel = asyncHandler(async (req: Request, res: Response) => {
   const { contractorId, startDate, endDate, search, location, feeder, subDivision, subStation } = req.query;
 
   const filter: any = {};
@@ -35,10 +35,10 @@ export const exportWipExcel = asyncHandler(async (req: Request, res: Response) =
   }
 
   // Fetch WIPs
-  const wips = await WipRegister.find(filter).populate('contractorId items.itemId').lean();
+  const wips = await WipRequiredRegister.find(filter).populate('contractorId items.itemId').lean();
 
   if (!wips || wips.length === 0) {
-    return res.status(404).json(new ApiResponse(404, null, 'No WIPs found for export'));
+    return res.status(404).json(new ApiResponse(404, null, 'No WIP Requireds found for export'));
   }
 
   // Gather all unique activities from the WIPs
@@ -205,7 +205,7 @@ export const exportWipExcel = asyncHandler(async (req: Request, res: Response) =
 
   const buf = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
 
-  res.setHeader('Content-Disposition', 'attachment; filename="Wip_Export.xlsx"');
+  res.setHeader('Content-Disposition', 'attachment; filename="WipRequired_Export.xlsx"');
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   return res.send(buf);
 });

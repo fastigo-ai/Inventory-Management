@@ -48,7 +48,8 @@ export default function SiteContractorSummaryPage() {
   useEffect(() => {
     const fetchInitial = async () => {
       try {
-        const cRes = await getContractors(undefined, undefined, 1, 1000);
+        const locationParam = user?.assignedCircle || undefined;
+        const cRes = await getContractors(locationParam, undefined, 1, 1000);
         const list = cRes?.data?.contractors || cRes?.contractors || [];
         setContractors(list);
         if (list.length > 0 && !filters.contractorId) {

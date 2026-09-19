@@ -3,14 +3,16 @@
 import { useEffect, useState } from "react";
 import { getJmcs, deleteJmc, exportJmcTemplate } from "@/features/site-portal/api/jmc.api";
 import { getContractors } from "@/features/contractors/api/contractors.api";
-import { FileText, Plus, Trash2, Download, Edit, Eye, MoreVertical, TrendingUp, Users, IndianRupee } from "lucide-react";
+import { FileText, Plus, Trash2, Download, Edit, Eye, MoreVertical, TrendingUp, Users, IndianRupee, Filter } from "lucide-react";
 import { useClientTable } from "@/shared/hooks/useClientTable";
 import { DataTableTopControls, DataTableBottomControls } from "@/shared/components/DataTableControls";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { JmcBulkUploadModal } from "@/features/site-portal/components/JmcBulkUploadModal";
+import { useAuthStore } from "@/shared/store/auth.store";
 
 export default function JmcRegisterPage() {
+  const user = useAuthStore(state => state.user);
   const [isExporting, setIsExporting] = useState(false);
   const [entries, setEntries] = useState<any[]>([]);
   const [aggregates, setAggregates] = useState({ totalClaimed: 0, totalApproved: 0 });
@@ -67,7 +69,8 @@ export default function JmcRegisterPage() {
 
   const fetchContractors = async () => {
     try {
-      const res = await getContractors();
+      const locationParam = user?.assignedCircle || undefined;
+      const res = await getContractors(locationParam);
       setContractorsList(res?.data || res || []);
     } catch (error) {
       console.error(error);
@@ -165,98 +168,128 @@ export default function JmcRegisterPage() {
         </div>
 
         {/* Page Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-800">JMC Register</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Track and manage JMC entries with contractor details, claims and approvals.</p>
-        </div>
-
-        {/* Filters Row */}
-        <div className="flex flex-wrap items-center gap-3 mb-5">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-500 font-medium">From</span>
-            <input 
-              type="date" 
-              value={startDate} 
-              onChange={(e) => setStartDate(e.target.value)}
-              className="h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
-            />
+        <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800">JMC Register</h1>
+            <p className="text-sm text-slate-500 mt-0.5">Track and manage JMC entries with contractor details, claims and approvals.</p>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-500 font-medium">To</span>
-            <input 
-              type="date" 
-              value={endDate} 
-              onChange={(e) => setEndDate(e.target.value)}
-              className="h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
-            />
-          </div>
-          {contractorsList.length > 0 && (
-            <select 
-              className="h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm min-w-[180px]"
-              value={selectedContractor}
-              onChange={(e) => setSelectedContractor(e.target.value)}
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="outline" onClick={exportData} disabled={isExporting} className="bg-red-50 text-red-600 border-red-200 hover:bg-red-100 rounded-lg shadow-sm whitespace-nowrap font-semibold">
+              {isExporting ? 'Exporting...' : <><Download className="mr-2 h-4 w-4" /> Export Data</>}
+            </Button>
+            <Button variant="outline" onClick={() => setUploadModalOpen(true)} className="rounded-lg shadow-sm whitespace-nowrap">
+              <FileText className="mr-2 h-4 w-4" /> Bulk Upload JMC
+            </Button>
+            <Button 
+              onClick={() => router.push('/site-portal/jmc-register/new')}
+              className="bg-[#0076f2] hover:bg-[#005fc4] text-white rounded-lg shadow-sm whitespace-nowrap px-5"
             >
-              <option value="All">All Contractors</option>
-              {contractorsList.map((contractor: any) => (
-                <option key={contractor._id} value={contractor._id}>
-                  {contractor.name || contractor.vendorName || contractor.dynamicData?.companyName || 'Unknown'}
-                </option>
-              ))}
-            </select>
-          )}
-          <input 
-            type="text" 
-            placeholder="Location..." 
-            value={locationFilter} 
-            onChange={(e) => setLocationFilter(e.target.value)}
-            className="h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm w-[130px]"
-          />
-          <input 
-            type="text" 
-            placeholder="Feeder..." 
-            value={feederFilter} 
-            onChange={(e) => setFeederFilter(e.target.value)}
-            className="h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm w-[130px]"
-          />
-          <input 
-            type="text" 
-            placeholder="Division..." 
-            value={divisionFilter} 
-            onChange={(e) => setDivisionFilter(e.target.value)}
-            className="h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm w-[130px]"
-          />
-          <input 
-            type="text" 
-            placeholder="SubDivision..." 
-            value={subDivisionFilter} 
-            onChange={(e) => setSubDivisionFilter(e.target.value)}
-            className="h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm w-[130px]"
-          />
-          <input 
-            type="text" 
-            placeholder="SubStation..." 
-            value={subStationFilter} 
-            onChange={(e) => setSubStationFilter(e.target.value)}
-            className="h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm w-[130px]"
-          />
-          <div className="flex-1" />
-          <Button variant="outline" onClick={exportData} disabled={isExporting} className="bg-red-50 text-red-600 border-red-200 hover:bg-red-100 rounded-lg shadow-sm whitespace-nowrap font-semibold">
-            {isExporting ? 'Exporting...' : <><Download className="mr-2 h-4 w-4" /> Export Data
-          </>}
-          </Button>
-          <Button variant="outline" onClick={() => setUploadModalOpen(true)} className="rounded-lg shadow-sm whitespace-nowrap">
-            <FileText className="mr-2 h-4 w-4" /> Bulk Upload JMC
-          </Button>
+              <Plus className="mr-2 h-4 w-4" /> New JMC Entry
+            </Button>
+          </div>
         </div>
 
-        {/* New Entry Button */}
-        <div className="mb-5">
-          <Button 
-            onClick={() => router.push('/site-portal/jmc-register/new')}
-            className="bg-[#0076f2] hover:bg-[#005fc4] text-white rounded-lg shadow-sm whitespace-nowrap px-5"
-          >
-            <Plus className="mr-2 h-4 w-4" /> New JMC Entry
-          </Button>
+        {/* Filters Section */}
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm mb-6">
+          <div className="flex items-center mb-4">
+            <Filter className="w-4 h-4 text-slate-500 mr-2" />
+            <h3 className="text-sm font-semibold text-slate-700">Filter Records</h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4">
+            {/* From Date */}
+            <div>
+              <label className="text-xs text-slate-500 font-medium mb-1.5 block">From Date</label>
+              <input 
+                type="date" 
+                value={startDate} 
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+              />
+            </div>
+            {/* To Date */}
+            <div>
+              <label className="text-xs text-slate-500 font-medium mb-1.5 block">To Date</label>
+              <input 
+                type="date" 
+                value={endDate} 
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+              />
+            </div>
+            {/* Contractor */}
+            {contractorsList.length > 0 && (
+              <div className="xl:col-span-2">
+                <label className="text-xs text-slate-500 font-medium mb-1.5 block">Contractor</label>
+                <select 
+                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                  value={selectedContractor}
+                  onChange={(e) => setSelectedContractor(e.target.value)}
+                >
+                  <option value="All">All Contractors</option>
+                  {contractorsList.map((contractor: any) => (
+                    <option key={contractor._id} value={contractor._id}>
+                      {contractor.name || contractor.vendorName || contractor.dynamicData?.companyName || 'Unknown'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {/* Location */}
+            <div>
+              <label className="text-xs text-slate-500 font-medium mb-1.5 block">Location</label>
+              <input 
+                type="text" 
+                placeholder="Search..." 
+                value={locationFilter} 
+                onChange={(e) => setLocationFilter(e.target.value)}
+                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+              />
+            </div>
+            {/* Feeder */}
+            <div>
+              <label className="text-xs text-slate-500 font-medium mb-1.5 block">Feeder</label>
+              <input 
+                type="text" 
+                placeholder="Search..." 
+                value={feederFilter} 
+                onChange={(e) => setFeederFilter(e.target.value)}
+                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+              />
+            </div>
+            {/* Division */}
+            <div>
+              <label className="text-xs text-slate-500 font-medium mb-1.5 block">Division</label>
+              <input 
+                type="text" 
+                placeholder="Search..." 
+                value={divisionFilter} 
+                onChange={(e) => setDivisionFilter(e.target.value)}
+                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+              />
+            </div>
+            {/* SubDivision */}
+            <div>
+              <label className="text-xs text-slate-500 font-medium mb-1.5 block">SubDivision</label>
+              <input 
+                type="text" 
+                placeholder="Search..." 
+                value={subDivisionFilter} 
+                onChange={(e) => setSubDivisionFilter(e.target.value)}
+                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+              />
+            </div>
+            {/* SubStation */}
+            <div>
+              <label className="text-xs text-slate-500 font-medium mb-1.5 block">SubStation</label>
+              <input 
+                type="text" 
+                placeholder="Search..." 
+                value={subStationFilter} 
+                onChange={(e) => setSubStationFilter(e.target.value)}
+                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Business Insights Dashboard */}

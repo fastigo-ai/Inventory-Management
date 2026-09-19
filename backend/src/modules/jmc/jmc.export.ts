@@ -4,6 +4,7 @@ import { asyncHandler } from '../../core/utils/asyncHandler';
 import { ApiResponse } from '../../core/utils/ApiResponse';
 import mongoose from 'mongoose';
 import * as xlsx from 'xlsx';
+import Item from '../items/item.model';
 
 export const exportJmcExcel = asyncHandler(async (req: Request, res: Response) => {
   const { contractorId, startDate, endDate, search, location, feeder, division, subDivision, subStation, circle } = req.query;
@@ -70,20 +71,50 @@ export const exportJmcExcel = asyncHandler(async (req: Request, res: Response) =
     return res.status(404).json(new ApiResponse(404, null, 'No JMCs found for export'));
   }
 
-  // Collect all unique items that have claimedQty > 0 across these JMCs
-  const itemMap = new Map<string, any>();
+  // Gather all unique activities from the JMCs
+  const uniqueActivities = new Set<string>();
   jmcs.forEach((jmc: any) => {
-    jmc.items.forEach((item: any) => {
-      if (item.claimedQty > 0 && item.itemId) {
-        const idStr = item.itemId._id.toString();
-        if (!itemMap.has(idStr)) {
-          itemMap.set(idStr, item.itemId);
-        }
+    (jmc.items || []).forEach((item: any) => {
+      if (item.activity && String(item.activity).trim() !== '') {
+        uniqueActivities.add(String(item.activity).trim());
       }
     });
   });
 
-  const uniqueItems = Array.from(itemMap.values());
+  // Collect JMC Circles to fetch relevant master items
+  const jmcCircles = new Set<string>();
+  jmcs.forEach((jmc: any) => {
+    if (jmc.circle) jmcCircles.add(jmc.circle);
+  });
+
+  // Fetch all master items for these activities and circles
+  const itemFilter: any = {};
+  if (jmcCircles.size > 0) {
+    itemFilter['dynamicData.circle'] = { $in: Array.from(jmcCircles).map(c => new RegExp(`^${c}$`, 'i')) };
+  }
+  const items = await Item.find(itemFilter).lean();
+
+  // Group master items by activity
+  const itemsByActivity: Record<string, any[]> = {};
+  Array.from(uniqueActivities).forEach(act => {
+    itemsByActivity[act] = [];
+  });
+
+  items.forEach((item: any) => {
+    const act = item.dynamicData?.activity ? String(item.dynamicData.activity).trim() : '';
+    if (act && uniqueActivities.has(act)) {
+      itemsByActivity[act].push(item);
+    } else if (act) {
+       // Optional: we can include case-insensitive matches
+       const lowerAct = act.toLowerCase();
+       for (const uAct of uniqueActivities) {
+         if (uAct.toLowerCase() === lowerAct) {
+           itemsByActivity[uAct].push(item);
+           break;
+         }
+       }
+    }
+  });
 
   // Generate Excel Data
   const wsData: any[][] = [];
@@ -132,31 +163,72 @@ export const exportJmcExcel = asyncHandler(async (req: Request, res: Response) =
   );
 
   // Item Headers
-  const headerRow = ["LOA SR.NO.", "Description", "Unit"];
+  const headerRow = ["SR.NO.", "LOA SR.NO.", "Material Code", "Description", "Unit"];
   jmcs.forEach((jmc: any) => {
-    headerRow.push("JMC"); // column for JMC qty
+    headerRow.push("JMC Qty"); // column for JMC qty
   });
   wsData.push(headerRow);
 
-  // Item rows
-  uniqueItems.forEach((item: any) => {
-    const d = item.dynamicData || {};
-    const row = [
-      d.loaSrNo || d.sku || '',
-      d.description || d.name || '',
-      d.unit || d.uom || ''
-    ];
+  let srNo = 1;
+  // Iterate through each unique activity present in the JMCs
+  Array.from(uniqueActivities).forEach(activity => {
+    // Push Activity Header Row (e.g. ["AUGMENTATION DTRS...", "", ""])
+    wsData.push([activity, "", "", "", ""]);
+    
+    const activityItems = itemsByActivity[activity] || [];
+    
+    activityItems.forEach((masterItem: any) => {
+      const d = masterItem.dynamicData || {};
+      const tempCode = d.tempCode || masterItem.tempCode || '';
+      const loaSrNo = d.loaSrNo || d.loaSerialNo || d.sku || masterItem.sku || '';
 
-    jmcs.forEach((jmc: any) => {
-      const jmcItem = jmc.items.find((i: any) => i.itemId && i.itemId._id.toString() === item._id.toString());
-      if (jmcItem && jmcItem.claimedQty > 0) {
-        row.push(jmcItem.claimedQty);
-      } else {
-        row.push(''); // Empty string instead of 0 to keep it clean, matching template
-      }
+      const row = [
+        srNo++,
+        loaSrNo,
+        tempCode,
+        d.description || d.itemDescription || d.name || '',
+        d.unit || d.uom || ''
+      ];
+
+      // For each JMC column, find if this masterItem was claimed
+      jmcs.forEach((jmc: any) => {
+        const jmcItem = jmc.items.find((i: any) => {
+          if (i.itemId && i.itemId._id && masterItem._id) {
+            return i.itemId._id.toString() === masterItem._id.toString();
+          }
+          const actMatch = (i.activity || '').trim().toLowerCase() === (activity || '').trim().toLowerCase();
+          if (!actMatch) return false;
+          
+          const iTemp = String(i.tempCode || '').trim();
+          const mTemp = String(tempCode || '').trim();
+          const iLoa = String(i.loaSrNo || i.loaSerialNo || '').trim();
+          const mLoa = String(loaSrNo || '').trim();
+          
+          if (iTemp && iLoa && mTemp && mLoa) {
+             return iTemp === mTemp && iLoa === mLoa;
+          }
+          
+          const iDesc = String(i.description || i.itemDescription || '').trim().toLowerCase();
+          const mDesc = String(d.description || d.itemDescription || d.name || '').trim().toLowerCase();
+          
+          if (iTemp && mTemp) {
+             return iTemp === mTemp && iDesc === mDesc;
+          }
+          if (iLoa && mLoa) {
+             return iLoa === mLoa && iDesc === mDesc;
+          }
+          return iDesc === mDesc;
+        });
+
+        if (jmcItem && (jmcItem.claimedQty > 0 || jmcItem.approvedQty > 0 || jmcItem.quantity > 0)) {
+          row.push(jmcItem.approvedQty || jmcItem.claimedQty || jmcItem.quantity);
+        } else {
+          row.push(0); // output 0 matching UI
+        }
+      });
+
+      wsData.push(row);
     });
-
-    wsData.push(row);
   });
 
   const ws = xlsx.utils.aoa_to_sheet(wsData);

@@ -28,3 +28,11 @@ export const uploadWipRequiredExcel = async (formData: FormData) => {
   });
   return response.data;
 };
+
+export const exportWipRequiredTemplate = async (params?: any) => {
+  const res = await api.get('/wip-required/export/template', {
+    params,
+    responseType: 'blob'
+  });
+  return res.data;
+};

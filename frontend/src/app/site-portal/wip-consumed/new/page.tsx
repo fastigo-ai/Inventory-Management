@@ -105,7 +105,8 @@ export default function WipRegisterFormPage() {
 
   const fetchContractors = async () => {
     try {
-      const res = await getContractors();
+      const locationParam = user?.assignedCircle || undefined;
+      const res = await getContractors(locationParam);
       setContractors(res?.data || (Array.isArray(res) ? res : []));
     } catch (err) {
       console.error(err);

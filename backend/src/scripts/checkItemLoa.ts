@@ -11,17 +11,13 @@ async function checkItem() {
   
   const items = await Item.find({ 
       "dynamicData.circle": { $regex: /solan/i },
-      $or: [
-          { "dynamicData.name": { $regex: /Nuts and Bolts/i } },
-          { "dynamicData.description": { $regex: /Nuts and Bolts/i } },
-          { "dynamicData.itemDescription": { $regex: /Nuts and Bolts/i } }
-      ]
-  }).lean();
+      "dynamicData.sku": "482"
+  }).lean() as any[];
   
-  items.slice(0, 10).forEach((m: any) => {
-      const d = m.dynamicData || {};
-      console.log(`TempCode: '${d.tempCode}', LOA: '${d.loaSrNo || d.sku}'`);
-  });
+  console.log(`Found ${items.length} items in Solan with LOA 482`);
+  if (items.length > 0) {
+      console.log(items[0].dynamicData);
+  }
   
   process.exit(0);
 }

@@ -22,9 +22,14 @@ import {
   commitStagingData
 } from './wipRequiredStaging.controller';
 
+import { exportWipRequiredExcel } from './wipRequired.export';
+
 const router = Router();
 
 router.use(authenticate);
+
+// Export
+router.get('/export/template', exportWipRequiredExcel);
 
 // Legacy memory-based upload (deprecated for bulk, kept for backwards compatibility if needed)
 router.post('/upload', requireRole(['Admin', 'Site Manager']), uploadMemory.array('files'), uploadWipRequiredExcel);

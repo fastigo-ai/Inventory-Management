@@ -145,7 +145,8 @@ export default function JmcRegisterFormPage() {
 
   const fetchContractors = async () => {
     try {
-      const res = await getContractors();
+      const locationParam = user?.assignedCircle || undefined;
+      const res = await getContractors(locationParam);
       setContractors(res?.data || (Array.isArray(res) ? res : []));
     } catch (err) {
       console.error(err);
@@ -213,11 +214,10 @@ export default function JmcRegisterFormPage() {
           const desc = ai.dynamicData?.description || ai.dynamicData?.itemDescription || ai.dynamicData?.name || '';
           
           const exists = newItems.find(item => 
-            String(item.activity || '').trim().toLowerCase() === lowerActivity.trim() && (
-              (temp && String(item.tempCode) === String(temp)) || 
-              (loa && String(item.loaSrNo) === String(loa)) ||
-              (item.description === desc)
-            )
+            String(item.activity || '').trim().toLowerCase() === lowerActivity.trim() &&
+            String(item.tempCode || '') === String(temp || '') &&
+            String(item.loaSrNo || '') === String(loa || '') &&
+            String(item.description || '') === String(desc || '')
           );
           
           if (!exists) {

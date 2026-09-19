@@ -1137,7 +1137,7 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
       const tempCode = row['TempCode'] || row['Temp Code'] || '';
       const circle = row['Circle'] || row['circle'] || '';
       const activity = row['Activity'] || row['activity'] || '';
-      const loaSrNo = row['LoaSrNo'] || row['Loa Sr No'] || row['Loa Sr. No'] || '';
+      const loaSrNo = row['LoaSrNo'] || row['Loa Sr No'] || row['Loa Sr. No'] || row['LOA Serial No'] || '';
       const unit = row['Unit'] || row['unit'] || '';
       
       if (!itemName && !tempCode) {

@@ -105,6 +105,8 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions = {}) {
 
   // --- SAVE HOOKS ---
   schema.pre('save', async function (this: any) {
+    if (this.$isSubdocument || typeof this.ownerDocument === 'function') return; // Skip subdocuments
+
     const entityType = getEntityName(this, options);
     if (!isEntityTracked(entityType, options)) return;
 
@@ -120,6 +122,8 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions = {}) {
   });
 
   schema.post('save', async function (doc: any) {
+    if (doc.$isSubdocument || typeof doc.ownerDocument === 'function') return; // Skip subdocuments
+
     const entityType = getEntityName(doc, options);
     if (!isEntityTracked(entityType, options)) return;
 

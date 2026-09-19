@@ -347,6 +347,7 @@ export default function DemandNoteDetailPage() {
                 <th className="px-6 py-4 text-center">Till Issued</th>
                 <th className="px-6 py-4 text-center">WIP Consumed</th>
                 <th className="px-6 py-4 text-center">JMC Done</th>
+                <th className="px-6 py-4 text-center text-teal-700">Contractor Balance</th>
                 <th className="px-6 py-4 font-bold text-indigo-700 bg-indigo-50/50">Demand Qty</th>
               </tr>
             </thead>
@@ -367,6 +368,7 @@ export default function DemandNoteDetailPage() {
                   const jmcDone = stockMatch ? (stockMatch.jmcDone || 0) : 0;
                   const circleLoaQty = stockMatch ? (stockMatch.circleLoaQty || 0) : 0;
                   const invoiceQty = stockMatch ? ((stockMatch.acceptedQty || 0) + (stockMatch.mhrovQty || 0)) : 0;
+                  const contractorBalance = Number(tillIssued || 0) - Number(jmcDone || 0) - Number(consumption || 0);
                   return (
                   <tr key={idx} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4 text-sm text-slate-600">{idx + 1}</td>
@@ -383,6 +385,7 @@ export default function DemandNoteDetailPage() {
                     <td className="px-6 py-4 text-center font-medium text-blue-600">{Math.round(Number(tillIssued || 0))}</td>
                     <td className="px-6 py-4 text-center font-medium text-orange-600">{Math.round(Number(consumption || 0))}</td>
                     <td className="px-6 py-4 text-center font-medium text-purple-600">{Math.round(Number(jmcDone || 0))}</td>
+                    <td className="px-6 py-4 text-center font-bold text-teal-600">{Math.round(contractorBalance)}</td>
                     <td className="px-6 py-4 font-bold text-indigo-600 bg-indigo-50/30">{Math.round(Number(item.demandQty || 0))}</td>
                   </tr>
                 )})

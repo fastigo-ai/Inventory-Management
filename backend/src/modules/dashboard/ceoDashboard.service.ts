@@ -294,11 +294,11 @@ export const buildCeoDashboardSummary = async (filters: any) => {
     },
     charts: {
       physicalStockProgress: [
-        { name: 'Received', total: totalInwardQty * 1.2 || 100, completed: totalInwardQty, balance: (totalInwardQty * 1.2 || 100) - totalInwardQty },
+        { name: 'Received', total: totalInwardQty * 1.2 || 100, completed: totalInwardQty, balance: Math.max(0, (totalInwardQty * 1.2 || 100) - totalInwardQty) },
         { name: 'Inward', total: totalInwardQty, completed: totalInwardQty, balance: 0 },
-        { name: 'MHROV', total: totalInwardQty, completed: totalMhrovQty, balance: totalInwardQty - totalMhrovQty },
+        { name: 'MHROV', total: totalInwardQty, completed: totalMhrovQty, balance: Math.max(0, totalInwardQty - totalMhrovQty) },
         { name: 'Available', total: totalInwardQty, completed: Math.max(0, totalInwardQty - totalIssuedQty), balance: totalIssuedQty },
-        { name: 'Issued', total: totalInwardQty, completed: totalIssuedQty, balance: totalInwardQty - totalIssuedQty },
+        { name: 'Issued', total: totalInwardQty, completed: totalIssuedQty, balance: Math.max(0, totalInwardQty - totalIssuedQty) },
         { name: 'JMC', total: totalIssuedQty || 100, completed: totalJmcQty, balance: Math.max(0, (totalIssuedQty || 100) - totalJmcQty) },
         { name: 'WIP Consumed', total: totalIssuedQty || 100, completed: totalWipQty, balance: Math.max(0, (totalIssuedQty || 100) - totalWipQty) },
         { name: 'WIP Required', total: totalIssuedQty || 100, completed: totalWipReqQty, balance: Math.max(0, (totalIssuedQty || 100) - totalWipReqQty) },

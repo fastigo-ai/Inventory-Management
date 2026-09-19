@@ -101,8 +101,8 @@ export const FinancialProgressChart = ({ data }: { data: any[] }) => {
             <Bar dataKey="billed" stackId="a" fill="#2563eb" radius={[0, 0, 4, 4]}>
               <LabelList dataKey="billed" position="top" fill="#4b5563" fontSize={11} formatter={(val: any) => val > 0 ? val : ''} />
             </Bar>
-            <Bar dataKey="pending" stackId="a" fill="#e5e7eb" radius={[4, 4, 0, 0]}>
-               <LabelList dataKey="pending" position="top" fill="#4b5563" fontSize={11} formatter={(val: any) => val > 0 ? val : ''} />
+            <Bar dataKey="Pending" stackId="a" fill="#e5e7eb" radius={[4, 4, 0, 0]}>
+               <LabelList dataKey="Pending" position="top" fill="#4b5563" fontSize={11} formatter={(val: any) => val > 0 ? val : ''} />
             </Bar>
           </BarChart>
         </ResponsiveContainer>

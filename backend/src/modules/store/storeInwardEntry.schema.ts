@@ -56,7 +56,7 @@ export interface IStoreInwardEntry extends Document {
   package?: string;
   serialNumber?: string;
   
-  status: 'DRAFT' | 'PENDING_RECEIPT' | 'APPROVED' | 'SUBMITTED' | 'VERIFIED' | 'NEEDS_CORRECTION' | 'VOIDED';
+  status: 'Draft' | 'Pending Receipt' | 'Approved' | 'Submitted' | 'Verified' | 'Needs Correction' | 'Voided';
   
   mhrovDoneQty?: number;
   pendingMhrovQty?: number;
@@ -140,8 +140,8 @@ const storeInwardEntrySchema = new Schema<IStoreInwardEntry>(
     
     status: { 
       type: String, 
-      enum: ['DRAFT', 'PENDING_RECEIPT', 'APPROVED', 'SUBMITTED', 'VERIFIED', 'NEEDS_CORRECTION', 'VOIDED'], 
-      default: 'DRAFT',
+      enum: ['Draft', 'Pending Receipt', 'Approved', 'Submitted', 'Verified', 'Needs Correction', 'Voided'], 
+      default: 'Draft',
       index: true
     },
     

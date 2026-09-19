@@ -116,7 +116,7 @@ export default function MhrovDetailPage() {
               </p>
               <span
                 className={`inline-flex items-center px-2 py-1 rounded-md text-[11px] font-medium uppercase tracking-wider ${
-                  mhrov.status?.toUpperCase() === "DONE" || mhrov.status?.toUpperCase() === "VERIFIED"
+                  mhrov.status?.toUpperCase() === "DONE" || mhrov.status?.toUpperCase() === "Verified"
                     ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                     : mhrov.status?.toUpperCase() === "PENDING"
                     ? "bg-amber-50 text-amber-700 border border-amber-200"

@@ -265,7 +265,7 @@ export default function MhrovPage() {
                                     <AlertCircle className="w-3 h-3 mr-1" />
                                     Not Started
                                   </span>
-                                ) : item.mhrovData.status?.toUpperCase() === 'DONE' || item.mhrovData.status?.toUpperCase() === 'VERIFIED' ? (
+                                ) : item.mhrovData.status?.toUpperCase() === 'DONE' || item.mhrovData.status?.toUpperCase() === 'Verified' ? (
                                   <span className="inline-flex items-center px-2 py-1 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
                                     <CheckCircle2 className="w-3 h-3 mr-1" />
                                     Done
@@ -358,7 +358,7 @@ export default function MhrovPage() {
                         <td className="px-6 py-3">
                           <span
                             className={`inline-flex items-center px-2 py-1 rounded-md text-[11px] font-medium uppercase tracking-wider ${
-                              mhrov.status?.toUpperCase() === "DONE" || mhrov.status?.toUpperCase() === "VERIFIED"
+                              mhrov.status?.toUpperCase() === "DONE" || mhrov.status?.toUpperCase() === "Verified"
                                 ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                                 : mhrov.status?.toUpperCase() === "PENDING"
                                 ? "bg-amber-50 text-amber-700 border border-amber-200"
@@ -375,7 +375,7 @@ export default function MhrovPage() {
                           {itemCount} {itemCount === 1 ? 'Item' : 'Items'}
                         </td>
                       <td className="px-6 py-3 text-right flex justify-end gap-2">
-                        {mhrov.status?.toLowerCase() === 'pending' || mhrov.status?.toLowerCase() === 'draft' ? (
+                        {mhrov.status?.toLowerCase() === 'Pending' || mhrov.status?.toLowerCase() === 'draft' ? (
                           <Button
                             variant="ghost"
                             size="sm"

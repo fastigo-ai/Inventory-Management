@@ -33,8 +33,8 @@ const mhrovSchema = new Schema(
     status: { 
       type: String, 
       required: true,
-      enum: ['done', 'pending', 'MHROV done but not signed'],
-      default: 'pending',
+      enum: ['Done', 'Pending', 'Pending Signature'],
+      default: 'Pending',
       index: true
     },
     documentUrl: { type: String },

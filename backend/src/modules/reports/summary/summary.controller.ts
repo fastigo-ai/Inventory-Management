@@ -393,7 +393,7 @@ export const getContractorSummary = asyncHandler(async (req: Request, res: Respo
 export const getStoreSummary = asyncHandler(async (req: Request, res: Response) => {
   const { startDate, endDate } = req.query;
   
-  const matchQuery: any = { status: 'VERIFIED' };
+  const matchQuery: any = { status: 'Verified' };
   if (startDate || endDate) {
     matchQuery.date = {};
     if (startDate) matchQuery.date.$gte = new Date(startDate as string);

@@ -146,7 +146,7 @@ export default function EditInwardRegistrationForm() {
     setFormData((prev: any) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = async (status: 'DRAFT' | 'SUBMITTED' = 'SUBMITTED') => {
+  const handleSubmit = async (status: 'Draft' | 'Submitted' = 'Submitted') => {
     setSubmitting(true);
     try {
       const payload = {
@@ -169,7 +169,7 @@ export default function EditInwardRegistrationForm() {
       }
       
       await updateInwardEntry(existingId, payload);
-      alert(`Entry ${status === 'DRAFT' ? 'saved as draft' : 'submitted'} successfully!`);
+      alert(`Entry ${status === 'Draft' ? 'saved as draft' : 'submitted'} successfully!`);
       router.push("/store/receipts");
     } catch (error: any) {
       console.error(error);
@@ -473,7 +473,7 @@ export default function EditInwardRegistrationForm() {
           </div>
         </div>
 
-        {formData.status === 'APPROVED' || formData.status === 'VERIFIED' ? (
+        {formData.status === 'Approved' || formData.status === 'Verified' ? (
           <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6 mt-6">
             <h2 className="text-sm font-semibold text-red-600 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Admin Override Reason</h2>
             <div>
@@ -489,7 +489,7 @@ export default function EditInwardRegistrationForm() {
             Cancel
           </Button>
           <Button 
-            onClick={() => handleSubmit('SUBMITTED')} 
+            onClick={() => handleSubmit('Submitted')} 
             disabled={submitting}
             className="bg-blue-600 hover:bg-blue-700 text-white min-w-[140px] flex items-center gap-2"
           >

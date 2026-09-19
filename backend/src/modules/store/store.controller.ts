@@ -43,7 +43,7 @@ export const getPendingDIs = asyncHandler(async (req: Request, res: Response) =>
   for (const di of dis) {
     const existingEntry = await StoreInwardEntry.findOne({
       diId: di._id,
-      status: { $in: ['SUBMITTED', 'VERIFIED'] }
+      status: { $in: ['Submitted', 'Verified'] }
     });
     if (!existingEntry) {
       pendingDIs.push(di);
@@ -178,7 +178,7 @@ export const createInwardEntry = asyncHandler(async (req: Request, res: Response
 
   // Enforce 1 active inward entry per PI + tempCode combination
   // (A single PI can have multiple line items/tempCodes, each needing their own GRN)
-  const existingFilter: any = { status: { $ne: 'DRAFT' } };
+  const existingFilter: any = { status: { $ne: 'Draft' } };
   if (data.purchaseInvoiceId) {
     existingFilter.purchaseInvoiceId = data.purchaseInvoiceId;
     if (data.tempCode) existingFilter.tempCode = data.tempCode;
@@ -202,7 +202,7 @@ export const createInwardEntry = asyncHandler(async (req: Request, res: Response
   }
 
   // Packing list validation
-  if (data.status === 'SUBMITTED') {
+  if (data.status === 'Submitted') {
     if (!data.packingList || data.packingList.length === 0) {
       throw new ApiError(400, 'Packing list must contain at least one item to submit');
     }
@@ -215,7 +215,7 @@ export const createInwardEntry = asyncHandler(async (req: Request, res: Response
     }
     
     // Auto-approve upon submission
-    data.status = 'APPROVED';
+    data.status = 'Approved';
   }
 
   // If a Purchase Invoice matches another PO
@@ -230,7 +230,7 @@ export const createInwardEntry = asyncHandler(async (req: Request, res: Response
   }
 
   // If DRAFT, upsert based on PI/DI + tempCode so each line item gets its own draft
-  const draftFilter: any = { status: 'DRAFT' };
+  const draftFilter: any = { status: 'Draft' };
   if (data.purchaseInvoiceId) {
     draftFilter.purchaseInvoiceId = data.purchaseInvoiceId;
     if (data.tempCode) draftFilter.tempCode = data.tempCode;
@@ -250,7 +250,7 @@ export const createInwardEntry = asyncHandler(async (req: Request, res: Response
     // If it's being updated, we should really sync it, but since it's a DRAFT upsert it's fine.
     // If quantities change, pendingMhrovQty might need recalculation.
     // Assuming DRAFTs don't have MHROVs yet.
-    if (entry.status === 'DRAFT') {
+    if (entry.status === 'Draft') {
       data.pendingMhrovQty = Number(data.totalQty || data.invoiceQty || data.challanQty || 0);
     }
     entry = await StoreInwardEntry.findByIdAndUpdate(entry._id, data, { new: true });
@@ -262,7 +262,7 @@ export const createInwardEntry = asyncHandler(async (req: Request, res: Response
   }
 
   // If status is APPROVED (auto-approved from SUBMITTED), update stock
-  if (data.status === 'APPROVED') {
+  if (data.status === 'Approved') {
     await processInwardStockUpdate(entry._id.toString());
   }
 
@@ -497,7 +497,7 @@ export const getAdminInwardEntries = asyncHandler(async (req: Request, res: Resp
 
   // Only show submitted/verified ones to admin, unless explicitly asking for drafts
   if (!status) {
-    filter.status = { $ne: 'DRAFT' };
+    filter.status = { $ne: 'Draft' };
   }
 
   const entries = await StoreInwardEntry.find(filter)
@@ -518,7 +518,7 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
   }
 
   // Build filters for Inward, Assignments, Returns
-  const inwardFilter: any = { status: { $in: ['VERIFIED', 'APPROVED'] } };
+  const inwardFilter: any = { status: { $in: ['Verified', 'Approved'] } };
   if (circleFilter) inwardFilter.circle = { $regex: new RegExp(`^${circleFilter}$`, 'i') };
   if (packageFilter) inwardFilter.package = packageFilter;
 
@@ -1205,7 +1205,7 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
            circle: row['Circle'] || userObj?.assignedCircle || '',
            subcircle: row['Subcircle'] || userObj?.assignedSubcircle || '',
            package: row['Package'] || userObj?.assignedPackage || '',
-           status: 'APPROVED',
+           status: 'Approved',
            packingList: [{ packType: 'BOX', quantity: acceptedQty }],
            createdBy: userObj?._id,
            remarks: row['Remarks'] || 'Historical Opening Balance'
@@ -1333,7 +1333,7 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
         subcircle: row['Subcircle'] || invoiceItem.subcircle || poItem?.subcircle || '',
         package: row['Package'] || invoiceItem.package || poItem?.package || '',
         serialNumber: row['SerialNumber'] || loaSerialNo || poItem?.loaSerialNo || invoiceItem.itemName,
-        status: 'DRAFT',
+        status: 'Draft',
         packingList: [],
         createdBy: (req as any).user?._id
       });
@@ -1355,7 +1355,7 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
       let entry = null;
       if (payload.entryType !== 'HISTORICAL') {
          const draftFilter: any = { 
-           status: 'DRAFT',
+           status: 'Draft',
            purchaseInvoiceId: payload.purchaseInvoiceId,
            serialNumber: payload.serialNumber
          };
@@ -1369,7 +1369,7 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
       }
       
       // If it's an instantly-approved historical bypass, rebuild stock so it reflects immediately
-      if (payload.entryType === 'HISTORICAL' && payload.status === 'APPROVED' && payload.itemId) {
+      if (payload.entryType === 'HISTORICAL' && payload.status === 'Approved' && payload.itemId) {
          const { SummaryService } = await import('../reports/summary/summary.service');
          await SummaryService.rebuildForItem(payload.itemId.toString());
       }
@@ -1430,7 +1430,7 @@ export const getPendingStoreReceipts = asyncHandler(async (req: Request, res: Re
   } = req.query;
   
   const filter: any = { 
-    status: { $in: ['PENDING_RECEIPT', 'APPROVED'] }
+    status: { $in: ['Pending Receipt', 'Approved'] }
   };
   
   const baseOrConditions = [{ purchaseInvoiceId: { $exists: true } }, { entryType: 'HISTORICAL' }];
@@ -1554,12 +1554,12 @@ export const getInwardRegister = asyncHandler(async (req: Request, res: Response
     $or: [{ purchaseInvoiceId: { $exists: true } }, { entryType: 'HISTORICAL' }]
   };
 
-  if (status === 'PENDING_RECEIPT') {
-    filter.status = 'PENDING_RECEIPT';
-  } else if (status === 'APPROVED') {
-    filter.status = { $in: ['APPROVED', 'VERIFIED', 'INWARDED', 'SUBMITTED'] };
+  if (status === 'Pending Receipt') {
+    filter.status = 'Pending Receipt';
+  } else if (status === 'Approved') {
+    filter.status = { $in: ['Approved', 'Verified', 'INWARDED', 'Submitted'] };
   } else {
-    filter.status = { $in: ['PENDING_RECEIPT', 'APPROVED', 'VERIFIED', 'INWARDED', 'SUBMITTED'] };
+    filter.status = { $in: ['Pending Receipt', 'Approved', 'Verified', 'INWARDED', 'Submitted'] };
   }
   
   if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
@@ -1603,11 +1603,11 @@ export const approveStoreReceipt = asyncHandler(async (req: Request, res: Respon
     return res.status(404).json(new ApiResponse(404, null, 'Store Inward Entry not found'));
   }
   
-  if (entry.status !== 'PENDING_RECEIPT') {
+  if (entry.status !== 'Pending Receipt') {
     return res.status(400).json(new ApiResponse(400, null, 'Entry is not pending receipt'));
   }
 
-  entry.status = 'APPROVED';
+  entry.status = 'Approved';
   await entry.save();
   
   // Also process inward stock update since we are moving it to APPROVED state
@@ -1627,11 +1627,11 @@ export const updateInwardEntry = asyncHandler(async (req: Request, res: Response
 
   const entry = await StoreInwardEntry.findById(id);
   if (!entry) throw new ApiError(404, 'Store Inward Entry not found');
-  if (entry.status === 'VOIDED') throw new ApiError(400, 'Cannot edit a voided entry.');
+  if (entry.status === 'Voided') throw new ApiError(400, 'Cannot edit a voided entry.');
 
   const originalStatus = entry.status;
 
-  if (entry.status === 'APPROVED' || entry.status === 'VERIFIED') {
+  if (entry.status === 'Approved' || entry.status === 'Verified') {
     if (!isAdmin) {
       throw new ApiError(403, 'Store Managers cannot edit approved entries. Please request an Admin.');
     }
@@ -1662,10 +1662,10 @@ export const updateInwardEntry = asyncHandler(async (req: Request, res: Response
     });
   } else {
     // For non-approved/verified states, check if it's a verification update
-    if (entry.status !== 'DRAFT' && entry.status !== 'PENDING_RECEIPT' && entry.status !== 'SUBMITTED') {
-      if (payload.status === 'VERIFIED' || payload.status === 'NEEDS_CORRECTION') {
+    if (entry.status !== 'Draft' && entry.status !== 'Pending Receipt' && entry.status !== 'Submitted') {
+      if (payload.status === 'Verified' || payload.status === 'Needs Correction') {
         const updated = await StoreInwardEntry.findByIdAndUpdate(id, { status: payload.status }, { new: true });
-        if (payload.status === 'VERIFIED' && updated && updated.purchaseInvoiceId) {
+        if (payload.status === 'Verified' && updated && updated.purchaseInvoiceId) {
           await processInwardStockUpdate(updated._id.toString());
         }
         return res.status(200).json(new ApiResponse(200, updated, `Status updated to ${payload.status}`));
@@ -1673,7 +1673,7 @@ export const updateInwardEntry = asyncHandler(async (req: Request, res: Response
     }
   }
 
-  if (payload.status === 'SUBMITTED') {
+  if (payload.status === 'Submitted') {
     let totalPackQty = 0;
     if (payload.packingList) {
       payload.packingList.forEach((pack: any) => {
@@ -1685,12 +1685,12 @@ export const updateInwardEntry = asyncHandler(async (req: Request, res: Response
     }
     
     // Auto-approve upon submission
-    payload.status = 'APPROVED';
+    payload.status = 'Approved';
   }
 
   // Remove fields that shouldn't be overwritten directly or handle them carefully
   delete payload.auditLogs;
-  if (payload.status && !isAdmin && (entry.status === 'APPROVED' || entry.status === 'VERIFIED')) {
+  if (payload.status && !isAdmin && (entry.status === 'Approved' || entry.status === 'Verified')) {
     delete payload.status;
   }
 
@@ -1699,7 +1699,7 @@ export const updateInwardEntry = asyncHandler(async (req: Request, res: Response
   Object.assign(entry, payload);
   const updated = await entry.save();
   
-  if (updated && (updated.status === 'SUBMITTED' || updated.status === 'APPROVED') && originalStatus !== 'SUBMITTED' && originalStatus !== 'APPROVED') {
+  if (updated && (updated.status === 'Submitted' || updated.status === 'Approved') && originalStatus !== 'Submitted' && originalStatus !== 'Approved') {
     await processInwardStockUpdate(updated._id.toString());
   }
   
@@ -1789,13 +1789,13 @@ export const bulkUpdateInwardEntries = asyncHandler(async (req: Request, res: Re
       })()
     : null;
 
-  const submissionStatus: string = status || 'SUBMITTED';
+  const submissionStatus: string = status || 'Submitted';
   const results: any[] = [];
 
   for (const item of items) {
     const entry = await StoreInwardEntry.findById(item._id);
     if (!entry) continue;
-    if (entry.status === 'VOIDED') continue;
+    if (entry.status === 'Voided') continue;
 
     // ── Ownership validation for non-admins (circle + subcircle + package) ──
     if (!isAdmin) {
@@ -1838,7 +1838,7 @@ export const bulkUpdateInwardEntries = asyncHandler(async (req: Request, res: Re
 
     const updated = await entry.save();
 
-    if (updated && (updated.status === 'SUBMITTED' || updated.status === 'APPROVED') && originalStatus !== 'SUBMITTED' && originalStatus !== 'APPROVED') {
+    if (updated && (updated.status === 'Submitted' || updated.status === 'Approved') && originalStatus !== 'Submitted' && originalStatus !== 'Approved') {
       await processInwardStockUpdate(updated._id.toString());
     }
 
@@ -1857,9 +1857,9 @@ export const voidInwardEntry = asyncHandler(async (req: Request, res: Response) 
 
   const entry = await StoreInwardEntry.findById(id);
   if (!entry) throw new ApiError(404, 'Store Inward Entry not found');
-  if (entry.status === 'VOIDED') throw new ApiError(400, 'Entry is already voided');
+  if (entry.status === 'Voided') throw new ApiError(400, 'Entry is already voided');
 
-  if (entry.status === 'APPROVED' || entry.status === 'VERIFIED') {
+  if (entry.status === 'Approved' || entry.status === 'Verified') {
     if (!isAdmin) {
       throw new ApiError(403, 'Store Managers cannot void approved entries. Please request an Admin.');
     }
@@ -1888,7 +1888,7 @@ export const voidInwardEntry = asyncHandler(async (req: Request, res: Response) 
     });
   }
 
-  entry.status = 'VOIDED';
+  entry.status = 'Voided';
   await entry.save();
   
   res.status(200).json(new ApiResponse(200, entry, 'Inward Entry voided successfully'));
@@ -1956,7 +1956,7 @@ export async function processInwardStockUpdate(entryId: string) {
   }
 
   if (!entry.purchaseInvoiceId) return;
-  if (entry.status !== 'SUBMITTED' && entry.status !== 'VERIFIED') return;
+  if (entry.status !== 'Submitted' && entry.status !== 'Verified') return;
   
   try {
     const invoice = await PurchaseInvoice.findById(entry.purchaseInvoiceId);
@@ -2821,7 +2821,7 @@ export const importMhrovs = asyncHandler(async (req: Request, res: Response) => 
       mhrovMap[mhrovNumber] = {
         mhrovNumber,
         mhrovDate: safeDate(row['mhrovdate']),
-        status: row['status'] || 'pending',
+        status: row['status'] || 'Pending',
         package: row['package'] || '',
         circle: row['circle'] || '',
         items: []
@@ -3013,7 +3013,7 @@ export const updateMhrov = asyncHandler(async (req: Request, res: Response) => {
     throw new Error('MHROV not found');
   }
   
-  if (mhrov.status === 'done') {
+  if (mhrov.status === 'Done') {
     res.status(400);
     throw new Error('Cannot edit a completed MHROV');
   }
@@ -3266,7 +3266,7 @@ export const getMhrovById = asyncHandler(async (req: Request, res: Response) => 
 
 export const getMhrovDashboardData = asyncHandler(async (req: Request, res: Response) => {
   const user = (req as any).user;
-  const filter: any = { status: { $in: ['VERIFIED', 'APPROVED'] } };
+  const filter: any = { status: { $in: ['Verified', 'Approved'] } };
   const mhrovFilter: any = {};
   
   if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
@@ -3348,9 +3348,9 @@ export const getMhrovDashboardData = asyncHandler(async (req: Request, res: Resp
     }
     
     if (mhrovData) {
-      if (mhrovData.status?.toUpperCase() === 'DONE' || mhrovData.status?.toUpperCase() === 'VERIFIED') doneCount++;
+      if (mhrovData.status?.toUpperCase() === 'DONE' || mhrovData.status?.toUpperCase() === 'Verified') doneCount++;
       else if (mhrovData.status?.toUpperCase() === 'PENDING') pendingCount++;
-      else if (mhrovData.status === 'MHROV done but not signed') doneNotSignedCount++;
+      else if (mhrovData.status === 'Pending Signature') doneNotSignedCount++;
       else pendingCount++; // Fallback
       
       return { ...entry, mhrovData };
@@ -3462,7 +3462,7 @@ export const bulkImportInwardEntries = asyncHandler(async (req: Request, res: Re
         biltyNumber,
         receivedDate,
         remarks,
-        status: 'SUBMITTED', // Move directly to SUBMITTED
+        status: 'Submitted', // Move directly to SUBMITTED
         packingList: [{
           packType,
           quantity: packQty,

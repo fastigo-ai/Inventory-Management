@@ -72,7 +72,7 @@ export default function BulkInwardGRNPage() {
         // Build per-item rows
         const rows = entries.map((entry: any) => {
           const packEntry = entry.packingList?.[0];
-          const invoiceQty = (entry.status === 'PENDING_RECEIPT' || (entry.invoiceQty ?? 0) < 0)
+          const invoiceQty = (entry.status === 'Pending Receipt' || (entry.invoiceQty ?? 0) < 0)
             ? entry.totalQty
             : entry.invoiceQty;
           return {
@@ -137,11 +137,11 @@ export default function BulkInwardGRNPage() {
     });
   };
 
-  const handleSubmit = async (status: 'DRAFT' | 'SUBMITTED') => {
+  const handleSubmit = async (status: 'Draft' | 'Submitted') => {
     setSubmitting(true);
     try {
       const items = itemRows
-        .filter(r => r.status !== 'APPROVED' && r.status !== 'VERIFIED')
+        .filter(r => r.status !== 'Approved' && r.status !== 'Verified')
         .map(row => ({
           _id: row._id,
           invoiceQty: Number(row.invoiceQty) || 0,
@@ -168,7 +168,7 @@ export default function BulkInwardGRNPage() {
       };
 
       await bulkUpdateInwardEntries(invoiceId, { commonFields: commonDates, items, status });
-      alert(`GRN ${status === 'DRAFT' ? 'saved as draft' : 'submitted'} successfully for all ${items.length} item(s)!`);
+      alert(`GRN ${status === 'Draft' ? 'saved as draft' : 'submitted'} successfully for all ${items.length} item(s)!`);
       router.push('/store/receipts');
     } catch (err: any) {
       console.error(err);
@@ -189,7 +189,7 @@ export default function BulkInwardGRNPage() {
     );
   }
 
-  const isAllApproved = itemRows.every(r => r.status === 'APPROVED' || r.status === 'VERIFIED');
+  const isAllApproved = itemRows.every(r => r.status === 'Approved' || r.status === 'Verified');
 
   return (
     <div className="flex-1 bg-slate-50 min-h-screen pb-32">
@@ -297,7 +297,7 @@ export default function BulkInwardGRNPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {itemRows.map((row, i) => {
-                  const isApproved = row.status === 'APPROVED' || row.status === 'VERIFIED';
+                  const isApproved = row.status === 'Approved' || row.status === 'Verified';
                   const tdBase = `px-4 py-3 border-r border-slate-100 ${isApproved ? 'bg-emerald-50/30' : ''}`;
                   return (
                     <tr key={row._id} className={`hover:bg-slate-50/30 transition-colors ${isApproved ? 'opacity-75' : ''}`}>
@@ -368,14 +368,14 @@ export default function BulkInwardGRNPage() {
       <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white border-t p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
         <div className="max-w-[1600px] mx-auto flex items-center justify-between">
           <div className="text-sm font-medium text-slate-500">
-            {isAllApproved ? 'All items are approved' : `${itemRows.filter(r => r.status === 'PENDING_RECEIPT').length} item(s) pending submission`}
+            {isAllApproved ? 'All items are approved' : `${itemRows.filter(r => r.status === 'Pending Receipt').length} item(s) pending submission`}
           </div>
           {!isAllApproved && (
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => handleSubmit('DRAFT')} disabled={submitting} className="border-blue-200 text-blue-700 hover:bg-blue-50">
+              <Button variant="outline" onClick={() => handleSubmit('Draft')} disabled={submitting} className="border-blue-200 text-blue-700 hover:bg-blue-50">
                 <Save className="w-4 h-4 mr-2" /> Save as Draft
               </Button>
-              <Button onClick={() => handleSubmit('SUBMITTED')} disabled={submitting} className="bg-green-600 hover:bg-green-700 text-white">
+              <Button onClick={() => handleSubmit('Submitted')} disabled={submitting} className="bg-green-600 hover:bg-green-700 text-white">
                 <Send className="w-4 h-4 mr-2" /> Submit GRN for All Items
               </Button>
             </div>

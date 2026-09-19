@@ -61,7 +61,7 @@ export default function StoreManagerDataPage() {
     if (e) e.stopPropagation();
     if (!confirm("Are you sure you want to verify and accept this inward entry?")) return;
     try {
-      await updateInwardEntry(id, { status: 'VERIFIED' });
+      await updateInwardEntry(id, { status: 'Verified' });
       fetchEntries();
     } catch (error) {
       console.error(error);
@@ -70,7 +70,7 @@ export default function StoreManagerDataPage() {
   };
 
   const handleVerifyAll = async () => {
-    const pendingEntries = entries.filter(e => e.status === 'SUBMITTED');
+    const pendingEntries = entries.filter(e => e.status === 'Submitted');
     if (pendingEntries.length === 0) {
       alert("No pending entries to verify.");
       return;
@@ -79,7 +79,7 @@ export default function StoreManagerDataPage() {
 
     try {
       setLoading(true);
-      await Promise.all(pendingEntries.map(entry => updateInwardEntry(entry._id, { status: 'VERIFIED' })));
+      await Promise.all(pendingEntries.map(entry => updateInwardEntry(entry._id, { status: 'Verified' })));
       fetchEntries();
     } catch (error) {
       console.error(error);
@@ -107,7 +107,7 @@ export default function StoreManagerDataPage() {
         {activeTab === 'inward' && (
           <Button 
             onClick={handleVerifyAll}
-            disabled={loading || entries.filter(e => e.status === 'SUBMITTED').length === 0}
+            disabled={loading || entries.filter(e => e.status === 'Submitted').length === 0}
             className="bg-green-600 hover:bg-green-700 text-white shadow-sm"
           >
             <CheckCircle className="w-4 h-4 mr-2" />
@@ -195,9 +195,9 @@ export default function StoreManagerDataPage() {
                   onChange={e => handleFilterChange('status', e.target.value)}
                 >
                   <option value="">Status (Non-Draft)</option>
-                  <option value="SUBMITTED">Submitted</option>
-                  <option value="VERIFIED">Verified/Accepted</option>
-                  <option value="NEEDS_CORRECTION">Needs Correction</option>
+                  <option value="Submitted">Submitted</option>
+                  <option value="Verified">Verified/Accepted</option>
+                  <option value="Needs Correction">Needs Correction</option>
                 </select>
               </>
             )}
@@ -255,17 +255,17 @@ export default function StoreManagerDataPage() {
                             <td className="px-4 py-3 text-slate-600">{entry.transportDetails?.transportName || entry.challanNumber || '-'}</td>
                             <td className="px-4 py-3">
                               <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                                entry.status === 'VERIFIED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-                                entry.status === 'SUBMITTED' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
-                                entry.status === 'NEEDS_CORRECTION' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
+                                entry.status === 'Verified' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                                entry.status === 'Submitted' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                                entry.status === 'Needs Correction' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
                                 'bg-slate-100 text-slate-700 border border-slate-200'
                               }`}>
-                                {entry.status === 'VERIFIED' && <CheckCircle className="w-3 h-3 mr-1" />}
+                                {entry.status === 'Verified' && <CheckCircle className="w-3 h-3 mr-1" />}
                                 {entry.status}
                               </span>
                             </td>
                             <td className="px-4 py-3 text-center" onClick={e => e.stopPropagation()}>
-                              {entry.status === 'SUBMITTED' ? (
+                              {entry.status === 'Submitted' ? (
                                 <Button 
                                   onClick={(e) => handleAccept(entry._id, e)}
                                   size="sm"

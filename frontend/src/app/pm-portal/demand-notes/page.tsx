@@ -22,13 +22,13 @@ import { useAuthStore } from '@/shared/store/auth.store';
 import { toast } from 'sonner';
 import ImportDNModal from './ImportDNModal';
 
-type TabType = 'pending' | 'history' | 'all';
+type TabType = 'Pending' | 'history' | 'all';
 
 export default function DemandNotesList() {
   const { user } = useAuthStore();
   const [demandNotes, setDemandNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabType>('pending');
+  const [activeTab, setActiveTab] = useState<TabType>('Pending');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Statuses');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -65,7 +65,7 @@ export default function DemandNotesList() {
 
   const filteredList = useMemo(() => {
     let list = demandNotes;
-    if (activeTab === 'pending') list = pendingList;
+    if (activeTab === 'Pending') list = pendingList;
     else if (activeTab === 'history') list = historyList;
 
     if (searchQuery.trim()) {
@@ -156,9 +156,9 @@ export default function DemandNotesList() {
         {/* Navigation Tabs */}
         <div className="flex items-center gap-1.5 bg-slate-100/80 p-1 rounded-xl border border-slate-200/60 w-fit">
           <button
-            onClick={() => setActiveTab('pending')}
+            onClick={() => setActiveTab('Pending')}
             className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
-              activeTab === 'pending'
+              activeTab === 'Pending'
                 ? 'bg-white text-slate-900 shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
@@ -167,7 +167,7 @@ export default function DemandNotesList() {
             <span>Pending PM Approval</span>
             <span
               className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${
-                activeTab === 'pending'
+                activeTab === 'Pending'
                   ? 'bg-amber-100 text-amber-800'
                   : 'bg-slate-200 text-slate-700'
               }`}
@@ -284,14 +284,14 @@ export default function DemandNotesList() {
                           <FileText className="w-6 h-6" />
                         </div>
                         <p className="font-semibold text-slate-800 text-base">
-                          {activeTab === 'pending'
+                          {activeTab === 'Pending'
                             ? 'No Pending Demand Notes'
                             : activeTab === 'history'
                             ? 'No Approval History Yet'
                             : 'No Demand Notes Found'}
                         </p>
                         <p className="text-xs text-slate-500 leading-relaxed">
-                          {activeTab === 'pending'
+                          {activeTab === 'Pending'
                             ? `All demand notes for ${user?.assignedPackage || 'your package'} / ${user?.assignedCircle || 'your circle'} have been reviewed.`
                             : activeTab === 'history'
                             ? 'Demand notes that you approve will appear here in your history log.'

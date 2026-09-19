@@ -72,7 +72,7 @@ export default function InwardRegistrationForm() {
   const loadData = async () => {
     try {
       // 1. Check if an entry exists
-      const entriesRes = await queryInwardEntries({ diId, status: 'DRAFT' });
+      const entriesRes = await queryInwardEntries({ diId, status: 'Draft' });
       const existingDraft = entriesRes.data?.[0];
 
       // 2. Load Prefill data
@@ -186,7 +186,7 @@ export default function InwardRegistrationForm() {
     setFormData((prev: any) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = async (status: 'DRAFT' | 'SUBMITTED') => {
+  const handleSubmit = async (status: 'Draft' | 'Submitted') => {
     try {
       setSubmitting(true);
       
@@ -497,7 +497,7 @@ export default function InwardRegistrationForm() {
           <div className="flex gap-3">
             <Button 
               variant="outline" 
-              onClick={() => handleSubmit('DRAFT')}
+              onClick={() => handleSubmit('Draft')}
               disabled={submitting}
               className="border-blue-200 text-blue-700 hover:bg-blue-50"
             >
@@ -505,7 +505,7 @@ export default function InwardRegistrationForm() {
               Save as Draft
             </Button>
             <Button 
-              onClick={() => handleSubmit('SUBMITTED')}
+              onClick={() => handleSubmit('Submitted')}
               disabled={submitting}
               className="bg-green-600 hover:bg-green-700 text-white"
             >

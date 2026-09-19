@@ -92,7 +92,7 @@ export default function PurchaseInvoiceDetailPage() {
 
   // Status workflow nodes
   const workflowNodes = [
-    { id: 'Draft', label: 'DRAFT', icon: FileText, color: 'slate' },
+    { id: 'Draft', label: 'Draft', icon: FileText, color: 'slate' },
     { id: 'Sent', label: 'SENT', icon: CheckCircle2, color: 'blue' },
     { id: 'Unpaid', label: 'UNPAID', icon: HelpCircle, color: 'blue' },
   ];

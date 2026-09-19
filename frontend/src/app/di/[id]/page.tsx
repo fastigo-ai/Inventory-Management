@@ -378,7 +378,7 @@ export default function DIDetailPage() {
                 {/* Draft/Active Ribbon */}
                 <div className="absolute top-0 left-0 w-24 h-24 overflow-hidden z-10 pointer-events-none">
                   <div className={`absolute top-5 -left-9 w-36 text-white text-[10px] font-bold text-center py-1 -rotate-45 shadow-md uppercase tracking-wider ${di.status === 'Active' ? 'bg-blue-500' : 'bg-slate-400'}`}>
-                    {di.status === 'Active' ? 'ACTIVE' : 'DRAFT'}
+                    {di.status === 'Active' ? 'ACTIVE' : 'Draft'}
                   </div>
                 </div>
 

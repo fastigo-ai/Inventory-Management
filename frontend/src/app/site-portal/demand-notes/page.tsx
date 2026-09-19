@@ -13,7 +13,7 @@ export default function DemandNotesList() {
   const [demandNotes, setDemandNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'pending' | 'history' | 'all'>('pending');
+  const [activeTab, setActiveTab] = useState<'Pending' | 'history' | 'all'>('Pending');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Statuses');
   const { trackClick, trackExport, trackAction } = useAuditTracker();
@@ -128,7 +128,7 @@ export default function DemandNotesList() {
   const allCount = demandNotes.length;
 
   let filteredList = demandNotes;
-  if (activeTab === 'pending') filteredList = pendingList;
+  if (activeTab === 'Pending') filteredList = pendingList;
   else if (activeTab === 'history') filteredList = historyList;
 
   if (searchQuery.trim()) {
@@ -192,10 +192,10 @@ export default function DemandNotesList() {
         <div className="flex-1 max-w-sm w-full mx-auto xl:mx-0 xl:ml-8">
           <div className="bg-[#FCFCFD] rounded-xl border border-slate-200 p-1.5 flex flex-col gap-1 w-full shadow-inner">
             <button 
-              onClick={() => { setActiveTab('pending'); setCurrentPage(1); }}
-              className={`flex justify-between items-center px-4 py-2 rounded-lg transition-all ${activeTab === 'pending' ? 'bg-white shadow-sm ring-1 ring-slate-200' : 'hover:bg-slate-100/50'}`}
+              onClick={() => { setActiveTab('Pending'); setCurrentPage(1); }}
+              className={`flex justify-between items-center px-4 py-2 rounded-lg transition-all ${activeTab === 'Pending' ? 'bg-white shadow-sm ring-1 ring-slate-200' : 'hover:bg-slate-100/50'}`}
             >
-              <span className={`text-sm font-semibold ${activeTab === 'pending' ? 'text-slate-800' : 'text-slate-600'}`}>Pending</span>
+              <span className={`text-sm font-semibold ${activeTab === 'Pending' ? 'text-slate-800' : 'text-slate-600'}`}>Pending</span>
               <span className="px-2.5 py-0.5 rounded-full bg-orange-100 text-orange-600 text-xs font-bold">{pendingCount}</span>
             </button>
             <button 

@@ -18,7 +18,7 @@ export interface ITransferItem {
 export interface IStoreTransfer extends Document {
   requestDate: Date;
   registerType?: 'INWARD' | 'OUTWARD';
-  status: 'PENDING' | 'APPROVED' | 'IN_TRANSIT' | 'RECEIVED' | 'REJECTED';
+  status: 'PENDING' | 'Approved' | 'IN_TRANSIT' | 'RECEIVED' | 'REJECTED';
   fromStore: string; // Source Circle/Package
   toStore: string; // Destination Circle/Package
   requestedBy: mongoose.Types.ObjectId;
@@ -63,7 +63,7 @@ const storeTransferSchema = new Schema<IStoreTransfer>({
   registerType: { type: String, enum: ['INWARD', 'OUTWARD'], default: 'INWARD' },
   status: { 
     type: String, 
-    enum: ['PENDING', 'APPROVED', 'IN_TRANSIT', 'RECEIVED', 'REJECTED'], 
+    enum: ['PENDING', 'Approved', 'IN_TRANSIT', 'RECEIVED', 'REJECTED'], 
     default: 'PENDING',
     required: true,
     index: true

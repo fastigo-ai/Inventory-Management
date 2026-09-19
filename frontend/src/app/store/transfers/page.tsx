@@ -55,7 +55,7 @@ export default function StoreTransfersPage() {
   const getStatusBadge = (status: string) => {
     const map: any = {
       'PENDING': 'bg-yellow-100 text-yellow-800',
-      'APPROVED': 'bg-blue-100 text-blue-800',
+      'Approved': 'bg-blue-100 text-blue-800',
       'IN_TRANSIT': 'bg-purple-100 text-purple-800',
       'RECEIVED': 'bg-green-100 text-green-800',
       'REJECTED': 'bg-red-100 text-red-800',
@@ -172,7 +172,7 @@ export default function StoreTransfersPage() {
                               <button
                                 onClick={async () => {
                                   try {
-                                    await updateStoreTransferStatus(t._id, 'APPROVED');
+                                    await updateStoreTransferStatus(t._id, 'Approved');
                                     window.location.reload();
                                   } catch (e) { console.error(e); }
                                 }}
@@ -180,7 +180,7 @@ export default function StoreTransfersPage() {
                               >
                                 Approve
                               </button>
-                            ) : activeTab === 'incoming' && t.status === 'APPROVED' ? (
+                            ) : activeTab === 'incoming' && t.status === 'Approved' ? (
                               <button
                                 onClick={() => router.push(`/store/transfers/dispatch/${t._id}`)}
                                 className="text-purple-600 hover:text-purple-800 font-medium text-sm flex items-center justify-center gap-1 w-full"

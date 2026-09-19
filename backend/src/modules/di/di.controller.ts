@@ -23,7 +23,7 @@ async function getDiLifecycleState(di: any) {
   ]);
 
   const hasDownstream = invoices.length > 0 || inwards.length > 0;
-  if (!hasDownstream) return { state: 'DRAFT', invoicesCount: 0, inwardsCount: 0, itemBilledMap: new Map() };
+  if (!hasDownstream) return { state: 'Draft', invoicesCount: 0, inwardsCount: 0, itemBilledMap: new Map() };
 
   const itemBilledMap = new Map();
   
@@ -893,7 +893,7 @@ export const deleteDI = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const lifecycle = await getDiLifecycleState(di);
-  if (lifecycle.state !== 'DRAFT') {
+  if (lifecycle.state !== 'Draft') {
     throw new ApiError(400, `Cannot delete DI ${di.diNumber}. Linked to Purchase Invoice or Store Inward Entry.`);
   }
 

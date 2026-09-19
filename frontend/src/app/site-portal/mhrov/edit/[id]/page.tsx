@@ -20,7 +20,7 @@ export default function EditMhrovPage() {
     defaultValues: {
       mhrovNumber: "",
       mhrovDate: new Date().toISOString().split("T")[0],
-      status: "pending",
+      status: "Pending",
       document: null as File | null
     }
   });
@@ -298,9 +298,9 @@ export default function EditMhrovPage() {
                   className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-[13px] shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500"
                   {...register("status")}
                 >
-                  <option value="pending">Pending</option>
-                  <option value="MHROV done but not signed">MHROV done but not signed</option>
-                  <option value="done">Done</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Pending Signature">MHROV done but not signed</option>
+                  <option value="Done">Done</option>
                 </select>
               </div>
               <div className="space-y-2">

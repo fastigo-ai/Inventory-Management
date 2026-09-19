@@ -633,7 +633,7 @@ export default function PurchaseOrderDetailPage() {
             {/* Draft/Issued Ribbon */}
             <div className="absolute top-0 left-0 w-24 h-24 overflow-hidden z-10 pointer-events-none">
               <div className={`absolute top-5 -left-9 w-36 text-white text-[10px] font-bold text-center py-1 -rotate-45 shadow-md uppercase tracking-wider ${order.status === 'Cancelled' ? 'bg-slate-700' : isSent ? 'bg-blue-500' : 'bg-slate-400'}`}>
-                {order.status === 'Cancelled' ? 'CANCELLED' : isSent ? 'ISSUED' : 'DRAFT'}
+                {order.status === 'Cancelled' ? 'CANCELLED' : isSent ? 'ISSUED' : 'Draft'}
               </div>
             </div>
 

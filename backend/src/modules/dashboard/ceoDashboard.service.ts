@@ -123,11 +123,11 @@ export const buildCeoDashboardSummary = async (filters: any) => {
   const piTotal = await PurchaseInvoice.countDocuments({ ...baseQuery, status: { $ne: 'Cancelled' } });
   const piCompleted = await PurchaseInvoice.countDocuments({ ...baseQuery, status: { $in: ['Paid', 'Partially Paid'] } });
   
-  const inwardTotal = await StoreInwardEntry.countDocuments({ ...baseQuery, status: { $ne: 'VOIDED' } });
-  const inwardCompleted = await StoreInwardEntry.countDocuments({ ...baseQuery, status: { $in: ['APPROVED', 'VERIFIED'] } });
+  const inwardTotal = await StoreInwardEntry.countDocuments({ ...baseQuery, status: { $ne: 'Voided' } });
+  const inwardCompleted = await StoreInwardEntry.countDocuments({ ...baseQuery, status: { $in: ['Approved', 'Verified'] } });
   
   const mhrovTotal = await Mhrov.countDocuments(baseQuery);
-  const mhrovCompleted = await Mhrov.countDocuments({ ...baseQuery, status: 'APPROVED' });
+  const mhrovCompleted = await Mhrov.countDocuments({ ...baseQuery, status: 'Approved' });
   
   const woTotal = await ContractorWorkOrder.countDocuments(baseQuery);
   const woCompleted = await ContractorWorkOrder.countDocuments({ ...baseQuery, status: { $in: ['Approved', 'Completed'] } });
@@ -253,7 +253,7 @@ export const buildCeoDashboardSummary = async (filters: any) => {
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
   
-  const pendingMhrovs = await Mhrov.find({ status: { $ne: 'done' }, createdAt: { $lte: sevenDaysAgo } }).select('circle').lean();
+  const pendingMhrovs = await Mhrov.find({ status: { $ne: 'Done' }, createdAt: { $lte: sevenDaysAgo } }).select('circle').lean();
   if (pendingMhrovs.length > 0) {
     const circles = [...new Set(pendingMhrovs.map(m => (m as any).circle).filter(Boolean))].slice(0, 3).join(', ');
     alerts.push({

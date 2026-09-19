@@ -84,7 +84,7 @@ export default function InwardRegistrationForm() {
           const sgstRate = entry.sgst || 0;
           const igstRate = entry.igst || 0;
           const totalQty = entry.totalQty || entry.invoiceQty || 0;
-          const initialInvoiceQty = (entry.status === 'PENDING_RECEIPT' || (entry.invoiceQty ?? 0) < 0) ? entry.totalQty : entry.invoiceQty;
+          const initialInvoiceQty = (entry.status === 'Pending Receipt' || (entry.invoiceQty ?? 0) < 0) ? entry.totalQty : entry.invoiceQty;
           
           if (primaryPackQty === 0) {
             primaryPackQty = initialInvoiceQty || totalQty || 0;
@@ -157,7 +157,7 @@ export default function InwardRegistrationForm() {
     setFormData((prev: any) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = async (status: 'DRAFT' | 'SUBMITTED' = 'SUBMITTED') => {
+  const handleSubmit = async (status: 'Draft' | 'Submitted' = 'Submitted') => {
     setSubmitting(true);
     try {
       const payload = {
@@ -180,7 +180,7 @@ export default function InwardRegistrationForm() {
       }
       
       await updateInwardEntry(existingId, payload);
-      alert(`Entry ${status === 'DRAFT' ? 'saved as draft' : 'submitted'} successfully!`);
+      alert(`Entry ${status === 'Draft' ? 'saved as draft' : 'submitted'} successfully!`);
       router.push('/store/inventory');
     } catch (err: any) {
       console.error(err);
@@ -483,11 +483,11 @@ export default function InwardRegistrationForm() {
             {existingId ? "Editing Draft Registration" : "New Inward Registration"}
           </div>
           <div className="flex gap-3">
-            {(formData.status !== 'APPROVED' && formData.status !== 'VERIFIED') && (
+            {(formData.status !== 'Approved' && formData.status !== 'Verified') && (
               <>
                 <Button 
                   variant="outline" 
-                  onClick={() => handleSubmit('DRAFT')}
+                  onClick={() => handleSubmit('Draft')}
                   disabled={submitting}
                   className="border-blue-200 text-blue-700 hover:bg-blue-50"
                 >
@@ -495,7 +495,7 @@ export default function InwardRegistrationForm() {
                   Save as Draft
                 </Button>
                 <Button 
-                  onClick={() => handleSubmit('SUBMITTED')}
+                  onClick={() => handleSubmit('Submitted')}
                   disabled={submitting}
                   className="bg-green-600 hover:bg-green-700 text-white"
                 >

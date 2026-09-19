@@ -157,7 +157,7 @@ export default function StoreReceiptsPage() {
   const invoiceGroups = useMemo(() => groupByInvoice(entries), [entries]);
 
   const handleApproveAll = async (items: any[]) => {
-    const pendingItems = items.filter(i => i.status === 'PENDING_RECEIPT');
+    const pendingItems = items.filter(i => i.status === 'Pending Receipt');
     if (pendingItems.length === 0) return;
     if (!confirm(`Approve all ${pendingItems.length} item(s) in this invoice?`)) return;
     try {
@@ -272,14 +272,14 @@ export default function StoreReceiptsPage() {
 
   const getGroupStatus = (items: any[]) => {
     const statuses = new Set(items.map(i => i.status));
-    if (statuses.has('PENDING_RECEIPT')) return 'PENDING_RECEIPT';
-    if (statuses.has('APPROVED') || statuses.has('VERIFIED')) return 'APPROVED';
-    return 'PENDING_RECEIPT';
+    if (statuses.has('Pending Receipt')) return 'Pending Receipt';
+    if (statuses.has('Approved') || statuses.has('Verified')) return 'Approved';
+    return 'Pending Receipt';
   };
 
   const getGroupStatusLabel = (items: any[]) => {
-    const pending = items.filter(i => i.status === 'PENDING_RECEIPT').length;
-    const approved = items.filter(i => i.status === 'APPROVED' || i.status === 'VERIFIED').length;
+    const pending = items.filter(i => i.status === 'Pending Receipt').length;
+    const approved = items.filter(i => i.status === 'Approved' || i.status === 'Verified').length;
     if (pending > 0 && approved > 0) return `${pending} Pending, ${approved} Approved`;
     if (pending > 0) return 'Pending Receipt';
     return 'Approved';
@@ -370,8 +370,8 @@ export default function StoreReceiptsPage() {
           <div className="flex px-5 pt-3 gap-6 border-b border-slate-100 bg-white">
             {[
               { label: 'All Receipts', value: 'All', color: 'blue' },
-              { label: 'Pending', value: 'PENDING_RECEIPT', color: 'amber' },
-              { label: 'Approved', value: 'APPROVED', color: 'emerald' },
+              { label: 'Pending', value: 'Pending Receipt', color: 'amber' },
+              { label: 'Approved', value: 'Approved', color: 'emerald' },
             ].map(tab => (
               <button key={tab.value} onClick={() => { setFilters((p) => ({ ...p, status: tab.value })); setCurrentPage(1); }}
                 className={`pb-3 text-sm font-medium border-b-2 transition-colors ${filters.status === tab.value ? `border-${tab.color}-600 text-${tab.color}-600` : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}>
@@ -415,8 +415,8 @@ export default function StoreReceiptsPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
                   {invoiceGroups.map((group) => {
-                    const pendingCount = group.items.filter(i => i.status === 'PENDING_RECEIPT').length;
-                    const approvedCount = group.items.filter(i => i.status === 'APPROVED' || i.status === 'VERIFIED').length;
+                    const pendingCount = group.items.filter(i => i.status === 'Pending Receipt').length;
+                    const approvedCount = group.items.filter(i => i.status === 'Approved' || i.status === 'Verified').length;
                     const allApproved = pendingCount === 0;
                     const firstItem = group.items[0];
 

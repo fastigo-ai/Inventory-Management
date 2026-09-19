@@ -357,7 +357,7 @@ export const getDemandNotes = asyncHandler(async (req: AuthRequest, res: Respons
   // Filter based on explicit status or tab query
   if (status) {
     filter.status = status;
-  } else if (tab === 'pending') {
+  } else if (tab === 'Pending') {
     if (roleName === 'Project Manager') {
       filter.status = { $in: ['Pending PM Approval', 'Pending Approval'] };
     } else if (roleName === 'Project Director') {

@@ -34,7 +34,7 @@ export const getItemLedger = asyncHandler(async (req: Request, res: Response) =>
   const item = await Item.findOne(itemFilters);
 
   // 1. Fetch Inward Entries (Receipts from Vendors)
-  const inwardQuery: any = { tempCode: finalTempCode, status: { $in: ['APPROVED', 'VERIFIED'] } };
+  const inwardQuery: any = { tempCode: finalTempCode, status: { $in: ['Approved', 'Verified'] } };
   if (circle) inwardQuery.circle = circle;
   if (pkg) inwardQuery.package = pkg;
 

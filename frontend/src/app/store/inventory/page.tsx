@@ -16,7 +16,7 @@ export default function StoreInwardRegisterPage() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [showStats, setShowStats] = useState(false);
 
-  const [statusTab, setStatusTab] = useState<'All' | 'PENDING_RECEIPT' | 'APPROVED'>('All');
+  const [statusTab, setStatusTab] = useState<'All' | 'Pending Receipt' | 'Approved'>('All');
 
   useEffect(() => {
     fetchInwardRegister();
@@ -152,9 +152,9 @@ export default function StoreInwardRegisterPage() {
               All
             </button>
             <button
-              onClick={() => { setStatusTab('PENDING_RECEIPT'); setCurrentPage(1); }}
+              onClick={() => { setStatusTab('Pending Receipt'); setCurrentPage(1); }}
               className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-                statusTab === 'PENDING_RECEIPT'
+                statusTab === 'Pending Receipt'
                   ? 'border-amber-500 text-amber-600'
                   : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
               }`}
@@ -162,9 +162,9 @@ export default function StoreInwardRegisterPage() {
               Pending
             </button>
             <button
-              onClick={() => { setStatusTab('APPROVED'); setCurrentPage(1); }}
+              onClick={() => { setStatusTab('Approved'); setCurrentPage(1); }}
               className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-                statusTab === 'APPROVED'
+                statusTab === 'Approved'
                   ? 'border-emerald-500 text-emerald-600'
                   : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
               }`}
@@ -238,9 +238,9 @@ export default function StoreInwardRegisterPage() {
                         </td>
                         <td className="px-4 py-4">
                           <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide whitespace-nowrap ${
-                            entry.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-700' :
+                            entry.status === 'Verified' ? 'bg-emerald-100 text-emerald-700' :
                             entry.status === 'INWARDED' ? 'bg-blue-100 text-blue-700' :
-                            entry.status === 'APPROVED' ? 'bg-indigo-100 text-indigo-700' :
+                            entry.status === 'Approved' ? 'bg-indigo-100 text-indigo-700' :
                             'bg-slate-100 text-slate-700'
                           }`}>
                             {entry.status}

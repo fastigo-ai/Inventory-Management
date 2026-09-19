@@ -49,8 +49,8 @@ export const getDashboardSummary = asyncHandler(async (req: Request, res: Respon
     }));
 
   // 2. Pending Actions (Count of Inwards stuck in PENDING_RECEIPT)
-  const pendingReceiptsCount = await StoreInwardEntry.countDocuments({ status: 'PENDING_RECEIPT' });
-  const pendingVerificationCount = await StoreInwardEntry.countDocuments({ status: 'VERIFIED' });
+  const pendingReceiptsCount = await StoreInwardEntry.countDocuments({ status: 'Pending Receipt' });
+  const pendingVerificationCount = await StoreInwardEntry.countDocuments({ status: 'Verified' });
 
   // 3. Recent Activity (Latest 5 GRNs/Inwards)
   const recentActivities = await StoreInwardEntry.find()
@@ -520,9 +520,16 @@ export const getPDPortalDashboardSummary = asyncHandler(async (req: any, res: Re
 });
 
 import { buildCeoDashboardSummary } from './ceoDashboard.service';
+import { buildCeoDashboardV2Summary } from './ceoDashboardV2.service';
 
 export const getCeoDashboardSummary = asyncHandler(async (req: any, res: Response) => {
   const filters = req.query;
   const data = await buildCeoDashboardSummary(filters);
   res.status(200).json(new ApiResponse(200, data, 'CEO Dashboard Data Fetched Successfully'));
+});
+
+export const getCeoDashboardV2Summary = asyncHandler(async (req: any, res: Response) => {
+  const filters = req.query;
+  const data = await buildCeoDashboardV2Summary(filters);
+  res.status(200).json(new ApiResponse(200, data, 'CEO Dashboard V2 Data Fetched Successfully'));
 });

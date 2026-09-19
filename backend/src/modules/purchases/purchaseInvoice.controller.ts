@@ -204,7 +204,7 @@ export const createPurchaseInvoice = async (req: Request, res: Response): Promis
         igst: item.igst,
         taxableAmount: item.amount,
         serialNumber: item.loaSerialNo,
-        status: 'PENDING_RECEIPT',
+        status: 'Pending Receipt',
         packingList: [{ packType: 'BOX', quantity: item.quantity || 0 }] // default packing
       }));
       await StoreInwardEntry.insertMany(inwardEntries);
@@ -324,7 +324,7 @@ export const getPurchaseInvoices = async (req: Request, res: Response): Promise<
       if (totalEntries > 0) {
         const pendingEntries = await StoreInwardEntry.countDocuments({
           purchaseInvoiceId: pr._id,
-          status: { $in: ['PENDING_RECEIPT', 'DRAFT'] }
+          status: { $in: ['Pending Receipt', 'Draft'] }
         });
         storeStatus = pendingEntries > 0 ? 'Pending' : 'Accepted';
       } else {
@@ -419,7 +419,7 @@ export const getPurchaseInvoiceById = async (req: Request, res: Response): Promi
     // Check if any StoreInwardEntry is beyond PENDING_RECEIPT or DRAFT
     const lockedEntries = await StoreInwardEntry.countDocuments({
       purchaseInvoiceId: pr._id,
-      status: { $nin: ['PENDING_RECEIPT', 'DRAFT'] }
+      status: { $nin: ['Pending Receipt', 'Draft'] }
     });
 
     // Map fields for frontend
@@ -484,7 +484,7 @@ export const updatePurchaseInvoice = async (req: Request, res: Response): Promis
     
     const lockedEntries = await StoreInwardEntry.countDocuments({
       purchaseInvoiceId: id,
-      status: { $nin: ['PENDING_RECEIPT', 'DRAFT'] }
+      status: { $nin: ['Pending Receipt', 'Draft'] }
     });
 
     // If they are trying to modify line items or core details on a locked invoice, block it.
@@ -593,7 +593,7 @@ export const updatePurchaseInvoice = async (req: Request, res: Response): Promis
       // Delete existing pending entries
       await StoreInwardEntry.deleteMany({
         purchaseInvoiceId: updatedPr._id,
-        status: { $in: ['PENDING_RECEIPT', 'DRAFT'] }
+        status: { $in: ['Pending Receipt', 'Draft'] }
       });
 
       // Recreate them with updated items
@@ -625,7 +625,7 @@ export const updatePurchaseInvoice = async (req: Request, res: Response): Promis
         igst: item.igst,
         taxableAmount: item.amount,
         serialNumber: item.loaSerialNo,
-        status: 'PENDING_RECEIPT',
+        status: 'Pending Receipt',
         packingList: [{ packType: 'BOX', quantity: item.invoiceQuantity || 0 }]
       }));
       await StoreInwardEntry.insertMany(inwardEntries);
@@ -664,7 +664,7 @@ export const deletePurchaseInvoice = async (req: Request, res: Response): Promis
     
     // 2. Rollback inventory for any processed inward entries
     for (const entry of inwardEntries) {
-      if (entry.status === 'VERIFIED' || entry.status === 'SUBMITTED') {
+      if (entry.status === 'Verified' || entry.status === 'Submitted') {
         await reverseInwardStockUpdate(entry._id.toString());
       }
     }
@@ -860,7 +860,7 @@ export const getPIItemSummary = async (req: Request, res: Response): Promise<voi
             {
               $match: {
                 $expr: { $eq: ["$tempCode", "$$tempCode"] },
-                status: { $nin: ["DRAFT", "PENDING_RECEIPT"] }
+                status: { $nin: ["Draft", "Pending Receipt"] }
               }
             },
             {
@@ -1287,7 +1287,7 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
             igst: item.igst,
             taxableAmount: item.amount,
             serialNumber: item.loaSerialNo,
-            status: 'PENDING_RECEIPT',
+            status: 'Pending Receipt',
             packingList: [{ packType: 'BOX', quantity: item.invoiceQuantity || item.quantity || 0 }]
           }));
           await StoreInwardEntry.insertMany(inwardEntries, { session });

@@ -548,17 +548,8 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
             let finalLoaSrNo = finalLoaSerialNo;
 
             if (matchedItemObj) {
-              // Validate Activity
-              if (sr.activity) {
-                const masterActivity = String(matchedItemObj.dynamicData?.activity || '').trim().toLowerCase();
-                const sheetActivity = String(sr.activity).trim().toLowerCase();
-                
-                if (sheetActivity && masterActivity && sheetActivity !== masterActivity) {
-                  flagged.push({ sourceFile, sheetName, issue: `Row ${sr.rowNum || sr.excelRow || 'unknown'}: Activity mismatch. Sheet specifies '${sr.activity}', but Master Item list specifies '${matchedItemObj.dynamicData?.activity || 'Unknown'}'. Sheet rejected.`, description: sr.description, circle: uploadedCircle, row: sr.rowNum || sr.excelRow });
-                  sheetHasErrors = true;
-                  break;
-                }
-              }
+              // We no longer throw an error on Activity mismatch.
+              // finalActivity will automatically be populated from matchedItemObj below.
 
               itemId = matchedItemObj._id;
               finalActivity = matchedItemObj.dynamicData?.activity || finalActivity;

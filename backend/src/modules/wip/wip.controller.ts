@@ -559,13 +559,8 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
     if (!matchedItemObj) matchedItemObj = candidateItems[0];
 
     if (matchedItemObj) {
-      if (sr.activity) {
-        const masterActivity = String(matchedItemObj.dynamicData?.activity || '').trim().toLowerCase();
-        const sheetActivity = String(sr.activity).trim().toLowerCase();
-        if (sheetActivity && masterActivity && sheetActivity !== masterActivity) {
-          return { error: `Activity mismatch. Sheet specifies '${sr.activity}', but Master Item list specifies '${matchedItemObj.dynamicData?.activity || 'Unknown'}'` };
-        }
-      }
+      // We no longer throw an error on Activity mismatch.
+      // formatMatch will automatically auto-populate the correct activity from the Master item.
       return formatMatch(matchedItemObj);
     }
     return null;

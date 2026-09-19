@@ -1099,6 +1099,9 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
     if (tempCode && circle) itemCache.set(`tc_${tempCode}_${circle}`, i);
     if (name && circle) itemCache.set(`in_${name}_${circle}`, i);
     if (desc && circle) itemCache.set(`in_${desc}_${circle}`, i);
+    
+    const masterLoaSrNo = (i.dynamicData.sku || i.dynamicData.loaSrNo || i.dynamicData.loaSerialNo || '').toString().trim().toLowerCase();
+    if (masterLoaSrNo && circle) itemCache.set(`loa_${masterLoaSrNo}_${circle}`, i);
   }
 
   for await (const row of parser) {
@@ -1156,35 +1159,48 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
 
       // Find Item
       let item = null;
-      const cleanCircle = circle.trim();
-      if (tempCode) {
-        const cleanTempCode = tempCode.trim();
-        const tCodeKey = `tc_${cleanTempCode.toLowerCase()}_${cleanCircle.toLowerCase()}`;
-        item = itemCache.get(tCodeKey);
-      }
+      const cleanCircle = circle.trim().toLowerCase();
       
-      if (!item && itemName) {
-        const cleanItemName = itemName.trim();
-        const iNameKey = `in_${cleanItemName.toLowerCase()}_${cleanCircle.toLowerCase()}`;
-        item = itemCache.get(iNameKey);
+      let loaItem = null;
+      if (loaSrNo) {
+        const cleanLoaSrNo = String(loaSrNo).trim().toLowerCase();
+        loaItem = itemCache.get(`loa_${cleanLoaSrNo}_${cleanCircle}`);
+      }
+
+      if (loaItem) {
+        // LOA exists in this circle, now validate itemName and tempCode match
+        const masterItemName = String(loaItem.dynamicData?.name || '').trim().toLowerCase();
+        const providedItemName = String(itemName).trim().toLowerCase();
+        if (itemName && masterItemName !== providedItemName) {
+           errors.push(`Item Name mismatch for LOA Serial No '${loaSrNo}' in MIN ${minNo}. Expected '${loaItem.dynamicData?.name || ''}', found '${itemName}'`);
+           continue;
+        }
+
+        const masterTempCode = String(loaItem.dynamicData?.tempCode || '').trim().toLowerCase();
+        const providedTempCode = String(tempCode).trim().toLowerCase();
+        if (tempCode && masterTempCode !== providedTempCode) {
+           errors.push(`Temp Code mismatch for LOA Serial No '${loaSrNo}' in MIN ${minNo}. Expected '${loaItem.dynamicData?.tempCode || ''}', found '${tempCode}'`);
+           continue;
+        }
+        
+        item = loaItem;
+      } else {
+        // LOA does not exist or not provided, fallback to standard lookup
+        if (tempCode) {
+          item = itemCache.get(`tc_${String(tempCode).trim().toLowerCase()}_${cleanCircle}`);
+        }
+        if (!item && itemName) {
+          item = itemCache.get(`in_${String(itemName).trim().toLowerCase()}_${cleanCircle}`);
+        }
       }
 
       if (!item) {
-        errors.push(`Item '${itemName || tempCode}' not found in Item Master list for MIN ${minNo}`);
-        continue;
-      }
-
-      if (circle && String(item.dynamicData?.circle || '').trim().toLowerCase() !== String(circle).trim().toLowerCase()) {
-        errors.push(`Circle mismatch for item '${itemName || tempCode}' in MIN ${minNo}. Expected '${item.dynamicData?.circle || ''}', found '${circle}'`);
+        errors.push(`Item '${loaSrNo || itemName || tempCode}' not found in Item Master list for MIN ${minNo}`);
         continue;
       }
 
       if (activity && String(item.dynamicData?.activity || '').trim().toLowerCase() !== String(activity).trim().toLowerCase()) {
-        errors.push(`Activity mismatch for item '${itemName || tempCode}' in MIN ${minNo}. Expected '${item.dynamicData?.activity || ''}', found '${activity}'`);
-        continue;
-      }
-      if (loaSrNo && String(item.dynamicData?.loaSerialNo || '').trim().toLowerCase() !== String(loaSrNo).trim().toLowerCase()) {
-        errors.push(`LOA Serial No mismatch for item '${itemName || tempCode}' in MIN ${minNo}. Expected '${item.dynamicData?.loaSerialNo || ''}', found '${loaSrNo}'`);
+        errors.push(`Activity mismatch for item '${itemName || tempCode || loaSrNo}' in MIN ${minNo}. Expected '${item.dynamicData?.activity || ''}', found '${activity}'`);
         continue;
       }
       const expectedUnit = String(item.dynamicData?.unit || '').trim().toLowerCase().replace(/\.$/, '');
@@ -1213,7 +1229,10 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
       const finalUnit = unit || item?.unit || 'Nos';
       const hsnCode = row['HsnCode'] || item?.hsnCode || '';
       const finalActivity = activity || item?.dynamicData?.activity || item?.dynamicData?.Activity || '';
-      const finalLoaSrNo = loaSrNo || row['LoaSerialNo'] || row['SerialNo'] || row['LoaSerialNumber'] || item?.dynamicData?.loaSrNo || item?.dynamicData?.loaSerialNo || item?.dynamicData?.sku || '';
+      
+      // Auto-populate LOA Serial No from Master item if possible
+      const masterLoaSrNo = item?.dynamicData?.sku || item?.dynamicData?.loaSrNo || item?.dynamicData?.loaSerialNo || '';
+      const finalLoaSrNo = masterLoaSrNo || loaSrNo || row['LoaSerialNo'] || row['SerialNo'] || row['LoaSerialNumber'] || '';
 
       const lineItem = {
         itemId: item?._id,

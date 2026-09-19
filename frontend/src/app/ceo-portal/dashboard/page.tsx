@@ -16,6 +16,16 @@ import {
   WorkflowTimeline 
 } from '@/features/ceo-portal/components/DashboardComponents';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+const filterOptions: Record<string, string[]> = {
+  package: ['All Packages', 'Package 1 (S/N)', 'Package 2 (R/R)'],
+  circle: ['All Circles', 'Solan', 'Shimla', 'Nahan', 'Rampur', 'Rohru'],
+  subCircle: ['All Sub-Circles', 'Nalagarh', 'Kumarhatti'],
+  site: ['All Sites', 'Site A', 'Site B'],
+  activity: ['All Activities', 'Erection', 'Testing', 'Commissioning'],
+  dateRange: ['01 Apr 2025 - 12 Sep 2025', 'This Month', 'Last Month', 'This Year']
+};
 
 export default function CeoDashboardPage() {
   const { user } = useAuthStore();
@@ -80,9 +90,19 @@ export default function CeoDashboardPage() {
               {Object.entries(filters).map(([key, value]) => (
                 <div key={key} className="flex flex-col">
                   <span className="text-[10px] font-bold text-gray-500 uppercase mb-1 ml-1">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
-                  <Button variant="outline" className="text-xs h-8 px-3 border-gray-200 text-gray-700 bg-white shadow-sm flex items-center justify-between min-w-[120px]">
-                    {value} <ChevronDown className="w-3 h-3 ml-2 text-gray-400" />
-                  </Button>
+                  <Select
+                    value={value}
+                    onValueChange={(newVal) => setFilters(prev => ({ ...prev, [key]: newVal }))}
+                  >
+                    <SelectTrigger className="text-xs h-8 px-3 border-gray-200 text-gray-700 bg-white shadow-sm min-w-[120px]">
+                      <SelectValue placeholder={value} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filterOptions[key]?.map(opt => (
+                        <SelectItem key={opt} value={opt} className="text-xs">{opt}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               ))}
             </div>

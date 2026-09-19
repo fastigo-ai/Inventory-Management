@@ -283,7 +283,8 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
             if (cell) {
                const norm = normLabel(cell);
                let field = null;
-               if (norm.includes("circle")) field = "Circle";
+               if (norm.includes("circle") && !norm.includes("sub")) field = "Circle";
+               else if (norm.includes("sub") && norm.includes("circle")) field = "SubCircle";
                else if (norm.includes("division") && !norm.includes("sub")) field = "Division";
                else if (norm.includes("sub") && (norm.includes("div") || norm.includes("division"))) field = "SubDivision";
                else if (norm.includes("sub") && (norm.includes("station") || norm.includes("stn"))) field = "SubStation";

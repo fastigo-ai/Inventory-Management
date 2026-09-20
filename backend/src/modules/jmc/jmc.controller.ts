@@ -578,19 +578,21 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
        });
     }
 
-    // 4. Fuzzy Description ONLY (if it uniquely matches, or just take the first)
-    if (!matchedItemObj && srDescFuzzy) {
-       matchedItemObj = candidateItems.find(i => {
-           const iDescFuzzy = fuzzy(i.dynamicData?.description || i.dynamicData?.name);
-           return iDescFuzzy === srDescFuzzy;
-       });
-    }
-    
-    // 5. LOA ONLY (last resort)
+    // 4. LOA ONLY (prioritized over pure description)
     if (!matchedItemObj && srLoa) {
        matchedItemObj = candidateItems.find(i => {
            const iLoa = String(i.dynamicData?.sku || i.dynamicData?.loaSrNo || '').trim().toLowerCase();
            return iLoa === srLoa;
+       });
+    }
+
+    // 5. Fuzzy Description ONLY
+    // Only fallback to description if the sheet row didn't provide an LOA, or as an absolute last resort if we still want to guess (but guessing causes duplicate errors if LOAs differ).
+    // To prevent duplicate errors when LOAs differ, we will ONLY match by description if the row doesn't have an LOA.
+    if (!matchedItemObj && srDescFuzzy && !srLoa) {
+       matchedItemObj = candidateItems.find(i => {
+           const iDescFuzzy = fuzzy(i.dynamicData?.description || i.dynamicData?.name);
+           return iDescFuzzy === srDescFuzzy;
        });
     }
 

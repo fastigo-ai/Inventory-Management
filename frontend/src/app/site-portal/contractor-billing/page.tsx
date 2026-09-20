@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Plus, FileText, CheckCircle, SearchX } from 'lucide-react';
+import { Plus, FileText, CheckCircle, SearchX, Upload } from 'lucide-react';
 import { 
   getContractorInvoices, 
   getHandoverCertificates,
@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useClientTable } from '@/shared/hooks/useClientTable';
 import { DataTableTopControls, DataTableBottomControls } from '@/shared/components/DataTableControls';
+import { ContractorBillBulkUploadModal } from '@/features/site-portal/components/ContractorBillBulkUploadModal';
 
 export default function ContractorBillingDashboard() {
   const router = useRouter();
@@ -21,6 +22,7 @@ export default function ContractorBillingDashboard() {
   const [handoverCertificates, setHandoverCertificates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [analytics, setAnalytics] = useState<any>(null);
+  const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -104,6 +106,14 @@ export default function ContractorBillingDashboard() {
           >
             <CheckCircle className="h-4 w-4" />
             Issue Handover
+          </Button>
+          <Button 
+            variant="outline"
+            className="flex items-center gap-2"
+            onClick={() => setIsBulkUploadModalOpen(true)}
+          >
+            <Upload className="h-4 w-4" />
+            Bulk Upload via Excel
           </Button>
           <Button 
             className="flex items-center gap-2"
@@ -366,6 +376,12 @@ export default function ContractorBillingDashboard() {
           </div>
         )}
       </div>
+
+      <ContractorBillBulkUploadModal 
+        open={isBulkUploadModalOpen} 
+        onOpenChange={setIsBulkUploadModalOpen}
+        onSuccess={fetchData}
+      />
     </div>
   );
 }

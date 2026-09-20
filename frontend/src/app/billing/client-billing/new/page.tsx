@@ -55,27 +55,36 @@ export default function NewClientBillPage() {
   const fetchReferences = async () => {
     try {
       if (billType === 'Supply' && formData.stage === '60%') {
-        // Supply 60% uses MHROV
-        const res = await api.get('/store/mhrov?status=Approved');
+        // Supply 60% uses MHROV (only unbilled ones)
+        const res = await api.get('/store/mhrov?status=Approved&unbilled=true');
         if (res.data?.success) setReferenceList(res.data.data);
-      } else if (billType === 'Erection' && formData.stage === '90%') {
-        // Erection 90% uses JMCs from APPROVED contractor 90% invoices only
+      } else if ((billType === 'Erection' && formData.stage === '90%') || (billType === 'Supply' && formData.stage === '30%')) {
+        // Erection 90% and Supply 30% uses JMCs from APPROVED contractor 90% invoices only
         const res = await api.get('/client-billing/erection-references');
         if (res.data?.success) setReferenceList(res.data.data);
       } else if (formData.stage === '10%') {
         // Final settlement (both Supply & Erection 10%) uses JMC + Handover Certificates
         const [jmcRes, hcRes] = await Promise.all([
-          api.get('/jmc?status=Approved'),
+          api.get('/jmc?status=Approved&limit=all'),
           api.get('/contractor-billing/handover-certificates?status=Issued')
         ]);
         let combined: any[] = [];
-        if (jmcRes.data?.success) combined = [...combined, ...jmcRes.data.data];
-        if (hcRes.data?.success) combined = [...combined, ...hcRes.data.data];
+        if (jmcRes.data?.success) {
+          const jmcs = Array.isArray(jmcRes.data.data) ? jmcRes.data.data : jmcRes.data.data.data || [];
+          combined = [...combined, ...jmcs];
+        }
+        if (hcRes.data?.success) {
+          const hcs = Array.isArray(hcRes.data.data) ? hcRes.data.data : hcRes.data.data.data || [];
+          combined = [...combined, ...hcs];
+        }
         setReferenceList(combined);
       } else {
-        // Supply 30% and Erection stages use approved JMCs
-        const jmcRes = await api.get('/jmc?status=Approved');
-        if (jmcRes.data?.success) setReferenceList(jmcRes.data.data);
+        // Catch-all for any other stage
+        const jmcRes = await api.get('/jmc?status=Approved&limit=all');
+        if (jmcRes.data?.success) {
+          const jmcs = Array.isArray(jmcRes.data.data) ? jmcRes.data.data : jmcRes.data.data.data || [];
+          setReferenceList(jmcs);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -406,7 +415,7 @@ export default function NewClientBillPage() {
                 <option value="" disabled>+ Add {(billType === 'Supply' && formData.stage === '60%') ? 'MHROV' : (formData.stage === '10%' ? 'JMC / Handover Cert' : 'JMC')}...</option>
                 {referenceList.filter(ref => !formData.referenceIds.includes(String(ref._id))).map(ref => (
                   <option key={ref._id} value={ref._id}>
-                    {ref.mhrovNumber || ref.jmcNumber || ref.certificateNumber || ref.diNo || ref._id}
+                    {ref.mhrovNumber || ref.jmcNumber || ref.certificateNumber || ref.diNo || ref._id} {ref.supplyRaBillNo ? `(Supply RA Bill: ${ref.supplyRaBillNo})` : ''}
                   </option>
                 ))}
               </select>
@@ -415,7 +424,7 @@ export default function NewClientBillPage() {
                 <div className="flex flex-wrap gap-2 mt-3 p-2 bg-slate-50 border border-slate-100 rounded-md min-h-[48px]">
                   {formData.referenceIds.map(id => {
                     const ref = referenceList.find(r => String(r._id) === id);
-                    const label = ref ? (ref.mhrovNumber || ref.jmcNumber || ref.certificateNumber || ref.diNo || ref._id) : id;
+                    const label = ref ? (ref.mhrovNumber || ref.jmcNumber || ref.certificateNumber || ref.diNo || ref._id) + (ref.supplyRaBillNo ? ` (Supply RA Bill: ${ref.supplyRaBillNo})` : '') : id;
                     return (
                       <span key={id} className="inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1 text-sm font-medium bg-indigo-50 text-indigo-700 rounded-full border border-indigo-100">
                         {label}

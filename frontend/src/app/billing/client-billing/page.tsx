@@ -8,10 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { getClientBills, getClientBillingAnalytics } from '@/features/billing/api/client-billing.api';
+import { ClientBillBulkUploadModal } from '@/features/billing/components/ClientBillBulkUploadModal';
 
 export default function ClientBillingPage() {
   const router = useRouter();
   const [bills, setBills] = useState<any[]>([]);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [analytics, setAnalytics] = useState<any>(null);
@@ -71,12 +73,18 @@ export default function ClientBillingPage() {
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Client Billing (RA Bills)</h1>
           <p className="text-slate-500 mt-1">Manage Supply and Erection Running Account Bills.</p>
         </div>
-        <Link href="/billing/client-billing/new">
-          <Button className="flex items-center gap-2">
+        <div className="flex gap-2">
+          <Button variant="outline" className="flex items-center gap-2" onClick={() => setIsUploadModalOpen(true)}>
             <Plus className="w-4 h-4" />
-            Create RA Bill
+            Bulk Import
           </Button>
-        </Link>
+          <Link href="/billing/client-billing/new">
+            <Button className="flex items-center gap-2">
+              <Plus className="w-4 h-4" />
+              Create RA Bill
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {analytics && (
@@ -189,6 +197,15 @@ export default function ClientBillingPage() {
           </table>
         </div>
       </div>
+
+      <ClientBillBulkUploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        onSuccess={() => {
+          fetchBills();
+          fetchAnalytics();
+        }}
+      />
     </div>
   );
 }

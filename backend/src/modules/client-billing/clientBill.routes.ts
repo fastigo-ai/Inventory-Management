@@ -9,7 +9,8 @@ import {
   getErectionReferences,
   getClientBillingLedger,
   getClientBillingAnalytics,
-  deleteClientBill
+  deleteClientBill,
+  bulkImportClientBills
 } from './clientBill.controller';
 
 import multer from 'multer';
@@ -19,6 +20,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 router.use(authenticate);
 
+router.post('/bulk-import', upload.any(), bulkImportClientBills);
 router.post('/', upload.any(), createClientBill);
 router.get('/ledger', getClientBillingLedger);
 router.get('/analytics', getClientBillingAnalytics);

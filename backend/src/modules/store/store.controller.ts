@@ -2702,9 +2702,28 @@ export const getMhrovs = asyncHandler(async (req: Request, res: Response) => {
   const user = (req as any).user;
   const filter: any = {};
   
+  if (req.query.status) {
+    filter.status = req.query.status;
+  }
+
   if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
     if (user.assignedPackage) filter.package = user.assignedPackage;
     if (user.assignedCircle) filter.circle = { $in: expandCircle(user.assignedCircle) || [user.assignedCircle] };
+  }
+
+  if (req.query.unbilled === 'true') {
+    const ClientBill = mongoose.model('ClientBill');
+    const billedMhrovs = await ClientBill.find({
+      billType: 'Supply',
+      stage: '60%',
+      status: { $ne: 'Rejected' },
+      referenceType: 'MHROV'
+    }).select('referenceIds').lean();
+    
+    const usedIds = billedMhrovs.flatMap((b: any) => b.referenceIds);
+    if (usedIds.length > 0) {
+      filter._id = { $nin: usedIds };
+    }
   }
 
   const mhrovs = await Mhrov.find(filter)

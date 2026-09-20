@@ -22,7 +22,9 @@ export const createInvoice = asyncHandler(async (req: Request, res: Response) =>
     supplyBasis, 
     lineItems,
     jmcDocUrl,
-    signedBillDocUrl
+    signedBillDocUrl,
+    drawingNumber,
+    supplyRaBillNo
   } = req.body;
   
   const user = (req as any).user;
@@ -82,6 +84,8 @@ export const createInvoice = asyncHandler(async (req: Request, res: Response) =>
     grandTotal: totalBaseAmount + totalGstAmount,
     jmcDocUrl,
     signedBillDocUrl,
+    drawingNumber,
+    supplyRaBillNo,
     status: 'Pending PM Approval',
     createdBy: user._id
   });
@@ -96,7 +100,9 @@ export const updateInvoice = asyncHandler(async (req: Request, res: Response) =>
     supplyBasis, 
     lineItems,
     jmcDocUrl,
-    signedBillDocUrl
+    signedBillDocUrl,
+    drawingNumber,
+    supplyRaBillNo
   } = req.body;
   
   const user = (req as any).user;
@@ -159,6 +165,8 @@ export const updateInvoice = asyncHandler(async (req: Request, res: Response) =>
   invoice.grandTotal = totalBaseAmount + totalGstAmount;
   if (jmcDocUrl !== undefined) invoice.jmcDocUrl = jmcDocUrl;
   if (signedBillDocUrl !== undefined) invoice.signedBillDocUrl = signedBillDocUrl;
+  if (drawingNumber !== undefined) invoice.drawingNumber = drawingNumber;
+  if (supplyRaBillNo !== undefined) invoice.supplyRaBillNo = supplyRaBillNo;
   
   // If it was rejected, editing it sends it back to Pending PM Approval
   if (invoice.status === 'Rejected' || invoice.status === 'Draft') {

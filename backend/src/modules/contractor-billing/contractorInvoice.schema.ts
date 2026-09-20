@@ -40,6 +40,8 @@ export interface IContractorInvoice extends Document {
 
   jmcDocUrl?: string;
   signedBillDocUrl?: string;
+  drawingNumber?: string;
+  supplyRaBillNo?: string;
 
   status: 'Draft' | 'Pending PM Approval' | 'Pending PD Approval' | 'Pending HO Approval' | 'Payment Processed' | 'Rejected';
   remarks?: string;
@@ -92,6 +94,8 @@ const contractorInvoiceSchema = new Schema<IContractorInvoice>({
 
   jmcDocUrl: { type: String },
   signedBillDocUrl: { type: String },
+  drawingNumber: { type: String },
+  supplyRaBillNo: { type: String },
 
   status: {
     type: String,

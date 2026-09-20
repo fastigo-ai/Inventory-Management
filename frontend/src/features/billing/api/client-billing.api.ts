@@ -43,3 +43,12 @@ export const deleteClientBill = async (id: string) => {
   const response = await api.delete(`/client-billing/${id}`);
   return response.data;
 };
+
+export const bulkImportClientBills = async (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post('/client-billing/bulk-import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return response.data;
+};

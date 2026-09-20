@@ -166,6 +166,8 @@ export default function ContractorInvoiceViewPage({ params }: { params: Promise<
                   <div className="border border-slate-300 px-2 py-0.5 bg-white text-right">{format(issueDate, 'yyyy-MM-dd')}</div>
                   <div className="font-semibold text-slate-700">Due Date</div>
                   <div className="border border-slate-300 px-2 py-0.5 bg-white text-right">{format(dueDate, 'yyyy-MM-dd')}</div>
+                  <div className="font-semibold text-slate-700">Drawing No.</div>
+                  <div className="border border-slate-300 px-2 py-0.5 bg-white text-right">{invoice.drawingNumber || 'N/A'}</div>
                 </div>
               </div>
             </div>

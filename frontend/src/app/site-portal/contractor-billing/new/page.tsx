@@ -28,6 +28,8 @@ export default function NewContractorBill() {
   const [globalCategory, setGlobalCategory] = useState('JMC Done');
   const [jmcDocUrl, setJmcDocUrl] = useState('');
   const [signedBillDocUrl, setSignedBillDocUrl] = useState('');
+  const [drawingNumber, setDrawingNumber] = useState('');
+  const [supplyRaBillNo, setSupplyRaBillNo] = useState('');
 
   // Items
   const [lineItems, setLineItems] = useState<any[]>([]);
@@ -76,7 +78,8 @@ export default function NewContractorBill() {
   useEffect(() => {
     if (contractorId) {
       api.get(`/jmc?contractorId=${contractorId}`).then(res => {
-        const jmcs = res.data?.data || res.data || [];
+        const arr = res.data?.data?.data || res.data?.data || res.data || [];
+        const jmcs = Array.isArray(arr) ? arr : (arr.jmcs && Array.isArray(arr.jmcs) ? arr.jmcs : []);
         const map: Record<string, number> = {};
         jmcs.forEach((jmc: any) => {
           if (jmc.status === 'Approved' && jmc.items) {
@@ -118,7 +121,8 @@ export default function NewContractorBill() {
         query += `&workOrderId=${workOrderId}`;
       }
       api.get(query).then(res => {
-        const invoices = res.data?.data || res.data || [];
+        const arr = res.data?.data?.data || res.data?.data || res.data || [];
+        const invoices = Array.isArray(arr) ? arr : (arr.invoices && Array.isArray(arr.invoices) ? arr.invoices : []);
         const map: Record<string, number> = {};
         
         invoices.forEach((inv: any) => {
@@ -315,6 +319,8 @@ export default function NewContractorBill() {
         stage,
         jmcDocUrl,
         signedBillDocUrl,
+        drawingNumber,
+        supplyRaBillNo,
         lineItems: lineItems.map(item => ({ ...item, billingCategory: globalCategory }))
       };
 
@@ -405,6 +411,17 @@ export default function NewContractorBill() {
                 <option value="Erection">Erection</option>
               </select>
             </div>
+
+            <div className="space-y-2">
+              <Label>Supply 60% RA Bill No.</Label>
+              <Input
+                type="text"
+                placeholder="Enter linked Supply Bill No."
+                value={supplyRaBillNo}
+                onChange={(e) => setSupplyRaBillNo(e.target.value)}
+              />
+              <p className="text-[10px] text-slate-500">For cross-referencing in Client Erection Bills</p>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -415,7 +432,7 @@ export default function NewContractorBill() {
           <CardDescription>Mandatory documents required to process this bill.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="space-y-2">
               <Label>JMC Certified Signed Copy & Drawing <span className="text-red-500">*</span></Label>
               <Input
@@ -442,6 +459,16 @@ export default function NewContractorBill() {
                 }}
               />
               {signedBillDocUrl && <p className="text-xs text-green-600 font-medium">Uploaded Successfully</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Drawing Number</Label>
+              <Input
+                type="text"
+                placeholder="Enter Drawing No."
+                value={drawingNumber}
+                onChange={(e) => setDrawingNumber(e.target.value)}
+              />
             </div>
           </div>
         </CardContent>

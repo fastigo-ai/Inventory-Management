@@ -81,12 +81,24 @@ export const getWorkOrders = asyncHandler(async (req: AuthRequest, res: Response
       if (!isAllowed) {
         return res.status(403).json(new ApiResponse(403, null, 'Forbidden: Cannot access work orders for this circle.'));
       }
-      filter.circle = requestedRegex;
+      delete filter.circle;
+      filter.$or = [
+        { circle: requestedRegex },
+        { division: requestedRegex }
+      ];
     } else {
-      filter.circle = { $in: regexCircles };
+      filter.$or = [
+        { circle: { $in: regexCircles } },
+        { division: { $in: regexCircles } }
+      ];
     }
   } else if (filter.circle) {
-     filter.circle = new RegExp(`^${filter.circle}$`, 'i');
+     const circleRegex = new RegExp(`^${filter.circle}$`, 'i');
+     delete filter.circle;
+     filter.$or = [
+       { circle: circleRegex },
+       { division: circleRegex }
+     ];
   }
 
   if (search) {

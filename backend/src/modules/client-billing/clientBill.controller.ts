@@ -6,7 +6,9 @@ import { v2 as cloudinary } from 'cloudinary';
 import { ContractorInvoice } from '../contractor-billing/contractorInvoice.schema';
 import { validateClientLedgerLimits, updateClientLedgerOnApproval } from './clientBillingLedger.utils';
 import { ClientBillingLedger } from './clientBillingLedger.schema';
-
+import * as xlsx from 'xlsx';
+import { Mhrov } from '../store/mhrov.schema';
+import Item from '../items/item.model';
 const uploadToCloudinary = (buffer: Buffer, folder: string): Promise<any> => {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
@@ -246,6 +248,7 @@ export const getErectionReferences = asyncHandler(async (req: any, res: Response
     date: inv.date,
     contractorName: inv.contractorId?.name || '',
     invoiceNumber: inv.invoiceNumber,
+    supplyRaBillNo: inv.supplyRaBillNo,
     jmcId: inv.jmcId,
     items: inv.jmcId?.items || inv.lineItems || []
   }));
@@ -463,4 +466,169 @@ export const deleteClientBill = asyncHandler(async (req: Request, res: Response)
   await ClientBill.findByIdAndDelete(id);
 
   return res.status(200).json(new ApiResponse(200, null, 'Client Bill deleted successfully'));
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BULK IMPORT CLIENT BILLS
+// ─────────────────────────────────────────────────────────────────────────────
+export const bulkImportClientBills = asyncHandler(async (req: any, res: Response) => {
+  if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
+    return res.status(400).json(new ApiResponse(400, null, 'No files uploaded'));
+  }
+
+  const user = req.user;
+  const file = req.files[0];
+  const workbook = xlsx.read(file.buffer, { type: 'buffer' });
+  const sheetName = workbook.SheetNames[0];
+  const worksheet = workbook.Sheets[sheetName];
+  const rows = xlsx.utils.sheet_to_json<any>(worksheet);
+
+  // Pre-fetch all items for quick matching
+  const allItems = await Item.find({}).lean();
+  
+  // Group rows by RA Bill No
+  const billGroups: Record<string, any[]> = {};
+  
+  for (const row of rows) {
+    // Normalize keys
+    const rawRow: any = {};
+    for (const key of Object.keys(row)) {
+       rawRow[key.trim().toLowerCase().replace(/[^a-z0-9]/g, '')] = row[key];
+    }
+    
+    const raBillNo = String(rawRow.rabillno || rawRow.rabillnumber || '').trim();
+    if (!raBillNo || raBillNo === 'undefined') continue; // Skip empty rows
+    
+    if (!billGroups[raBillNo]) billGroups[raBillNo] = [];
+    billGroups[raBillNo].push(rawRow);
+  }
+
+  const results = {
+    totalParsed: Object.keys(billGroups).length,
+    success: 0,
+    failed: 0,
+    errors: [] as any[]
+  };
+
+  for (const [raBillNo, billRows] of Object.entries(billGroups)) {
+    try {
+      // Determine Bill Type and Stage from first row
+      const firstRow = billRows[0];
+      const billType = String(firstRow.billtype || 'Supply').trim();
+      const stage = String(firstRow.stage || '60%').trim();
+      
+      const referenceType = (billType === 'Supply' && stage === '60%') ? 'MHROV' : 'JMCRegister';
+      
+      const items: any[] = [];
+      const mhrovNumbers = new Set<string>();
+
+      for (const r of billRows) {
+         const mhrovNo = String(r.mhrovno || r.mhrovnumber || r.sourceref || '').trim();
+         if (mhrovNo) mhrovNumbers.add(mhrovNo);
+         
+         const loaSrNo = String(r.loasrno || r.loaserialno || r.loa || '').trim();
+         const tempCode = String(r.tempcode || r.code || '').trim();
+         const itemName = String(r.itemname || r.description || '').trim();
+         const diNo = String(r.dino || r.dinumber || '').trim();
+         const diQty = Number(r.diqty || 0);
+         
+         // Extract DI Date safely
+         let diDate: Date | undefined;
+         if (r.didate) {
+           diDate = new Date(r.didate);
+           if (isNaN(diDate.getTime())) {
+             if (typeof r.didate === 'number') {
+               diDate = new Date(Math.round((r.didate - 25569) * 86400 * 1000));
+             }
+           }
+         }
+         
+         const sourceDoneQty = Number(r.mhrovqty || r.sourcedoneqty || r.jmcqty || 0);
+         const raBillQty = Number(r.rabillqty || r.billqty || 0);
+         const boqRate = Number(r.boqrate || r.rate || 0);
+         
+         // Auto-calculate
+         const percentage = parseInt(stage.replace('%', '')) || 100;
+         const totalAmount = Number((raBillQty * boqRate * (percentage / 100)).toFixed(2));
+         
+         let gstAmount = 0;
+         if (billType === 'Supply' && stage === '60%') {
+           gstAmount = Number((raBillQty * boqRate * 0.18).toFixed(2));
+         } else if (billType === 'Erection' && stage === '90%') {
+           gstAmount = Number((raBillQty * boqRate * 0.18).toFixed(2));
+         }
+
+         // Try to find item id
+         let itemIdObj = allItems.find(i => 
+           (i.dynamicData?.tempCode && String(i.dynamicData.tempCode).trim().toLowerCase() === tempCode.toLowerCase()) || 
+           (i.dynamicData?.sku && String(i.dynamicData.sku).trim().toLowerCase() === loaSrNo.toLowerCase())
+         );
+         
+         items.push({
+           loaSrNo,
+           itemId: itemIdObj ? itemIdObj._id : undefined,
+           tempCode,
+           refNumber: mhrovNo,
+           itemName,
+           diNo,
+           diDate: diDate && !isNaN(diDate.getTime()) ? diDate : undefined,
+           diQty,
+           sourceDoneQty,
+           raBillQty,
+           boqRate,
+           totalAmount,
+           gstAmount
+         });
+      }
+
+      // Resolve reference IDs
+      let referenceIds: any[] = [];
+      if (referenceType === 'MHROV' && mhrovNumbers.size > 0) {
+        const mhrovs = await Mhrov.find({ mhrovNumber: { $in: Array.from(mhrovNumbers) } }).lean();
+        referenceIds = mhrovs.map(m => m._id);
+      }
+
+      // Check for existing bill with same RA Bill No
+      const existing = await ClientBill.findOne({ raBillNo });
+      if (existing) {
+         results.failed++;
+         results.errors.push({ raBillNo, reason: 'Bill with this RA Bill No already exists' });
+         continue;
+      }
+
+      const assignedCircle = user.assignedCircle || 'Unknown';
+      const assignedPackage = user.assignedPackage || 'Unknown';
+
+      // Validate ledger limits
+      const validation = await validateClientLedgerLimits(assignedCircle, assignedPackage, items, billType, stage);
+      if (!validation.valid) {
+         results.failed++;
+         results.errors.push({ raBillNo, reason: validation.message });
+         continue;
+      }
+
+      const clientBill = new ClientBill({
+        raBillNo,
+        raBillDate: new Date(),
+        billType,
+        stage,
+        referenceType,
+        referenceIds,
+        items,
+        circle: assignedCircle,
+        package: assignedPackage,
+        createdBy: user._id,
+        status: 'Pending PM Approval'
+      });
+
+      await clientBill.save();
+      results.success++;
+
+    } catch (err: any) {
+      results.failed++;
+      results.errors.push({ raBillNo, reason: err.message });
+    }
+  }
+
+  return res.status(200).json(new ApiResponse(200, results, 'Bulk import completed'));
 });

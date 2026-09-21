@@ -2391,9 +2391,17 @@ export const importReceivedStoreTransfers = asyncHandler(async (req: Request, re
         continue;
       }
 
-      const unit = row['Unit'] || item?.unit || item?.dynamicData?.unit || 'Nos';
-      
       const itemDynamic = item?.dynamicData || {};
+      const masterUnit = itemDynamic.unit || itemDynamic.uom || item?.unit || item?.uom || 'Nos';
+      const csvUnit = row['Unit'] || row['UNIT'];
+      
+      if (csvUnit && String(csvUnit).trim() !== '' && String(csvUnit).trim().toLowerCase() !== String(masterUnit).trim().toLowerCase()) {
+        errors.push(`Unit mismatch for item '${itemName || tempCode}' in Transfer ${docKey}. Expected '${masterUnit}', got '${csvUnit}'`);
+        continue;
+      }
+      
+      const unit = csvUnit && String(csvUnit).trim() !== '' ? String(csvUnit).trim() : masterUnit;
+      
       const csvLoaSrNo = row['LOA Serial No'] || row['LOASerialNo'] || row['Loa Serial No'] || row['LoaSrNo'];
       const itemLoaSrNo = itemDynamic.sku || itemDynamic.loaSerialNo || itemDynamic.loaSrNo || itemDynamic.srNo || itemDynamic['LOA Serial No'] || itemDynamic['LOA Sr. No.'] || '';
       const loaSerialNo = (csvLoaSrNo && String(csvLoaSrNo).trim() !== '') ? String(csvLoaSrNo).trim() : (itemLoaSrNo ? String(itemLoaSrNo).trim() : '');

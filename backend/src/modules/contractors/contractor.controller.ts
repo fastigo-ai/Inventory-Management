@@ -825,12 +825,23 @@ export const bulkImportContractorReturns = asyncHandler(async (req: Request, res
         item = itemCacheByName.get(String(itemName).trim().toLowerCase());
       }
 
+      const itemDynamic = item?.dynamicData || {};
+      const masterUnit = itemDynamic.unit || itemDynamic.uom || item?.unit || item?.uom || 'Nos';
+      const csvUnit = row['Unit'] || row['UNIT'];
+      
+      if (csvUnit && String(csvUnit).trim() !== '' && String(csvUnit).trim().toLowerCase() !== String(masterUnit).trim().toLowerCase()) {
+        errors.push(`Unit mismatch for item '${itemName || tempCode}' in Challan ${challanNo}. Expected '${masterUnit}', got '${csvUnit}'`);
+        continue;
+      }
+      
+      const unit = csvUnit && String(csvUnit).trim() !== '' ? String(csvUnit).trim() : masterUnit;
+
       const lineItem = {
         itemId: item ? item._id : undefined,
         itemName: item?.description || itemName,
         tempCode: item?.itemCode || tempCode,
         hsnCode: row['HSN Code'] || item?.hsnCode || '',
-        unit: row['UNIT'] || row['Unit'] || item?.unit || 'Nos',
+        unit: unit,
         quantity: returnQty
       };
 

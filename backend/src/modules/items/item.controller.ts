@@ -148,9 +148,9 @@ const buildItemQueryAndSort = (queryParams: any) => {
   const isDeleted = queryParams.isDeleted === 'true';
   const search = queryParams.search as string;
 
-  let sortObject: any = { createdAt: 1 };
+  let sortObject: any = { 'dynamicData.loaSerialNo': 1, createdAt: -1 };
   if (sortBy) {
-    sortObject = { [`dynamicData.${sortBy}`]: sortOrder };
+    sortObject = { [`dynamicData.${sortBy}`]: sortOrder, 'dynamicData.loaSerialNo': 1 };
   }
 
   let queryCondition: any = isDeleted ? { isDeleted: true } : { isDeleted: { $ne: true } };
@@ -222,7 +222,7 @@ const buildItemQueryAndSort = (queryParams: any) => {
 
       // Implicitly sort by the filtered field alphabetically (shorter/exact matches first) if no explicit sort is provided
       if (!sortBy && !hasFilterSort) {
-        sortObject = { [`dynamicData.${fieldName}`]: 1 };
+        sortObject = { [`dynamicData.${fieldName}`]: 1, 'dynamicData.loaSerialNo': 1 };
         hasFilterSort = true;
       }
     }
@@ -466,8 +466,8 @@ export const exportItems = asyncHandler(async (req: Request, res: Response) => {
   const { queryCondition, sortObject } = buildItemQueryAndSort(req.query);
 
   const items = await Item.find(queryCondition)
+    .collation({ locale: 'en_US', numericOrdering: true })
     .sort(sortObject)
-    .collation({ locale: 'en', numericOrdering: true })
     .lean();
   
   // Headers based on metadata labels

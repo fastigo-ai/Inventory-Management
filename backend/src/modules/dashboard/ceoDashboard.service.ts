@@ -270,7 +270,7 @@ export const buildCeoDashboardSummary = async (filters: any) => {
     if (normPkgName === 'Package 1(S/N)') normPkgName = 'Package 1 (S/N)';
     
     if (!packagesMap[normPkgName]) {
-      let circles = [];
+      let circles: string[] = [];
       if (normPkgName.includes('Package 1')) circles = ['Solan', 'Nahan'];
       if (normPkgName.includes('Package 2')) circles = ['Rampur', 'Rohru', 'Shimla'];
       packagesMap[normPkgName] = { name: normPkgName, physical: 0, financial: 0, billedValue: 0, pendingValue: 0, _totalQty: 0, _jmcQty: 0, _poValue: 0, circles };

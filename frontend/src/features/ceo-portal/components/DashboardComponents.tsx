@@ -19,35 +19,135 @@ export const KpiCard = ({ title, value, change, changeType, icon: Icon }: any) =
   </Card>
 );
 
-export const ProjectStructure = () => (
-  <Card className="rounded-xl shadow-sm border border-gray-100 h-full">
-    <CardHeader className="pb-2">
-      <CardTitle className="text-sm font-bold text-gray-700">Project Structure</CardTitle>
-    </CardHeader>
-    <CardContent className="flex flex-col gap-4 text-xs font-medium text-gray-600">
-      <div className="flex flex-col items-center">
-        <div className="bg-teal-600 text-white px-6 py-1.5 rounded-full mb-2">Package 1 (S/N)</div>
-        <div className="flex flex-col items-center border-l-2 border-gray-200">
-          <div className="flex items-center mt-2 mb-2">
-            <div className="w-4 border-t-2 border-gray-200"></div>
-            <div className="bg-teal-50 text-teal-700 px-3 py-1 rounded border border-teal-100 ml-2 flex items-center"><MapPin className="w-3 h-3 mr-1" /> Solan</div>
-          </div>
-          <div className="flex space-x-6 border-t-2 border-gray-200 pt-2">
-            <div className="flex items-center"><div className="w-2 h-2 rounded-full bg-teal-500 mr-1" /> Nalagarh</div>
-            <div className="flex items-center"><div className="w-2 h-2 rounded-full bg-teal-500 mr-1" /> Kumarhatti</div>
+export const ProjectStructure = ({ filters, onFilterChange }: { filters?: any, onFilterChange?: (key: string, val: string) => void }) => {
+  const handleSelect = (key: string, val: string) => {
+    if (onFilterChange) onFilterChange(key, val);
+  };
+
+  const isActive = (key: string, val: string) => filters?.[key] === val;
+
+  return (
+    <Card className="rounded-xl shadow-sm border border-gray-100 h-full overflow-hidden">
+      <CardHeader className="pb-2 bg-slate-50/50">
+        <CardTitle className="text-sm font-bold text-slate-800">Project Structure</CardTitle>
+      </CardHeader>
+      <CardContent className="flex justify-around items-start text-xs font-medium text-slate-600 pt-6 pb-6 bg-slate-50/50">
+        
+        {/* Package 1 (S/N) Tree */}
+        <div className="flex flex-col items-center w-1/2">
+          <button 
+            onClick={() => handleSelect('package', 'Package 1 (S/N)')}
+            className={`w-[80%] py-1.5 rounded-full mb-6 transition-all cursor-pointer border shadow-sm ${
+              isActive('package', 'Package 1 (S/N)') 
+                ? 'bg-teal-600 text-white border-teal-600 ring-2 ring-offset-2 ring-teal-200' 
+                : 'bg-[#158e99] text-white border-[#158e99] hover:bg-teal-600'
+            }`}
+          >
+            Package 1 (S/N)
+          </button>
+          
+          <div className="flex space-x-4 relative w-full justify-center">
+            {/* Connecting lines for Package 1 -> Solan & Nahan */}
+            <div className="absolute top-[-24px] left-[25%] right-[25%] h-6 border-t border-l border-r border-slate-200 rounded-t-md z-0"></div>
+            <div className="absolute top-[-24px] left-1/2 w-px h-6 bg-slate-200 -translate-x-1/2 z-0"></div>
+            
+            {/* Solan Branch */}
+            <div className="flex flex-col items-center z-10 relative">
+              <button 
+                onClick={() => handleSelect('circle', 'Solan')}
+                className={`px-4 py-1.5 rounded-full border flex items-center transition-all cursor-pointer shadow-sm bg-white ${
+                  isActive('circle', 'Solan')
+                    ? 'border-teal-500 text-teal-700 ring-2 ring-teal-100 font-bold'
+                    : 'border-slate-200 text-slate-700 hover:border-teal-300'
+                }`}
+              >
+                <div className="bg-[#158e99] text-white p-1 rounded-full mr-2 shadow-sm"><MapPin className="w-3 h-3" strokeWidth={3} /></div> Solan
+              </button>
+              
+              <div className="flex space-x-3 relative mt-6">
+                <div className="absolute top-[-24px] left-[25%] right-[25%] h-6 border-t border-l border-r border-slate-200 rounded-t-md z-0"></div>
+                <div className="absolute top-[-24px] left-1/2 w-px h-6 bg-slate-200 -translate-x-1/2 z-0"></div>
+                
+                <button 
+                  onClick={() => handleSelect('subCircle', 'Nalagarh')}
+                  className={`flex items-center px-3 py-1.5 rounded-full border shadow-sm bg-white transition-all cursor-pointer z-10 ${
+                    isActive('subCircle', 'Nalagarh') ? 'border-teal-500 text-teal-700 ring-2 ring-teal-100 font-bold' : 'border-slate-200 text-slate-700 hover:border-teal-300'
+                  }`}
+                >
+                  <div className="w-4 h-4 rounded-full bg-[#158e99] mr-1.5 flex items-center justify-center text-white shadow-sm"><span style={{fontSize: '8px'}}>✔</span></div> Nalagarh
+                </button>
+                <button 
+                  onClick={() => handleSelect('subCircle', 'Kumarhatti')}
+                  className={`flex items-center px-3 py-1.5 rounded-full border shadow-sm bg-white transition-all cursor-pointer z-10 ${
+                    isActive('subCircle', 'Kumarhatti') ? 'border-teal-500 text-teal-700 ring-2 ring-teal-100 font-bold' : 'border-slate-200 text-slate-700 hover:border-teal-300'
+                  }`}
+                >
+                  <div className="w-4 h-4 rounded-full bg-[#158e99] mr-1.5 flex items-center justify-center text-white shadow-sm"><span style={{fontSize: '8px'}}>✔</span></div> Kumarhatti
+                </button>
+              </div>
+            </div>
+
+            {/* Nahan Branch */}
+            <div className="flex flex-col items-center z-10 relative">
+              <button 
+                onClick={() => handleSelect('circle', 'Nahan')}
+                className={`px-4 py-1.5 rounded-full border flex items-center transition-all cursor-pointer shadow-sm bg-white ${
+                  isActive('circle', 'Nahan')
+                    ? 'border-teal-500 text-teal-700 ring-2 ring-teal-100 font-bold'
+                    : 'border-slate-200 text-slate-700 hover:border-teal-300'
+                }`}
+              >
+                <div className="bg-[#158e99] text-white p-1 rounded-full mr-2 shadow-sm"><MapPin className="w-3 h-3" strokeWidth={3} /></div> Nahan
+              </button>
+            </div>
+            
           </div>
         </div>
-      </div>
-      <div className="flex flex-col items-center mt-2">
-        <div className="bg-indigo-500 text-white px-6 py-1.5 rounded-full mb-2">Package 2 (R/R)</div>
-        <div className="flex space-x-6">
-          <div className="flex items-center"><div className="w-2 h-2 rounded-full bg-indigo-500 mr-1" /> Rampur</div>
-          <div className="flex items-center"><div className="w-2 h-2 rounded-full bg-indigo-500 mr-1" /> Rohru</div>
+
+        {/* Divider */}
+        <div className="w-px bg-slate-200 h-40 self-center hidden lg:block mx-4"></div>
+
+        {/* Package 2 (R/R) Tree */}
+        <div className="flex flex-col items-center w-1/2">
+          <button 
+            onClick={() => handleSelect('package', 'Package 2 (R/R)')}
+            className={`w-[80%] py-1.5 rounded-full mb-6 transition-all cursor-pointer border shadow-sm ${
+              isActive('package', 'Package 2 (R/R)')
+                ? 'bg-indigo-600 text-white border-indigo-600 ring-2 ring-offset-2 ring-indigo-200'
+                : 'bg-[#5c54d1] text-white border-[#5c54d1] hover:bg-indigo-600'
+            }`}
+          >
+            Package 2 (R/R)
+          </button>
+          
+          <div className="flex space-x-6 relative w-full justify-center">
+            <div className="absolute top-[-24px] left-[30%] right-[30%] h-6 border-t border-l border-r border-slate-200 rounded-t-md z-0"></div>
+            <div className="absolute top-[-24px] left-1/2 w-px h-6 bg-slate-200 -translate-x-1/2 z-0"></div>
+            
+            <button 
+              onClick={() => handleSelect('circle', 'Rampur')}
+              className={`flex items-center px-4 py-1.5 rounded-full border shadow-sm bg-white transition-all cursor-pointer z-10 ${
+                isActive('circle', 'Rampur') ? 'border-indigo-500 text-indigo-700 ring-2 ring-indigo-100 font-bold' : 'border-slate-200 text-slate-700 hover:border-indigo-300'
+              }`}
+            >
+              <div className="w-4 h-4 rounded-full bg-[#5c54d1] mr-2 flex items-center justify-center text-white shadow-sm"><span style={{fontSize: '8px'}}>✔</span></div> Rampur
+            </button>
+            
+            <button 
+              onClick={() => handleSelect('circle', 'Rohru')}
+              className={`flex items-center px-4 py-1.5 rounded-full border shadow-sm bg-white transition-all cursor-pointer z-10 ${
+                isActive('circle', 'Rohru') ? 'border-indigo-500 text-indigo-700 ring-2 ring-indigo-100 font-bold' : 'border-slate-200 text-slate-700 hover:border-indigo-300'
+              }`}
+            >
+              <div className="w-4 h-4 rounded-full bg-[#5c54d1] mr-2 flex items-center justify-center text-white shadow-sm"><span style={{fontSize: '8px'}}>✔</span></div> Rohru
+            </button>
+          </div>
         </div>
-      </div>
-    </CardContent>
-  </Card>
-);
+
+      </CardContent>
+    </Card>
+  );
+};
 
 export const PhysicalStockChart = ({ data }: { data: any[] }) => {
   return (
@@ -119,7 +219,16 @@ export const PackageSummary = ({ packages }: { packages: any[] }) => (
     <CardContent className="flex flex-col gap-6 mt-2">
       {packages.map((pkg, i) => (
         <div key={i} className="flex flex-col gap-3">
-          <div className={`text-sm font-bold ${i === 0 ? 'text-teal-600' : 'text-indigo-600'}`}>{pkg.name}</div>
+          <div className={`text-sm font-bold flex items-center justify-between ${i === 0 ? 'text-teal-600' : 'text-indigo-600'}`}>
+            <span>{pkg.name}</span>
+            {pkg.circles && pkg.circles.length > 0 && (
+              <div className="flex gap-1">
+                {pkg.circles.map((c: string) => (
+                  <span key={c} className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-medium">{c}</span>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="flex items-center gap-6">
             <div className="flex-1 flex flex-col gap-3">
               <div className="flex items-center justify-between text-xs font-medium text-gray-600">
@@ -169,7 +278,8 @@ export const CirclePerformance = ({ circles }: { circles: any[] }) => (
         </thead>
         <tbody className="text-gray-700 font-medium">
           {circles.map((c, i) => (
-            <tr key={i} className="border-b border-gray-50 last:border-0">
+            <React.Fragment key={i}>
+            <tr className="border-b border-gray-50 last:border-0">
               <td className="py-2 flex items-center">
                 <div className={`w-1.5 h-1.5 rounded-full mr-2 ${['Solan', 'Nalagarh', 'Kumarhatti'].includes(c.circle) ? 'bg-teal-500' : 'bg-indigo-500'}`} />
                 {c.circle}
@@ -183,6 +293,23 @@ export const CirclePerformance = ({ circles }: { circles: any[] }) => (
                 {c.progress}%
               </td>
             </tr>
+            {c.subCircles && c.subCircles.map((sc: any, j: number) => (
+              <tr key={`${i}-${j}`} className="border-b border-gray-50 last:border-0 bg-gray-50/30">
+                <td className="py-2 pl-6 flex items-center text-gray-500 text-[11px]">
+                  <div className="w-1 h-1 rounded-full mr-2 bg-teal-400" />
+                  {sc.name}
+                </td>
+                <td className="py-2 text-[11px] text-gray-500">{sc.totalQty.toLocaleString()}</td>
+                <td className="py-2 text-[11px] text-gray-500">{sc.issuedQty.toLocaleString()}</td>
+                <td className="py-2 flex items-center justify-end text-[11px] text-gray-500">
+                  <div className="w-12 h-1.5 bg-gray-100 rounded-full overflow-hidden mr-2">
+                    <div className="h-full rounded-full bg-teal-400" style={{ width: `${sc.progress}%` }}></div>
+                  </div>
+                  {sc.progress}%
+                </td>
+              </tr>
+            ))}
+            </React.Fragment>
           ))}
         </tbody>
       </table>
@@ -243,7 +370,15 @@ const stages = [
 ];
 
 export const WorkflowTimeline = ({ data }: { data: any }) => {
-  const overallProgress = 68; // Based on design
+  let totalStages = 0;
+  let totalCompleted = 0;
+  stages.forEach(stage => {
+    if (data[stage.id]) {
+      totalStages += data[stage.id].total || 0;
+      totalCompleted += data[stage.id].completed || 0;
+    }
+  });
+  const overallProgress = totalStages > 0 ? Math.round((totalCompleted / totalStages) * 100) : 0;
   
   return (
     <Card className="rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">

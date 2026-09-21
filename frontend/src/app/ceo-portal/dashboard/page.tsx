@@ -18,14 +18,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-const filterOptions: Record<string, string[]> = {
-  package: ['All Packages', 'Package 1 (S/N)', 'Package 2 (R/R)'],
-  circle: ['All Circles', 'Solan', 'Shimla', 'Nahan', 'Rampur', 'Rohru'],
-  subCircle: ['All Sub-Circles', 'Nalagarh', 'Kumarhatti'],
-  site: ['All Sites', 'Site A', 'Site B'],
-  activity: ['All Activities', 'Erection', 'Testing', 'Commissioning'],
-  dateRange: ['01 Apr 2025 - 12 Sep 2025', 'This Month', 'Last Month', 'This Year']
-};
+
 
 export default function CeoDashboardPage() {
   const { user } = useAuthStore();
@@ -33,14 +26,39 @@ export default function CeoDashboardPage() {
   const [data, setData] = useState<any>(null);
 
   // Filters state
-  const [filters, setFilters] = useState({
-    package: 'All Packages',
-    circle: 'All Circles',
-    subCircle: 'All Sub-Circles',
-    site: 'All Sites',
-    activity: 'All Activities',
+  const [filters, setFilters] = useState<{
+    package: string[];
+    circle: string[];
+    subCircle: string[];
+    dateRange: string;
+  }>({
+    package: [],
+    circle: [],
+    subCircle: [],
     dateRange: '01 Apr 2025 - 12 Sep 2025'
   });
+
+  const getAvailableCircles = () => {
+    let circles: string[] = [];
+    if (filters.package.includes('Package 1 (S/N)')) circles.push('Solan', 'Nahan');
+    if (filters.package.includes('Package 2 (R/R)')) circles.push('Rampur', 'Rohru', 'Shimla');
+    if (circles.length === 0) circles = ['Solan', 'Shimla', 'Nahan', 'Rampur', 'Rohru'];
+    return ['All Circles', ...circles];
+  };
+
+  const getAvailableSubCircles = () => {
+    if (filters.circle.includes('Solan')) {
+      return ['All Sub-Circles', 'Nalagarh', 'Kumarhatti'];
+    }
+    return ['All Sub-Circles'];
+  };
+
+  const dynamicFilterOptions: Record<string, string[]> = {
+    package: ['All Packages', 'Package 1 (S/N)', 'Package 2 (R/R)'],
+    circle: getAvailableCircles(),
+    subCircle: getAvailableSubCircles(),
+    dateRange: ['01 Apr 2025 - 12 Sep 2025', 'This Month', 'Last Month', 'This Year']
+  };
 
   useEffect(() => {
     loadData();
@@ -87,29 +105,72 @@ export default function CeoDashboardPage() {
 
             {/* Global Filter Bar */}
             <div className="flex gap-3 mt-6">
-              {Object.entries(filters).map(([key, value]) => (
+              {Object.entries(filters).map(([key, value]) => {
+                if (key === 'subCircle' && !filters.circle.includes('Solan')) return null;
+                
+                // For UI display
+                let displayValue = 'All';
+                if (key === 'dateRange') {
+                  displayValue = value as string;
+                } else if (Array.isArray(value) && value.length > 0) {
+                  displayValue = value.length === 1 ? value[0] : `${value.length} Selected`;
+                }
+
+                return (
                 <div key={key} className="flex flex-col">
                   <span className="text-[10px] font-bold text-gray-500 uppercase mb-1 ml-1">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
                   <Select
-                    value={value}
-                    onValueChange={(newVal) => setFilters(prev => ({ ...prev, [key]: newVal }))}
+                    value={key === 'dateRange' ? (value as string) : ''}
+                    onValueChange={(newVal) => setFilters(prev => {
+                      if (!newVal) return prev;
+                      if (key === 'dateRange') return { ...prev, dateRange: newVal };
+                      
+                      const newFilters = { ...prev };
+                      if (newVal.startsWith('All ')) {
+                        (newFilters as any)[key] = [];
+                        if (key === 'package') newFilters.circle = [];
+                        if (key === 'circle') newFilters.subCircle = [];
+                      } else {
+                        const arr = (newFilters as any)[key] as string[];
+                        if (arr.includes(newVal)) {
+                           (newFilters as any)[key] = arr.filter(i => i !== newVal);
+                        } else {
+                           (newFilters as any)[key] = [...arr, newVal];
+                        }
+                      }
+                      return newFilters;
+                    })}
                   >
                     <SelectTrigger className="text-xs h-8 px-3 border-gray-200 text-gray-700 bg-white shadow-sm min-w-[120px]">
-                      <SelectValue placeholder={value} />
+                      <div className="flex-1 text-left">{displayValue}</div>
                     </SelectTrigger>
                     <SelectContent>
-                      {filterOptions[key]?.map(opt => (
-                        <SelectItem key={opt} value={opt} className="text-xs">{opt}</SelectItem>
+                      {dynamicFilterOptions[key]?.map(opt => (
+                        <SelectItem key={opt} value={opt} className="text-xs">
+                          {key !== 'dateRange' && Array.isArray(value) && value.includes(opt) ? `✓ ${opt}` : opt}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-              ))}
+              )})}
             </div>
           </div>
           
-          <div className="w-[350px]">
-            <ProjectStructure />
+          <div className="flex-1 ml-10 max-w-[800px]">
+            <ProjectStructure 
+              filters={filters}
+              onFilterChange={(key, val) => setFilters(prev => {
+                const newFilters = { ...prev };
+                const currentArr = (newFilters as any)[key] as string[];
+                if (currentArr.includes(val)) {
+                  (newFilters as any)[key] = currentArr.filter(i => i !== val);
+                } else {
+                  (newFilters as any)[key] = [...currentArr, val];
+                }
+                return newFilters;
+              })}
+            />
           </div>
         </div>
 

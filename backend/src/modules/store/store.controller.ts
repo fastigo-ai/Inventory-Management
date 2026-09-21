@@ -459,9 +459,9 @@ export const getInwardFilterOptions = asyncHandler(async (req: Request, res: Res
   );
 });
 
-// ==========================================
+// 
 // NEW API: Filter Options for MHROV DI Search
-// ==========================================
+// 
 export const getMhrovDIFilterOptions = asyncHandler(async (req: Request, res: Response) => {
   const { circle } = req.query;
   const filter: any = {};
@@ -932,8 +932,12 @@ export const getStoreTransfers = asyncHandler(async (req: Request, res: Response
   const cleanStoreName = storeNameRaw ? String(storeNameRaw).replace(/store/i, '').trim() : '';
   const expandedStoreNames = expandCircle(cleanStoreName) || [cleanStoreName];
   if (cleanStoreName) {
+
     // Allow optional trailing " store" or " circle" (case-insensitive) to handle variations from bulk imports
     const storeRegex = new RegExp(`^(${expandedStoreNames.join('|')})(\\s+(store|circle))?$`, 'i');
+
+    
+
     if (registerType === 'OUTWARD') {
       filter.fromStore = storeRegex;
       filter.registerType = 'OUTWARD';
@@ -2569,7 +2573,7 @@ export const importReceivedStoreTransfers = asyncHandler(async (req: Request, re
   );
 });
 
-// ==================== MHROV CONTROLLERS ====================
+// ====== MHROV CONTROLLERS ======
 
 const uploadToCloudinary = (buffer: Buffer, folder: string): Promise<any> => {
   return new Promise((resolve, reject) => {
@@ -3556,9 +3560,9 @@ export const bulkImportInwardEntries = asyncHandler(async (req: Request, res: Re
 });
 
 
-// ==========================================
+// 
 // NEW API: Query DI Line Items for MHROV
-// ==========================================
+// 
 export const queryDILineItemsForMhrov = asyncHandler(async (req: Request, res: Response) => {
   const { diId, diNo, vendor, itemName, page = 1, limit = 50, excludeMhrovId, circle } = req.query;
   const filter: any = {};

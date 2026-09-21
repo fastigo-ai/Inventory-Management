@@ -215,6 +215,10 @@ export function Sidebar() {
 
   // Determine visibility based on permissions
   const visibleNavItems = navItems.filter(item => {
+    if (user?.role?.name === 'CEO') {
+      return item.title === 'Home' || item.title === 'CEO Portal' || item.title === 'Reports';
+    }
+
     // Super Admins see everything
     if (isSuperAdmin) return true;
 
@@ -229,10 +233,6 @@ export function Sidebar() {
 
     if (user?.role?.name === 'Project Director') {
       return item.title === 'Home' || item.title === 'Project Director Portal' || item.title === 'Reports' || item.title === 'Items';
-    }
-
-    if (user?.role?.name === 'CEO') {
-      return item.title === 'CEO Portal' || item.title === 'Reports';
     }
 
     // Role-based filtering based on module names

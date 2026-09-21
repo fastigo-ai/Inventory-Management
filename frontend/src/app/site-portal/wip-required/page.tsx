@@ -70,7 +70,7 @@ export default function WipRegisterPage() {
     try {
       const locationParam = user?.assignedCircle || undefined;
       const res = await getContractors(locationParam);
-      setContractorsList(res?.data || res || []);
+      setContractorsList(res?.data?.contractors || res?.contractors || res?.data || res || []);
     } catch (error) {
       console.error(error);
     }

@@ -15,10 +15,34 @@ export const buildCeoDashboardSummary = async (filters: any) => {
 
   // 1. Build Match Queries based on filters
   const baseQuery: any = {};
-  if (pkg && pkg !== 'All Packages') baseQuery.package = flexibleRegex(pkg);
-  if (circle && circle !== 'All Circles') baseQuery.circle = flexibleRegex(circle);
-  if (subCircle && subCircle !== 'All Sub-Circles') baseQuery.subCircle = flexibleRegex(subCircle);
-  if (site && site !== 'All Sites') baseQuery.site = flexibleRegex(site);
+  
+  const buildFilterArray = (field: any) => {
+    if (!field) return null;
+    const arr = Array.isArray(field) ? field : [field];
+    const validValues = arr.filter(v => v && !v.startsWith('All '));
+    if (validValues.length === 0) return null;
+    return validValues.map((val: string) => flexibleRegex(val));
+  };
+
+  const pkgFilters = buildFilterArray(pkg);
+  if (pkgFilters) baseQuery.package = { $in: pkgFilters };
+
+  const circleFilters = buildFilterArray(circle);
+  if (circleFilters) baseQuery.circle = { $in: circleFilters };
+
+  const subCircleFilters = buildFilterArray(subCircle);
+  if (subCircleFilters) {
+    if (!baseQuery.$and) baseQuery.$and = [];
+    baseQuery.$and.push({
+      $or: [
+        { subcircle: { $in: subCircleFilters } },
+        { subCircle: { $in: subCircleFilters } }
+      ]
+    });
+  }
+
+  const siteFilters = buildFilterArray(site);
+  if (siteFilters) baseQuery.site = { $in: siteFilters };
   
   const dateQuery: any = {};
   if (startDate) dateQuery.$gte = new Date(startDate);
@@ -147,29 +171,58 @@ export const buildCeoDashboardSummary = async (filters: any) => {
   const circleInwards = await StoreInwardEntry.aggregate([
     { $match: baseQuery },
     { $unwind: "$items" },
-    { $group: { _id: "$circle", totalQty: { $sum: "$items.quantity" } } }
+    { $group: { _id: { circle: "$circle", subCircle: "$subcircle" }, totalQty: { $sum: "$items.quantity" } } }
   ]);
 
   const circleIssued = await ContractorAssignment.aggregate([
     { $match: baseQuery },
     { $unwind: "$lineItems" },
-    { $group: { _id: "$circle", issuedQty: { $sum: "$lineItems.quantity" } } }
+    { $group: { _id: { circle: "$circle", subCircle: "$subcircle" }, issuedQty: { $sum: "$lineItems.quantity" } } }
   ]);
 
   const circlesMap: any = {};
+  
+  const initCircle = (cName: string) => {
+    const circleName = cName || 'Unknown';
+    if (!circlesMap[circleName]) {
+      circlesMap[circleName] = { circle: circleName, totalQty: 0, issuedQty: 0, progress: 0, subCircles: {} };
+    }
+    return circleName;
+  };
+
   circleInwards.forEach(c => {
-    const circleName = c._id || 'Unknown';
-    circlesMap[circleName] = { circle: circleName, totalQty: c.totalQty, issuedQty: 0, progress: 0 };
+    const circleName = initCircle(c._id.circle);
+    const sub = c._id.subCircle;
+    if (sub) {
+      if (!circlesMap[circleName].subCircles[sub]) circlesMap[circleName].subCircles[sub] = { name: sub, totalQty: 0, issuedQty: 0, progress: 0 };
+      circlesMap[circleName].subCircles[sub].totalQty += c.totalQty;
+    }
+    circlesMap[circleName].totalQty += c.totalQty;
   });
+
   circleIssued.forEach(c => {
-    const circleName = c._id || 'Unknown';
-    if (!circlesMap[circleName]) circlesMap[circleName] = { circle: circleName, totalQty: 0, issuedQty: 0, progress: 0 };
-    circlesMap[circleName].issuedQty = c.issuedQty;
+    const circleName = initCircle(c._id.circle);
+    const sub = c._id.subCircle;
+    if (sub) {
+      if (!circlesMap[circleName].subCircles[sub]) circlesMap[circleName].subCircles[sub] = { name: sub, totalQty: 0, issuedQty: 0, progress: 0 };
+      circlesMap[circleName].subCircles[sub].issuedQty += c.issuedQty;
+    }
+    circlesMap[circleName].issuedQty += c.issuedQty;
   });
-  const circleStats = Object.values(circlesMap).map((c: any) => ({
-    ...c,
-    progress: c.totalQty > 0 ? Math.round((c.issuedQty / c.totalQty) * 100) : 0
-  }));
+
+  const circleStats = Object.values(circlesMap).map((c: any) => {
+    const subStats = Object.values(c.subCircles).map((sc: any) => ({
+      ...sc,
+      progress: sc.totalQty > 0 ? Math.round((sc.issuedQty / sc.totalQty) * 100) : 0
+    }));
+    return {
+      circle: c.circle,
+      totalQty: c.totalQty,
+      issuedQty: c.issuedQty,
+      progress: c.totalQty > 0 ? Math.round((c.issuedQty / c.totalQty) * 100) : 0,
+      subCircles: subStats
+    };
+  });
 
   // Package-wise Physical & Financial
   const packageInwards = await StoreInwardEntry.aggregate([
@@ -211,31 +264,39 @@ export const buildCeoDashboardSummary = async (filters: any) => {
   const packagesMap: any = {};
   
   const initPackage = (pkgName: string) => {
-    if (!packagesMap[pkgName]) {
-      packagesMap[pkgName] = { name: pkgName || 'Unknown Package', physical: 0, financial: 0, billedValue: 0, pendingValue: 0, _totalQty: 0, _jmcQty: 0, _poValue: 0 };
+    let normPkgName = pkgName ? pkgName.trim().replace(/Package (\d)\(/i, 'Package $1 (') : 'Unknown Package';
+    // Fix common typos in db records
+    if (normPkgName === 'Package 2(R/R)') normPkgName = 'Package 2 (R/R)';
+    if (normPkgName === 'Package 1(S/N)') normPkgName = 'Package 1 (S/N)';
+    
+    if (!packagesMap[normPkgName]) {
+      let circles = [];
+      if (normPkgName.includes('Package 1')) circles = ['Solan', 'Nahan'];
+      if (normPkgName.includes('Package 2')) circles = ['Rampur', 'Rohru', 'Shimla'];
+      packagesMap[normPkgName] = { name: normPkgName, physical: 0, financial: 0, billedValue: 0, pendingValue: 0, _totalQty: 0, _jmcQty: 0, _poValue: 0, circles };
     }
+    return normPkgName;
   };
 
-  packageInwards.forEach(p => { initPackage(p._id); packagesMap[p._id]._totalQty = p.totalQty; });
-  packageJmc.forEach(p => { initPackage(p._id); packagesMap[p._id]._jmcQty = p.jmcQty; });
-  packagePo.forEach(p => { initPackage(p._id); packagesMap[p._id]._poValue = p.totalValue; });
+  packageInwards.forEach(p => { const name = initPackage(p._id); packagesMap[name]._totalQty += p.totalQty; });
+  packageJmc.forEach(p => { const name = initPackage(p._id); packagesMap[name]._jmcQty += p.jmcQty; });
+  packagePo.forEach(p => { const name = initPackage(p._id); packagesMap[name]._poValue += p.totalValue; });
   
   packageContractorBilled.forEach(p => {
-    const pkgName = p._id.pkg;
-    initPackage(pkgName);
+    const pkgName = initPackage(p._id.pkg);
     if (p._id.status === 'Approved') packagesMap[pkgName].billedValue += p.totalValue;
     else packagesMap[pkgName].pendingValue += p.totalValue;
   });
   
   packageClientBilled.forEach(p => {
-    const pkgName = p._id.pkg;
-    initPackage(pkgName);
+    const pkgName = initPackage(p._id.pkg);
     if (p._id.status === 'Approved') packagesMap[pkgName].billedValue += p.totalValue;
     else packagesMap[pkgName].pendingValue += p.totalValue;
   });
 
   const packageStats = Object.values(packagesMap).map((p: any) => ({
     name: p.name,
+    circles: p.circles,
     physical: p._totalQty > 0 ? Math.round((p._jmcQty / p._totalQty) * 100) : 0,
     financial: p._poValue > 0 ? Math.round((p.billedValue / p._poValue) * 100) : 0,
     billedValue: Math.round((p.billedValue / 10000000) * 100) / 100,
@@ -285,23 +346,23 @@ export const buildCeoDashboardSummary = async (filters: any) => {
 
   return {
     kpis: {
-      physicalStock: totalInwardQty || 482360,
-      materialIssued: totalIssuedQty || 210540,
-      jmcConsumed: totalJmcQty || 168320,
-      wip: totalWipQty || 52460,
-      totalBillingValue: contractorBilled + supplyBilled || 12.48,
-      pendingBilling: contractorPending + supplyPending || 3.26
+      physicalStock: totalInwardQty,
+      materialIssued: totalIssuedQty,
+      jmcConsumed: totalJmcQty,
+      wip: totalWipQty,
+      totalBillingValue: (contractorBilled + supplyBilled) / 10000000,
+      pendingBilling: (contractorPending + supplyPending) / 10000000
     },
     charts: {
       physicalStockProgress: [
-        { name: 'Received', total: totalInwardQty * 1.2 || 100, completed: totalInwardQty, balance: Math.max(0, (totalInwardQty * 1.2 || 100) - totalInwardQty) },
+        { name: 'Received', total: totalInwardQty * 1.2, completed: totalInwardQty, balance: Math.max(0, (totalInwardQty * 1.2) - totalInwardQty) },
         { name: 'Inward', total: totalInwardQty, completed: totalInwardQty, balance: 0 },
         { name: 'MHROV', total: totalInwardQty, completed: totalMhrovQty, balance: Math.max(0, totalInwardQty - totalMhrovQty) },
         { name: 'Available', total: totalInwardQty, completed: Math.max(0, totalInwardQty - totalIssuedQty), balance: totalIssuedQty },
         { name: 'Issued', total: totalInwardQty, completed: totalIssuedQty, balance: Math.max(0, totalInwardQty - totalIssuedQty) },
-        { name: 'JMC', total: totalIssuedQty || 100, completed: totalJmcQty, balance: Math.max(0, (totalIssuedQty || 100) - totalJmcQty) },
-        { name: 'WIP Consumed', total: totalIssuedQty || 100, completed: totalWipQty, balance: Math.max(0, (totalIssuedQty || 100) - totalWipQty) },
-        { name: 'WIP Required', total: totalIssuedQty || 100, completed: totalWipReqQty, balance: Math.max(0, (totalIssuedQty || 100) - totalWipReqQty) },
+        { name: 'JMC', total: totalIssuedQty, completed: totalJmcQty, balance: Math.max(0, totalIssuedQty - totalJmcQty) },
+        { name: 'WIP Consumed', total: totalIssuedQty, completed: totalWipQty, balance: Math.max(0, totalIssuedQty - totalWipQty) },
+        { name: 'WIP Required', total: totalIssuedQty, completed: totalWipReqQty, balance: Math.max(0, totalIssuedQty - totalWipReqQty) },
       ].map(i => ({ ...i, total: Math.round(i.total), completed: Math.round(i.completed), balance: Math.round(i.balance) })),
       financialProgress: [
         { name: 'Purchase Value', billed: Math.round((totalPurchaseValue / 10000000) * 100) / 100, pending: 0 },

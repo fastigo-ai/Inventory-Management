@@ -88,8 +88,8 @@ function DemandNoteForm() {
       try {
         const locationParam = user?.assignedCircle || undefined;
         const res = await getContractors(locationParam);
-        if (res && res.data) {
-          setContractorsList(res.data);
+        if (res && res.data && res.data.contractors) {
+          setContractorsList(res.data.contractors);
         } else if (Array.isArray(res)) {
           setContractorsList(res);
         }

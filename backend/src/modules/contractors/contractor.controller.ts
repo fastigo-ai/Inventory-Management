@@ -1315,7 +1315,7 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
         if (overwriteExisting) {
           const bulkOps = payloads.map((payload: any) => ({
             updateOne: {
-              filter: { assignmentNumber: payload.assignmentNumber, subcircle: payload.subcircle },
+              filter: { assignmentNumber: payload.assignmentNumber, circle: payload.circle, subcircle: payload.subcircle },
               update: { $set: payload },
               upsert: true
             }
@@ -1324,19 +1324,21 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
           const result = await ContractorAssignment.bulkWrite(bulkOps);
           successCount += payloads.length;
         } else {
-          // If not overwriting, we filter out existing MINs for this subcircle
+          // If not overwriting, we filter out existing MINs for this circle/subcircle
+          const circles = Array.from(new Set(payloads.map((p: any) => p.circle)));
           const subcircles = Array.from(new Set(payloads.map((p: any) => p.subcircle)));
           const existingMins = await ContractorAssignment.find({
             assignmentNumber: { $in: payloads.map((p: any) => p.assignmentNumber) },
+            circle: { $in: circles },
             subcircle: { $in: subcircles }
-          }).select('assignmentNumber subcircle').lean();
+          }).select('assignmentNumber circle subcircle').lean();
           
-          const existingMinSet = new Set(existingMins.map(e => `${e.assignmentNumber}_${e.subcircle}`));
+          const existingMinSet = new Set(existingMins.map(e => `${e.assignmentNumber}_${e.circle}_${e.subcircle}`));
           
           const validPayloads = [];
           for (const payload of payloads as any[]) {
-            if (existingMinSet.has(`${payload.assignmentNumber}_${payload.subcircle}`)) {
-              errors.push(`Assignment/MIN ${payload.assignmentNumber} already exists. Skipping.`);
+            if (existingMinSet.has(`${payload.assignmentNumber}_${payload.circle}_${payload.subcircle}`)) {
+              errors.push(`Assignment/MIN ${payload.assignmentNumber} already exists in ${payload.circle}. Skipping.`);
             } else {
               validPayloads.push(payload);
             }

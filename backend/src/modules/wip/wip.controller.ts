@@ -285,11 +285,17 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
   
   const allItems = await Item.find({}).lean();
   const itemsByLoa = new Map<string, any[]>();
+  const itemsByTempCode = new Map<string, any[]>();
   for (const item of allItems) {
     const sku = String(item.dynamicData?.sku || item.dynamicData?.loaSrNo || '').toLowerCase().trim();
     if (sku) {
       if (!itemsByLoa.has(sku)) itemsByLoa.set(sku, []);
       itemsByLoa.get(sku)?.push(item);
+    }
+    const tempCode = String(item.dynamicData?.tempCode || item.rawItem?.tempCode || '').toLowerCase().trim();
+    if (tempCode) {
+      if (!itemsByTempCode.has(tempCode)) itemsByTempCode.set(tempCode, []);
+      itemsByTempCode.get(tempCode)?.push(item);
     }
   }
 
@@ -542,11 +548,17 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
     });
 
     const sheetSku = String(sr.loa || '').toLowerCase().trim();
+    const sheetTempCode = String(sr.tempCode || '').toLowerCase().trim();
     const sheetCircle = (uploadedCircle || '').toLowerCase().trim();
     let candidateItems: any[] = [];
     
     if (sheetSku) {
       const matches = itemsByLoa.get(sheetSku);
+      if (matches && matches.length > 0) candidateItems = matches;
+    }
+
+    if (candidateItems.length === 0 && sheetTempCode) {
+      const matches = itemsByTempCode.get(sheetTempCode);
       if (matches && matches.length > 0) candidateItems = matches;
     }
 

@@ -151,7 +151,7 @@ export default function PurchaseInvoicesPage() {
   const handleExport = async () => {
     try {
       setIsExporting(true);
-      const params: any = {};
+      const params: any = { limit };
       
       const spFilters: string[] = ['vendorName', 'invoiceNumber', 'fromDate', 'toDate', 'hasPO', 'hasDI', 'minAmount', 'maxAmount'];
       spFilters.forEach(k => {
@@ -614,8 +614,17 @@ export default function PurchaseInvoicesPage() {
                     >
                       <option value="10">10 / page</option>
                       <option value="20">20 / page</option>
+                      <option value="30">30 / page</option>
+                      <option value="40">40 / page</option>
                       <option value="50">50 / page</option>
+                      <option value="60">60 / page</option>
                       <option value="100">100 / page</option>
+                      <option value="200">200 / page</option>
+                      <option value="300">300 / page</option>
+                      <option value="400">400 / page</option>
+                      <option value="500">500 / page</option>
+                      <option value="1000">1000 / page</option>
+                      <option value="2000">2000 / page</option>
                     </select>
                   </div>
                 </div>

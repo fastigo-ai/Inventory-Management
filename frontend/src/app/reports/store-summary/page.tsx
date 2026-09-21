@@ -169,7 +169,7 @@ export default function StoreSummaryPage() {
         hideZeroBalance,
         viewMode: viewMode as 'item' | 'loa',
         page: 1,
-        limit: 100000 // Large limit to get all
+        limit: 5000000 // Large limit to get all
       });
       return res.data?.items || [];
     } catch (err) {

@@ -137,7 +137,7 @@ export default function NewPurchaseInvoicePage() {
     getVendors({ limit: 100 }).then(res => setVendors(res.vendors || res));
     getPurchaseOrders().then(res => setPurchaseOrders(Array.isArray(res.data) ? res.data : (res.data?.pos || res.data || [])));
     getItems({ limit: 5000 }).then(res => setItemsList(res.items || res.data || res));
-    getDIs({ limit: 1000 }).then(res => {
+    getDIs({ limit: 50000 }).then(res => {
       if (res.data) {
         setDis(Array.isArray(res.data) ? res.data : (res.data.dis || []));
       } else {

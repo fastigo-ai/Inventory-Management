@@ -33,9 +33,10 @@ export default function JmcRegisterPage() {
   const [divisionFilter, setDivisionFilter] = useState('');
   const [subDivisionFilter, setSubDivisionFilter] = useState('');
   const [subStationFilter, setSubStationFilter] = useState('');
+  const [drawingNoFilter, setDrawingNoFilter] = useState('');
 
   const [debouncedFilters, setDebouncedFilters] = useState({
-    location: '', feeder: '', division: '', subDivision: '', subStation: ''
+    location: '', feeder: '', division: '', subDivision: '', subStation: '', drawingNo: ''
   });
 
   const [pageSize, setPageSize] = useState(30);
@@ -52,12 +53,13 @@ export default function JmcRegisterPage() {
         feeder: feederFilter,
         division: divisionFilter,
         subDivision: subDivisionFilter,
-        subStation: subStationFilter
+        subStation: subStationFilter,
+        drawingNo: drawingNoFilter
       });
       setCurrentPage(1); // Reset to page 1 on new search
     }, 500);
     return () => clearTimeout(handler);
-  }, [searchTerm, locationFilter, feederFilter, divisionFilter, subDivisionFilter, subStationFilter]);
+  }, [searchTerm, locationFilter, feederFilter, divisionFilter, subDivisionFilter, subStationFilter, drawingNoFilter]);
 
   useEffect(() => {
     fetchContractors();
@@ -93,6 +95,7 @@ export default function JmcRegisterPage() {
       if (debouncedFilters.division) params.division = debouncedFilters.division;
       if (debouncedFilters.subDivision) params.subDivision = debouncedFilters.subDivision;
       if (debouncedFilters.subStation) params.subStation = debouncedFilters.subStation;
+      if (debouncedFilters.drawingNo) params.drawingNo = debouncedFilters.drawingNo;
 
       const res = await getJmcs(params);
       const payload = res.data?.data || {};
@@ -119,6 +122,7 @@ export default function JmcRegisterPage() {
       if (debouncedFilters.feeder) params.feeder = debouncedFilters.feeder;
       if (debouncedFilters.subDivision) params.subDivision = debouncedFilters.subDivision;
       if (debouncedFilters.subStation) params.subStation = debouncedFilters.subStation;
+      if (debouncedFilters.drawingNo) params.drawingNo = debouncedFilters.drawingNo;
 
       const blob = await exportJmcTemplate(params);
       const url = window.URL.createObjectURL(new Blob([blob]));
@@ -286,6 +290,17 @@ export default function JmcRegisterPage() {
                 placeholder="Search..." 
                 value={subStationFilter} 
                 onChange={(e) => setSubStationFilter(e.target.value)}
+                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+              />
+            </div>
+            {/* Drawing No */}
+            <div>
+              <label className="text-xs text-slate-500 font-medium mb-1.5 block">Drawing No</label>
+              <input 
+                type="text" 
+                placeholder="Search..." 
+                value={drawingNoFilter} 
+                onChange={(e) => setDrawingNoFilter(e.target.value)}
                 className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
               />
             </div>

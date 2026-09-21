@@ -4,6 +4,10 @@ import { ContractorBillingLedger } from './contractorBillingLedger.schema';
 import { ApiResponse } from '../../core/utils/ApiResponse';
 import { ApiError } from '../../core/utils/ApiError';
 import { asyncHandler } from '../../core/utils/asyncHandler';
+import { JmcRegister } from '../jmc/jmc.schema';
+import { Mhrov } from '../store/mhrov.schema';
+import { ContractorWorkOrder } from '../contractors/contractorWorkOrder.schema';
+import mongoose from 'mongoose';
 
 // Helper to generate Invoice Number
 const generateInvoiceNumber = async () => {
@@ -36,18 +40,40 @@ export const createInvoice = asyncHandler(async (req: Request, res: Response) =>
 
   const percentage = parseInt(stage.replace('%', '')); // '10%', '20%', '100%'
 
+  let dbJmc: any = null;
+  let dbMhrov: any = null;
+  if (jmcId) {
+    dbJmc = await JmcRegister.findById(jmcId).lean();
+  }
+  if (mhrovId) {
+    dbMhrov = await Mhrov.findById(mhrovId).lean();
+  }
+
   const processedItems = lineItems.map((item: any) => {
-    let baseAmount = 0;
-    
-    // For 100% stage, we use jmcDoneQty. For others, we use erectedQty * percentage.
-    if (percentage === 100) {
-      baseAmount = Number(item.jmcDoneQty) * Number(item.rate);
+    let authoritativeQty = 0;
+
+    // FIX: Override frontend quantity with DB verified quantity
+    if (jmcId && dbJmc) {
+      const dbItem = dbJmc.items.find((i: any) => i.itemId?.toString() === item.itemId?.toString());
+      if (!dbItem) throw new ApiError(400, `Item ${item.itemId} not found in linked JMC`);
+      authoritativeQty = Number(dbItem.approvedQty || dbItem.claimedQty || 0);
+    } else if (mhrovId && dbMhrov) {
+      const dbItem = dbMhrov.items?.find((i: any) => i.itemId?.toString() === item.itemId?.toString());
+      if (!dbItem) throw new ApiError(400, `Item ${item.itemId} not found in linked MHROV`);
+      authoritativeQty = Number(dbItem.mhrovDoneQty || 0);
     } else {
-      baseAmount = Number(item.erectedQty) * Number(item.rate) * (percentage / 100);
+      authoritativeQty = percentage === 100 ? Number(item.jmcDoneQty || 0) : Number(item.erectedQty || 0);
     }
 
-    const fullQty = percentage === 100 ? Number(item.jmcDoneQty || 0) : Number(item.erectedQty || 0);
-    const gstAmount = fullQty * Number(item.rate || 0) * (Number(item.gstRate || 0) / 100);
+    let baseAmount = 0;
+    
+    if (percentage === 100) {
+      baseAmount = authoritativeQty * Number(item.rate);
+    } else {
+      baseAmount = authoritativeQty * Number(item.rate) * (percentage / 100);
+    }
+
+    const gstAmount = authoritativeQty * Number(item.rate || 0) * (Number(item.gstRate || 0) / 100);
     const totalAmount = baseAmount + gstAmount;
 
     totalBaseAmount += baseAmount;
@@ -58,8 +84,8 @@ export const createInvoice = asyncHandler(async (req: Request, res: Response) =>
       activity: item.activity,
       description: item.description,
       billingCategory: item.billingCategory,
-      jmcDoneQty: Number(item.jmcDoneQty || 0),
-      erectedQty: Number(item.erectedQty || 0),
+      jmcDoneQty: (jmcId && percentage === 100) ? authoritativeQty : Number(item.jmcDoneQty || 0),
+      erectedQty: (jmcId && percentage !== 100) ? authoritativeQty : (mhrovId ? authoritativeQty : Number(item.erectedQty || 0)),
       rate: Number(item.rate),
       percentageApplied: percentage,
       baseAmount,
@@ -124,18 +150,40 @@ export const updateInvoice = asyncHandler(async (req: Request, res: Response) =>
 
   const percentage = parseInt(stage.replace('%', '')); // '10%', '20%', '100%'
 
+  let dbJmc: any = null;
+  let dbMhrov: any = null;
+  if (invoice.jmcId) {
+    dbJmc = await JmcRegister.findById(invoice.jmcId).lean();
+  }
+  if (invoice.mhrovId) {
+    dbMhrov = await Mhrov.findById(invoice.mhrovId).lean();
+  }
+
   const processedItems = lineItems.map((item: any) => {
-    let baseAmount = 0;
-    
-    // For 100% stage, we use jmcDoneQty. For others, we use erectedQty * percentage.
-    if (percentage === 100) {
-      baseAmount = Number(item.jmcDoneQty) * Number(item.rate);
+    let authoritativeQty = 0;
+
+    // FIX: Override frontend quantity with DB verified quantity
+    if (invoice.jmcId && dbJmc) {
+      const dbItem = dbJmc.items.find((i: any) => i.itemId?.toString() === item.itemId?.toString());
+      if (!dbItem) throw new ApiError(400, `Item ${item.itemId} not found in linked JMC`);
+      authoritativeQty = Number(dbItem.approvedQty || dbItem.claimedQty || 0);
+    } else if (invoice.mhrovId && dbMhrov) {
+      const dbItem = dbMhrov.items?.find((i: any) => i.itemId?.toString() === item.itemId?.toString());
+      if (!dbItem) throw new ApiError(400, `Item ${item.itemId} not found in linked MHROV`);
+      authoritativeQty = Number(dbItem.mhrovDoneQty || 0);
     } else {
-      baseAmount = Number(item.erectedQty) * Number(item.rate) * (percentage / 100);
+      authoritativeQty = percentage === 100 ? Number(item.jmcDoneQty || 0) : Number(item.erectedQty || 0);
     }
 
-    const fullQty = percentage === 100 ? Number(item.jmcDoneQty || 0) : Number(item.erectedQty || 0);
-    const gstAmount = fullQty * Number(item.rate || 0) * (Number(item.gstRate || 0) / 100);
+    let baseAmount = 0;
+    
+    if (percentage === 100) {
+      baseAmount = authoritativeQty * Number(item.rate);
+    } else {
+      baseAmount = authoritativeQty * Number(item.rate) * (percentage / 100);
+    }
+
+    const gstAmount = authoritativeQty * Number(item.rate || 0) * (Number(item.gstRate || 0) / 100);
     const totalAmount = baseAmount + gstAmount;
 
     totalBaseAmount += baseAmount;
@@ -146,8 +194,8 @@ export const updateInvoice = asyncHandler(async (req: Request, res: Response) =>
       activity: item.activity,
       description: item.description,
       billingCategory: item.billingCategory,
-      jmcDoneQty: Number(item.jmcDoneQty || 0),
-      erectedQty: Number(item.erectedQty || 0),
+      jmcDoneQty: (invoice.jmcId && percentage === 100) ? authoritativeQty : Number(item.jmcDoneQty || 0),
+      erectedQty: (invoice.jmcId && percentage !== 100) ? authoritativeQty : (invoice.mhrovId ? authoritativeQty : Number(item.erectedQty || 0)),
       rate: Number(item.rate),
       percentageApplied: percentage,
       baseAmount,
@@ -250,58 +298,89 @@ export const updateInvoiceStatus = asyncHandler(async (req: Request, res: Respon
   const { id } = req.params;
   const { status, remarks } = req.body;
 
-  const invoice = await ContractorInvoice.findById(id);
-  if (!invoice) throw new ApiError(404, 'Invoice not found');
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  invoice.status = status;
-  if (remarks) invoice.remarks = remarks;
-  
-  await invoice.save();
-
-  if (status === 'Payment Processed') {
-    let ledger = await ContractorBillingLedger.findOne({ workOrderId: invoice.workOrderId });
-    if (!ledger) {
-      ledger = new ContractorBillingLedger({
-        workOrderId: invoice.workOrderId,
-        contractorId: invoice.contractorId,
-        items: []
-      });
+  try {
+    const invoice = await ContractorInvoice.findById(id).session(session);
+    if (!invoice) {
+      throw new ApiError(404, 'Invoice not found');
     }
 
-    for (const item of invoice.lineItems) {
-      if (!item.itemId) continue;
-      
-      let ledgerItem = ledger.items.find(i => i.itemId?.toString() === item.itemId.toString());
-      if (!ledgerItem) {
-        ledgerItem = {
-          itemId: item.itemId,
-          activity: item.activity,
-          totalReceivedQty: 0,
-          totalErectedQty: 0,
-          supplyBilledPercentage: 0,
-          erectionBilledPercentage: 0,
-          lastBilledAt: new Date()
-        };
-        ledger.items.push(ledgerItem);
+    if (status === 'Payment Processed' && invoice.status !== 'Payment Processed') {
+      const workOrder = await ContractorWorkOrder.findById(invoice.workOrderId).session(session);
+      if (!workOrder) throw new ApiError(400, 'Work Order not found for this invoice');
+
+      let ledger = await ContractorBillingLedger.findOne({ workOrderId: invoice.workOrderId }).session(session);
+      if (!ledger) {
+        ledger = new ContractorBillingLedger({
+          workOrderId: invoice.workOrderId,
+          contractorId: invoice.contractorId,
+          items: []
+        });
       }
 
-      if (item.percentageApplied === 100) {
-        ledgerItem.totalErectedQty += item.jmcDoneQty;
-      } else {
-        ledgerItem.totalErectedQty += item.erectedQty;
+      for (const item of invoice.lineItems) {
+        if (!item.itemId) continue;
+        
+        const woItem = workOrder.items.find((i: any) => i.itemId?.toString() === item.itemId.toString());
+        if (!woItem) throw new ApiError(400, `Item ${item.itemId} not found in Work Order`);
+        
+        const contractValue = Number(woItem.amount || (Number(woItem.totalLoaQty) * Number(woItem.rate)) || 0);
+
+        let ledgerItem = ledger.items.find(i => i.itemId?.toString() === item.itemId.toString());
+        if (!ledgerItem) {
+          ledgerItem = {
+            itemId: item.itemId,
+            activity: item.activity,
+            totalReceivedQty: 0,
+            totalErectedQty: 0,
+            totalSupplyBilledAmount: 0,
+            totalErectionBilledAmount: 0,
+            lastBilledAt: new Date()
+          };
+          ledger.items.push(ledgerItem);
+        }
+
+        const newBaseAmount = Number(item.baseAmount || 0);
+        
+        // Use absolute amounts to avoid float % errors and validate limits
+        if (item.billingCategory === 'Supply') {
+          if (ledgerItem.totalSupplyBilledAmount + newBaseAmount > contractValue + 0.01) { // 0.01 margin for float errors
+             throw new ApiError(400, `Billing limit exceeded for item ${item.description || item.itemId}. Contract Value: ${contractValue}, Already Billed: ${ledgerItem.totalSupplyBilledAmount}, New Bill: ${newBaseAmount}`);
+          }
+          ledgerItem.totalSupplyBilledAmount += newBaseAmount;
+        } else if (item.billingCategory === 'Erection' || item.billingCategory === 'JMC Done') {
+          if (ledgerItem.totalErectionBilledAmount + newBaseAmount > contractValue + 0.01) {
+             throw new ApiError(400, `Billing limit exceeded for item ${item.description || item.itemId}. Contract Value: ${contractValue}, Already Billed: ${ledgerItem.totalErectionBilledAmount}, New Bill: ${newBaseAmount}`);
+          }
+          ledgerItem.totalErectionBilledAmount += newBaseAmount;
+        }
+
+        if (item.percentageApplied === 100) {
+          ledgerItem.totalErectedQty += Number(item.jmcDoneQty || 0);
+        } else {
+          ledgerItem.totalErectedQty += Number(item.erectedQty || 0);
+        }
+        
+        ledgerItem.lastBilledAt = new Date();
       }
-      
-      if (item.billingCategory === 'Supply') {
-        ledgerItem.supplyBilledPercentage = Math.min(100, ledgerItem.supplyBilledPercentage + item.percentageApplied);
-      } else if (item.billingCategory === 'Erection') {
-        ledgerItem.erectionBilledPercentage = Math.min(100, ledgerItem.erectionBilledPercentage + item.percentageApplied);
-      }
-      ledgerItem.lastBilledAt = new Date();
+      await ledger.save({ session });
     }
-    await ledger.save();
+
+    invoice.status = status;
+    if (remarks) invoice.remarks = remarks;
+    
+    await invoice.save({ session });
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json(new ApiResponse(200, invoice, 'Invoice status updated successfully'));
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
   }
-
-  res.status(200).json(new ApiResponse(200, invoice, 'Invoice status updated successfully'));
 });
 
 export const getBillingAnalytics = asyncHandler(async (req: Request, res: Response) => {

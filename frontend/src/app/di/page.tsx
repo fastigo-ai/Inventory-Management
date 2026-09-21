@@ -134,7 +134,7 @@ export default function DIPage() {
     try {
       const res = await getDIs({ 
         page: 1, 
-        limit: 10000,
+        limit: 500000,
         search: search || undefined,
         diNumber: diNumber || undefined,
         startDate: startDate || undefined,

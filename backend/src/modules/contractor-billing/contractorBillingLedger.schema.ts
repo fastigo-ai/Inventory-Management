@@ -5,8 +5,8 @@ export interface ILedgerItem {
   activity?: string;
   totalReceivedQty: number;  // Cumulative qty from MHROV
   totalErectedQty: number;   // Cumulative qty from JMC
-  supplyBilledPercentage: number; // 0, 60, 90, 100
-  erectionBilledPercentage: number; // 0, 90, 100
+  totalSupplyBilledAmount: number; // Absolute billed amount for supply
+  totalErectionBilledAmount: number; // Absolute billed amount for erection
   lastBilledAt?: Date;
 }
 
@@ -22,8 +22,8 @@ const ledgerItemSchema = new Schema<ILedgerItem>({
   activity: { type: String },
   totalReceivedQty: { type: Number, default: 0 },
   totalErectedQty: { type: Number, default: 0 },
-  supplyBilledPercentage: { type: Number, default: 0 },
-  erectionBilledPercentage: { type: Number, default: 0 },
+  totalSupplyBilledAmount: { type: Number, default: 0 },
+  totalErectionBilledAmount: { type: Number, default: 0 },
   lastBilledAt: { type: Date }
 }, { _id: false });
 

@@ -70,12 +70,12 @@ export default function WipRegisterFormPage() {
 
   useEffect(() => {
     if (formData.package && formData.circle) {
-      getItems({ filters: { package: formData.package, circle: formData.circle }, limit: 1000 }).then(res => {
+      getItems({ filters: { package: formData.package, circle: formData.circle }, limit: 50000 }).then(res => {
         const fetched = res?.items || res?.data?.items || (Array.isArray(res) ? res : res.data) || [];
         setAvailableItems(fetched);
       }).catch(console.error);
     } else {
-      getItems({ limit: 1000 }).then(res => {
+      getItems({ limit: 50000 }).then(res => {
         const fetched = res?.items || res?.data?.items || (Array.isArray(res) ? res : res.data) || [];
         setAvailableItems(fetched);
       }).catch(console.error);

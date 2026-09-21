@@ -242,16 +242,16 @@ function normLabel(v: any): string {
 
 const getNextWipSequence = async (): Promise<{ currentCount: number, yearStr: string }> => {
   const yearStr = new Date().getFullYear().toString().slice(-2);
-  const lastDoc = await WipRequiredRegister.findOne({ wipNumber: new RegExp(`^WIP/${yearStr}/`) }).sort({ createdAt: -1 });
+  const lastDoc = await WipRequiredRegister.findOne({ wipRequiredNumber: new RegExp(`^WIP/${yearStr}/`) }).sort({ createdAt: -1 });
   let count = 0;
-  if (lastDoc && lastDoc.wipNumber) {
-    const parts = lastDoc.wipNumber.split('/');
+  if (lastDoc && lastDoc.wipRequiredNumber) {
+    const parts = lastDoc.wipRequiredNumber.split('/');
     if (parts.length === 3) {
       count = parseInt(parts[2], 10);
     }
   }
   if (isNaN(count) || count === 0) {
-    count = await WipRequiredRegister.countDocuments({ wipNumber: new RegExp(`^WIP/${yearStr}/`) });
+    count = await WipRequiredRegister.countDocuments({ wipRequiredNumber: new RegExp(`^WIP/${yearStr}/`) });
   }
   return { currentCount: count, yearStr };
 };
@@ -786,7 +786,7 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
       let existingWip = null;
       
       if (existingWipNo) {
-         existingWip = await WipRequiredRegister.findOne({ wipNumber: existingWipNo });
+         existingWip = await WipRequiredRegister.findOne({ wipRequiredNumber: existingWipNo });
       } else {
          existingWip = await WipRequiredRegister.findOne({ 
             contractorId: contractorId || null, package: pkg, location: loc, circle: circ, division: div, subDivision: subDiv, subStation: subStn, feeder 
@@ -829,7 +829,7 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
       }
 
       if (existingWipNo && !existingWip) {
-        await WipRequiredRegister.findOneAndUpdate({ wipNumber: existingWipNo }, {
+        await WipRequiredRegister.findOneAndUpdate({ wipRequiredNumber: existingWipNo }, {
           $set: {
             date: new Date(),
             contractorId: contractorId || null,
@@ -844,10 +844,10 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
         while (!saved && attempts < 10) {
           try {
             initialCount++;
-            const wipNumber = `WIP/${yearStr}/${initialCount.toString().padStart(4, '0')}`;
+            const wipRequiredNumber = `WIP/${yearStr}/${initialCount.toString().padStart(4, '0')}`;
 
             await WipRequiredRegister.create({
-              wipNumber,
+              wipRequiredNumber,
               date: new Date(),
               contractorId: contractorId || null,
               package: pkg, location: loc, circle: circ, division: div, subDivision: subDiv, subStation: subStn, feeder,
@@ -860,11 +860,11 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
             });
             saved = true;
           } catch (err: any) {
-            if (err.code === 11000 && err.keyPattern && err.keyPattern.wipNumber) {
+            if (err.code === 11000 && err.keyPattern && err.keyPattern.wipRequiredNumber) {
               attempts++;
-              const latest = await WipRequiredRegister.findOne({ wipNumber: new RegExp(`^WIP/${yearStr}/`) }).sort({ wipNumber: -1 }).select('wipNumber').lean();
-              if (latest && latest.wipNumber) {
-                const parts = latest.wipNumber.split('/');
+              const latest = await WipRequiredRegister.findOne({ wipRequiredNumber: new RegExp(`^WIP/${yearStr}/`) }).sort({ wipRequiredNumber: -1 }).select('wipRequiredNumber').lean();
+              if (latest && latest.wipRequiredNumber) {
+                const parts = latest.wipRequiredNumber.split('/');
                 if (parts.length === 3) {
                   initialCount = parseInt(parts[2], 10) || initialCount;
                 }

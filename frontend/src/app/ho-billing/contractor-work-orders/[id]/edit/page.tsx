@@ -143,7 +143,7 @@ export default function EditContractorWorkOrderPage() {
         circle: formData.circle, 
         package: formData.package
       },
-      limit: 1000 
+      limit: 50000 
     })
       .then(res => {
         const fetchedItems = res?.items || res?.data?.items || (Array.isArray(res) ? res : []);

@@ -147,7 +147,7 @@ export default function StoreContractorSummaryPage() {
         search: search || undefined,
         hideZero,
         page: 1,
-        limit: 100000
+        limit: 5000000
       });
       return res.data?.items || [];
     } catch (err) {

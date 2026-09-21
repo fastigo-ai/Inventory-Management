@@ -180,7 +180,7 @@ export default function NewContractorBill() {
           package: pkg, 
           circle: cir 
         }, 
-        limit: 1000 
+        limit: 50000 
       }).then(res => {
         const fetchedItems = res?.items || res?.data?.items || (Array.isArray(res) ? res : res.data) || [];
         setAvailableItems(fetchedItems);

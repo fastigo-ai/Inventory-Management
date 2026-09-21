@@ -55,6 +55,60 @@ export const createJmc = asyncHandler(async (req: Request, res: Response) => {
     }
   }
 
+  // VALIDATION FIX: Ensure claimedQty does not exceed cumulative MIN issuedQty
+  if (data.contractorId && items && items.length > 0) {
+    const itemIds = items.map((i: any) => i.itemId).filter(Boolean).map((id: string) => new mongoose.Types.ObjectId(id));
+    if (itemIds.length > 0) {
+      // 1. Get total MIN issued qty for this contractor and these items
+      const minRecords = await mongoose.model('ContractorAssignment').find({
+        contractorId: new mongoose.Types.ObjectId(data.contractorId),
+        status: { $ne: 'Cancelled' },
+        'lineItems.itemId': { $in: itemIds }
+      }).lean();
+
+      const issuedMap = new Map<string, number>();
+      minRecords.forEach((record: any) => {
+        record.lineItems.forEach((li: any) => {
+          if (li.itemId) {
+             const idStr = li.itemId.toString();
+             issuedMap.set(idStr, (issuedMap.get(idStr) || 0) + (li.quantity || 0));
+          }
+        });
+      });
+
+      // 2. Get total JMC claimed qty for this contractor and these items
+      const pastJmcs = await JmcRegister.find({
+        contractorId: new mongoose.Types.ObjectId(data.contractorId),
+        status: { $ne: 'Rejected' },
+        'items.itemId': { $in: itemIds }
+      }).lean();
+
+      const claimedMap = new Map<string, number>();
+      pastJmcs.forEach((jmc: any) => {
+        jmc.items.forEach((i: any) => {
+          if (i.itemId) {
+            const idStr = i.itemId.toString();
+            const qty = jmc.status === 'Approved' ? Number(i.approvedQty || 0) : Number(i.claimedQty || 0);
+            claimedMap.set(idStr, (claimedMap.get(idStr) || 0) + qty);
+          }
+        });
+      });
+
+      // 3. Validate
+      for (const item of items) {
+        if (!item.itemId) continue;
+        const idStr = item.itemId.toString();
+        const issued = issuedMap.get(idStr) || 0;
+        const claimed = claimedMap.get(idStr) || 0;
+        const newClaim = Number(item.claimedQty || 0);
+
+        if (claimed + newClaim > issued) {
+           throw new ApiError(400, `Validation Error for Activity "${item.activity || 'Unknown'}": Cannot claim ${newClaim} units. Contractor has only been issued ${issued} units total, and ${claimed} units were already claimed. Max allowed claim is ${Math.max(0, issued - claimed)}.`);
+        }
+      }
+    }
+  }
+
   const payload = {
     ...data,
     items,
@@ -112,6 +166,7 @@ export const getJmcs = asyncHandler(async (req: Request, res: Response) => {
   if (req.query.division) filter.division = { $regex: new RegExp(req.query.division as string, 'i') };
   if (req.query.subDivision) filter.subDivision = { $regex: new RegExp(req.query.subDivision as string, 'i') };
   if (req.query.subStation) filter.subStation = { $regex: new RegExp(req.query.subStation as string, 'i') };
+  if (req.query.drawingNo) filter.drawingNo = { $regex: new RegExp(req.query.drawingNo as string, 'i') };
 
   if (search && search.trim() !== '') {
     filter.jmcNumber = { $regex: search, $options: 'i' };
@@ -199,6 +254,62 @@ export const updateJmc = asyncHandler(async (req: Request, res: Response) => {
       items = JSON.parse(items);
     } catch (err) {
       items = [];
+    }
+  }
+
+  // VALIDATION FIX: Ensure claimedQty does not exceed cumulative MIN issuedQty
+  const targetContractorId = data.contractorId || jmc.contractorId;
+  if (targetContractorId && items && items.length > 0) {
+    const itemIds = items.map((i: any) => i.itemId).filter(Boolean).map((itemId: string) => new mongoose.Types.ObjectId(itemId));
+    if (itemIds.length > 0) {
+      // 1. Get total MIN issued qty for this contractor and these items
+      const minRecords = await mongoose.model('ContractorAssignment').find({
+        contractorId: new mongoose.Types.ObjectId(targetContractorId),
+        status: { $ne: 'Cancelled' },
+        'lineItems.itemId': { $in: itemIds }
+      }).lean();
+
+      const issuedMap = new Map<string, number>();
+      minRecords.forEach((record: any) => {
+        record.lineItems.forEach((li: any) => {
+          if (li.itemId) {
+             const idStr = li.itemId.toString();
+             issuedMap.set(idStr, (issuedMap.get(idStr) || 0) + (li.quantity || 0));
+          }
+        });
+      });
+
+      // 2. Get total JMC claimed qty for this contractor and these items (excluding current JMC)
+      const pastJmcs = await JmcRegister.find({
+        _id: { $ne: new mongoose.Types.ObjectId(id) },
+        contractorId: new mongoose.Types.ObjectId(targetContractorId),
+        status: { $ne: 'Rejected' },
+        'items.itemId': { $in: itemIds }
+      }).lean();
+
+      const claimedMap = new Map<string, number>();
+      pastJmcs.forEach((pastJmc: any) => {
+        pastJmc.items.forEach((i: any) => {
+          if (i.itemId) {
+            const idStr = i.itemId.toString();
+            const qty = pastJmc.status === 'Approved' ? Number(i.approvedQty || 0) : Number(i.claimedQty || 0);
+            claimedMap.set(idStr, (claimedMap.get(idStr) || 0) + qty);
+          }
+        });
+      });
+
+      // 3. Validate
+      for (const item of items) {
+        if (!item.itemId) continue;
+        const idStr = item.itemId.toString();
+        const issued = issuedMap.get(idStr) || 0;
+        const claimed = claimedMap.get(idStr) || 0;
+        const newClaim = Number(item.claimedQty || 0);
+
+        if (claimed + newClaim > issued) {
+           throw new ApiError(400, `Validation Error for Activity "${item.activity || 'Unknown'}": Cannot claim ${newClaim} units. Contractor has only been issued ${issued} units total, and ${claimed} units were already claimed. Max allowed claim is ${Math.max(0, issued - claimed)}.`);
+        }
+      }
     }
   }
 

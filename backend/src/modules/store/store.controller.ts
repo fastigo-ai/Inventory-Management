@@ -2291,11 +2291,12 @@ export const importStoreTransfers = asyncHandler(async (req: Request, res: Respo
        $or: [
          { challanNo: { $eq: payload.challanNo, $ne: '' } },
          { minNo: { $eq: payload.minNo, $ne: '' } }
-       ]
-    });
+       ],
+       fromStore: payload.fromStore
+    }).lean();
     
     if (existing) {
-      errors.push(`Transfer ${payload.challanNo || payload.minNo} already exists. Skipping.`);
+      errors.push(`Transfer ${payload.challanNo || payload.minNo} already exists in store ${payload.fromStore}. Skipping.`);
     }
   }
 
@@ -2495,10 +2496,13 @@ export const importReceivedStoreTransfers = asyncHandler(async (req: Request, re
     }
 
     if (orConditions.length > 0) {
-      const existing = await StoreTransfer.findOne({ $or: orConditions }).lean();
+      const existing = await StoreTransfer.findOne({ 
+        $or: orConditions,
+        toStore: payload.toStore
+      }).lean();
       if (existing) {
         duplicateKeys.add(docKey);
-        errors.push(`Skipped (already exists): Transfer ${payload.challanNo || payload.minNo}`);
+        errors.push(`Skipped (already exists): Transfer ${payload.challanNo || payload.minNo} in store ${payload.toStore}`);
       }
     }
   }

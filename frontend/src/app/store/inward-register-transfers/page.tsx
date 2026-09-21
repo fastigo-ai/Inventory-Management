@@ -42,6 +42,7 @@ export default function InwardRegisterTransfersPage() {
               id: t._id,
               dateOfReceived: t.updatedAt, // The date it was marked as RECEIVED
               vendorName: t.vendorName || "-",
+              tempCode: item.tempCode || "-",
               description: item.description,
               unit: item.unit,
               receivedQty: item.receivedQty || 0,
@@ -147,6 +148,7 @@ export default function InwardRegisterTransfersPage() {
                   <th className="px-4 py-3 border-r border-slate-200">Sr. No.</th>
                   <th className="px-4 py-3 border-r border-slate-200 text-blue-700 bg-blue-50/50">Date of Received</th>
                   <th className="px-4 py-3 border-r border-slate-200">Name of Vendor</th>
+                  <th className="px-4 py-3 border-r border-slate-200">Temp Code</th>
                   <th className="px-4 py-3 border-r border-slate-200">Description of Material</th>
                   <th className="px-4 py-3 border-r border-slate-200">Unit</th>
                   <th className="px-4 py-3 border-r border-slate-200 text-green-700 bg-green-50/50">Received Qty</th>
@@ -183,6 +185,7 @@ export default function InwardRegisterTransfersPage() {
                       <td className="px-4 py-3 border-r border-slate-100 text-center">{t.srNo}</td>
                       <td className="px-4 py-3 border-r border-slate-100 font-medium text-slate-800 bg-blue-50/10">{formatDate(t.dateOfReceived)}</td>
                       <td className="px-4 py-3 border-r border-slate-100 font-medium text-slate-800">{t.vendorName}</td>
+                      <td className="px-4 py-3 border-r border-slate-100 text-slate-600 font-mono text-xs">{t.tempCode}</td>
                       <td className="px-4 py-3 border-r border-slate-100">{t.description}</td>
                       <td className="px-4 py-3 border-r border-slate-100 text-slate-500">{t.unit}</td>
                       <td className="px-4 py-3 border-r border-slate-100 font-bold text-green-700 bg-green-50/30">{t.receivedQty}</td>

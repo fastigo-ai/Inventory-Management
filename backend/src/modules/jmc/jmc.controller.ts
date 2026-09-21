@@ -281,8 +281,8 @@ export const updateJmc = asyncHandler(async (req: Request, res: Response) => {
 
       // 2. Get total JMC claimed qty for this contractor and these items (excluding current JMC)
       const pastJmcs = await JmcRegister.find({
-        _id: { $ne: new mongoose.Types.ObjectId(id) },
-        contractorId: new mongoose.Types.ObjectId(targetContractorId),
+        _id: { $ne: new mongoose.Types.ObjectId(id as string) },
+        contractorId: new mongoose.Types.ObjectId(targetContractorId as string),
         status: { $ne: 'Rejected' },
         'items.itemId': { $in: itemIds }
       }).lean();

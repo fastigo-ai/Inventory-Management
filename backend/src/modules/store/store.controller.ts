@@ -932,7 +932,8 @@ export const getStoreTransfers = asyncHandler(async (req: Request, res: Response
   const cleanStoreName = storeNameRaw ? String(storeNameRaw).replace(/store/i, '').trim() : '';
   const expandedStoreNames = expandCircle(cleanStoreName) || [cleanStoreName];
   if (cleanStoreName) {
-    const storeRegex = new RegExp(`^(${expandedStoreNames.join('|')})$`, 'i');
+    // Allow optional trailing " store" or " circle" (case-insensitive) to handle variations from bulk imports
+    const storeRegex = new RegExp(`^(${expandedStoreNames.join('|')})(\\s+(store|circle))?$`, 'i');
     if (registerType === 'OUTWARD') {
       filter.fromStore = storeRegex;
       filter.registerType = 'OUTWARD';
@@ -2472,29 +2473,39 @@ export const importReceivedStoreTransfers = asyncHandler(async (req: Request, re
     }
   }
 
-  // Pass 1: Validate for existing records before saving
+  // Pass 1: Validate for existing records before saving — skip duplicates but keep errors list for data issues
+  const duplicateKeys = new Set<string>();
   for (const docKey of Object.keys(transfersByDoc)) {
     const payload = transfersByDoc[docKey];
-    const existing = await StoreTransfer.findOne({ 
-       $or: [
-         { challanNo: { $eq: payload.challanNo, $ne: '' } },
-         { minNo: { $eq: payload.minNo, $ne: '' } }
-       ]
-    });
     
-    if (existing) {
-      errors.push(`Transfer ${payload.challanNo || payload.minNo} already exists. Skipping.`);
+    const orConditions: any[] = [];
+    if (payload.challanNo && payload.challanNo.trim() !== '' && payload.challanNo !== '-') {
+      orConditions.push({ challanNo: payload.challanNo.trim() });
+    }
+    if (payload.minNo && payload.minNo.trim() !== '' && payload.minNo !== '-') {
+      orConditions.push({ minNo: payload.minNo.trim() });
+    }
+
+    if (orConditions.length > 0) {
+      const existing = await StoreTransfer.findOne({ $or: orConditions }).lean();
+      if (existing) {
+        duplicateKeys.add(docKey);
+        errors.push(`Skipped (already exists): Transfer ${payload.challanNo || payload.minNo}`);
+      }
     }
   }
 
-  if (errors.length > 0) {
+  // Hard-fail only if there are data errors (not just duplicate warnings)
+  const hardErrors = errors.filter(e => !e.startsWith('Skipped'));
+  if (hardErrors.length > 0) {
     return res.status(400).json(
       new ApiResponse(400, { errors }, 'Import failed due to row validation errors. No data was imported.')
     );
   }
 
-  // Pass 2: Save Data
+  // Pass 2: Save Data (skip known duplicates)
   for (const docKey of Object.keys(transfersByDoc)) {
+    if (duplicateKeys.has(docKey)) continue; // skip already-existing records
     try {
       const payload = transfersByDoc[docKey];
       await StoreTransfer.create([payload]);
@@ -2536,8 +2547,13 @@ export const importReceivedStoreTransfers = asyncHandler(async (req: Request, re
     }
   }
 
+  const skippedCount = duplicateKeys.size;
   res.status(200).json(
-    new ApiResponse(200, { successCount, errors }, 'Import process completed successfully')
+    new ApiResponse(200, { successCount, skippedCount, errors }, 
+      skippedCount > 0 
+        ? `Import completed: ${successCount} imported, ${skippedCount} skipped (already existed).`
+        : 'Import process completed successfully'
+    )
   );
 });
 

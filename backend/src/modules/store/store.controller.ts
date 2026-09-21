@@ -2199,7 +2199,7 @@ export const importStoreTransfers = asyncHandler(async (req: Request, res: Respo
       const masterUnit = itemDynamic.unit || itemDynamic.uom || item?.unit || item?.uom || 'Nos';
       const csvUnit = row['Unit'];
       
-      if (csvUnit && String(csvUnit).trim() !== '' && String(csvUnit).trim().toLowerCase() !== String(masterUnit).trim().toLowerCase()) {
+      if (csvUnit && String(csvUnit).trim() !== '' && String(csvUnit).trim().replace(/\.$/, '').toLowerCase() !== String(masterUnit).trim().replace(/\.$/, '').toLowerCase()) {
         errors.push(`Unit mismatch for item '${itemName || tempCode}' in Transfer ${docKey}. Expected '${masterUnit}', got '${csvUnit}'`);
         continue;
       }
@@ -2395,7 +2395,7 @@ export const importReceivedStoreTransfers = asyncHandler(async (req: Request, re
       const masterUnit = itemDynamic.unit || itemDynamic.uom || item?.unit || item?.uom || 'Nos';
       const csvUnit = row['Unit'] || row['UNIT'];
       
-      if (csvUnit && String(csvUnit).trim() !== '' && String(csvUnit).trim().toLowerCase() !== String(masterUnit).trim().toLowerCase()) {
+      if (csvUnit && String(csvUnit).trim() !== '' && String(csvUnit).trim().replace(/\.$/, '').toLowerCase() !== String(masterUnit).trim().replace(/\.$/, '').toLowerCase()) {
         errors.push(`Unit mismatch for item '${itemName || tempCode}' in Transfer ${docKey}. Expected '${masterUnit}', got '${csvUnit}'`);
         continue;
       }

@@ -41,8 +41,8 @@ export default function CeoDashboardPage() {
   const getAvailableCircles = () => {
     let circles: string[] = [];
     if (filters.package.includes('Package 1 (S/N)')) circles.push('Solan', 'Nahan');
-    if (filters.package.includes('Package 2 (R/R)')) circles.push('Rampur', 'Rohru', 'Shimla');
-    if (circles.length === 0) circles = ['Solan', 'Shimla', 'Nahan', 'Rampur', 'Rohru'];
+    if (filters.package.includes('Package 2 (R/R)')) circles.push('Rampur', 'Rohru');
+    if (circles.length === 0) circles = ['Solan', 'Nahan', 'Rampur', 'Rohru'];
     return ['All Circles', ...circles];
   };
 

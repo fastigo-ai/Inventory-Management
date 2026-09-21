@@ -66,8 +66,7 @@ export const buildCeoDashboardSummary = async (filters: any) => {
   
   const inwardAgg = await StoreInwardEntry.aggregate([
     { $match: baseQuery },
-    { $unwind: "$items" },
-    { $group: { _id: null, totalInwardQty: { $sum: "$items.quantity" } } }
+    { $group: { _id: null, totalInwardQty: { $sum: "$totalQty" } } }
   ]);
   const totalInwardQty = inwardAgg[0]?.totalInwardQty || 0;
 
@@ -170,8 +169,7 @@ export const buildCeoDashboardSummary = async (filters: any) => {
   // Circle-wise Performance
   const circleInwards = await StoreInwardEntry.aggregate([
     { $match: baseQuery },
-    { $unwind: "$items" },
-    { $group: { _id: { circle: "$circle", subCircle: "$subcircle" }, totalQty: { $sum: "$items.quantity" } } }
+    { $group: { _id: { circle: "$circle", subCircle: "$subcircle" }, totalQty: { $sum: "$totalQty" } } }
   ]);
 
   const circleIssued = await ContractorAssignment.aggregate([
@@ -227,8 +225,7 @@ export const buildCeoDashboardSummary = async (filters: any) => {
   // Package-wise Physical & Financial
   const packageInwards = await StoreInwardEntry.aggregate([
     { $match: baseQuery },
-    { $unwind: "$items" },
-    { $group: { _id: "$package", totalQty: { $sum: "$items.quantity" } } }
+    { $group: { _id: "$package", totalQty: { $sum: "$totalQty" } } }
   ]);
 
   const packageJmc = await JmcRegister.aggregate([
@@ -272,7 +269,7 @@ export const buildCeoDashboardSummary = async (filters: any) => {
     if (!packagesMap[normPkgName]) {
       let circles: string[] = [];
       if (normPkgName.includes('Package 1')) circles = ['Solan', 'Nahan'];
-      if (normPkgName.includes('Package 2')) circles = ['Rampur', 'Rohru', 'Shimla'];
+      if (normPkgName.includes('Package 2')) circles = ['Rampur', 'Rohru'];
       packagesMap[normPkgName] = { name: normPkgName, physical: 0, financial: 0, billedValue: 0, pendingValue: 0, _totalQty: 0, _jmcQty: 0, _poValue: 0, circles };
     }
     return normPkgName;

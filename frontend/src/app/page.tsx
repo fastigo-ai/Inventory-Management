@@ -12,12 +12,16 @@ import { SitePortalDashboard } from '@/features/dashboard/components/SitePortalD
 import { StockSummaryTable } from "@/features/store/components/StockSummaryTable";
 import { getStockSummary } from "@/features/store/api/store.api";
 import { useAuthStore } from '@/shared/store/auth.store';
+import CeoDashboardPage from '@/app/ceo-portal/dashboard/page';
 
 export default function Home() {
   const { user } = useAuthStore();
+  const isCeoOrAdmin = user?.role?.name === 'CEO' || user?.role?.name === 'Super Admin' || user?.role?.name === 'Admin';
   const isStoreManager = user?.role?.name === 'Store Manager';
   const permissions = user?.role?.permissions || [];
   const isSitePortal = user?.role?.name === 'Site Portal' || permissions.includes('Site Portal');
+
+
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'stock'>(
     isStoreManager ? 'stock' : 'dashboard'
@@ -78,6 +82,10 @@ export default function Home() {
       setSummaryLoading(false);
     }
   };
+  if (isCeoOrAdmin) {
+    return <CeoDashboardPage />;
+  }
+
   return (
     <div className="flex flex-col min-h-full">
       {/* Header Section */}

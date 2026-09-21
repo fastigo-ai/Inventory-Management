@@ -322,7 +322,7 @@ export default function UsersPage() {
                   <option value="Nahan">Nahan</option>
                   <option value="Rampur">Rampur</option>
                   <option value="Rohru">Rohru</option>
-                  <option value="Shimla">Shimla</option>
+
                 </select>
               </div>
               {formData.assignedCircle?.toLowerCase() === 'solan' && (
@@ -427,7 +427,7 @@ export default function UsersPage() {
                   <option value="NAHAN">NAHAN</option>
                   <option value="RAMPUR">RAMPUR</option>
                   <option value="ROHRU">ROHRU</option>
-                  <option value="SHIMLA">SHIMLA</option>
+
                 </select>
               </div>
               {editFormData.assignedCircle?.toLowerCase() === 'solan' && (

@@ -88,7 +88,7 @@ export default function InwardRegisterTransfersPage() {
 
   return (
     <div className="flex-1 bg-slate-50 min-h-screen">
-      <div className="p-8 max-w-[1600px] mx-auto">
+      <div className="p-3 sm:p-6 max-w-[1600px] mx-auto">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">Received from Other Store (Inward Register)</h1>

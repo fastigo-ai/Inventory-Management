@@ -87,7 +87,7 @@ export default function MhrovPage() {
 
   return (
     <>
-    <div className="flex-1 p-8 bg-slate-50 min-h-screen">
+    <div className="flex-1 p-3 sm:p-6 bg-slate-50 min-h-screen">
       <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-6 gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900 whitespace-nowrap">MHROV Management</h1>

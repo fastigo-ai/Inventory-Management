@@ -58,12 +58,12 @@ export function DataTableBottomControls({
   };
 
   return (
-    <div className="h-16 px-6 border-t border-slate-200 bg-white flex items-center justify-between shrink-0 font-medium">
-      <p className="text-sm text-slate-500">
+    <div className="px-4 sm:px-6 py-3 border-t border-slate-200 bg-white flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-0 font-medium">
+      <p className="text-sm text-slate-500 order-2 sm:order-1">
         Showing {totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, totalItems)} out of {totalItems}
       </p>
       
-      <div className="flex items-center space-x-1">
+      <div className="flex items-center space-x-1 order-1 sm:order-2">
         <button
           onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
           disabled={currentPage === 1}
@@ -96,7 +96,7 @@ export function DataTableBottomControls({
         </button>
       </div>
 
-      <div className="flex items-center text-sm text-slate-500">
+      <div className="flex items-center text-sm text-slate-500 order-3">
         <span className="mr-3">Rows per page</span>
         <select
           value={pageSize}

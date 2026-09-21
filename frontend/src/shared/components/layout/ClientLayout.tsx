@@ -27,15 +27,15 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         <main>{children}</main>
       ) : (
         <div className="flex flex-col h-screen overflow-hidden bg-slate-50 print:block print:h-auto print:bg-white print:overflow-visible">
-          <div className="print:hidden z-30">
+          <div className="print:hidden z-30 flex-shrink-0">
             <TopBar />
           </div>
-          <div className="flex flex-1 overflow-hidden print:block print:overflow-visible relative">
+          <div className="flex flex-1 overflow-hidden print:block print:overflow-visible relative min-w-0">
             
             {/* Mobile Sidebar Overlay */}
             {isMobileSidebarOpen && (
               <div 
-                className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300"
+                className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 md:hidden"
                 onClick={() => setMobileSidebarOpen(false)}
               />
             )}
@@ -47,7 +47,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
               <Sidebar />
             </div>
 
-            <main className="flex-1 overflow-y-auto overflow-x-hidden print:overflow-visible print:block">
+            <main className="flex-1 overflow-y-auto overflow-x-hidden min-w-0 print:overflow-visible print:block">
               {children}
             </main>
           </div>

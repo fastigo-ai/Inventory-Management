@@ -155,3 +155,43 @@
     display: block !important;
   }
 }
+
+/* ================================
+   Global Responsive Utilities
+   ================================ */
+
+/* Prevent horizontal overflow on root */
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Responsive table: always scroll horizontally inside containers */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Ensure tables never break their container */
+table {
+  min-width: 100%;
+}
+
+/* Better touch targets on mobile */
+@media (max-width: 640px) {
+  button, a, select, input[type="checkbox"], input[type="radio"] {
+    min-height: 36px;
+  }
+
+  /* Tighten table cell padding on mobile */
+  td, th {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+
+  /* Stack flex rows that have no responsive class */
+  .flex-row-mobile-stack {
+    flex-direction: column;
+  }
+}

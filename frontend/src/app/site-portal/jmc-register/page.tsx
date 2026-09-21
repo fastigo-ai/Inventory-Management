@@ -164,7 +164,7 @@ export default function JmcRegisterPage() {
   const activeContractorsCount = selectedContractor === 'All' ? contractorsList.length : 1;
 
   return (
-    <div className="flex-1 bg-[#f8fafc] min-h-screen p-6">
+    <div className="flex-1 bg-[#f8fafc] min-h-screen p-3 sm:p-6">
       <div className="max-w-[1400px] mx-auto">
         {/* Breadcrumb */}
         <div className="mb-1">
@@ -172,7 +172,7 @@ export default function JmcRegisterPage() {
         </div>
 
         {/* Page Header */}
-        <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">JMC Register</h1>
             <p className="text-sm text-slate-500 mt-0.5">Track and manage JMC entries with contractor details, claims and approvals.</p>

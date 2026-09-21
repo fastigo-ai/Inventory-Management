@@ -232,7 +232,7 @@ export default function EditMhrovPage() {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex-1 p-8 bg-slate-50 min-h-screen">
+    <form onSubmit={handleSubmit(onSubmit)} className="flex-1 p-3 sm:p-6 bg-slate-50 min-h-screen">
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center space-x-4">
           <Button

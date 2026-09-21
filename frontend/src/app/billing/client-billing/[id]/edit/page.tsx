@@ -324,7 +324,7 @@ export default function EditClientBillPage() {
   const grandTotalAmount = totalBaseAmount + totalGstAmount;
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-3 sm:p-6 max-w-7xl mx-auto space-y-6">
       <div className="mb-6">
         <Button variant="ghost" onClick={() => router.back()} className="mb-4 -ml-4 text-slate-600 hover:text-slate-900">
           <ArrowLeft className="w-4 h-4 mr-2" />

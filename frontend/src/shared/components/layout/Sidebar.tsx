@@ -257,7 +257,7 @@ export function Sidebar() {
   });
 
   return (
-    <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col h-[calc(100vh-3.5rem)] md:h-screen overflow-y-auto shrink-0 shadow-lg text-slate-300 transition-colors">
+    <aside className="w-[80vw] max-w-[260px] md:w-64 bg-slate-900 border-r border-slate-800 flex flex-col h-[calc(100vh-3.5rem)] overflow-y-auto shrink-0 shadow-lg text-slate-300 transition-colors">
       <div className="flex-1 py-6 px-4 space-y-2">
         {visibleNavItems.map((item) => {
           const hasChildren = !!item.children;

@@ -785,13 +785,27 @@ export const bulkImportContractorReturns = asyncHandler(async (req: Request, res
     if (c.dynamicData?.companyName) contractorCache.set(c.dynamicData.companyName.replace(/\s+/g, '').toLowerCase(), c);
   }
 
-  // Pre-fetch all Items for O(1) matching instead of N+1 regex queries
-  const allItems = await Item.find({}).select('_id itemCode description hsnCode unit dynamicData').lean();
-  const itemCacheByTempCode = new Map();
-  const itemCacheByName = new Map();
-  for (const it of allItems) {
-    if (it.dynamicData?.tempCode) itemCacheByTempCode.set(String(it.dynamicData.tempCode).trim(), it);
-    if (it.dynamicData?.description) itemCacheByName.set(String(it.dynamicData.description).trim().toLowerCase(), it);
+  // Pre-fetch all Items mapped by Circle for accurate LOA and Activity population
+  let expectedCsvCircle = (req as any).user?.assignedCircle || '';
+  if (['kumarhatti', 'nalagarh'].includes(expectedCsvCircle.toLowerCase())) {
+    expectedCsvCircle = 'Solan';
+  }
+  
+  const allItems = await Item.find({}).lean();
+  const itemCache = new Map();
+  for (const i of allItems) {
+    if (!i.dynamicData) continue;
+    const tempCode = (i.dynamicData.tempCode || '').toString().trim().toLowerCase();
+    const name = (i.dynamicData.name || '').toString().trim().toLowerCase();
+    const desc = (i.dynamicData.description || '').toString().trim().toLowerCase();
+    const circle = (i.dynamicData.circle || '').toString().trim().toLowerCase();
+    
+    if (tempCode && circle) itemCache.set(`tc_${tempCode}_${circle}`, i);
+    if (name && circle) itemCache.set(`in_${name}_${circle}`, i);
+    if (desc && circle) itemCache.set(`in_${desc}_${circle}`, i);
+    
+    const masterLoaSrNo = (i.dynamicData.sku || i.dynamicData.loaSrNo || i.dynamicData.loaSerialNo || '').toString().trim().toLowerCase();
+    if (masterLoaSrNo && circle) itemCache.set(`loa_${masterLoaSrNo}_${circle}`, i);
   }
 
   for await (const row of parser) {
@@ -817,41 +831,69 @@ export const bulkImportContractorReturns = asyncHandler(async (req: Request, res
       }
 
       const itemName = row['Description of Material'] || '';
-      const tempCode = row['Temp Code'] || '';
+      const tempCode = row['Temp Code'] || row['TempCode'] || '';
       const returnQty = Number(row['Return QTY.'] || row['ReturnQty'] || 0);
+      const csvLoaSrNo = row['Sr No.'] || row['Sr. No.'] || row['Sr No'] || row['LoaSerialNo'] || row['SerialNo'] || row['LoaSrNo'] || '';
+      const csvUnit = row['Unit'] || row['UNIT'] || '';
+      const circle = expectedCsvCircle;
+      const cleanCircle = circle.trim().toLowerCase();
 
       let item = null;
-      if (tempCode) {
-        item = itemCacheByTempCode.get(String(tempCode).trim());
-      }
-      if (!item && itemName) {
-        item = itemCacheByName.get(String(itemName).trim().toLowerCase());
+      let loaItem = null;
+      if (csvLoaSrNo) {
+        const cleanLoaSrNo = String(csvLoaSrNo).trim().toLowerCase();
+        loaItem = itemCache.get(`loa_${cleanLoaSrNo}_${cleanCircle}`);
       }
 
-      const itemDynamic = item?.dynamicData || {};
-      const masterUnit = itemDynamic.unit || itemDynamic.uom || item?.unit || item?.uom || 'Nos';
-      const csvUnit = row['Unit'] || row['UNIT'];
-      
-      if (csvUnit && String(csvUnit).trim() !== '' && normalizeUnit(csvUnit) !== normalizeUnit(masterUnit)) {
-        errors.push(`Unit mismatch for item '${itemName || tempCode}' in Challan ${challanNo}. Expected '${masterUnit}', got '${csvUnit}'`);
+      if (loaItem) {
+        const masterItemName = String(loaItem.dynamicData?.name || '').trim().toLowerCase();
+        const providedItemName = String(itemName).trim().toLowerCase();
+        if (itemName && masterItemName !== providedItemName && String(loaItem.dynamicData?.description || '').trim().toLowerCase() !== providedItemName) {
+           errors.push(`Item Name mismatch for LOA Serial No '${csvLoaSrNo}' in Challan ${challanNo}. Expected '${loaItem.dynamicData?.name || ''}', found '${itemName}'`);
+           continue;
+        }
+
+        const masterTempCode = String(loaItem.dynamicData?.tempCode || '').trim().toLowerCase();
+        const providedTempCode = String(tempCode).trim().toLowerCase();
+        if (tempCode && masterTempCode !== providedTempCode) {
+           errors.push(`Temp Code mismatch for LOA Serial No '${csvLoaSrNo}' in Challan ${challanNo}. Expected '${loaItem.dynamicData?.tempCode || ''}', found '${tempCode}'`);
+           continue;
+        }
+        item = loaItem;
+      } else {
+        if (tempCode) {
+          item = itemCache.get(`tc_${String(tempCode).trim().toLowerCase()}_${cleanCircle}`);
+        }
+        if (!item && itemName) {
+          item = itemCache.get(`in_${String(itemName).trim().toLowerCase()}_${cleanCircle}`);
+        }
+      }
+
+      if (!item) {
+        errors.push(`Item '${csvLoaSrNo || itemName || tempCode}' not found in Item Master list for Challan ${challanNo}`);
+        continue;
+      }
+
+      const expectedUnit = normalizeUnit(item.dynamicData?.unit || item.dynamicData?.uom || item?.unit || item?.uom || '');
+      const providedUnit = normalizeUnit(csvUnit);
+      if (csvUnit && expectedUnit !== providedUnit) {
+        errors.push(`Unit mismatch for item '${itemName || tempCode}' in Challan ${challanNo}. Expected '${expectedUnit || 'Nos'}', got '${csvUnit}'`);
         continue;
       }
       
-      const unit = csvUnit && String(csvUnit).trim() !== '' ? String(csvUnit).trim() : masterUnit;
-
+      const unit = csvUnit && String(csvUnit).trim() !== '' ? String(csvUnit).trim() : (item.dynamicData?.unit || item.dynamicData?.uom || item?.unit || 'Nos');
       const masterLoaSrNo = item?.dynamicData?.sku || item?.dynamicData?.loaSrNo || item?.dynamicData?.loaSerialNo || '';
-      const csvLoaSrNo = row['Sr No.'] || row['Sr. No.'] || row['Sr No'] || row['LoaSerialNo'] || row['SerialNo'] || '';
       const finalLoaSrNo = masterLoaSrNo || csvLoaSrNo || '';
 
       const lineItem = {
-        itemId: item ? item._id : undefined,
-        itemName: item?.description || itemName,
-        tempCode: item?.itemCode || tempCode,
-        hsnCode: row['HSN Code'] || item?.hsnCode || '',
+        itemId: item._id,
+        itemName: item.dynamicData?.name || item.dynamicData?.description || itemName,
+        tempCode: item.dynamicData?.tempCode || item.itemCode || tempCode,
+        hsnCode: row['HSN Code'] || item.hsnCode || item.dynamicData?.hsnCode || '',
         unit: unit,
         quantity: returnQty,
         loaSrNo: finalLoaSrNo,
-        activity: row['Activity'] || item?.dynamicData?.activity || item?.dynamicData?.Activity || ''
+        activity: row['Activity'] || item.dynamicData?.activity || item.dynamicData?.Activity || ''
       };
 
       if (!returnsByChallan[challanNo]) {

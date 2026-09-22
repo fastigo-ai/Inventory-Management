@@ -65,7 +65,7 @@ const ContractorWorkOrderItemSchema = new Schema<IContractorWorkOrderItem>({
 
 const ContractorWorkOrderSchema = new Schema<IContractorWorkOrder>(
   {
-    workOrderNumber: { type: String, required: true, unique: true },
+    workOrderNumber: { type: String, required: true },
     package: { type: String, required: true },
     circle: { type: String, required: true },
     contractorId: { type: Schema.Types.ObjectId, ref: 'Contractor', required: true, index: true },

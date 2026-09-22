@@ -194,4 +194,73 @@ table {
   .flex-row-mobile-stack {
     flex-direction: column;
   }
-}
+}
+/* Sticky columns for Demand Notes */
+.dn-table-container {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.dn-sticky-sr {
+  position: sticky;
+  left: 0;
+  z-index: 20;
+  min-width: 60px;
+  max-width: 60px;
+}
+
+.dn-sticky-mc {
+  position: sticky;
+  left: 60px;
+  z-index: 20;
+  min-width: 100px;
+  max-width: 100px;
+}
+
+.dn-sticky-name {
+  position: sticky;
+  left: 160px;
+  z-index: 20;
+  min-width: 250px;
+  max-width: 250px;
+  white-space: normal;
+}
+
+.dn-sticky-act {
+  position: sticky;
+  left: 410px;
+  z-index: 20;
+  min-width: 200px;
+  max-width: 200px;
+  white-space: normal;
+}
+
+.dn-sticky-loa {
+  position: sticky;
+  left: 610px;
+  z-index: 20;
+  min-width: 90px;
+  max-width: 90px;
+}
+
+/* Ensure sticky cells have a background to hide scrolled content behind them */
+.dn-sticky-sr, .dn-sticky-mc, .dn-sticky-name, .dn-sticky-act, .dn-sticky-loa {
+  background-color: inherit;
+}
+.dn-sticky-bg-white {
+  background-color: #ffffff;
+}
+.dn-sticky-bg-header {
+  background-color: #f8fafc; /* Tailwind slate-50 */
+}
+/* A small shadow to the right of the last sticky column */
+.dn-sticky-loa::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -5px;
+  bottom: 0;
+  width: 5px;
+  background: linear-gradient(to right, rgba(0,0,0,0.1), transparent);
+  pointer-events: none;
+}

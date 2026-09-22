@@ -29,21 +29,39 @@ export default function ContractorWorkOrderDetailPage() {
   };
 
   const handleHandoverSubmit = async () => {
-    if (!handoverContractorId) return toast.error('Please select a new contractor');
-    setIsHandovering(true);
     try {
-      await api.post(`/contractor-work-orders/${id}/handover`, {
-        newContractorId: handoverContractorId,
+      setIsHandovering(true);
+      const assignmentsArr = Object.entries(handoverAssignments).map(([idx, cId]) => ({
+        itemIndex: Number(idx),
+        contractorId: cId
+      }));
+      
+      await api.post(`/contractor-work-orders/${workOrder._id}/handover`, {
+        assignments: assignmentsArr,
         materialDisposition: 'TRANSFER_TO_NEW_CONTRACTOR'
       });
-      toast.success('Handover successful! Drafts created.');
+      toast.success('Handover successful');
       setIsHandoverModalOpen(false);
       window.location.reload();
-    } catch (e: any) {
-      toast.error(e.response?.data?.message || 'Failed to process handover');
+    } catch (error) {
+      toast.error('Failed to complete handover');
     } finally {
       setIsHandovering(false);
     }
+  };
+  
+  const handleAssignmentChange = (index: number, cId: string) => {
+    setHandoverAssignments(prev => ({ ...prev, [index]: cId }));
+  };
+  
+  const handleAssignAll = (cId: string) => {
+    const newAss: Record<number, string> = {};
+    if (workOrder?.items) {
+       workOrder.items.forEach((_: any, idx: number) => {
+         newAss[idx] = cId;
+       });
+    }
+    setHandoverAssignments(newAss);
   };
 
   useEffect(() => {

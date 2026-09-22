@@ -174,7 +174,7 @@ export default function StoreContractorIssueEditPage() {
              console.log("DEBUG itemsForActivity for", activity, itemsForActivity.filter((s:any) => s.tempCode === '87' || s.tempCode === 87));
              
              itemsForActivity.forEach((s: any) => {
-                const details = s.activityDetailsMap?.[activity];
+                const details = s.activityDetailsMap?.[activity as string];
                 const detailsArray = Array.isArray(details) ? details : (details ? [details] : [
                   { itemId: s.itemId, description: s.description, loaSrNo: (s.allLoaSrs && s.allLoaSrs.length > 0 ? s.allLoaSrs[0] : (s.loaSrNo || "")) }
                 ]);
@@ -255,7 +255,7 @@ export default function StoreContractorIssueEditPage() {
     const existingItemIds = new Set(lineItems.filter((item, i) => item.itemId && i !== index).map(item => item.itemId));
     const existingItemKeys = new Set(lineItems.filter((item, i) => i !== index).map(item => `${item.tempCode || ''}-${item.loaSrNo || ''}`.trim()));
     const newItemsToAdd = itemsForActivity.flatMap(s => {
-      const details = s.activityDetailsMap?.[activity];
+      const details = s.activityDetailsMap?.[activity as string];
       const detailsArray = Array.isArray(details) ? details : (details ? [details] : [
         { itemId: s.itemId, description: s.description, loaSrNo: (s.allLoaSrs && s.allLoaSrs.length > 0 ? s.allLoaSrs[0] : (s.loaSrNo || '')) }
       ]);
@@ -301,7 +301,7 @@ export default function StoreContractorIssueEditPage() {
       );
       
       itemsForActivity.forEach(s => {
-        const details = s.activityDetailsMap?.[activity];
+        const details = s.activityDetailsMap?.[activity as string];
         const detailsArray = Array.isArray(details) ? details : (details ? [details] : [
           { itemId: s.itemId, description: s.description, loaSrNo: (s.allLoaSrs && s.allLoaSrs.length > 0 ? s.allLoaSrs[0] : (s.loaSrNo || '')) }
         ]);
@@ -594,7 +594,7 @@ export default function StoreContractorIssueEditPage() {
             <div className="flex items-center gap-4">
               <div className="w-[400px]">
                 <Select
-                  isMulti
+                  isMulti={true as any}
                   options={Array.from(new Set(stockSummary.flatMap(s => s.allActivities || [s.activity]).filter(Boolean)))
                     .map(a => ({ value: a, label: a as string }))
                   }
@@ -639,8 +639,8 @@ export default function StoreContractorIssueEditPage() {
                     return acc;
                   }, {} as Record<string, { item: any; originalIndex: number }[]>);
 
-                  Object.values(groupedItems).forEach(group => {
-                    group.sort((a, b) => {
+                  Object.values(groupedItems).forEach((group: any) => {
+                    group.sort((a: any, b: any) => {
                       const numA = Number(a.item.loaSrNo);
                       const numB = Number(b.item.loaSrNo);
                       if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
@@ -655,7 +655,7 @@ export default function StoreContractorIssueEditPage() {
                           {activity}
                         </td>
                       </tr>
-                      {items.map(({ item, originalIndex }) => (
+                      {(items as any[]).map(({ item, originalIndex }) => (
                         <tr key={originalIndex} className="hover:bg-slate-50/50">
                           <td className="p-4 align-top text-center text-slate-500 pt-6">
                             {originalIndex + 1}

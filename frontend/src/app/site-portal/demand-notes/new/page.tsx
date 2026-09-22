@@ -10,7 +10,8 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { createDemandNote, getContextData } from '@/features/site-portal/api/demand-notes.api';
 import { getItems } from '@/features/items/api/items.api';
-import { getContractorWorkOrderById } from '@/features/contractors/api/contractorWorkOrder.api';
+import { getContractorWorkOrderById, getContractorWorkOrders } from '@/features/contractors/api/contractorWorkOrder.api';
+import { getItemMetrics } from '@/features/items/api/items.api';
 import { getContractorAggregatedQuantities, getContractors } from '@/features/contractors/api/contractors.api';
 import { ItemSelectionModal } from '@/features/site-portal/components/ItemSelectionModal';
 import { useAuthStore } from '@/shared/store/auth.store';
@@ -69,6 +70,9 @@ function DemandNoteForm() {
   });
 
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
+  const [currentActivityInput, setCurrentActivityInput] = useState('');
+  const [allActivityStats, setAllActivityStats] = useState<any[]>([]);
+  const [isLoadingItems, setIsLoadingItems] = useState(false);
   const [items, setItems] = useState<any[]>([]);
   const hasAutoPopulated = React.useRef(false);
 
@@ -114,6 +118,13 @@ function DemandNoteForm() {
     }
 
     if (hasAutoPopulated.current) return;
+
+    // Fetch metrics for activities
+    getItemMetrics().then(res => {
+      if (res && res.data && res.data.circleActivityStats) {
+        setAllActivityStats(res.data.circleActivityStats);
+      }
+    }).catch(() => {});
 
     fetchItemsList().then((fetchedItems) => {
       if ((itemIdParam || tempCodeParam || itemNameParam) && !hasAutoPopulated.current) {
@@ -189,8 +200,33 @@ function DemandNoteForm() {
   useEffect(() => {
     if (workOrderId) {
       fetchWorkOrderData(workOrderId);
+    } else if (formData.contractorId && formData.package && formData.circle) {
+      // Auto fetch work order
+      getContractorWorkOrders({ 
+        filters: { 
+          contractorId: formData.contractorId, 
+          package: formData.package, 
+          circle: formData.circle,
+          handoverStatus: 'Active'
+        }
+      }).then(res => {
+        if (res && res.data && res.data.length > 0) {
+          setCurrentWorkOrder(res.data[0]);
+          if (res.data[0].drawings && res.data[0].drawings.length > 0) {
+            setFormData(prev => ({
+              ...prev,
+              drawingNumber: res.data[0].drawings[0].drawingNumber,
+              division: res.data[0].drawings[0].division,
+              subDivision: res.data[0].drawings[0].subDivision,
+              location: res.data[0].drawings[0].location,
+            }));
+          }
+        } else {
+          setCurrentWorkOrder(null);
+        }
+      }).catch(err => console.error("Failed to fetch WO", err));
     }
-  }, [workOrderId]);
+  }, [workOrderId, formData.contractorId, formData.package, formData.circle]);
 
   const fetchItemsList = async () => {
     try {
@@ -348,6 +384,37 @@ function DemandNoteForm() {
       setIsFetchingWO(false);
     }
   };
+
+  
+  const handleAddActivity = () => {
+    if (!currentActivityInput) {
+      toast.error('Please select an activity to add');
+      return;
+    }
+    setIsLoadingItems(true);
+    getItems({ 
+      filters: {
+        activity: currentActivityInput, 
+        circle: formData.circle, 
+        package: formData.package
+      },
+      limit: 5000 
+    }).then(res => {
+      const fetchedItems = res?.items || res?.data?.items || (Array.isArray(res) ? res : []);
+      if (fetchedItems.length === 0) {
+        toast.info('No items found for this activity in this circle/package');
+        return;
+      }
+      handleAddNewItem(fetchedItems, formData.contractorId);
+      setCurrentActivityInput('');
+      toast.success(`Added ${fetchedItems.length} items from activity`);
+    }).catch(err => {
+      toast.error('Failed to fetch items for activity');
+    }).finally(() => {
+      setIsLoadingItems(false);
+    });
+  };
+
 
   const removeItemRow = (index: number) => {
     const newItems = [...items];
@@ -723,9 +790,32 @@ function DemandNoteForm() {
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-slate-200 flex justify-between items-center">
           <h3 className="text-lg font-semibold text-slate-800">Requested Items</h3>
-          <Button onClick={() => setIsItemModalOpen(true)} variant="outline" size="sm" className="flex items-center gap-2">
-            <Plus className="w-4 h-4" /> Add Item
-          </Button>
+          
+          <div className="flex items-center gap-2">
+            <select
+              value={currentActivityInput}
+              onChange={(e) => setCurrentActivityInput(e.target.value)}
+              className="h-9 px-3 rounded-md border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            >
+              <option value="">Select Activity</option>
+              {allActivityStats
+                .filter((s: any) => s._id?.circle === formData.circle)
+                .map((s: any) => s._id?.activity)
+                .filter((id: any) => typeof id === 'string' && id.trim() !== '')
+                .map((act: string, idx: number) => (
+                  <option key={idx} value={act}>{act}</option>
+                ))
+              }
+            </select>
+            <Button onClick={handleAddActivity} disabled={!currentActivityInput || isLoadingItems} variant="outline" size="sm" className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200">
+              {isLoadingItems ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+              Add Activity
+            </Button>
+            <Button onClick={() => setIsItemModalOpen(true)} variant="outline" size="sm" className="flex items-center gap-2">
+              <Plus className="w-4 h-4" /> Add Item
+            </Button>
+          </div>
+
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left whitespace-nowrap">

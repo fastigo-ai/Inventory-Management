@@ -231,11 +231,11 @@ export default function SiteContractorSummaryPage() {
     const headers = viewMode === 'item' ? [
       'Temp Code', 'Item Name', 'Activity', 'JMC Done', 'WIP Consumed', 'WIP To Be Required',
       'Total WIP', 'Total IWIP+JMC Qty', 'Total Issued from Store', 'Return',
-      'Today Total Balance', 'Final Bal Qty as per BOM'
+      'Today Total Balance', 'Items to be Required'
     ] : [
       'Activity', 'JMC Done', 'WIP Consumed', 'WIP To Be Required',
       'Total WIP', 'Total IWIP+JMC Qty', 'Total Issued from Store', 'Return',
-      'Today Total Balance', 'Final Bal Qty as per BOM'
+      'Today Total Balance', 'Items to be Required'
     ];
     const rows = displayData.map(r => viewMode === 'item' ? [
       `"${r.tempCode || ''}"`, `"${(r.itemName || '').replace(/"/g, '""')}"`, `"${r.activity || ''}"`, r.jmcDone || 0, r.wipConsumed || 0, r.wipRequired || 0,
@@ -560,7 +560,7 @@ export default function SiteContractorSummaryPage() {
                     <th className="p-3 border-r border-slate-200/60 text-right w-28 bg-blue-50/50 text-blue-900">Store Issued</th>
                     <th className="p-3 border-r border-slate-200/60 text-right w-24 bg-amber-50/50 text-amber-900">Returned</th>
                     <th className="p-3 border-r border-slate-200/60 text-right w-32 bg-indigo-100/70 text-indigo-950 font-bold">Store Balance</th>
-                    <th className="p-3 border-r border-slate-200/60 text-right w-28 font-bold">Final Bal (BOM)</th>
+                    <th className="p-3 border-r border-slate-200/60 text-right w-28 font-bold">Items to be Required</th>
                     {viewMode === 'item' && (
                       <th className="p-3 text-center min-w-[160px]">Action Required</th>
                     )}

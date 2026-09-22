@@ -183,7 +183,8 @@ export default function StoreContractorSummaryPage() {
       'Unit': r.unit || 'Nos',
       'Total Issued Qty': Math.round(r.totalIssuedQty || 0),
       'Total Return Qty': Math.round(r.totalReturnQty || 0),
-      'Total Balance Qty': Math.round(r.totalBalanceQty || 0)
+      'Store Balance': Math.round(r.totalBalanceQty || 0),
+      'Contractor Balance': Math.round(r.contractorBalance || 0)
     }));
 
     const ws = XLSX.utils.json_to_sheet(wsData);
@@ -205,7 +206,7 @@ export default function StoreContractorSummaryPage() {
     
     autoTable(doc, {
       startY: 28,
-      head: [['SR', 'LOA NO.', 'TEMP CODE', 'ITEM NAME', 'ISSUED', 'RETURNED', 'BALANCE']],
+      head: [['SR', 'LOA NO.', 'TEMP CODE', 'ITEM NAME', 'ISSUED', 'RETURNED', 'STORE BAL', 'CONTRACTOR BAL']],
       body: exportData.map((row: any, i: number) => [
         row.srNo || i + 1,
         row.loaSerialNo || '-',
@@ -213,7 +214,8 @@ export default function StoreContractorSummaryPage() {
         row.itemName || '-',
         row.totalIssuedQty?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0',
         row.totalReturnQty?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0',
-        row.totalBalanceQty?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0'
+        row.totalBalanceQty?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0',
+        row.contractorBalance?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0'
       ]),
       headStyles: { fillColor: [241, 245, 249], textColor: [51, 65, 85], fontStyle: 'bold' },
       didParseCell: function(data) {
@@ -497,7 +499,8 @@ export default function StoreContractorSummaryPage() {
                   <th className="py-3 px-4 w-20 text-center bg-slate-200">Unit</th>
                   <th className="py-3 px-4 text-right bg-amber-100 text-amber-950 font-extrabold">Total Issued Qty</th>
                   <th className="py-3 px-4 text-right bg-blue-100 text-blue-950 font-extrabold">Total Return Qty</th>
-                  <th className="py-3 px-4 text-right bg-indigo-900 text-white font-extrabold tracking-wide">Total Balance Qty</th>
+                  <th className="py-3 px-4 text-right bg-indigo-900 text-white font-extrabold tracking-wide">Store Balance</th>
+                  <th className="py-3 px-4 text-right bg-purple-900 text-white font-extrabold tracking-wide">Contractor Balance</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 text-slate-800 font-medium font-mono text-[11px]">
@@ -585,6 +588,13 @@ export default function StoreContractorSummaryPage() {
                         }`}>
                           {r.totalBalanceQty ? Number(r.totalBalanceQty).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '0'}
                         </td>
+
+                        {/* Contractor Balance Qty */}
+                        <td className={`py-2.5 px-4 text-right font-extrabold ${
+                          (Math.round(r.contractorBalance || 0)) > 0 ? 'text-purple-900 bg-purple-50/60' : 'text-slate-400 bg-slate-50/40'
+                        }`}>
+                          {r.contractorBalance ? Number(r.contractorBalance).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '0'}
+                        </td>
                       </tr>
                     );
                   })
@@ -600,7 +610,11 @@ export default function StoreContractorSummaryPage() {
                       totalIssuedQty: acc.totalIssuedQty + (Math.round(r.totalIssuedQty || 0)),
                       totalReturnQty: acc.totalReturnQty + (Math.round(r.totalReturnQty || 0)),
                       totalBalanceQty: acc.totalBalanceQty + (Math.round(r.totalBalanceQty || 0)),
-                    }), { totalIssuedQty: 0, totalReturnQty: 0, totalBalanceQty: 0 }) : totals;
+                      contractorBalance: acc.contractorBalance + (Math.round(r.contractorBalance || 0)),
+                    }), { totalIssuedQty: 0, totalReturnQty: 0, totalBalanceQty: 0, contractorBalance: 0 }) : {
+                      ...totals,
+                      contractorBalance: data.reduce((acc, r) => acc + Math.round(r.contractorBalance || 0), 0)
+                    };
                     
                     return (
                       <tr>
@@ -615,6 +629,9 @@ export default function StoreContractorSummaryPage() {
                         </td>
                         <td className="py-3 px-4 text-right font-mono text-white bg-indigo-600 font-extrabold">
                           {Number(activeTotals.totalBalanceQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono text-white bg-purple-600 font-extrabold">
+                          {Number(activeTotals.contractorBalance || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                         </td>
                       </tr>
                     );

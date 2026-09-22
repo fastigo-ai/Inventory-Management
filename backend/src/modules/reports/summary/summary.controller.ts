@@ -2082,6 +2082,9 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
         totalIssuedQty: 0,
         totalReturnQty: 0,
         totalBalanceQty: 0,
+        totalJmcDone: 0,
+        totalWipConsumed: 0,
+        contractorBalance: 0,
       });
     }
 

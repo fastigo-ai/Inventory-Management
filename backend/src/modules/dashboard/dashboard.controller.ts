@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import { asyncHandler } from '../../core/utils/asyncHandler';
 import { ApiResponse } from '../../core/utils/ApiResponse';
-import { buildStockSummaryData } from '../store/store.controller';
+import { buildStockSummaryData } from '../store/inward.controller';
 import { StoreInwardEntry } from '../store/storeInwardEntry.schema';
 import { PurchaseOrder } from '../purchases/purchaseOrder.schema';
 import { ContractorInvoice } from '../contractor-billing/contractorInvoice.schema';

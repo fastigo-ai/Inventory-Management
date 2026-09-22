@@ -77,7 +77,46 @@ export default function CeoDashboardPage() {
   };
 
   if (!data && loading) {
-    return <div className="p-8 flex justify-center items-center h-full">Loading Dashboard...</div>;
+    return (
+      <div className="bg-gray-50 min-h-screen p-6 animate-pulse">
+        {/* Header & Project Structure Skeleton */}
+        <div className="flex justify-between items-start mb-6 gap-10">
+          <div className="flex flex-col w-1/3">
+            <div className="h-8 bg-gray-200 rounded w-3/4 mb-2"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
+            <div className="flex gap-3 mt-6">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-8 bg-gray-200 rounded w-24"></div>
+              ))}
+            </div>
+          </div>
+          <div className="flex-1 h-24 bg-gray-200 rounded-xl"></div>
+        </div>
+
+        {/* KPIs Skeleton */}
+        <div className="grid grid-cols-6 gap-4 mb-6">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="h-28 bg-white border border-gray-100 rounded-xl shadow-sm flex flex-col p-4 justify-between">
+              <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+              <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+            </div>
+          ))}
+        </div>
+
+        {/* Charts Skeleton */}
+        <div className="grid grid-cols-2 gap-6 mb-6">
+          <div className="h-80 bg-white border border-gray-100 rounded-xl shadow-sm"></div>
+          <div className="h-80 bg-white border border-gray-100 rounded-xl shadow-sm"></div>
+        </div>
+
+        {/* Summaries Skeleton */}
+        <div className="grid grid-cols-3 gap-6 mb-6">
+          <div className="h-64 bg-white border border-gray-100 rounded-xl shadow-sm"></div>
+          <div className="h-64 bg-white border border-gray-100 rounded-xl shadow-sm"></div>
+          <div className="h-64 bg-white border border-gray-100 rounded-xl shadow-sm"></div>
+        </div>
+      </div>
+    );
   }
 
   const kpis = [

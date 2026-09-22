@@ -4,16 +4,21 @@ import React, { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Loader2, FileText, CheckCircle, AlertCircle, Edit, Printer, Building2 } from 'lucide-react';
 import { getStockSummary } from '@/features/store/api/store.api';
-import { getContractorActivitySummary } from '@/features/contractors/api/contractors.api';
+import { getContractorActivitySummary, getContractors } from '@/features/contractors/api/contractors.api';
 import { getDemandNoteById, updateDemandNote } from '@/features/site-portal/api/demand-notes.api';
 import { toast } from 'sonner';
 import { DocumentAttachment } from '@/shared/components/DocumentAttachment';
 import { AuditTimeline } from '@/shared/components/audit/AuditTimeline';
+import { useStickyColumnResize } from '@/shared/hooks/useStickyColumnResize';
+import { DataTable } from '@/shared/components/ui/data-table';
+import { getDemandNoteColumns } from '@/features/site-portal/components/demand-note-columns';
 
-export default function DemandNoteDetailPage() {
+export default function DemandNoteDetails() {
   const router = useRouter();
   const params = useParams();
   const { id } = params;
+  
+  useStickyColumnResize();
   
   const [demandNote, setDemandNote] = useState<any>(null);
   const [stockSummary, setStockSummary] = useState<any[]>([]);
@@ -34,10 +39,21 @@ export default function DemandNoteDetailPage() {
       if (res.success && res.data?.demandNote) {
         setDemandNote(res.data.demandNote);
         const circle = res.data.demandNote.circle;
-        const contractorId = typeof res.data.demandNote.contractor === 'object' 
+        let contractorId = typeof res.data.demandNote.contractor === 'object' 
           ? res.data.demandNote.contractor?._id 
           : res.data.demandNote.contractor;
         const contractorName = res.data.demandNote.contractorName;
+        
+        if (!contractorId && contractorName) {
+          try {
+            const contractorsList = await getContractors(undefined, contractorName);
+            if (contractorsList?.data?.length > 0) {
+              contractorId = contractorsList.data[0]._id;
+            }
+          } catch(e) {
+            console.error('Failed to resolve contractor ID', e);
+          }
+        }
           
         if (circle) {
           try {
@@ -330,102 +346,83 @@ export default function DemandNoteDetailPage() {
       </div>
 
       {/* Items Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+      <div className="mt-8">
+        <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold text-slate-800">Requested Items</h2>
           <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold">
             {demandNote.items?.length || 0} Items
           </span>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left whitespace-nowrap">
-            <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase">
-              <tr>
-                <th className="px-6 py-4 dn-sticky-sr dn-sticky-bg-header">Sr No</th>
-                <th className="px-6 py-4 dn-sticky-mc dn-sticky-bg-header">Material Code</th>
-                <th className="px-6 py-4 dn-sticky-name dn-sticky-bg-header">Item Name</th>
-                <th className="px-6 py-4 dn-sticky-act dn-sticky-bg-header">Activity</th>
-                <th className="px-6 py-4 dn-sticky-loa dn-sticky-bg-header">LOA Sr No</th>
-                <th className="px-6 py-4 text-center">LOA Qty</th>
-                <th className="px-6 py-4 text-center">Invoice Qty</th>
-                <th className="px-6 py-4">Unit</th>
-                <th className="px-6 py-4 text-center">In Stock</th>
-                <th className="px-6 py-4 text-center">Till Issued</th>
-                <th className="px-6 py-4 text-center">WIP Consumed</th>
-                <th className="px-6 py-4 text-center">JMC Done</th>
-                <th className="px-6 py-4 text-center text-teal-700">Contractor Balance</th>
-                <th className="px-6 py-4 font-bold text-indigo-700 bg-indigo-50/50">Demand Qty</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {demandNote.items && demandNote.items.length > 0 ? (
-                Object.entries(
-                  demandNote.items.reduce((acc: any, item: any, originalIdx: number) => {
-                    const act = item.activity || 'Uncategorized Activity';
-                    if (!acc[act]) acc[act] = [];
-                    acc[act].push({ ...item, originalIdx });
-                    return acc;
-                  }, {})
-                ).map(([activityName, itemsGroup]: [string, any], groupIdx) => (
-                  <React.Fragment key={groupIdx}>
-                    {/* Activity Separation Row */}
-                    <tr className="bg-slate-100/80 border-y border-slate-200">
-                      <td colSpan={15} className="px-6 py-3 font-semibold text-slate-700 uppercase tracking-wider text-xs dn-sticky-bg-header sticky left-0 z-20">
-                        {activityName}
-                      </td>
-                    </tr>
-                    
-                    {/* Items for this activity */}
-                    {itemsGroup.map((item: any, idx: number) => {
-                      const stockMatch = stockSummary.find(s => {
-                        if (item.tempCode && s.tempCode && String(item.tempCode).trim() === String(s.tempCode).trim()) return true;
-                        return String(s.loaSrNo) === String(item.loaSrNo) && String(s.activity) === String(item.activity) && (s.description === item.itemName || s.itemName === item.itemName);
-                      });
-                      
-                      const actKey = `${String(item.tempCode || item.materialCode || '').trim().toLowerCase()}_${String(item.activity || '').trim().toLowerCase()}_${String(item.loaSrNo || item.loaSerialNo || '').trim().toLowerCase()}`;
-                      const actStats = activitySummary[actKey] || { tillIssued: 0, wipConsumed: 0, jmcDone: 0 };
-                      
-                      const inStock = stockMatch ? stockMatch.totalBalanceQty : 0;
-                      const tillIssued = actStats.tillIssued || 0;
-                      const consumption = actStats.wipConsumed || 0;
-                      const jmcDone = actStats.jmcDone || 0;
-                      
-                      const circleLoaQty = stockMatch ? (stockMatch.circleLoaQty || 0) : 0;
-                      const invoiceQty = stockMatch ? ((stockMatch.acceptedQty || 0) + (stockMatch.mhrovQty || 0)) : 0;
-                      const contractorBalance = Number(tillIssued || 0) - Number(jmcDone || 0) - Number(consumption || 0);
-                      
-                      return (
-                        <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-6 py-4 text-sm text-slate-600 dn-sticky-sr dn-sticky-bg-white">{item.originalIdx + 1}</td>
-                          <td className="px-6 py-4 font-medium text-slate-900 dn-sticky-mc dn-sticky-bg-white">{item.tempCode || '-'}</td>
-                          <td className="px-6 py-4 text-sm text-slate-700 max-w-xs truncate dn-sticky-name dn-sticky-bg-white" title={item.itemName}>{item.itemName}</td>
-                          <td className="px-6 py-4 text-sm text-slate-500 max-w-xs truncate dn-sticky-act dn-sticky-bg-white" title={item.activity}>{item.activity || '-'}</td>
-                          <td className="px-6 py-4 text-sm text-slate-600 dn-sticky-loa dn-sticky-bg-white">{item.loaSrNo || '-'}</td>
-                          <td className="px-6 py-4 text-center text-sm font-medium text-slate-700">{(circleLoaQty || circleLoaQty === 0) ? Math.round(Number(circleLoaQty)) : '-'}</td>
-                          <td className="px-6 py-4 text-center text-sm font-medium text-slate-700">{(invoiceQty || invoiceQty === 0) ? Math.round(Number(invoiceQty)) : '-'}</td>
-                          <td className="px-6 py-4 text-sm text-slate-600">{item.unit || 'Nos'}</td>
-                          <td className={`px-6 py-4 text-center font-bold ${inStock > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                            {Math.round(Number(inStock || 0))}
-                          </td>
-                          <td className="px-6 py-4 text-center font-medium text-blue-600">{Math.round(Number(tillIssued || 0))}</td>
-                          <td className="px-6 py-4 text-center font-medium text-orange-600">{Math.round(Number(consumption || 0))}</td>
-                          <td className="px-6 py-4 text-center font-medium text-purple-600">{Math.round(Number(jmcDone || 0))}</td>
-                          <td className="px-6 py-4 text-center font-bold text-teal-600">{Math.round(contractorBalance)}</td>
-                          <td className="px-6 py-4 font-bold text-indigo-600 bg-indigo-50/30">{Math.round(Number(item.demandQty || 0))}</td>
-                        </tr>
-                      );
-                    })}
-                  </React.Fragment>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={15} className="px-6 py-8 text-center text-slate-500">
-                    No items found in this Demand Note
-                  </td>
-                </tr>
-              )}</tbody>
-          </table>
-        </div>
+        
+        {(() => {
+          const tableData: any[] = [];
+          if (demandNote.items && demandNote.items.length > 0) {
+            const grouped = demandNote.items.reduce((acc: any, item: any, originalIdx: number) => {
+              const act = item.activity || 'Uncategorized Activity';
+              if (!acc[act]) acc[act] = [];
+              acc[act].push({ ...item, originalIdx });
+              return acc;
+            }, {});
+
+            Object.entries(grouped).forEach(([activityName, itemsGroup]: [string, any]) => {
+              tableData.push({ isGroupRow: true, activityName });
+              
+              itemsGroup.forEach((item: any) => {
+                const stockMatch = stockSummary.find(s => {
+                  if (item.tempCode && s.tempCode && String(item.tempCode).trim() === String(s.tempCode).trim()) return true;
+                  return String(s.loaSrNo) === String(item.loaSrNo) && String(s.activity) === String(item.activity) && (s.description === item.itemName || s.itemName === item.itemName);
+                });
+                
+                const suffix = `_${String(item.tempCode || item.materialCode || '').trim().toLowerCase()}_${String(item.activity || '').trim().toLowerCase()}_${String(item.loaSrNo || item.loaSerialNo || '').trim().toLowerCase()}`;
+                let tillIssued = 0;
+                let consumption = 0;
+                let jmcDone = 0;
+                
+                if (activitySummary) {
+                  Object.entries(activitySummary).forEach(([key, val]: [string, any]) => {
+                    if (key.endsWith(suffix)) {
+                      tillIssued += Number(val.tillIssued) || 0;
+                      consumption += Number(val.wipConsumed) || 0;
+                      jmcDone += Number(val.jmcDone) || 0;
+                    }
+                  });
+                }
+                
+                const inStock = stockMatch ? stockMatch.totalBalanceQty : 0;
+                const circleLoaQty = stockMatch ? (stockMatch.circleLoaQty || 0) : 0;
+                const invoiceQty = stockMatch ? ((stockMatch.acceptedQty || 0) + (stockMatch.mhrovQty || 0)) : 0;
+                const contractorBalance = Number(tillIssued || 0) - Number(jmcDone || 0) - Number(consumption || 0);
+
+                tableData.push({
+                  ...item,
+                  isGroupRow: false,
+                  inStock,
+                  circleLoaQty,
+                  invoiceQty,
+                  tillIssued,
+                  consumption,
+                  jmcDone,
+                  contractorBalance
+                });
+              });
+            });
+          }
+          
+          return (
+            <DataTable 
+              columns={getDemandNoteColumns()} 
+              data={tableData} 
+              isLoading={isLoading}
+              initialPinning={{ left: ["originalIdx", "tempCode", "itemName", "activity", "loaSrNo"] }}
+              enableRowSelection={false}
+              enableSorting={true}
+              enableColumnReordering={true}
+              enableColumnVisibility={true}
+              enableGlobalFilter={true}
+              enableExport={true}
+            />
+          );
+        })()}
       </div>
 
       {/* Document Attachment */}

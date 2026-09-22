@@ -10,6 +10,11 @@ import {
   importMhrovs,
   getMhrovById,
   getMhrovDashboardData,
+  queryDILineItemsForMhrov,
+  getMhrovDIFilterOptions
+} from './mhrov.controller';
+
+import {
   getPendingDIs,
   getDIPrefillData,
   getPurchaseInvoicePrefillData,
@@ -22,6 +27,17 @@ import {
   getAdminInwardEntries,
   getStockSummary,
   getAdminStockSummary,
+  importInwardRegistrations,
+  getPendingStoreReceipts,
+  getInwardRegister,
+  approveStoreReceipt,
+  bulkImportInwardEntries,
+  getStoreReceiptFilterOptions,
+  getInwardEntriesByInvoice,
+  bulkUpdateInwardEntries
+} from './inward.controller';
+
+import {
   createStoreTransfer,
   getStoreTransfers,
   getStoreTransferById,
@@ -30,19 +46,9 @@ import {
   updateStoreTransferStatus,
   dispatchStoreTransfer,
   receiveStoreTransfer,
-  importInwardRegistrations,
-  getPendingStoreReceipts,
-  getInwardRegister,
-  approveStoreReceipt,
   importStoreTransfers,
-  bulkImportInwardEntries,
-  getStoreReceiptFilterOptions,
-  getInwardEntriesByInvoice,
-  bulkUpdateInwardEntries,
-  importReceivedStoreTransfers,
-  queryDILineItemsForMhrov,
-  getMhrovDIFilterOptions
-} from './store.controller';
+  importReceivedStoreTransfers
+} from './transfer.controller';
 
 const router = Router();
 

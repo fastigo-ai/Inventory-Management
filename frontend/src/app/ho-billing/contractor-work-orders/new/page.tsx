@@ -7,6 +7,8 @@ import { getContractors } from '@/features/contractors/api/contractors.api';
 import { getItems, getEntityMetadata, getItemMetrics } from '@/features/items/api/items.api';
 import { createContractorWorkOrder } from '@/features/contractors/api/contractorWorkOrder.api';
 import { toast } from 'sonner';
+import { DataTable } from '@/shared/components/ui/data-table';
+import { ColumnDef } from '@tanstack/react-table';
 
 export default function NewContractorWorkOrderPage() {
   const router = useRouter();
@@ -362,6 +364,143 @@ export default function NewContractorWorkOrderPage() {
   };
   const availableDivisions = getDivisions(formData.circle);
 
+  const tableData = React.useMemo(() => {
+    const data: any[] = [];
+    items.forEach((item, index) => {
+      const showActivityHeader = index === 0 || items[index - 1].activity !== item.activity;
+      if (showActivityHeader) {
+        data.push({ isGroupRow: true, activityName: item.activity, id: `group-${item.activity}` });
+      }
+      data.push({ ...item, originalIndex: index });
+    });
+    return data;
+  }, [items]);
+
+  const columns = React.useMemo<ColumnDef<any>[]>(() => {
+    const cols: ColumnDef<any>[] = [
+      { accessorKey: "tempCode", header: "Temp Code", size: 100 },
+      { accessorKey: "activity", header: "Activity", size: 150 },
+      { accessorKey: "loaSrNo", header: "LOA Sr No", size: 100 },
+      { accessorKey: "description", header: "Description", size: 250 },
+      { accessorKey: "unit", header: "Unit", size: 80 },
+    ];
+    
+    if (showLoaColumns) {
+      cols.push(
+        { accessorKey: "totalPackageLoaQty", header: "Total LOA Qty", size: 100 },
+        { accessorKey: "circleLoaQty", header: `${formData.circle || 'Circle'} LOA Qty`, size: 120 },
+        { accessorKey: "circleBomQty", header: `${formData.circle || 'Circle'} BOM Qty`, size: 120 }
+      );
+    }
+    
+    cols.push(
+      {
+        accessorKey: "alreadyIssuedQty",
+        header: "Issued Qty",
+        size: 100,
+        cell: ({ row }) => (
+          <input
+            type="number"
+            value={row.original.alreadyIssuedQty || ''}
+            onChange={(e) => updateItem(row.original.originalIndex, 'alreadyIssuedQty', Number(e.target.value))}
+            className="w-24 text-right px-2 py-1.5 rounded border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500 font-medium text-orange-600 text-sm transition-shadow bg-orange-50"
+          />
+        )
+      },
+      {
+        accessorKey: "woQty",
+        header: "WO Qty",
+        size: 100,
+        cell: ({ row }) => (
+          <input
+            type="number"
+            value={row.original.woQty || ''}
+            onChange={(e) => updateItem(row.original.originalIndex, 'woQty', Number(e.target.value))}
+            className="w-20 text-right px-2 py-1.5 rounded border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm transition-shadow"
+          />
+        )
+      },
+      {
+        accessorKey: "contractorErectionRate",
+        header: "Rate",
+        size: 100,
+        cell: ({ row }) => (
+          <input
+            type="number"
+            value={row.original.contractorErectionRate || ''}
+            onChange={(e) => updateItem(row.original.originalIndex, 'contractorErectionRate', Number(e.target.value))}
+            className="w-24 text-right px-2 py-1.5 rounded border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm transition-shadow"
+          />
+        )
+      },
+      {
+        accessorKey: "amount",
+        header: "Amount",
+        size: 100,
+        cell: ({ row }) => <span className="font-medium text-slate-800">₹{(row.original.amount || 0).toLocaleString()}</span>
+      },
+      {
+        accessorKey: "gstType",
+        header: "GST Type",
+        size: 120,
+        cell: ({ row }) => (
+          <select
+            value={row.original.gstType}
+            onChange={(e) => updateItem(row.original.originalIndex, 'gstType', e.target.value)}
+            className="w-28 px-2 py-1.5 rounded border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs text-slate-700 transition-shadow bg-white"
+          >
+            <option value="Intra">Intra (18%)</option>
+            <option value="Inter">Inter (9+9%)</option>
+          </select>
+        )
+      },
+      {
+        accessorKey: "totalAmount",
+        header: "Total Amount",
+        size: 120,
+        cell: ({ row }) => <span className="font-bold text-indigo-700">₹{(row.original.totalAmount || 0).toLocaleString()}</span>
+      }
+    );
+    
+    return cols;
+  }, [showLoaColumns, formData.circle, items]); // Needs items for closures, or just rely on React state updates
+
+  const getIsGroupRow = React.useCallback((row: any) => {
+    return !!row.original?.isGroupRow;
+  }, []);
+
+  const renderGroupRow = React.useCallback((row: any) => {
+    return (
+      <td colSpan={columns.length} className="px-0 py-0 sticky left-0 z-20">
+        <div className="flex items-center bg-slate-100/80 border-y border-slate-200 w-[100vw] sm:w-full">
+           <div className="px-4 py-2 text-[13px] font-bold text-slate-700 min-w-[250px]">
+             Activity: <span className="text-indigo-700 ml-1">{row.original.activityName}</span>
+           </div>
+           <div className="px-4 py-2">
+             <input
+               type="number"
+               placeholder="Ratio"
+               value={activityRatios[row.original.activityName] || ''}
+               onChange={(e) => handleRatioChange(row.original.activityName, e.target.value)}
+               className="w-20 text-right px-2 py-1 rounded border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+               title="Enter Ratio to divide Total Package LOA Qty"
+             />
+           </div>
+           <div className="flex-1"></div>
+           <div className="px-4 py-2 text-right mr-4">
+             <button
+               onClick={() => handleRemoveActivity(row.original.activityName)}
+               className="text-slate-400 hover:text-red-500 transition-colors p-1 rounded-md hover:bg-slate-200"
+               title="Remove Activity"
+             >
+               <X className="w-4 h-4" />
+             </button>
+           </div>
+        </div>
+      </td>
+    );
+  }, [columns.length, activityRatios, handleRatioChange, handleRemoveActivity]);
+
   return (
     <div className="p-6 pb-24 max-w-7xl mx-auto">
       <div className="flex items-center space-x-4 mb-6">
@@ -582,183 +721,25 @@ export default function NewContractorWorkOrderPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full whitespace-nowrap">
-            <thead className="bg-slate-50 text-slate-500 text-[11px] uppercase tracking-wider font-medium border-b border-slate-200">
-              <tr>
-                <th className="p-0 text-left align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
-                  <div className="px-4 py-3 w-[100px] min-w-[40px] resize-x overflow-hidden whitespace-nowrap flex items-center justify-between">
-                    <span>Temp Code</span>
-                  </div>
-                </th>
-                <th className="p-0 text-left align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
-                  <div className="px-4 py-3 w-[150px] min-w-[40px] resize-x overflow-hidden whitespace-nowrap flex items-center justify-between">
-                    <span>Activity</span>
-                  </div>
-                </th>
-                <th className="p-0 text-left align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
-                  <div className="px-4 py-3 w-[100px] min-w-[40px] resize-x overflow-hidden whitespace-nowrap flex items-center justify-between">
-                    <span>LOA Sr No</span>
-                  </div>
-                </th>
-                <th className="p-0 text-left align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
-                  <div className="px-4 py-3 w-[250px] min-w-[40px] resize-x overflow-hidden whitespace-nowrap flex items-center justify-between">
-                    <span>Description</span>
-                  </div>
-                </th>
-                <th className="p-0 text-left align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
-                  <div className="px-4 py-3 w-[80px] min-w-[40px] resize-x overflow-hidden whitespace-nowrap flex items-center justify-between">
-                    <span>Unit</span>
-                  </div>
-                </th>
-                {showLoaColumns && (
-                  <>
-                    <th className="p-0 text-right align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
-                      <div className="px-4 py-3 w-[100px] min-w-[40px] resize-x overflow-hidden whitespace-nowrap flex items-center justify-end">
-                        <span>Total LOA Qty</span>
-                      </div>
-                    </th>
-                    <th className="p-0 text-right align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
-                      <div className="px-4 py-3 w-[120px] min-w-[40px] resize-x overflow-hidden whitespace-nowrap flex items-center justify-end">
-                        <span>{formData.circle || 'Circle'} LOA Qty</span>
-                      </div>
-                    </th>
-                    <th className="p-0 text-right align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
-                      <div className="px-4 py-3 w-[120px] min-w-[40px] resize-x overflow-hidden whitespace-nowrap flex items-center justify-end">
-                        <span>{formData.circle || 'Circle'} BOM Qty</span>
-                      </div>
-                    </th>
-                  </>
-                )}
-                <th className="p-0 text-right align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
-                  <div className="px-4 py-3 w-[100px] min-w-[40px] resize-x overflow-hidden whitespace-nowrap flex items-center justify-end text-orange-600">
-                    <span>Issued Qty</span>
-                  </div>
-                </th>
-                <th className="p-0 text-right align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
-                  <div className="px-4 py-3 w-[100px] min-w-[40px] resize-x overflow-hidden whitespace-nowrap flex items-center justify-end text-indigo-600">
-                    <span>WO Qty</span>
-                  </div>
-                </th>
-                <th className="p-0 text-right align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
-                  <div className="px-4 py-3 w-[100px] min-w-[40px] resize-x overflow-hidden whitespace-nowrap flex items-center justify-end text-indigo-600">
-                    <span>Rate</span>
-                  </div>
-                </th>
-                <th className="p-0 text-right align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
-                  <div className="px-4 py-3 w-[100px] min-w-[40px] resize-x overflow-hidden whitespace-nowrap flex items-center justify-end">
-                    <span>Amount</span>
-                  </div>
-                </th>
-                <th className="p-0 text-left align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
-                  <div className="px-4 py-3 w-[120px] min-w-[40px] resize-x overflow-hidden whitespace-nowrap flex items-center justify-between">
-                    <span>GST Type</span>
-                  </div>
-                </th>
-                <th className="p-0 text-right align-top border-r border-slate-200 hover:bg-slate-100 transition-colors">
-                  <div className="px-4 py-3 w-[120px] min-w-[40px] resize-x overflow-hidden whitespace-nowrap flex items-center justify-end">
-                    <span>Total Amount</span>
-                  </div>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 text-sm">
-              {isLoadingItems ? (
-                <tr>
-                  <td colSpan={showLoaColumns ? 14 : 11} className="px-6 py-8 text-center text-slate-500">Loading items...</td>
-                </tr>
-              ) : items.length === 0 ? (
-                <tr>
-                  <td colSpan={showLoaColumns ? 14 : 11} className="px-6 py-8 text-center text-slate-500">Select an activity to view items</td>
-                </tr>
-              ) : items.map((item, index) => {
-                const showActivityHeader = index === 0 || items[index - 1].activity !== item.activity;
-
-                return (
-                  <React.Fragment key={item.itemId}>
-                    {showActivityHeader && (
-                      <tr className="bg-slate-100/80 border-y border-slate-200">
-                        <td colSpan={showLoaColumns ? 8 : 5} className="px-4 py-2 text-[13px] font-bold text-slate-700">
-                          Activity: <span className="text-indigo-700 ml-1">{item.activity}</span>
-                        </td>
-                        <td className="px-4 py-2">
-                          <input
-                            type="number"
-                            placeholder="Ratio"
-                            value={activityRatios[item.activity] || ''}
-                            onChange={(e) => handleRatioChange(item.activity, e.target.value)}
-                            className="w-20 text-right px-2 py-1 rounded border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-                            title="Enter Ratio to divide Total Package LOA Qty"
-                          />
-                        </td>
-                        <td colSpan={4}></td>
-                        <td className="px-4 py-2 text-right">
-                          <button
-                            onClick={() => handleRemoveActivity(item.activity)}
-                            className="text-slate-400 hover:text-red-500 transition-colors p-1 rounded-md hover:bg-slate-200"
-                            title="Remove Activity"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    )}
-                    <tr className="hover:bg-slate-50 group">
-                      <td className="px-4 py-2.5 text-slate-700">{item.tempCode}</td>
-                      <td className="px-4 py-2.5 text-slate-700 whitespace-normal min-w-[150px] max-w-[250px] leading-snug">{item.activity}</td>
-                      <td className="px-4 py-2.5 text-slate-700">{item.loaSrNo}</td>
-                      <td className="px-4 py-2.5 text-slate-700 whitespace-normal min-w-[250px] max-w-[500px] leading-snug">{item.description}</td>
-                      <td className="px-4 py-2.5 text-slate-700">{item.unit}</td>
-                      {showLoaColumns && (
-                        <>
-                          <td className="px-4 py-2.5 text-right font-medium text-slate-800">{item.totalPackageLoaQty}</td>
-                          <td className="px-4 py-2.5 text-right font-medium text-slate-800">{item.circleLoaQty}</td>
-                          <td className="px-4 py-2.5 text-right font-medium text-slate-800">{item.circleBomQty}</td>
-                        </>
-                      )}
-                      <td className="px-4 py-2.5">
-                        <input
-                          type="number"
-                          value={item.alreadyIssuedQty || ''}
-                          onChange={(e) => updateItem(index, 'alreadyIssuedQty', Number(e.target.value))}
-                          className="w-24 text-right px-2 py-1.5 rounded border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500 font-medium text-orange-600 text-sm transition-shadow bg-orange-50"
-                        />
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <input
-                          type="number"
-                          value={item.woQty || ''}
-                          onChange={(e) => updateItem(index, 'woQty', Number(e.target.value))}
-                          className="w-20 text-right px-2 py-1.5 rounded border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm transition-shadow"
-                        />
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <input
-                          type="number"
-                          value={item.contractorErectionRate || ''}
-                          onChange={(e) => updateItem(index, 'contractorErectionRate', Number(e.target.value))}
-                          className="w-24 text-right px-2 py-1.5 rounded border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm transition-shadow"
-                        />
-                      </td>
-                      <td className="px-4 py-2.5 text-right font-medium text-slate-800">₹{item.amount.toLocaleString()}</td>
-                      <td className="px-4 py-2.5">
-                        <select
-                          value={item.gstType}
-                          onChange={(e) => updateItem(index, 'gstType', e.target.value)}
-                          className="w-28 px-2 py-1.5 rounded border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs text-slate-700 transition-shadow bg-white"
-                        >
-                          <option value="Intra">Intra (18%)</option>
-                          <option value="Inter">Inter (9+9%)</option>
-                        </select>
-                      </td>
-                      <td className="px-4 py-2.5 text-right font-bold text-indigo-700 bg-indigo-50/30 group-hover:bg-indigo-50/50 transition-colors">
-                        ₹{item.totalAmount.toLocaleString()}
-                      </td>
-                    </tr>
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
+          {items.length === 0 && !isLoadingItems ? (
+            <div className="p-12 text-center text-slate-500 bg-slate-50 rounded-lg border border-dashed border-slate-300">
+              Select an activity to view items
+            </div>
+          ) : (
+            <DataTable 
+              columns={columns} 
+              data={tableData} 
+              isLoading={isLoadingItems}
+              initialPinning={{ left: ["tempCode", "activity", "loaSrNo"] }}
+              enableSorting={true}
+              enableColumnReordering={true}
+              enableColumnVisibility={true}
+              enableGlobalFilter={true}
+              enableExport={true}
+              getIsGroupRow={getIsGroupRow}
+              renderSubComponent={renderGroupRow}
+            />
+          )}
         </div>
       </div>
 

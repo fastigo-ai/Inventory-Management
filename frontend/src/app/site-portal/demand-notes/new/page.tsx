@@ -16,9 +16,11 @@ import { getContractorAggregatedQuantities, getContractors } from '@/features/co
 import { ItemSelectionModal } from '@/features/site-portal/components/ItemSelectionModal';
 import { useAuthStore } from '@/shared/store/auth.store';
 import { useAuditTracker } from '@/shared/hooks/useAuditTracker';
+import { useStickyColumnResize } from '@/shared/hooks/useStickyColumnResize';
 
 function DemandNoteForm() {
   const router = useRouter();
+  useStickyColumnResize();
   const searchParams = useSearchParams();
   const { user } = useAuthStore();
   const { trackAction } = useAuditTracker();

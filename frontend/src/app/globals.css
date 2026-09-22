@@ -202,58 +202,47 @@ table {
 }
 
 .dn-sticky-sr {
-  position: sticky;
-  left: 0;
-  z-index: 20;
   min-width: 60px;
-  max-width: 60px;
 }
 
 .dn-sticky-mc {
-  position: sticky;
-  left: 60px;
-  z-index: 20;
   min-width: 100px;
-  max-width: 100px;
 }
 
 .dn-sticky-name {
-  position: sticky;
-  left: 160px;
-  z-index: 20;
   min-width: 250px;
-  max-width: 250px;
   white-space: normal;
 }
 
 .dn-sticky-act {
-  position: sticky;
-  left: 410px;
-  z-index: 20;
   min-width: 200px;
-  max-width: 200px;
   white-space: normal;
 }
 
 .dn-sticky-loa {
-  position: sticky;
-  left: 610px;
-  z-index: 20;
   min-width: 90px;
-  max-width: 90px;
 }
 
-/* Ensure sticky cells have a background to hide scrolled content behind them */
-.dn-sticky-sr, .dn-sticky-mc, .dn-sticky-name, .dn-sticky-act, .dn-sticky-loa {
-  
-}
+/* Backgrounds kept for normal cells if needed */
 .dn-sticky-bg-white {
-  background-color: #ffffff;
+  background-color: white;
 }
 .dn-sticky-bg-header {
-  background-color: #f8fafc; /* Tailwind slate-50 */
+  background-color: #f8fafc;
+} /* Tailwind slate-50 */
+/* Re-added sticky columns but with dynamic CSS variables to allow resizing */
+
+.dn-sticky-bg-header {
+  background-color: rgb(241 245 249 / 0.8) !important;
+  backdrop-filter: blur(8px);
 }
-/* A small shadow to the right of the last sticky column */
+
+.dn-sticky-sr { position: sticky; left: 0; z-index: 20; width: 60px; min-width: 40px; }
+.dn-sticky-mc { position: sticky; left: var(--sticky-left-2, 60px); z-index: 20; width: 100px; min-width: 40px; }
+.dn-sticky-name { position: sticky; left: var(--sticky-left-3, 160px); z-index: 20; width: 200px; min-width: 100px; white-space: normal; }
+.dn-sticky-act { position: sticky; left: var(--sticky-left-4, 360px); z-index: 20; width: 200px; min-width: 100px; white-space: normal; }
+.dn-sticky-loa { position: sticky; left: var(--sticky-left-5, 560px); z-index: 20; width: 90px; min-width: 40px; }
+
 .dn-sticky-loa::after {
   content: '';
   position: absolute;
@@ -265,14 +254,11 @@ table {
   pointer-events: none;
 }
 
-.dn-sticky-bg-header {
-  background-color: rgb(241 245 249 / 0.8) !important;
-  backdrop-filter: blur(8px);
+.dn-new-name { position: sticky; left: 0; z-index: 20; width: 200px; min-width: 100px; white-space: normal; }
+.dn-new-act { position: sticky; left: var(--new-left-2, 200px); z-index: 20; width: 200px; min-width: 100px; white-space: normal; }
+.dn-new-mc { position: sticky; left: var(--new-left-3, 400px); z-index: 20; width: 100px; min-width: 40px; }
+.dn-new-loa { position: sticky; left: var(--new-left-4, 500px); z-index: 20; width: 90px; min-width: 40px; }
+.dn-new-unit { position: sticky; left: var(--new-left-5, 590px); z-index: 20; width: 80px; min-width: 40px; }
+.dn-new-unit::after {
+  content: ''; position: absolute; top: 0; right: -5px; bottom: 0; width: 5px; background: linear-gradient(to right, rgba(0,0,0,0.1), transparent); pointer-events: none;
 }
-
-.dn-new-name { position: sticky; left: 0; z-index: 20; min-width: 200px; max-width: 200px; white-space: normal;  }
-.dn-new-act { position: sticky; left: 200px; z-index: 20; min-width: 150px; max-width: 150px; white-space: normal;  }
-.dn-new-mc { position: sticky; left: 350px; z-index: 20; min-width: 100px; max-width: 100px;  }
-.dn-new-loa { position: sticky; left: 450px; z-index: 20; min-width: 100px; max-width: 100px;  }
-.dn-new-unit { position: sticky; left: 550px; z-index: 20; min-width: 80px; max-width: 80px;  }
-.dn-new-unit::after { content: ''; position: absolute; top: 0; right: -5px; bottom: 0; width: 5px; background: linear-gradient(to right, rgba(0,0,0,0.1), transparent); pointer-events: none; }

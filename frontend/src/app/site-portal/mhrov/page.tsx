@@ -160,7 +160,24 @@ export default function MhrovPage() {
       {activeTab === "dashboard" && (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
           {loadingDashboard ? (
-            <div className="flex justify-center p-12 text-slate-500">Loading Dashboard...</div>
+            <div className="space-y-6 animate-pulse">
+              {/* Metrics Row Skeleton */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm h-28 flex flex-col justify-between">
+                    <div className="h-4 bg-slate-200 rounded w-1/2"></div>
+                    <div className="h-8 bg-slate-200 rounded w-1/3"></div>
+                  </div>
+                ))}
+              </div>
+              {/* Chart & Needs Attention Row Skeleton */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2 bg-white rounded-xl border border-slate-100 shadow-sm h-[400px]"></div>
+                <div className="bg-white rounded-xl border border-slate-100 shadow-sm h-[400px]"></div>
+              </div>
+              {/* Table Skeleton */}
+              <div className="bg-white rounded-xl border border-slate-100 shadow-sm h-64"></div>
+            </div>
           ) : (
             <>
               {/* Metrics Row */}

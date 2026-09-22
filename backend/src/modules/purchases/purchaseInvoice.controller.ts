@@ -11,7 +11,7 @@ import Item from '../items/item.model';
 import { ValidationService } from '../../core/document-engine/validation/validation.service';
 import { RelationsService } from '../../core/document-engine/relations/relations.service';
 import { DI } from '../di/di.schema';
-import { reverseInwardStockUpdate } from '../store/store.controller';
+import { reverseInwardStockUpdate } from '../store/inward.controller';
 import { validateLineItemsUnit } from '../../utils/itemValidation.util';
 
 export const createPurchaseInvoice = async (req: Request, res: Response): Promise<void> => {

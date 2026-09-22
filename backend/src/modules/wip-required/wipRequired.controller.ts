@@ -789,7 +789,15 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
          existingWip = await WipRequiredRegister.findOne({ wipRequiredNumber: existingWipNo });
       } else {
          existingWip = await WipRequiredRegister.findOne({ 
-            contractorId: contractorId || null, package: pkg, location: loc, circle: circ, division: div, subDivision: subDiv, subStation: subStn, feeder 
+            contractorId: contractorId || null, 
+            package: pkg, 
+            drawingNo: meta.DrawingNo,
+            location: loc, 
+            circle: circ, 
+            division: div, 
+            subDivision: subDiv, 
+            subStation: subStn, 
+            feeder 
          });
       }
 
@@ -833,7 +841,14 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
           $set: {
             date: new Date(),
             contractorId: contractorId || null,
-            package: pkg, location: loc, circle: circ, division: div, subDivision: subDiv, subStation: subStn, feeder,
+            package: pkg, 
+            drawingNo: meta.DrawingNo,
+            location: loc, 
+            circle: circ, 
+            division: div, 
+            subDivision: subDiv, 
+            subStation: subStn, 
+            feeder,
             items: wipItems,
             remarks: `Updated via Bulk Upload from ${sourceFile} (${sheetName}).`,
           }
@@ -850,7 +865,14 @@ export const uploadWipRequiredExcel = asyncHandler(async (req: Request, res: Res
               wipRequiredNumber,
               date: new Date(),
               contractorId: contractorId || null,
-              package: pkg, location: loc, circle: circ, division: div, subDivision: subDiv, subStation: subStn, feeder,
+              package: pkg, 
+              drawingNo: meta.DrawingNo,
+              location: loc, 
+              circle: circ, 
+              division: div, 
+              subDivision: subDiv, 
+              subStation: subStn, 
+              feeder,
               items: wipItems,
               claimedAmount: 0,
               approvedAmount: 0,

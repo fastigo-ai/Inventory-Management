@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { WipRegister } from './wip.schema';
+import { JmcRegister } from './jmc.schema';
 import { ApiResponse } from '../../core/utils/ApiResponse';
 import { ApiError } from '../../core/utils/ApiError';
 import { asyncHandler } from '../../core/utils/asyncHandler';
@@ -10,7 +10,6 @@ import stringSimilarity from 'string-similarity';
 import mongoose from 'mongoose';
 import cloudinary from '../../core/utils/cloudinary';
 import { sseService } from '../../core/utils/sse.service';
-
 const uploadToCloudinary = (buffer: Buffer, folder: string): Promise<any> => {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
@@ -24,33 +23,26 @@ const uploadToCloudinary = (buffer: Buffer, folder: string): Promise<any> => {
   });
 };
 
-const getNextWipSequence = async (): Promise<{ currentCount: number, yearStr: string }> => {
-  const yearStr = new Date().getFullYear().toString().slice(-2);
-  const lastDoc = await WipRegister.findOne({ wipNumber: new RegExp(`^WIP/${yearStr}/`) }).sort({ createdAt: -1 });
-  let count = 0;
-  if (lastDoc && lastDoc.wipNumber) {
-    const parts = lastDoc.wipNumber.split('/');
-    if (parts.length === 3) {
-      count = parseInt(parts[2], 10);
-    }
-  }
-  if (isNaN(count) || count === 0) {
-    count = await WipRegister.countDocuments({ wipNumber: new RegExp(`^WIP/${yearStr}/`) });
-  }
-  return { currentCount: count, yearStr };
-};
 
-export const createWip = asyncHandler(async (req: Request, res: Response) => {
+export const createJmc = asyncHandler(async (req: Request, res: Response) => {
   const data = req.body;
   const user = (req as any).user;
 
-  const { currentCount, yearStr } = await getNextWipSequence();
-  data.wipNumber = `WIP/${yearStr}/${(currentCount + 1).toString().padStart(4, '0')}`;
+  const currentYearStr = new Date().getFullYear().toString().slice(-2);
+  const lastJmc = await JmcRegister.findOne({ jmcNumber: new RegExp(`^JMC/${currentYearStr}/`) }).sort({ jmcNumber: -1 }).select('jmcNumber').lean();
+  let count = 0;
+  if (lastJmc && lastJmc.jmcNumber) {
+    const parts = lastJmc.jmcNumber.split('/');
+    if (parts.length === 3) {
+      count = parseInt(parts[2], 10) || 0;
+    }
+  }
+  data.jmcNumber = `JMC/${currentYearStr}/${(count + 1).toString().padStart(4, '0')}`;
   data.createdBy = user._id;
 
   let drawingSheetUrl = '';
   if (req.file) {
-    const result = await uploadToCloudinary(req.file.buffer, 'wip_drawings');
+    const result = await uploadToCloudinary(req.file.buffer, 'jmc_drawings');
     drawingSheetUrl = result.secure_url;
   }
 
@@ -69,14 +61,14 @@ export const createWip = asyncHandler(async (req: Request, res: Response) => {
     ...(drawingSheetUrl && { drawingSheetUrl })
   };
 
-  const newWip = await WipRegister.create(payload);
+  const newJmc = await JmcRegister.create(payload);
 
   res.status(201).json(
-    new ApiResponse(201, newWip, 'WIP Register entry created successfully')
+    new ApiResponse(201, newJmc, 'JMC Register entry created successfully')
   );
 });
 
-export const getWips = asyncHandler(async (req: Request, res: Response) => {
+export const getJmcs = asyncHandler(async (req: Request, res: Response) => {
   const user = (req as any).user;
   const page = parseInt(req.query.page as string) || 1;
   const limit = req.query.limit === 'all' ? 0 : parseInt(req.query.limit as string) || 30;
@@ -105,7 +97,9 @@ export const getWips = asyncHandler(async (req: Request, res: Response) => {
 
   if (req.query.startDate || req.query.endDate) {
     filter.date = {};
-    if (req.query.startDate) filter.date.$gte = new Date(req.query.startDate as string);
+    if (req.query.startDate) {
+      filter.date.$gte = new Date(req.query.startDate as string);
+    }
     if (req.query.endDate) {
       const end = new Date(req.query.endDate as string);
       end.setHours(23, 59, 59, 999);
@@ -120,27 +114,29 @@ export const getWips = asyncHandler(async (req: Request, res: Response) => {
   if (req.query.subStation) filter.subStation = { $regex: new RegExp(req.query.subStation as string, 'i') };
 
   if (search && search.trim() !== '') {
-    filter.wipNumber = { $regex: search, $options: 'i' };
+    filter.jmcNumber = { $regex: search, $options: 'i' };
   }
 
   const skip = (page - 1) * limit;
 
-  const [total, wips, aggregateResult] = await Promise.all([
-    WipRegister.countDocuments(filter),
+  const [total, jmcs, aggregateResult] = await Promise.all([
+    JmcRegister.countDocuments(filter),
     limit > 0 
-      ? WipRegister.find(filter)
+      ? JmcRegister.find(filter)
           .populate('contractorId', 'name vendorName dynamicData')
           .populate('workOrderId', 'workOrderNumber')
+          .populate('items.itemId')
           .sort({ createdAt: -1 })
           .skip(skip)
           .limit(limit)
           .lean()
-      : WipRegister.find(filter)
+      : JmcRegister.find(filter)
           .populate('contractorId', 'name vendorName dynamicData')
           .populate('workOrderId', 'workOrderNumber')
+          .populate('items.itemId')
           .sort({ createdAt: -1 })
           .lean(),
-    WipRegister.aggregate([
+    JmcRegister.aggregate([
       { $match: filter },
       {
         $group: {
@@ -157,43 +153,43 @@ export const getWips = asyncHandler(async (req: Request, res: Response) => {
 
   res.status(200).json(
     new ApiResponse(200, {
-      data: wips,
+      data: jmcs,
       total,
       page,
       limit,
       totalPages,
       aggregates
-    }, 'WIP Register entries fetched successfully')
+    }, 'JMC Register entries fetched successfully')
   );
 });
 
-export const getWipById = asyncHandler(async (req: Request, res: Response) => {
+export const getJmcById = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const wip = await WipRegister.findById(id)
+  const jmc = await JmcRegister.findById(id)
     .populate('contractorId', 'name vendorName dynamicData')
     .populate('workOrderId', 'workOrderNumber');
 
-  if (!wip) {
-    throw new ApiError(404, 'WIP Register entry not found');
+  if (!jmc) {
+    throw new ApiError(404, 'JMC Register entry not found');
   }
 
   res.status(200).json(
-    new ApiResponse(200, wip, 'WIP Register entry fetched successfully')
+    new ApiResponse(200, jmc, 'JMC Register entry fetched successfully')
   );
 });
 
-export const updateWip = asyncHandler(async (req: Request, res: Response) => {
+export const updateJmc = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const data = req.body;
 
-  const wip = await WipRegister.findById(id);
-  if (!wip) {
-    throw new ApiError(404, 'WIP Register entry not found');
+  const jmc = await JmcRegister.findById(id);
+  if (!jmc) {
+    throw new ApiError(404, 'JMC Register entry not found');
   }
 
   let drawingSheetUrl = '';
   if (req.file) {
-    const result = await uploadToCloudinary(req.file.buffer, 'wip_drawings');
+    const result = await uploadToCloudinary(req.file.buffer, 'jmc_drawings');
     drawingSheetUrl = result.secure_url;
   }
 
@@ -212,28 +208,28 @@ export const updateWip = asyncHandler(async (req: Request, res: Response) => {
     ...(drawingSheetUrl && { drawingSheetUrl })
   };
 
-  const updatedWip = await WipRegister.findByIdAndUpdate(
+  const updatedJmc = await JmcRegister.findByIdAndUpdate(
     id,
     payload,
     { new: true, runValidators: true }
   );
 
   res.status(200).json(
-    new ApiResponse(200, updatedWip, 'WIP Register entry updated successfully')
+    new ApiResponse(200, updatedJmc, 'JMC Register entry updated successfully')
   );
 });
 
-export const deleteWip = asyncHandler(async (req: Request, res: Response) => {
+export const deleteJmc = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   
-  const wip = await WipRegister.findByIdAndDelete(id);
+  const jmc = await JmcRegister.findByIdAndDelete(id);
   
-  if (!wip) {
-    throw new ApiError(404, 'WIP Register entry not found');
+  if (!jmc) {
+    throw new ApiError(404, 'JMC Register entry not found');
   }
 
   res.status(200).json(
-    new ApiResponse(200, null, 'WIP Register entry deleted successfully')
+    new ApiResponse(200, null, 'JMC Register entry deleted successfully')
   );
 });
 
@@ -247,62 +243,63 @@ const METADATA_LABELS: Record<string, string> = {
   "Location :": "Location",
   "Drawing No :": "DrawingNo",
   "Name of Contractor": "Contractor",
-  "WIP Number :": "WipNumber",
+  "JMC Number :": "JmcNumber",
 };
 
 function normLabel(v: any): string {
   if (!v) return "";
-  return String(v).trim().replace(/:$/, "").trim().toLowerCase();
+  return String(v).replace(/\s+/g, ' ').trim().replace(/:$/, "").trim().toLowerCase();
 }
 
-
-export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) => {
-  const clientId = (req.query.clientId as string) || (req.body.clientId as string);
+export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) => {
   if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
-    if (clientId) {
-      sseService.sendEvent(clientId, { stage: 'started', progress: 0, message: 'WIP Bulk Import Started' });
-    }
     return res.status(400).json(new ApiResponse(400, null, 'No files uploaded'));
   }
 
   const user = (req as any).user;
   const conflictStrategy = req.body.conflictStrategy || 'skip';
-  const files = req.files as Express.Multer.File[];
+  const clientId = req.body.clientId;
 
   if (clientId) {
-    sseService.sendEvent(clientId, { stage: 'started', progress: 0, message: 'WIP Bulk Import Started' });
-    await new Promise(r => setTimeout(r, 50));
     sseService.sendEvent(clientId, { stage: 'parsing', progress: 5, message: 'Fetching metadata...' });
-    await new Promise(r => setTimeout(r, 50));
   }
-
-  const flagged: any[] = [];
-  let totalSaved = 0;
 
   // Pre-fetch all contractors and items for matching
   const allContractors = await Contractor.find({}).lean();
   const contractorNames = allContractors.map((c: any) => c.name || c.dynamicData?.companyName || c.dynamicData?.displayName || c.dynamicData?.name).filter(Boolean);
   
   const allItems = await Item.find({}).lean();
-  const itemsByLoa = new Map<string, any[]>();
+
   const itemsByTempCode = new Map<string, any[]>();
+  const itemsByLoa = new Map<string, any[]>();
+  const itemsByCircle = new Map<string, any[]>();
+  const itemsByDescription = new Map<string, any[]>();
+  
   for (const item of allItems) {
-    const sku = String(item.dynamicData?.sku || item.dynamicData?.loaSrNo || '').toLowerCase().trim();
-    if (sku) {
-      if (!itemsByLoa.has(sku)) itemsByLoa.set(sku, []);
-      itemsByLoa.get(sku)?.push(item);
-    }
-    const tempCode = String(item.dynamicData?.tempCode || item.rawItem?.tempCode || '').toLowerCase().trim();
+    const tempCode = String(item.dynamicData?.tempCode || '').trim().toLowerCase();
     if (tempCode) {
       if (!itemsByTempCode.has(tempCode)) itemsByTempCode.set(tempCode, []);
       itemsByTempCode.get(tempCode)?.push(item);
     }
+    const loa = String(item.dynamicData?.sku || item.dynamicData?.loaSrNo || '').trim().toLowerCase();
+    if (loa) {
+      if (!itemsByLoa.has(loa)) itemsByLoa.set(loa, []);
+      itemsByLoa.get(loa)?.push(item);
+    }
+    const circle = String(item.dynamicData?.circle || '').trim().toLowerCase();
+    if (circle) {
+      if (!itemsByCircle.has(circle)) itemsByCircle.set(circle, []);
+      itemsByCircle.get(circle)?.push(item);
+    }
+    const desc = String(item.dynamicData?.description || item.dynamicData?.name || '').trim().toLowerCase();
+    if (desc) {
+      if (!itemsByDescription.has(desc)) itemsByDescription.set(desc, []);
+      itemsByDescription.get(desc)?.push(item);
+    }
   }
 
-  let { currentCount: initialCount, yearStr } = await getNextWipSequence();
-
-  // Helper Functions for Pass 1
-  const parseFile = (file: Express.Multer.File) => {
+  // ——— HELPER: parse one file into structured site-records —————————————————â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const parseFile = (file: any) => {
     const workbook = xlsx.read(file.buffer, { type: 'buffer' });
     const sourceFile = file.originalname;
     const sheets: any[] = [];
@@ -310,39 +307,40 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
     for (const sheetName of workbook.SheetNames) {
       const worksheet = workbook.Sheets[sheetName];
       const rows = xlsx.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: null });
-      
+
       const metaRows: Record<number, string> = {};
       let headerRowIdx = -1;
 
       for (let r = 0; r < Math.min(50, rows.length); r++) {
         const row = rows[r];
         if (!row) continue;
-        
+
         let labelFound = false;
         for (let c = 0; c < 5; c++) {
           const cell = row[c];
           if (cell) {
-             const norm = normLabel(cell);
-             let field = null;
-             if (norm.includes("circle") && !norm.includes("sub")) field = "Circle";
-             else if (norm.includes("sub") && norm.includes("circle")) field = "SubCircle";
-             else if (norm.includes("division") && !norm.includes("sub")) field = "Division";
-             else if (norm.includes("sub") && (norm.includes("div") || norm.includes("division"))) field = "SubDivision";
-             else if (norm.includes("sub") && (norm.includes("station") || norm.includes("stn"))) field = "SubStation";
-             else if (norm.includes("feeder")) field = "Feeder";
-             else if (norm.includes("location") || norm.includes("site")) field = "Location";
-             else if (norm.includes("drawing")) field = "DrawingNo";
-             else if (norm.includes("contractor") || norm.includes("agency")) field = "Contractor";
-             else if (norm.includes("wip number") || norm.includes("wip no")) field = "WipNumber";
-             
-             if (field) {
-               metaRows[r] = field;
-               labelFound = true;
-               break;
-             }
+            const norm = normLabel(cell);
+            let field = null;
+            if (norm.includes("circle") && !norm.includes("sub")) field = "Circle";
+            else if (norm.includes("sub") && norm.includes("circle")) field = "SubCircle";
+            else if (norm.includes("division") && !norm.includes("sub")) field = "Division";
+            else if (norm.includes("sub") && (norm.includes("div") || norm.includes("division"))) field = "SubDivision";
+            else if (norm.includes("sub") && (norm.includes("station") || norm.includes("stn"))) field = "SubStation";
+            else if (norm.includes("feeder")) field = "Feeder";
+            else if (norm.includes("location") || norm.includes("site")) field = "Location";
+            else if (norm.includes("drawing")) field = "DrawingNo";
+            else if (norm.includes("contractor") || norm.includes("agency")) field = "Contractor";
+            else if (norm.includes("jmc number") || norm.includes("jmc no")) field = "JmcNumber";
+
+            if (field) {
+              metaRows[r] = field;
+              labelFound = true;
+              break;
+            }
           }
           if (labelFound) break;
         }
+
         let isHeader = false;
         let matchCount = 0;
         for (let c = 0; c < 5; c++) {
@@ -364,15 +362,14 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
       }
 
       if (headerRowIdx === -1) {
-        flagged.push({ sourceFile, sheetName, issue: "Could not find 'LOA SR.NO.' header row - skipped" });
-        sheets.push({ skipped: true });
+        sheets.push({ sourceFile, sheetName, skipped: true, reason: "Could not find header row" });
         continue;
       }
 
       const maxCol = rows.reduce((max, r) => Math.max(max, r.length), 0);
       const headerRow = rows[headerRowIdx];
       let loaIdx = -1, tempCodeIdx = -1, schedIdx = -1, activityIdx = -1, descIdx = -1, unitIdx = -1;
-      
+
       for (let c = 0; c < headerRow.length; c++) {
         const h = normLabel(headerRow[c]);
         if (!h) continue;
@@ -442,35 +439,6 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
         globalMeta[field] = val;
       }
 
-      if (!globalMeta['Contractor']) {
-        for (let r = 0; r < Math.min(30, rows.length); r++) {
-          const row = rows[r];
-          if (!row) continue;
-          for (let c = 0; c < row.length; c++) {
-            if (row[c] && typeof row[c] === 'string') {
-              const norm = normLabel(row[c]);
-              if (norm.includes('contractor') || norm.includes('agency')) {
-                if (row[c].includes(':')) {
-                  const parts = row[c].split(':');
-                  if (parts.length > 1 && parts[1].trim()) {
-                    globalMeta['Contractor'] = parts.slice(1).join(':').trim();
-                    break;
-                  }
-                }
-                for (let scanC = c + 1; scanC < row.length; scanC++) {
-                  if (row[scanC] && String(row[scanC]).trim()) {
-                    globalMeta['Contractor'] = String(row[scanC]).trim();
-                    break;
-                  }
-                }
-              }
-            }
-            if (globalMeta['Contractor']) break;
-          }
-          if (globalMeta['Contractor']) break;
-        }
-      }
-
       const siteMeta: Record<number, any> = {};
       for (const c of siteCols) {
         const d: any = { ...globalMeta };
@@ -495,33 +463,30 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
       }
 
       const recordsBySite: Record<number, any[]> = {};
-      for (const c of siteCols) {
-        recordsBySite[c] = [];
-      }
+      for (const c of siteCols) recordsBySite[c] = [];
 
       let currentActivityGroup = '';
       for (let r = headerRowIdx + 1; r < rows.length; r++) {
         const row = rows[r];
         if (!row) continue;
-        
+
         const loa = loaIdx !== -1 ? row[loaIdx] : null;
         const tempCodeVal = tempCodeIdx !== -1 ? row[tempCodeIdx] : null;
         const sched = schedIdx !== -1 ? row[schedIdx] : null;
         const activity = activityIdx !== -1 ? row[activityIdx] : null;
         const desc = descIdx !== -1 ? row[descIdx] : null;
         const unit = unitIdx !== -1 ? row[unitIdx] : null;
-        
+
         if (!loa && !tempCodeVal && !sched && !activity && !desc) continue;
-        
+
         if (!unit || String(unit).trim() === '') {
           if (desc) currentActivityGroup = String(desc).trim();
           continue;
         }
-        
+
         for (const c of siteCols) {
           const qty = row[c];
           if (qty === null || qty === undefined || qty === "") continue;
-          
           const numQty = parseFloat(qty);
           if (!isNaN(numQty)) {
             recordsBySite[c].push({
@@ -531,63 +496,130 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
         }
       }
 
-      sheets.push({ sourceFile, sheetName, siteCols, siteMeta, recordsBySite, skipped: false });
+      sheets.push({ sourceFile, sheetName, siteCols, siteMeta, recordsBySite });
     }
+
     return sheets;
   };
 
-  const resolveItem = (sr: any, uploadedCircle: string) => {
-    const formatMatch = (itemObj: any) => ({
-      itemId: itemObj._id,
-      loaSerialNo: itemObj.dynamicData?.sku || itemObj.dynamicData?.loaSrNo || '',
-      loaSrNo: itemObj.dynamicData?.sku || itemObj.dynamicData?.loaSrNo || '',
-      tempCode: itemObj.dynamicData?.tempCode || itemObj.rawItem?.tempCode || '',
-      totalLoaQty: Number(itemObj.dynamicData?.loaQty || itemObj.dynamicData?.loaQuantity || itemObj.dynamicData?.totalLoaQuantity || itemObj.dynamicData?.qty || itemObj.dynamicData?.quantity || 0),
-      activity: itemObj.dynamicData?.activity || sr.activity || '',
-      unit: itemObj.dynamicData?.uom || itemObj.dynamicData?.unit || itemObj.uom || itemObj.unit || sr.unit || ''
-    });
+  // ——— HELPER: resolve an item ———————————————————————————————————————
+  const resolveItem = (sr: any, uploadedCircle: string): { error?: string; itemId?: any; activity?: string; loaSerialNo?: string; loaSrNo?: string; tempCode?: string; totalLoaQty?: number; unit?: string } | null => {
+    const uc = uploadedCircle ? uploadedCircle.toLowerCase() : '';
+    let matchedItemObj: any = null;
 
-    const sheetSku = String(sr.loa || '').toLowerCase().trim();
-    const sheetTempCode = String(sr.tempCode || '').toLowerCase().trim();
-    const sheetCircle = (uploadedCircle || '').toLowerCase().trim();
+    const formatMatch = (item: any) => ({
+      itemId: item._id, 
+      activity: item.dynamicData?.activity || sr.activity || '', 
+      loaSerialNo: item.dynamicData?.sku || item.dynamicData?.loaSrNo || sr.loaSerialNo || '',
+      loaSrNo: item.dynamicData?.sku || item.dynamicData?.loaSrNo || sr.loaSerialNo || '',
+      tempCode: item.dynamicData?.tempCode || item.rawItem?.tempCode || sr.tempCode || '',
+      totalLoaQty: Number(item.dynamicData?.loaQty || item.dynamicData?.loaQuantity || item.dynamicData?.totalLoaQuantity || item.dynamicData?.qty || item.dynamicData?.quantity || 0),
+      unit: item.dynamicData?.uom || item.dynamicData?.unit || item.uom || item.unit || sr.unit || ''
+    });
+    
+    // Fuzzy string helper (removes all non-alphanumeric characters)
+    const fuzzy = (str: any) => String(str || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+
+    const srLoa = String(sr.loaSerialNo || sr.loa || '').trim().toLowerCase();
+    const srTemp = String(sr.tempCode || '').trim().toLowerCase();
+    const srDescFuzzy = fuzzy(sr.description || sr.itemDescription || '');
+
     let candidateItems: any[] = [];
     
-    if (sheetSku) {
-      const matches = itemsByLoa.get(sheetSku);
-      if (matches && matches.length > 0) candidateItems = matches;
+    // First gather all potential candidates from the circle (or all if circle is empty)
+    if (srLoa && itemsByLoa.has(srLoa)) {
+      candidateItems = candidateItems.concat(itemsByLoa.get(srLoa) || []);
+    }
+    if (srTemp && itemsByTempCode.has(srTemp)) {
+      candidateItems = candidateItems.concat(itemsByTempCode.get(srTemp) || []);
+    }
+    if (sr.description) {
+      const descMatches = itemsByDescription.get(String(sr.description).trim().toLowerCase()) || [];
+      candidateItems = candidateItems.concat(descMatches);
+    }
+    
+    // If we couldn't find candidates by exact lookup maps, we need to search the circle manually
+    if (candidateItems.length === 0 && itemsByCircle.has(uc)) {
+       candidateItems = itemsByCircle.get(uc) || [];
     }
 
-    if (candidateItems.length === 0 && sheetTempCode) {
-      const matches = itemsByTempCode.get(sheetTempCode);
-      if (matches && matches.length > 0) candidateItems = matches;
+    // Filter to just the relevant circle
+    if (uc) {
+       candidateItems = candidateItems.filter(i => {
+         const itemCircle = String(i.dynamicData?.circle || '').toLowerCase();
+         return itemCircle === uc || itemCircle.includes(uc) || uc.includes(itemCircle);
+       });
     }
 
-    if (candidateItems.length === 0) return null;
+    // 1. Strict Match: TempCode AND LOA
+    if (!matchedItemObj && srTemp && srLoa) {
+       matchedItemObj = candidateItems.find(i => {
+           const iTemp = String(i.dynamicData?.tempCode || i.rawItem?.tempCode || '').trim().toLowerCase();
+           const iLoa = String(i.dynamicData?.sku || i.dynamicData?.loaSrNo || '').trim().toLowerCase();
+           return iTemp === srTemp && iLoa === srLoa;
+       });
+    }
 
-    let matchedItemObj = candidateItems.find((item: any) => {
-      const itemCircle = (item.dynamicData?.circle || '').toLowerCase().trim();
-      return itemCircle === sheetCircle || itemCircle.includes(sheetCircle) || sheetCircle.includes(itemCircle);
-    });
+    // 2. TempCode AND Fuzzy Description
+    if (!matchedItemObj && srTemp && srDescFuzzy) {
+       matchedItemObj = candidateItems.find(i => {
+           const iTemp = String(i.dynamicData?.tempCode || i.rawItem?.tempCode || '').trim().toLowerCase();
+           const iDescFuzzy = fuzzy(i.dynamicData?.description || i.dynamicData?.name);
+           return iTemp === srTemp && iDescFuzzy === srDescFuzzy;
+       });
+    }
 
-    if (!matchedItemObj) matchedItemObj = candidateItems[0];
+    // 3. LOA AND Fuzzy Description
+    if (!matchedItemObj && srLoa && srDescFuzzy) {
+       matchedItemObj = candidateItems.find(i => {
+           const iLoa = String(i.dynamicData?.sku || i.dynamicData?.loaSrNo || '').trim().toLowerCase();
+           const iDescFuzzy = fuzzy(i.dynamicData?.description || i.dynamicData?.name);
+           return iLoa === srLoa && iDescFuzzy === srDescFuzzy;
+       });
+    }
+
+    // 4. Fuzzy Description ONLY (if it uniquely matches, or just take the first)
+    if (!matchedItemObj && srDescFuzzy) {
+       matchedItemObj = candidateItems.find(i => {
+           const iDescFuzzy = fuzzy(i.dynamicData?.description || i.dynamicData?.name);
+           return iDescFuzzy === srDescFuzzy;
+       });
+    }
+    
+    // 5. LOA ONLY (last resort)
+    if (!matchedItemObj && srLoa) {
+       matchedItemObj = candidateItems.find(i => {
+           const iLoa = String(i.dynamicData?.sku || i.dynamicData?.loaSrNo || '').trim().toLowerCase();
+           return iLoa === srLoa;
+       });
+    }
 
     if (matchedItemObj) {
       // We no longer throw an error on Activity mismatch.
+      if (sr.activity) {
+        const masterActivity = String(matchedItemObj.dynamicData?.activity || '').trim().toLowerCase();
+        const sheetActivity = String(sr.activity).trim().toLowerCase();
+        
+        if (sheetActivity && masterActivity && sheetActivity !== masterActivity) {
+          return { error: `Activity mismatch. Sheet specifies '${sr.activity}', but Master Item list specifies '${matchedItemObj.dynamicData?.activity || 'Unknown'}'` };
+        }
+      }
       // formatMatch will automatically auto-populate the correct activity from the Master item.
       return formatMatch(matchedItemObj);
     }
+
     return null;
   };
 
+  // Helper to yield event loop
   const yieldLoop = () => new Promise(resolve => setImmediate(resolve));
 
-  // --- PASS 1: Validate everything ---
   const validationErrors: { sourceFile: string; sheetName: string; description: string; circle: string; row?: number }[] = [];
   const parsedSheets: any[] = [];
-  const totalFiles = files.length;
+  const totalFiles = req.files ? (req.files as any[]).length : 0;
   let fileIdx = 0;
 
-  for (const file of files) {
+  for (const file of (req.files as any[])) {
     try {
       if (clientId) {
         sseService.sendEvent(clientId, { 
@@ -614,22 +646,25 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
           
           const meta = siteMeta[c];
           
-          if (user.assignedCircle && meta.Circle) {
-            const assigned = String(user.assignedCircle).trim().toLowerCase();
+          if ((user as any).assignedCircle && meta.Circle) {
+            const assigned = String((user as any).assignedCircle).trim().toLowerCase();
             const sheetCirc = String(meta.Circle).trim().toLowerCase();
+            
             const SUB_STORE_MAP: Record<string, string[]> = {
               'solan': ['solan', 'kumarhatti', 'nalagarh'],
               'nahan': ['nahan'],
               'rohru': ['rohru'],
               'rampur': ['rampur'],
             };
+            
             const allowedCircles = SUB_STORE_MAP[assigned] || [assigned];
             if (!allowedCircles.includes(sheetCirc)) {
-              return res.status(403).json(new ApiResponse(403, null, `Permission Denied: You are assigned to circle '${user.assignedCircle}', but the sheet '${sheetName}' contains data for circle '${meta.Circle}'. Please upload sheets only for your assigned circle (Allowed: ${allowedCircles.join(', ')}).`));
+              return res.status(403).json(new ApiResponse(403, null, `Permission Denied: You are assigned to circle '${(user as any).assignedCircle}', but the sheet '${sheetName}' contains data for circle '${meta.Circle}'. Please upload sheets only for your assigned circle (Allowed: ${allowedCircles.join(', ')}).`));
             }
           }
           
-          const uploadedCircle = user.assignedCircle || meta.Circle || '';
+          const uploadedCircle = (user as any).assignedCircle || meta.Circle || '';
+          
           const seenItems = new Map<string, number>();
 
           let count = 0;
@@ -646,7 +681,7 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
                 circle: uploadedCircle,
                 row: sr.rowNum
               });
-            } else if ('error' in resolved) {
+            } else if (resolved.error) {
               validationErrors.push({
                 sourceFile,
                 sheetName,
@@ -655,7 +690,7 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
                 row: sr.rowNum
               });
             } else {
-              const idStr = (resolved as any).itemId.toString();
+              const idStr = resolved.itemId.toString();
               if (seenItems.has(idStr)) {
                 validationErrors.push({
                   sourceFile,
@@ -679,7 +714,7 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
     fileIdx++;
   }
 
-  // If ANY item failed validation, stop. Return errors, save nothing.
+  // If ANY item failed validation â€” stop. Return errors, save nothing.
   if (validationErrors.length > 0) {
     const uniqueErrors = validationErrors.filter((e, idx, arr) =>
       arr.findIndex(x => x.description === e.description && x.circle === e.circle) === idx
@@ -700,8 +735,20 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
     });
   }
 
-  // --- PASS 2: Save everything ---
+  // ——— PASS 2: All validated — now save ————————————————————————————————————
+  const flagged: any[] = [];
+  let totalSaved = 0;
+  const currentYearStr = new Date().getFullYear().toString().slice(-2);
+  const lastJmc = await JmcRegister.findOne({ jmcNumber: new RegExp(`^JMC/${currentYearStr}/`) }).sort({ jmcNumber: -1 }).select('jmcNumber').lean();
+  let initialCount = 0;
+  if (lastJmc && lastJmc.jmcNumber) {
+    const parts = lastJmc.jmcNumber.split('/');
+    if (parts.length === 3) {
+      initialCount = parseInt(parts[2], 10) || 0;
+    }
+  }
   let savedSheetsIdx = 0;
+
   for (const sheet of parsedSheets) {
     const { sourceFile, sheetName, siteCols, siteMeta, recordsBySite } = sheet;
 
@@ -725,8 +772,8 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
       }
 
       const meta = siteMeta[c];
-      const pkg = user.assignedPackage || meta.Location || meta.DrawingNo || '';
-      const circ = user.assignedCircle || meta.Circle || '';
+      const pkg = (user as any).assignedPackage || meta.Location || meta.DrawingNo || '';
+      const circ = (user as any).assignedCircle || meta.Circle || '';
       const subCirc = meta.SubCircle || '';
       const div = meta.Division || '';
       const subDiv = meta.SubDivision || '';
@@ -735,6 +782,7 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
       const feeder = meta.Feeder || '';
       const uploadedCircle = subCirc || circ;
 
+      // Resolve contractor
       let contractorId = null;
       const contractorNameStr = meta.Contractor ? String(meta.Contractor) : "";
       if (contractorNameStr && contractorNames.length > 0) {
@@ -753,134 +801,126 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
         return res.status(400).json(new ApiResponse(400, null, `Validation Error in sheet '${sheetName}' (Site: ${siteHeader}): Contractor '${contractorNameStr || 'Unknown'}' not found in the database. Please add this contractor first before importing.`));
       }
 
-      const wipItems: any[] = [];
+      // Build items (all will resolve since pass 1 validated them)
+      const jmcItems: any[] = [];
       let count = 0;
       for (const sr of siteRecords) {
         count++;
         if (count % 50 === 0) await yieldLoop();
         
         const resolved = resolveItem(sr, uploadedCircle)!;
-        const resObj: any = resolved;
-        wipItems.push({
-          itemId: resObj.itemId,
-          loaSerialNo: resObj.loaSerialNo,
-          loaSrNo: resObj.loaSrNo,
-          tempCode: resObj.tempCode,
-          totalLoaQty: resObj.totalLoaQty,
-          activity: resObj.activity,
+        jmcItems.push({
+          itemId: resolved.itemId,
+          loaSerialNo: resolved.loaSerialNo,
+          loaSrNo: resolved.loaSrNo,
+          tempCode: resolved.tempCode,
+          totalLoaQty: resolved.totalLoaQty,
+          activity: resolved.activity,
           description: sr.description || '',
-          unit: resObj.unit || sr.unit || '',
+          unit: resolved.unit || sr.unit || '',
           prevQty: 0,
           claimedQty: sr.quantity,
           approvedQty: 0,
+          rate: 0,
+          amount: 0,
           remarks: ''
         });
       }
 
-      const pastApprovedWips = await WipRegister.find({
+      // Compute prevQty
+      const pastApprovedJmcs = await JmcRegister.find({
         contractorId: contractorId || null, package: pkg, location: loc, circle: circ, division: div, subDivision: subDiv, subStation: subStn, feeder, status: 'Approved'
       }).lean();
 
       const prevQtyMap: Record<string, number> = {};
-      for (const pastWip of pastApprovedWips) {
-        for (const item of pastWip.items) {
+      for (const pastJmc of pastApprovedJmcs) {
+        for (const item of pastJmc.items) {
           if (item.itemId) {
             const idStr = item.itemId.toString();
             prevQtyMap[idStr] = (prevQtyMap[idStr] || 0) + (item.approvedQty || 0);
           }
         }
       }
-      for (const item of wipItems) {
+      for (const item of jmcItems) {
         if (item.itemId) item.prevQty = prevQtyMap[item.itemId.toString()] || 0;
       }
 
-      const existingWipNo = meta.WipNumber || null;
-      let existingWip = null;
-      
-      if (existingWipNo) {
-         existingWip = await WipRegister.findOne({ wipNumber: existingWipNo });
-      } else {
-         existingWip = await WipRegister.findOne({ 
-            contractorId: contractorId || null, 
-            package: pkg, 
-            drawingNo: meta.DrawingNo,
-            location: loc, 
-            circle: circ, 
-            division: div, 
-            subDivision: subDiv, 
-            subStation: subStn, 
-            feeder 
-         });
-      }
+      const existingJmc = await JmcRegister.findOne({ contractorId: contractorId || null, package: pkg, location: loc, circle: circ, division: div, subDivision: subDiv, subStation: subStn, feeder });
 
-      if (existingWip) {
+      if (existingJmc) {
         if (conflictStrategy === 'skip') {
-          flagged.push({ sourceFile, issue: `Skipped duplicate WIP for ${circ} - ${subDiv} - ${loc}` });
+          flagged.push({ sourceFile, issue: `Skipped duplicate JMC for ${circ} - ${subDiv} - ${loc}` });
           continue;
         } else if (conflictStrategy === 'replace') {
-          if (existingWip.status !== 'Approved') {
-            await WipRegister.deleteOne({ _id: existingWip._id });
-            existingWip = null;
+          if (existingJmc.status !== 'Approved') {
+            await JmcRegister.deleteOne({ _id: existingJmc._id });
           } else {
-            flagged.push({ sourceFile, issue: `Cannot replace Approved WIP for ${circ} - ${subDiv} - ${loc}` });
+            flagged.push({ sourceFile, issue: `Cannot replace Approved JMC for ${circ} - ${subDiv} - ${loc}` });
             continue;
           }
         } else if (conflictStrategy === 'update') {
-          if (existingWip.status !== 'Approved') {
-            for (const newItem of wipItems) {
-              const existingItem = existingWip.items.find((i: any) => 
+          if (existingJmc.status !== 'Approved') {
+            for (const newItem of jmcItems) {
+              const existingItem = existingJmc.items.find((i: any) => 
                 (i.itemId && newItem.itemId && i.itemId.toString() === newItem.itemId.toString()) ||
                 (!i.itemId && !newItem.itemId && i.description === newItem.description && i.activity === newItem.activity)
               );
               if (existingItem) {
                 existingItem.claimedQty = (existingItem.claimedQty || 0) + (newItem.claimedQty || 0);
               } else {
-                existingWip.items.push(newItem);
+                existingJmc.items.push(newItem);
               }
             }
-            await existingWip.save();
+            await existingJmc.save();
             totalSaved++;
             continue;
           } else {
-            flagged.push({ sourceFile, issue: `Cannot update Approved WIP for ${circ} - ${subDiv} - ${loc}` });
+            flagged.push({ sourceFile, issue: `Cannot update Approved JMC for ${circ} - ${subDiv} - ${loc}` });
             continue;
           }
         }
       }
 
-      if (existingWipNo && !existingWip) {
-        await WipRegister.findOneAndUpdate({ wipNumber: existingWipNo }, {
+      const existingJmcNo = meta.JmcNumber || null;
+
+      if (existingJmcNo) {
+        await JmcRegister.findOneAndUpdate({ jmcNumber: existingJmcNo }, {
           $set: {
             date: new Date(),
             contractorId: contractorId || null,
-            package: pkg, 
-            drawingNo: meta.DrawingNo,
-            location: loc, 
-            circle: circ, 
-            division: div, 
-            subDivision: subDiv, 
-            subStation: subStn, 
+            package: pkg,
+            location: loc,
+            circle: circ,
+            subCircle: subCirc,
+            division: div,
+            subDivision: subDiv,
+            subStation: subStn,
             feeder,
-            items: wipItems,
+            items: jmcItems,
             remarks: `Updated via Bulk Upload from ${sourceFile} (${sheetName}).`,
           }
-        }, { upsert: true });
+        });
       } else {
         let saved = false;
         let attempts = 0;
         while (!saved && attempts < 10) {
           try {
             initialCount++;
-            const wipNumber = `WIP/${yearStr}/${initialCount.toString().padStart(4, '0')}`;
+            const jmcNumber = `JMC/${currentYearStr}/${initialCount.toString().padStart(4, '0')}`;
 
-            await WipRegister.create({
-              wipNumber,
+            await JmcRegister.create({
+              jmcNumber,
               date: new Date(),
               contractorId: contractorId || null,
               package: pkg,
-              drawingNo: meta.DrawingNo,
-              location: loc, circle: circ, division: div, subDivision: subDiv, subStation: subStn, feeder,
-              items: wipItems,
+              location: loc,
+              circle: circ,
+              subCircle: subCirc,
+              division: div,
+              subDivision: subDiv,
+              subStation: subStn,
+              feeder,
+              items: jmcItems,
               claimedAmount: 0,
               approvedAmount: 0,
               status: 'Submitted',
@@ -889,11 +929,11 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
             });
             saved = true;
           } catch (err: any) {
-            if (err.code === 11000 && err.keyPattern && err.keyPattern.wipNumber) {
+            if (err.code === 11000 && err.keyPattern && err.keyPattern.jmcNumber) {
               attempts++;
-              const latest = await WipRegister.findOne({ wipNumber: new RegExp(`^WIP/${yearStr}/`) }).sort({ wipNumber: -1 }).select('wipNumber').lean();
-              if (latest && latest.wipNumber) {
-                const parts = latest.wipNumber.split('/');
+              const latest = await JmcRegister.findOne({ jmcNumber: new RegExp(`^JMC/${currentYearStr}/`) }).sort({ jmcNumber: -1 }).select('jmcNumber').lean();
+              if (latest && latest.jmcNumber) {
+                const parts = latest.jmcNumber.split('/');
                 if (parts.length === 3) {
                   initialCount = parseInt(parts[2], 10) || initialCount;
                 }
@@ -915,10 +955,11 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
     sseService.sendEvent(clientId, {
       stage: 'COMPLETED',
       progress: 100,
-      message: `Successfully imported ${totalSaved} WIP records.`,
-      data: { totalSaved, flagged }
+      message: 'Upload and processing complete!'
     });
   }
 
-  return res.status(200).json(new ApiResponse(200, { totalSaved, flagged }, `Successfully imported ${totalSaved} WIP records.`));
+  res.status(200).json(
+    new ApiResponse(200, { totalSaved, flagged }, `Successfully imported ${totalSaved} JMC records.`)
+  );
 });

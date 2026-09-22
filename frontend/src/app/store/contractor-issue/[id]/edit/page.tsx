@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,6 +73,13 @@ export default function StoreContractorIssueEditPage() {
   // Data State
   const [contractors, setContractors] = useState<any[]>([]);
   const [stockSummary, setStockSummary] = useState<any[]>([]);
+
+  // Memoize options to drastically improve performance when rendering many rows
+  const descriptionOptions = useMemo(() => stockSummary.map(s => ({ value: s.itemId, label: s.description || 'N/A' })), [stockSummary]);
+  const tempCodeOptions = useMemo(() => stockSummary.map(s => ({ value: s.itemId, label: s.tempCode || 'N/A' })), [stockSummary]);
+  const loaSrNoOptions = useMemo(() => Array.from(new Set(stockSummary.flatMap(s => s.allLoaSrs || [s.loaSrNo]).filter(Boolean))).map(s => ({ value: s, label: String(s) })), [stockSummary]);
+  const activityOptions = useMemo(() => Array.from(new Set(stockSummary.flatMap(s => s.allActivities || [s.activity]).filter(Boolean))).map(a => ({ value: a, label: String(a) })), [stockSummary]);
+
   const [demandNotes, setDemandNotes] = useState<any[]>([]);
   
   // Form State
@@ -100,19 +107,25 @@ export default function StoreContractorIssueEditPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    Promise.all([
-      getContractors(),
-      getStockSummary({}),
-      getDemandNotes(),
-      getAssignmentById(id as string)
-    ]).then(([resContractors, resStock, resDemandNotes, resAssignment]) => {
-      setContractors(resContractors.data || []);
-      setStockSummary(resStock.data || []);
-      setDemandNotes(resDemandNotes.data?.demandNotes || []);
-      
-      const assignment = resAssignment.data;
-      if (assignment) {
-        setContractorId(assignment.contractorId?._id || assignment.contractorId || "");
+    setIsLoading(true);
+    getAssignmentById(id as string)
+      .then(resAssignment => {
+        const assignment = resAssignment.data;
+        if (!assignment) {
+          setIsLoading(false);
+          return;
+        }
+
+        Promise.all([
+          getContractors(),
+          getStockSummary({ circle: assignment.circle, division: assignment.division }),
+          getDemandNotes()
+        ]).then(([resContractors, resStock, resDemandNotes]) => {
+          setContractors(resContractors.data || []);
+          setStockSummary(resStock.data || []);
+          setDemandNotes(resDemandNotes.data?.demandNotes || []);
+          
+          setContractorId(assignment.contractorId?._id || assignment.contractorId || "");
         setContractorFarmName(assignment.contractorFarmName || "");
         setSupervisorEngineer(assignment.supervisorEngineer || "");
         setDemandNo(assignment.demandNo || "");
@@ -136,6 +149,7 @@ export default function StoreContractorIssueEditPage() {
               itemId: item.itemId,
               itemName: item.itemName,
               tempCode: item.tempCode,
+              loaSrNo: item.loaSrNo || (stockMatch ? stockMatch.loaSrNo : ""),
               activity: item.activity || (stockMatch ? stockMatch.activity : ""),
               unit: item.unit || "Nos",
               hsnCode: item.hsnCode || (stockMatch ? stockMatch.hsnCode : ""),
@@ -144,10 +158,55 @@ export default function StoreContractorIssueEditPage() {
               availableQty: stockMatch ? stockMatch.totalBalanceQty + item.quantity : item.quantity // Add back issued qty for editing
             };
           });
-          setLineItems(loadedItems);
+
+          // Auto-expand activities: find all distinct activities currently in the MIN,
+          // then automatically pull in all other items available in the stock for those activities with qty 0.
+            const activeActivities = new Set(loadedItems.map((i: any) => i.activity).filter(Boolean));
+            const existingItemIds = new Set(loadedItems.map((i: any) => i.itemId).filter(Boolean));
+            const existingItemKeys = new Set(loadedItems.map((i: any) => `${i.tempCode || ''}-${i.loaSrNo || ''}`.trim()));
+          
+          const autoAddedItems: any[] = [];
+          
+          activeActivities.forEach(activity => {
+             const itemsForActivity = (resStock.data || []).filter((s: any) => 
+               (s.allActivities && s.allActivities.includes(activity)) || s.activity === activity
+             );
+             console.log("DEBUG itemsForActivity for", activity, itemsForActivity.filter((s:any) => s.tempCode === '87' || s.tempCode === 87));
+             
+             itemsForActivity.forEach((s: any) => {
+                const details = s.activityDetailsMap?.[activity];
+                const detailsArray = Array.isArray(details) ? details : (details ? [details] : [
+                  { itemId: s.itemId, description: s.description, loaSrNo: (s.allLoaSrs && s.allLoaSrs.length > 0 ? s.allLoaSrs[0] : (s.loaSrNo || "")) }
+                ]);
+                
+                detailsArray.forEach((detail: any) => {
+                  const tempC = s.tempCode || s.itemCode || '';
+                  const key = `${tempC}-${detail.loaSrNo || ''}`.trim();
+                  
+                  if (!existingItemIds.has(detail.itemId) && !existingItemKeys.has(key)) {
+                     autoAddedItems.push({
+                        itemId: detail.itemId,
+                        itemName: detail.description,
+                        tempCode: s.tempCode || s.itemCode || '',
+                        loaSrNo: detail.loaSrNo,
+                        activity: activity,
+                        unit: s.unit || "Nos",
+                        hsnCode: s.hsnCode || "",
+                        demandQty: 0,
+                        quantity: 0,
+                        availableQty: s.totalBalanceQty || 0
+                     });
+                     existingItemIds.add(detail.itemId);
+                     existingItemKeys.add(key);
+                  }
+                });
+             });
+          });
+          
+          setLineItems([...loadedItems, ...autoAddedItems]);
         }
-      }
-    }).catch(console.error).finally(() => setIsLoading(false));
+      }).catch(console.error).finally(() => setIsLoading(false));
+    }).catch(console.error);
   }, [id]);
 
   const updateLineItem = (index: number, field: string, value: any) => {
@@ -159,6 +218,7 @@ export default function StoreContractorIssueEditPage() {
         newItems[index].itemId = selectedStock.itemId;
         newItems[index].itemName = selectedStock.description;
         newItems[index].tempCode = selectedStock.tempCode || selectedStock.itemCode || '';
+        newItems[index].loaSrNo = selectedStock.loaSrNo || '';
         newItems[index].activity = selectedStock.activity || '';
         newItems[index].unit = selectedStock.unit || 'Nos';
         newItems[index].hsnCode = selectedStock.hsnCode || '';
@@ -167,6 +227,7 @@ export default function StoreContractorIssueEditPage() {
         newItems[index].itemId = "";
         newItems[index].itemName = "";
         newItems[index].tempCode = "";
+        newItems[index].loaSrNo = "";
         newItems[index].activity = "";
         newItems[index].unit = "Nos";
         newItems[index].hsnCode = "";
@@ -186,29 +247,92 @@ export default function StoreContractorIssueEditPage() {
   };
 
   const addItemsByActivityToRow = (index: number, activity: string) => {
-    const itemsForActivity = stockSummary.filter(s => s.activity === activity && s.totalBalanceQty > 0);
+    const itemsForActivity = stockSummary.filter(s => 
+      (s.allActivities && s.allActivities.includes(activity)) || s.activity === activity
+    );
     if (itemsForActivity.length === 0) return;
 
     const existingItemIds = new Set(lineItems.filter((item, i) => item.itemId && i !== index).map(item => item.itemId));
-    const newItemsToAdd = itemsForActivity.filter(s => !existingItemIds.has(s.itemId)).map(s => ({
-      itemId: s.itemId,
-      itemName: s.description,
-      tempCode: s.tempCode || s.itemCode || '',
-      activity: s.activity || '',
-      unit: s.unit || 'Nos',
-      hsnCode: s.hsnCode || '',
-      demandQty: 1,
-      quantity: 1,
-      availableQty: s.totalBalanceQty || 0
-    }));
+    const existingItemKeys = new Set(lineItems.filter((item, i) => i !== index).map(item => `${item.tempCode || ''}-${item.loaSrNo || ''}`.trim()));
+    const newItemsToAdd = itemsForActivity.flatMap(s => {
+      const details = s.activityDetailsMap?.[activity];
+      const detailsArray = Array.isArray(details) ? details : (details ? [details] : [
+        { itemId: s.itemId, description: s.description, loaSrNo: (s.allLoaSrs && s.allLoaSrs.length > 0 ? s.allLoaSrs[0] : (s.loaSrNo || '')) }
+      ]);
+      
+      return detailsArray.filter((detail: any) => {
+        const tempC = s.tempCode || s.itemCode || '';
+        const key = `${tempC}-${detail.loaSrNo || ''}`.trim();
+        return !existingItemIds.has(detail.itemId) && !existingItemKeys.has(key);
+      }).map((detail: any) => ({
+        itemId: detail.itemId,
+        itemName: detail.description,
+        tempCode: s.tempCode || s.itemCode || '',
+        loaSrNo: detail.loaSrNo,
+        activity: activity,
+        unit: s.unit || 'Nos',
+        hsnCode: s.hsnCode || '',
+        demandQty: 1,
+        quantity: 1,
+        availableQty: s.totalBalanceQty || 0
+      }));
+    });
 
     if (newItemsToAdd.length > 0) {
       const newItems = [...lineItems];
       newItems[index] = newItemsToAdd[0];
-      newItems.splice(index + 1, 0, ...newItemsToAdd.slice(1));
+      if (newItemsToAdd.length > 1) {
+        newItems.splice(index + 1, 0, ...newItemsToAdd.slice(1));
+      }
       setLineItems(newItems);
     } else {
       alert("All available items for this activity are already added.");
+    }
+  };
+
+  const addMultipleActivities = (activities: readonly string[]) => {
+    let currentExistingIds = new Set(lineItems.map(item => item.itemId).filter(Boolean));
+    let currentExistingKeys = new Set(lineItems.map(item => `${item.tempCode || ''}-${item.loaSrNo || ''}`.trim()));
+    const newItemsToAdd: any[] = [];
+
+    activities.forEach(activity => {
+      const itemsForActivity = stockSummary.filter(s => 
+        (s.allActivities && s.allActivities.includes(activity)) || s.activity === activity
+      );
+      
+      itemsForActivity.forEach(s => {
+        const details = s.activityDetailsMap?.[activity];
+        const detailsArray = Array.isArray(details) ? details : (details ? [details] : [
+          { itemId: s.itemId, description: s.description, loaSrNo: (s.allLoaSrs && s.allLoaSrs.length > 0 ? s.allLoaSrs[0] : (s.loaSrNo || '')) }
+        ]);
+
+        detailsArray.forEach((detail: any) => {
+          const tempC = s.tempCode || s.itemCode || '';
+          const key = `${tempC}-${detail.loaSrNo || ''}`.trim();
+          
+          if (!currentExistingIds.has(detail.itemId) && !currentExistingKeys.has(key)) {
+            newItemsToAdd.push({
+              itemId: detail.itemId,
+              itemName: detail.description,
+              tempCode: s.tempCode || s.itemCode || '',
+              loaSrNo: detail.loaSrNo,
+              activity: activity,
+              unit: s.unit || 'Nos',
+              hsnCode: s.hsnCode || '',
+              demandQty: 1,
+              quantity: 1,
+              availableQty: s.totalBalanceQty || 0
+            });
+            currentExistingIds.add(detail.itemId);
+            currentExistingKeys.add(key);
+          }
+        });
+      });
+    });
+
+    if (newItemsToAdd.length > 0) {
+      const filteredExisting = lineItems.filter(item => item.itemId || item.activity || item.itemName);
+      setLineItems([...filteredExisting, ...newItemsToAdd]);
     }
   };
 
@@ -224,17 +348,16 @@ export default function StoreContractorIssueEditPage() {
       return;
     }
 
+    const validLineItems = lineItems.filter(item => item.itemId && item.quantity > 0);
+    
+    if (validLineItems.length === 0) {
+      alert("Please add at least one item with a valid issued quantity greater than 0.");
+      return;
+    }
+
     const negativeStockWarnings: string[] = [];
-    for (let i = 0; i < lineItems.length; i++) {
-      const item = lineItems[i];
-      if (!item.itemId) {
-        alert(`Please select an item for row ${i + 1}`);
-        return;
-      }
-      if (item.quantity < 0) {
-        alert(`Issued Qty cannot be negative for ${item.itemName}`);
-        return;
-      }
+    for (let i = 0; i < validLineItems.length; i++) {
+      const item = validLineItems[i];
       if (item.quantity > item.availableQty) {
         negativeStockWarnings.push(`- ${item.itemName} (Issuing: ${item.quantity}, Available: ${item.availableQty})`);
       }
@@ -271,10 +394,12 @@ export default function StoreContractorIssueEditPage() {
         issuedTfsSrNo,
         remarks,
 
-        lineItems: lineItems.map(item => ({
+        lineItems: validLineItems.map(item => ({
           itemId: item.itemId,
           itemName: item.itemName,
           tempCode: item.tempCode,
+          loaSrNo: item.loaSrNo,
+          activity: item.activity,
           unit: item.unit,
           hsnCode: item.hsnCode,
           demandQty: Number(item.demandQty),
@@ -466,132 +591,189 @@ export default function StoreContractorIssueEditPage() {
         <div className="bg-white border border-slate-200 rounded-lg shadow-sm">
           <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center rounded-t-lg">
             <h2 className="text-sm font-semibold text-slate-800">Materials Issued</h2>
+            <div className="flex items-center gap-4">
+              <div className="w-[400px]">
+                <Select
+                  isMulti
+                  options={Array.from(new Set(stockSummary.flatMap(s => s.allActivities || [s.activity]).filter(Boolean)))
+                    .map(a => ({ value: a, label: a as string }))
+                  }
+                  onChange={(selectedOptions) => {
+                    if (!selectedOptions) return;
+                    const activities = (selectedOptions as any[]).map(opt => opt.value);
+                    if (activities.length > 0) {
+                      addMultipleActivities(activities);
+                    }
+                  }}
+                  placeholder="Bulk Add by Activities..."
+                  className="text-sm"
+                  styles={customSelectStyles}
+                  menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                />
+              </div>
+            </div>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left min-w-[1000px]">
+            <table className="w-full text-sm text-left min-w-[1600px]">
               <thead className="bg-slate-100 border-b border-slate-200 text-slate-600 text-[11px] uppercase tracking-wider">
                 <tr>
-                  <th className="px-4 py-3 font-medium w-[5%] text-center">Sr. No.</th>
-                  <th className="px-4 py-3 font-medium w-[20%]">Description of Material</th>
-                  <th className="px-4 py-3 font-medium w-[12%]">Temp Code</th>
-                  <th className="px-4 py-3 font-medium w-[15%]">Activity</th>
-                  <th className="px-4 py-3 font-medium w-[10%]">HSN Code</th>
-                  <th className="px-4 py-3 font-medium w-[8%]">UNIT</th>
-                  <th className="px-4 py-3 font-medium w-[8%] text-center">In Stock</th>
-                  <th className="px-4 py-3 font-medium w-[8%]">Demand Qty</th>
-                  <th className="px-4 py-3 font-medium w-[10%]">Issued Qty</th>
-                  <th className="px-4 py-3 font-medium w-[6%] text-center">Action</th>
+                  <th className="px-4 py-3 font-medium min-w-[60px] text-center">Sr. No.</th>
+                  <th className="px-4 py-3 font-medium min-w-[300px]">Description of Material</th>
+                  <th className="px-4 py-3 font-medium min-w-[150px]">Temp Code</th>
+                  <th className="px-4 py-3 font-medium min-w-[150px]">LOA Sr No</th>
+                  <th className="px-4 py-3 font-medium min-w-[350px]">Activity</th>
+                  <th className="px-4 py-3 font-medium min-w-[100px]">HSN Code</th>
+                  <th className="px-4 py-3 font-medium min-w-[80px]">UNIT</th>
+                  <th className="px-4 py-3 font-medium min-w-[90px] text-center">In Stock</th>
+                  <th className="px-4 py-3 font-medium min-w-[110px]">Demand Qty</th>
+                  <th className="px-4 py-3 font-medium min-w-[110px]">Issued Qty</th>
+                  <th className="px-4 py-3 font-medium min-w-[80px] text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {lineItems.map((item, index) => (
-                  <tr key={index} className="hover:bg-slate-50/50">
-                    <td className="p-4 align-top text-center text-slate-500 pt-6">
-                      {index + 1}
-                    </td>
-                    <td className="p-4 align-top">
-                      <Select
-                        options={stockSummary
-                          .map(s => ({
-                            value: s.itemId,
-                            label: s.description || 'N/A'
-                          }))
-                        }
+                {(() => {
+                  const groupedItems = lineItems.reduce((acc, item, index) => {
+                    const act = item.activity || "Uncategorized";
+                    if (!acc[act]) acc[act] = [];
+                    acc[act].push({ item, originalIndex: index });
+                    return acc;
+                  }, {} as Record<string, { item: any; originalIndex: number }[]>);
+
+                  Object.values(groupedItems).forEach(group => {
+                    group.sort((a, b) => {
+                      const numA = Number(a.item.loaSrNo);
+                      const numB = Number(b.item.loaSrNo);
+                      if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+                      return String(a.item.loaSrNo || '').localeCompare(String(b.item.loaSrNo || ''));
+                    });
+                  });
+
+                  return Object.entries(groupedItems).map(([activity, items]) => (
+                    <React.Fragment key={activity}>
+                      <tr className="bg-slate-100/80 border-y border-slate-200">
+                        <td colSpan={11} className="px-4 py-2 font-semibold text-slate-700 text-xs">
+                          {activity}
+                        </td>
+                      </tr>
+                      {items.map(({ item, originalIndex }) => (
+                        <tr key={originalIndex} className="hover:bg-slate-50/50">
+                          <td className="p-4 align-top text-center text-slate-500 pt-6">
+                            {originalIndex + 1}
+                          </td>
+                          <td className="p-4 align-top">
+                            <Select
+                              options={descriptionOptions}
+                              value={
+                                item.itemId 
+                                  ? { value: item.itemId, label: item.itemName || 'N/A' } 
+                                  : null
+                              }
+                              onChange={(selectedOption) => updateLineItem(originalIndex, 'itemId', selectedOption?.value || "")}
+                              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                              styles={customSelectStyles}
+                              placeholder="Search material..."
+                              className="text-sm"
+                            />
+                          </td>
+                          <td className="p-4 align-top">
+                            <Select
+                              options={tempCodeOptions}
+                              value={
+                                item.itemId 
+                                  ? { value: item.itemId, label: item.tempCode || 'N/A' } 
+                                  : null
+                              }
+                              onChange={(selectedOption) => updateLineItem(originalIndex, 'itemId', selectedOption?.value || "")}
+                              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                              styles={customSelectStyles}
+                              placeholder="Search code..."
+                              className="text-sm font-mono"
+                            />
+                          </td>
+                          <td className="p-4 align-top">
+                            <Select
+                              options={loaSrNoOptions}
                         value={
-                          item.itemId 
-                            ? { value: item.itemId, label: item.itemName || 'N/A' } 
+                          item.itemId && item.loaSrNo
+                            ? { value: item.loaSrNo, label: item.loaSrNo || 'N/A' } 
                             : null
                         }
-                        onChange={(selectedOption) => updateLineItem(index, 'itemId', selectedOption?.value || "")}
-                        menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                        styles={customSelectStyles}
-                        placeholder="Search material..."
-                        className="text-sm"
-                      />
-                    </td>
-                    <td className="p-4 align-top">
-                      <Select
-                        options={stockSummary
-                          .map(s => ({
-                            value: s.itemId,
-                            label: s.tempCode || 'N/A'
-                          }))
-                        }
-                        value={
-                          item.itemId 
-                            ? { value: item.itemId, label: item.tempCode || 'N/A' } 
-                            : null
-                        }
-                        onChange={(selectedOption) => updateLineItem(index, 'itemId', selectedOption?.value || "")}
-                        menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                        styles={customSelectStyles}
-                        placeholder="Search code..."
-                        className="text-sm font-mono"
-                      />
-                    </td>
-                    <td className="p-4 align-top">
-                      <Select
-                        options={Array.from(new Set(stockSummary.filter(s => s.activity).map(s => s.activity)))
-                          .map(a => ({ value: a, label: a as string }))
-                        }
-                        value={
-                          item.activity 
-                            ? { value: item.activity, label: item.activity } 
-                            : null
-                        }
-                        onChange={(selectedOption) => {
-                          if (selectedOption?.value) {
-                            addItemsByActivityToRow(index, selectedOption.value);
-                          }
-                        }}
-                        menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                        styles={customSelectStyles}
-                        placeholder="Search activity..."
-                        className="text-sm"
-                      />
-                    </td>
-                    <td className="p-4 align-top pt-6 text-slate-700 text-xs">
-                      {item.hsnCode || '-'}
-                    </td>
-                    <td className="p-4 align-top pt-6 text-slate-700 text-xs font-medium">
-                      {item.unit}
-                    </td>
-                    <td className="p-4 align-top pt-6 text-center text-slate-700 font-semibold">
-                      {item.availableQty}
-                    </td>
-                    <td className="p-4 align-top">
-                      <Input 
-                        type="number"
-                        min={0}
-                        value={item.demandQty}
-                        onChange={(e) => updateLineItem(index, 'demandQty', e.target.value)}
-                        className="h-9 w-full text-center"
-                      />
-                    </td>
-                    <td className="p-4 align-top">
-                      <Input 
-                        type="number"
-                        min={1}
-                        max={item.availableQty}
-                        value={item.quantity}
-                        onChange={(e) => updateLineItem(index, 'quantity', e.target.value)}
-                        className={`h-9 w-full text-center font-bold text-blue-700 ${item.quantity > item.availableQty ? 'border-red-500 bg-red-50 text-red-700' : ''}`}
-                      />
-                      {item.quantity > item.availableQty && (
-                        <p className="text-[10px] text-red-500 mt-1 absolute">Exceeds stock</p>
-                      )}
-                    </td>
-                    <td className="p-4 align-top text-center pt-5">
-                      <button 
-                        onClick={() => removeLineItem(index)}
-                        className="text-slate-400 hover:text-red-500 transition-colors p-1"
-                        title="Remove Item"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                              onChange={(selectedOption) => {
+                                const val = selectedOption?.value || "";
+                                const newItems = [...lineItems];
+                                newItems[originalIndex].loaSrNo = val;
+                                setLineItems(newItems);
+                              }}
+                              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                              styles={customSelectStyles}
+                              placeholder="Search LOA Sr..."
+                              className="text-sm font-mono"
+                            />
+                          </td>
+                          <td className="p-4 align-top">
+                            <Select
+                              options={activityOptions}
+                              value={
+                                item.activity 
+                                  ? { value: item.activity, label: item.activity } 
+                                  : null
+                              }
+                              onChange={(selectedOption) => {
+                                if (selectedOption?.value) {
+                                  addItemsByActivityToRow(originalIndex, selectedOption.value);
+                                }
+                              }}
+                              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                              styles={customSelectStyles}
+                              placeholder="Search activity..."
+                              className="text-sm"
+                            />
+                          </td>
+                          <td className="p-4 align-top pt-6 text-slate-700 text-xs">
+                            {item.hsnCode || '-'}
+                          </td>
+                          <td className="p-4 align-top pt-6 text-slate-700 text-xs font-medium">
+                            {item.unit}
+                          </td>
+                          <td className="p-4 align-top pt-6 text-center text-slate-700 font-semibold">
+                            {item.availableQty}
+                          </td>
+                          <td className="p-4 align-top">
+                            <Input 
+                              type="number"
+                              min={0}
+                              value={item.demandQty}
+                              onChange={(e) => updateLineItem(originalIndex, 'demandQty', e.target.value)}
+                              className="h-9 w-full text-center"
+                            />
+                          </td>
+                          <td className="p-4 align-top">
+                            <Input 
+                              type="number"
+                              min={0}
+                              max={item.availableQty}
+                              value={item.quantity}
+                              onChange={(e) => updateLineItem(originalIndex, 'quantity', e.target.value)}
+                              className={`h-9 w-full text-center font-bold text-blue-700 ${item.quantity > item.availableQty ? 'border-red-500 bg-red-50 text-red-700' : ''}`}
+                            />
+                            {item.quantity > item.availableQty && (
+                              <p className="text-[10px] text-red-500 mt-1 absolute">Exceeds stock</p>
+                            )}
+                          </td>
+                          <td className="p-4 align-top text-center pt-5">
+                            <button 
+                              onClick={() => removeLineItem(originalIndex)}
+                              className="text-slate-400 hover:text-red-500 transition-colors p-1"
+                              title="Remove Item"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  ));
+                })()}
               </tbody>
             </table>
           </div>

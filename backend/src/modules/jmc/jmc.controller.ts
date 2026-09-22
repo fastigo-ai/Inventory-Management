@@ -751,6 +751,11 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
           
           const meta = siteMeta[c];
           
+          if (!meta.DrawingNo || String(meta.DrawingNo).trim() === '') {
+            const siteHeader = meta.Location || meta.SubStation || meta.Division || meta.Circle || `Column ${c}`;
+            return res.status(400).json(new ApiResponse(400, null, `Validation Error in sheet '${sheetName}' (Site: ${siteHeader}): 'Drawing No' is mandatory but was not found in the header metadata.`));
+          }
+          
           if ((user as any).assignedCircle && meta.Circle) {
             const assigned = String((user as any).assignedCircle).trim().toLowerCase();
             const sheetCirc = String(meta.Circle).trim().toLowerCase();
@@ -950,7 +955,17 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
         if (item.itemId) item.prevQty = prevQtyMap[item.itemId.toString()] || 0;
       }
 
-      const existingJmc = await JmcRegister.findOne({ contractorId: contractorId || null, package: pkg, location: loc, circle: circ, division: div, subDivision: subDiv, subStation: subStn, feeder });
+      const existingJmc = await JmcRegister.findOne({ 
+        contractorId: contractorId || null, 
+        package: pkg, 
+        drawingNo: meta.DrawingNo,
+        location: loc, 
+        circle: circ, 
+        division: div, 
+        subDivision: subDiv, 
+        subStation: subStn, 
+        feeder 
+      });
 
       if (existingJmc) {
         if (conflictStrategy === 'skip') {
@@ -994,6 +1009,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
             date: new Date(),
             contractorId: contractorId || null,
             package: pkg,
+            drawingNo: meta.DrawingNo,
             location: loc,
             circle: circ,
             subCircle: subCirc,
@@ -1018,6 +1034,7 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
               date: new Date(),
               contractorId: contractorId || null,
               package: pkg,
+              drawingNo: meta.DrawingNo,
               location: loc,
               circle: circ,
               subCircle: subCirc,

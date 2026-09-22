@@ -836,13 +836,19 @@ export const bulkImportContractorReturns = asyncHandler(async (req: Request, res
       
       const unit = csvUnit && String(csvUnit).trim() !== '' ? String(csvUnit).trim() : masterUnit;
 
+      const masterLoaSrNo = item?.dynamicData?.sku || item?.dynamicData?.loaSrNo || item?.dynamicData?.loaSerialNo || '';
+      const csvLoaSrNo = row['Sr No.'] || row['Sr. No.'] || row['Sr No'] || row['LoaSerialNo'] || row['SerialNo'] || '';
+      const finalLoaSrNo = masterLoaSrNo || csvLoaSrNo || '';
+
       const lineItem = {
         itemId: item ? item._id : undefined,
         itemName: item?.description || itemName,
         tempCode: item?.itemCode || tempCode,
         hsnCode: row['HSN Code'] || item?.hsnCode || '',
         unit: unit,
-        quantity: returnQty
+        quantity: returnQty,
+        loaSrNo: finalLoaSrNo,
+        activity: row['Activity'] || item?.dynamicData?.activity || item?.dynamicData?.Activity || ''
       };
 
       if (!returnsByChallan[challanNo]) {

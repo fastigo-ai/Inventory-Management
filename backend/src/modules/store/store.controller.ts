@@ -616,6 +616,9 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
         unit: data.unit || 'Nos',
         loaSrNo: loaSrNo,
         circleLoaQty: circleLoaQty,
+        allActivities: new Set<string>(),
+        allLoaSrs: new Set<string>(),
+        activityDetailsMap: {} as Record<string, { loaSrNo: string, description: string }>,
         challanQty: 0,
         receivedQty: 0,
       rejectedQty: 0,
@@ -655,6 +658,19 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
     } else {
       summaryMap[tempCode].circleLoaQty += circleLoaQty;
     }
+    
+    if (activity) {
+      summaryMap[tempCode].allActivities.add(activity);
+      if (!summaryMap[tempCode].activityDetailsMap[activity]) {
+        summaryMap[tempCode].activityDetailsMap[activity] = [];
+      }
+      summaryMap[tempCode].activityDetailsMap[activity].push({
+        itemId: item._id,
+        loaSrNo: loaSrNo,
+        description: data.name || data.description || '-'
+      });
+    }
+    if (loaSrNo) summaryMap[tempCode].allLoaSrs.add(loaSrNo);
   });
 
   // Calculate Inwards
@@ -796,6 +812,8 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
   let result = Object.values(summaryMap).map((row: any, index) => {
     row.sr = index + 1;
     row.totalBalanceQty = row.totalInStockAfterReceive - row.transferToOtherStore - row.allContractorsActualIssued;
+    row.allActivities = Array.from(row.allActivities || []);
+    row.allLoaSrs = Array.from(row.allLoaSrs || []);
     return row;
   });
 

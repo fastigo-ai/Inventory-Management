@@ -2,15 +2,19 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Loader2, FileText, CheckCircle, Printer } from 'lucide-react';
+import { ArrowLeft, Loader2, FileText, CheckCircle, Printer, Edit } from 'lucide-react';
 import { getAssignmentById } from '@/features/contractors/api/contractors.api';
 import { toast } from 'sonner';
+import { useAuthStore } from '@/shared/store/auth.store';
+import Link from 'next/link';
 
 export default function ContractorIssueDetailPage() {
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
   const { id } = params;
+  const { user } = useAuthStore();
+  const isStoreManager = user?.role?.name === 'Store Manager';
   
   const [issue, setIssue] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -81,6 +85,13 @@ export default function ContractorIssueDetailPage() {
           </div>
         </div>
         <div className="flex space-x-3">
+          {!isStoreManager && issue.status !== 'Cancelled' && (
+            <Link href={`/store/contractor-issue/${issue._id}/edit`}>
+              <button className="flex items-center px-4 py-2 bg-white text-slate-700 border border-slate-200 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors shadow-sm">
+                <Edit className="w-4 h-4 mr-2" /> Edit MIN
+              </button>
+            </Link>
+          )}
           <button
             onClick={() => window.print()}
             className="flex items-center px-4 py-2 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-sm font-medium hover:bg-indigo-100 transition-colors shadow-sm"

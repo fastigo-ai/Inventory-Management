@@ -4,6 +4,8 @@ export interface IReturnLineItem {
   itemId?: mongoose.Types.ObjectId;
   itemName: string;
   tempCode?: string;
+  loaSrNo?: string;
+  activity?: string;
   unit?: string;
   hsnCode?: string;
   quantity: number; // Return Qty
@@ -38,6 +40,8 @@ const returnLineItemSchema = new Schema<IReturnLineItem>({
   itemId: { type: Schema.Types.ObjectId, ref: 'Item', index: true },
   itemName: { type: String, required: true },
   tempCode: { type: String },
+  loaSrNo: { type: String },
+  activity: { type: String },
   unit: { type: String, default: 'Nos' },
   hsnCode: { type: String },
   quantity: { type: Number, required: true, default: 1 }, // Return Qty

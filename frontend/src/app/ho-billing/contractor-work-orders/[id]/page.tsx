@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Loader2, Edit, Trash2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Edit, Trash2, Handshake, X } from 'lucide-react';
+import { api } from '@/shared/api/axios';
 import { getContractorWorkOrderById, deleteContractorWorkOrder } from '@/features/contractors/api/contractorWorkOrder.api';
 import { toast } from 'sonner';
 
@@ -13,6 +14,37 @@ export default function ContractorWorkOrderDetailPage() {
   
   const [workOrder, setWorkOrder] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isHandoverModalOpen, setIsHandoverModalOpen] = useState(false);
+  const [contractors, setContractors] = useState<any[]>([]);
+  const [handoverContractorId, setHandoverContractorId] = useState('');
+  const [isHandovering, setIsHandovering] = useState(false);
+
+  const fetchContractors = async () => {
+    try {
+      const res = await api.get('/contractors?limit=500');
+      setContractors(res.data.data.contractors || []);
+    } catch (e) {
+      toast.error('Failed to load contractors');
+    }
+  };
+
+  const handleHandoverSubmit = async () => {
+    if (!handoverContractorId) return toast.error('Please select a new contractor');
+    setIsHandovering(true);
+    try {
+      await api.post(`/contractor-work-orders/${id}/handover`, {
+        newContractorId: handoverContractorId,
+        materialDisposition: 'TRANSFER_TO_NEW_CONTRACTOR'
+      });
+      toast.success('Handover successful! Drafts created.');
+      setIsHandoverModalOpen(false);
+      window.location.reload();
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || 'Failed to process handover');
+    } finally {
+      setIsHandovering(false);
+    }
+  };
 
   useEffect(() => {
     const fetchWO = async () => {
@@ -84,6 +116,17 @@ export default function ContractorWorkOrderDetailPage() {
           </div>
         </div>
         <div className="flex space-x-3">
+          {workOrder.handoverStatus === 'Active' && (
+            <button
+              onClick={() => {
+                fetchContractors();
+                setIsHandoverModalOpen(true);
+              }}
+              className="flex items-center px-4 py-2 bg-indigo-50 border border-indigo-200 rounded-lg text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
+            >
+              <Handshake className="w-4 h-4 mr-2" /> Handover
+            </button>
+          )}
           <button
             onClick={() => router.push(`/ho-billing/contractor-work-orders/${id}/edit`)}
             className="flex items-center px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"

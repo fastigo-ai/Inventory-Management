@@ -349,6 +349,7 @@ export const deleteWorkOrder = asyncHandler(async (req: AuthRequest, res: Respon
 });
 import { ContractorReturn } from './contractorReturn.schema';
 import { ContractorAssignment } from './contractorAssignment.schema';
+import DemandNote from '../demand-notes/demandNote.schema';
 import { calculateContractorLiability } from './contractor.helper';
 
 const generateNumber = async (model: any, prefix: string) => {
@@ -457,18 +458,33 @@ export const handoverWorkOrder = asyncHandler(async (req: AuthRequest, res: Resp
         updatedAt: new Date()
       }], { session });
 
-      // Draft MIN
-      if (transferItems.length > 0) {
-        await ContractorAssignment.create([{
-          assignmentNumber: `MIN-${Date.now()}`,
-          date: new Date(),
-          contractorId: newContractorId,
+      
+      // Draft Demand Note for New Contractor
+      const newContractor = await Contractor.findById(newContractorId).lean();
+      if (transferItems.length > 0 && newContractor) {
+        await DemandNote.create([{
+          demandNoteNumber: `DN-${Date.now()}`,
+          createdBy: req.user?._id,
+          contractorName: newContractor.dynamicData?.companyName || 'Unknown',
           circle: oldWo.circle,
           package: oldWo.package,
           drawingNumber: oldWo.drawings[0]?.drawingNumber || 'MIGRATED',
-          lineItems: transferItems,
+          workOrderId: newWo[0]._id, // Attach to the new draft WO
           status: 'Draft',
-          createdBy: req.user?._id
+          items: transferItems.map((item: any) => ({
+            itemId: item.itemId,
+            itemName: item.itemName,
+            tempCode: item.tempCode,
+            activity: item.activity,
+            loaSrNo: item.loaSrNo,
+            demandQty: item.quantity,
+            contractorErectionRate: item.rate,
+            amount: item.amount,
+            alreadyIssuedQty: 0,
+            wipConsumed: 0,
+            jmcDone: 0,
+            stockBal: item.quantity // Because they are receiving it directly on site
+          }))
         }], { session });
       }
     }

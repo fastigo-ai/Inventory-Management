@@ -1229,14 +1229,20 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
         continue;
       }
 
-      const demandQty = Number(row['DemandQty'] || row['Demand Qty'] || 0);
-      const quantity = Number(row['Quantity'] || row['IssuedQty'] || row['Issued Qty'] || 0);
+      const parseNumber = (val: any): number => {
+        if (!val) return 0;
+        const num = Number(String(val).replace(/,/g, '').trim());
+        return isNaN(num) ? 0 : num;
+      };
+
+      const demandQty = parseNumber(row['DemandQty'] || row['Demand Qty']);
+      const quantity = parseNumber(row['Quantity'] || row['IssuedQty'] || row['Issued Qty']);
       if (quantity < 0) {
         errors.push(`Row has negative IssuedQty for MIN ${minNo}`);
         continue;
       }
-      const rate = Number(row['Rate'] || 0);
-      const amount = Number(row['Amount'] || (quantity * rate));
+      const rate = parseNumber(row['Rate']);
+      const amount = row['Amount'] ? parseNumber(row['Amount']) : (quantity * rate);
       const finalUnit = unit || item?.unit || 'Nos';
       const hsnCode = row['HsnCode'] || item?.hsnCode || '';
       const finalActivity = activity || item?.dynamicData?.activity || item?.dynamicData?.Activity || '';

@@ -308,22 +308,22 @@ export default function StoreContractorIssuePage() {
                             </Button>
                           </Link>
                           {!isStoreManager && a.status !== 'Cancelled' && (
-                            <>
-                              <Link href={`/store/contractor-issue/${a._id}/edit`}>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-600 hover:text-slate-800 hover:bg-slate-100" title="Edit MIN">
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                              </Link>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="h-8 w-8 p-0 text-red-600 hover:text-red-800 hover:bg-red-50"
-                                onClick={() => handleCancel(a._id, a.minNo || a.assignmentNumber)}
-                                title="Cancel MIN"
-                              >
-                                <Trash2 className="w-4 h-4" />
+                            <Link href={`/store/contractor-issue/${a._id}/edit`}>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-600 hover:text-slate-800 hover:bg-slate-100" title="Edit MIN">
+                                <Edit className="w-4 h-4" />
                               </Button>
-                            </>
+                            </Link>
+                          )}
+                          {a.status !== 'Cancelled' && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0 text-red-600 hover:text-red-800 hover:bg-red-50"
+                              onClick={() => handleCancel(a._id, a.minNo || a.assignmentNumber)}
+                              title="Cancel MIN"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           )}
                         </td>
                       </tr>

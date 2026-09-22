@@ -22,7 +22,7 @@ export default function ContractorWorkOrderDetailPage() {
   const fetchContractors = async () => {
     try {
       const res = await api.get('/contractors?limit=500');
-      setContractors(res.data.data.contractors || []);
+      setContractors(Array.isArray(res.data.data) ? res.data.data : (res.data.data?.contractors || []));
     } catch (e) {
       toast.error('Failed to load contractors');
     }

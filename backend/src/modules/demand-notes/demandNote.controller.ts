@@ -158,7 +158,7 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
   let summary: any = null;
   if (item?._id) {
     const summaryQuery: any = { itemId: item._id };
-    if (circleFilter) summaryQuery.circle = circleFilter;
+    if (circleFilter) summaryQuery.circle = { $regex: new RegExp(`^${circleFilter}$`, 'i') };
     if (pkgRegex) summaryQuery.package = { $regex: pkgRegex };
     summary = await mongoose.model('ItemSummary').findOne(summaryQuery).lean();
     if (!summary) {
@@ -171,15 +171,14 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
   if (contractorFilter) {
     const woQuery: any = { contractorId: contractorFilter };
     if (pkgRegex) woQuery.package = { $regex: pkgRegex };
-    if (circleFilter) woQuery.circle = circleFilter;
+    if (circleFilter) woQuery.circle = { $regex: new RegExp(`^${circleFilter}$`, 'i') };
     const workOrders = await mongoose.model('ContractorWorkOrder').find(woQuery).lean() as any[];
 
     for (const wo of workOrders) {
       for (const wi of wo.items || []) {
         const matches = (item?._id && wi.itemId && String(wi.itemId) === String(item._id)) ||
-                        (tempCode && wi.tempCode && String(wi.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase()) ||
-                        (loaSrNo && wi.loaSrNo && String(wi.loaSrNo).trim().toLowerCase() === String(loaSrNo).trim().toLowerCase()) ||
-                        (activity && wi.activity && String(wi.activity).trim().toLowerCase() === String(activity).trim().toLowerCase());
+                        (!item?._id && tempCode && wi.tempCode && String(wi.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase()) ||
+                        (!item?._id && !tempCode && loaSrNo && wi.loaSrNo && String(wi.loaSrNo).trim().toLowerCase() === String(loaSrNo).trim().toLowerCase());
         if (matches) {
           woItem = wi;
           break;
@@ -200,10 +199,8 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
     assignments.forEach(asg => {
       asg.lineItems?.forEach((li: any) => {
         const matches = (item?._id && li.itemId && String(li.itemId) === String(item._id)) ||
-                        (tempCode && li.tempCode && String(li.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase()) ||
-                        (loaSrNo && li.hsnCode && String(li.hsnCode).trim().toLowerCase() === String(loaSrNo).trim().toLowerCase()) ||
-                        (activity && li.activity && String(li.activity).trim().toLowerCase() === String(activity).trim().toLowerCase()) ||
-                        (description && li.itemName && String(li.itemName).trim().toLowerCase() === String(description).trim().toLowerCase());
+                        (!item?._id && tempCode && li.tempCode && String(li.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase()) ||
+                        (!item?._id && !tempCode && loaSrNo && (li.loaSrNo || li.loaSerialNo) && String(li.loaSrNo || li.loaSerialNo).trim().toLowerCase() === String(loaSrNo).trim().toLowerCase());
         if (matches) {
           storeIssuedQty += (Number(li.quantity) || 0);
         }
@@ -221,7 +218,8 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
   for (const dn of pastDemandNotes) {
     for (const dnItem of dn.items || []) {
       const matches = (item?._id && dnItem.itemId && String(dnItem.itemId) === String(item._id)) ||
-                      (tempCode && dnItem.tempCode && String(dnItem.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase());
+                      (!item?._id && tempCode && dnItem.tempCode && String(dnItem.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase()) ||
+                      (!item?._id && !tempCode && loaSrNo && ((dnItem as any).loaSrNo || (dnItem as any).loaSerialNo) && String((dnItem as any).loaSrNo || (dnItem as any).loaSerialNo).trim().toLowerCase() === String(loaSrNo).trim().toLowerCase());
       if (matches) {
         pastDemandQty += dnItem.demandQty || 0;
       }
@@ -234,6 +232,19 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
   let transferFromOther = 0;
   let transferToOther = 0;
 
+  // Get initial stock from dynamicData.stockLocations if available
+  let initialStock = 0;
+  if (item?.dynamicData?.stockLocations && Array.isArray(item.dynamicData.stockLocations)) {
+    const loc = item.dynamicData.stockLocations.find((l: any) => l.circle && circleFilter && String(l.circle).trim().toLowerCase() === String(circleFilter).trim().toLowerCase());
+    if (loc) {
+      initialStock = Number(loc.quantity || 0);
+    }
+  }
+  
+  if (initialStock === 0 && item?.dynamicData) {
+    initialStock = Number(item.dynamicData.stockBal || item.dynamicData.stockBalance || item.dynamicData.stock || item.dynamicData.quantity || 0);
+  }
+
   if (summary) {
     const act = summary.actQty || 0;
     const tin = summary.transferInQty || 0;
@@ -241,13 +252,14 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
     const iss = summary.issuedQty || 0;
     const ret = summary.returnedQty || 0;
     
-    stockBal = Math.max(0, act + tin + ret - iss - tout);
+    // Some systems store initial stock in actQty. If actQty is 0, we fallback to initialStock.
+    const baseStock = act > 0 ? act : initialStock;
+    
+    stockBal = Math.max(0, baseStock + tin + ret - iss - tout);
     transferFromOther = tin;
     transferToOther = tout;
-  }
-  
-  if (!stockBal && item?.dynamicData) {
-    stockBal = Number(item.dynamicData.stockBal || item.dynamicData.stockBalance || item.dynamicData.stock || item.dynamicData.quantity || 0);
+  } else {
+    stockBal = Math.max(0, initialStock);
   }
 
   // 5. Calculate JMC and WIP Quantities based on contractor, package, circle and item match
@@ -256,21 +268,20 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
   let wipRequiredQty = 0;
 
   if (contractorFilter) {
-    const regQuery: any = { contractorId: contractorFilter };
+    const regQuery: any = { contractorId: contractorFilter, status: 'Approved' };
     if (pkgRegex) regQuery.package = { $regex: pkgRegex };
-    if (circleFilter) regQuery.circle = circleFilter;
+    if (circleFilter) regQuery.circle = { $regex: new RegExp(`^${circleFilter}$`, 'i') };
 
     const jmcRegisters = await mongoose.model('JmcRegister').find(regQuery).lean() as any[];
     jmcRegisters.forEach((jmc: any) => {
       jmc.items?.forEach((jmcItem: any) => {
         const isMatch = (item?._id && jmcItem.itemId && String(jmcItem.itemId) === String(item._id)) ||
-                        (tempCode && jmcItem.tempCode && String(jmcItem.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase()) ||
-                        (loaSrNo && (jmcItem.loaSerialNo || jmcItem.loaSrNo) && String(jmcItem.loaSerialNo || jmcItem.loaSrNo).trim().toLowerCase() === String(loaSrNo).trim().toLowerCase()) ||
-                        (activity && jmcItem.activity && String(jmcItem.activity).trim().toLowerCase() === String(activity).trim().toLowerCase()) ||
-                        (description && (jmcItem.description || jmcItem.itemName) && String(jmcItem.description || jmcItem.itemName).trim().toLowerCase() === String(description).trim().toLowerCase());
+                        (!item?._id && tempCode && jmcItem.tempCode && String(jmcItem.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase()) ||
+                        (!item?._id && !tempCode && loaSrNo && (jmcItem.loaSerialNo || jmcItem.loaSrNo) && String(jmcItem.loaSerialNo || jmcItem.loaSrNo).trim().toLowerCase() === String(loaSrNo).trim().toLowerCase());
 
         if (isMatch) {
-          jmcQty += (Number(jmcItem.claimedQty) || 0) + (Number(jmcItem.approvedQty) || 0);
+          const qty = Number(jmcItem.approvedQty) || Number(jmcItem.claimedQty) || Number(jmcItem.quantity) || 0;
+          jmcQty += qty;
         }
       });
     });
@@ -279,13 +290,12 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
     wipRegisters.forEach((wip: any) => {
       wip.items?.forEach((wipItem: any) => {
         const isMatch = (item?._id && wipItem.itemId && String(wipItem.itemId) === String(item._id)) ||
-                        (tempCode && wipItem.tempCode && String(wipItem.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase()) ||
-                        (loaSrNo && (wipItem.loaSerialNo || wipItem.loaSrNo) && String(wipItem.loaSerialNo || wipItem.loaSrNo).trim().toLowerCase() === String(loaSrNo).trim().toLowerCase()) ||
-                        (activity && wipItem.activity && String(wipItem.activity).trim().toLowerCase() === String(activity).trim().toLowerCase()) ||
-                        (description && (wipItem.description || wipItem.itemName) && String(wipItem.description || wipItem.itemName).trim().toLowerCase() === String(description).trim().toLowerCase());
+                        (!item?._id && tempCode && wipItem.tempCode && String(wipItem.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase()) ||
+                        (!item?._id && !tempCode && loaSrNo && (wipItem.loaSerialNo || wipItem.loaSrNo) && String(wipItem.loaSerialNo || wipItem.loaSrNo).trim().toLowerCase() === String(loaSrNo).trim().toLowerCase());
 
         if (isMatch) {
-          wipQty += (Number(wipItem.claimedQty) || 0) + (Number(wipItem.approvedQty) || 0);
+          const qty = Number(wipItem.approvedQty) || Number(wipItem.claimedQty) || Number(wipItem.quantity) || 0;
+          wipQty += qty;
         }
       });
     });
@@ -294,13 +304,12 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
     wipRequiredRegisters.forEach((wipReq: any) => {
       wipReq.items?.forEach((wipReqItem: any) => {
         const isMatch = (item?._id && wipReqItem.itemId && String(wipReqItem.itemId) === String(item._id)) ||
-                        (tempCode && wipReqItem.tempCode && String(wipReqItem.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase()) ||
-                        (loaSrNo && (wipReqItem.loaSerialNo || wipReqItem.loaSrNo) && String(wipReqItem.loaSerialNo || wipReqItem.loaSrNo).trim().toLowerCase() === String(loaSrNo).trim().toLowerCase()) ||
-                        (activity && wipReqItem.activity && String(wipReqItem.activity).trim().toLowerCase() === String(activity).trim().toLowerCase()) ||
-                        (description && (wipReqItem.description || wipReqItem.itemName) && String(wipReqItem.description || wipReqItem.itemName).trim().toLowerCase() === String(description).trim().toLowerCase());
+                        (!item?._id && tempCode && wipReqItem.tempCode && String(wipReqItem.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase()) ||
+                        (!item?._id && !tempCode && loaSrNo && (wipReqItem.loaSerialNo || wipReqItem.loaSrNo) && String(wipReqItem.loaSerialNo || wipReqItem.loaSrNo).trim().toLowerCase() === String(loaSrNo).trim().toLowerCase());
 
         if (isMatch) {
-          wipRequiredQty += (Number(wipReqItem.claimedQty) || 0) + (Number(wipReqItem.approvedQty) || 0);
+          const qty = Number(wipReqItem.approvedQty) || Number(wipReqItem.claimedQty) || Number(wipReqItem.quantity) || 0;
+          wipRequiredQty += qty;
         }
       });
     });

@@ -36,7 +36,7 @@ export default function ContractorWorkOrderDetailPage() {
         contractorId: cId
       }));
       
-      await api.post(`/contractor-work-orders/${workOrder._id}/handover`, {
+      await api.post(`/ho-billing/contractor-work-orders/${workOrder._id}/handover`, {
         assignments: assignmentsArr,
         materialDisposition: 'TRANSFER_TO_NEW_CONTRACTOR'
       });

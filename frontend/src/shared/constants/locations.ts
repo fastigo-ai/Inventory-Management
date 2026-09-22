@@ -5,7 +5,7 @@ export const LOCATION_HIERARCHY: Record<string, Record<string, string[]>> = {
   },
   "Package 2(R/R)": {
     "Rampur": [],
-    "Rohru": ["Rohru", "Jubbal"]
+    "Rohru": []
   }
 };
 
@@ -27,9 +27,6 @@ export const getSubCircles = (pkg: string, circle: string) => {
 export const getEffectiveLocations = (circle: string): string[] => {
   if (circle.toLowerCase() === 'solan') {
     return ['Solan', 'Kumarhatti', 'Nalagarh'];
-  }
-  if (circle.toLowerCase() === 'rohru') {
-    return ['Rohru', 'Jubbal'];
   }
   return [circle];
 };

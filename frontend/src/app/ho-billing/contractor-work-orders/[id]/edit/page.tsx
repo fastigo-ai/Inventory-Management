@@ -393,6 +393,8 @@ export default function EditContractorWorkOrderPage() {
         return ['Nahan', 'Rajgarh', 'Poanta'];
       case 'solan':
         return ['Solan', 'Nalagarh', 'Kumarhatti', 'Baddhi', 'Parwahoo', 'Arki'];
+      case 'rohru':
+        return ['Rohru', 'Jubbal'];
       default:
         return [];
     }

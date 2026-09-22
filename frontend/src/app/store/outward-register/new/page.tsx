@@ -73,6 +73,7 @@ export default function NewOutwardTransferPage() {
     switch (circle?.toLowerCase()) {
       case 'nahan': return ['Rajgarh', 'Poanta'];
       case 'solan': return ['Kumarhatti', 'Nalagarh'];
+      case 'rohru': return ['Rohru', 'Jubbal'];
       default: return [];
     }
   };

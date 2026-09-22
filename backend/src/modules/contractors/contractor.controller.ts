@@ -759,6 +759,8 @@ export const deleteContractorReturn = asyncHandler(async (req: Request, res: Res
   res.status(200).json(new ApiResponse(200, null, 'Contractor return deleted successfully'));
 });
 
+const normalizeUnit = (u: string) => String(u).trim().toLowerCase().replace(/\.$/, '').replace(/s$/, '');
+
 export const bulkImportContractorReturns = asyncHandler(async (req: Request, res: Response) => {
   console.log("Req headers:", req.headers["content-type"]);
   console.log("Req file:", req.file);
@@ -830,7 +832,7 @@ export const bulkImportContractorReturns = asyncHandler(async (req: Request, res
       const masterUnit = itemDynamic.unit || itemDynamic.uom || item?.unit || item?.uom || 'Nos';
       const csvUnit = row['Unit'] || row['UNIT'];
       
-      if (csvUnit && String(csvUnit).trim() !== '' && String(csvUnit).trim().replace(/\.$/, '').toLowerCase() !== String(masterUnit).trim().replace(/\.$/, '').toLowerCase()) {
+      if (csvUnit && String(csvUnit).trim() !== '' && normalizeUnit(csvUnit) !== normalizeUnit(masterUnit)) {
         errors.push(`Unit mismatch for item '${itemName || tempCode}' in Challan ${challanNo}. Expected '${masterUnit}', got '${csvUnit}'`);
         continue;
       }
@@ -1221,8 +1223,8 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
         errors.push(`Activity mismatch for item '${itemName || tempCode || loaSrNo}' in MIN ${minNo}. Expected '${item.dynamicData?.activity || ''}', found '${activity}'`);
         continue;
       }
-      const expectedUnit = String(item.dynamicData?.unit || '').trim().toLowerCase().replace(/\.$/, '');
-      const providedUnit = String(unit).trim().toLowerCase().replace(/\.$/, '');
+      const expectedUnit = normalizeUnit(item.dynamicData?.unit || '');
+      const providedUnit = normalizeUnit(unit || '');
       if (unit && expectedUnit !== providedUnit) {
         errors.push(`Unit mismatch for item '${itemName || tempCode}' in MIN ${minNo}. Expected '${item.dynamicData?.unit || ''}', found '${unit}'`);
         continue;

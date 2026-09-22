@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Loader2, FileText, CheckCircle, Printer } from 'lucide-react';
 import { getAssignmentById } from '@/features/contractors/api/contractors.api';
 import { toast } from 'sonner';
@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 export default function ContractorIssueDetailPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const { id } = params;
   
   const [issue, setIssue] = useState<any>(null);
@@ -21,6 +22,9 @@ export default function ContractorIssueDetailPage() {
         const res = await getAssignmentById(id as string);
         if (res.success && res.data) {
           setIssue(res.data);
+          if (searchParams.get('print') === 'true') {
+            setTimeout(() => window.print(), 500);
+          }
         } else {
           toast.error('Failed to fetch Material Issue Note details');
         }
@@ -31,7 +35,7 @@ export default function ContractorIssueDetailPage() {
       }
     };
     if (id) fetchIssue();
-  }, [id]);
+  }, [id, searchParams]);
 
   if (isLoading) {
     return (

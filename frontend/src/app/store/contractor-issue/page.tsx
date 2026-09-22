@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus, Upload, Eye, Edit, Trash2, Box, PackageOpen, FileText, Users, Calculator, Download } from "lucide-react";
+import { Plus, Upload, Eye, Edit, Trash2, Box, PackageOpen, FileText, Users, Calculator, Download, Printer } from "lucide-react";
 import { getAssignments, cancelAssignment, getAssignmentSummary, getContractors, exportAssignments } from "@/features/contractors/api/contractors.api";
 import { ContractorIssueImportModal } from "@/features/store/components/ContractorIssueImportModal";
 import { toast } from "sonner";
@@ -305,6 +305,11 @@ export default function StoreContractorIssuePage() {
                           <Link href={`/store/contractor-issue/${a._id}`}>
                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-blue-600 hover:text-blue-800 hover:bg-blue-50" title="View Details">
                               <Eye className="w-4 h-4" />
+                            </Button>
+                          </Link>
+                          <Link href={`/store/contractor-issue/${a._id}?print=true`} target="_blank">
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50" title="Download/Print PDF">
+                              <Printer className="w-4 h-4" />
                             </Button>
                           </Link>
                           {!isStoreManager && a.status !== 'Cancelled' && (

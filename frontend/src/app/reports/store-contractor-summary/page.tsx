@@ -24,8 +24,19 @@ import autoTable from 'jspdf-autotable';
 
 export default function StoreContractorSummaryPage() {
   const { user } = useAuthStore();
-  const isStoreManager = user?.role?.name === 'Store Manager';
-  
+  const isStoreManager = user?.role?.name === 'Store Manager' || user?.role === 'STORE_MANAGER';
+
+  const getDefaultPackage = (c: string) => {
+    const cl = (c || '').toLowerCase();
+    if (cl.includes('nahan') || cl.includes('solan')) return 'Package 1(S/N)';
+    if (cl.includes('rampur') || cl.includes('rohru')) return 'Package 2(R/R)';
+    return '';
+  };
+
+  const initialCircle = isStoreManager ? (user?.assignedCircle || '') : '';
+  const initialStore = isStoreManager && initialCircle.toLowerCase() === 'solan' ? (user?.assignedSubcircle || '') : '';
+  const initialPkg = isStoreManager && initialCircle ? getDefaultPackage(initialCircle) : '';
+
   const [data, setData] = useState<any[]>([]);
   const [contractorsList, setContractorsList] = useState<string[]>([]);
   const [totals, setTotals] = useState<any>({
@@ -38,9 +49,9 @@ export default function StoreContractorSummaryPage() {
 
   const { filters, setFilter, debouncedFilters } = useUrlFilters({
     contractorName: 'all',
-    circle: user?.assignedCircle || '',
-    store: user?.assignedSubcircle || '',
-    pkg: '',
+    circle: initialCircle,
+    store: initialStore,
+    pkg: initialPkg,
     search: '',
     hideZero: 'true',
     page: '1',
@@ -66,7 +77,7 @@ export default function StoreContractorSummaryPage() {
 
   // Selection State
   const getRowKey = (r: any, i: number) => {
-    const baseKey = r.loaSerialNo && r.loaSerialNo !== '-' ? String(r.loaSerialNo) : (r.tempCode && r.tempCode !== '-' ? String(r.tempCode) : r.itemName || String(i));
+    const baseKey = `${r.tempCode || 'TC'}_${r.loaSerialNo || 'LOA'}_${r.itemName || 'ITEM'}_${i}`;
     return `${baseKey}_${r.circle || 'ALL'}_${r.package || 'ALL'}`;
   };
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
@@ -376,7 +387,7 @@ export default function StoreContractorSummaryPage() {
               <select
                 value={circle}
                 onChange={(e) => setCircle(e.target.value)}
-                disabled={isStoreManager && !!user?.assignedCircle}
+                disabled={isStoreManager}
                 className="w-full text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50"
               >
                 <option value="">All Circles</option>
@@ -387,34 +398,37 @@ export default function StoreContractorSummaryPage() {
             </div>
 
             {/* Store Location Select */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-blue-600" />
-                Store/Subcircle:
-              </label>
-              <select
-                value={store}
-                onChange={(e) => setStore(e.target.value)}
-                disabled={isStoreManager && !!user?.assignedSubcircle}
-                className="w-full text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50"
-              >
-                <option value="">All Stores</option>
-                {stores.map(s => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            </div>
+            {(!isStoreManager || (initialCircle.toLowerCase() === 'solan')) && (
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5 text-blue-600" />
+                  Store/Subcircle:
+                </label>
+                <select
+                  value={store}
+                  onChange={(e) => setStore(e.target.value)}
+                  disabled={isStoreManager}
+                  className="w-full text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50"
+                >
+                  <option value="">All Stores</option>
+                  {stores.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Package Selector */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
-                <Package className="w-3.5 h-3.5 text-emerald-600" />
+                <Package className="w-3.5 h-3.5 text-purple-600" />
                 Package:
               </label>
               <select
                 value={pkg}
                 onChange={(e) => setPkg(e.target.value)}
-                className="w-full text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                disabled={isStoreManager}
+                className="w-full text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 cursor-pointer disabled:opacity-50"
               >
                 <option value="">All Packages</option>
                 {packages.map(p => (

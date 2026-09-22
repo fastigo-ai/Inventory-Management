@@ -40,8 +40,19 @@ function useDebounce<T>(value: T, delay: number): T {
 
 export default function StoreSummaryPage() {
   const { user } = useAuthStore();
-  const isStoreManager = user?.role?.name === 'Store Manager';
+  const isStoreManager = user?.role?.name === 'Store Manager' || user?.role === 'STORE_MANAGER';
   
+  const getDefaultPackage = (c: string) => {
+    const cl = (c || '').toLowerCase();
+    if (cl.includes('nahan') || cl.includes('solan')) return 'Package 1(S/N)';
+    if (cl.includes('rampur') || cl.includes('rohru')) return 'Package 2(R/R)';
+    return '';
+  };
+
+  const initialCircle = isStoreManager ? (user?.assignedCircle || '') : '';
+  const initialStore = isStoreManager && initialCircle.toLowerCase() === 'solan' ? (user?.assignedSubcircle || '') : '';
+  const initialPkg = isStoreManager && initialCircle ? getDefaultPackage(initialCircle) : '';
+
   const [data, setData] = useState<any[]>([]);
   const [totals, setTotals] = useState<any>({
     receiptQty: 0,
@@ -58,9 +69,9 @@ export default function StoreSummaryPage() {
   const [showCircleDropdown, setShowCircleDropdown] = useState(false);
 
   const { filters, setFilter, debouncedFilters } = useUrlFilters({
-    circle: user?.assignedCircle || '',
-    store: user?.assignedSubcircle || '',
-    pkg: '',
+    circle: initialCircle,
+    store: initialStore,
+    pkg: initialPkg,
     search: '',
     tempCode: '',
     itemName: '',
@@ -548,21 +559,23 @@ export default function StoreSummaryPage() {
             </div>
 
             {/* Store Location Select */}
-            <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
-              <Store className="w-3.5 h-3.5 text-slate-400" />
-              <span className="text-[11px] font-semibold text-slate-500 uppercase">Store:</span>
-              <select
-                value={store}
-                onChange={(e) => setStore(e.target.value)}
-                disabled={isStoreManager && !!user?.assignedSubcircle}
-                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer pr-1 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <option value="">All Stores</option>
-                {stores.map(s => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            </div>
+            {(!isStoreManager || (initialCircle.toLowerCase() === 'solan')) && (
+              <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
+                <Store className="w-3.5 h-3.5 text-slate-400" />
+                <span className="text-[11px] font-semibold text-slate-500 uppercase">Store:</span>
+                <select
+                  value={store}
+                  onChange={(e) => setStore(e.target.value)}
+                  disabled={isStoreManager}
+                  className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer pr-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="">All Stores</option>
+                  {stores.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Package Select */}
             <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
@@ -571,7 +584,8 @@ export default function StoreSummaryPage() {
               <select
                 value={pkg}
                 onChange={(e) => setPkg(e.target.value)}
-                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer pr-1"
+                disabled={isStoreManager}
+                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer pr-1 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <option value="">All Packages</option>
                 {packages.map(p => (

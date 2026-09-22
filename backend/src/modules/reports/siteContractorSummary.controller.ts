@@ -213,7 +213,7 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
   // Calculate final numbers
   const summaryData = Object.values(reportMap).map(row => {
     const totalWip = row.wipConsumed + row.wipRequired;
-    const totalIwipJmc = row.wipConsumed + row.jmcDone;
+    const totalIwipJmc = totalWip + row.jmcDone;
     const todayTotalBalance = row.totalIssued - row.totalReturned;
     const finalBalQty = todayTotalBalance - totalIwipJmc;
 

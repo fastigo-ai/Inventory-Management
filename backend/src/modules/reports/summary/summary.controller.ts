@@ -1998,15 +1998,36 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
   const limitNum = parseInt(limit as string, 10) || 50;
 
   // 1. Fetch distinct contractors list for dropdown
-  const assignContractors = await ContractorAssignment.distinct('contractorFarmName');
-  const returnContractors = await ContractorReturn.distinct('contractorFarmName');
+  let transLocMatchForDropdown = store && store !== 'all' ? store : (circle && circle !== 'all' ? circle : null);
+  const dropdownFilter: any = {};
+  if (transLocMatchForDropdown) {
+    const expanded = expandCircle(transLocMatchForDropdown as string);
+    const cMatch = expanded && expanded.length > 0 ? expanded.join('|') : transLocMatchForDropdown.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const cRegex = new RegExp(`(${cMatch})`, 'i');
+    dropdownFilter.$or = [
+      { location: cRegex },
+      { circle: cRegex },
+      { subcircle: cRegex },
+      { division: cRegex },
+      { 'lineItems.circle': cRegex }
+    ];
+  }
+
+  const assignContractors = await ContractorAssignment.distinct('contractorFarmName', dropdownFilter);
+  const returnContractors = await ContractorReturn.distinct('contractorFarmName', dropdownFilter);
   const contractorList = Array.from(new Set([...assignContractors, ...returnContractors]))
     .filter(Boolean)
     .sort((a, b) => (a as string).localeCompare(b as string));
 
-  // 2. Filter master items (only search filter, so master items map properly across all transaction circles)
+  // 2. Filter master items by circle and search
   const itemFilter: any = { isDeleted: { $ne: true } };
 
+  if (transLocMatchForDropdown) {
+    const expanded = expandCircle(transLocMatchForDropdown as string);
+    const cMatch = expanded && expanded.length > 0 ? expanded.join('|') : transLocMatchForDropdown.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const cRegex = new RegExp(`^(${cMatch})$`, 'i');
+    itemFilter['dynamicData.circle'] = cRegex;
+  }
   if (search) {
     const searchTerm = search.toString().trim();
     const isNumeric = !isNaN(Number(searchTerm)) && searchTerm !== '';

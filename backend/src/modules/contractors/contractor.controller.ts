@@ -615,6 +615,7 @@ export const importContractors = asyncHandler(async (req: Request, res: Response
   }
 
   if (errors.length > 0) {
+    console.error("Bulk Import Errors:", errors);
     return res.status(400).json(new ApiResponse(400, { errors }, 'Import failed due to validation errors. No contractors were imported.'));
   }
 
@@ -934,6 +935,7 @@ export const bulkImportContractorReturns = asyncHandler(async (req: Request, res
   }
 
   if (errors.length > 0) {
+    console.error("Bulk Import Errors:", errors);
     return res.status(400).json(
       new ApiResponse(400, { errors }, 'Import failed due to row errors.')
     );
@@ -1357,6 +1359,7 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
   }
 
   if (errors.length > 0) {
+    console.error("Bulk Import Errors:", errors);
     return res.status(400).json(
       new ApiResponse(400, { errors }, 'Import failed due to row errors. No data was imported.')
     );

@@ -1161,7 +1161,7 @@ export const importContractorAssignments = asyncHandler(async (req: Request, res
       const circle = row['Circle'] || row['circle'] || '';
       const activity = row['Activity'] || row['activity'] || '';
       const loaSrNo = row['LoaSrNo'] || row['Loa Sr No'] || row['Loa Sr. No'] || row['LOA Serial No'] || '';
-      const unit = row['Unit'] || row['unit'] || '';
+      const unit = row['Unit'] || row['UNIT'] || row['unit'] || '';
       
       if (!itemName && !tempCode) {
         errors.push(`Row missing ItemName/TempCode for MIN ${minNo}`);

@@ -355,6 +355,11 @@ export default function DemandNoteDetailPage() {
               {(() => {
                 if (!demandNote.items || demandNote.items.length === 0) {
                   return (
+                    <tr>
+                      <td colSpan={14} className="px-6 py-8 text-center text-slate-500">
+                        No items in this Demand Note.
+                      </td>
+                    </tr>
                   );
                 }
 
@@ -418,7 +423,6 @@ export default function DemandNoteDetailPage() {
                   </React.Fragment>
                 ));
               })()}
->>>>>>> 5310fd7 (UI: Group demand notes by activity, fix transfer filtering, restrict store manager actions)
             </tbody>
           </table>
         </div>

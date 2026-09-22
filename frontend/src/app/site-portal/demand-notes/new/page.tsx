@@ -145,6 +145,25 @@ function DemandNoteForm() {
 
         if (itemToSelect) {
           hasAutoPopulated.current = true;
+          // Override catalog tempCode/activity with the ones from the URL if provided
+          if (tempCodeParam) {
+            itemToSelect = { ...itemToSelect }; // Clone to avoid mutating catalog
+            itemToSelect.dynamicData = { ...(itemToSelect.dynamicData || {}) };
+            itemToSelect.dynamicData.tempCode = tempCodeParam;
+            itemToSelect.tempCode = tempCodeParam;
+          }
+          if (activityParam) {
+            itemToSelect = { ...itemToSelect };
+            itemToSelect.dynamicData = { ...(itemToSelect.dynamicData || {}) };
+            itemToSelect.dynamicData.activity = activityParam;
+            itemToSelect.activity = activityParam;
+          }
+          if (itemNameParam) {
+            itemToSelect = { ...itemToSelect };
+            itemToSelect.dynamicData = { ...(itemToSelect.dynamicData || {}) };
+            itemToSelect.dynamicData.itemName = itemNameParam;
+            itemToSelect.itemName = itemNameParam;
+          }
           handleAddNewItem([itemToSelect], contractorIdParam || undefined, initialDemandQty);
         } else if (tempCodeParam || itemNameParam) {
           // Fallback: If not matched in catalog list, create row from parameters directly
@@ -581,43 +600,52 @@ function DemandNoteForm() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div>
             <label className="text-sm font-medium text-slate-700 block mb-1">Contractor Name</label>
-            <select
-              value={formData.contractorId || ''}
-              onChange={e => {
-                const selected = contractorsList.find(c => c._id === e.target.value);
-                const name = selected ? (selected.dynamicData?.displayName || selected.dynamicData?.companyName || selected.dynamicData?.name || selected.dynamicData?.vendorName || '') : '';
-                setFormData({
-                  ...formData,
-                  contractorId: e.target.value,
-                  contractorName: name
-                });
-              }}
-              disabled={!!workOrderId}
-              className="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <option value="">Select Contractor</option>
-              {contractorsList
-                .filter(c => {
-                  if (!formData.circle) return true;
-                  const query = formData.circle.toLowerCase().trim();
-                  const allLocs = [
-                    c.location,
-                    ...(Array.isArray(c.assignedLocations) ? c.assignedLocations : [c.assignedLocations]),
-                    c.dynamicData?.assignedCircle,
-                    c.dynamicData?.circle,
-                    ...(Array.isArray(c.dynamicData?.assignedCircles) ? c.dynamicData?.assignedCircles : [c.dynamicData?.assignedCircles])
-                  ].filter(Boolean).map(l => String(l).toLowerCase());
-                  
-                  return allLocs.some(l => l.includes(query));
-                })
-                .map(c => {
-                  const displayName = c.dynamicData?.displayName || c.dynamicData?.companyName || c.dynamicData?.name || c.dynamicData?.vendorName || c._id;
-                  return (
-                    <option key={c._id} value={c._id}>{displayName}</option>
-                  );
-                })
-              }
-            </select>
+            {workOrderId ? (
+              <Input
+                disabled
+                value={formData.contractorName || 'Unknown Contractor'}
+                className="bg-slate-50 text-slate-500 font-medium h-10"
+              />
+            ) : (
+              <select
+                value={formData.contractorId || ''}
+                onChange={e => {
+                  const selected = contractorsList.find(c => c._id === e.target.value);
+                  const name = selected ? (selected.dynamicData?.displayName || selected.dynamicData?.companyName || selected.dynamicData?.name || selected.dynamicData?.contractorName || selected.dynamicData?.vendorName || '') : '';
+                  setFormData({
+                    ...formData,
+                    contractorId: e.target.value,
+                    contractorName: name
+                  });
+                }}
+                className="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="">Select Contractor</option>
+                {contractorsList
+                  .filter(c => {
+                    if (!formData.circle) return true;
+                    const query = formData.circle.toLowerCase().trim();
+                    const allLocs = [
+                      c.location,
+                      ...(Array.isArray(c.assignedLocations) ? c.assignedLocations : [c.assignedLocations]),
+                      c.dynamicData?.assignedCircle,
+                      c.dynamicData?.circle,
+                      ...(Array.isArray(c.dynamicData?.assignedCircles) ? c.dynamicData?.assignedCircles : [c.dynamicData?.assignedCircles])
+                    ].filter(Boolean).map(l => String(l).toLowerCase());
+                    
+                    if (allLocs.length === 0) return true; // Don't filter out contractors with no location set
+                    
+                    return allLocs.some(l => l.includes(query));
+                  })
+                  .map(c => {
+                    const displayName = c.dynamicData?.displayName || c.dynamicData?.companyName || c.dynamicData?.name || c.dynamicData?.contractorName || c.dynamicData?.vendorName || c._id;
+                    return (
+                      <option key={c._id} value={c._id}>{displayName}</option>
+                    );
+                  })
+                }
+              </select>
+            )}
           </div>
           <div>
             <label className="text-sm font-medium text-slate-700 block mb-1">Package</label>

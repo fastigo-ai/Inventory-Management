@@ -11,9 +11,12 @@ import { toast } from "sonner";
 import { useClientTable } from "@/shared/hooks/useClientTable";
 import { DataTableTopControls, DataTableBottomControls } from "@/shared/components/DataTableControls";
 import { BulkImportContractorReturnModal } from "./BulkImportContractorReturnModal";
+import { useAuthStore } from "@/shared/store/auth.store";
 
 export default function StoreContractorReturnPage() {
   const router = useRouter();
+  const { user } = useAuthStore();
+  const isStoreManager = user?.role?.name === 'Store Manager';
   const [isExporting, setIsExporting] = useState(false);
   const [returns, setReturns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -205,25 +208,29 @@ export default function StoreContractorReturnPage() {
                             <td className="px-6 py-4 text-right font-medium">{totalItems}</td>
                             <td className="px-6 py-4 text-center">
                               <div className="flex items-center justify-center gap-2">
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-8 w-8 text-slate-400 hover:text-blue-600"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    router.push(`/store/contractor-return/${a._id}/edit`);
-                                  }}
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-8 w-8 text-slate-400 hover:text-red-600"
-                                  onClick={(e) => handleDelete(a._id, e)}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
+                                {!isStoreManager && (
+                                  <>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      className="h-8 w-8 text-slate-400 hover:text-blue-600"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        router.push(`/store/contractor-return/${a._id}/edit`);
+                                      }}
+                                    >
+                                      <Edit className="w-4 h-4" />
+                                    </Button>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      className="h-8 w-8 text-slate-400 hover:text-red-600"
+                                      onClick={(e) => handleDelete(a._id, e)}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </>
+                                )}
                               </div>
                             </td>
                           </tr>

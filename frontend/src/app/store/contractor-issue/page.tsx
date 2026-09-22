@@ -10,8 +10,12 @@ import { toast } from "sonner";
 import { DataTableBottomControls } from "@/shared/components/DataTableControls";
 import { useDebounce } from "@/shared/hooks/useDebounce";
 import { Search } from "lucide-react";
+import { useAuthStore } from "@/shared/store/auth.store";
 
 export default function StoreContractorIssuePage() {
+  const { user } = useAuthStore();
+  const isStoreManager = user?.role?.name === 'Store Manager';
+
   const [isExporting, setIsExporting] = useState(false);
   const [assignments, setAssignments] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
@@ -303,7 +307,7 @@ export default function StoreContractorIssuePage() {
                               <Eye className="w-4 h-4" />
                             </Button>
                           </Link>
-                          {a.status !== 'Cancelled' && (
+                          {!isStoreManager && a.status !== 'Cancelled' && (
                             <>
                               <Link href={`/store/contractor-issue/${a._id}/edit`}>
                                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-600 hover:text-slate-800 hover:bg-slate-100" title="Edit MIN">

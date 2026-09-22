@@ -352,50 +352,73 @@ export default function DemandNoteDetailPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {demandNote.items && demandNote.items.length > 0 ? (
-                demandNote.items.map((item: any, idx: number) => {
-                  const stockMatch = stockSummary.find(s => {
-                    if (item.tempCode && s.tempCode && String(item.tempCode).trim() === String(s.tempCode).trim()) {
-                      return true;
-                    }
-                    return String(s.loaSrNo) === String(item.loaSrNo) && 
-                           String(s.activity) === String(item.activity) && 
-                           (s.description === item.itemName || s.itemName === item.itemName);
-                  });
-                  const inStock = stockMatch ? stockMatch.totalBalanceQty : 0;
-                  const tillIssued = stockMatch ? stockMatch.contractorsActualIssued : 0;
-                  const consumption = stockMatch ? (stockMatch.wipConsumed || stockMatch.consumedQty || 0) : 0;
-                  const jmcDone = stockMatch ? (stockMatch.jmcDone || 0) : 0;
-                  const circleLoaQty = stockMatch ? (stockMatch.circleLoaQty || 0) : 0;
-                  const invoiceQty = stockMatch ? ((stockMatch.acceptedQty || 0) + (stockMatch.mhrovQty || 0)) : 0;
-                  const contractorBalance = Number(tillIssued || 0) - Number(jmcDone || 0) - Number(consumption || 0);
+              {(() => {
+                if (!demandNote.items || demandNote.items.length === 0) {
                   return (
-                  <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 text-sm text-slate-600 dn-sticky-sr dn-sticky-bg-white">{idx + 1}</td>
-                    <td className="px-6 py-4 font-medium text-slate-900 dn-sticky-mc dn-sticky-bg-white">{item.tempCode || '-'}</td>
-                    <td className="px-6 py-4 text-sm text-slate-700 max-w-xs truncate dn-sticky-name dn-sticky-bg-white" title={item.itemName}>{item.itemName}</td>
-                    <td className="px-6 py-4 text-sm text-slate-500 max-w-xs truncate dn-sticky-act dn-sticky-bg-white" title={item.activity}>{item.activity || '-'}</td>
-                    <td className="px-6 py-4 text-sm text-slate-600 dn-sticky-loa dn-sticky-bg-white">{item.loaSrNo || '-'}</td>
-                    <td className="px-6 py-4 text-center text-sm font-medium text-slate-700">{(circleLoaQty || circleLoaQty === 0) ? Math.round(Number(circleLoaQty)) : '-'}</td>
-                    <td className="px-6 py-4 text-center text-sm font-medium text-slate-700">{(invoiceQty || invoiceQty === 0) ? Math.round(Number(invoiceQty)) : '-'}</td>
-                    <td className="px-6 py-4 text-sm text-slate-600">{item.unit || 'Nos'}</td>
-                    <td className={`px-6 py-4 text-center font-bold ${inStock > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                      {Math.round(Number(inStock || 0))}
-                    </td>
-                    <td className="px-6 py-4 text-center font-medium text-blue-600">{Math.round(Number(tillIssued || 0))}</td>
-                    <td className="px-6 py-4 text-center font-medium text-orange-600">{Math.round(Number(consumption || 0))}</td>
-                    <td className="px-6 py-4 text-center font-medium text-purple-600">{Math.round(Number(jmcDone || 0))}</td>
-                    <td className="px-6 py-4 text-center font-bold text-teal-600">{Math.round(contractorBalance)}</td>
-                    <td className="px-6 py-4 font-bold text-indigo-600 bg-indigo-50/30">{Math.round(Number(item.demandQty || 0))}</td>
-                  </tr>
-                )})
-              ) : (
-                <tr>
-                  <td colSpan={11} className="px-6 py-8 text-center text-slate-500">
-                    No items in this Demand Note.
-                  </td>
-                </tr>
-              )}
+                  );
+                }
+
+                const groupedItems = demandNote.items.reduce((acc: any, item: any) => {
+                  const activity = item.activity || 'No Activity';
+                  if (!acc[activity]) acc[activity] = [];
+                  acc[activity].push(item);
+                  return acc;
+                }, {});
+
+                let globalIndex = 0;
+
+                return Object.entries(groupedItems).map(([activity, items]: [string, any]) => (
+                  <React.Fragment key={activity}>
+                    <tr className="bg-slate-100/80 border-y border-slate-200/80">
+                      <td colSpan={14} className="px-6 py-2.5 text-xs font-bold text-slate-800 uppercase tracking-wider">
+                        {activity}
+                        <span className="ml-2 px-2 py-0.5 bg-slate-200/70 text-slate-600 rounded-full text-[10px] normal-case">
+                          {items.length} {items.length === 1 ? 'item' : 'items'}
+                        </span>
+                      </td>
+                    </tr>
+                    {items.map((item: any) => {
+                      globalIndex++;
+                      const stockMatch = stockSummary.find(s => {
+                        if (item.tempCode && s.tempCode && String(item.tempCode).trim() === String(s.tempCode).trim()) {
+                          return true;
+                        }
+                        return String(s.loaSrNo) === String(item.loaSrNo) && 
+                               String(s.activity) === String(item.activity) && 
+                               (s.description === item.itemName || s.itemName === item.itemName);
+                      });
+                      const inStock = stockMatch ? stockMatch.totalBalanceQty : 0;
+                      const tillIssued = stockMatch ? stockMatch.contractorsActualIssued : 0;
+                      const consumption = stockMatch ? (stockMatch.wipConsumed || stockMatch.consumedQty || 0) : 0;
+                      const jmcDone = stockMatch ? (stockMatch.jmcDone || 0) : 0;
+                      const circleLoaQty = stockMatch ? (stockMatch.circleLoaQty || 0) : 0;
+                      const invoiceQty = stockMatch ? ((stockMatch.acceptedQty || 0) + (stockMatch.mhrovQty || 0)) : 0;
+                      const contractorBalance = Number(tillIssued || 0) - Number(jmcDone || 0) - Number(consumption || 0);
+                      return (
+                        <tr key={`${activity}-${globalIndex}`} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-6 py-4 text-sm text-slate-600 dn-sticky-sr dn-sticky-bg-white">{globalIndex}</td>
+                          <td className="px-6 py-4 font-medium text-slate-900 dn-sticky-mc dn-sticky-bg-white">{item.tempCode || '-'}</td>
+                          <td className="px-6 py-4 text-sm text-slate-700 max-w-xs truncate dn-sticky-name dn-sticky-bg-white" title={item.itemName}>{item.itemName}</td>
+                          <td className="px-6 py-4 text-sm text-slate-500 max-w-xs truncate dn-sticky-act dn-sticky-bg-white" title={item.activity}>{item.activity || '-'}</td>
+                          <td className="px-6 py-4 text-sm text-slate-600 dn-sticky-loa dn-sticky-bg-white">{item.loaSrNo || '-'}</td>
+                          <td className="px-6 py-4 text-center text-sm font-medium text-slate-700">{(circleLoaQty || circleLoaQty === 0) ? Math.round(Number(circleLoaQty)) : '-'}</td>
+                          <td className="px-6 py-4 text-center text-sm font-medium text-slate-700">{(invoiceQty || invoiceQty === 0) ? Math.round(Number(invoiceQty)) : '-'}</td>
+                          <td className="px-6 py-4 text-sm text-slate-600">{item.unit || 'Nos'}</td>
+                          <td className={`px-6 py-4 text-center font-bold ${inStock > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            {Math.round(Number(inStock || 0))}
+                          </td>
+                          <td className="px-6 py-4 text-center font-medium text-blue-600">{Math.round(Number(tillIssued || 0))}</td>
+                          <td className="px-6 py-4 text-center font-medium text-orange-600">{Math.round(Number(consumption || 0))}</td>
+                          <td className="px-6 py-4 text-center font-medium text-purple-600">{Math.round(Number(jmcDone || 0))}</td>
+                          <td className="px-6 py-4 text-center font-bold text-teal-600">{Math.round(contractorBalance)}</td>
+                          <td className="px-6 py-4 font-bold text-indigo-600 bg-indigo-50/30">{Math.round(Number(item.demandQty || 0))}</td>
+                        </tr>
+                      );
+                    })}
+                  </React.Fragment>
+                ));
+              })()}
+>>>>>>> 5310fd7 (UI: Group demand notes by activity, fix transfer filtering, restrict store manager actions)
             </tbody>
           </table>
         </div>

@@ -39,11 +39,14 @@ export default function StoreTransfersPage() {
       const res = await getStoreTransfers();
       const allTransfers = res.data || [];
       
+      const cleanStoreString = (str: string) => (str || '').toLowerCase().replace(/store|circle/g, '').trim();
+      const currentCleanStore = cleanStoreString(currentStoreCircle);
+      
       if (activeTab === 'incoming') {
-        setTransfers(allTransfers.filter((t: any) => t.status !== 'REJECTED' && t.toStore === currentStoreCircle));
+        setTransfers(allTransfers.filter((t: any) => t.status !== 'REJECTED' && cleanStoreString(t.toStore) === currentCleanStore));
       } else {
         // Outgoing transfers
-        setTransfers(allTransfers.filter((t: any) => t.fromStore === currentStoreCircle));
+        setTransfers(allTransfers.filter((t: any) => cleanStoreString(t.fromStore) === currentCleanStore));
       }
     } catch (error) {
       console.error(error);

@@ -231,20 +231,20 @@ export default function SiteContractorSummaryPage() {
     const headers = viewMode === 'item' ? [
       'Temp Code', 'Item Name', 'Activity', 'JMC Done', 'WIP Consumed', 'WIP To Be Required',
       'Total WIP', 'Total IWIP+JMC Qty', 'Total Issued from Store', 'Return',
-      'Today Total Balance', 'Items to be Required'
+      'Today Total Balance', 'Contractor Balance', 'Items to be Required'
     ] : [
       'Activity', 'JMC Done', 'WIP Consumed', 'WIP To Be Required',
       'Total WIP', 'Total IWIP+JMC Qty', 'Total Issued from Store', 'Return',
-      'Today Total Balance', 'Items to be Required'
+      'Today Total Balance', 'Contractor Balance', 'Items to be Required'
     ];
     const rows = displayData.map(r => viewMode === 'item' ? [
       `"${r.tempCode || ''}"`, `"${(r.itemName || '').replace(/"/g, '""')}"`, `"${r.activity || ''}"`, r.jmcDone || 0, r.wipConsumed || 0, r.wipRequired || 0,
       r.totalWip || 0, r.totalIwipJmc || 0, r.totalIssued || 0, r.totalReturned || 0,
-      r.todayTotalBalance || 0, r.finalBalQty || 0
+      r.todayTotalBalance || 0, (r.todayTotalBalance || 0) - (r.jmcDone || 0) - (r.wipConsumed || 0), r.finalBalQty || 0
     ] : [
       `"${r.activity || ''}"`, r.jmcDone || 0, r.wipConsumed || 0, r.wipRequired || 0,
       r.totalWip || 0, r.totalIwipJmc || 0, r.totalIssued || 0, r.totalReturned || 0,
-      r.todayTotalBalance || 0, r.finalBalQty || 0
+      r.todayTotalBalance || 0, (r.todayTotalBalance || 0) - (r.jmcDone || 0) - (r.wipConsumed || 0), r.finalBalQty || 0
     ]);
     const csvContent = [
       headers.join(','),
@@ -560,6 +560,7 @@ export default function SiteContractorSummaryPage() {
                     <th className="p-3 border-r border-slate-200/60 text-right w-28 bg-blue-50/50 text-blue-900">Store Issued</th>
                     <th className="p-3 border-r border-slate-200/60 text-right w-24 bg-amber-50/50 text-amber-900">Returned</th>
                     <th className="p-3 border-r border-slate-200/60 text-right w-32 bg-indigo-100/70 text-indigo-950 font-bold">Store Balance</th>
+                    <th className="p-3 border-r border-slate-200/60 text-right w-28 bg-blue-100/70 text-blue-950 font-bold">Contractor Balance</th>
                     <th className="p-3 border-r border-slate-200/60 text-right w-28 font-bold">Items to be Required</th>
                     {viewMode === 'item' && (
                       <th className="p-3 text-center min-w-[160px]">Action Required</th>
@@ -612,6 +613,9 @@ export default function SiteContractorSummaryPage() {
                         <td className="p-3 text-right font-mono font-bold border-r border-slate-200/50 bg-indigo-50/50 text-indigo-950">
                           {(row.todayTotalBalance || 0).toLocaleString()}
                         </td>
+                        <td className="p-3 text-right font-mono font-bold border-r border-slate-200/50 bg-blue-50/50 text-blue-950">
+                          {((row.todayTotalBalance || 0) - (row.jmcDone || 0) - (row.wipConsumed || 0)).toLocaleString()}
+                        </td>
                         <td className="p-3 text-right font-mono font-bold border-r border-slate-200/50">
                           <span className={`inline-block px-2 py-0.5 rounded-md ${isNeg ? 'bg-red-50 text-red-700 border border-red-200' : 'text-slate-800'}`}>
                             {(row.finalBalQty || 0).toLocaleString()}
@@ -663,6 +667,9 @@ export default function SiteContractorSummaryPage() {
                     </td>
                     <td className="p-3.5 text-right font-mono text-indigo-200">
                       {totals.todayTotalBalance.toLocaleString()}
+                    </td>
+                    <td className="p-3.5 text-right font-mono text-blue-200">
+                      {(totals.todayTotalBalance - totals.jmcDone - totals.wipConsumed).toLocaleString()}
                     </td>
                     <td className="p-3.5 text-right font-mono text-amber-200">
                       {totals.finalBalQty.toLocaleString()}

@@ -1,10 +1,10 @@
-import { Request, Response } from 'express';
-import { AuthRequest } from '../../core/middlewares/auth.middleware';
-import { ContractorWorkOrder } from './contractorWorkOrder.schema';
-import { asyncHandler } from '../../core/utils/asyncHandler';
-import { ApiError } from '../../core/utils/ApiError';
-import { ApiResponse } from '../../core/utils/ApiResponse';
-import mongoose from 'mongoose';
+import { Request, Response } from "express";
+import { AuthRequest } from "../../core/middlewares/auth.middleware";
+import { ContractorWorkOrder } from "./contractorWorkOrder.schema";
+import { asyncHandler } from "../../core/utils/asyncHandler";
+import { ApiError } from "../../core/utils/ApiError";
+import { ApiResponse } from "../../core/utils/ApiResponse";
+import mongoose from "mongoose";
 import Item from '../items/item.model';
 import { Contractor } from './contractor.schema';
 
@@ -346,4 +346,140 @@ export const deleteWorkOrder = asyncHandler(async (req: AuthRequest, res: Respon
   }
 
   res.status(200).json(new ApiResponse(200, null, 'Contractor Work Order deleted successfully'));
+});
+import { ContractorReturn } from './contractorReturn.schema';
+import { ContractorAssignment } from './contractorAssignment.schema';
+import { calculateContractorLiability } from './contractor.helper';
+
+const generateNumber = async (model: any, prefix: string) => {
+  const lastDoc = await model.findOne({ [Object.keys(model.schema.paths).find(k => k.toLowerCase().includes('number')) as string]: new RegExp(`^${prefix}`) })
+    .sort({ _id: -1 })
+    .limit(1);
+  let sequence = 1;
+  // Simplistic for snippet
+  return `${prefix}${Date.now()}`; // Just a fallback
+};
+
+export const handoverWorkOrder = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { id } = req.params;
+  const { newContractorId, materialDisposition } = req.body;
+
+  if (!mongoose.Types.ObjectId.isValid(id as string)) throw new ApiError(400, 'Invalid Work Order ID');
+
+  const oldWo = await ContractorWorkOrder.findById(id).lean();
+  if (!oldWo) throw new ApiError(404, 'Work Order not found');
+
+  if (oldWo.handoverStatus !== 'Active') {
+    throw new ApiError(400, 'Work Order is not Active');
+  }
+
+  // 1. Calculate Ledger
+  const ledgerMap = await calculateContractorLiability(oldWo.contractorId.toString(), id as string);
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const returnItems: any[] = [];
+    const transferItems: any[] = [];
+    const newWoItems: any[] = [];
+
+    for (const item of oldWo.items) {
+      // Find each drawing combination to be safe, but ledger is per drawing
+      const keyPrefix = `_${item.tempCode?.toLowerCase()}_${item.activity?.toLowerCase()}_${item.loaSrNo?.toLowerCase()}`;
+      
+      let jmcDone = 0;
+      let unerected = 0;
+
+      for (const drawing of oldWo.drawings) {
+        const key = `${drawing.drawingNumber.toLowerCase()}${keyPrefix}`;
+        const liability = ledgerMap[key] || { tillIssued: 0, wipConsumed: 0, jmcDone: 0 };
+        jmcDone += liability.jmcDone;
+        unerected += (liability.tillIssued - liability.wipConsumed - liability.jmcDone);
+      }
+
+      const remainingWork = (item.woQty || 0) - jmcDone;
+      if (remainingWork > 0) {
+        newWoItems.push({
+          ...item,
+          woQty: remainingWork,
+          demandedQty: 0, // Reset for new WO
+          alreadyIssuedQty: 0
+        });
+      }
+
+      if (unerected > 0) {
+        const transferObj = {
+          itemId: item.itemId,
+          tempCode: item.tempCode,
+          itemName: item.itemName,
+          activity: item.activity,
+          loaSrNo: item.loaSrNo,
+          quantity: unerected,
+          rate: item.contractorErectionRate, // Approx
+          amount: unerected * (item.contractorErectionRate || 0)
+        };
+        returnItems.push(transferObj);
+        transferItems.push(transferObj);
+      }
+    }
+
+    // 2. Mark old WO as Handed Over
+    await ContractorWorkOrder.findByIdAndUpdate(id, { handoverStatus: 'Handed Over' }, { session });
+
+    // 3. Create Draft Return
+    if (returnItems.length > 0) {
+      await ContractorReturn.create([{
+        returnNumber: `CR-${Date.now()}`,
+        date: new Date(),
+        contractorId: oldWo.contractorId,
+        circle: oldWo.circle,
+        package: oldWo.package,
+        lineItems: returnItems,
+        status: 'Draft',
+        createdBy: req.user?._id
+      }], { session });
+    }
+
+    // 4. Create Drafts for New Contractor
+    if (newContractorId && materialDisposition === 'TRANSFER_TO_NEW_CONTRACTOR') {
+      // Draft WO
+      const newWo = await ContractorWorkOrder.create([{
+        ...oldWo,
+        _id: new mongoose.Types.ObjectId(),
+        workOrderNumber: `WO-${Date.now()}`,
+        contractorId: newContractorId,
+        amendedFromId: oldWo._id,
+        originalWorkOrderId: oldWo.originalWorkOrderId || oldWo._id,
+        items: newWoItems,
+        handoverStatus: 'Active',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }], { session });
+
+      // Draft MIN
+      if (transferItems.length > 0) {
+        await ContractorAssignment.create([{
+          assignmentNumber: `MIN-${Date.now()}`,
+          date: new Date(),
+          contractorId: newContractorId,
+          circle: oldWo.circle,
+          package: oldWo.package,
+          drawingNumber: oldWo.drawings[0]?.drawingNumber || 'MIGRATED',
+          lineItems: transferItems,
+          status: 'Draft',
+          createdBy: req.user?._id
+        }], { session });
+      }
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json(new ApiResponse(200, null, 'Handover successful. Drafts created.'));
+  } catch (error: any) {
+    await session.abortTransaction();
+    session.endSession();
+    throw new ApiError(500, error.message || 'Handover failed');
+  }
 });

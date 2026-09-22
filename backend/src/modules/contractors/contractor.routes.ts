@@ -25,7 +25,8 @@ import {
   exportContractorAssignments,
   getContractorTransactions,
   getAssignmentSummary,
-  getContractorAggregatedQuantities
+  getContractorAggregatedQuantities,
+  getContractorActivitySummary
 } from './contractor.controller';
 
 const router = Router();
@@ -67,6 +68,7 @@ router.route('/returns/:id')
   .delete(deleteContractorReturn);
 
 router.get('/:id/aggregated-quantities', getContractorAggregatedQuantities);
+router.get('/:id/activity-summary', getContractorActivitySummary);
 
 router.route('/:id')
   .get(getContractorById)

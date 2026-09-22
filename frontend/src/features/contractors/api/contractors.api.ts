@@ -143,3 +143,8 @@ export const getContractorAggregatedQuantities = async (id: string) => {
   return response.data;
 };
 
+
+export const getContractorActivitySummary = async (id: string) => {
+  const response = await api.get(`/contractors/${id}/activity-summary`);
+  return response.data;
+};

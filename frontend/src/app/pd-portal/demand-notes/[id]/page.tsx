@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Loader2, FileText, CheckCircle, AlertCircle, Edit, Printer, Building2 } from 'lucide-react';
 import { getStockSummary } from '@/features/store/api/store.api';
+import { getContractorActivitySummary } from '@/features/contractors/api/contractors.api';
 import { getDemandNoteById, updateDemandNote } from '@/features/site-portal/api/demand-notes.api';
 import { toast } from 'sonner';
 import { DocumentAttachment } from '@/shared/components/DocumentAttachment';
@@ -16,6 +17,7 @@ export default function DemandNoteDetailPage() {
   
   const [demandNote, setDemandNote] = useState<any>(null);
   const [stockSummary, setStockSummary] = useState<any[]>([]);
+  const [activitySummary, setActivitySummary] = useState<Record<string, any>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [rejectionRemarks, setRejectionRemarks] = useState('');
@@ -35,7 +37,11 @@ export default function DemandNoteDetailPage() {
           
         if (circle) {
           try {
-            const stockRes = await getStockSummary({ circle, contractorId, contractorName });
+            const [stockRes, actRes] = await Promise.all([
+              getStockSummary({ circle, contractorId, contractorName }),
+              contractorId ? getContractorActivitySummary(contractorId) : Promise.resolve({ data: {} })
+            ]);
+            if (actRes?.data) setActivitySummary(actRes.data);
             if (stockRes.success && stockRes.data) {
               setStockSummary(stockRes.data);
             }

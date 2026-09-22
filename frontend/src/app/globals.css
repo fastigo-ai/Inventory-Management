@@ -264,3 +264,8 @@ table {
   background: linear-gradient(to right, rgba(0,0,0,0.1), transparent);
   pointer-events: none;
 }
+
+.dn-sticky-bg-header {
+  background-color: rgb(241 245 249 / 0.8) !important;
+  backdrop-filter: blur(8px);
+}

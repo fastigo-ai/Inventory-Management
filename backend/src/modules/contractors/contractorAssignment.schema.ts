@@ -24,6 +24,7 @@ export interface IContractorAssignment extends Document {
   circle?: string;
   subcircle?: string;
   package?: string;
+  drawingNumber: string;
   // MIN Specific Fields
   demandNo?: string;
   demandBookNo?: string;
@@ -84,6 +85,7 @@ const contractorAssignmentSchema = new Schema<IContractorAssignment>(
     circle: { type: String, index: true },
     subcircle: { type: String, index: true },
     package: { type: String, index: true },
+    drawingNumber: { type: String, required: true, default: 'MIGRATED' },
 
     // MIN Specific Fields
     demandNo: { type: String },

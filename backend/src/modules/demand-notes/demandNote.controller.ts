@@ -9,6 +9,7 @@ import cloudinary from '../../core/utils/cloudinary';
 import { stringify } from 'csv-stringify/sync';
 import { parseAndSanitizeCsv } from '../../utils/csv.util';
 import mongoose from 'mongoose';
+import { applyDemandQtyToWorkOrder } from './demandNote.helper';
 
 const uploadToCloudinary = (buffer: Buffer, folder: string): Promise<any> => {
   return new Promise((resolve, reject) => {
@@ -83,8 +84,24 @@ export const createDemandNote = asyncHandler(async (req: AuthRequest, res: Respo
     ...(locationDrawingUrl && { locationDrawingUrl })
   };
 
-  const demandNote = await DemandNote.create(payload);
-  res.status(201).json(new ApiResponse(201, { demandNote }, 'Demand Note created successfully'));
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const [demandNote] = await DemandNote.create([payload], { session });
+
+    if (payload.workOrderId && payload.drawingNumber) {
+      await applyDemandQtyToWorkOrder(payload.workOrderId, payload.drawingNumber, items, session, false);
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(201).json(new ApiResponse(201, { demandNote }, 'Demand Note created successfully'));
+  } catch (error: any) {
+    await session.abortTransaction();
+    session.endSession();
+    throw new ApiError(error.statusCode || 500, error.message || 'Failed to create demand note');
+  }
 });
 
 // Endpoint to fetch real-time constraints for a specific item in the context of the user's package and circle
@@ -429,8 +446,33 @@ export const updateDemandNote = asyncHandler(async (req: AuthRequest, res: Respo
     updateData.rejectedAt = new Date();
   }
 
-  const demandNote = await DemandNote.findByIdAndUpdate(req.params.id, updateData, { new: true });
-  res.status(200).json(new ApiResponse(200, { demandNote }, 'Demand Note updated successfully'));
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    if (existing.workOrderId && existing.drawingNumber) {
+      // If status is transitioning to Rejected, revert entirely.
+      if (updateData.status === 'Rejected' && existing.status !== 'Rejected') {
+        await applyDemandQtyToWorkOrder(existing.workOrderId, existing.drawingNumber, existing.items, session, true);
+      } 
+      // If items changed and we aren't rejecting, revert old, apply new
+      else if (updateData.items && updateData.status !== 'Rejected') {
+        await applyDemandQtyToWorkOrder(existing.workOrderId, existing.drawingNumber, existing.items, session, true);
+        const newDrawing = updateData.drawingNumber || existing.drawingNumber;
+        await applyDemandQtyToWorkOrder(existing.workOrderId, newDrawing, updateData.items, session, false);
+      }
+    }
+
+    const demandNote = await DemandNote.findByIdAndUpdate(req.params.id, updateData, { new: true, session });
+    
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json(new ApiResponse(200, { demandNote }, 'Demand Note updated successfully'));
+  } catch (error: any) {
+    await session.abortTransaction();
+    session.endSession();
+    throw new ApiError(error.statusCode || 500, error.message || 'Failed to update demand note');
+  }
 });
 
 export const deleteDemandNote = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -441,8 +483,24 @@ export const deleteDemandNote = asyncHandler(async (req: AuthRequest, res: Respo
     throw new ApiError(403, 'Only Draft or Pending Demand Notes can be deleted.');
   }
 
-  await existing.deleteOne();
-  res.status(200).json(new ApiResponse(200, {}, 'Demand Note deleted successfully'));
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    if (existing.workOrderId && existing.drawingNumber) {
+      await applyDemandQtyToWorkOrder(existing.workOrderId, existing.drawingNumber, existing.items, session, true);
+    }
+
+    await existing.deleteOne({ session });
+    
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json(new ApiResponse(200, {}, 'Demand Note deleted successfully'));
+  } catch (error: any) {
+    await session.abortTransaction();
+    session.endSession();
+    throw new ApiError(error.statusCode || 500, error.message || 'Failed to delete demand note');
+  }
 });
 
 export const downloadSampleCSV = asyncHandler(async (req: AuthRequest, res: Response) => {

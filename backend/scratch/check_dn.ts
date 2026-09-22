@@ -1,27 +1,22 @@
 import mongoose from 'mongoose';
-import * as dotenv from 'dotenv';
-dotenv.config();
+import dotenv from 'dotenv';
+import path from 'path';
 
-mongoose.connect(process.env.MONGO_URI || '').then(async () => {
-  const db = mongoose.connection.db;
-  if (!db) return;
+// Load .env explicitly
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
-  try {
-    const dn = await db.collection('demandnotes').findOne({ demandNoteNumber: 'DN-2609-0017' });
-    console.log("Demand Note:", JSON.stringify(dn, null, 2));
+import { DemandNote } from '../src/modules/demand-notes/demandNote.schema';
 
-    if (dn) {
-      // Find JMC records related to this contractor and items?
-      const jmc = await db.collection('jmcregisters').find({ contractorId: dn.contractorId }).toArray();
-      console.log(`Found ${jmc.length} JMC records for this contractor.`);
-      
-      const wip = await db.collection('wipregisters').find({ contractorId: dn.contractorId }).toArray();
-      console.log(`Found ${wip.length} WIP consumed records for this contractor.`);
-    }
+async function test() {
+  await mongoose.connect(process.env.MONGODB_URI as string);
+  console.log("Connected to MongoDB.");
 
-  } catch (error) {
-    console.error("Error:", error);
-  } finally {
-    mongoose.disconnect();
-  }
-});
+  const dn = await DemandNote.findOne({ demandNoteId: "DN-2609-0017" }).lean();
+  console.log("Contractor:", dn?.contractor);
+  console.log("ContractorName:", dn?.contractorName);
+  console.log("Circle:", dn?.circle);
+  
+  process.exit(0);
+}
+
+test();

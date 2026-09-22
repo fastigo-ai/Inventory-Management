@@ -22,6 +22,7 @@ function DemandNoteForm() {
   const { user } = useAuthStore();
   const { trackAction } = useAuditTracker();
   const [contractorsList, setContractorsList] = useState<any[]>([]);
+  const [currentWorkOrder, setCurrentWorkOrder] = useState<any>(null);
   const workOrderId = searchParams.get('workOrderId');
   
   const contractorIdParam = searchParams.get('contractorId');
@@ -48,9 +49,10 @@ function DemandNoteForm() {
   const [formData, setFormData] = useState<{
     contractorId?: string;
     contractorName: string;
-    division: string;
-    subDivision: string;
-    location: string;
+    drawingNumber: string;
+    division?: string;
+    subDivision?: string;
+    location?: string;
     remarks: string;
     authorizedByEngineer: string;
     package: string;
@@ -58,9 +60,7 @@ function DemandNoteForm() {
     status: string;
   }>({
     contractorName: '',
-    division: '',
-    subDivision: '',
-    location: '',
+    drawingNumber: '', division: '', subDivision: '', location: '',
     remarks: '',
     authorizedByEngineer: '',
     package: '',
@@ -222,9 +222,11 @@ function DemandNoteForm() {
           ...prev,
           contractorId: wo.contractorId?._id || wo.contractorId || '',
           contractorName: wo.contractorId?.dynamicData?.name || wo.contractorId?.dynamicData?.contractorName || wo.contractorId?.dynamicData?.firmName || wo.contractorId?.dynamicData?.companyName || wo.contractorId?.dynamicData?.displayName || wo.contractorName || '',
-          division: wo.division || '',
-          subDivision: wo.subDivision || '',
-          location: wo.location || '',
+          // Select first drawing by default if available
+          drawingNumber: (wo.drawings && wo.drawings.length > 0) ? wo.drawings[0].drawingNumber : '',
+          division: (wo.drawings && wo.drawings.length > 0) ? wo.drawings[0].division : '',
+          subDivision: (wo.drawings && wo.drawings.length > 0) ? wo.drawings[0].subDivision : '',
+          location: (wo.drawings && wo.drawings.length > 0) ? wo.drawings[0].location : '',
           package: wo.package || '',
           circle: wo.circle || ''
         }));
@@ -534,10 +536,11 @@ function DemandNoteForm() {
 
       const data = new FormData();
       data.append('contractorName', formData.contractorName);
-      data.append('division', formData.division);
-      data.append('subDivision', formData.subDivision);
-      data.append('location', formData.location);
+      data.append('division', formData.division || '');
+      data.append('subDivision', formData.subDivision || '');
+      data.append('location', formData.location || '');
       data.append('remarks', formData.remarks);
+      data.append('drawingNumber', formData.drawingNumber || '');
       data.append('package', formData.package);
       data.append('circle', formData.circle);
       data.append('status', formData.status);
@@ -656,17 +659,44 @@ function DemandNoteForm() {
             <label className="text-sm font-medium text-slate-700 block mb-1">Circle</label>
             <Input value={formData.circle} onChange={e => setFormData({...formData, circle: e.target.value})} disabled={!!user?.assignedCircle} />
           </div>
-          <div>
+          <div className="md:col-span-1 lg:col-span-1">
+            <label className="text-sm font-medium text-slate-700 block mb-1">Drawing Number <span className="text-red-500">*</span></label>
+            {currentWorkOrder?.drawings ? (
+              <select
+                value={formData.drawingNumber}
+                onChange={e => {
+                  const drawing = currentWorkOrder.drawings.find((d: any) => d.drawingNumber === e.target.value);
+                  setFormData({
+                    ...formData, 
+                    drawingNumber: e.target.value,
+                    division: drawing?.division || '',
+                    subDivision: drawing?.subDivision || '',
+                    location: drawing?.location || ''
+                  });
+                }}
+                className="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white"
+                required
+              >
+                <option value="">Select Drawing</option>
+                {currentWorkOrder.drawings.map((d: any) => (
+                  <option key={d.drawingNumber} value={d.drawingNumber}>{d.drawingNumber}</option>
+                ))}
+              </select>
+            ) : (
+              <Input value={formData.drawingNumber} onChange={e => setFormData({...formData, drawingNumber: e.target.value})} required />
+            )}
+          </div>
+          <div className="md:col-span-1 lg:col-span-1">
             <label className="text-sm font-medium text-slate-700 block mb-1">Division</label>
-            <Input value={formData.division} onChange={e => setFormData({...formData, division: e.target.value})} />
+            <Input value={formData.division} onChange={e => setFormData({...formData, division: e.target.value})} disabled={!!currentWorkOrder?.drawings} />
           </div>
-          <div>
+          <div className="md:col-span-1 lg:col-span-1">
             <label className="text-sm font-medium text-slate-700 block mb-1">Sub Division</label>
-            <Input value={formData.subDivision} onChange={e => setFormData({...formData, subDivision: e.target.value})} />
+            <Input value={formData.subDivision} onChange={e => setFormData({...formData, subDivision: e.target.value})} disabled={!!currentWorkOrder?.drawings} />
           </div>
-          <div>
+          <div className="md:col-span-1 lg:col-span-1">
             <label className="text-sm font-medium text-slate-700 block mb-1">Location</label>
-            <Input value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} />
+            <Input value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} disabled={!!currentWorkOrder?.drawings} />
           </div>
           <div>
             <label className="text-sm font-medium text-slate-700 block mb-1">Remarks</label>

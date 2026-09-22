@@ -14,6 +14,7 @@ import mongoose from 'mongoose';
 import { JmcRegister } from "../jmc/jmc.schema";
 import { WipRegister } from "../wip/wip.schema";
 import { WipRequiredRegister } from "../wip-required/wipRequired.schema";
+import { calculateContractorLiability } from "./contractor.helper";
 import DemandNote from '../demand-notes/demandNote.schema';
 import { SummaryService } from '../reports/summary/summary.service';
 
@@ -1426,13 +1427,13 @@ export const getContractorAggregatedQuantities = asyncHandler(async (req: Reques
 
   const map: Record<string, { jmcQty: number; wipQty: number; wipRequiredQty: number }> = {};
 
-  const getKey = (activity: string, loaSrNo: string) => {
-    return `${(activity || '').trim().toLowerCase()}_${(loaSrNo || '').trim().toLowerCase()}`;
+  const getKey = (drawingNumber: any, activity: string, loaSrNo: string) => {
+    return `${String(drawingNumber || '').trim().toLowerCase()}_${(activity || '').trim().toLowerCase()}_${(loaSrNo || '').trim().toLowerCase()}`;
   };
 
   jmcRecords.forEach(record => {
     record.items?.forEach((item: any) => {
-      const key = getKey(item.activity, item.loaSerialNo || item.loaSrNo);
+      const key = getKey(record.drawingNumber, item.activity, item.loaSerialNo || item.loaSrNo);
       if (!map[key]) map[key] = { jmcQty: 0, wipQty: 0, wipRequiredQty: 0 };
       map[key].jmcQty += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
     });
@@ -1440,7 +1441,7 @@ export const getContractorAggregatedQuantities = asyncHandler(async (req: Reques
 
   wipRecords.forEach(record => {
     record.items?.forEach((item: any) => {
-      const key = getKey(item.activity, item.loaSerialNo || item.loaSrNo);
+      const key = getKey(record.drawingNumber, item.activity, item.loaSerialNo || item.loaSrNo);
       if (!map[key]) map[key] = { jmcQty: 0, wipQty: 0, wipRequiredQty: 0 };
       map[key].wipQty += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
     });
@@ -1448,7 +1449,7 @@ export const getContractorAggregatedQuantities = asyncHandler(async (req: Reques
 
   wipReqRecords.forEach(record => {
     record.items?.forEach((item: any) => {
-      const key = getKey(item.activity, item.loaSerialNo || item.loaSrNo);
+      const key = getKey(record.drawingNumber, item.activity, item.loaSerialNo || item.loaSrNo);
       if (!map[key]) map[key] = { jmcQty: 0, wipQty: 0, wipRequiredQty: 0 };
       map[key].wipRequiredQty += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
     });
@@ -1457,4 +1458,24 @@ export const getContractorAggregatedQuantities = asyncHandler(async (req: Reques
   res.status(200).json(
     new ApiResponse(200, map, 'Aggregated quantities fetched successfully')
   );
+});
+
+export const getContractorActivitySummary = asyncHandler(async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    if (!id || id === 'undefined' || id === 'null' || !mongoose.Types.ObjectId.isValid(id as string)) {
+      return res.status(200).json(new ApiResponse(200, {}, 'No contractor provided'));
+    }
+
+    const map = await calculateContractorLiability(id as string);
+
+    res.status(200).json(
+      new ApiResponse(200, map, 'Activity summary fetched successfully')
+    );
+  } catch (error: any) {
+    console.error("Error in getContractorActivitySummary:", error);
+    require('fs').writeFileSync('activity_summary_error.txt', error.stack || error.toString());
+    res.status(500).json({ success: false, message: error.message, stack: error.stack });
+  }
 });

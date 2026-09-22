@@ -5,6 +5,7 @@ import { useRouter, useParams, usePathname } from 'next/navigation';
 import { ArrowLeft, Loader2, FileText, CheckCircle, AlertCircle, Printer, Building2, Pencil, Trash2 } from 'lucide-react';
 import { getDemandNoteById, deleteDemandNote } from '@/features/site-portal/api/demand-notes.api';
 import { getStockSummary } from '@/features/store/api/store.api';
+import { getContractorActivitySummary } from '@/features/contractors/api/contractors.api';
 import { toast } from 'sonner';
 import { DocumentAttachment } from '@/shared/components/DocumentAttachment';
 import { AuditTimeline } from '@/shared/components/audit/AuditTimeline';
@@ -17,6 +18,7 @@ export default function DemandNoteDetailPage() {
   
   const [demandNote, setDemandNote] = useState<any>(null);
   const [stockSummary, setStockSummary] = useState<any[]>([]);
+  const [activitySummary, setActivitySummary] = useState<Record<string, any>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -37,7 +39,11 @@ export default function DemandNoteDetailPage() {
           const contractorName = res.data.demandNote.contractorName;
           if (circle) {
             try {
-              const stockRes = await getStockSummary({ circle, contractorId, contractorName });
+              const [stockRes, actRes] = await Promise.all([
+              getStockSummary({ circle, contractorId, contractorName }),
+              contractorId ? getContractorActivitySummary(contractorId) : Promise.resolve({ data: {} })
+            ]);
+            if (actRes?.data) setActivitySummary(actRes.data);
               if (stockRes.success && stockRes.data) {
                 setStockSummary(stockRes.data);
               }
@@ -242,43 +248,71 @@ export default function DemandNoteDetailPage() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {demandNote.items && demandNote.items.length > 0 ? (
-                demandNote.items.map((item: any, idx: number) => {
-                  const stockMatch = stockSummary.find((s: any) => {
-                    if (s.tempCode && item.tempCode && s.tempCode === item.tempCode) return true;
-                    const sName = String(s.description || s.itemName || '').trim().toLowerCase();
-                    const iName = String(item.itemName || '').trim().toLowerCase();
-                    const sLoa = String(s.loaSrNo || '').trim();
-                    const iLoa = String(item.loaSrNo || '').trim();
+                Object.entries(
+                  demandNote.items.reduce((acc: any, item: any, originalIdx: number) => {
+                    const act = item.activity || 'Uncategorized Activity';
+                    if (!acc[act]) acc[act] = [];
+                    acc[act].push({ ...item, originalIdx });
+                    return acc;
+                  }, {})
+                ).map(([activityName, itemsGroup]: [string, any], groupIdx) => (
+                  <React.Fragment key={groupIdx}>
+                    {/* Activity Separation Row */}
+                    <tr className="bg-slate-100/80 border-y border-slate-200">
+                      <td colSpan={15} className="px-6 py-3 font-semibold text-slate-700 uppercase tracking-wider text-xs dn-sticky-bg-header sticky left-0 z-20">
+                        {activityName}
+                      </td>
+                    </tr>
                     
-                    if (sName === iName) return true;
-                    if (sLoa && iLoa && sLoa === iLoa) return true;
-                    return false;
-                  });
-                  const inStock = stockMatch ? stockMatch.totalBalanceQty : 0;
-                  const circleLoaQty = stockMatch ? (stockMatch.circleLoaQty || 0) : 0;
-                  const invoiceQty = stockMatch ? ((stockMatch.acceptedQty || 0) + (stockMatch.mhrovQty || 0)) : 0;
-                  return (
-                  <tr key={idx} className="hover:bg-slate-50 transition-colors group">
-                    <td className="px-6 py-4 print:px-2 print:py-2 text-sm text-slate-500 dn-sticky-sr dn-sticky-bg-white">{idx + 1}</td>
-                    <td className="px-6 py-4 print:px-2 print:py-2 font-medium text-slate-900 group-hover:text-indigo-600 transition-colors dn-sticky-mc dn-sticky-bg-white">{item.tempCode || '-'}</td>
-                    <td className="px-6 py-4 print:px-2 print:py-2 text-sm text-slate-700 max-w-xs truncate dn-sticky-name dn-sticky-bg-white" title={item.itemName}>{item.itemName}</td>
-                    <td className="px-6 py-4 print:px-2 print:py-2 text-sm text-slate-500 max-w-xs truncate dn-sticky-act dn-sticky-bg-white" title={item.activity}>{item.activity || '-'}</td>
-                    <td className="px-6 py-4 print:px-2 print:py-2 text-sm text-slate-600 dn-sticky-loa dn-sticky-bg-white">{item.loaSrNo || '-'}</td>
-                    <td className="px-6 py-4 text-center print:px-2 print:py-2 text-sm font-medium text-slate-700">{(circleLoaQty || circleLoaQty === 0) ? Math.round(Number(circleLoaQty)) : '-'}</td>
-                    <td className="px-6 py-4 text-center print:px-2 print:py-2 text-sm font-medium text-slate-700">{(invoiceQty || invoiceQty === 0) ? Math.round(Number(invoiceQty)) : '-'}</td>
-                    <td className="px-6 py-4 print:px-2 print:py-2 text-sm text-slate-600">{item.unit || 'Nos'}</td>
-                    <td className="px-6 py-4 print:px-2 print:py-2 text-center font-medium text-emerald-600">{Math.round(Number(inStock))}</td>
-                    <td className="px-6 py-4 print:px-2 print:py-2 font-bold text-indigo-600 bg-indigo-50/30">{Math.round(Number(item.demandQty))}</td>
-                  </tr>
-                )})
+                    {/* Items for this activity */}
+                    {itemsGroup.map((item: any, idx: number) => {
+                      const stockMatch = stockSummary.find(s => {
+                        if (item.tempCode && s.tempCode && String(item.tempCode).trim() === String(s.tempCode).trim()) return true;
+                        return String(s.loaSrNo) === String(item.loaSrNo) && String(s.activity) === String(item.activity) && (s.description === item.itemName || s.itemName === item.itemName);
+                      });
+                      
+                      const actKey = `${String(item.tempCode || item.materialCode || '').trim().toLowerCase()}_${String(item.activity || '').trim().toLowerCase()}_${String(item.loaSrNo || item.loaSerialNo || '').trim().toLowerCase()}`;
+                      const actStats = activitySummary[actKey] || { tillIssued: 0, wipConsumed: 0, jmcDone: 0 };
+                      
+                      const inStock = stockMatch ? stockMatch.totalBalanceQty : 0;
+                      const tillIssued = actStats.tillIssued || 0;
+                      const consumption = actStats.wipConsumed || 0;
+                      const jmcDone = actStats.jmcDone || 0;
+                      
+                      const circleLoaQty = stockMatch ? (stockMatch.circleLoaQty || 0) : 0;
+                      const invoiceQty = stockMatch ? ((stockMatch.acceptedQty || 0) + (stockMatch.mhrovQty || 0)) : 0;
+                      const contractorBalance = Number(tillIssued || 0) - Number(jmcDone || 0) - Number(consumption || 0);
+                      
+                      return (
+                        <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-6 py-4 text-sm text-slate-600 dn-sticky-sr dn-sticky-bg-white">{item.originalIdx + 1}</td>
+                          <td className="px-6 py-4 font-medium text-slate-900 dn-sticky-mc dn-sticky-bg-white">{item.tempCode || '-'}</td>
+                          <td className="px-6 py-4 text-sm text-slate-700 max-w-xs truncate dn-sticky-name dn-sticky-bg-white" title={item.itemName}>{item.itemName}</td>
+                          <td className="px-6 py-4 text-sm text-slate-500 max-w-xs truncate dn-sticky-act dn-sticky-bg-white" title={item.activity}>{item.activity || '-'}</td>
+                          <td className="px-6 py-4 text-sm text-slate-600 dn-sticky-loa dn-sticky-bg-white">{item.loaSrNo || '-'}</td>
+                          <td className="px-6 py-4 text-center text-sm font-medium text-slate-700">{(circleLoaQty || circleLoaQty === 0) ? Math.round(Number(circleLoaQty)) : '-'}</td>
+                          <td className="px-6 py-4 text-center text-sm font-medium text-slate-700">{(invoiceQty || invoiceQty === 0) ? Math.round(Number(invoiceQty)) : '-'}</td>
+                          <td className="px-6 py-4 text-sm text-slate-600">{item.unit || 'Nos'}</td>
+                          <td className={`px-6 py-4 text-center font-bold ${inStock > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            {Math.round(Number(inStock || 0))}
+                          </td>
+                          <td className="px-6 py-4 text-center font-medium text-blue-600">{Math.round(Number(tillIssued || 0))}</td>
+                          <td className="px-6 py-4 text-center font-medium text-orange-600">{Math.round(Number(consumption || 0))}</td>
+                          <td className="px-6 py-4 text-center font-medium text-purple-600">{Math.round(Number(jmcDone || 0))}</td>
+                          <td className="px-6 py-4 text-center font-bold text-teal-600">{Math.round(contractorBalance)}</td>
+                          <td className="px-6 py-4 font-bold text-indigo-600 bg-indigo-50/30">{Math.round(Number(item.demandQty || 0))}</td>
+                        </tr>
+                      );
+                    })}
+                  </React.Fragment>
+                ))
               ) : (
                 <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center text-slate-500">
-                    No items in this Demand Note.
+                  <td colSpan={15} className="px-6 py-8 text-center text-slate-500">
+                    No items found in this Demand Note
                   </td>
                 </tr>
-              )}
-            </tbody>
+              )}</tbody>
           </table>
         </div>
       </div>

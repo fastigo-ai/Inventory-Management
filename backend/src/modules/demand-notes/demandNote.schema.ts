@@ -37,9 +37,11 @@ export interface IDemandNote extends Document {
   package: string;
   circle: string;
   contractorName?: string;
+  workOrderId?: mongoose.Types.ObjectId;
   division?: string;
   subDivision?: string;
   location?: string;
+  drawingNumber: string;
   status: 'Draft' | 'Pending PM Approval' | 'Pending PD Approval' | 'Approved' | 'Rejected' | 'Fulfilled';
   authorizedByEngineer?: string;
   remarks?: string;
@@ -95,9 +97,11 @@ const demandNoteSchema = new Schema<IDemandNote>(
     package: { type: String, required: true },
     circle: { type: String, required: true },
     contractorName: { type: String, index: true },
+    workOrderId: { type: Schema.Types.ObjectId, ref: 'ContractorWorkOrder', index: true },
     division: { type: String },
     subDivision: { type: String },
     location: { type: String },
+    drawingNumber: { type: String, required: true },
     status: {
       type: String,
       enum: ['Draft', 'Pending PM Approval', 'Pending PD Approval', 'Approved', 'Rejected', 'Fulfilled'],

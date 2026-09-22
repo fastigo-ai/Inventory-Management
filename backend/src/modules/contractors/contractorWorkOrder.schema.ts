@@ -11,6 +11,7 @@ export interface IContractorWorkOrderItem {
   circleBomQty: number;
   alreadyIssuedQty: number;
   woQty: number;
+  demandedQty: number;
   contractorErectionRate: number;
   amount: number;
   gstType: 'Inter' | 'Intra';
@@ -23,9 +24,16 @@ export interface IContractorWorkOrder extends Document {
   package: string;
   circle: string;
   contractorId: mongoose.Types.ObjectId;
-  division: string;
-  subDivision: string;
-  location: string;
+  drawings: {
+    drawingNumber: string;
+    division: string;
+    subDivision: string;
+    location: string;
+    drawingUrl?: string;
+  }[];
+  amendedFromId?: mongoose.Types.ObjectId;
+  originalWorkOrderId?: mongoose.Types.ObjectId;
+  handoverStatus?: 'Active' | 'Handed Over' | 'Abandoned';
   remarks: string;
   activities: string[]; // Replaced single activity with array
   items: IContractorWorkOrderItem[];
@@ -47,6 +55,7 @@ const ContractorWorkOrderItemSchema = new Schema<IContractorWorkOrderItem>({
   circleBomQty: { type: Number, default: 0 },
   alreadyIssuedQty: { type: Number, default: 0 }, // Placeholder for ratio logic
   woQty: { type: Number, default: 0 },
+  demandedQty: { type: Number, default: 0 },
   contractorErectionRate: { type: Number, default: 0 },
   amount: { type: Number, default: 0 },
   gstType: { type: String, enum: ['Inter', 'Intra'], default: 'Intra' },
@@ -60,9 +69,16 @@ const ContractorWorkOrderSchema = new Schema<IContractorWorkOrder>(
     package: { type: String, required: true },
     circle: { type: String, required: true },
     contractorId: { type: Schema.Types.ObjectId, ref: 'Contractor', required: true, index: true },
-    division: { type: String, default: '' },
-    subDivision: { type: String, default: '' },
-    location: { type: String, default: '' },
+    drawings: [{
+      drawingNumber: { type: String, required: true },
+      division: { type: String, default: '' },
+      subDivision: { type: String, default: '' },
+      location: { type: String, default: '' },
+      drawingUrl: { type: String }
+    }],
+    amendedFromId: { type: Schema.Types.ObjectId, ref: 'ContractorWorkOrder' },
+    originalWorkOrderId: { type: Schema.Types.ObjectId, ref: 'ContractorWorkOrder', index: true },
+    handoverStatus: { type: String, enum: ['Active', 'Handed Over', 'Abandoned'], default: 'Active' },
     remarks: { type: String, default: '' },
     activities: { type: [String], default: [] },
     items: [ContractorWorkOrderItemSchema],

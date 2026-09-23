@@ -12,6 +12,7 @@ import { api } from '@/shared/api/axios';
 import { createContractorInvoice } from '@/features/contractor-billing/api/contractor-billing.api';
 import { getItems } from '@/features/items/api/items.api';
 import { useAuthStore } from '@/shared/store/auth.store';
+import { uploadDocument } from '@/features/documents/api/documents.api';
 
 const STAGES = ['90%', '10%'];
 
@@ -31,6 +32,8 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
   const [linkedSupplyBillId, setLinkedSupplyBillId] = useState('');
   const [jmcDocUrl, setJmcDocUrl] = useState('');
   const [signedBillDocUrl, setSignedBillDocUrl] = useState('');
+  const [isUploadingJmc, setIsUploadingJmc] = useState(false);
+  const [isUploadingSigned, setIsUploadingSigned] = useState(false);
 
   // 60% Supply Bills
   const [supplyBills, setSupplyBills] = useState<any[]>([]);
@@ -54,7 +57,7 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
   // Fetch Supply Bills
   useEffect(() => {
     if (stage === '90%') {
-      api.get('/client-billing').then(res => {
+      api.get('/client-billing?limit=5000').then(res => {
         const bills = res.data?.data?.data || res.data?.data || [];
         const supply60 = bills.filter((b: any) => b.stage === '60%' && b.status !== 'Rejected');
         setSupplyBills(supply60);
@@ -65,7 +68,7 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
   // Fetch Divisions dynamically from JMCs based on user assigned Circle
   useEffect(() => {
     if (targetCircle) {
-      api.get(`/jmc`).then(res => {
+      api.get(`/jmc?limit=5000`).then(res => {
         const jmcs = res.data?.data?.data || res.data?.data || [];
         const divs = new Set<string>();
         jmcs.forEach((j: any) => {
@@ -84,7 +87,7 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
   // Fetch JMCs & Contractors for the selected Division
   useEffect(() => {
     if (selectedDivision && targetCircle) {
-      api.get(`/jmc`).then(async res => {
+      api.get(`/jmc?limit=5000`).then(async res => {
         const jmcs = res.data?.data?.data || res.data?.data || [];
         
         const validJmcs = jmcs.filter((j: any) => {
@@ -103,7 +106,7 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
         
         const cIds = Object.keys(cMap);
         if (cIds.length > 0) {
-          const cRes = await api.get('/contractors');
+          const cRes = await api.get('/contractors?limit=5000');
           const allC = cRes.data?.data?.contractors || cRes.data?.data || [];
           
           const available = cIds.map(cId => {
@@ -300,6 +303,27 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
     }
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, setter: (url: string) => void, loadingSetter: (val: boolean) => void) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      loadingSetter(true);
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await uploadDocument(fd);
+      if (res?.data?.url) {
+        setter(res.data.url);
+        toast.success('Document uploaded successfully');
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Failed to upload document');
+    } finally {
+      loadingSetter(false);
+    }
+  };
+
   return (
     <div className="space-y-6 pb-24">
       <Card className="border-indigo-200 shadow-sm">
@@ -367,11 +391,29 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
             <div className="grid grid-cols-2 gap-6 pt-2">
               <div className="space-y-2">
                 <Label>JMC Document URL <span className="text-red-500">*</span></Label>
-                <Input placeholder="Enter JMC Document URL" value={jmcDocUrl} onChange={e => setJmcDocUrl(e.target.value)} />
+                <div className="flex items-center gap-2">
+                  <Input 
+                    type="file" 
+                    onChange={e => handleFileUpload(e, setJmcDocUrl, setIsUploadingJmc)} 
+                    disabled={isUploadingJmc}
+                    className="flex-1"
+                  />
+                  {isUploadingJmc && <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />}
+                </div>
+                {jmcDocUrl && <a href={jmcDocUrl} target="_blank" rel="noreferrer" className="text-xs text-indigo-600 hover:underline">View Uploaded JMC</a>}
               </div>
               <div className="space-y-2">
                 <Label>Signed Bill Document URL <span className="text-red-500">*</span></Label>
-                <Input placeholder="Enter Signed Bill Document URL" value={signedBillDocUrl} onChange={e => setSignedBillDocUrl(e.target.value)} />
+                <div className="flex items-center gap-2">
+                  <Input 
+                    type="file" 
+                    onChange={e => handleFileUpload(e, setSignedBillDocUrl, setIsUploadingSigned)} 
+                    disabled={isUploadingSigned}
+                    className="flex-1"
+                  />
+                  {isUploadingSigned && <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />}
+                </div>
+                {signedBillDocUrl && <a href={signedBillDocUrl} target="_blank" rel="noreferrer" className="text-xs text-indigo-600 hover:underline">View Uploaded Signed Bill</a>}
               </div>
             </div>
           </div>

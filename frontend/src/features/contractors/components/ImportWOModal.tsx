@@ -93,16 +93,16 @@ export function ImportWOModal({ isOpen, onClose, onSuccess }: ImportWOModalProps
 
   const downloadSampleCsv = () => {
     const headers = [
-      "workOrderNumber", "package", "circle", "contractorCompanyName", 
+      "workOrderNumber", "package", "circle", "subcircle", "contractorCompanyName", 
       "division", "subDivision", "location", "remarks", "status",
-      "itemTempCode", "itemActivity", "loaSrNo", "description", "unit",
+      "drawingNumber", "itemTempCode", "itemActivity", "loaSrNo", "description", "unit",
       "circleLoaQty", "circleBomQty", "totalPackageLoaQty", "alreadyIssuedQty", 
       "woQty", "contractorErectionRate", "amount", "gstType", "gstAmount", "totalAmount"
     ].join(",");
     
     // Sample Data (1 WO with 2 items)
-    const row1 = "WO-SAMPLE-001,Package 1(S/N),Solan,Acme Corp,Div1,SubDiv1,Shimla HQ,Sample import,Draft,TC-001,,LOA-001,Sample Item 1,Nos,10,10,20,0,10,500,5000,Intra,900,5900";
-    const row2 = "WO-SAMPLE-001,Package 1(S/N),Solan,Acme Corp,Div1,SubDiv1,Shimla HQ,Sample import,Draft,,Augmentation of DT 100 KVA to 250KVA,LOA-002,Sample Item 2,Nos,5,5,10,0,5,1200,6000,Intra,1080,7080";
+    const row1 = "WO-SAMPLE-001,Package 1(S/N),Solan,Nalagarh,Acme Corp,Div1,SubDiv1,Shimla HQ,Sample import,Draft,DWG-001,TC-001,,LOA-001,Sample Item 1,Nos,10,10,20,0,10,500,5000,Intra,900,5900";
+    const row2 = "WO-SAMPLE-001,Package 1(S/N),Solan,Nalagarh,Acme Corp,Div1,SubDiv1,Shimla HQ,Sample import,Draft,DWG-001,,Augmentation of DT 100 KVA to 250KVA,LOA-002,Sample Item 2,Nos,5,5,10,0,5,1200,6000,Intra,1080,7080";
       
     const csvContent = `${headers}\n${row1}\n${row2}\n`;
     

@@ -234,6 +234,7 @@ export const bulkImportWorkOrders = asyncHandler(async (req: AuthRequest, res: R
                      circleLower === 'rohru' ? Number(item.dynamicData?.rohrubomqty || item.dynamicData?.rohruBomQuantity || item.dynamicData?.rohruBomQty || 0) : 0;
 
         items.push({
+          drawingNumber: row.drawingNumber || '',
           itemId: item._id,
           tempCode: item.dynamicData?.tempCode || '',
           activity: activityName,
@@ -256,6 +257,7 @@ export const bulkImportWorkOrders = asyncHandler(async (req: AuthRequest, res: R
         workOrderNumber: woNumber,
         package: firstRow.package,
         circle: firstRow.circle,
+        subcircle: firstRow.subcircle || '',
         contractorId: contractor._id,
         division: firstRow.division || '',
         subDivision: firstRow.subDivision || '',

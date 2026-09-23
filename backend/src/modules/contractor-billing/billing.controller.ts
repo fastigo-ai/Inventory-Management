@@ -28,7 +28,10 @@ export const createInvoice = asyncHandler(async (req: Request, res: Response) =>
     jmcDocUrl,
     signedBillDocUrl,
     drawingNumber,
-    supplyRaBillNo
+    supplyRaBillNo,
+    billingCategory,
+    linkedSupplyBillId,
+    linkedErectionBillId
   } = req.body;
   
   const user = (req as any).user;
@@ -38,7 +41,10 @@ export const createInvoice = asyncHandler(async (req: Request, res: Response) =>
   let totalBaseAmount = 0;
   let totalGstAmount = 0;
 
-  const percentage = parseInt(stage.replace('%', '')); // '10%', '20%', '100%'
+  let percentage = 100;
+  if (stage !== 'Amount' && stage !== 'Advance') {
+    percentage = parseInt(stage.replace('%', '')) || 100;
+  }
 
   let dbJmc: any = null;
   let dbMhrov: any = null;
@@ -67,7 +73,9 @@ export const createInvoice = asyncHandler(async (req: Request, res: Response) =>
 
     let baseAmount = 0;
     
-    if (percentage === 100) {
+    if (stage === 'Amount' || stage === 'Advance') {
+      baseAmount = Number(item.baseAmount || 0);
+    } else if (percentage === 100) {
       baseAmount = authoritativeQty * Number(item.rate);
     } else {
       baseAmount = authoritativeQty * Number(item.rate) * (percentage / 100);
@@ -81,10 +89,11 @@ export const createInvoice = asyncHandler(async (req: Request, res: Response) =>
 
     return {
       itemId: item.itemId,
+      contractorId: item.contractorId,
       activity: item.activity,
       description: item.description,
       billingCategory: item.billingCategory,
-      jmcDoneQty: (jmcId && percentage === 100) ? authoritativeQty : Number(item.jmcDoneQty || 0),
+      jmcDoneQty: (jmcId && stage !== 'Amount' && stage !== 'Advance' && percentage === 100) ? authoritativeQty : Number(item.jmcDoneQty || 0),
       erectedQty: (jmcId && percentage !== 100) ? authoritativeQty : (mhrovId ? authoritativeQty : Number(item.erectedQty || 0)),
       rate: Number(item.rate),
       percentageApplied: percentage,
@@ -97,6 +106,7 @@ export const createInvoice = asyncHandler(async (req: Request, res: Response) =>
 
   const invoice = await ContractorInvoice.create({
     invoiceNumber,
+    billingCategory: billingCategory || 'Contractor Bill',
     contractorId,
     workOrderId,
     stage,
@@ -112,6 +122,8 @@ export const createInvoice = asyncHandler(async (req: Request, res: Response) =>
     signedBillDocUrl,
     drawingNumber,
     supplyRaBillNo,
+    linkedSupplyBillId,
+    linkedErectionBillId,
     status: 'Pending PM Approval',
     createdBy: user._id
   });
@@ -128,7 +140,9 @@ export const updateInvoice = asyncHandler(async (req: Request, res: Response) =>
     jmcDocUrl,
     signedBillDocUrl,
     drawingNumber,
-    supplyRaBillNo
+    supplyRaBillNo,
+    linkedSupplyBillId,
+    linkedErectionBillId
   } = req.body;
   
   const user = (req as any).user;
@@ -148,7 +162,10 @@ export const updateInvoice = asyncHandler(async (req: Request, res: Response) =>
   let totalBaseAmount = 0;
   let totalGstAmount = 0;
 
-  const percentage = parseInt(stage.replace('%', '')); // '10%', '20%', '100%'
+  let percentage = 100;
+  if (stage !== 'Amount' && stage !== 'Advance') {
+    percentage = parseInt(stage.replace('%', '')) || 100;
+  } // '10%', '20%', '100%'
 
   let dbJmc: any = null;
   let dbMhrov: any = null;
@@ -177,7 +194,9 @@ export const updateInvoice = asyncHandler(async (req: Request, res: Response) =>
 
     let baseAmount = 0;
     
-    if (percentage === 100) {
+    if (stage === 'Amount' || stage === 'Advance') {
+      baseAmount = Number(item.baseAmount || 0);
+    } else if (percentage === 100) {
       baseAmount = authoritativeQty * Number(item.rate);
     } else {
       baseAmount = authoritativeQty * Number(item.rate) * (percentage / 100);
@@ -191,10 +210,11 @@ export const updateInvoice = asyncHandler(async (req: Request, res: Response) =>
 
     return {
       itemId: item.itemId,
+      contractorId: item.contractorId,
       activity: item.activity,
       description: item.description,
       billingCategory: item.billingCategory,
-      jmcDoneQty: (invoice.jmcId && percentage === 100) ? authoritativeQty : Number(item.jmcDoneQty || 0),
+      jmcDoneQty: (invoice.jmcId && stage !== 'Amount' && stage !== 'Advance' && percentage === 100) ? authoritativeQty : Number(item.jmcDoneQty || 0),
       erectedQty: (invoice.jmcId && percentage !== 100) ? authoritativeQty : (invoice.mhrovId ? authoritativeQty : Number(item.erectedQty || 0)),
       rate: Number(item.rate),
       percentageApplied: percentage,
@@ -215,6 +235,8 @@ export const updateInvoice = asyncHandler(async (req: Request, res: Response) =>
   if (signedBillDocUrl !== undefined) invoice.signedBillDocUrl = signedBillDocUrl;
   if (drawingNumber !== undefined) invoice.drawingNumber = drawingNumber;
   if (supplyRaBillNo !== undefined) invoice.supplyRaBillNo = supplyRaBillNo;
+  if (linkedSupplyBillId !== undefined) invoice.linkedSupplyBillId = linkedSupplyBillId;
+  if (linkedErectionBillId !== undefined) invoice.linkedErectionBillId = linkedErectionBillId;
   
   // If it was rejected, editing it sends it back to Pending PM Approval
   if (invoice.status === 'Rejected' || invoice.status === 'Draft') {

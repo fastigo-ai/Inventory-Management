@@ -2,6 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IContractorInvoiceItem {
   itemId: mongoose.Types.ObjectId;
+  contractorId?: mongoose.Types.ObjectId;
   activity?: string;
   description?: string;
   billingCategory: 'Supply' | 'Erection' | 'JMC Done';
@@ -18,16 +19,19 @@ export interface IContractorInvoiceItem {
 export interface IContractorInvoice extends Document {
   invoiceNumber: string;
   date: Date;
-  contractorId: mongoose.Types.ObjectId;
-  workOrderId: mongoose.Types.ObjectId;
+  billingCategory: 'Contractor Bill' | 'Erection Bill';
+  contractorId?: mongoose.Types.ObjectId; // Optional for Erection Bills (multi-contractor)
+  workOrderId?: mongoose.Types.ObjectId;
   
   // The type of billing stage based on flowchart
-  stage: '10%' | '20%' | '25%' | '30%' | '50%' | '60%' | '70%' | '75%' | '90%' | '100%';
+  stage: '10%' | '20%' | '25%' | '30%' | '50%' | '60%' | '70%' | '75%' | '90%' | '100%' | 'Advance' | 'Amount';
   
   // References to the source documents that trigger the billing
   mhrovId?: mongoose.Types.ObjectId; // For Supply
   jmcId?: mongoose.Types.ObjectId;   // For Erection
   handoverCertificateId?: mongoose.Types.ObjectId; // For Final
+  linkedSupplyBillId?: mongoose.Types.ObjectId; // To link 90% Erection to 60% Supply
+  linkedErectionBillId?: mongoose.Types.ObjectId; // To link 10% Erection to 90% Erection
 
   // For Stage 2 flexibility on Supply calculation
   supplyBasis?: 'MHROV Total' | 'JMC Erected';
@@ -52,6 +56,7 @@ export interface IContractorInvoice extends Document {
 
 const contractorInvoiceItemSchema = new Schema<IContractorInvoiceItem>({
   itemId: { type: Schema.Types.ObjectId, ref: 'Item' },
+  contractorId: { type: Schema.Types.ObjectId, ref: 'Contractor' },
   activity: { type: String },
   description: { type: String },
   billingCategory: { type: String, enum: ['Supply', 'Erection', 'JMC Done'], required: true },
@@ -68,18 +73,21 @@ const contractorInvoiceItemSchema = new Schema<IContractorInvoiceItem>({
 const contractorInvoiceSchema = new Schema<IContractorInvoice>({
   invoiceNumber: { type: String, required: true, unique: true },
   date: { type: Date, required: true, default: Date.now },
-  contractorId: { type: Schema.Types.ObjectId, ref: 'Contractor', required: true },
+  billingCategory: { type: String, enum: ['Contractor Bill', 'Erection Bill'], required: true },
+  contractorId: { type: Schema.Types.ObjectId, ref: 'Contractor' },
   workOrderId: { type: Schema.Types.ObjectId, ref: 'ContractorWorkOrder' },
   
   stage: { 
     type: String, 
-    enum: ['10%', '20%', '25%', '30%', '50%', '60%', '70%', '75%', '90%', '100%'],
+    enum: ['10%', '20%', '25%', '30%', '50%', '60%', '70%', '75%', '90%', '100%', 'Advance', 'Amount'],
     required: true
   },
   
   mhrovId: { type: Schema.Types.ObjectId, ref: 'Mhrov' },
   jmcId: { type: Schema.Types.ObjectId, ref: 'JmcRegister' },
   handoverCertificateId: { type: Schema.Types.ObjectId, ref: 'HandoverCertificate' },
+  linkedSupplyBillId: { type: Schema.Types.ObjectId, ref: 'ClientBill' },
+  linkedErectionBillId: { type: Schema.Types.ObjectId, ref: 'ContractorInvoice' },
 
   supplyBasis: {
     type: String,

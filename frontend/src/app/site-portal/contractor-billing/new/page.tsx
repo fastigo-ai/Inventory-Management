@@ -14,7 +14,8 @@ import { getItems } from '@/features/items/api/items.api';
 
 import { useAuthStore } from '@/shared/store/auth.store';
 
-const STAGES = ['10%', '20%', '25%', '30%', '50%', '70%', '75%', '90%', '100%'];
+const STAGES = ['10%', '20%', '25%', '30%', '50%', '70%', '75%', '90%', '100%', 'Advance', 'Amount'];
+import NewErectionBillForm from './NewErectionBillForm';
 
 export default function NewContractorBill() {
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function NewContractorBill() {
   const [contractorId, setContractorId] = useState('');
   const [workOrderId, setWorkOrderId] = useState('');
   const [stage, setStage] = useState('');
+  const [billingCategory, setBillingCategory] = useState<'Contractor Bill' | 'Erection Bill'>('Contractor Bill');
   const [globalCategory, setGlobalCategory] = useState('JMC Done');
   const [jmcDocUrl, setJmcDocUrl] = useState('');
   const [signedBillDocUrl, setSignedBillDocUrl] = useState('');
@@ -321,6 +323,7 @@ export default function NewContractorBill() {
         signedBillDocUrl,
         drawingNumber,
         supplyRaBillNo,
+        billingCategory,
         lineItems: lineItems.map(item => ({ ...item, billingCategory: globalCategory }))
       };
 
@@ -348,6 +351,36 @@ export default function NewContractorBill() {
           <p className="text-slate-500 ml-12 text-sm mt-1">Generate a staggered bill with dynamic items.</p>
         </div>
       </div>
+      
+      <div className="flex gap-4 mb-6 ml-12">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input 
+            type="radio" 
+            name="billingCategory" 
+            value="Contractor Bill" 
+            checked={billingCategory === 'Contractor Bill'} 
+            onChange={(e) => setBillingCategory(e.target.value as 'Contractor Bill')}
+            className="w-4 h-4 text-indigo-600"
+          />
+          <span className="text-slate-700 font-medium">Contractor Bill</span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input 
+            type="radio" 
+            name="billingCategory" 
+            value="Erection Bill" 
+            checked={billingCategory === 'Erection Bill'} 
+            onChange={(e) => setBillingCategory(e.target.value as 'Erection Bill')}
+            className="w-4 h-4 text-indigo-600"
+          />
+          <span className="text-slate-700 font-medium">Erection Bill (Multi-Contractor)</span>
+        </label>
+      </div>
+
+      {billingCategory === 'Erection Bill' ? (
+        <NewErectionBillForm onBack={() => router.back()} />
+      ) : (
+      <>
 
       <Card>
         <CardHeader>
@@ -658,6 +691,8 @@ export default function NewContractorBill() {
           </Button>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }

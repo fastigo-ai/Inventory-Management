@@ -186,7 +186,12 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
           const master = masterItems.find((m: any) => m._id === fi.itemId);
           if (master) {
             fi.description = master.dynamicData?.itemName || master.dynamicData?.description || master.itemName;
-            fi.rate = master.dynamicData?.boqRate || master.boqRate || 0; 
+            
+            const dynamicData = master.dynamicData || {};
+            const grossRate = (Number(dynamicData.erectionRateWithGst) || Number(dynamicData.erectionRate) || Number(dynamicData.erection_rate) || Number(dynamicData.contractorErectionRate) || Number(dynamicData.boqRate) || Number(master.boqRate) || 0);
+            const baseRate = Number((grossRate > 0 && grossRate !== 1 ? grossRate / 1.18 : grossRate).toFixed(2));
+            fi.rate = isNaN(baseRate) ? 0 : baseRate;
+            
             fi.activity = master.dynamicData?.activity || master.activity || fi.activity;
             fi.tempCode = master.dynamicData?.tempCode || master.tempCode || 'N/A';
             fi.loaSlNo = master.dynamicData?.loaSrNo || master.dynamicData?.loaSerialNo || master.loaSrNo || master.loaSerialNo || master.sku || 'N/A';
@@ -225,6 +230,15 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
     });
     return groups;
   }, [lineItems]);
+
+  const handleErectedQtyChange = (itemId: string, contractorId: string, val: number) => {
+    setLineItems(prev => prev.map(item => {
+      if (item.itemId === itemId && item.contractorId === contractorId) {
+        return { ...item, erectedQty: Math.min(Math.max(0, val), item.jmcDoneQty) };
+      }
+      return item;
+    }));
+  };
 
   const addMappingRow = () => {
     setMappings([...mappings, { id: Date.now().toString(), contractorId: '', drawingNo: '', selectedJmcs: [] }]);
@@ -555,13 +569,14 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
                               JMC Done Qty
                               {stage && <div className="text-[9px] text-slate-400 mt-0.5">{stage} Release</div>}
                             </th>
+                            <th className="px-4 py-3 text-right bg-indigo-50/50 min-w-[120px]">Erected Qty</th>
                             <th className="px-4 py-3 text-center">GST %</th>
                             <th className="px-4 py-3 text-right">Amount</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                           {items.map((item, idx) => {
-                            const amount = item.jmcDoneQty * item.rate;
+                            const amount = item.erectedQty * item.rate;
                             return (
                               <tr key={idx} className="bg-white hover:bg-slate-50/50 transition-colors">
                                 <td className="px-4 py-3 text-slate-600 font-medium">{item.activity}</td>
@@ -571,6 +586,16 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
                                 <td className="px-4 py-3 text-right text-slate-600">{item.loaQty}</td>
                                 <td className="px-4 py-3 text-right font-medium text-slate-700">₹{item.rate}</td>
                                 <td className="px-4 py-3 text-right font-bold text-blue-600 bg-blue-50/30">{item.jmcDoneQty}</td>
+                                <td className="px-4 py-3 text-right">
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    max={item.jmcDoneQty}
+                                    value={item.erectedQty}
+                                    onChange={(e) => handleErectedQtyChange(item.itemId, item.contractorId, Number(e.target.value))}
+                                    className="w-20 text-right ml-auto h-8 text-xs font-bold text-indigo-700 bg-white"
+                                  />
+                                </td>
                                 <td className="px-4 py-3 text-center text-slate-600">{item.gstRate}%</td>
                                 <td className="px-4 py-3 text-right font-bold text-slate-800">₹{amount.toLocaleString('en-IN')}</td>
                               </tr>

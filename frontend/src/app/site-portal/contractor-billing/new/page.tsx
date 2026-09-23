@@ -28,6 +28,7 @@ export default function NewContractorBill() {
   const [stage, setStage] = useState('');
   const [billingCategory, setBillingCategory] = useState<'Contractor Bill' | 'Erection Bill'>('Contractor Bill');
   const [globalCategory, setGlobalCategory] = useState('JMC Done');
+  const [linkedErectionBillId, setLinkedErectionBillId] = useState('');
   const [jmcDocUrl, setJmcDocUrl] = useState('');
   const [signedBillDocUrl, setSignedBillDocUrl] = useState('');
   const [drawingNumber, setDrawingNumber] = useState('');
@@ -39,6 +40,7 @@ export default function NewContractorBill() {
   // Metadata Options
   const [contractors, setContractors] = useState<any[]>([]);
   const [availableJmcs, setAvailableJmcs] = useState<any[]>([]);
+  const [contractorInvoices, setContractorInvoices] = useState<any[]>([]);
   const [availableItems, setAvailableItems] = useState<any[]>([]);
 
   const uniqueActivities = useMemo(() => {
@@ -111,6 +113,7 @@ export default function NewContractorBill() {
       api.get(query).then(res => {
         const arr = res.data?.data?.data || res.data?.data || res.data || [];
         const invoices = Array.isArray(arr) ? arr : (arr.invoices && Array.isArray(arr.invoices) ? arr.invoices : []);
+        setContractorInvoices(invoices);
         const map: Record<string, number> = {};
         
         invoices.forEach((inv: any) => {
@@ -129,6 +132,7 @@ export default function NewContractorBill() {
         setPrevBilledJmcMap(map);
       }).catch(console.error);
     } else {
+      setContractorInvoices([]);
       setPrevBilledJmcMap({});
     }
   }, [contractorId, selectedJmcId]);
@@ -286,9 +290,9 @@ export default function NewContractorBill() {
         jmcDocUrl,
         signedBillDocUrl,
         drawingNumber,
-        supplyRaBillNo,
+        linkedErectionBillId: linkedErectionBillId || undefined,
         billingCategory,
-        lineItems: lineItems.map(item => ({ ...item, billingCategory: globalCategory }))
+        lineItems: lineItems.map(item => ({ ...item, billingCategory: 'JMC Done' }))
       };
 
       await createContractorInvoice(payload);
@@ -398,26 +402,19 @@ export default function NewContractorBill() {
             </div>
 
             <div className="space-y-2">
-              <Label>Billing Category <span className="text-red-500">*</span></Label>
+              <Label>Erected RA Bill No.</Label>
               <select
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                value={globalCategory}
-                onChange={(e) => setGlobalCategory(e.target.value)}
+                value={linkedErectionBillId}
+                onChange={(e) => setLinkedErectionBillId(e.target.value)}
+                disabled={!contractorId}
               >
-                <option value="JMC Done">JMC Done</option>
-                <option value="Erection">Erection</option>
+                <option value="">Select Erection Bill</option>
+                {contractorInvoices.map(inv => (
+                  <option key={inv._id} value={inv._id}>{inv.invoiceNumber || 'Unknown Bill'}</option>
+                ))}
               </select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Supply 60% RA Bill No.</Label>
-              <Input
-                type="text"
-                placeholder="Enter linked Supply Bill No."
-                value={supplyRaBillNo}
-                onChange={(e) => setSupplyRaBillNo(e.target.value)}
-              />
-              <p className="text-[10px] text-slate-500">For cross-referencing in Client Erection Bills</p>
+              <p className="text-[10px] text-slate-500">For cross-referencing Erection Bills</p>
             </div>
           </div>
         </CardContent>

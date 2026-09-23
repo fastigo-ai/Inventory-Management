@@ -212,9 +212,9 @@ export default function NewContractorWorkOrderPage() {
 
   const handleConfirmChange = () => {
     if (confirmDialog.type === 'package') {
-      setFormData({ ...formData, package: confirmDialog.value, circle: '', contractorId: '', drawings: [{ drawingNumber: '', division: '', subDivision: '', location: '' }], activities: [] });
+      setFormData({ ...formData, package: confirmDialog.value, circle: '', contractorId: '', drawings: [{ drawingNumber: '', division: '', subDivision: '', location: '', drawingUrl: '' }], activities: [] });
     } else {
-      setFormData({ ...formData, circle: confirmDialog.value, contractorId: '', drawings: [{ drawingNumber: '', division: '', subDivision: '', location: '' }], activities: [] });
+      setFormData({ ...formData, circle: confirmDialog.value, contractorId: '', drawings: [{ drawingNumber: '', division: '', subDivision: '', location: '', drawingUrl: '' }], activities: [] });
     }
     setItems([]);
     setActivityRatios({});
@@ -558,7 +558,7 @@ export default function NewContractorWorkOrderPage() {
                   setConfirmDialog({ isOpen: true, type: 'package', value: e.target.value });
                   return;
                 }
-                setFormData({ ...formData, package: e.target.value, circle: '', contractorId: '', drawings: [{ drawingNumber: '', division: '', subDivision: '', location: '' }], activities: [] });
+                setFormData({ ...formData, package: e.target.value, circle: '', contractorId: '', drawings: [{ drawingNumber: '', division: '', subDivision: '', location: '', drawingUrl: '' }], activities: [] });
                 setItems([]);
                 setActivityRatios({});
               }}
@@ -578,7 +578,7 @@ export default function NewContractorWorkOrderPage() {
                   setConfirmDialog({ isOpen: true, type: 'circle', value: e.target.value });
                   return;
                 }
-                setFormData({ ...formData, circle: e.target.value, contractorId: '', drawings: [{ drawingNumber: '', division: '', subDivision: '', location: '' }], activities: [] });
+                setFormData({ ...formData, circle: e.target.value, contractorId: '', drawings: [{ drawingNumber: '', division: '', subDivision: '', location: '', drawingUrl: '' }], activities: [] });
                 setItems([]);
                 setActivityRatios({});
               }}

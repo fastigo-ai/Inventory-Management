@@ -733,7 +733,7 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
       const loc = meta.Location || '';
       const subStn = meta.SubStation || '';
       const feeder = meta.Feeder || '';
-      const uploadedCircle = subCirc || circ;
+      const uploadedCircle = circ; // Match Pass 1 logic to prevent 'itemId of null' errors
 
       let contractorId = null;
       const contractorNameStr = meta.Contractor ? String(meta.Contractor) : "";

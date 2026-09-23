@@ -40,7 +40,7 @@ export interface IJmcRegister extends Document, ITrackingPlugin {
   createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
-  drawingNumber?: string;
+  drawingNo?: string;
   drawingSheetUrl?: string;
 }
 
@@ -80,7 +80,7 @@ const JmcRegisterSchema = new Schema<IJmcRegister>(
     approvedAmount: { type: Number, default: 0 },
     status: { type: String, enum: ['Draft', 'Submitted', 'Approved', 'Rejected'], default: 'Draft', index: true },
     remarks: { type: String, default: '' },
-    drawingNumber: { type: String, default: '' },
+    drawingNo: { type: String, default: '' },
     drawingSheetUrl: { type: String, default: '' }
   },
   { timestamps: true }

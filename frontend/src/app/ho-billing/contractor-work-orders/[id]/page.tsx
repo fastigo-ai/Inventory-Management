@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Loader2, Edit, Trash2, Handshake, X } from 'lucide-react';
+import { ArrowLeft, Loader2, Edit, Trash2, Handshake, X, Printer } from 'lucide-react';
 import { api } from '@/shared/api/axios';
 import { getContractorWorkOrderById, deleteContractorWorkOrder } from '@/features/contractors/api/contractorWorkOrder.api';
 import { toast } from 'sonner';
@@ -150,6 +150,12 @@ export default function ContractorWorkOrderDetailPage() {
             className="flex items-center px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
           >
             <Edit className="w-4 h-4 mr-2" /> Edit
+          </button>
+          <button
+            onClick={() => router.push(`/ho-billing/contractor-work-orders/${id}/print`)}
+            className="flex items-center px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-medium hover:bg-slate-700 transition-colors"
+          >
+            <Printer className="w-4 h-4 mr-2" /> Print
           </button>
           <button
             onClick={handleDelete}

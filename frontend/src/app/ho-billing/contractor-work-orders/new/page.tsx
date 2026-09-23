@@ -9,6 +9,7 @@ import { createContractorWorkOrder } from '@/features/contractors/api/contractor
 import { toast } from 'sonner';
 import { DataTable } from '@/shared/components/ui/data-table';
 import { ColumnDef } from '@tanstack/react-table';
+import { api } from "@/shared/api/axios";
 
 export default function NewContractorWorkOrderPage() {
   const router = useRouter();
@@ -22,7 +23,7 @@ export default function NewContractorWorkOrderPage() {
     package: '',
     circle: '',
     contractorId: '',
-    drawings: [{ drawingNumber: '', division: '', subDivision: '', location: '' }],
+    drawings: [{ drawingNumber: '', division: '', subDivision: '', location: '', drawingUrl: '' }],
     remarks: '',
     activities: [] as string[]
   });
@@ -30,7 +31,7 @@ export default function NewContractorWorkOrderPage() {
   const [currentActivityInput, setCurrentActivityInput] = useState('');
 
   const addDrawing = () => {
-    setFormData(prev => ({ ...prev, drawings: [...prev.drawings, { drawingNumber: '', division: '', subDivision: '', location: '' }] }));
+    setFormData(prev => ({ ...prev, drawings: [...prev.drawings, { drawingNumber: '', division: '', subDivision: '', location: '', drawingUrl: '' }] }));
   };
 
   const removeDrawing = (index: number) => {
@@ -64,6 +65,36 @@ export default function NewContractorWorkOrderPage() {
   const [showLoaColumns, setShowLoaColumns] = useState(false); // Default to false to give more space for description
   
   const [activityRatios, setActivityRatios] = useState<Record<string, string>>({});
+  const [uploadingDrawings, setUploadingDrawings] = useState<{ [key: number]: boolean }>({});
+
+  const handleFileUpload = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingDrawings(prev => ({ ...prev, [index]: true }));
+    try {
+      const uploadData = new FormData();
+      uploadData.append('file', file);
+      uploadData.append('sourceType', 'ContractorWorkOrder');
+      uploadData.append('sourceId', 'temp');
+
+      const response = await api.post('/documents/upload', uploadData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      if (response.data?.data?.url) {
+        updateDrawing(index, 'drawingUrl', response.data.data.url);
+        toast.success('Drawing uploaded successfully');
+      } else {
+        throw new Error('Upload failed');
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to upload drawing');
+    } finally {
+      setUploadingDrawings(prev => ({ ...prev, [index]: false }));
+    }
+  };
 
   // Derive circles based on package
   const availableCircles = formData.package === 'Package 1(S/N)' ? ['Solan', 'Nahan'] :
@@ -580,7 +611,7 @@ export default function NewContractorWorkOrderPage() {
             <label className="block text-[13px] font-semibold text-slate-800 mb-2">Drawings <span className="text-red-500">*</span></label>
             {formData.drawings.map((drawing, idx) => (
               <div key={idx} className="flex gap-2 mb-2 items-start border border-slate-200 p-3 rounded-md bg-slate-50">
-                <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className="flex-1 grid grid-cols-1 md:grid-cols-5 gap-3">
                   <div>
                     <label className="block text-[12px] text-slate-600 mb-1">Drawing Number <span className="text-red-500">*</span></label>
                     <input type="text" value={drawing.drawingNumber} onChange={e => updateDrawing(idx, 'drawingNumber', e.target.value)} placeholder="e.g. DWG-001" className="w-full px-2 py-1.5 text-sm rounded border border-slate-200" required />
@@ -600,13 +631,38 @@ export default function NewContractorWorkOrderPage() {
                     <label className="block text-[12px] text-slate-600 mb-1">Location</label>
                     <input type="text" value={drawing.location} onChange={e => updateDrawing(idx, 'location', e.target.value)} placeholder="Location" className="w-full px-2 py-1.5 text-sm rounded border border-slate-200" />
                   </div>
+                  <div>
+                    <label className="block text-[12px] text-slate-600 mb-1">Upload Drawing</label>
+                    {drawing.drawingUrl ? (
+                      <div className="flex items-center gap-2 mt-1">
+                        <a href={drawing.drawingUrl} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline text-xs flex items-center">
+                          <Eye className="w-4 h-4 mr-1" /> View File
+                        </a>
+                        <button onClick={() => updateDrawing(idx, 'drawingUrl', '')} className="text-red-500 hover:bg-red-50 p-1 rounded">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <input 
+                          type="file" 
+                          onChange={(e) => handleFileUpload(idx, e)}
+                          disabled={uploadingDrawings[idx]}
+                          className="w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 disabled:opacity-50" 
+                        />
+                        {uploadingDrawings[idx] && <div className="absolute right-2 top-1 text-[10px] text-indigo-600">Uploading...</div>}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                {formData.drawings.length > 1 && (
-                  <button type="button" onClick={() => removeDrawing(idx)} className="p-2 text-red-500 hover:bg-red-50 rounded mt-5"><X size={16}/></button>
-                )}
+                <button type="button" onClick={() => removeDrawing(idx)} className="mt-6 text-slate-400 hover:text-red-500 p-1 rounded-md hover:bg-white" title="Remove Drawing">
+                  <X className="w-4 h-4" />
+                </button>
               </div>
             ))}
-            <button type="button" onClick={addDrawing} className="text-indigo-600 text-[13px] font-medium flex items-center gap-1 mt-1 hover:underline"><Plus size={14} /> Add Another Drawing</button>
+            <button type="button" onClick={addDrawing} className="mt-1 flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+              <Plus className="w-4 h-4" /> Add Another Drawing
+            </button>
           </div>
 
           <div className="md:col-span-2">

@@ -896,11 +896,13 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
       let contractorId = null;
       const contractorNameStr = meta.Contractor ? String(meta.Contractor) : "";
       if (contractorNameStr && contractorNames.length > 0) {
-        const bestMatch = stringSimilarity.findBestMatch(contractorNameStr, contractorNames);
+        const lowerInput = contractorNameStr.trim().toLowerCase();
+        const lowerNames = contractorNames.map((n: string) => String(n).trim().toLowerCase());
+        const bestMatch = stringSimilarity.findBestMatch(lowerInput, lowerNames);
         if (bestMatch.bestMatch.rating > 0.4) {
           const matchedContractor = allContractors.find((c: any) => {
             const name = c.name || c.dynamicData?.companyName || c.dynamicData?.displayName || c.dynamicData?.name;
-            return name === bestMatch.bestMatch.target;
+            return name && String(name).trim().toLowerCase() === bestMatch.bestMatch.target;
           });
           if (matchedContractor) contractorId = matchedContractor._id;
         }

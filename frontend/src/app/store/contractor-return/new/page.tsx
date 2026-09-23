@@ -10,6 +10,7 @@ import { getContractors, createContractorReturn } from "@/features/contractors/a
 import { getStockSummary } from "@/features/store/api/store.api";
 import { useAuthStore } from "@/shared/store/auth.store";
 import Select, { StylesConfig } from 'react-select';
+import { ItemSelectionModal } from "@/features/store/components/ItemSelectionModal";
 
 const customSelectStyles: StylesConfig<any, false> = {
   control: (base, state) => ({
@@ -138,6 +139,7 @@ export default function StoreContractorReturnNewPage() {
   }]);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isItemModalOpen, setIsItemModalOpen] = useState(false);
 
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
@@ -174,10 +176,21 @@ export default function StoreContractorReturnNewPage() {
     setLineItems(newItems);
   };
 
-  const addLineItem = () => {
-    setLineItems([...lineItems, { 
-      itemId: "", itemName: "", loaSrNo: "", tempCode: "", unit: "Nos", hsnCode: "", demandQty: 1, quantity: 1, availableQty: 0 
-    }]);
+  const handleAddSelectedItems = (selectedItems: any[]) => {
+    const newLineItems = selectedItems.map(item => ({
+      itemId: item._id,
+      itemName: item.dynamicData?.name || item.dynamicData?.description || "",
+      loaSrNo: item.dynamicData?.sku || item.dynamicData?.loaSrNo || item.dynamicData?.loaSerialNo || "",
+      tempCode: item.dynamicData?.tempCode || item.itemCode || "",
+      unit: item.dynamicData?.unit || item.dynamicData?.uom || item.unit || "Nos",
+      hsnCode: item.dynamicData?.hsnCode || item.hsnCode || "",
+      quantity: 1,
+      availableQty: 0
+    }));
+    
+    // Filter out completely empty rows if they exist
+    const filteredCurrent = lineItems.filter(li => li.itemId !== "");
+    setLineItems([...filteredCurrent, ...newLineItems]);
   };
 
   const removeLineItem = (index: number) => {
@@ -458,11 +471,11 @@ export default function StoreContractorReturnNewPage() {
           
           <div className="p-4 border-t border-slate-200 bg-slate-50">
             <button 
-              onClick={addLineItem}
+              onClick={() => setIsItemModalOpen(true)}
               className="flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors px-2 py-1"
             >
               <PlusCircle className="w-4 h-4" />
-              Add another item
+              Add Items from Master List
             </button>
           </div>
         </div>
@@ -481,6 +494,12 @@ export default function StoreContractorReturnNewPage() {
           </Button>
         </div>
       </div>
+      
+      <ItemSelectionModal
+        isOpen={isItemModalOpen}
+        onClose={() => setIsItemModalOpen(false)}
+        onSelectItems={handleAddSelectedItems}
+      />
     </div>
   );
 }

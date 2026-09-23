@@ -218,27 +218,43 @@ export default function ContractorReturnDetailPage() {
                   <th className="px-4 py-3 text-right">Return QTY.</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {!returnObj.lineItems || returnObj.lineItems.length === 0 ? (
+              {(!returnObj.lineItems || returnObj.lineItems.length === 0) ? (
+                <tbody className="divide-y divide-slate-100">
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
+                    <td colSpan={7} className="px-6 py-8 text-center text-slate-500">
                       No materials were found for this return.
                     </td>
                   </tr>
-                ) : (
-                  returnObj.lineItems.map((item: any, idx: number) => (
-                    <tr key={item._id || idx} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 text-slate-500">{idx + 1}</td>
-                      <td className="px-4 py-3 font-medium text-slate-800">{item.itemName || item.itemId?.description || '-'}</td>
-                      <td className="px-4 py-3 text-slate-600 font-mono">{item.loaSrNo || '-'}</td>
-                      <td className="px-4 py-3 text-slate-600">{item.tempCode || item.itemId?.itemCode || '-'}</td>
-                      <td className="px-4 py-3 text-slate-500">{item.hsnCode || '-'}</td>
-                      <td className="px-4 py-3 text-slate-500">{item.unit || item.itemId?.unit || 'Nos'}</td>
-                      <td className="px-4 py-3 font-semibold text-blue-700 text-right bg-blue-50/30">{item.quantity}</td>
+                </tbody>
+              ) : (
+                Object.entries(
+                  returnObj.lineItems.reduce((acc: any, item: any) => {
+                    const act = item.activity || item.itemId?.dynamicData?.activity || item.itemId?.activity || 'Other / No Activity';
+                    if (!acc[act]) acc[act] = [];
+                    acc[act].push(item);
+                    return acc;
+                  }, {})
+                ).map(([activity, items]: [string, any], groupIdx) => (
+                  <tbody key={groupIdx} className="divide-y divide-slate-100">
+                    <tr className="bg-slate-100/80 border-y border-slate-200">
+                      <td colSpan={7} className="px-4 py-2 font-semibold text-slate-800 text-xs tracking-wider">
+                        {activity}
+                      </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
+                    {items.map((item: any, idx: number) => (
+                      <tr key={item._id || idx} className="hover:bg-slate-50">
+                        <td className="px-4 py-3 text-slate-500">{idx + 1}</td>
+                        <td className="px-4 py-3 font-medium text-slate-800">{item.itemName || item.itemId?.description || '-'}</td>
+                        <td className="px-4 py-3 text-slate-600 font-mono">{item.loaSrNo || '-'}</td>
+                        <td className="px-4 py-3 text-slate-600">{item.tempCode || item.itemId?.itemCode || '-'}</td>
+                        <td className="px-4 py-3 text-slate-500">{item.hsnCode || '-'}</td>
+                        <td className="px-4 py-3 text-slate-500">{item.unit || item.itemId?.unit || 'Nos'}</td>
+                        <td className="px-4 py-3 font-semibold text-blue-700 text-right bg-blue-50/30">{item.quantity}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                ))
+              )}
             </table>
           </div>
         </div>

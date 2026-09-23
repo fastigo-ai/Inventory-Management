@@ -23,6 +23,7 @@ export interface IContractorWorkOrder extends Document {
   workOrderNumber: string;
   package: string;
   circle: string;
+  subcircle?: string;
   contractorId: mongoose.Types.ObjectId;
   drawings: {
     drawingNumber: string;
@@ -68,6 +69,7 @@ const ContractorWorkOrderSchema = new Schema<IContractorWorkOrder>(
     workOrderNumber: { type: String, required: true },
     package: { type: String, required: true },
     circle: { type: String, required: true },
+    subcircle: { type: String },
     contractorId: { type: Schema.Types.ObjectId, ref: 'Contractor', required: true, index: true },
     drawings: [{
       drawingNumber: { type: String, required: true },

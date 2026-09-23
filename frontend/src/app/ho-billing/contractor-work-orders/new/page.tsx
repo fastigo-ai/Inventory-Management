@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { DataTable } from '@/shared/components/ui/data-table';
 import { ColumnDef } from '@tanstack/react-table';
 import { api } from "@/shared/api/axios";
+import Papa from 'papaparse';
 
 export default function NewContractorWorkOrderPage() {
   const router = useRouter();
@@ -22,6 +23,7 @@ export default function NewContractorWorkOrderPage() {
   const [formData, setFormData] = useState({
     package: '',
     circle: '',
+    subcircle: '',
     contractorId: '',
     drawings: [{ drawingNumber: '', division: '', subDivision: '', location: '', drawingUrl: '' }],
     remarks: '',
@@ -354,6 +356,101 @@ export default function NewContractorWorkOrderPage() {
     setItems(newItems);
   };
 
+
+  const downloadTemplate = () => {
+    const csvContent = "itemId,tempCode,activity,loaSrNo,description,unit,circleLoaQty,woQty,contractorErectionRate,gstType\n";
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "work_order_template.csv";
+    link.click();
+  };
+
+  const exportToCsv = () => {
+    if (items.length === 0) {
+      toast.error('No items to export');
+      return;
+    }
+    const csvData = items.map(item => ({
+      itemId: item.itemId,
+      tempCode: item.tempCode,
+      activity: item.activity,
+      loaSrNo: item.loaSrNo,
+      description: item.description,
+      unit: item.unit,
+      circleLoaQty: item.circleLoaQty,
+      circleBomQty: item.circleBomQty,
+      alreadyIssuedQty: item.alreadyIssuedQty,
+      woQty: item.woQty,
+      contractorErectionRate: item.contractorErectionRate,
+      amount: item.amount,
+      gstType: item.gstType,
+      gstAmount: item.gstAmount,
+      totalAmount: item.totalAmount
+    }));
+    const csv = Papa.unparse(csvData);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "work_order_items.csv";
+    link.click();
+  };
+
+  const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const parsedItems = results.data.map((row: any, idx: number) => {
+          const woQty = Number(row.woQty) || 0;
+          const contractorErectionRate = Number(row.contractorErectionRate) || 0;
+          const amount = woQty * contractorErectionRate;
+          const gstAmount = amount * 0.18;
+          return {
+            itemId: row.itemId || '',
+            tempCode: row.tempCode || '',
+            activity: row.activity || '',
+            loaSrNo: row.loaSrNo || '',
+            description: row.description || '',
+            unit: row.unit || '',
+            circleLoaQty: Number(row.circleLoaQty) || 0,
+            circleBomQty: Number(row.circleBomQty) || 0,
+            totalPackageLoaQty: 0,
+            alreadyIssuedQty: Number(row.alreadyIssuedQty) || 0,
+            woQty,
+            contractorErectionRate,
+            amount,
+            gstType: row.gstType || 'Intra',
+            gstAmount,
+            totalAmount: amount + gstAmount,
+            originalIndex: items.length + idx
+          };
+        });
+        
+        const newActivities = new Set([...formData.activities, ...parsedItems.map((i: any) => i.activity).filter(Boolean)]);
+        setFormData(prev => ({ ...prev, activities: Array.from(newActivities) as string[] }));
+        
+        setItems(prev => {
+          const combined = [...prev, ...parsedItems];
+          return combined.sort((a, b) => {
+            const aVal = String(a.loaSrNo || '').trim();
+            const bVal = String(b.loaSrNo || '').trim();
+            return aVal.localeCompare(bVal, undefined, { numeric: true, sensitivity: 'base' });
+          });
+        });
+        toast.success(`Imported ${parsedItems.length} items`);
+        e.target.value = '';
+      },
+      error: (error) => {
+        toast.error('Failed to parse CSV');
+        console.error(error);
+      }
+    });
+  };
+
   const handleSave = async () => {
     if (!formData.package || !formData.circle || !formData.contractorId || formData.drawings.some(d => !d.drawingNumber) || formData.activities.length === 0) {
       toast.error('Please fill all required fields');
@@ -578,7 +675,7 @@ export default function NewContractorWorkOrderPage() {
                   setConfirmDialog({ isOpen: true, type: 'circle', value: e.target.value });
                   return;
                 }
-                setFormData({ ...formData, circle: e.target.value, contractorId: '', drawings: [{ drawingNumber: '', division: '', subDivision: '', location: '', drawingUrl: '' }], activities: [] });
+                setFormData({ ...formData, circle: e.target.value, subcircle: '', contractorId: '', drawings: [{ drawingNumber: '', division: '', subDivision: '', location: '', drawingUrl: '' }], activities: [] });
                 setItems([]);
                 setActivityRatios({});
               }}
@@ -589,6 +686,21 @@ export default function NewContractorWorkOrderPage() {
               {availableCircles.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
+
+          {formData.circle?.toLowerCase() === 'solan' && (
+            <div>
+              <label className="block text-[13px] font-semibold text-slate-800 mb-1">Subcircle <span className="text-red-500">*</span></label>
+              <select
+                value={formData.subcircle}
+                onChange={(e) => setFormData({ ...formData, subcircle: e.target.value })}
+                className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500 bg-white"
+              >
+                <option value="">Select Subcircle</option>
+                <option value="Kumarhatti">Kumarhatti</option>
+                <option value="Nalagarh">Nalagarh</option>
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="block text-[13px] font-semibold text-slate-800 mb-1">Regd Contractor <span className="text-red-500">*</span></label>
@@ -767,10 +879,30 @@ export default function NewContractorWorkOrderPage() {
             </div>
           </div>
           
-          <div className="mt-6 flex justify-end border-t border-slate-100 pt-4">
+          <div className="mt-6 flex flex-col sm:flex-row sm:items-center justify-between border-t border-slate-100 pt-4 gap-4">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={downloadTemplate}
+                className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
+              >
+                Download Template
+              </button>
+              <div className="h-4 w-px bg-slate-300"></div>
+              <label className="cursor-pointer text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors">
+                Import CSV
+                <input type="file" accept=".csv" className="hidden" onChange={handleCsvUpload} />
+              </label>
+              <div className="h-4 w-px bg-slate-300"></div>
+              <button
+                onClick={exportToCsv}
+                className="text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
+              >
+                Export Data
+              </button>
+            </div>
             <button
               onClick={() => setShowLoaColumns(!showLoaColumns)}
-              className="flex items-center gap-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors"
+              className="flex items-center justify-center gap-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors"
             >
               {showLoaColumns ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               {showLoaColumns ? 'Hide' : 'Show'} LOA & BOM Qty Columns

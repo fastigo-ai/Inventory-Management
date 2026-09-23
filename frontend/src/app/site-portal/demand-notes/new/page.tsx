@@ -56,6 +56,7 @@ function DemandNoteForm() {
     division?: string;
     subDivision?: string;
     location?: string;
+    subcircle?: string;
     remarks: string;
     authorizedByEngineer: string;
     package: string;
@@ -63,7 +64,7 @@ function DemandNoteForm() {
     status: string;
   }>({
     contractorName: '',
-    drawingNumber: '', division: '', subDivision: '', location: '',
+    drawingNumber: '', division: '', subDivision: '', location: '', subcircle: '',
     remarks: '',
     authorizedByEngineer: '',
     package: '',
@@ -608,6 +609,7 @@ function DemandNoteForm() {
       data.append('division', formData.division || '');
       data.append('subDivision', formData.subDivision || '');
       data.append('location', formData.location || '');
+      data.append('subcircle', formData.subcircle || '');
       data.append('remarks', formData.remarks);
       data.append('drawingNumber', formData.drawingNumber || '');
       data.append('package', formData.package);
@@ -728,6 +730,21 @@ function DemandNoteForm() {
             <label className="text-sm font-medium text-slate-700 block mb-1">Circle</label>
             <Input value={formData.circle} onChange={e => setFormData({...formData, circle: e.target.value})} disabled={!!user?.assignedCircle} />
           </div>
+          {formData.circle?.trim().toLowerCase() === 'solan' && (
+            <div>
+              <label className="text-sm font-medium text-slate-700 block mb-1">Subcircle <span className="text-red-500">*</span></label>
+              <select
+                value={formData.subcircle}
+                onChange={e => setFormData({...formData, subcircle: e.target.value})}
+                className="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white"
+                required
+              >
+                <option value="">Select Subcircle</option>
+                <option value="Kumarhatti">Kumarhatti</option>
+                <option value="Nalagarh">Nalagarh</option>
+              </select>
+            </div>
+          )}
           <div className="md:col-span-1 lg:col-span-1">
             <label className="text-sm font-medium text-slate-700 block mb-1">Drawing Number <span className="text-red-500">*</span></label>
             {currentWorkOrder?.drawings ? (

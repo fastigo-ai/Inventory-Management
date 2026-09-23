@@ -41,6 +41,7 @@ export interface IDemandNote extends Document {
   division?: string;
   subDivision?: string;
   location?: string;
+  subcircle?: string;
   drawingNumber: string;
   status: 'Draft' | 'Pending PM Approval' | 'Pending PD Approval' | 'Approved' | 'Rejected' | 'Fulfilled';
   authorizedByEngineer?: string;
@@ -101,6 +102,7 @@ const demandNoteSchema = new Schema<IDemandNote>(
     division: { type: String },
     subDivision: { type: String },
     location: { type: String },
+    subcircle: { type: String },
     drawingNumber: { type: String, required: true },
     status: {
       type: String,

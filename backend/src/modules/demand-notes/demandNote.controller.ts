@@ -378,6 +378,9 @@ export const getDemandNotes = asyncHandler(async (req: AuthRequest, res: Respons
     if (user.assignedCircle && user.assignedCircle.trim()) {
       filter.circle = { $regex: new RegExp(`^\\s*${escapeRegex(user.assignedCircle.trim())}\\s*$`, 'i') };
     }
+    if (user.assignedSubcircle && user.assignedSubcircle.trim()) {
+      filter.subcircle = { $regex: new RegExp(`^\\s*${escapeRegex(user.assignedSubcircle.trim())}\\s*$`, 'i') };
+    }
   }
 
   // Filter based on explicit status or tab query

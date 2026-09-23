@@ -28,8 +28,27 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
   // 60% Supply Bills
   const [supplyBills, setSupplyBills] = useState<any[]>([]);
 
+  // Location
+  const [selectedPackage, setSelectedPackage] = useState('');
+  const [selectedCircle, setSelectedCircle] = useState('');
+
+  const packages = ['Package 2', 'Package 5'];
+  const circles = ['Solan', 'Kumarhatti', 'Nalagarh', 'Nahan', 'Rampur', 'Rohru'];
+
+  const getDivisions = (circle: string) => {
+    switch (circle?.toLowerCase()) {
+      case 'nahan': return ['Nahan', 'Rajgarh', 'Paonta'];
+      case 'solan': return ['Solan', 'Baddhi', 'Parwanoo', 'Arki'];
+      case 'kumarhatti': return ['Kumarhatti'];
+      case 'nalagarh': return ['Nalagarh'];
+      case 'rohru': return ['Rohru', 'Jubbal'];
+      case 'rampur': return ['Rampur'];
+      default: return [];
+    }
+  };
+
   // Division & Drawing No
-  const [divisions, setDivisions] = useState<string[]>([]);
+  const divisions = selectedCircle ? getDivisions(selectedCircle) : [];
   const [selectedDivision, setSelectedDivision] = useState('');
   const [drawingNumbers, setDrawingNumbers] = useState<string[]>([]);
   const [selectedDrawingNo, setSelectedDrawingNo] = useState('');
@@ -53,13 +72,7 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
   }, [stage]);
 
   useEffect(() => {
-    api.get('/divisions').then(res => {
-      const arr = res.data?.data || ['Rohru', 'Jubbal', 'Paonta'];
-      setDivisions(arr);
-    }).catch(() => {
-      setDivisions(['Rohru', 'Jubbal', 'Paonta']);
-    });
-
+    // Fetch Contractors
     api.get('/contractors').then(res => {
       const data = res.data?.data;
       const arr = Array.isArray(data) ? data : (data?.contractors || []);
@@ -246,11 +259,37 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
           )}
 
           <div className="space-y-2">
+            <Label>Package</Label>
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              value={selectedPackage}
+              onChange={(e) => setSelectedPackage(e.target.value)}
+            >
+              <option value="">Select Package</option>
+              {packages.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Circle</Label>
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              value={selectedCircle}
+              onChange={(e) => setSelectedCircle(e.target.value)}
+              disabled={!selectedPackage}
+            >
+              <option value="">Select Circle</option>
+              {circles.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+
+          <div className="space-y-2">
             <Label>Division</Label>
             <select
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               value={selectedDivision}
               onChange={(e) => setSelectedDivision(e.target.value)}
+              disabled={!selectedCircle}
             >
               <option value="">Select Division</option>
               {divisions.map(d => <option key={d} value={d}>{d}</option>)}

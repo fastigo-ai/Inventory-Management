@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { getEntityMetadata, getItems, bulkDeleteItems, getItemMetrics } from "@/features/items/api/items.api";
 import { exportItemsToCsv } from "@/features/items/api/items.api";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { DataTable } from "@/shared/components/ui/data-table";
+import { DynamicTable } from "@/shared/components/dynamic/DynamicTable";
 import { FieldMetadata } from "@/shared/components/dynamic/DynamicForm";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
@@ -223,33 +223,6 @@ const handleColumnFilterChange = (columnName: string, value: string) => {
       return next;
     });
   };
-
-  const dataTableColumns = React.useMemo(() => {
-    const sortedFields = [...fields].filter(f => f.active !== false).sort((a,b) => a.order - b.order);
-    return sortedFields.map(f => ({
-      accessorKey: f.name,
-      header: f.label,
-      enableSorting: true,
-      cell: ({ row }: any) => {
-        const val = row.original[f.name];
-        if (val === undefined || val === null || val === '') return '-';
-        if (typeof val === 'boolean') return val ? 'Yes' : 'No';
-        if (typeof val === 'object') {
-          if (val.firstName && val.lastName) return `${val.salutation || ''} ${val.firstName} ${val.lastName}`.trim();
-          if (val.work || val.mobile) return val.work ? `${val.workCountryCode || ''} ${val.work}`.trim() : `${val.mobileCountryCode || ''} ${val.mobile}`.trim();
-          if (val.stage) {
-            let text = `${val.stage}`;
-            if (val.type) text += ` - ${val.type}`;
-            if (val.value) text += ` (${val.value}${val.unit === 'Amount' ? '' : val.unit})`;
-            return text;
-          }
-          if (Array.isArray(val)) return val.join(', ');
-          return '[Complex Data]';
-        }
-        return String(val);
-      }
-    }));
-  }, [fields]);
 
   const totalSelectedQty = Object.values(selectedItemsData).reduce((sum: number, item: any) => sum + (Number(item?.dynamicData?.stock) || 0), 0);
 
@@ -500,53 +473,22 @@ const handleColumnFilterChange = (columnName: string, value: string) => {
         </div>
       )}
 
-      <DataTable 
-        columns={dataTableColumns} 
+      <DynamicTable 
+        fields={fields} 
         data={items} 
         pagination={pagination}
         onPageChange={handlePageChange}
         onLimitChange={handleLimitChange}
-        manualSorting={true}
-        sortingState={sortBy ? [{ id: sortBy, desc: sortOrder === 'desc' }] : []}
-        onSortChange={(sorting) => {
-          if (sorting.length > 0) {
-            handleSortChange(sorting[0].id, sorting[0].desc ? 'desc' : 'asc');
-          } else {
-            handleSortChange('', 'asc');
-          }
-        }}
-        manualFiltering={true}
-        globalFilterState={searchParams.get('search') || ''}
-        onSearch={(searchStr) => updateUrl({ search: searchStr || null, page: '1' })}
+        onSortChange={handleSortChange}
         onRowClick={handleRowClick}
-        enableExport={true}
-        onExport={handleExport}
-        enableSorting={true}
-        enableColumnReordering={true}
-        enableColumnVisibility={true}
-        enableGlobalFilter={true}
-        enableRowSelection={true}
-        rowSelectionState={selectedIds.reduce((acc, id) => {
-          const index = items.findIndex(it => it._id === id);
-          if (index !== -1) acc[index] = true;
-          return acc;
-        }, {} as Record<string, boolean>)}
-        onRowSelectionChange={(updater) => {
-          const newState = typeof updater === 'function' ? updater(
-            selectedIds.reduce((acc, id) => {
-              const index = items.findIndex(it => it._id === id);
-              if (index !== -1) acc[index] = true;
-              return acc;
-            }, {} as Record<string, boolean>)
-          ) : updater;
-          
-          const newIds = Object.keys(newState)
-            .filter(key => newState[key])
-            .map(key => items[parseInt(key)]?._id)
-            .filter(Boolean);
-            
-          handleSelectionChange(newIds);
-        }}
+        sortColumn={sortBy}
+        sortDirection={sortOrder}
+        enableSelection={true}
+        onSelectionChange={handleSelectionChange}
+        selectedIds={selectedIds}
+        columnFilters={columnFilters}
+        onColumnFilterChange={handleColumnFilterChange}
+        groupBy="activity"
       />
 
       {isImportModalOpen && (

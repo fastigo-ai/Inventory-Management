@@ -358,7 +358,7 @@ export default function NewContractorWorkOrderPage() {
 
 
   const downloadTemplate = () => {
-    const csvContent = "itemId,tempCode,activity,loaSrNo,description,unit,circleLoaQty,woQty,contractorErectionRate,gstType\n";
+    const csvContent = "drawingNumber,itemId,tempCode,activity,loaSrNo,description,unit,circleLoaQty,woQty,contractorErectionRate,gstType\n";
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -372,6 +372,7 @@ export default function NewContractorWorkOrderPage() {
       return;
     }
     const csvData = items.map(item => ({
+      drawingNumber: item.drawingNumber || '',
       itemId: item.itemId,
       tempCode: item.tempCode,
       activity: item.activity,
@@ -410,6 +411,7 @@ export default function NewContractorWorkOrderPage() {
           const amount = woQty * contractorErectionRate;
           const gstAmount = amount * 0.18;
           return {
+            drawingNumber: row.drawingNumber || '',
             itemId: row.itemId || '',
             tempCode: row.tempCode || '',
             activity: row.activity || '',
@@ -508,6 +510,7 @@ export default function NewContractorWorkOrderPage() {
 
   const columns = React.useMemo<ColumnDef<any>[]>(() => {
     const cols: ColumnDef<any>[] = [
+      { accessorKey: "drawingNumber", header: "Drawing No", size: 100 },
       { accessorKey: "tempCode", header: "Temp Code", size: 100 },
       { accessorKey: "activity", header: "Activity", size: 150 },
       { accessorKey: "loaSrNo", header: "LOA Sr No", size: 100 },

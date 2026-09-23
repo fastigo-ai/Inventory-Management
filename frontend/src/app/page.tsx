@@ -99,7 +99,7 @@ export default function Home() {
             </div>
           </div>
           <div className="text-right">
-            <p className="text-sm text-slate-800">Fastigo Inventory helpline :<span className="font-bold">9599094941</span></p>
+            <p className="text-sm text-slate-800">Fastigo Inventory helpline :<span className="font-bold">9366128220</span></p>
             <p className="text-[11px] font-medium text-slate-500 mt-1 uppercase tracking-wider">Mon - Fri • 9:00 AM - 7:00 PM • Toll Free</p>
           </div>
         </div>

@@ -12,11 +12,13 @@ import { api } from '@/shared/api/axios';
 import { createContractorInvoice } from '@/features/contractor-billing/api/contractor-billing.api';
 import { getItems } from '@/features/items/api/items.api';
 
+import { useAuthStore } from '@/shared/store/auth.store';
+
 const STAGES = ['90%', '10%'];
-const PACKAGES = ['Package 1(S/N)', 'Package 2(R/R)'];
 
 export default function NewErectionBillForm({ onBack }: { onBack: () => void }) {
   const router = useRouter();
+  const { user } = useAuthStore();
   const [loading, setLoading] = useState(false);
 
   const [stage, setStage] = useState('');
@@ -28,9 +30,7 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
   const [supplyBills, setSupplyBills] = useState<any[]>([]);
 
   // Location Hierarchy
-  const [selectedPackage, setSelectedPackage] = useState('');
-  const [selectedCircle, setSelectedCircle] = useState('');
-  const [selectedSubCircle, setSelectedSubCircle] = useState('');
+  const targetCircle = user?.assignedCircle || '';
   
   const [divisions, setDivisions] = useState<string[]>([]);
   const [selectedDivision, setSelectedDivision] = useState('');
@@ -44,38 +44,8 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
   const [jmcItems, setJmcItems] = useState<any[]>([]);
   const [lineItems, setLineItems] = useState<any[]>([]);
 
-  // Package -> Circle logic
-  const circles = useMemo(() => {
-    if (selectedPackage === 'Package 1(S/N)') return ['Nahan', 'Solan'];
-    if (selectedPackage === 'Package 2(R/R)') return ['Rohru', 'Rampur'];
-    return [];
-  }, [selectedPackage]);
-
-  // Circle -> Subcircle logic
-  const subCircles = useMemo(() => {
-    if (selectedCircle === 'Solan') return ['Kumarhatti', 'Nalagarh'];
-    return [];
-  }, [selectedCircle]);
-
-  // Reset downstream fields when parents change
-  useEffect(() => { setSelectedCircle(''); }, [selectedPackage]);
-  useEffect(() => { setSelectedSubCircle(''); }, [selectedCircle]);
-  useEffect(() => { setSelectedDivision(''); }, [selectedCircle, selectedSubCircle]);
-
-  // Fetch Supply Bills
+  // Fetch Divisions dynamically from JMCs based on user assigned Circle
   useEffect(() => {
-    if (stage === '90%') {
-      api.get('/client-billing').then(res => {
-        const bills = res.data?.data?.data || res.data?.data || [];
-        const supply60 = bills.filter((b: any) => b.stage === '60%' && b.status !== 'Rejected');
-        setSupplyBills(supply60);
-      }).catch(console.error);
-    }
-  }, [stage]);
-
-  // Fetch Divisions dynamically from JMCs based on Circle/Subcircle
-  useEffect(() => {
-    const targetCircle = selectedSubCircle || selectedCircle;
     if (targetCircle) {
       api.get(`/jmc`).then(res => {
         const jmcs = res.data?.data?.data || res.data?.data || [];
@@ -92,12 +62,11 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
     } else {
       setDivisions([]);
     }
-  }, [selectedCircle, selectedSubCircle]);
+  }, [targetCircle]);
 
   // Fetch Available Contractors for the selected Division
   useEffect(() => {
     if (selectedDivision) {
-      const targetCircle = selectedSubCircle || selectedCircle;
       api.get(`/jmc`).then(async res => {
         const jmcs = res.data?.data?.data || res.data?.data || [];
         
@@ -139,7 +108,7 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
       setAvailableContractors([]);
       setSelectedContractorDrawings({});
     }
-  }, [selectedDivision, selectedCircle, selectedSubCircle]);
+  }, [selectedDivision, targetCircle]);
 
   // When selection changes, aggregate JMC data
   useEffect(() => {
@@ -310,45 +279,15 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
         </div>
 
         {/* Hierarchy Selection */}
-        <div className="grid grid-cols-4 gap-4">
-          <div className="space-y-2">
-            <Label>Package</Label>
-            <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={selectedPackage}
-              onChange={(e) => setSelectedPackage(e.target.value)}
-            >
-              <option value="">Select Package</option>
-              {PACKAGES.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </div>
-
+        <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Circle</Label>
-            <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:bg-slate-100"
-              value={selectedCircle}
-              onChange={(e) => setSelectedCircle(e.target.value)}
-              disabled={!selectedPackage}
-            >
-              <option value="">Select Circle</option>
-              {circles.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <Input 
+              value={targetCircle || 'No Circle Assigned'} 
+              disabled 
+              className="bg-slate-100 text-slate-500 font-medium cursor-not-allowed" 
+            />
           </div>
-
-          {subCircles.length > 0 && (
-            <div className="space-y-2">
-              <Label>Subcircle</Label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={selectedSubCircle}
-                onChange={(e) => setSelectedSubCircle(e.target.value)}
-              >
-                <option value="">Select Subcircle</option>
-                {subCircles.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-          )}
 
           <div className="space-y-2">
             <Label>Division</Label>
@@ -356,7 +295,7 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:bg-slate-100"
               value={selectedDivision}
               onChange={(e) => setSelectedDivision(e.target.value)}
-              disabled={!selectedCircle || divisions.length === 0}
+              disabled={!targetCircle || divisions.length === 0}
             >
               <option value="">Select Division</option>
               {divisions.map(d => <option key={d} value={d}>{d}</option>)}

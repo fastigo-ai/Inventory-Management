@@ -24,7 +24,7 @@ export default function NewContractorBill() {
 
   // Form State
   const [contractorId, setContractorId] = useState('');
-  const [workOrderId, setWorkOrderId] = useState('');
+  const [selectedJmcId, setSelectedJmcId] = useState('');
   const [stage, setStage] = useState('');
   const [billingCategory, setBillingCategory] = useState<'Contractor Bill' | 'Erection Bill'>('Contractor Bill');
   const [globalCategory, setGlobalCategory] = useState('JMC Done');
@@ -38,7 +38,7 @@ export default function NewContractorBill() {
 
   // Metadata Options
   const [contractors, setContractors] = useState<any[]>([]);
-  const [workOrders, setWorkOrders] = useState<any[]>([]);
+  const [availableJmcs, setAvailableJmcs] = useState<any[]>([]);
   const [availableItems, setAvailableItems] = useState<any[]>([]);
 
   const uniqueActivities = useMemo(() => {
@@ -65,62 +65,48 @@ export default function NewContractorBill() {
 
   useEffect(() => {
     if (contractorId) {
-      api.get(`/ho-billing/contractor-work-orders?contractorId=${contractorId}`).then(res => {
+      api.get(`/jmc?contractorId=${contractorId}`).then(res => {
         const arr = res.data?.data?.data || res.data?.data || res.data || [];
-        setWorkOrders(Array.isArray(arr) ? arr : []);
+        const jmcs = Array.isArray(arr) ? arr : (arr.jmcs && Array.isArray(arr.jmcs) ? arr.jmcs : []);
+        setAvailableJmcs(jmcs);
       }).catch(console.error);
     } else {
-      setWorkOrders([]);
-      setWorkOrderId('');
+      setAvailableJmcs([]);
+      setSelectedJmcId('');
     }
   }, [contractorId]);
 
   const [jmcItemMap, setJmcItemMap] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    if (contractorId) {
-      api.get(`/jmc?contractorId=${contractorId}`).then(res => {
-        const arr = res.data?.data?.data || res.data?.data || res.data || [];
-        const jmcs = Array.isArray(arr) ? arr : (arr.jmcs && Array.isArray(arr.jmcs) ? arr.jmcs : []);
-        const map: Record<string, number> = {};
-        jmcs.forEach((jmc: any) => {
-          if (jmc.status === 'Approved' && jmc.items) {
-            // If workOrderId is selected, strictly match it; otherwise aggregate all approved for contractor
-            let jmcWOId = jmc.workOrderId;
-            if (jmcWOId && typeof jmcWOId === 'object') {
-              jmcWOId = jmcWOId._id || jmcWOId.id || jmcWOId;
+    const map: Record<string, number> = {};
+    availableJmcs.forEach((jmc: any) => {
+      if (jmc.status === 'Approved' && jmc.items) {
+        if (selectedJmcId && String(jmc._id) !== String(selectedJmcId)) return;
+        
+        jmc.items.forEach((item: any) => {
+          if (item.itemId) {
+            const tc = String(item.tempCode || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.tempCode || '') : '')).trim();
+            const loaNo = String(item.loaSrNo || item.loaSerialNo || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.loaSrNo || item.itemId.dynamicData?.sku || item.itemId.loaSrNo || item.itemId.loaSerialNo || '') : '')).trim();
+            const key = `${tc}_${loaNo}`;
+            if (key !== '_') {
+              if (!map[key]) map[key] = 0;
+              map[key] += (Number(item.approvedQty) || Number(item.claimedQty) || 0);
             }
-            if (workOrderId && String(jmcWOId) !== String(workOrderId)) return;
-            
-            jmc.items.forEach((item: any) => {
-              if (item.itemId) {
-                const tc = String(item.tempCode || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.tempCode || '') : '')).trim();
-                const loaNo = String(item.loaSrNo || item.loaSerialNo || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.loaSrNo || item.itemId.dynamicData?.sku || item.itemId.loaSrNo || item.itemId.loaSerialNo || '') : '')).trim();
-                const key = `${tc}_${loaNo}`;
-                if (key !== '_') {
-                  if (!map[key]) map[key] = 0;
-                  map[key] += (Number(item.approvedQty) || Number(item.claimedQty) || 0);
-                }
-              }
-            });
           }
         });
-        console.log('Fetched JMCs:', jmcs);
-        console.log('jmcItemMap built:', map);
-        setJmcItemMap(map);
-      }).catch(console.error);
-    } else {
-      setJmcItemMap({});
-    }
-  }, [contractorId, workOrderId]);
+      }
+    });
+    setJmcItemMap(map);
+  }, [availableJmcs, selectedJmcId]);
 
   const [prevBilledJmcMap, setPrevBilledJmcMap] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (contractorId) {
       let query = `/contractor-billing/invoices?contractorId=${contractorId}`;
-      if (workOrderId) {
-        query += `&workOrderId=${workOrderId}`;
+      if (selectedJmcId) {
+        query += `&jmcId=${selectedJmcId}`;
       }
       api.get(query).then(res => {
         const arr = res.data?.data?.data || res.data?.data || res.data || [];
@@ -145,36 +131,11 @@ export default function NewContractorBill() {
     } else {
       setPrevBilledJmcMap({});
     }
-  }, [contractorId, workOrderId]);
+  }, [contractorId, selectedJmcId]);
 
   useEffect(() => {
     let pkg = user?.assignedPackage;
     let cir = user?.assignedCircle;
-
-    if (workOrderId) {
-      const selectedWO = workOrders.find(w => w._id === workOrderId);
-      if (selectedWO) {
-        pkg = selectedWO.package || pkg;
-        cir = selectedWO.circle || cir;
-        
-        // Auto-populate line items from work order
-        if (selectedWO.items && Array.isArray(selectedWO.items)) {
-          const newItems = selectedWO.items.map((woItem: any) => ({
-            itemId: woItem.itemId?._id || woItem.itemId || '',
-            activity: woItem.activity || '',
-            description: woItem.description || '',
-            rate: woItem.contractorErectionRate || 0,
-            jmcDoneQty: woItem.woQty || 0,
-            erectedQty: woItem.woQty || 0,
-            gstRate: 18, // Default GST rate
-            tempCode: woItem.tempCode || '',
-            loaSerialNo: woItem.loaSrNo || '',
-            loaQty: woItem.circleLoaQty || 0
-          }));
-          setLineItems(newItems);
-        }
-      }
-    }
 
     if (pkg && cir) {
       getItems({ 
@@ -190,7 +151,7 @@ export default function NewContractorBill() {
     } else {
       setAvailableItems([]);
     }
-  }, [workOrderId, workOrders, user]);
+  }, [user]);
 
   const handleAddItem = () => {
     setLineItems([
@@ -320,7 +281,7 @@ export default function NewContractorBill() {
       setLoading(true);
       const payload = {
         contractorId,
-        workOrderId: workOrderId || undefined,
+        jmcId: selectedJmcId || undefined,
         stage,
         jmcDocUrl,
         signedBillDocUrl,
@@ -408,16 +369,16 @@ export default function NewContractorBill() {
             </div>
 
             <div className="space-y-2">
-              <Label>Work Order</Label>
+              <Label>JMC Reference</Label>
               <select
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                value={workOrderId}
-                onChange={(e) => setWorkOrderId(e.target.value)}
+                value={selectedJmcId}
+                onChange={(e) => setSelectedJmcId(e.target.value)}
                 disabled={!contractorId}
               >
-                <option value="">Select Work Order</option>
-                {workOrders.map(w => (
-                  <option key={w._id} value={w._id}>{w.workOrderNumber}</option>
+                <option value="">Select JMC</option>
+                {availableJmcs.map(jmc => (
+                  <option key={jmc._id} value={jmc._id}>{jmc.jmcNumber || 'Unknown JMC'}</option>
                 ))}
               </select>
             </div>

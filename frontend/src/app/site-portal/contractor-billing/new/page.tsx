@@ -225,6 +225,7 @@ export default function NewContractorBill() {
         toast.error(`Cannot exceed available JMC Quantity (${maxQty})`);
         value = maxQty;
       }
+      newItems[index].erectedQty = value;
     }
 
     newItems[index][field] = value;
@@ -253,7 +254,7 @@ export default function NewContractorBill() {
               description: ai.dynamicData?.itemName || ai.dynamicData?.description || ai.itemName || '',
               rate: ai.dynamicData?.boqRate || ai.boqRate || 0,
               jmcDoneQty: Math.round(Math.max(0, (jmcItemMap[key] || 0) - (prevBilledJmcMap[key] || 0))),
-              erectedQty: 0,
+              erectedQty: Math.round(Math.max(0, (jmcItemMap[key] || 0) - (prevBilledJmcMap[key] || 0))),
               gstRate: newItems[index].gstRate || 18,
               tempCode: ai.dynamicData?.tempCode || '',
               loaSerialNo: ai.dynamicData?.loaSrNo || ai.dynamicData?.loaSerialNo || ai.dynamicData?.sku || '',
@@ -266,6 +267,7 @@ export default function NewContractorBill() {
           const firstKey = `${firstTc}_${firstLoa}`;
           
           newItems[index].jmcDoneQty = Math.round(Math.max(0, (jmcItemMap[firstKey] || 0) - (prevBilledJmcMap[firstKey] || 0)));
+          newItems[index].erectedQty = newItems[index].jmcDoneQty;
           newItems.splice(index + 1, 0, ...additionalRows);
         }
       } else {
@@ -292,6 +294,7 @@ export default function NewContractorBill() {
         const loaNo = String(selectedItem.dynamicData?.loaSrNo || selectedItem.dynamicData?.sku || selectedItem.loaSrNo || selectedItem.loaSerialNo || '').trim();
         const key = `${tc}_${loaNo}`;
         newItems[index].jmcDoneQty = Math.round(Math.max(0, (jmcItemMap[key] || 0) - (prevBilledJmcMap[key] || 0)));
+        newItems[index].erectedQty = newItems[index].jmcDoneQty;
       }
     }
     setLineItems(newItems);
@@ -529,7 +532,10 @@ export default function NewContractorBill() {
                   <th className="px-4 py-3 whitespace-nowrap">LOA Qty</th>
                   <th className="px-4 py-3">Rate</th>
                   {globalCategory === 'JMC Done' && (
-                    <th className="px-4 py-3 border-x bg-blue-50">JMC Done Qty<br/><span className="text-[10px] text-slate-500 font-normal">90% Release</span></th>
+                    <>
+                      <th className="px-4 py-3 border-x bg-blue-50">JMC Done Qty<br/><span className="text-[10px] text-slate-500 font-normal">90% Release</span></th>
+                      <th className="px-4 py-3 border-x bg-orange-50">Erected Qty<br/><span className="text-[10px] text-slate-500 font-normal">Editable</span></th>
+                    </>
                   )}
                   {globalCategory === 'Erection' && (
                     <th className="px-4 py-3 border-x bg-orange-50">Erected Qty<br/><span className="text-[10px] text-slate-500 font-normal">Adhoc Release</span></th>
@@ -594,25 +600,34 @@ export default function NewContractorBill() {
                       />
                     </td>
                     {globalCategory === 'JMC Done' && (
-                      <td className="p-2 bg-blue-50/30">
-                        <div className="flex flex-col gap-1">
+                      <>
+                        <td className="p-2 bg-blue-50/30">
+                          <div className="flex flex-col gap-1">
+                            <Input
+                              type="number"
+                              value={item.jmcDoneQty}
+                              onChange={e => handleItemChange(idx, 'jmcDoneQty', Number(e.target.value))}
+                              disabled={globalCategory !== 'JMC Done'}
+                              className={globalCategory !== 'JMC Done' ? 'bg-slate-100' : ''}
+                            />
+                            {(() => {
+                              const ai = availableItems.find(a => a._id === item.itemId);
+                              const tc = String(ai?.dynamicData?.tempCode || ai?.tempCode || item.tempCode || '').trim();
+                              const loaNo = String(ai?.dynamicData?.loaSrNo || ai?.dynamicData?.sku || ai?.loaSrNo || ai?.loaSerialNo || item.loaSerialNo || '').trim();
+                              const key = `${tc}_${loaNo}`;
+                              const max = Math.max(0, (jmcItemMap[key] || 0) - (prevBilledJmcMap[key] || 0));
+                              return <span className="text-[10px] text-slate-500 font-medium">Max: {max}</span>;
+                            })()}
+                          </div>
+                        </td>
+                        <td className="p-2 bg-orange-50/30">
                           <Input
                             type="number"
-                            value={item.jmcDoneQty}
-                            onChange={e => handleItemChange(idx, 'jmcDoneQty', Number(e.target.value))}
-                            disabled={globalCategory !== 'JMC Done'}
-                            className={globalCategory !== 'JMC Done' ? 'bg-slate-100' : ''}
+                            value={item.erectedQty}
+                            onChange={e => handleItemChange(idx, 'erectedQty', Number(e.target.value))}
                           />
-                          {(() => {
-                            const ai = availableItems.find(a => a._id === item.itemId);
-                            const tc = String(ai?.dynamicData?.tempCode || ai?.tempCode || item.tempCode || '').trim();
-                            const loaNo = String(ai?.dynamicData?.loaSrNo || ai?.dynamicData?.sku || ai?.loaSrNo || ai?.loaSerialNo || item.loaSerialNo || '').trim();
-                            const key = `${tc}_${loaNo}`;
-                            const max = Math.max(0, (jmcItemMap[key] || 0) - (prevBilledJmcMap[key] || 0));
-                            return <span className="text-[10px] text-slate-500 font-medium">Max: {max}</span>;
-                          })()}
-                        </div>
-                      </td>
+                        </td>
+                      </>
                     )}
                     {globalCategory === 'Erection' && (
                       <td className="p-2 bg-orange-50/30">

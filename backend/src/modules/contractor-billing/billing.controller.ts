@@ -7,6 +7,7 @@ import { asyncHandler } from '../../core/utils/asyncHandler';
 import { JmcRegister } from '../jmc/jmc.schema';
 import { Mhrov } from '../store/mhrov.schema';
 import { ContractorWorkOrder } from '../contractors/contractorWorkOrder.schema';
+import { ClientBill } from '../client-billing/clientBill.schema';
 import mongoose from 'mongoose';
 
 // Helper to generate Invoice Number
@@ -389,6 +390,63 @@ export const updateInvoiceStatus = asyncHandler(async (req: Request, res: Respon
       }
       await ledger.save({ session });
     }
+
+    // ── AUTO-TRIGGER 30% SUPPLY CLIENT BILL ──────────────────────────────────
+    if (status === 'Payment Processed' && invoice.status !== 'Payment Processed') {
+      if (invoice.billingCategory === 'Erection Bill' && invoice.stage === '90%' && invoice.linkedSupplyBillId) {
+        const supplySource = await ClientBill.findById(invoice.linkedSupplyBillId).session(session);
+        if (supplySource) {
+          // Check if auto-bill already exists to prevent duplicates
+          const existingDraft = await ClientBill.findOne({ parentBillId: invoice._id, stage: '30%' }).session(session);
+          if (!existingDraft) {
+            const thirtyPctItems = invoice.lineItems.map((item: any) => {
+              // Find matching item in supplySource by itemId
+              const srcItem = supplySource.items.find((si: any) => si.itemId?.toString() === item.itemId?.toString());
+              
+              const base = srcItem ? (Number(srcItem.boqRate) || 0) : (Number(item.rate) || 0);
+              const qty = Number(item.jmcDoneQty) || Number(item.erectedQty) || 0;
+              const billedBase = Number((qty * base * 0.3).toFixed(2));
+              
+              return {
+                loaSrNo: srcItem ? srcItem.loaSrNo : (item.loaSrNo || ''),
+                itemId: item.itemId,
+                tempCode: srcItem ? srcItem.tempCode : '',
+                refNumber: invoice.invoiceNumber,
+                itemName: item.description || (srcItem ? srcItem.itemName : ''),
+                diNo: srcItem ? srcItem.diNo : '',
+                diDate: srcItem ? srcItem.diDate : undefined,
+                diQty: srcItem ? srcItem.diQty : 0,
+                sourceDoneQty: qty,
+                raBillQty: qty,
+                boqRate: base,
+                totalAmount: billedBase,
+                gstAmount: 0 // 0% GST for 30% Supply
+              };
+            });
+            
+            const supplyDraft = new ClientBill({
+              raBillNo: `${supplySource.raBillNo}-S30-AUTO-${invoice.invoiceNumber.replace(/[^A-Za-z0-9]/g, '')}`,
+              raBillDate: new Date(),
+              billType: 'Supply',
+              stage: '30%',
+              referenceType: supplySource.referenceType,
+              referenceIds: supplySource.referenceIds,
+              items: thirtyPctItems,
+              circle: supplySource.circle,
+              package: supplySource.package,
+              createdBy: (req as any).user._id,
+              status: 'Draft',
+              autoCreated: true,
+              parentBillId: invoice._id,
+              linkedSupplyBillId: supplySource._id
+            });
+            
+            await supplyDraft.save({ session });
+          }
+        }
+      }
+    }
+    // ───────────────────────────────────────────────────────────────────────
 
     invoice.status = status;
     if (remarks) invoice.remarks = remarks;

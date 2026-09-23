@@ -44,7 +44,7 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
 
   useEffect(() => {
     if (stage === '90%') {
-      api.get('/client-bills').then(res => {
+      api.get('/client-billing').then(res => {
         const bills = res.data?.data?.data || res.data?.data || [];
         const supply60 = bills.filter((b: any) => b.stage === '60%' && b.status !== 'Rejected');
         setSupplyBills(supply60);

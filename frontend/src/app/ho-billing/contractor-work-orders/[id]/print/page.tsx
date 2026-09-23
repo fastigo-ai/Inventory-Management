@@ -23,8 +23,19 @@ export default function WorkOrderPrintPage() {
         
         // Fetch contractor details to get the name
         if (data?.contractorId) {
-          const cRes = await api.get(`/contractors/${data.contractorId}`);
-          setContractorName(cRes.data?.data?.dynamicData?.companyName || cRes.data?.data?.dynamicData?.displayName || 'Unknown');
+          if (typeof data.contractorId === 'object') {
+            // It's populated
+            setContractorName(data.contractorId.dynamicData?.companyName || data.contractorId.dynamicData?.displayName || data.contractorId.name || 'Unknown');
+          } else {
+            // It's just an ID string, fetch it
+            try {
+              const cRes = await api.get(`/contractors/${data.contractorId}`);
+              setContractorName(cRes.data?.data?.dynamicData?.companyName || cRes.data?.data?.dynamicData?.displayName || 'Unknown');
+            } catch (err) {
+              console.error("Failed to fetch contractor", err);
+              setContractorName("Unknown");
+            }
+          }
         }
       } catch (error) {
         console.error(error);

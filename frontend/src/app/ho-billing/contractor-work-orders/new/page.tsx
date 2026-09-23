@@ -358,7 +358,7 @@ export default function NewContractorWorkOrderPage() {
 
 
   const downloadTemplate = () => {
-    const csvContent = "drawingNumber,itemId,tempCode,activity,loaSrNo,description,unit,circleLoaQty,woQty,contractorErectionRate,gstType\n";
+    const csvContent = "drawing no,subcircle,itemId,tempCode,activity,loaSrNo,description,unit,circleLoaQty,woQty,contractorErectionRate,gstType\n";
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -372,7 +372,8 @@ export default function NewContractorWorkOrderPage() {
       return;
     }
     const csvData = items.map(item => ({
-      drawingNumber: item.drawingNumber || '',
+      "drawing no": item.drawingNumber || '',
+      "subcircle": formData.subcircle || '',
       itemId: item.itemId,
       tempCode: item.tempCode,
       activity: item.activity,
@@ -411,7 +412,7 @@ export default function NewContractorWorkOrderPage() {
           const amount = woQty * contractorErectionRate;
           const gstAmount = amount * 0.18;
           return {
-            drawingNumber: row.drawingNumber || '',
+            drawingNumber: row["drawing no"] || row.drawingNumber || '',
             itemId: row.itemId || '',
             tempCode: row.tempCode || '',
             activity: row.activity || '',
@@ -433,7 +434,14 @@ export default function NewContractorWorkOrderPage() {
         });
         
         const newActivities = new Set([...formData.activities, ...parsedItems.map((i: any) => i.activity).filter(Boolean)]);
-        setFormData(prev => ({ ...prev, activities: Array.from(newActivities) as string[] }));
+        
+        let newSubcircle = formData.subcircle;
+        const firstRow = results.data[0] as any;
+        if (results.data.length > 0 && firstRow && firstRow.subcircle && formData.circle === 'Solan') {
+           newSubcircle = firstRow.subcircle;
+        }
+        
+        setFormData(prev => ({ ...prev, activities: Array.from(newActivities) as string[], subcircle: newSubcircle }));
         
         setItems(prev => {
           const combined = [...prev, ...parsedItems];

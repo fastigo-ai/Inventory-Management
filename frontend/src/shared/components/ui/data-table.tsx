@@ -479,6 +479,7 @@ export function DataTable<TData, TValue>({
           </tbody>
         </table>
         </DndContext>
+        </div>
       </div>
 
       {pagination && pagination.totalItems > 0 && (

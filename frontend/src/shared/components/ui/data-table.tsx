@@ -128,6 +128,8 @@ interface DataTableProps<TData, TValue> {
   isLoading?: boolean
   initialPinning?: ColumnPinningState
   enableRowSelection?: boolean
+  rowSelectionState?: any
+  onRowSelectionChange?: (updater: any) => void
   enableSorting?: boolean
   enableColumnReordering?: boolean
   enableExport?: boolean
@@ -432,6 +434,7 @@ export function DataTable<TData, TValue>({
         </table>
         </DndContext>
       </div>
+    </div>
     </div>
     </div>
   )

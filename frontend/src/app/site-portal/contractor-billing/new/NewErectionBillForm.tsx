@@ -6,15 +6,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Save, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/shared/api/axios';
 import { createContractorInvoice } from '@/features/contractor-billing/api/contractor-billing.api';
 import { getItems } from '@/features/items/api/items.api';
-
 import { useAuthStore } from '@/shared/store/auth.store';
 
 const STAGES = ['90%', '10%'];
+
+type MappingRow = {
+  id: string;
+  contractorId: string;
+  drawingNo: string;
+  selectedJmcs: string[];
+};
 
 export default function NewErectionBillForm({ onBack }: { onBack: () => void }) {
   const router = useRouter();
@@ -31,18 +37,30 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
 
   // Location Hierarchy
   const targetCircle = user?.assignedCircle || '';
-  
   const [divisions, setDivisions] = useState<string[]>([]);
   const [selectedDivision, setSelectedDivision] = useState('');
 
-  // Contractors & Drawings
+  // JMCs & Mapping Rows
+  const [availableJmcs, setAvailableJmcs] = useState<any[]>([]);
   const [availableContractors, setAvailableContractors] = useState<any[]>([]);
-  // Map of contractorId -> array of selected drawing numbers
-  const [selectedContractorDrawings, setSelectedContractorDrawings] = useState<Record<string, string[]>>({});
+  
+  const [mappings, setMappings] = useState<MappingRow[]>([
+    { id: Date.now().toString(), contractorId: '', drawingNo: '', selectedJmcs: [] }
+  ]);
 
   // Final Aggregated Items
-  const [jmcItems, setJmcItems] = useState<any[]>([]);
   const [lineItems, setLineItems] = useState<any[]>([]);
+
+  // Fetch Supply Bills
+  useEffect(() => {
+    if (stage === '90%') {
+      api.get('/client-billing').then(res => {
+        const bills = res.data?.data?.data || res.data?.data || [];
+        const supply60 = bills.filter((b: any) => b.stage === '60%' && b.status !== 'Rejected');
+        setSupplyBills(supply60);
+      }).catch(console.error);
+    }
+  }, [stage]);
 
   // Fetch Divisions dynamically from JMCs based on user assigned Circle
   useEffect(() => {
@@ -51,7 +69,6 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
         const jmcs = res.data?.data?.data || res.data?.data || [];
         const divs = new Set<string>();
         jmcs.forEach((j: any) => {
-          // Flexible match for circle in case of slight string differences
           const jmcCircle = j.circle?.toLowerCase() || '';
           if (jmcCircle === targetCircle.toLowerCase() && j.division) {
             divs.add(j.division);
@@ -64,26 +81,24 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
     }
   }, [targetCircle]);
 
-  // Fetch Available Contractors for the selected Division
+  // Fetch JMCs & Contractors for the selected Division
   useEffect(() => {
-    if (selectedDivision) {
+    if (selectedDivision && targetCircle) {
       api.get(`/jmc`).then(async res => {
         const jmcs = res.data?.data?.data || res.data?.data || [];
         
-        // Find approved JMCs matching Circle + Division
-        const cMap: Record<string, Set<string>> = {};
-        
-        jmcs.forEach((j: any) => {
+        const validJmcs = jmcs.filter((j: any) => {
           const jmcCircle = j.circle?.toLowerCase() || '';
           const jmcDiv = j.division?.toLowerCase() || '';
-          
-          if (jmcCircle === targetCircle.toLowerCase() && jmcDiv === selectedDivision.toLowerCase()) {
-            if (j.status === 'Approved' && j.contractorId) {
-              const cId = typeof j.contractorId === 'object' ? j.contractorId._id : j.contractorId;
-              if (!cMap[cId]) cMap[cId] = new Set<string>();
-              if (j.drawingNo) cMap[cId].add(j.drawingNo);
-            }
-          }
+          return jmcCircle === targetCircle.toLowerCase() && jmcDiv === selectedDivision.toLowerCase() && j.status === 'Approved' && j.contractorId;
+        });
+        
+        setAvailableJmcs(validJmcs);
+        
+        const cMap: Record<string, boolean> = {};
+        validJmcs.forEach((j: any) => {
+          const cId = typeof j.contractorId === 'object' ? j.contractorId._id : j.contractorId;
+          cMap[cId] = true;
         });
         
         const cIds = Object.keys(cMap);
@@ -96,7 +111,6 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
             return {
               _id: cId,
               name: cObj?.dynamicData?.displayName || cObj?.name || cObj?.vendorName || 'Unknown Contractor',
-              availableDrawings: Array.from(cMap[cId])
             };
           });
           setAvailableContractors(available);
@@ -105,57 +119,49 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
         }
       }).catch(console.error);
     } else {
+      setAvailableJmcs([]);
       setAvailableContractors([]);
-      setSelectedContractorDrawings({});
+      setMappings([{ id: Date.now().toString(), contractorId: '', drawingNo: '', selectedJmcs: [] }]);
     }
   }, [selectedDivision, targetCircle]);
 
-  // When selection changes, aggregate JMC data
+  // Aggregate items when mappings change
   useEffect(() => {
     fetchJmcData();
-  }, [selectedContractorDrawings]);
+  }, [JSON.stringify(mappings)]);
 
   const fetchJmcData = async () => {
-    const activeContractorIds = Object.keys(selectedContractorDrawings).filter(cId => selectedContractorDrawings[cId].length > 0);
-    
-    if (activeContractorIds.length === 0) {
+    const selectedJmcIds = mappings.flatMap(m => m.selectedJmcs);
+    if (selectedJmcIds.length === 0) {
       setLineItems([]);
       return;
     }
 
     try {
       setLoading(true);
-      // Fetch all JMCs, then filter locally (more efficient than multiple API calls if API doesn't support complex OR filters)
-      const res = await api.get('/jmc');
-      const allJmcs = res.data?.data?.data || res.data?.data || [];
-      
       let aggregated: any[] = [];
       
-      allJmcs.forEach((jmc: any) => {
-        if (jmc.status === 'Approved' && jmc.contractorId && jmc.drawingNo) {
+      availableJmcs.forEach((jmc: any) => {
+        if (selectedJmcIds.includes(jmc._id)) {
           const cId = typeof jmc.contractorId === 'object' ? jmc.contractorId._id : jmc.contractorId;
           
-          // Check if this JMC's contractor and drawing are selected
-          if (selectedContractorDrawings[cId] && selectedContractorDrawings[cId].includes(jmc.drawingNo)) {
-             if (jmc.items) {
-               jmc.items.forEach((item: any) => {
-                 if (item.itemId) {
-                   aggregated.push({
-                     contractorId: cId,
-                     drawingNo: jmc.drawingNo,
-                     itemId: typeof item.itemId === 'object' ? item.itemId._id : item.itemId,
-                     activity: item.activity || '',
-                     jmcQty: Number(item.approvedQty) || Number(item.claimedQty) || 0,
-                     description: typeof item.itemId === 'object' ? (item.itemId.dynamicData?.itemName || item.itemId.dynamicData?.description) : '',
-                   });
-                 }
-               });
-             }
+          if (jmc.items) {
+            jmc.items.forEach((item: any) => {
+              if (item.itemId) {
+                aggregated.push({
+                  contractorId: cId,
+                  itemId: typeof item.itemId === 'object' ? item.itemId._id : item.itemId,
+                  activity: item.activity || '',
+                  jmcQty: Number(item.approvedQty) || Number(item.claimedQty) || 0,
+                  description: typeof item.itemId === 'object' ? (item.itemId.dynamicData?.itemName || item.itemId.dynamicData?.description) : '',
+                });
+              }
+            });
           }
         }
       });
 
-      // Aggregate duplicates (Contractor + Item) across all their selected drawings
+      // Group duplicates (Contractor + Item) across all selected JMCs
       const groupedByContractorAndItem: Record<string, any> = {};
       aggregated.forEach(ag => {
         const key = `${ag.contractorId}_${ag.itemId}`;
@@ -168,7 +174,7 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
 
       const finalItems = Object.values(groupedByContractorAndItem);
 
-      // Fetch Master Items to apply standard Erection Rates
+      // Apply Master DB Erection Rate
       if (finalItems.length > 0) {
         const itemRes = await getItems({ limit: 50000 });
         const masterItems = itemRes?.items || itemRes?.data?.items || (Array.isArray(itemRes) ? itemRes : itemRes.data) || [];
@@ -179,6 +185,9 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
             fi.description = master.dynamicData?.itemName || master.dynamicData?.description || master.itemName;
             fi.rate = master.dynamicData?.boqRate || master.boqRate || 0; 
             fi.activity = master.dynamicData?.activity || master.activity || fi.activity;
+            fi.tempCode = master.dynamicData?.tempCode || master.tempCode || 'N/A';
+            fi.loaSlNo = master.dynamicData?.loaSlNo || master.loaSlNo || 'N/A';
+            fi.loaQty = master.dynamicData?.loaQty || master.loaQty || 0;
           }
         });
       }
@@ -188,6 +197,9 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
         contractorId: fi.contractorId,
         activity: fi.activity,
         description: fi.description,
+        tempCode: fi.tempCode || 'N/A',
+        loaSlNo: fi.loaSlNo || 'N/A',
+        loaQty: fi.loaQty || 0,
         jmcDoneQty: fi.jmcQty,
         erectedQty: fi.jmcQty,
         rate: fi.rate || 0,
@@ -211,6 +223,55 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
     return groups;
   }, [lineItems]);
 
+  const addMappingRow = () => {
+    setMappings([...mappings, { id: Date.now().toString(), contractorId: '', drawingNo: '', selectedJmcs: [] }]);
+  };
+
+  const removeMappingRow = (id: string) => {
+    setMappings(mappings.filter(m => m.id !== id));
+  };
+
+  const updateMappingRow = (id: string, field: keyof MappingRow, value: any) => {
+    setMappings(mappings.map(m => {
+      if (m.id === id) {
+        const updated = { ...m, [field]: value };
+        // Reset cascading selections
+        if (field === 'contractorId') {
+          updated.drawingNo = '';
+          updated.selectedJmcs = [];
+        }
+        if (field === 'drawingNo') {
+          updated.selectedJmcs = [];
+        }
+        return updated;
+      }
+      return m;
+    }));
+  };
+
+  const getDrawingsForContractor = (contractorId: string) => {
+    const jmcs = availableJmcs.filter(j => {
+      const cId = typeof j.contractorId === 'object' ? j.contractorId._id : j.contractorId;
+      return cId === contractorId;
+    });
+    const dNos = new Set<string>();
+    jmcs.forEach(j => {
+      if (j.drawingNo) dNos.add(j.drawingNo);
+      else dNos.add('NO_DRAWING'); // Placeholder for missing drawings
+    });
+    return Array.from(dNos);
+  };
+
+  const getJmcsForSelection = (contractorId: string, drawingNo: string) => {
+    return availableJmcs.filter(j => {
+      const cId = typeof j.contractorId === 'object' ? j.contractorId._id : j.contractorId;
+      if (cId !== contractorId) return false;
+      if (drawingNo === 'NO_DRAWING' && !j.drawingNo) return true;
+      if (drawingNo && j.drawingNo !== drawingNo) return false;
+      return true;
+    });
+  };
+
   const handleSubmit = async () => {
     if (!stage) return toast.error('Please select a Billing Stage');
     if (stage === '90%' && !linkedSupplyBillId) return toast.error('Please select the linked 60% Supply Bill');
@@ -225,7 +286,6 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
         linkedSupplyBillId: stage === '90%' ? linkedSupplyBillId : undefined,
         jmcDocUrl,
         signedBillDocUrl,
-        // Since it's multi-drawing, we leave drawingNumber blank or aggregate it in a future update if needed
         lineItems: lineItems.map(item => ({ ...item, billingCategory: 'Erection' }))
       };
 
@@ -241,192 +301,249 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
   };
 
   return (
-    <Card className="border-indigo-200 shadow-sm">
-      <CardHeader className="bg-indigo-50/50 border-b border-indigo-100 pb-4">
-        <CardTitle className="text-indigo-900 text-lg">Erection Bill Settings (Client Facing)</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6 pt-6">
-        
-        {/* Billing Properties */}
-        <div className="grid grid-cols-2 gap-6 bg-slate-50 p-4 rounded-lg border border-slate-100">
-          <div className="space-y-2">
-            <Label>Billing Stage <span className="text-red-500">*</span></Label>
-            <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={stage}
-              onChange={(e) => setStage(e.target.value)}
-            >
-              <option value="">Select Billing Stage</option>
-              {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
+    <div className="space-y-6 pb-24">
+      <Card className="border-indigo-200 shadow-sm">
+        <CardHeader className="bg-indigo-50/50 border-b border-indigo-100 pb-4">
+          <CardTitle className="text-indigo-900 text-lg">Erection Bill Settings (Client Facing)</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6 pt-6">
+          
+          {/* Billing Properties */}
+          <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 space-y-4">
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label>Billing Stage <span className="text-red-500">*</span></Label>
+                <select
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={stage}
+                  onChange={(e) => setStage(e.target.value)}
+                >
+                  <option value="">Select Billing Stage</option>
+                  {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+
+              {stage === '90%' && (
+                <div className="space-y-2">
+                  <Label>Link Supply 60% RA Bill <span className="text-red-500">*</span></Label>
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={linkedSupplyBillId}
+                    onChange={(e) => setLinkedSupplyBillId(e.target.value)}
+                  >
+                    <option value="">Select Supply Bill</option>
+                    {supplyBills.map(b => (
+                      <option key={b._id} value={b._id}>{b.invoiceNumber} - ₹{b.grandTotal}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label>Circle</Label>
+                <Input 
+                  value={targetCircle || 'No Circle Assigned'} 
+                  disabled 
+                  className="bg-slate-100 text-slate-500 font-medium cursor-not-allowed" 
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Division</Label>
+                <select
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:bg-slate-100"
+                  value={selectedDivision}
+                  onChange={(e) => setSelectedDivision(e.target.value)}
+                  disabled={!targetCircle || divisions.length === 0}
+                >
+                  <option value="">Select Division</option>
+                  {divisions.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-6 pt-2">
+              <div className="space-y-2">
+                <Label>JMC Document URL <span className="text-red-500">*</span></Label>
+                <Input placeholder="Enter JMC Document URL" value={jmcDocUrl} onChange={e => setJmcDocUrl(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Signed Bill Document URL <span className="text-red-500">*</span></Label>
+                <Input placeholder="Enter Signed Bill Document URL" value={signedBillDocUrl} onChange={e => setSignedBillDocUrl(e.target.value)} />
+              </div>
+            </div>
           </div>
 
-          {stage === '90%' && (
-            <div className="space-y-2">
-              <Label>Link Supply 60% RA Bill <span className="text-red-500">*</span></Label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={linkedSupplyBillId}
-                onChange={(e) => setLinkedSupplyBillId(e.target.value)}
-              >
-                <option value="">Select Supply Bill</option>
-                {supplyBills.map(b => (
-                  <option key={b._id} value={b._id}>{b.invoiceNumber} - ₹{b.grandTotal}</option>
-                ))}
-              </select>
+          {/* Dynamic JMC Mapping Rows */}
+          {selectedDivision && (
+            <div className="space-y-4 pt-4 border-t border-slate-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-base font-semibold text-slate-800">Map JMCs to Bill</Label>
+                  <p className="text-sm text-slate-500">Link Specific JMCs sequentially for each contractor and drawing.</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={addMappingRow} className="text-indigo-600 border-indigo-200 hover:bg-indigo-50">
+                  <Plus className="w-4 h-4 mr-2" /> Add Mapping
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                {mappings.map((row, index) => {
+                  const availableDrawings = row.contractorId ? getDrawingsForContractor(row.contractorId) : [];
+                  const selectableJmcs = row.contractorId ? getJmcsForSelection(row.contractorId, row.drawingNo) : [];
+                  
+                  return (
+                    <div key={row.id} className="flex items-start gap-4 p-4 bg-slate-50 border border-slate-200 rounded-lg relative group">
+                      
+                      {mappings.length > 1 && (
+                        <button 
+                          onClick={() => removeMappingRow(row.id)}
+                          className="absolute -right-2 -top-2 bg-white text-red-500 border border-red-200 p-1.5 rounded-full shadow-sm hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+
+                      <div className="flex-1 grid grid-cols-3 gap-4">
+                        <div className="space-y-1">
+                          <Label className="text-xs text-slate-500">Contractor</Label>
+                          <select
+                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                            value={row.contractorId}
+                            onChange={(e) => updateMappingRow(row.id, 'contractorId', e.target.value)}
+                          >
+                            <option value="">Select Contractor</option>
+                            {availableContractors.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                          </select>
+                        </div>
+                        
+                        <div className="space-y-1">
+                          <Label className="text-xs text-slate-500">Drawing No.</Label>
+                          <select
+                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm disabled:bg-slate-100"
+                            value={row.drawingNo}
+                            onChange={(e) => updateMappingRow(row.id, 'drawingNo', e.target.value)}
+                            disabled={!row.contractorId}
+                          >
+                            <option value="">Select Drawing</option>
+                            {availableDrawings.map(d => (
+                              <option key={d} value={d}>{d === 'NO_DRAWING' ? 'No Drawing Number' : d}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label className="text-xs text-slate-500">Select JMCs (Multi)</Label>
+                          <div className={`h-9 w-full rounded-md border border-input px-3 py-1 text-sm overflow-hidden flex items-center ${!row.contractorId ? 'bg-slate-100 cursor-not-allowed' : 'bg-background'}`}>
+                            {row.contractorId ? (
+                              <select 
+                                multiple
+                                className="w-full h-full bg-transparent focus:outline-none"
+                                value={row.selectedJmcs}
+                                onChange={(e) => {
+                                  const selectedOptions = Array.from(e.target.selectedOptions).map(opt => opt.value);
+                                  updateMappingRow(row.id, 'selectedJmcs', selectedOptions);
+                                }}
+                                style={{ height: 'auto', padding: 0 }}
+                              >
+                                {selectableJmcs.map(jmc => (
+                                  <option key={jmc._id} value={jmc._id} className="p-1 mb-1 border-b">
+                                    JMC No: {jmc.jmcNumber || jmc._id.slice(-6)} 
+                                    {jmc.jmcDate ? ` (${new Date(jmc.jmcDate).toLocaleDateString()})` : ''}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <span className="text-slate-400">Select Contractor First</span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-slate-400 mt-1">Hold Cmd/Ctrl to select multiple.</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* Hierarchy Selection */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label>Circle</Label>
-            <Input 
-              value={targetCircle || 'No Circle Assigned'} 
-              disabled 
-              className="bg-slate-100 text-slate-500 font-medium cursor-not-allowed" 
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Division</Label>
-            <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:bg-slate-100"
-              value={selectedDivision}
-              onChange={(e) => setSelectedDivision(e.target.value)}
-              disabled={!targetCircle || divisions.length === 0}
-            >
-              <option value="">Select Division</option>
-              {divisions.map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
-          </div>
-        </div>
-
-        {/* Contractor & Drawing Mapping */}
-        {selectedDivision && (
-          <div className="space-y-3">
-            <Label className="text-base font-semibold text-slate-800">Available Contractors & Drawings</Label>
-            <p className="text-sm text-slate-500">Select the contractors and the specific drawings they worked on for this bill.</p>
-            
-            {availableContractors.length === 0 ? (
-              <div className="p-4 border rounded bg-slate-50 text-slate-500 text-center text-sm">
-                No approved JMCs found for this division.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto pr-2">
-                {availableContractors.map(c => (
-                  <div key={c._id} className={`p-4 border rounded-lg transition-colors ${selectedContractorDrawings[c._id] !== undefined ? 'bg-indigo-50/50 border-indigo-200' : 'bg-white hover:bg-slate-50'}`}>
-                    <label className="flex items-center gap-3 cursor-pointer mb-1">
-                      <input 
-                        type="checkbox" 
-                        checked={selectedContractorDrawings[c._id] !== undefined}
-                        onChange={(e) => {
-                          if (e.target.checked) setSelectedContractorDrawings({...selectedContractorDrawings, [c._id]: []});
-                          else {
-                            const newMap = {...selectedContractorDrawings};
-                            delete newMap[c._id];
-                            setSelectedContractorDrawings(newMap);
-                          }
-                        }}
-                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
-                      />
-                      <span className="font-semibold text-slate-700">{c.name}</span>
-                    </label>
-                    
-                    {selectedContractorDrawings[c._id] !== undefined && (
-                      <div className="ml-7 mt-3 pt-3 border-t border-indigo-100 space-y-2">
-                        <Label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Select Drawings:</Label>
-                        <div className="flex flex-wrap gap-3">
-                          {c.availableDrawings.map((dNo: string) => (
-                            <label key={dNo} className="flex items-center gap-1.5 text-sm cursor-pointer bg-white px-2 py-1 border rounded shadow-sm hover:border-indigo-300 transition-colors">
-                              <input 
-                                type="checkbox" 
-                                className="text-indigo-600 rounded-sm"
-                                checked={selectedContractorDrawings[c._id].includes(dNo)} 
-                                onChange={e => {
-                                  const arr = selectedContractorDrawings[c._id];
-                                  const newArr = e.target.checked ? [...arr, dNo] : arr.filter(x => x !== dNo);
-                                  setSelectedContractorDrawings({...selectedContractorDrawings, [c._id]: newArr});
-                                }} 
-                              />
-                              <span className="text-slate-600">{dNo}</span>
-                            </label>
-                          ))}
-                        </div>
-                        {selectedContractorDrawings[c._id].length === 0 && (
-                           <p className="text-xs text-red-500">Please select at least one drawing.</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Documents */}
-        <div className="space-y-2 pt-4 border-t">
-           <Label>Document Uploads <span className="text-red-500">*</span></Label>
-           <div className="grid grid-cols-2 gap-6">
-              <div>
-                <Input placeholder="JMC Document URL" value={jmcDocUrl} onChange={e => setJmcDocUrl(e.target.value)} />
-              </div>
-              <div>
-                <Input placeholder="Signed Bill Document URL" value={signedBillDocUrl} onChange={e => setSignedBillDocUrl(e.target.value)} />
-              </div>
-           </div>
-        </div>
-
-        {/* Final Table */}
-        {lineItems.length > 0 && (
-          <div className="mt-8 border border-slate-200 rounded-lg overflow-hidden shadow-sm">
-            <div className="bg-slate-100 px-4 py-3 border-b border-slate-200 flex items-center justify-between">
-              <h3 className="font-semibold text-slate-800">Aggregated Master Items</h3>
-              <span className="text-xs font-medium bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">
-                {lineItems.length} Items
-              </span>
+      {/* Final Table (Standard Format) */}
+      <Card className="border-slate-200 shadow-sm mt-6">
+        <CardHeader className="bg-slate-50 border-b border-slate-100 py-3">
+          <CardTitle className="text-slate-800 text-base font-medium flex items-center justify-between">
+            <span>Bill Line Items</span>
+            <span className="text-xs font-normal text-slate-500">Add line items, fill JMC or Erected qty</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {lineItems.length === 0 ? (
+            <div className="text-center py-12 text-slate-500 text-sm">
+              No items added yet. Map JMCs above to start.
             </div>
-            
-            {Object.entries(groupedItems).map(([cId, items]) => {
-              const cName = availableContractors.find(c => c._id === cId)?.name || 'Unknown Contractor';
-              return (
-                <div key={cId} className="mb-4">
-                  <div className="bg-indigo-50/50 px-4 py-2 border-y border-indigo-100 font-bold text-indigo-900 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-indigo-400"></span>
-                    {cName}
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
-                      <thead className="text-xs text-slate-500 bg-white uppercase border-b">
-                        <tr>
-                          <th className="px-4 py-3">Activity</th>
-                          <th className="px-4 py-3">Description</th>
-                          <th className="px-4 py-3 text-right">JMC Qty</th>
-                          <th className="px-4 py-3 text-right">Master Rate</th>
-                          <th className="px-4 py-3 text-right">Amount</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {items.map((item, idx) => (
-                          <tr key={idx} className="bg-white border-b hover:bg-slate-50 transition-colors">
-                            <td className="px-4 py-3 text-slate-600">{item.activity}</td>
-                            <td className="px-4 py-3 font-medium text-slate-900 max-w-xs truncate" title={item.description}>{item.description}</td>
-                            <td className="px-4 py-3 text-right font-medium">{item.jmcDoneQty}</td>
-                            <td className="px-4 py-3 text-right text-slate-600">₹{item.rate}</td>
-                            <td className="px-4 py-3 text-right font-medium text-slate-900">₹{(item.jmcDoneQty * item.rate).toLocaleString()}</td>
+          ) : (
+            <div className="w-full">
+              {Object.entries(groupedItems).map(([cId, items]) => {
+                const cName = availableContractors.find(c => c._id === cId)?.name || 'Unknown Contractor';
+                return (
+                  <div key={cId} className="mb-0 border-b border-slate-200 last:border-b-0">
+                    <div className="bg-indigo-50/70 px-4 py-2 border-y border-indigo-100 font-semibold text-indigo-900 text-sm flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                        {cName}
+                      </div>
+                      <span className="text-xs font-medium text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full">
+                        {items.length} Items
+                      </span>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm text-left">
+                        <thead className="text-[11px] text-slate-600 bg-slate-50 uppercase font-semibold border-b border-slate-200">
+                          <tr>
+                            <th className="px-4 py-3 min-w-[120px]">Activity</th>
+                            <th className="px-4 py-3 min-w-[200px]">Item</th>
+                            <th className="px-4 py-3 text-center">Temp Code</th>
+                            <th className="px-4 py-3 text-center">LOA Sl No</th>
+                            <th className="px-4 py-3 text-right">LOA Qty</th>
+                            <th className="px-4 py-3 text-right">Rate</th>
+                            <th className="px-4 py-3 text-right bg-blue-50/50 min-w-[120px]">
+                              JMC Done Qty
+                              {stage && <div className="text-[9px] text-slate-400 mt-0.5">{stage} Release</div>}
+                            </th>
+                            <th className="px-4 py-3 text-center">GST %</th>
+                            <th className="px-4 py-3 text-right">Amount</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {items.map((item, idx) => {
+                            const amount = item.jmcDoneQty * item.rate;
+                            return (
+                              <tr key={idx} className="bg-white hover:bg-slate-50/50 transition-colors">
+                                <td className="px-4 py-3 text-slate-600 font-medium">{item.activity}</td>
+                                <td className="px-4 py-3 text-slate-900 text-xs">{item.description}</td>
+                                <td className="px-4 py-3 text-center text-slate-500">{item.tempCode}</td>
+                                <td className="px-4 py-3 text-center text-slate-500">{item.loaSlNo}</td>
+                                <td className="px-4 py-3 text-right text-slate-600">{item.loaQty}</td>
+                                <td className="px-4 py-3 text-right font-medium text-slate-700">₹{item.rate}</td>
+                                <td className="px-4 py-3 text-right font-bold text-blue-600 bg-blue-50/30">{item.jmcDoneQty}</td>
+                                <td className="px-4 py-3 text-center text-slate-600">{item.gstRate}%</td>
+                                <td className="px-4 py-3 text-right font-bold text-slate-800">₹{amount.toLocaleString('en-IN')}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </CardContent>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
       
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10 pl-64">
         <div className="max-w-7xl mx-auto flex justify-end gap-4">
@@ -437,6 +554,6 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
           </Button>
         </div>
       </div>
-    </Card>
+    </div>
   );
 }

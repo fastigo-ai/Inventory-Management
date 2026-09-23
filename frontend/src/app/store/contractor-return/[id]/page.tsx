@@ -211,6 +211,7 @@ export default function ContractorReturnDetailPage() {
                 <tr>
                   <th className="px-4 py-3">Sr. No.</th>
                   <th className="px-4 py-3">Description of Material</th>
+                  <th className="px-4 py-3">LOA Sr No</th>
                   <th className="px-4 py-3">Temp Code</th>
                   <th className="px-4 py-3">HSN Code</th>
                   <th className="px-4 py-3">UNIT</th>
@@ -229,6 +230,7 @@ export default function ContractorReturnDetailPage() {
                     <tr key={item._id || idx} className="hover:bg-slate-50">
                       <td className="px-4 py-3 text-slate-500">{idx + 1}</td>
                       <td className="px-4 py-3 font-medium text-slate-800">{item.itemName || item.itemId?.description || '-'}</td>
+                      <td className="px-4 py-3 text-slate-600 font-mono">{item.loaSrNo || '-'}</td>
                       <td className="px-4 py-3 text-slate-600">{item.tempCode || item.itemId?.itemCode || '-'}</td>
                       <td className="px-4 py-3 text-slate-500">{item.hsnCode || '-'}</td>
                       <td className="px-4 py-3 text-slate-500">{item.unit || item.itemId?.unit || 'Nos'}</td>

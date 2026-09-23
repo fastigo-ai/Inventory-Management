@@ -840,34 +840,15 @@ export const bulkImportContractorReturns = asyncHandler(async (req: Request, res
       const cleanCircle = circle.trim().toLowerCase();
 
       let item = null;
-      let loaItem = null;
       if (csvLoaSrNo) {
         const cleanLoaSrNo = String(csvLoaSrNo).trim().toLowerCase();
-        loaItem = itemCache.get(`loa_${cleanLoaSrNo}_${cleanCircle}`);
+        item = itemCache.get(`loa_${cleanLoaSrNo}_${cleanCircle}`);
       }
-
-      if (loaItem) {
-        const masterItemName = String(loaItem.dynamicData?.name || '').trim().toLowerCase();
-        const providedItemName = String(itemName).trim().toLowerCase();
-        if (itemName && masterItemName !== providedItemName && String(loaItem.dynamicData?.description || '').trim().toLowerCase() !== providedItemName) {
-           errors.push(`Item Name mismatch for LOA Serial No '${csvLoaSrNo}' in Challan ${challanNo}. Expected '${loaItem.dynamicData?.name || ''}', found '${itemName}'`);
-           continue;
-        }
-
-        const masterTempCode = String(loaItem.dynamicData?.tempCode || '').trim().toLowerCase();
-        const providedTempCode = String(tempCode).trim().toLowerCase();
-        if (tempCode && masterTempCode !== providedTempCode) {
-           errors.push(`Temp Code mismatch for LOA Serial No '${csvLoaSrNo}' in Challan ${challanNo}. Expected '${loaItem.dynamicData?.tempCode || ''}', found '${tempCode}'`);
-           continue;
-        }
-        item = loaItem;
-      } else {
-        if (tempCode) {
-          item = itemCache.get(`tc_${String(tempCode).trim().toLowerCase()}_${cleanCircle}`);
-        }
-        if (!item && itemName) {
-          item = itemCache.get(`in_${String(itemName).trim().toLowerCase()}_${cleanCircle}`);
-        }
+      if (!item && tempCode) {
+        item = itemCache.get(`tc_${String(tempCode).trim().toLowerCase()}_${cleanCircle}`);
+      }
+      if (!item && itemName) {
+        item = itemCache.get(`in_${String(itemName).trim().toLowerCase()}_${cleanCircle}`);
       }
 
       if (!item) {
@@ -875,10 +856,32 @@ export const bulkImportContractorReturns = asyncHandler(async (req: Request, res
         continue;
       }
 
+      // Strict Validation against Master
+      const masterLoaSrNoVal = String(item.dynamicData?.sku || item.dynamicData?.loaSrNo || item.dynamicData?.loaSerialNo || '').trim().toLowerCase();
+      if (csvLoaSrNo && String(csvLoaSrNo).trim().toLowerCase() !== masterLoaSrNoVal) {
+        errors.push(`LOA Sr No mismatch for item in Challan ${challanNo}. Expected '${item.dynamicData?.sku || item.dynamicData?.loaSrNo || ''}', found '${csvLoaSrNo}'`);
+        continue;
+      }
+
+      const masterTempCode = String(item.dynamicData?.tempCode || '').trim().toLowerCase();
+      const providedTempCode = String(tempCode).trim().toLowerCase();
+      if (tempCode && masterTempCode !== providedTempCode) {
+         errors.push(`Temp Code mismatch for item in Challan ${challanNo}. Expected '${item.dynamicData?.tempCode || ''}', found '${tempCode}'`);
+         continue;
+      }
+
+      const masterItemName = String(item.dynamicData?.name || '').trim().toLowerCase();
+      const masterItemDesc = String(item.dynamicData?.description || '').trim().toLowerCase();
+      const providedItemName = String(itemName).trim().toLowerCase();
+      if (itemName && masterItemName !== providedItemName && masterItemDesc !== providedItemName) {
+         errors.push(`Item Name mismatch in Challan ${challanNo}. Expected '${item.dynamicData?.name || item.dynamicData?.description || ''}', found '${itemName}'`);
+         continue;
+      }
+
       const expectedUnit = normalizeUnit(item.dynamicData?.unit || item.dynamicData?.uom || item?.unit || item?.uom || '');
       const providedUnit = normalizeUnit(csvUnit);
       if (csvUnit && expectedUnit !== providedUnit) {
-        errors.push(`Unit mismatch for item '${itemName || tempCode}' in Challan ${challanNo}. Expected '${expectedUnit || 'Nos'}', got '${csvUnit}'`);
+        errors.push(`Unit mismatch for item in Challan ${challanNo}. Expected '${item.dynamicData?.unit || 'Nos'}', got '${csvUnit}'`);
         continue;
       }
       

@@ -409,7 +409,7 @@ export default function SiteContractorSummaryPage() {
                     <CheckCircle2 className="w-4 h-4" />
                   </div>
                 </div>
-                <div className="text-xl font-bold text-slate-900 font-mono">{totals.jmcDone.toLocaleString()}</div>
+                <div className="text-xl font-bold text-slate-900 font-mono">{totals.jmcDone.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</div>
                 <p className="text-[11px] text-slate-400 mt-1">Verified work completed</p>
               </div>
 
@@ -420,7 +420,7 @@ export default function SiteContractorSummaryPage() {
                     <Wrench className="w-4 h-4" />
                   </div>
                 </div>
-                <div className="text-xl font-bold text-purple-900 font-mono">{totals.totalWip.toLocaleString()}</div>
+                <div className="text-xl font-bold text-purple-900 font-mono">{totals.totalWip.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</div>
                 <p className="text-[11px] text-purple-600/70 mt-1">Consumed + Required</p>
               </div>
 
@@ -431,7 +431,7 @@ export default function SiteContractorSummaryPage() {
                     <Boxes className="w-4 h-4" />
                   </div>
                 </div>
-                <div className="text-xl font-bold text-slate-900 font-mono">{totals.totalIssued.toLocaleString()}</div>
+                <div className="text-xl font-bold text-slate-900 font-mono">{totals.totalIssued.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</div>
                 <p className="text-[11px] text-slate-400 mt-1">Total material issued</p>
               </div>
 
@@ -442,7 +442,7 @@ export default function SiteContractorSummaryPage() {
                     <RotateCcw className="w-4 h-4" />
                   </div>
                 </div>
-                <div className="text-xl font-bold text-slate-900 font-mono">{totals.totalReturned.toLocaleString()}</div>
+                <div className="text-xl font-bold text-slate-900 font-mono">{totals.totalReturned.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</div>
                 <p className="text-[11px] text-slate-400 mt-1">Returned to store</p>
               </div>
 
@@ -453,7 +453,7 @@ export default function SiteContractorSummaryPage() {
                     <TrendingUp className="w-4 h-4" />
                   </div>
                 </div>
-                <div className="text-xl font-bold text-indigo-950 font-mono">{totals.todayTotalBalance.toLocaleString()}</div>
+                <div className="text-xl font-bold text-indigo-950 font-mono">{totals.todayTotalBalance.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</div>
                 <p className="text-[11px] text-indigo-600 mt-1">Net store balance</p>
               </div>
             </div>
@@ -590,35 +590,35 @@ export default function SiteContractorSummaryPage() {
                           </td>
                         )}
                         <td className="p-3 text-right font-mono border-r border-slate-200/50 bg-emerald-50/20 text-emerald-900">
-                          {(row.jmcDone || 0).toLocaleString()}
+                          {(row.jmcDone || 0).toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                         </td>
                         <td className="p-3 text-right font-mono border-r border-slate-200/50 bg-purple-50/10">
-                          {(row.wipConsumed || 0).toLocaleString()}
+                          {(row.wipConsumed || 0).toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                         </td>
                         <td className="p-3 text-right font-mono border-r border-slate-200/50 bg-purple-50/10">
-                          {(row.wipRequired || 0).toLocaleString()}
+                          {(row.wipRequired || 0).toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                         </td>
                         <td className="p-3 text-right font-mono font-semibold border-r border-slate-200/50 bg-purple-50/30 text-purple-900">
-                          {(row.totalWip || 0).toLocaleString()}
+                          {(row.totalWip || 0).toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                         </td>
                         <td className="p-3 text-right font-mono font-bold border-r border-slate-200/50 bg-indigo-50/30 text-indigo-950">
-                          {(row.totalIwipJmc || 0).toLocaleString()}
+                          {(row.totalIwipJmc || 0).toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                         </td>
                         <td className="p-3 text-right font-mono border-r border-slate-200/50 bg-blue-50/20 text-blue-900">
-                          {(row.totalIssued || 0).toLocaleString()}
+                          {(row.totalIssued || 0).toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                         </td>
                         <td className="p-3 text-right font-mono border-r border-slate-200/50 bg-amber-50/20 text-amber-900">
-                          {(row.totalReturned || 0).toLocaleString()}
+                          {(row.totalReturned || 0).toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                         </td>
                         <td className="p-3 text-right font-mono font-bold border-r border-slate-200/50 bg-indigo-50/50 text-indigo-950">
-                          {(row.todayTotalBalance || 0).toLocaleString()}
+                          {(row.todayTotalBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                         </td>
                         <td className="p-3 text-right font-mono font-bold border-r border-slate-200/50 bg-blue-50/50 text-blue-950">
-                          {((row.todayTotalBalance || 0) - (row.jmcDone || 0) - (row.wipConsumed || 0)).toLocaleString()}
+                          {((row.todayTotalBalance || 0) - (row.jmcDone || 0) - (row.wipConsumed || 0)).toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                         </td>
                         <td className="p-3 text-right font-mono font-bold border-r border-slate-200/50">
                           <span className={`inline-block px-2 py-0.5 rounded-md ${isNeg ? 'bg-red-50 text-red-700 border border-red-200' : 'text-slate-800'}`}>
-                            {(row.finalBalQty || 0).toLocaleString()}
+                            {(row.finalBalQty || 0).toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                           </span>
                         </td>
                         {viewMode === 'item' && (
@@ -645,34 +645,34 @@ export default function SiteContractorSummaryPage() {
                       Total Summary
                     </td>
                     <td className="p-3.5 text-right font-mono text-emerald-300">
-                      {totals.jmcDone.toLocaleString()}
+                      {totals.jmcDone.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                     </td>
                     <td className="p-3.5 text-right font-mono text-purple-300">
-                      {totals.wipConsumed.toLocaleString()}
+                      {totals.wipConsumed.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                     </td>
                     <td className="p-3.5 text-right font-mono text-purple-300">
-                      {totals.wipRequired.toLocaleString()}
+                      {totals.wipRequired.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                     </td>
                     <td className="p-3.5 text-right font-mono text-purple-200">
-                      {totals.totalWip.toLocaleString()}
+                      {totals.totalWip.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                     </td>
                     <td className="p-3.5 text-right font-mono text-indigo-300">
-                      {totals.totalIwipJmc.toLocaleString()}
+                      {totals.totalIwipJmc.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                     </td>
                     <td className="p-3.5 text-right font-mono text-blue-300">
-                      {totals.totalIssued.toLocaleString()}
+                      {totals.totalIssued.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                     </td>
                     <td className="p-3.5 text-right font-mono text-amber-300">
-                      {totals.totalReturned.toLocaleString()}
+                      {totals.totalReturned.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                     </td>
                     <td className="p-3.5 text-right font-mono text-indigo-200">
-                      {totals.todayTotalBalance.toLocaleString()}
+                      {totals.todayTotalBalance.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                     </td>
                     <td className="p-3.5 text-right font-mono text-blue-200">
-                      {(totals.todayTotalBalance - totals.jmcDone - totals.wipConsumed).toLocaleString()}
+                      {(totals.todayTotalBalance - totals.jmcDone - totals.wipConsumed).toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                     </td>
                     <td className="p-3.5 text-right font-mono text-amber-200">
-                      {totals.finalBalQty.toLocaleString()}
+                      {totals.finalBalQty.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                     </td>
                     <td className="p-3.5"></td>
                   </tr>

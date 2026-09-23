@@ -92,6 +92,7 @@ export default function EditContractorReturnPage() {
   const [lineItems, setLineItems] = useState<any[]>([{ 
     itemId: "", 
     itemName: "", 
+    loaSrNo: "",
     tempCode: "", 
     unit: "Nos",
     hsnCode: "",
@@ -131,6 +132,7 @@ export default function EditContractorReturnPage() {
             setLineItems(data.lineItems.map((item: any) => ({
               itemId: item.itemId?._id || item.itemId || null,
               itemName: item.itemName || "",
+              loaSrNo: item.loaSrNo || "",
               tempCode: item.tempCode || "",
               unit: item.unit || "Nos",
               hsnCode: item.hsnCode || "",
@@ -155,12 +157,14 @@ export default function EditContractorReturnPage() {
         newItems[index].itemId = selectedStock.itemId;
         newItems[index].itemName = selectedStock.description;
         newItems[index].tempCode = selectedStock.tempCode || selectedStock.itemCode || '';
+        newItems[index].loaSrNo = selectedStock.loaSrNo || '';
         newItems[index].unit = selectedStock.unit || 'Nos';
         newItems[index].hsnCode = selectedStock.hsnCode || '';
         newItems[index].availableQty = selectedStock.totalBalanceQty || 0;
       } else {
         newItems[index].itemId = "";
         newItems[index].itemName = "";
+        newItems[index].loaSrNo = "";
         newItems[index].unit = "Nos";
         newItems[index].hsnCode = "";
         newItems[index].availableQty = 0;
@@ -174,7 +178,7 @@ export default function EditContractorReturnPage() {
 
   const addLineItem = () => {
     setLineItems([...lineItems, { 
-      itemId: "", itemName: "", tempCode: "", unit: "Nos", hsnCode: "", quantity: 1, availableQty: 0 
+      itemId: "", itemName: "", loaSrNo: "", tempCode: "", unit: "Nos", hsnCode: "", quantity: 1, availableQty: 0 
     }]);
   };
 
@@ -198,6 +202,7 @@ export default function EditContractorReturnPage() {
         lineItems: lineItems.filter(item => item.itemName).map(item => ({
           itemId: item.itemId,
           itemName: item.itemName,
+          loaSrNo: item.loaSrNo,
           tempCode: item.tempCode,
           unit: item.unit,
           hsnCode: item.hsnCode,
@@ -325,6 +330,7 @@ export default function EditContractorReturnPage() {
                 <tr>
                   <th className="px-4 py-3 font-medium w-[5%] text-center">Sr. No.</th>
                   <th className="px-4 py-3 font-medium w-[25%]">Description of Material</th>
+                  <th className="px-4 py-3 font-medium w-[15%]">LOA SR. NO.</th>
                   <th className="px-4 py-3 font-medium w-[15%]">Temp Code</th>
                   <th className="px-4 py-3 font-medium w-[15%]">HSN Code</th>
                   <th className="px-4 py-3 font-medium w-[8%]">UNIT</th>
@@ -379,6 +385,15 @@ export default function EditContractorReturnPage() {
                         styles={customSelectStyles}
                         placeholder="Search code..."
                         className="text-sm font-mono"
+                      />
+                    </td>
+                    <td className="p-4 align-top">
+                      <Input 
+                        type="text"
+                        value={item.loaSrNo}
+                        onChange={(e) => updateLineItem(index, 'loaSrNo', e.target.value)}
+                        placeholder="LOA Sr No"
+                        className="h-9 w-full text-xs"
                       />
                     </td>
                     <td className="p-4 align-top pt-6 text-slate-700 text-xs">

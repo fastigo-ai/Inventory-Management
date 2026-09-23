@@ -340,15 +340,15 @@ export function DataTable<TData, TValue>({
 
       <div className="rounded-md border border-slate-200 overflow-hidden bg-white shadow-sm">
         <div className="overflow-x-auto" style={{ maxWidth: '100vw' }}>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
         <table 
           className="text-sm text-left table-fixed bg-white" 
           style={{ width: table.getTotalSize() }}
         >
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
             <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
@@ -371,7 +371,6 @@ export function DataTable<TData, TValue>({
                 </tr>
               ))}
             </thead>
-          </DndContext>
           <tbody className="divide-y divide-slate-100">
             {isLoading ? (
               <tr>
@@ -431,6 +430,7 @@ export function DataTable<TData, TValue>({
             )}
           </tbody>
         </table>
+        </DndContext>
       </div>
     </div>
     </div>

@@ -212,14 +212,14 @@ export default function NewContractorBill() {
           
           return {
             itemId: typeof item.itemId === 'object' ? item.itemId._id : item.itemId,
-            activity: act,
-            description: itemName,
-            rate: rate,
+            activity: act || "",
+            description: itemName || "",
+            rate: rate || 0,
             jmcDoneQty: maxQty,
             erectedQty: maxQty,
             gstRate: 18,
-            tempCode: tc,
-            loaSerialNo: loaNo,
+            tempCode: tc || "",
+            loaSerialNo: loaNo || "",
             loaQty: item.totalLoaQty || 0
           };
         });

@@ -95,7 +95,7 @@ export default function NewContractorBill() {
             jmc.items.forEach((item: any) => {
               if (item.itemId) {
                 const tc = String(item.tempCode || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.tempCode || '') : '')).trim();
-                const loaNo = String(item.loaSerialNo || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.sku || item.itemId.loaSerialNo || '') : '')).trim();
+                const loaNo = String(item.loaSrNo || item.loaSerialNo || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.loaSrNo || item.itemId.dynamicData?.sku || item.itemId.loaSrNo || item.itemId.loaSerialNo || '') : '')).trim();
                 const key = `${tc}_${loaNo}`;
                 if (key !== '_') {
                   if (!map[key]) map[key] = 0;
@@ -132,7 +132,7 @@ export default function NewContractorBill() {
             inv.lineItems.forEach((item: any) => {
               if (item.itemId && (inv.stage === '90%' || inv.stage === '100%')) {
                 const tc = String(item.tempCode || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.tempCode || '') : '')).trim();
-                const loaNo = String(item.loaSerialNo || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.sku || item.itemId.loaSerialNo || '') : '')).trim();
+                const loaNo = String(item.loaSrNo || item.loaSerialNo || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.loaSrNo || item.itemId.dynamicData?.sku || item.itemId.loaSrNo || item.itemId.loaSerialNo || '') : '')).trim();
                 const key = `${tc}_${loaNo}`;
                 if (!map[key]) map[key] = 0;
                 map[key] += (item.jmcDoneQty || 0);
@@ -240,12 +240,12 @@ export default function NewContractorBill() {
           newItems[index].description = first.dynamicData?.itemName || first.dynamicData?.description || first.itemName || '';
           newItems[index].rate = first.dynamicData?.boqRate || first.boqRate || 0;
           newItems[index].tempCode = first.dynamicData?.tempCode || '';
-          newItems[index].loaSerialNo = first.dynamicData?.loaSerialNo || '';
+          newItems[index].loaSerialNo = first.dynamicData?.loaSrNo || first.dynamicData?.loaSerialNo || '';
           newItems[index].loaQty = first.dynamicData?.[circleKey] || first.dynamicData?.loaQuantity || 0;
           
           const additionalRows = matchingItems.slice(1).map(ai => {
             const tc = String(ai.dynamicData?.tempCode || ai.tempCode || '').trim();
-            const loaNo = String(ai.dynamicData?.sku || ai.loaSerialNo || '').trim();
+            const loaNo = String(ai.dynamicData?.loaSrNo || ai.dynamicData?.sku || ai.loaSrNo || ai.loaSerialNo || '').trim();
             const key = `${tc}_${loaNo}`;
             return {
               itemId: ai._id,
@@ -256,13 +256,13 @@ export default function NewContractorBill() {
               erectedQty: 0,
               gstRate: newItems[index].gstRate || 18,
               tempCode: ai.dynamicData?.tempCode || '',
-              loaSerialNo: ai.dynamicData?.loaSerialNo || ai.dynamicData?.sku || '',
+              loaSerialNo: ai.dynamicData?.loaSrNo || ai.dynamicData?.loaSerialNo || ai.dynamicData?.sku || '',
               loaQty: ai.dynamicData?.[circleKey] || ai.dynamicData?.loaQuantity || 0
             };
           });
           
           const firstTc = String(first.dynamicData?.tempCode || first.tempCode || '').trim();
-          const firstLoa = String(first.dynamicData?.sku || first.loaSerialNo || '').trim();
+          const firstLoa = String(first.dynamicData?.loaSrNo || first.dynamicData?.sku || first.loaSrNo || first.loaSerialNo || '').trim();
           const firstKey = `${firstTc}_${firstLoa}`;
           
           newItems[index].jmcDoneQty = Math.round(Math.max(0, (jmcItemMap[firstKey] || 0) - (prevBilledJmcMap[firstKey] || 0)));
@@ -286,10 +286,10 @@ export default function NewContractorBill() {
         newItems[index].rate = selectedItem.dynamicData?.boqRate || selectedItem.boqRate || 0;
         newItems[index].activity = selectedItem.dynamicData?.activity || selectedItem.activity || '';
         newItems[index].tempCode = selectedItem.dynamicData?.tempCode || '';
-        newItems[index].loaSerialNo = selectedItem.dynamicData?.loaSerialNo || '';
+        newItems[index].loaSerialNo = selectedItem.dynamicData?.loaSrNo || selectedItem.dynamicData?.loaSerialNo || '';
         newItems[index].loaQty = selectedItem.dynamicData?.[circleKey] || selectedItem.dynamicData?.loaQuantity || 0;
         const tc = String(selectedItem.dynamicData?.tempCode || selectedItem.tempCode || '').trim();
-        const loaNo = String(selectedItem.dynamicData?.sku || selectedItem.loaSerialNo || '').trim();
+        const loaNo = String(selectedItem.dynamicData?.loaSrNo || selectedItem.dynamicData?.sku || selectedItem.loaSrNo || selectedItem.loaSerialNo || '').trim();
         const key = `${tc}_${loaNo}`;
         newItems[index].jmcDoneQty = Math.round(Math.max(0, (jmcItemMap[key] || 0) - (prevBilledJmcMap[key] || 0)));
       }
@@ -606,7 +606,7 @@ export default function NewContractorBill() {
                           {(() => {
                             const ai = availableItems.find(a => a._id === item.itemId);
                             const tc = String(ai?.dynamicData?.tempCode || ai?.tempCode || item.tempCode || '').trim();
-                            const loaNo = String(ai?.dynamicData?.sku || ai?.loaSerialNo || item.loaSerialNo || '').trim();
+                            const loaNo = String(ai?.dynamicData?.loaSrNo || ai?.dynamicData?.sku || ai?.loaSrNo || ai?.loaSerialNo || item.loaSerialNo || '').trim();
                             const key = `${tc}_${loaNo}`;
                             const max = Math.max(0, (jmcItemMap[key] || 0) - (prevBilledJmcMap[key] || 0));
                             return <span className="text-[10px] text-slate-500 font-medium">Max: {max}</span>;

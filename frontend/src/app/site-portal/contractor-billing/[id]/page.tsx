@@ -77,8 +77,17 @@ export default function ContractorInvoiceViewPage({ params }: { params: Promise<
     contractorAddress = Object.values(rawAddress).filter(v => typeof v === 'string' && v.trim()).join(', ') || 'Address not provided';
   }
 
-  const contractorContact = invoice.contractorId?.dynamicData?.emailAddress || invoice.contractorId?.dynamicData?.phone?.work || invoice.contractorId?.dynamicData?.contactPersons || 'Contact not provided';
-  
+  let contractorContact = invoice.contractorId?.dynamicData?.emailAddress || invoice.contractorId?.dynamicData?.phone?.work;
+  if (!contractorContact) {
+    const pc = invoice.contractorId?.dynamicData?.primaryContact;
+    if (pc && (pc.firstName || pc.lastName)) {
+      contractorContact = `${pc.firstName || ''} ${pc.lastName || ''}`.trim();
+    } else if (Array.isArray(invoice.contractorId?.dynamicData?.contactPersons) && invoice.contractorId.dynamicData.contactPersons.length > 0) {
+      const p = invoice.contractorId.dynamicData.contactPersons[0];
+      if (p) contractorContact = `${p.firstName || ''} ${p.lastName || ''}`.trim() || p.email;
+    }
+  }
+  contractorContact = contractorContact || 'Contact not provided';
   const issueDate = new Date(invoice.date);
   const dueDate = new Date(issueDate);
   dueDate.setDate(dueDate.getDate() + 15); // Standard 15 day payment terms

@@ -32,7 +32,7 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
   const [selectedPackage, setSelectedPackage] = useState('');
   const [selectedCircle, setSelectedCircle] = useState('');
 
-  const packages = ['Package 2', 'Package 5'];
+  const packages = ['Package 1(S/N)', 'Package 2(R/R)'];
   const circles = ['Solan', 'Kumarhatti', 'Nalagarh', 'Nahan', 'Rampur', 'Rohru'];
 
   const getDivisions = (circle: string) => {

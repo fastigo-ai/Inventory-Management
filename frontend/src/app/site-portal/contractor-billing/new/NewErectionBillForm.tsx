@@ -91,35 +91,58 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
         const jmcs = res.data?.data?.data || res.data?.data || [];
         
         const validJmcs = jmcs.filter((j: any) => {
-          const jmcCircle = j.circle?.toLowerCase() || '';
-          const jmcDiv = j.division?.toLowerCase() || '';
-          return jmcCircle === targetCircle.toLowerCase() && jmcDiv === selectedDivision.toLowerCase() && j.status === 'Approved' && j.contractorId;
+          const jmcCircle = j.circle?.trim().toLowerCase() || '';
+          const jmcDiv = j.division?.trim().toLowerCase() || '';
+          return jmcCircle === targetCircle.trim().toLowerCase() && 
+                 jmcDiv === selectedDivision.trim().toLowerCase() && 
+                 j.status === 'Approved' && 
+                 j.contractorId;
         });
         
         setAvailableJmcs(validJmcs);
         
-        const cMap: Record<string, boolean> = {};
+        const contractorMap = new Map();
         validJmcs.forEach((j: any) => {
-          const cId = typeof j.contractorId === 'object' ? j.contractorId._id : j.contractorId;
-          cMap[cId] = true;
+          if (j.contractorId) {
+            const isObj = typeof j.contractorId === 'object';
+            const cId = isObj ? j.contractorId._id : j.contractorId;
+            if (cId) {
+              const idStr = cId.toString();
+              if (!contractorMap.has(idStr)) {
+                if (isObj) {
+                  contractorMap.set(idStr, {
+                    _id: idStr,
+                    name: j.contractorId.dynamicData?.displayName || j.contractorId.name || j.contractorId.vendorName || 'Unknown Contractor'
+                  });
+                } else {
+                  contractorMap.set(idStr, { _id: idStr, name: 'Unknown Contractor' });
+                }
+              }
+            }
+          }
         });
         
-        const cIds = Object.keys(cMap);
-        if (cIds.length > 0) {
-          const cRes = await api.get('/contractors?limit=5000');
-          const allC = cRes.data?.data?.contractors || cRes.data?.data || [];
-          
-          const available = cIds.map(cId => {
-            const cObj = allC.find((c:any) => c._id === cId);
-            return {
-              _id: cId,
-              name: cObj?.dynamicData?.displayName || cObj?.name || cObj?.vendorName || 'Unknown Contractor',
-            };
-          });
-          setAvailableContractors(available);
-        } else {
-          setAvailableContractors([]);
+        const available = Array.from(contractorMap.values());
+        
+        const unknownIds = available.filter(c => c.name === 'Unknown Contractor').map(c => c._id);
+        if (unknownIds.length > 0) {
+           try {
+             const cRes = await api.get('/contractors?limit=5000');
+             const allC = cRes.data?.data?.contractors || cRes.data?.data || [];
+             available.forEach(c => {
+               if (c.name === 'Unknown Contractor') {
+                 const cObj = allC.find((ac: any) => ac._id === c._id);
+                 if (cObj) {
+                   c.name = cObj.dynamicData?.displayName || cObj.name || cObj.vendorName || 'Unknown Contractor';
+                 }
+               }
+             });
+           } catch (e) {
+             console.error("Failed to fetch contractor names", e);
+           }
         }
+        
+        setAvailableContractors(available);
       }).catch(console.error);
     } else {
       setAvailableJmcs([]);

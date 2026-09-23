@@ -12,7 +12,7 @@ import {
   VisibilityState,
   ColumnOrderState,
 } from "@tanstack/react-table"
-import { Loader2, ArrowDown, ArrowUp, ArrowUpDown, Search, Settings2, Download, GripHorizontal } from "lucide-react"
+import { Loader2, ArrowDown, ArrowUp, ArrowUpDown, Search, Settings2, Download, GripHorizontal, ChevronLeft, ChevronRight } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -135,6 +135,22 @@ interface DataTableProps<TData, TValue> {
   enableGlobalFilter?: boolean
   renderSubComponent?: (row: any) => React.ReactNode
   getIsGroupRow?: (row: any) => boolean
+  pagination?: {
+    totalItems: number;
+    currentPage: number;
+    limit: number;
+    totalPages: number;
+  };
+  onPageChange?: (page: number) => void;
+  onLimitChange?: (limit: number) => void;
+  manualSorting?: boolean;
+  sortingState?: SortingState;
+  onSortChange?: (sorting: SortingState) => void;
+  manualFiltering?: boolean;
+  globalFilterState?: string;
+  onSearch?: (searchStr: string) => void;
+  onExport?: () => void;
+  onRowClick?: (row: any) => void;
 }
 
 export function DataTable<TData, TValue>({
@@ -150,10 +166,23 @@ export function DataTable<TData, TValue>({
   enableGlobalFilter = false,
   renderSubComponent,
   getIsGroupRow,
+  pagination,
+  onPageChange,
+  onLimitChange,
+  manualSorting = false,
+  sortingState,
+  onSortChange,
+  manualFiltering = false,
+  globalFilterState,
+  onSearch,
+  onExport,
+  onRowClick,
 }: DataTableProps<TData, TValue>) {
   const [columnPinning, setColumnPinning] = React.useState<ColumnPinningState>(initialPinning)
-  const [sorting, setSorting] = React.useState<SortingState>([])
-  const [globalFilter, setGlobalFilter] = React.useState("")
+  const [internalSorting, setInternalSorting] = React.useState<SortingState>([])
+  const sorting = sortingState !== undefined ? sortingState : internalSorting
+  const [internalGlobalFilter, setInternalGlobalFilter] = React.useState("")
+  const globalFilter = globalFilterState !== undefined ? globalFilterState : internalGlobalFilter
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnOrder, setColumnOrder] = React.useState<ColumnOrderState>([])
@@ -196,11 +225,21 @@ export function DataTable<TData, TValue>({
     data,
     columns: finalColumns,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: enableSorting ? getSortedRowModel() : undefined,
-    getFilteredRowModel: enableGlobalFilter ? getFilteredRowModel() : undefined,
+    getSortedRowModel: enableSorting && !manualSorting ? getSortedRowModel() : undefined,
+    getFilteredRowModel: enableGlobalFilter && !manualFiltering ? getFilteredRowModel() : undefined,
     columnResizeMode: "onChange",
-    onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
+    manualSorting,
+    manualFiltering,
+    onSortingChange: (updaterOrValue) => {
+      const newSorting = typeof updaterOrValue === 'function' ? updaterOrValue(sorting) : updaterOrValue;
+      if (onSortChange) onSortChange(newSorting);
+      setInternalSorting(newSorting);
+    },
+    onGlobalFilterChange: (updaterOrValue) => {
+      const newValue = typeof updaterOrValue === 'function' ? updaterOrValue(globalFilter) : updaterOrValue;
+      if (onSearch) onSearch(String(newValue));
+      setInternalGlobalFilter(String(newValue));
+    },
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
     onColumnOrderChange: setColumnOrder,
@@ -244,8 +283,12 @@ export function DataTable<TData, TValue>({
     }
   }, [table, columnOrder.length])
 
-  // Export to Excel handler
-  const handleExport = () => {
+  // Export handler
+  const handleExportClick = () => {
+    if (onExport) {
+      onExport();
+      return;
+    }
     const visibleData = table.getFilteredRowModel().rows.map(row => row.original)
     const worksheet = XLSX.utils.json_to_sheet(visibleData)
     const workbook = XLSX.utils.book_new()
@@ -287,7 +330,7 @@ export function DataTable<TData, TValue>({
                 <Input
                   placeholder="Search all columns..."
                   value={globalFilter ?? ""}
-                  onChange={(event) => setGlobalFilter(String(event.target.value))}
+                  onChange={(event) => table.setGlobalFilter(event.target.value)}
                   className="h-9 pl-8 w-[250px] bg-white border-slate-200"
                 />
               </div>
@@ -327,7 +370,7 @@ export function DataTable<TData, TValue>({
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={handleExport}
+                onClick={handleExportClick}
                 className="h-9 bg-white border-slate-200 text-slate-700"
               >
                 <Download className="mr-2 h-4 w-4" />
@@ -385,7 +428,12 @@ export function DataTable<TData, TValue>({
               table.getRowModel().rows.map((row) => (
                 <tr
                   key={row.id}
-                  className="hover:bg-slate-50/50 transition-colors"
+                  className={`hover:bg-slate-50/50 transition-colors ${onRowClick ? 'cursor-pointer' : ''}`}
+                  onClick={() => {
+                    if (onRowClick && !getIsGroupRow?.(row) && !(row.original && (row.original as any).isGroupRow)) {
+                      onRowClick(row.original)
+                    }
+                  }}
                 >
                   {(getIsGroupRow && getIsGroupRow(row)) || (row.original && (row.original as any).isGroupRow) ? (
                     renderSubComponent ? renderSubComponent(row) : (
@@ -432,7 +480,79 @@ export function DataTable<TData, TValue>({
         </table>
         </DndContext>
       </div>
-    </div>
+
+      {pagination && pagination.totalItems > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between border-t border-slate-200 px-4 py-3 bg-white sm:px-6 h-16 rounded-b-md">
+          
+          <div className="flex items-center text-[13px] text-slate-500 w-full sm:w-1/3 justify-center sm:justify-start mb-4 sm:mb-0">
+             Showing {Math.min(pagination.currentPage * pagination.limit, pagination.totalItems)} out of {pagination.totalItems}
+          </div>
+
+          <div className="flex items-center justify-center space-x-1 w-full sm:w-1/3 mb-4 sm:mb-0">
+            <button
+              onClick={() => onPageChange && onPageChange(pagination.currentPage - 1)}
+              disabled={pagination.currentPage === 1}
+              className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="w-[18px] h-[18px]" strokeWidth={1.5} />
+            </button>
+            
+            <div className="flex items-center space-x-1">
+              {(() => {
+                const pages = [];
+                const { currentPage, totalPages } = pagination;
+                let startPage = Math.max(1, currentPage - 2);
+                let endPage = Math.min(totalPages, startPage + 5);
+                if (endPage - startPage < 5) startPage = Math.max(1, endPage - 5);
+                
+                for (let i = startPage; i <= endPage; i++) pages.push(i);
+                if (endPage < totalPages) pages.push('...');
+                
+                return pages.map((pageNum, idx) => (
+                  pageNum === '...' ? (
+                    <span key={`ellipsis-${idx}`} className="px-1 text-slate-400 text-sm tracking-widest">...</span>
+                  ) : (
+                    <button
+                      key={pageNum}
+                      onClick={() => onPageChange && onPageChange(pageNum as number)}
+                      className={`min-w-[28px] h-[28px] flex items-center justify-center text-[13px] transition-colors ${
+                        pageNum === pagination.currentPage
+                          ? 'border border-[#0099ab] text-[#0099ab] rounded-[4px] font-medium'
+                          : 'text-slate-500 hover:text-slate-800 rounded-[4px]'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  )
+                ));
+              })()}
+            </div>
+
+            <button
+              onClick={() => onPageChange && onPageChange(pagination.currentPage + 1)}
+              disabled={pagination.currentPage === pagination.totalPages}
+              className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronRight className="w-[18px] h-[18px]" strokeWidth={1.5} />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-center sm:justify-end space-x-3 text-[13px] text-slate-500 w-full sm:w-1/3">
+             <span>Rows per page</span>
+             {onLimitChange && (
+               <select
+                  className="h-8 rounded-[4px] border border-slate-300 bg-white px-2 py-1 text-[13px] text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                  value={pagination.limit}
+                  onChange={(e) => onLimitChange(Number(e.target.value))}
+               >
+                  {[10, 16, 20, 50, 100, 250, 450, 550, 650, 1000, 1500, 2000, 2500, 3000].map(limit => (
+                    <option key={limit} value={limit}>{limit}</option>
+                  ))}
+               </select>
+             )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

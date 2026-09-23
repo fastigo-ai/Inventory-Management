@@ -84,7 +84,7 @@ export default function EditClientBillPage() {
     try {
       if (billType === 'Supply' && formData.stage === '60%') {
         // Supply 60% uses MHROV
-        const res = await api.get('/store/mhrov?status=Approved');
+        const res = await api.get('/store/mhrov?status=Done');
         if (res.data?.success) setReferenceList(res.data.data);
       } else if (billType === 'Erection' && formData.stage === '90%') {
         // Erection 90% uses JMCs from APPROVED contractor 90% invoices only

@@ -186,8 +186,8 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
             fi.rate = master.dynamicData?.boqRate || master.boqRate || 0; 
             fi.activity = master.dynamicData?.activity || master.activity || fi.activity;
             fi.tempCode = master.dynamicData?.tempCode || master.tempCode || 'N/A';
-            fi.loaSlNo = master.dynamicData?.loaSlNo || master.loaSlNo || 'N/A';
-            fi.loaQty = master.dynamicData?.loaQty || master.loaQty || 0;
+            fi.loaSlNo = master.dynamicData?.loaSrNo || master.dynamicData?.loaSerialNo || master.loaSrNo || master.loaSerialNo || master.sku || 'N/A';
+            fi.loaQty = master.dynamicData?.loaQty || master.dynamicData?.loaQuantity || master.loaQty || master.loaQuantity || 0;
           }
         });
       }
@@ -436,11 +436,11 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
 
                         <div className="space-y-1">
                           <Label className="text-xs text-slate-500">Select JMCs (Multi)</Label>
-                          <div className={`h-9 w-full rounded-md border border-input px-3 py-1 text-sm overflow-hidden flex items-center ${!row.contractorId ? 'bg-slate-100 cursor-not-allowed' : 'bg-background'}`}>
+                          <div className={`min-h-[80px] max-h-32 w-full rounded-md border border-input px-3 py-1 text-sm overflow-y-auto flex items-start ${!row.contractorId ? 'bg-slate-100 cursor-not-allowed' : 'bg-background'}`}>
                             {row.contractorId ? (
                               <select 
                                 multiple
-                                className="w-full h-full bg-transparent focus:outline-none"
+                                className="w-full h-full min-h-[70px] bg-transparent focus:outline-none"
                                 value={row.selectedJmcs}
                                 onChange={(e) => {
                                   const selectedOptions = Array.from(e.target.selectedOptions).map(opt => opt.value);

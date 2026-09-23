@@ -2,7 +2,7 @@ import React from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, AreaChart, Area
 } from 'recharts';
-import { Layers, FileText, ClipboardList, Filter, X } from 'lucide-react';
+import { Layers, FileText, ClipboardList, Filter, X, Truck, AlertTriangle, ArrowLeftRight, Clock, Activity, CheckCircle2 } from 'lucide-react';
 import { getContractors } from '@/features/contractors/api/contractors.api';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -42,7 +42,12 @@ export function SitePortalDashboard({ data, onFilterChange }: SitePortalDashboar
   };
   if (!data) return null;
 
-  const { contractorData, itemData, metrics, totalJmcQty, totalWipQty } = data;
+  const { contractorData, itemData, metrics, totalJmcQty, totalWipQty, recentActivityFeed = [] } = data;
+
+  // Calculate milestone progress (Total Work vs Total Demand Notes assumed 1:1 loosely for display)
+  const totalApproved = (metrics?.approvedDemandNotes || 0);
+  const totalDemand = (metrics?.totalDemandNotes || 0);
+  const progressPercent = totalDemand > 0 ? Math.round((totalApproved / totalDemand) * 100) : 0;
 
   return (
     <div className="flex flex-col gap-6 w-full max-w-[1400px] mx-auto">
@@ -86,48 +91,92 @@ export function SitePortalDashboard({ data, onFilterChange }: SitePortalDashboar
           )}
         </div>
       </div>
-      {/* KPIs Header */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-8 flex flex-col justify-center gap-6 relative overflow-hidden transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
-          <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/30 shrink-0 mb-2">
-            <Layers className="w-6 h-6" />
+      {/* KPIs Header - Actionable SAP Style */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        
+        {/* Pending Returns KPI */}
+        <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-sm border border-orange-200 p-6 flex flex-col justify-center gap-4 relative overflow-hidden transition-all hover:shadow-md hover:border-orange-300 cursor-pointer group">
+          <div className="flex justify-between items-start">
+            <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+              <ArrowLeftRight className="w-6 h-6" />
+            </div>
+            <span className="bg-orange-100 text-orange-700 text-xs font-bold px-2.5 py-1 rounded-full">Action Required</span>
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-500 tracking-wide uppercase">Total Work Qty (JMC + WIP)</p>
-            <h3 className="text-4xl font-extrabold text-slate-900 tracking-tight">
+            <h3 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+              {metrics?.pendingContractorReturns || 0}
+            </h3>
+            <p className="text-sm font-semibold text-slate-500 tracking-wide mt-1">Pending Contractor Returns</p>
+          </div>
+        </div>
+
+        {/* Expected Deliveries KPI */}
+        <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-sm border border-blue-200 p-6 flex flex-col justify-center gap-4 relative overflow-hidden transition-all hover:shadow-md hover:border-blue-300 cursor-pointer group">
+          <div className="flex justify-between items-start">
+            <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+              <Truck className="w-6 h-6" />
+            </div>
+            <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-full">Pending Receipt</span>
+          </div>
+          <div>
+            <h3 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+              {metrics?.pendingMhrovs || 0}
+            </h3>
+            <p className="text-sm font-semibold text-slate-500 tracking-wide mt-1">Expected Deliveries (MHROVs)</p>
+          </div>
+        </div>
+
+        {/* WIP Alerts KPI */}
+        <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-sm border border-red-200 p-6 flex flex-col justify-center gap-4 relative overflow-hidden transition-all hover:shadow-md hover:border-red-300 cursor-pointer group">
+          <div className="flex justify-between items-start">
+            <div className="w-12 h-12 bg-red-100 text-red-600 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <span className="bg-red-100 text-red-700 text-xs font-bold px-2.5 py-1 rounded-full">Alerts</span>
+          </div>
+          <div>
+            <h3 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+              {metrics?.wipAlerts || 0}
+            </h3>
+            <p className="text-sm font-semibold text-slate-500 tracking-wide mt-1">WIP Alerts (Pending Approvals)</p>
+          </div>
+        </div>
+
+        {/* Total Work KPI */}
+        <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-sm border border-emerald-200 p-6 flex flex-col justify-center gap-4 relative overflow-hidden transition-all hover:shadow-md hover:border-emerald-300 group">
+          <div className="flex justify-between items-start">
+            <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+              <Layers className="w-6 h-6" />
+            </div>
+          </div>
+          <div>
+            <h3 className="text-3xl font-extrabold text-slate-900 tracking-tight">
               {(totalJmcQty + totalWipQty).toLocaleString()}
             </h3>
-          </div>
-        </div>
-        
-        <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-8 flex flex-col justify-center gap-6 relative overflow-hidden transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
-          <div className="w-14 h-14 bg-gradient-to-br from-violet-500 to-fuchsia-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-fuchsia-500/30 shrink-0 mb-2">
-            <FileText className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-slate-500 tracking-wide uppercase">Demand Notes (Approved / Total)</p>
-            <h3 className="text-4xl font-extrabold text-slate-900 tracking-tight">
-              {metrics?.approvedDemandNotes || 0} / {metrics?.totalDemandNotes || 0}
-            </h3>
-          </div>
-        </div>
-        
-        <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-8 flex flex-col justify-center gap-6 relative overflow-hidden transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
-          <div className="w-14 h-14 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/30 shrink-0 mb-2">
-            <ClipboardList className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-slate-500 tracking-wide uppercase">Total MHROVs</p>
-            <h3 className="text-4xl font-extrabold text-slate-900 tracking-tight">
-              {metrics?.totalMhrovs || 0}
-            </h3>
+            <p className="text-sm font-semibold text-slate-500 tracking-wide mt-1">Total Executed Qty (JMC + WIP)</p>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Project Milestone Tracking */}
+      <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-sm border border-slate-200 p-8">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-slate-800 tracking-tight">Project / Milestone Tracking</h2>
+          <span className="text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">{progressPercent}% Completed</span>
+        </div>
+        <div className="w-full bg-slate-100 rounded-full h-4 mb-4 overflow-hidden border border-slate-200">
+          <div className="bg-blue-600 h-4 rounded-full transition-all duration-1000" style={{ width: `${progressPercent}%` }}></div>
+        </div>
+        <div className="flex justify-between text-sm text-slate-500 font-medium">
+          <span>0 Demand Notes</span>
+          <span>{totalApproved} Approved / {totalDemand} Total Demand Notes</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
         {/* Contractor Wise Chart */}
-        <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-8">
+        <div className="lg:col-span-2 bg-white/80 backdrop-blur-xl rounded-3xl shadow-sm border border-slate-200 p-8">
           <h2 className="text-xl font-bold text-slate-800 mb-8 tracking-tight">Contractor Execution Progress</h2>
           <div className="w-full h-[350px]">
             {contractorData && contractorData.length > 0 ? (
@@ -153,38 +202,41 @@ export function SitePortalDashboard({ data, onFilterChange }: SitePortalDashboar
           </div>
         </div>
 
-        {/* Item Wise Chart */}
-        <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-8">
-          <h2 className="text-xl font-bold text-slate-800 mb-8 tracking-tight">Top Executed Items (Temp Code)</h2>
-          <div className="w-full h-[350px]">
-            {itemData && itemData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={itemData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
-                  <defs>
-                    <linearGradient id="colorJmc" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="item" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(val) => val.substring(0, 15) + '...'} />
-                  <YAxis tick={{ fill: '#64748b' }} axisLine={false} tickLine={false} />
-                  <RechartsTooltip 
-                    cursor={{ fill: '#f1f5f9' }} 
-                    contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  />
-                  <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                  <Area type="monotone" dataKey="jmcQty" name="Total JMC Qty" stroke="#10b981" fillOpacity={1} fill="url(#colorJmc)" />
-                  <Area type="monotone" dataKey="wipQty" name="Total WIP Qty" stroke="#f59e0b" fill="#fef3c7" />
-                </AreaChart>
-              </ResponsiveContainer>
+        {/* Recent Activity Feed */}
+        <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-sm border border-slate-200 p-8 flex flex-col h-[460px]">
+          <div className="flex items-center gap-2 mb-6 text-slate-800">
+            <Activity className="w-5 h-5 text-blue-600" />
+            <h2 className="text-xl font-bold tracking-tight">Recent Activity</h2>
+          </div>
+          <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+            {recentActivityFeed && recentActivityFeed.length > 0 ? (
+              recentActivityFeed.map((activity: any, idx: number) => (
+                <div key={idx} className="flex gap-4 group">
+                  <div className="flex flex-col items-center">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 z-10 ${
+                      activity.status === 'Approved' ? 'bg-emerald-100 text-emerald-600' :
+                      activity.type === 'WIP' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'
+                    }`}>
+                      {activity.status === 'Approved' ? <CheckCircle2 className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
+                    </div>
+                    {idx < recentActivityFeed.length - 1 && <div className="w-0.5 bg-slate-200 flex-1 my-1"></div>}
+                  </div>
+                  <div className="pb-4">
+                    <p className="text-sm font-semibold text-slate-800">{activity.type} {activity.status}</p>
+                    <p className="text-xs text-slate-500 mt-1">Ref: <span className="font-medium text-slate-700">{activity.referenceNo}</span></p>
+                    <p className="text-xs text-slate-500">Contractor: {activity.contractor}</p>
+                    <p className="text-[10px] text-slate-400 mt-1 uppercase">{new Date(activity.date).toLocaleString()}</p>
+                  </div>
+                </div>
+              ))
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-slate-400">
-                No item execution data available.
+              <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+                No recent activities found.
               </div>
             )}
           </div>
         </div>
+
       </div>
     </div>
   );

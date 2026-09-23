@@ -114,6 +114,13 @@ export const getSitePortalDashboardSummary = asyncHandler(async (req: any, res: 
   const DemandNote = mongoose.model('DemandNote');
   const Mhrov = mongoose.model('Mhrov');
   const Contractor = mongoose.model('Contractor');
+  let ContractorReturn;
+  try {
+    ContractorReturn = mongoose.model('ContractorReturn');
+  } catch (e) {
+    // Fallback if not registered
+    ContractorReturn = require('../contractors/contractorReturn.schema').ContractorReturn;
+  }
   
   console.log(`[Dashboard] User ${user.email} fetching summary for Package: "${assignedPackage}", Circle: "${assignedCircle}"`);
 
@@ -246,10 +253,52 @@ export const getSitePortalDashboardSummary = asyncHandler(async (req: any, res: 
   const approvedDemandNotes = await DemandNote.countDocuments({ ...dnQuery, status: 'Approved' });
 
   // MHROV Filter (Not filtering by contractor/tempCode to keep it general for the package, unless specified later)
-  const totalMhrovs = await Mhrov.countDocuments({ 
+  const mhrovQuery: any = { 
     package: { $regex: new RegExp(`^${flexibleRegex(assignedPackage)}$`, 'i') }, 
     circle: { $regex: new RegExp(`^${flexibleRegex(assignedCircle)}$`, 'i') } 
+  };
+  const totalMhrovs = await Mhrov.countDocuments(mhrovQuery);
+  const pendingMhrovs = await Mhrov.countDocuments({ ...mhrovQuery, status: { $in: ['Pending', 'Submitted'] } });
+
+  // Contractor Returns Filter
+  const crQuery: any = {
+    circle: { $regex: new RegExp(`^${flexibleRegex(assignedCircle)}$`, 'i') },
+    status: 'Draft' // Represents open return challans
+  };
+  if (contractorId) {
+    crQuery.contractorId = new mongoose.Types.ObjectId(contractorId);
+  }
+  const pendingContractorReturns = await ContractorReturn.countDocuments(crQuery);
+
+  // WIP Alerts Filter
+  const wipAlerts = await WipRegister.countDocuments({
+    package: { $regex: new RegExp(`^${flexibleRegex(assignedPackage)}$`, 'i') }, 
+    circle: { $regex: new RegExp(`^${flexibleRegex(assignedCircle)}$`, 'i') },
+    status: 'Submitted'
   });
+
+  // Recent Activity Feed
+  const recentJmc = await JmcRegister.find({
+    package: { $regex: new RegExp(`^${flexibleRegex(assignedPackage)}$`, 'i') }, 
+    circle: { $regex: new RegExp(`^${flexibleRegex(assignedCircle)}$`, 'i') }
+  }).sort({ createdAt: -1 }).limit(5).populate('contractorId', 'dynamicData');
+  
+  const recentWip = await WipRegister.find({
+    package: { $regex: new RegExp(`^${flexibleRegex(assignedPackage)}$`, 'i') }, 
+    circle: { $regex: new RegExp(`^${flexibleRegex(assignedCircle)}$`, 'i') }
+  }).sort({ createdAt: -1 }).limit(5).populate('contractorId', 'dynamicData');
+
+  const recentActivityFeed = [...recentJmc, ...recentWip]
+    .sort((a: any, b: any) => b.createdAt - a.createdAt)
+    .slice(0, 10)
+    .map((doc: any) => ({
+      id: doc._id,
+      type: doc.wipNo ? 'WIP' : 'JMC',
+      referenceNo: doc.wipNo || doc.jmcNo,
+      status: doc.status,
+      date: doc.createdAt,
+      contractor: doc.contractorId?.dynamicData?.displayName || doc.contractorId?.dynamicData?.companyName || 'Unknown'
+    }));
 
   res.status(200).json(new ApiResponse(200, {
     totalJmcQty,
@@ -260,8 +309,12 @@ export const getSitePortalDashboardSummary = asyncHandler(async (req: any, res: 
     metrics: {
       totalDemandNotes,
       approvedDemandNotes,
-      totalMhrovs
-    }
+      totalMhrovs,
+      pendingMhrovs,
+      pendingContractorReturns,
+      wipAlerts
+    },
+    recentActivityFeed
   }, 'Site Portal Dashboard Data'));
 });
 

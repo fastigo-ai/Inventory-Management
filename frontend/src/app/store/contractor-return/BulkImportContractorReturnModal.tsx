@@ -48,7 +48,7 @@ export function BulkImportContractorReturnModal({ open, onOpenChange, onSuccess 
       "Name of Feeder",
       "Return TFS Sr No.",
       "Remarks",
-      "Sr. No.",
+      "LOA Sr. No.",
       "Description of Material",
       "Temp Code",
       "HSN Code",

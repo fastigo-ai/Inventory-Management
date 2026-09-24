@@ -548,7 +548,7 @@ export default function StoreContractorSummaryPage() {
                         </td>
                         <td className="py-2.5 px-4 text-center text-slate-500 font-sans">{r.srNo}</td>
                         <td className="py-2.5 px-4 text-center font-bold text-blue-900 bg-blue-50/40">
-                          {r.loaSerialNo && r.loaSerialNo !== '-' ? r.loaSerialNo : (r.sku || r.tempCode)}
+                          {r.loaSerialNo && r.loaSerialNo !== '-' ? r.loaSerialNo : (r.sku && r.sku !== '-' ? r.sku : '-')}
                         </td>
                         <td className="py-2.5 px-4 text-center font-bold text-slate-700 bg-slate-50/50">
                           {r.tempCode && r.tempCode !== '0' ? r.tempCode : '-'}

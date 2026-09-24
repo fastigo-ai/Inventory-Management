@@ -1992,7 +1992,7 @@ export const getItemMatrixSummary = asyncHandler(async (req: Request, res: Respo
  * Store Contractor Summary (FROM CIRCLE STORE - Contractor Wise)
  */
 export const getStoreContractorSummary = asyncHandler(async (req: Request, res: Response) => {
-  const { contractorName, circle, store, package: pkg, search, hideZero, page = '1', limit = '50' } = req.query;
+  const { contractorName, circle, store, package: pkg, loaSrNo, itemName, tempCode, hideZero, page = '1', limit = '50' } = req.query;
 
   const pageNum = parseInt(page as string, 10) || 1;
   const limitNum = parseInt(limit as string, 10) || 50;
@@ -2028,21 +2028,27 @@ export const getStoreContractorSummary = asyncHandler(async (req: Request, res: 
     const cRegex = new RegExp(`^(${cMatch})$`, 'i');
     itemFilter['dynamicData.circle'] = cRegex;
   }
-  if (search) {
-    const searchTerm = search.toString().trim();
-    const isNumeric = !isNaN(Number(searchTerm)) && searchTerm !== '';
+  const andConditions: any[] = [];
+  
+  if (loaSrNo) {
+    const s = loaSrNo.toString().trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    andConditions.push({
+      $or: [
+        { 'dynamicData.loaSerialNo': { $regex: s, $options: 'i' } },
+        { 'dynamicData.sku': { $regex: s, $options: 'i' } }
+      ]
+    });
+  }
+  if (itemName) {
+    const s = itemName.toString().trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    andConditions.push({ 'dynamicData.name': { $regex: s, $options: 'i' } });
+  }
+  if (tempCode) {
+    andConditions.push({ 'dynamicData.tempCode': tempCode.toString().trim() });
+  }
 
-    if (isNumeric) {
-      itemFilter['dynamicData.tempCode'] = searchTerm;
-    } else {
-      const s = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      itemFilter.$or = [
-        { 'dynamicData.name': { $regex: s, $options: 'i' } },
-        { 'dynamicData.tempCode': searchTerm },
-        { 'dynamicData.sku': { $regex: s, $options: 'i' } },
-        { 'dynamicData.loaSerialNo': { $regex: s, $options: 'i' } }
-      ];
-    }
+  if (andConditions.length > 0) {
+    itemFilter.$and = andConditions;
   }
 
   const items = await Item.find(itemFilter).lean();

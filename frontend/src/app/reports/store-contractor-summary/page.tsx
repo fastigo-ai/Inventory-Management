@@ -52,13 +52,15 @@ export default function StoreContractorSummaryPage() {
     circle: initialCircle,
     store: initialStore,
     pkg: initialPkg,
-    search: '',
+    searchLoaSrNo: '',
+    searchItemName: '',
+    searchTempCode: '',
     hideZero: 'true',
     page: '1',
     limit: '50'
   }, 500);
 
-  const { contractorName, circle, store, pkg, search } = filters;
+  const { contractorName, circle, store, pkg, searchLoaSrNo, searchItemName, searchTempCode } = filters;
   const hideZero = filters.hideZero === 'true';
   const page = Number(filters.page);
   const limit = Number(filters.limit);
@@ -67,7 +69,9 @@ export default function StoreContractorSummaryPage() {
   const setCircle = (val: string) => setFilter('circle', val);
   const setStore = (val: string) => setFilter('store', val);
   const setPkg = (val: string) => setFilter('pkg', val);
-  const setSearch = (val: string) => setFilter('search', val);
+  const setSearchLoaSrNo = (val: string) => setFilter('searchLoaSrNo', val);
+  const setSearchItemName = (val: string) => setFilter('searchItemName', val);
+  const setSearchTempCode = (val: string) => setFilter('searchTempCode', val);
   const setHideZero = (val: boolean | ((prev: boolean) => boolean)) => setFilter('hideZero', (typeof val === 'function' ? val(hideZero) : val).toString());
   const setPage = (val: any) => setFilter('page', (typeof val === 'function' ? val(page) : val).toString());
   const setLimit = (val: any) => setFilter('limit', val.toString());
@@ -90,12 +94,18 @@ export default function StoreContractorSummaryPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
+      const storeToSend = (isStoreManager && ['Kumarhatti', 'Nalagarh', 'Solan'].includes(debouncedFilters.store))
+        ? undefined
+        : (debouncedFilters.store || undefined);
+
       const res = await getStoreContractorSummary({
         contractorName: debouncedFilters.contractorName || undefined,
         circle: debouncedFilters.circle || undefined,
-        store: debouncedFilters.store || undefined,
+        store: storeToSend,
         package: debouncedFilters.pkg || undefined,
-        search: debouncedFilters.search || undefined,
+        loaSrNo: debouncedFilters.searchLoaSrNo || undefined,
+        itemName: debouncedFilters.searchItemName || undefined,
+        tempCode: debouncedFilters.searchTempCode || undefined,
         hideZero: debouncedFilters.hideZero === 'true',
         page: Number(debouncedFilters.page),
         limit: Number(debouncedFilters.limit)
@@ -128,7 +138,7 @@ export default function StoreContractorSummaryPage() {
   // Reset page to 1 when filters change (ignoring page/limit)
   useEffect(() => {
     setPage(1);
-  }, [contractorName, circle, store, pkg, search, hideZero, limit]);
+  }, [contractorName, circle, store, pkg, searchLoaSrNo, searchItemName, searchTempCode, hideZero, limit]);
 
   // Auto-set Circle based on Store/Subcircle
   useEffect(() => {
@@ -150,12 +160,18 @@ export default function StoreContractorSummaryPage() {
     
     setExporting(true);
     try {
+      const storeToSend = (isStoreManager && ['Kumarhatti', 'Nalagarh', 'Solan'].includes(store))
+        ? undefined
+        : (store || undefined);
+
       const res = await getStoreContractorSummary({
         contractorName: contractorName || undefined,
         circle: circle || undefined,
-        store: store || undefined,
+        store: storeToSend,
         package: pkg || undefined,
-        search: search || undefined,
+        loaSrNo: searchLoaSrNo || undefined,
+        itemName: searchItemName || undefined,
+        tempCode: searchTempCode || undefined,
         hideZero,
         page: 1,
         limit: 5000000
@@ -361,7 +377,7 @@ export default function StoreContractorSummaryPage() {
       <div className="max-w-7xl mx-auto w-full p-6 flex flex-col gap-6">
         {/* Filter Controls Bar (Exact Match with Excel Header Controls) */}
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
             {/* Contractor Name Selector */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
@@ -439,17 +455,43 @@ export default function StoreContractorSummaryPage() {
               </select>
             </div>
 
-            {/* Search Box */}
+            {/* Search Boxes */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
                 <Search className="w-3.5 h-3.5 text-slate-500" />
-                Search Items:
+                LOA Sr. No:
               </label>
               <input
                 type="text"
-                placeholder="LOA Sr. No, Temp Code, Item..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search LOA Sr. No..."
+                value={searchLoaSrNo}
+                onChange={(e) => setSearchLoaSrNo(e.target.value)}
+                className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 text-slate-800 placeholder-slate-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
+                <Search className="w-3.5 h-3.5 text-slate-500" />
+                Temp Code:
+              </label>
+              <input
+                type="text"
+                placeholder="Search Temp Code..."
+                value={searchTempCode}
+                onChange={(e) => setSearchTempCode(e.target.value)}
+                className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 text-slate-800 placeholder-slate-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
+                <Search className="w-3.5 h-3.5 text-slate-500" />
+                Item Name:
+              </label>
+              <input
+                type="text"
+                placeholder="Search Item Name..."
+                value={searchItemName}
+                onChange={(e) => setSearchItemName(e.target.value)}
                 className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 text-slate-800 placeholder-slate-400"
               />
             </div>

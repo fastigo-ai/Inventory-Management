@@ -63,6 +63,9 @@ export interface StoreContractorFilter {
   store?: string;
   package?: string;
   search?: string;
+  loaSrNo?: string;
+  itemName?: string;
+  tempCode?: string;
   hideZero?: boolean;
   page?: number;
   limit?: number;

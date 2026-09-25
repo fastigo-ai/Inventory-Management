@@ -577,7 +577,10 @@ function DemandNoteForm() {
   };
 
   const handleSubmit = async () => {
-    const itemsToSave = items.map(i => {
+    // Filter out items that have no demand quantity
+    const itemsWithDemand = items.filter(i => Number(i.demandQty) > 0);
+
+    const itemsToSave = itemsWithDemand.map(i => {
       const { isLoadingContext, ...rest } = i;
       return {
         ...rest,
@@ -592,12 +595,12 @@ function DemandNoteForm() {
     });
 
     if (itemsToSave.length === 0) {
-      toast.error('No items to save.');
+      toast.error('No items have a demand quantity greater than 0.');
       return;
     }
 
     if (itemsToSave.some(i => !i.itemId)) {
-      toast.error('Please ensure all items have a valid Item ID.');
+      toast.error('Please ensure all demanded items have a valid Item ID.');
       return;
     }
 

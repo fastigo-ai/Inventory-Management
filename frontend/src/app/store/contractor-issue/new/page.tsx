@@ -173,8 +173,8 @@ export default function StoreContractorIssueNewPage() {
             unit: item.unit || "Nos",
             hsnCode: stockMatch ? stockMatch.hsnCode : "",
             loaSrNo: item.loaSrNo || (stockMatch ? stockMatch.loaSrNo : ""),
-            demandQty: item.demandQty || 1,
-            quantity: item.demandQty || 1,
+            demandQty: item.demandQty || 0,
+            quantity: item.demandQty || 0,
             availableQty: stockMatch ? stockMatch.totalBalanceQty : 0
           };
         });

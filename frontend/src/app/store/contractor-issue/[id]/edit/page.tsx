@@ -153,8 +153,8 @@ export default function StoreContractorIssueEditPage() {
               activity: item.activity || (stockMatch ? stockMatch.activity : ""),
               unit: item.unit || "Nos",
               hsnCode: item.hsnCode || (stockMatch ? stockMatch.hsnCode : ""),
-              demandQty: item.demandQty || 1,
-              quantity: item.quantity || 1,
+              demandQty: item.demandQty || 0,
+              quantity: item.quantity || 0,
               availableQty: stockMatch ? stockMatch.totalBalanceQty + item.quantity : item.quantity // Add back issued qty for editing
             };
           });
@@ -479,8 +479,8 @@ export default function StoreContractorIssueEditPage() {
                           activity: item.activity || "",
                           unit: item.unit || "Nos",
                           hsnCode: stockMatch ? stockMatch.hsnCode : "",
-                          demandQty: item.demandQty || 1,
-                          quantity: item.demandQty || 1,
+                          demandQty: item.demandQty || 0,
+                          quantity: item.demandQty || 0,
                           availableQty: stockMatch ? stockMatch.totalBalanceQty : 0
                         };
                       });

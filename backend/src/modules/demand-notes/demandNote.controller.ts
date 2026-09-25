@@ -366,8 +366,8 @@ export const getDemandNotes = asyncHandler(async (req: AuthRequest, res: Respons
   const { status, tab } = req.query as { status?: string; tab?: string };
 
   const roleName = user.role?.name?.trim();
-  // If user is not an admin or PD, restrict to their assigned areas
-  if (roleName === 'Site Manager' || roleName === 'Store Manager' || roleName === 'Project Manager') {
+  // If user is not an admin, restrict to their assigned areas
+  if (roleName === 'Site Manager' || roleName === 'Store Manager' || roleName === 'Project Manager' || roleName === 'Project Director') {
     const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     if (user.assignedPackage && user.assignedPackage.trim()) {
       let flexiblePkg = String(user.assignedPackage).replace(/\s+/g, ' ').trim();

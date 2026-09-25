@@ -141,8 +141,61 @@ export default function DemandNoteDetails() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+      <div className="p-3 sm:p-6 max-w-7xl mx-auto space-y-6 animate-pulse">
+        {/* Header Skeleton */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex items-center space-x-4">
+            <div className="w-10 h-10 bg-slate-200 rounded-full flex-shrink-0"></div>
+            <div className="space-y-2">
+              <div className="h-6 w-48 bg-slate-200 rounded"></div>
+              <div className="h-4 w-64 bg-slate-200 rounded"></div>
+            </div>
+          </div>
+          <div className="flex space-x-3">
+            <div className="w-24 h-10 bg-slate-200 rounded-lg"></div>
+            <div className="w-24 h-10 bg-slate-200 rounded-lg"></div>
+          </div>
+        </div>
+
+        {/* Audit Trail Skeleton */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs">
+          <div className="h-4 w-48 bg-slate-200 rounded mb-4"></div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="p-3.5 rounded-xl border border-slate-200 h-20 bg-slate-50"></div>
+            <div className="p-3.5 rounded-xl border border-slate-200 h-20 bg-slate-50"></div>
+            <div className="p-3.5 rounded-xl border border-slate-200 h-20 bg-slate-50"></div>
+          </div>
+        </div>
+
+        {/* Details Grid Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-4">
+            <div className="h-6 w-32 bg-slate-200 rounded mb-4"></div>
+            <div className="h-4 w-full bg-slate-200 rounded"></div>
+            <div className="h-4 w-full bg-slate-200 rounded"></div>
+            <div className="h-4 w-3/4 bg-slate-200 rounded"></div>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-4">
+            <div className="h-6 w-32 bg-slate-200 rounded mb-4"></div>
+            <div className="h-4 w-full bg-slate-200 rounded"></div>
+            <div className="h-4 w-full bg-slate-200 rounded"></div>
+            <div className="h-4 w-3/4 bg-slate-200 rounded"></div>
+          </div>
+        </div>
+
+        {/* Table Skeleton */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+          <div className="flex justify-between items-center mb-4">
+            <div className="h-6 w-32 bg-slate-200 rounded"></div>
+            <div className="h-6 w-16 bg-slate-200 rounded-full"></div>
+          </div>
+          <div className="space-y-3">
+            <div className="h-10 w-full bg-slate-200 rounded"></div>
+            <div className="h-12 w-full bg-slate-100 rounded"></div>
+            <div className="h-12 w-full bg-slate-100 rounded"></div>
+            <div className="h-12 w-full bg-slate-100 rounded"></div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -173,12 +226,10 @@ export default function DemandNoteDetails() {
             </div>
             <p className="text-sm text-slate-500 mt-1 flex items-center gap-2">
               Created on <span className="font-medium text-slate-700">{new Date(demandNote.createdAt).toLocaleDateString()}</span>
-              {demandNote.createdBy && (
-                <>
-                  <span className="text-slate-300">•</span>
-                  By <span className="font-medium text-slate-700">{demandNote.createdBy.firstName} {demandNote.createdBy.lastName}</span>
-                </>
-              )}
+              <span className="text-slate-300">•</span>
+              By <span className="font-medium text-slate-700">
+                {demandNote.authorizedByEngineer || (demandNote.createdBy ? `${demandNote.createdBy.firstName} ${demandNote.createdBy.lastName}` : 'Site Engineer')}
+              </span>
             </p>
           </div>
         </div>
@@ -220,7 +271,7 @@ export default function DemandNoteDetails() {
             <div>
               <p className="text-xs font-bold text-slate-800">1. Site Requisition</p>
               <p className="text-xs text-slate-600 font-medium">
-                {demandNote.createdBy ? `${demandNote.createdBy.firstName} ${demandNote.createdBy.lastName}` : 'Site Engineer'}
+                {demandNote.authorizedByEngineer || (demandNote.createdBy ? `${demandNote.createdBy.firstName} ${demandNote.createdBy.lastName}` : 'Site Engineer')}
               </p>
               <p className="text-[11px] text-slate-400 mt-0.5">{new Date(demandNote.createdAt).toLocaleString()}</p>
             </div>
@@ -350,14 +401,15 @@ export default function DemandNoteDetails() {
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold text-slate-800">Requested Items</h2>
           <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold">
-            {demandNote.items?.length || 0} Items
+            {demandNote.items?.filter((item: any) => Number(item.demandQty) > 0).length || 0} Items
           </span>
         </div>
         
         {(() => {
           const tableData: any[] = [];
-          if (demandNote.items && demandNote.items.length > 0) {
-            const grouped = demandNote.items.reduce((acc: any, item: any, originalIdx: number) => {
+          const validItems = demandNote.items?.filter((item: any) => Number(item.demandQty) > 0) || [];
+          if (validItems.length > 0) {
+            const grouped = validItems.reduce((acc: any, item: any, originalIdx: number) => {
               const act = item.activity || 'Uncategorized Activity';
               if (!acc[act]) acc[act] = [];
               acc[act].push({ ...item, originalIdx });

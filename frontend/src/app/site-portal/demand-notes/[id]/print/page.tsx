@@ -103,7 +103,7 @@ export default function DemandNotePrintPage() {
               <span className="flex-1 border-b border-black"></span>
             </div>
             <div className="flex">
-              <span className="font-bold whitespace-nowrap mr-2">Demand for Sale / Feeder Name :</span>
+              <span className="font-bold whitespace-nowrap mr-2">Feeder Name :</span>
               <span className="flex-1 border-b border-black text-blue-800 italic">{demandNote.location || ""}</span>
             </div>
           </div>
@@ -135,6 +135,7 @@ export default function DemandNotePrintPage() {
             <tr>
               <th className="border border-black px-2 py-1 text-center w-12 font-bold">Sr.<br/>No.</th>
               <th className="border border-black px-2 py-1 text-center w-24 font-bold">Material<br/>Code</th>
+              <th className="border border-black px-2 py-1 text-center w-24 font-bold">LOA Sr.<br/>No.</th>
               <th className="border border-black px-2 py-1 text-center font-bold uppercase">Description of Material</th>
               <th className="border border-black px-2 py-1 text-center w-16 font-bold">Unit</th>
               <th className="border border-black px-2 py-1 text-center w-24 font-bold">Qty. Demand</th>
@@ -142,23 +143,41 @@ export default function DemandNotePrintPage() {
           </thead>
           <tbody>
             {filteredItems.length > 0 ? (
-              filteredItems.map((item: any, index: number) => (
-                <tr key={index}>
-                  <td className="border border-black px-2 py-1 text-center">{index + 1}</td>
-                  <td className="border border-black px-2 py-1 text-center">{item.tempCode || ""}</td>
-                  <td className="border border-black px-2 py-1 text-blue-800 italic">{item.itemName}</td>
-                  <td className="border border-black px-2 py-1 text-center text-blue-800 italic">{item.unit || ""}</td>
-                  <td className="border border-black px-2 py-1 text-center text-blue-800 italic">{item.demandQty ? Math.round(Number(item.demandQty)) : ""}</td>
-                </tr>
+              Object.entries(
+                filteredItems.reduce((acc: any, item: any, originalIdx: number) => {
+                  const act = item.activity || 'Uncategorized Activity';
+                  if (!acc[act]) acc[act] = [];
+                  acc[act].push({ ...item, originalIdx: originalIdx + 1 });
+                  return acc;
+                }, {})
+              ).map(([activityName, itemsGroup]: [string, any], groupIdx) => (
+                <React.Fragment key={groupIdx}>
+                  <tr>
+                    <td colSpan={6} className="border border-black px-2 py-1 font-bold bg-slate-100 uppercase">
+                      {activityName}
+                    </td>
+                  </tr>
+                  {itemsGroup.map((item: any, index: number) => (
+                    <tr key={`${groupIdx}-${index}`}>
+                      <td className="border border-black px-2 py-1 text-center">{item.originalIdx}</td>
+                      <td className="border border-black px-2 py-1 text-center">{item.tempCode || ""}</td>
+                      <td className="border border-black px-2 py-1 text-center">{item.loaSrNo || ""}</td>
+                      <td className="border border-black px-2 py-1 text-blue-800 italic">{item.itemName}</td>
+                      <td className="border border-black px-2 py-1 text-center text-blue-800 italic">{item.unit || ""}</td>
+                      <td className="border border-black px-2 py-1 text-center text-blue-800 italic">{item.demandQty ? Math.round(Number(item.demandQty)) : ""}</td>
+                    </tr>
+                  ))}
+                </React.Fragment>
               ))
             ) : (
               <tr>
-                <td colSpan={5} className="border border-black px-2 py-6 text-center italic text-gray-500">No items available</td>
+                <td colSpan={6} className="border border-black px-2 py-6 text-center italic text-gray-500">No items available</td>
               </tr>
             )}
             {/* Add some blank rows to mimic the lined paper format */}
             {Array.from({ length: Math.max(0, 10 - filteredItems.length) }).map((_, i) => (
               <tr key={`blank-${i}`}>
+                <td className="border border-black px-2 py-4"></td>
                 <td className="border border-black px-2 py-4"></td>
                 <td className="border border-black px-2 py-4"></td>
                 <td className="border border-black px-2 py-4"></td>
@@ -182,7 +201,7 @@ export default function DemandNotePrintPage() {
               <div className="flex items-end relative">
                 <span className="font-bold whitespace-nowrap mr-2">Engineer Name :</span>
                 <span className="w-48 border-b border-black text-blue-800 italic">
-                  {demandNote.createdBy ? `${demandNote.createdBy.firstName} ${demandNote.createdBy.lastName}` : ""}
+                  {demandNote.authorizedByEngineer || (demandNote.createdBy ? `${demandNote.createdBy.firstName} ${demandNote.createdBy.lastName}` : "")}
                 </span>
                 
                 {/* PM Approval Stamp */}

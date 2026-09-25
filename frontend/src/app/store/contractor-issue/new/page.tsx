@@ -152,6 +152,7 @@ export default function StoreContractorIssueNewPage() {
       setDemandDate(new Date(dn.createdAt).toISOString().split('T')[0]);
       setDivision(dn.division || '');
       setSubDivision(dn.subDivision || '');
+      setSupervisorEngineer(dn.authorizedByEngineer || (dn.createdBy?.firstName ? `${dn.createdBy.firstName} ${dn.createdBy.lastName}` : 'Site Engineer'));
       
       if (dn.contractorName) {
         const matchedC = cList.find((c: any) => 

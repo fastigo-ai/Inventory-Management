@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../../core/middlewares/auth.middleware';
 import DemandNote from './demandNote.schema';
+import User from '../users/user.model';
 import Item from '../items/item.model';
 import { asyncHandler } from '../../core/utils/asyncHandler';
 import { ApiError } from '../../core/utils/ApiError';
@@ -375,11 +376,20 @@ export const getDemandNotes = asyncHandler(async (req: AuthRequest, res: Respons
       flexiblePkg = flexiblePkg.replace(/\\([()[\]{}|\/?.*+^$])/g, '\\s*\\$1\\s*');
       filter.package = { $regex: new RegExp(`^\\s*${flexiblePkg}\\s*$`, 'i') };
     }
-    if (user.assignedCircle && user.assignedCircle.trim()) {
-      filter.circle = { $regex: new RegExp(`^\\s*${escapeRegex(user.assignedCircle.trim())}\\s*$`, 'i') };
-    }
-    if (user.assignedSubcircle && user.assignedSubcircle.trim()) {
+    // For Store Managers with subcircle: auth middleware overrides assignedCircle
+    // to the subcircle value. We need the original DB circle for DN filtering.
+    if (roleName === 'Store Manager' && user.assignedSubcircle && user.assignedSubcircle.trim()) {
+      const rawUser = await User.findById(user._id).select('assignedCircle').lean();
+      const originalCircle = rawUser?.assignedCircle || '';
+      if (originalCircle.trim()) {
+        filter.circle = { $regex: new RegExp(`^\\s*${escapeRegex(originalCircle.trim())}\\s*$`, 'i') };
+      }
       filter.subcircle = { $regex: new RegExp(`^\\s*${escapeRegex(user.assignedSubcircle.trim())}\\s*$`, 'i') };
+    } else {
+      // PM and Site Manager: use assignedCircle directly (not overridden for these roles)
+      if (user.assignedCircle && user.assignedCircle.trim()) {
+        filter.circle = { $regex: new RegExp(`^\\s*${escapeRegex(user.assignedCircle.trim())}\\s*$`, 'i') };
+      }
     }
   }
 

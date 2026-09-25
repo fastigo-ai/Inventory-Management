@@ -37,10 +37,11 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
       return;
     }
 
-    // Dynamic Override: Map subcircle to primary circle for this request
-    // This allows the entire backend to securely filter data to the subcircle level
-    // without modifying the database hierarchy or 15+ controller files.
-    if (user.assignedSubcircle) {
+    // Dynamic Override: Map subcircle to primary circle for Store Manager requests only.
+    // For Store Managers, this allows stock/inward modules to filter by subcircle.
+    // For Project Managers, we preserve the original circle so they can see all subcircles.
+    const roleName = (user.role as any)?.name?.trim();
+    if (user.assignedSubcircle && roleName === 'Store Manager') {
       user.assignedCircle = user.assignedSubcircle;
     }
 

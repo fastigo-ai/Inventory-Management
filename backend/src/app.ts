@@ -123,6 +123,7 @@ apiRouter.use('/wip', wipRoutes);
 apiRouter.use('/wip-required', wipRequiredRoutes);
 apiRouter.use('/contractor-billing', billingRoutes);
 apiRouter.use('/client-billing', clientBillRoutes);
+apiRouter.use('/divisions', divisionRoutes);
 apiRouter.use('/sse', sseRoutes);
 
 // Mount API routes on both / and /api to handle DigitalOcean path stripping

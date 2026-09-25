@@ -55,6 +55,8 @@ export default function Home() {
         }
       };
       fetchData();
+    } else {
+      setLoading(false);
     }
   }, [isStoreManager, isSitePortal, siteFilters]);
 
@@ -133,7 +135,33 @@ export default function Home() {
       {/* Main Content Area */}
       <div className="p-6 flex gap-6 flex-1 bg-slate-50/50">
         
-        {isSitePortal ? (
+        {loading ? (
+          <div className="flex-1 flex gap-6 w-full">
+            {/* Left Card Skeleton (Financials/Site Dashboard) */}
+            <div className="flex-1 min-w-[300px] bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col gap-4">
+              <div className="h-6 w-1/3 bg-slate-200 rounded animate-pulse mb-2"></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="h-24 bg-slate-100 rounded-lg animate-pulse"></div>
+                <div className="h-24 bg-slate-100 rounded-lg animate-pulse"></div>
+                <div className="h-24 bg-slate-100 rounded-lg animate-pulse"></div>
+                <div className="h-24 bg-slate-100 rounded-lg animate-pulse"></div>
+              </div>
+              <div className="h-48 bg-slate-100 rounded-lg animate-pulse mt-4"></div>
+            </div>
+            
+            {/* Right Card Skeleton (Pending Actions) */}
+            {!isSitePortal && activeTab === 'dashboard' && (
+              <div className="flex-1 min-w-[300px] bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col gap-4">
+                <div className="h-6 w-1/4 bg-slate-200 rounded animate-pulse mb-2"></div>
+                <div className="flex flex-col gap-3">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div key={i} className="h-16 bg-slate-100 rounded-lg animate-pulse"></div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : isSitePortal ? (
           <SitePortalDashboard data={data} onFilterChange={setSiteFilters} />
         ) : activeTab === 'dashboard' ? (
           <>

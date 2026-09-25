@@ -491,6 +491,11 @@ export default function NewContractorWorkOrderPage() {
   };
 
   const [availableDivisions, setAvailableDivisions] = useState<string[]>([]);
+  const [addDivisionModal, setAddDivisionModal] = useState<{ isOpen: boolean, drawingIdx: number, data: { name: string, package: string, circle: string, subcircle: string } }>({
+    isOpen: false,
+    drawingIdx: -1,
+    data: { name: '', package: '', circle: '', subcircle: '' }
+  });
   
   useEffect(() => {
     if (formData.circle) {
@@ -504,18 +509,21 @@ export default function NewContractorWorkOrderPage() {
     }
   }, [formData.circle, formData.package, formData.subcircle]);
 
-  const handleAddDivision = async (name: string, drawingIdx: number) => {
+  const submitNewDivision = async () => {
+    const { name, package: pkg, circle, subcircle } = addDivisionModal.data;
+    if (!name.trim()) return toast.error('Division Name is required');
     try {
       const res = await api.post('/divisions', {
-        name,
-        package: formData.package,
-        circle: formData.circle,
-        subcircle: formData.subcircle
+        name: name.trim(),
+        package: pkg,
+        circle,
+        subcircle
       });
       if (res.data?.success) {
         toast.success('Division added successfully');
-        setAvailableDivisions(prev => Array.from(new Set([...prev, name])).sort());
-        updateDrawing(drawingIdx, 'division', name);
+        setAvailableDivisions(prev => Array.from(new Set([...prev, name.trim()])).sort());
+        updateDrawing(addDivisionModal.drawingIdx, 'division', name.trim());
+        setAddDivisionModal({ isOpen: false, drawingIdx: -1, data: { name: '', package: '', circle: '', subcircle: '' } });
       } else {
         toast.error(res.data?.message || 'Failed to add division');
       }
@@ -768,10 +776,11 @@ export default function NewContractorWorkOrderPage() {
                       value={drawing.division} 
                       onChange={e => {
                         if (e.target.value === '__add_new__') {
-                          const newDiv = window.prompt('Enter new Division name:');
-                          if (newDiv && newDiv.trim()) {
-                            handleAddDivision(newDiv.trim(), idx);
-                          }
+                          setAddDivisionModal({
+                            isOpen: true,
+                            drawingIdx: idx,
+                            data: { name: '', package: formData.package, circle: formData.circle, subcircle: formData.subcircle }
+                          });
                         } else {
                           updateDrawing(idx, 'division', e.target.value);
                         }
@@ -1003,6 +1012,84 @@ export default function NewContractorWorkOrderPage() {
           </button>
         </div>
       </div>
+
+      {addDivisionModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+            <h2 className="text-xl font-bold text-slate-800 mb-4">Add New Division</h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[13px] font-semibold text-slate-800 mb-1">Division Name <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  value={addDivisionModal.data.name}
+                  onChange={(e) => setAddDivisionModal(prev => ({ ...prev, data: { ...prev.data, name: e.target.value } }))}
+                  placeholder="Enter division name"
+                  className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[13px] font-semibold text-slate-800 mb-1">Package</label>
+                <select
+                  value={addDivisionModal.data.package}
+                  onChange={(e) => setAddDivisionModal(prev => ({ ...prev, data: { ...prev.data, package: e.target.value, circle: '', subcircle: '' } }))}
+                  className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500 bg-white"
+                >
+                  <option value="">Select Package (Optional)</option>
+                  {packageOptions.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[13px] font-semibold text-slate-800 mb-1">Circle</label>
+                <select
+                  value={addDivisionModal.data.circle}
+                  onChange={(e) => setAddDivisionModal(prev => ({ ...prev, data: { ...prev.data, circle: e.target.value, subcircle: '' } }))}
+                  className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500 bg-white"
+                >
+                  <option value="">Select Circle (Optional)</option>
+                  <option value="Solan">Solan</option>
+                  <option value="Nahan">Nahan</option>
+                  <option value="Rampur">Rampur</option>
+                  <option value="Rohru">Rohru</option>
+                </select>
+              </div>
+
+              {addDivisionModal.data.circle === 'Solan' && (
+                <div>
+                  <label className="block text-[13px] font-semibold text-slate-800 mb-1">Subcircle</label>
+                  <select
+                    value={addDivisionModal.data.subcircle}
+                    onChange={(e) => setAddDivisionModal(prev => ({ ...prev, data: { ...prev.data, subcircle: e.target.value } }))}
+                    className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500 bg-white"
+                  >
+                    <option value="">Select Subcircle (Optional)</option>
+                    <option value="Kumarhatti">Kumarhatti</option>
+                    <option value="Nalagarh">Nalagarh</option>
+                  </select>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => setAddDivisionModal({ isOpen: false, drawingIdx: -1, data: { name: '', package: '', circle: '', subcircle: '' } })}
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitNewDivision}
+                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
+              >
+                Save Division
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

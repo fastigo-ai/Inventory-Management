@@ -6,9 +6,9 @@ import Division from './division.schema';
 export const getDivisions = asyncHandler(async (req: Request, res: Response) => {
   const { package: pkg, circle, subcircle } = req.query;
   const filter: any = {};
-  if (pkg) filter.package = pkg;
+  if (pkg) filter.package = { $in: [pkg, ''] };
   if (circle) filter.circle = circle;
-  if (subcircle) filter.subcircle = subcircle;
+  if (subcircle) filter.subcircle = { $in: [subcircle, ''] };
 
   const divisions = await Division.find(filter).sort({ name: 1 });
   res.json(new ApiResponse(200, divisions, 'Divisions fetched successfully'));

@@ -102,7 +102,22 @@ export const getDashboardSummary = asyncHandler(async (req: Request, res: Respon
 export const getSitePortalDashboardSummary = asyncHandler(async (req: any, res: Response) => {
   const user = req.user;
   if (!user.assignedPackage || !user.assignedCircle) {
-    return res.status(400).json(new ApiResponse(400, null, 'User is missing assigned package or circle'));
+    return res.status(200).json(new ApiResponse(200, {
+      totalJmcQty: 0,
+      totalWipQty: 0,
+      contractorData: [],
+      itemData: [],
+      availableTempCodes: [],
+      metrics: {
+        totalDemandNotes: 0,
+        approvedDemandNotes: 0,
+        totalMhrovs: 0,
+        pendingMhrovs: 0,
+        pendingContractorReturns: 0,
+        wipAlerts: 0
+      },
+      recentActivityFeed: []
+    }, 'User is missing assigned package or circle'));
   }
 
   const { assignedPackage, assignedCircle } = user;
@@ -187,8 +202,8 @@ export const getSitePortalDashboardSummary = asyncHandler(async (req: any, res: 
     tempCode ? WipRegister.aggregate(buildPipeline(false)) : Promise.resolve([])
   ]);
 
-  const jmcResults = tempCode ? jmcAggFiltered : jmcAggUnfiltered;
-  const wipResults = tempCode ? wipAggFiltered : wipAggUnfiltered;
+  const jmcResults = jmcAggFiltered;
+  const wipResults = wipAggFiltered;
   const allJmcForTempCodes = tempCode ? jmcAggUnfiltered : jmcAggFiltered;
   const allWipForTempCodes = tempCode ? wipAggUnfiltered : wipAggFiltered;
 

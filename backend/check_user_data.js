@@ -10,7 +10,7 @@ async function checkUserAndData() {
   if (!user) {
     console.log('User not found');
     process.exit(1);
-  }
+  }     
 
   const req = {
     user: user,

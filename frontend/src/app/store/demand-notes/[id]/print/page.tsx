@@ -52,6 +52,8 @@ export default function DemandNotePrintPage() {
     );
   }
 
+  const filteredItems = demandNote.items?.filter((item: any) => item.demandQty && Number(item.demandQty) > 0) || [];
+
   return (
     <>
       <div className="bg-white min-h-screen w-full print:p-0 p-8 flex justify-center text-black font-serif relative">
@@ -139,8 +141,8 @@ export default function DemandNotePrintPage() {
             </tr>
           </thead>
           <tbody>
-            {demandNote.items && demandNote.items.length > 0 ? (
-              demandNote.items.map((item: any, index: number) => (
+            {filteredItems.length > 0 ? (
+              filteredItems.map((item: any, index: number) => (
                 <tr key={index}>
                   <td className="border border-black px-2 py-1 text-center">{index + 1}</td>
                   <td className="border border-black px-2 py-1 text-center">{item.tempCode || ""}</td>
@@ -155,7 +157,7 @@ export default function DemandNotePrintPage() {
               </tr>
             )}
             {/* Add some blank rows to mimic the lined paper format */}
-            {Array.from({ length: Math.max(0, 10 - (demandNote.items?.length || 0)) }).map((_, i) => (
+            {Array.from({ length: Math.max(0, 10 - filteredItems.length) }).map((_, i) => (
               <tr key={`blank-${i}`}>
                 <td className="border border-black px-2 py-4"></td>
                 <td className="border border-black px-2 py-4"></td>

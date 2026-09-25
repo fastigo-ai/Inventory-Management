@@ -33,8 +33,45 @@ export default function StoreContractorSummaryPage() {
     return '';
   };
 
-  const initialCircle = isStoreManager ? (user?.assignedCircle || '') : '';
-  const initialStore = isStoreManager && initialCircle.toLowerCase() === 'solan' ? (user?.assignedSubcircle || '') : '';
+  const formatStore = (s: string) => {
+    const sLower = s.toLowerCase();
+    if (sLower === 'kumarhatti') return 'Kumarhatti';
+    if (sLower === 'nalagarh') return 'Nalagarh';
+    if (sLower === 'solan') return 'Solan';
+    if (sLower === 'nahan') return 'Nahan';
+    if (sLower === 'rampur') return 'Rampur';
+    if (sLower === 'rohru') return 'Rohru';
+    if (sLower === 'noida') return 'Noida';
+    if (sLower === 'head office') return 'Head Office';
+    return s;
+  };
+
+  const formatCircle = (c: string) => {
+    const cLower = c.toLowerCase();
+    if (cLower === 'solan') return 'Solan';
+    if (cLower === 'nahan') return 'Nahan';
+    if (cLower === 'rampur') return 'Rampur';
+    if (cLower === 'rohru') return 'Rohru';
+    return c;
+  };
+
+  let rawCircle = isStoreManager ? (user?.assignedCircle || '') : '';
+  let rawSubcircle = isStoreManager ? (user?.assignedSubcircle || '') : '';
+  
+  let initialCircle = formatCircle(rawCircle);
+  let initialStore = isStoreManager && initialCircle === 'Solan' ? formatStore(rawSubcircle) : '';
+
+  if (isStoreManager) {
+    if (['kumarhatti', 'nalagarh'].includes(rawCircle.toLowerCase())) {
+      initialCircle = 'Solan';
+      initialStore = formatStore(rawCircle);
+    }
+    if (['kumarhatti', 'nalagarh'].includes(rawSubcircle.toLowerCase())) {
+      initialCircle = 'Solan';
+      initialStore = formatStore(rawSubcircle);
+    }
+  }
+
   const initialPkg = isStoreManager && initialCircle ? getDefaultPackage(initialCircle) : '';
 
   const [data, setData] = useState<any[]>([]);
@@ -140,16 +177,21 @@ export default function StoreContractorSummaryPage() {
     setPage(1);
   }, [contractorName, circle, store, pkg, searchLoaSrNo, searchItemName, searchTempCode, hideZero, limit]);
 
-  // Auto-set Circle based on Store/Subcircle
+  // Auto-set Circle & Package based on Store/Subcircle
   useEffect(() => {
-    if (store === 'Kumarhatti' || store === 'Nalagarh' || store === 'Solan') {
+    const s = (store || '').toLowerCase();
+    if (s === 'kumarhatti' || s === 'nalagarh' || s === 'solan') {
       if (circle !== 'Solan') setCircle('Solan');
-    } else if (store === 'Nahan' && circle !== 'Nahan') {
-      setCircle('Nahan');
-    } else if (store === 'Rampur' && circle !== 'Rampur') {
-      setCircle('Rampur');
-    } else if (store === 'Rohru' && circle !== 'Rohru') {
-      setCircle('Rohru');
+      if (pkg !== 'Package 1(S/N)') setPkg('Package 1(S/N)');
+    } else if (s === 'nahan') {
+      if (circle !== 'Nahan') setCircle('Nahan');
+      if (pkg !== 'Package 1(S/N)') setPkg('Package 1(S/N)');
+    } else if (s === 'rampur') {
+      if (circle !== 'Rampur') setCircle('Rampur');
+      if (pkg !== 'Package 2(R/R)') setPkg('Package 2(R/R)');
+    } else if (s === 'rohru') {
+      if (circle !== 'Rohru') setCircle('Rohru');
+      if (pkg !== 'Package 2(R/R)') setPkg('Package 2(R/R)');
     }
   }, [store]);
 

@@ -1,3 +1,4 @@
+import divisionRoutes from './modules/divisions/division.routes';
 import express, { Express, Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';

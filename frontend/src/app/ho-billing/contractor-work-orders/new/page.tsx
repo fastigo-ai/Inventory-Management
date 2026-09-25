@@ -490,19 +490,39 @@ export default function NewContractorWorkOrderPage() {
     }
   };
 
-  const getDivisions = (circle: string) => {
-    switch (circle?.toLowerCase()) {
-      case 'nahan':
-        return ['Nahan', 'Rajgarh', 'Poanta'];
-      case 'solan':
-        return ['Solan', 'Nalagarh', 'Kumarhatti', 'Baddhi', 'Parwahoo', 'Arki'];
-      case 'rohru':
-        return ['Rohru', 'Jubbal'];
-      default:
-        return [];
+  const [availableDivisions, setAvailableDivisions] = useState<string[]>([]);
+  
+  useEffect(() => {
+    if (formData.circle) {
+      api.get(`/divisions?circle=${formData.circle}`).then(res => {
+        if (res.data?.success) {
+           setAvailableDivisions(res.data.data.map((d: any) => d.name));
+        }
+      }).catch(err => console.error(err));
+    } else {
+      setAvailableDivisions([]);
+    }
+  }, [formData.circle, formData.package, formData.subcircle]);
+
+  const handleAddDivision = async (name: string, drawingIdx: number) => {
+    try {
+      const res = await api.post('/divisions', {
+        name,
+        package: formData.package,
+        circle: formData.circle,
+        subcircle: formData.subcircle
+      });
+      if (res.data?.success) {
+        toast.success('Division added successfully');
+        setAvailableDivisions(prev => Array.from(new Set([...prev, name])).sort());
+        updateDrawing(drawingIdx, 'division', name);
+      } else {
+        toast.error(res.data?.message || 'Failed to add division');
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Error adding division');
     }
   };
-  const availableDivisions = getDivisions(formData.circle);
 
   const tableData = React.useMemo(() => {
     const data: any[] = [];
@@ -542,6 +562,7 @@ export default function NewContractorWorkOrderPage() {
         cell: ({ row }) => (
           <input
             type="number"
+            step="any"
             value={row.original.alreadyIssuedQty || ''}
             onChange={(e) => updateItem(row.original.originalIndex, 'alreadyIssuedQty', Number(e.target.value))}
             className="w-24 text-right px-2 py-1.5 rounded border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500 font-medium text-orange-600 text-sm transition-shadow bg-orange-50"
@@ -555,6 +576,7 @@ export default function NewContractorWorkOrderPage() {
         cell: ({ row }) => (
           <input
             type="number"
+            step="any"
             value={row.original.woQty || ''}
             onChange={(e) => updateItem(row.original.originalIndex, 'woQty', Number(e.target.value))}
             className="w-20 text-right px-2 py-1.5 rounded border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm transition-shadow"
@@ -568,6 +590,7 @@ export default function NewContractorWorkOrderPage() {
         cell: ({ row }) => (
           <input
             type="number"
+            step="any"
             value={row.original.contractorErectionRate || ''}
             onChange={(e) => updateItem(row.original.originalIndex, 'contractorErectionRate', Number(e.target.value))}
             className="w-24 text-right px-2 py-1.5 rounded border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm transition-shadow"
@@ -741,9 +764,23 @@ export default function NewContractorWorkOrderPage() {
                   </div>
                   <div>
                     <label className="block text-[12px] text-slate-600 mb-1">Division</label>
-                    <select value={drawing.division} onChange={e => updateDrawing(idx, 'division', e.target.value)} className="w-full px-2 py-1.5 text-sm rounded border border-slate-200 bg-white">
+                    <select 
+                      value={drawing.division} 
+                      onChange={e => {
+                        if (e.target.value === '__add_new__') {
+                          const newDiv = window.prompt('Enter new Division name:');
+                          if (newDiv && newDiv.trim()) {
+                            handleAddDivision(newDiv.trim(), idx);
+                          }
+                        } else {
+                          updateDrawing(idx, 'division', e.target.value);
+                        }
+                      }} 
+                      className="w-full px-2 py-1.5 text-sm rounded border border-slate-200 bg-white"
+                    >
                       <option value="">Select Division</option>
                       {availableDivisions.map(div => <option key={div} value={div}>{div}</option>)}
+                      <option value="__add_new__" className="text-indigo-600 font-medium">+ Add New Division...</option>
                     </select>
                   </div>
                   <div>

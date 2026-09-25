@@ -184,15 +184,21 @@ export default function ContractorWorkOrderDetailPage() {
           </div>
           <div>
             <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-500 mb-1">Division</label>
-            <div className="text-sm font-medium text-slate-800">{workOrder.division || 'N/A'}</div>
+            <div className="text-sm font-medium text-slate-800">
+              {workOrder.drawings?.map((d: any) => d.division).filter(Boolean).join(', ') || workOrder.division || 'N/A'}
+            </div>
           </div>
           <div>
             <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-500 mb-1">Sub Division</label>
-            <div className="text-sm font-medium text-slate-800">{workOrder.subDivision || 'N/A'}</div>
+            <div className="text-sm font-medium text-slate-800">
+              {workOrder.drawings?.map((d: any) => d.subDivision).filter(Boolean).join(', ') || workOrder.subDivision || 'N/A'}
+            </div>
           </div>
           <div>
             <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-500 mb-1">Location</label>
-            <div className="text-sm font-medium text-slate-800">{workOrder.location || 'N/A'}</div>
+            <div className="text-sm font-medium text-slate-800">
+              {workOrder.drawings?.map((d: any) => d.location).filter(Boolean).join(', ') || workOrder.location || 'N/A'}
+            </div>
           </div>
           <div className="md:col-span-2">
             <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-500 mb-1">Remarks</label>
@@ -225,30 +231,53 @@ export default function ContractorWorkOrderDetailPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
-              {workOrder.items && workOrder.items.length > 0 ? (
-                workOrder.items.map((item: any, index: number) => (
-                  <tr key={index} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 text-slate-700">{item.tempCode || 'N/A'}</td>
-                    <td className="px-4 py-3 text-slate-700 truncate max-w-[150px]" title={item.activity}>{item.activity || 'N/A'}</td>
-                    <td className="px-4 py-3 text-slate-700">{item.loaSrNo || 'N/A'}</td>
-                    <td className="px-4 py-3 text-slate-700 truncate max-w-[200px]" title={item.description}>{item.description || 'N/A'}</td>
-                    <td className="px-4 py-3 text-slate-700">{item.unit || 'N/A'}</td>
-                    <td className="px-4 py-3 text-right font-medium text-slate-800">{item.woQty || 0}</td>
-                    <td className="px-4 py-3 text-right font-medium text-slate-800">₹{item.contractorErectionRate || 0}</td>
-                    <td className="px-4 py-3 text-right text-slate-800">₹{item.amount?.toLocaleString() || 0}</td>
-                    <td className="px-4 py-3 text-slate-700">{item.gstType || 'N/A'}</td>
-                    <td className="px-4 py-3 text-right font-bold text-indigo-700 bg-indigo-50/20">
-                      ₹{item.totalAmount?.toLocaleString() || 0}
+              {(() => {
+                // Filter out items with woQty === 0 and group by activity
+                const filteredItems = (workOrder.items || []).filter((i: any) => Number(i.woQty) > 0);
+                let currentActivity = '';
+                
+                return filteredItems.length > 0 ? (
+                  filteredItems.map((item: any, index: number) => {
+                    let isNewGroup = false;
+                    if (item.activity !== currentActivity) {
+                      isNewGroup = true;
+                      currentActivity = item.activity;
+                    }
+                    
+                    return (
+                      <React.Fragment key={index}>
+                        {isNewGroup && (
+                          <tr className="bg-indigo-50/80 border-y border-indigo-100/50">
+                            <td colSpan={10} className="px-4 py-2 font-bold text-indigo-900 text-xs tracking-wide uppercase">
+                              {currentActivity || 'Uncategorized Activity'}
+                            </td>
+                          </tr>
+                        )}
+                        <tr className="hover:bg-slate-50 transition-colors">
+                          <td className="px-4 py-3 text-slate-700">{item.tempCode || 'N/A'}</td>
+                          <td className="px-4 py-3 text-slate-700 truncate max-w-[150px]" title={item.activity}>{item.activity || 'N/A'}</td>
+                          <td className="px-4 py-3 text-slate-700">{item.loaSrNo || 'N/A'}</td>
+                          <td className="px-4 py-3 text-slate-700 truncate max-w-[200px]" title={item.description}>{item.description || 'N/A'}</td>
+                          <td className="px-4 py-3 text-slate-700">{item.unit || 'N/A'}</td>
+                          <td className="px-4 py-3 text-right font-medium text-slate-800">{item.woQty || 0}</td>
+                          <td className="px-4 py-3 text-right font-medium text-slate-800">₹{item.contractorErectionRate || 0}</td>
+                          <td className="px-4 py-3 text-right text-slate-800">₹{item.amount?.toLocaleString() || 0}</td>
+                          <td className="px-4 py-3 text-slate-700">{item.gstType || 'N/A'}</td>
+                          <td className="px-4 py-3 text-right font-bold text-indigo-700 bg-indigo-50/20">
+                            ₹{item.totalAmount?.toLocaleString() || 0}
+                          </td>
+                        </tr>
+                      </React.Fragment>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={10} className="px-6 py-8 text-center text-slate-500">
+                      No items with a Work Order quantity greater than 0 were found.
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={10} className="px-6 py-8 text-center text-slate-500">
-                    No items found in this work order.
-                  </td>
-                </tr>
-              )}
+                );
+              })()}
             </tbody>
           </table>
         </div>

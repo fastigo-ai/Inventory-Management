@@ -162,7 +162,9 @@ export default function WorkOrderPrintPage() {
               workOrder.items.map((item: any, index: number) => (
                 <tr key={index}>
                   <td className="border border-black px-1 py-1 text-center">{index + 1}</td>
-                  <td className="border border-black px-1 py-1 text-center text-blue-800 italic">{item.drawingNumber || ""}</td>
+                  <td className="border border-black px-1 py-1 text-center text-blue-800 italic">
+                    {workOrder.drawings?.map((d: any) => d.drawingNumber).filter(Boolean).join(', ') || ""}
+                  </td>
                   <td className="border border-black px-1 py-1 text-center">{item.tempCode || ""}</td>
                   <td className="border border-black px-1 py-1 text-center text-blue-800 italic">{item.activity || ""}</td>
                   <td className="border border-black px-1 py-1 text-blue-800 italic">{item.description}</td>

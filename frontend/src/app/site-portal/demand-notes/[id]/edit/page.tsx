@@ -448,7 +448,7 @@ function DemandNoteEditForm() {
         const tempCode = dynamic.tempCode || selectedItem.tempCode || tempCodeParam || '';
         const loaSrNo = dynamic.loaSrNo || dynamic.loaSerialNo || dynamic.loaSerialNumber || dynamic.sku || selectedItem.sku || '';
 
-        const res = await getContextData(itemId, contractorId || undefined, contractorName || undefined, activity, description, tempCode, loaSrNo, currentPkg || undefined, currentCircle || undefined);
+        const res = await getContextData(itemId, contractorId || undefined, contractorName || undefined, activity, description, tempCode, loaSrNo, currentPkg || undefined, currentCircle || undefined, id as string);
         if (res.success) {
           const ctx = res.data;
           setItems(prev => {
@@ -541,6 +541,17 @@ function DemandNoteEditForm() {
 
     if (itemsToSave.some(i => !i.itemId)) {
       toast.error('Please ensure all items have a valid Item ID.');
+      return;
+    }
+
+    const exceedsQty = itemsToSave.find(i => {
+      const allowed = i.bomQty - i.alreadyIssuedQty;
+      return i.demandQty > allowed;
+    });
+
+    if (exceedsQty) {
+      const allowed = exceedsQty.bomQty - exceedsQty.alreadyIssuedQty;
+      toast.error(`Demand quantity for "${exceedsQty.itemName || 'item'}" exceeds the allowed balance (Max: ${allowed}).`);
       return;
     }
 

@@ -113,6 +113,7 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
 
   const pkg = req.query.package || user?.assignedPackage;
   const circle = req.query.circle || user?.assignedCircle;
+  const excludeDemandNoteId = req.query.excludeDemandNoteId;
 
   let item = itemId ? await Item.findById(itemId) : null;
   if (!item && tempCode) {
@@ -209,9 +210,12 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
     });
   }
 
-  // Also check past approved demand notes
+  // Also check past demand notes
   let pastDemandQty = 0;
-  const dnQuery: any = { status: { $in: ['Approved', 'Fulfilled'] } };
+  const dnQuery: any = { status: { $in: ['Draft', 'Pending PM Approval', 'Pending PD Approval', 'Approved', 'Fulfilled'] } };
+  if (excludeDemandNoteId) {
+    dnQuery._id = { $ne: excludeDemandNoteId };
+  }
   if (pkgRegex) dnQuery.package = { $regex: pkgRegex };
   if (circleFilter) dnQuery.circle = circleFilter;
   const pastDemandNotes = await DemandNote.find(dnQuery).lean();

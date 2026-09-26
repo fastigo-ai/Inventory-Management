@@ -37,7 +37,8 @@ export const getContextData = async (
   tempCode?: string, 
   loaSrNo?: string,
   pkg?: string,
-  circle?: string
+  circle?: string,
+  excludeDemandNoteId?: string
 ) => {
   let url = `/demand-notes/context?itemId=${itemId || ''}`;
   if (contractorId) url += `&contractorId=${encodeURIComponent(contractorId)}`;
@@ -48,6 +49,7 @@ export const getContextData = async (
   if (loaSrNo) url += `&loaSrNo=${encodeURIComponent(loaSrNo)}`;
   if (pkg) url += `&package=${encodeURIComponent(pkg)}`;
   if (circle) url += `&circle=${encodeURIComponent(circle)}`;
+  if (excludeDemandNoteId) url += `&excludeDemandNoteId=${encodeURIComponent(excludeDemandNoteId)}`;
   const response = await api.get(url);
   return response.data;
 };

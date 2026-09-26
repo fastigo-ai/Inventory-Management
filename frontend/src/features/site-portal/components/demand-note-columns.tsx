@@ -68,7 +68,7 @@ export const getDemandNoteColumns = (): ColumnDef<DemandNoteTableRow>[] => [
     size: 100,
     cell: (info) => {
       const val = info.getValue() as number;
-      return <div className="text-center font-medium text-slate-700">{(val || val === 0) ? Math.round(val) : '-'}</div>;
+      return <div className="text-center font-medium text-slate-700">{(val || val === 0) ? Number(val.toFixed(3)) : '-'}</div>;
     },
   },
   {
@@ -77,7 +77,7 @@ export const getDemandNoteColumns = (): ColumnDef<DemandNoteTableRow>[] => [
     size: 110,
     cell: (info) => {
       const val = info.getValue() as number;
-      return <div className="text-center font-medium text-slate-700">{(val || val === 0) ? Math.round(val) : '-'}</div>;
+      return <div className="text-center font-medium text-slate-700">{(val || val === 0) ? Number(val.toFixed(3)) : '-'}</div>;
     },
   },
   {
@@ -92,7 +92,7 @@ export const getDemandNoteColumns = (): ColumnDef<DemandNoteTableRow>[] => [
     size: 100,
     cell: (info) => {
       const val = (info.getValue() as number) || 0;
-      return <div className={`text-center font-bold ${val > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{Math.round(val)}</div>;
+      return <div className={`text-center font-bold ${val > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{Number(val.toFixed(3))}</div>;
     },
   },
   {
@@ -101,7 +101,7 @@ export const getDemandNoteColumns = (): ColumnDef<DemandNoteTableRow>[] => [
     size: 100,
     cell: (info) => {
       const val = (info.getValue() as number) || 0;
-      return <div className="text-center font-medium text-blue-600">{Math.round(val)}</div>;
+      return <div className="text-center font-medium text-blue-600">{Number(val.toFixed(3))}</div>;
     },
   },
   {
@@ -110,7 +110,7 @@ export const getDemandNoteColumns = (): ColumnDef<DemandNoteTableRow>[] => [
     size: 120,
     cell: (info) => {
       const val = (info.getValue() as number) || 0;
-      return <div className="text-center font-medium text-orange-600">{Math.round(val)}</div>;
+      return <div className="text-center font-medium text-orange-600">{Number(val.toFixed(3))}</div>;
     },
   },
   {
@@ -119,7 +119,7 @@ export const getDemandNoteColumns = (): ColumnDef<DemandNoteTableRow>[] => [
     size: 100,
     cell: (info) => {
       const val = (info.getValue() as number) || 0;
-      return <div className="text-center font-medium text-purple-600">{Math.round(val)}</div>;
+      return <div className="text-center font-medium text-purple-600">{Number(val.toFixed(3))}</div>;
     },
   },
   {
@@ -128,7 +128,7 @@ export const getDemandNoteColumns = (): ColumnDef<DemandNoteTableRow>[] => [
     size: 150,
     cell: (info) => {
       const val = (info.getValue() as number) || 0;
-      return <div className="text-center font-bold text-teal-600">{Math.round(val)}</div>;
+      return <div className="text-center font-bold text-teal-600">{Number(val.toFixed(3))}</div>;
     },
   },
   {
@@ -137,7 +137,7 @@ export const getDemandNoteColumns = (): ColumnDef<DemandNoteTableRow>[] => [
     size: 120,
     cell: (info) => {
       const val = (info.getValue() as number) || 0;
-      return <div className="text-center font-bold text-indigo-600 bg-indigo-50/50 p-2 rounded">{Math.round(val)}</div>;
+      return <div className="text-center font-bold text-indigo-600 bg-indigo-50/50 p-2 rounded">{Number(val.toFixed(3))}</div>;
     },
   },
 ]

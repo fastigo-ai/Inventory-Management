@@ -457,6 +457,20 @@ export const updateDemandNote = asyncHandler(async (req: AuthRequest, res: Respo
   delete updateData.demandNoteNumber;
   delete updateData.createdBy;
 
+  if (typeof updateData.items === 'string') {
+    try {
+      updateData.items = JSON.parse(updateData.items);
+    } catch (e) {
+      throw new ApiError(400, 'Invalid items format');
+    }
+  }
+
+  if (req.file) {
+    const { uploadToCloudinary } = require('../../core/utils/cloudinary');
+    const result = await uploadToCloudinary(req.file.buffer, 'demand_notes_drawings');
+    updateData.locationDrawingUrl = result.secure_url;
+  }
+
   if (updateData.status === 'Pending PD Approval' && existing.status !== 'Pending PD Approval') {
     updateData.pmApprovedBy = user._id;
     updateData.pmApprovedAt = new Date();

@@ -27,7 +27,7 @@ router.post('/import', requireRole(allRoles), upload.single('file'), importDeman
 router.post('/', requireRole(allRoles), upload.single('file'), createDemandNote);
 router.get('/', getDemandNotes);
 router.get('/:id', getDemandNoteById);
-router.put('/:id', requireRole(allRoles), updateDemandNote);
+router.put('/:id', requireRole(allRoles), upload.single('file'), updateDemandNote);
 router.delete('/:id', requireRole(['Admin', 'Site Manager']), deleteDemandNote);
 
 export default router;

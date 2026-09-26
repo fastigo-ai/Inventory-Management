@@ -782,7 +782,7 @@ function DemandNoteEditForm() {
               }, {} as Record<string, {item: any, idx: number}[]>)).map(([activity, group]: any) => (
                 <React.Fragment key={activity}>
                   <tr className="bg-slate-100/80 border-y border-slate-200">
-                    <td colSpan={24} className="px-4 py-2 text-[13px] font-bold text-slate-700">
+                    <td colSpan={24} className="px-4 py-2 text-[13px] font-bold text-slate-700 sticky left-0 z-10 bg-slate-100/90 backdrop-blur-sm shadow-[1px_0_3px_rgba(0,0,0,0.05)]">
                       Activity: <span className="text-indigo-700 ml-1">{activity === 'Unassigned Activity' ? 'Pending Item Selection' : activity}</span>
                     </td>
                   </tr>

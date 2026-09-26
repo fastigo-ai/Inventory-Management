@@ -6,20 +6,24 @@ import { useEffect } from 'react';
  */
 export function useStickyColumnResize(tableSelector: string = 'table') {
   useEffect(() => {
-    const srCol = document.querySelector('.dn-sticky-sr') as HTMLElement;
-    const mcCol = document.querySelector('.dn-sticky-mc') as HTMLElement;
-    const nameCol = document.querySelector('.dn-sticky-name') as HTMLElement;
-    const actCol = document.querySelector('.dn-sticky-act') as HTMLElement;
-    
-    // Also support the 'new' demand note table classes
-    const newNameCol = document.querySelector('.dn-new-name') as HTMLElement;
-    const newActCol = document.querySelector('.dn-new-act') as HTMLElement;
-    const newMcCol = document.querySelector('.dn-new-mc') as HTMLElement;
-    const newLoaCol = document.querySelector('.dn-new-loa') as HTMLElement;
-
     const root = document.documentElement;
+    let observer: ResizeObserver | null = null;
+    let pollInterval: NodeJS.Timeout;
 
-    const observer = new ResizeObserver(() => {
+    const setupObserver = () => {
+      const srCol = document.querySelector('.dn-sticky-sr') as HTMLElement;
+      const mcCol = document.querySelector('.dn-sticky-mc') as HTMLElement;
+      const nameCol = document.querySelector('.dn-sticky-name') as HTMLElement;
+      const actCol = document.querySelector('.dn-sticky-act') as HTMLElement;
+      
+      const newNameCol = document.querySelector('.dn-new-name') as HTMLElement;
+      const newActCol = document.querySelector('.dn-new-act') as HTMLElement;
+      const newMcCol = document.querySelector('.dn-new-mc') as HTMLElement;
+      const newLoaCol = document.querySelector('.dn-new-loa') as HTMLElement;
+
+      if (!newNameCol && !nameCol) return false; // not rendered yet
+
+      observer = new ResizeObserver(() => {
       if (srCol && mcCol && nameCol && actCol) {
         const srWidth = srCol.offsetWidth;
         const mcWidth = mcCol.offsetWidth;
@@ -54,7 +58,23 @@ export function useStickyColumnResize(tableSelector: string = 'table') {
     if (newActCol) observer.observe(newActCol);
     if (newMcCol) observer.observe(newMcCol);
     if (newLoaCol) observer.observe(newLoaCol);
+    
+    return true; // success
+  };
 
-    return () => observer.disconnect();
+  const attemptSetup = () => {
+    if (setupObserver()) {
+      if (pollInterval) clearInterval(pollInterval);
+    }
+  };
+
+  // Attempt immediately, then poll every 500ms until successful
+  attemptSetup();
+  pollInterval = setInterval(attemptSetup, 500);
+
+  return () => {
+    if (pollInterval) clearInterval(pollInterval);
+    if (observer) observer.disconnect();
+  };
   }, [tableSelector]);
 }

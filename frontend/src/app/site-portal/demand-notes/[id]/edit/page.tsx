@@ -141,6 +141,18 @@ function DemandNoteEditForm() {
   }, []);
 
   useEffect(() => {
+    if (formData.contractorName && !formData.contractorId && contractorsList.length > 0) {
+      const matched = contractorsList.find(c => {
+        const name = c.dynamicData?.displayName || c.dynamicData?.companyName || c.dynamicData?.name || c.dynamicData?.contractorName || c.dynamicData?.vendorName || '';
+        return name.toLowerCase().trim() === formData.contractorName.toLowerCase().trim();
+      });
+      if (matched) {
+        setFormData(prev => ({ ...prev, contractorId: matched._id }));
+      }
+    }
+  }, [formData.contractorName, formData.contractorId, contractorsList]);
+
+  useEffect(() => {
     if (id) return;
     // If URL params are present, auto-fill formData
     if (contractorIdParam || contractorNameParam || packageParam || circleParam) {

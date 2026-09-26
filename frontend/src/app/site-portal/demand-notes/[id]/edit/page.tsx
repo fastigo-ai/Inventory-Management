@@ -640,13 +640,14 @@ function DemandNoteEditForm() {
           <div>
             <label className="text-sm font-medium text-slate-700 block mb-1">Contractor Name</label>
             <select
-              value={formData.contractorId || ''}
+              value={formData.contractorId || formData.contractorName || ''}
               onChange={e => {
-                const selected = contractorsList.find(c => c._id === e.target.value);
-                const name = selected ? (selected.dynamicData?.displayName || selected.dynamicData?.companyName || selected.dynamicData?.name || selected.dynamicData?.vendorName || '') : '';
+                const val = e.target.value;
+                const selected = contractorsList.find(c => c._id === val);
+                const name = selected ? (selected.dynamicData?.displayName || selected.dynamicData?.companyName || selected.dynamicData?.name || selected.dynamicData?.vendorName || '') : val;
                 setFormData({
                   ...formData,
-                  contractorId: e.target.value,
+                  contractorId: selected ? val : '',
                   contractorName: name
                 });
               }}
@@ -654,8 +655,17 @@ function DemandNoteEditForm() {
               className="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <option value="">Select Contractor</option>
+              {formData.contractorName && !contractorsList.some(c => {
+                  const name = c.dynamicData?.displayName || c.dynamicData?.companyName || c.dynamicData?.name || c.dynamicData?.contractorName || c.dynamicData?.vendorName || '';
+                  return name.toLowerCase().trim() === formData.contractorName.toLowerCase().trim();
+              }) && (
+                  <option value={formData.contractorName}>{formData.contractorName}</option>
+              )}
               {contractorsList
                 .filter(c => {
+                  if (formData.contractorId === c._id) return true;
+                  const name = c.dynamicData?.displayName || c.dynamicData?.companyName || c.dynamicData?.name || c.dynamicData?.contractorName || c.dynamicData?.vendorName || '';
+                  if (formData.contractorName && name.toLowerCase().trim() === formData.contractorName.toLowerCase().trim()) return true;
                   if (!formData.circle) return true;
                   const query = formData.circle.toLowerCase().trim();
                   const allLocs = [

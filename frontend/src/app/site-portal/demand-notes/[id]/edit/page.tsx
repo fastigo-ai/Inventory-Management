@@ -657,8 +657,18 @@ function DemandNoteEditForm() {
               {contractorsList
                 .filter(c => {
                   if (!formData.circle) return true;
-                  const locs = c.location || c.assignedLocations || c.dynamicData?.assignedCircle || c.dynamicData?.circle || c.dynamicData?.assignedCircles || '';
-                  return locs.includes(formData.circle);
+                  const query = formData.circle.toLowerCase().trim();
+                  const allLocs = [
+                    c.location,
+                    c.assignedLocations,
+                    c.dynamicData?.assignedCircle,
+                    c.dynamicData?.circle,
+                    c.dynamicData?.assignedCircles,
+                    ...(c.dynamicData?.locations || []),
+                    ...(c.dynamicData?.circles || [])
+                  ].flat().filter(Boolean).map(l => String(l).toLowerCase().trim());
+                  
+                  return allLocs.some(loc => loc.includes(query) || query.includes(loc));
                 })
                 .map(c => {
                   const displayName = c.dynamicData?.displayName || c.dynamicData?.companyName || c.dynamicData?.name || c.dynamicData?.vendorName || c._id;

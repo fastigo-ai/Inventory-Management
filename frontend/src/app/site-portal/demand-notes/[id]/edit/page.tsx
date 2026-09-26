@@ -13,8 +13,10 @@ import { getContractorWorkOrderById } from '@/features/contractors/api/contracto
 import { getContractorAggregatedQuantities, getContractors } from '@/features/contractors/api/contractors.api';
 import { ItemSelectionModal } from '@/features/site-portal/components/ItemSelectionModal';
 import { useAuthStore } from '@/shared/store/auth.store';
+import { useStickyColumnResize } from '@/shared/hooks/useStickyColumnResize';
 
 function DemandNoteEditForm() {
+  useStickyColumnResize();
   const router = useRouter();
   const searchParams = useSearchParams();
   const params = useParams();
@@ -742,14 +744,14 @@ function DemandNoteEditForm() {
           </Button>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left whitespace-nowrap">
+          <table className="w-full text-sm text-left whitespace-nowrap border-separate border-spacing-0">
             <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase">
               <tr>
-                <th className="px-4 py-3 min-w-[200px]">Item Name</th>
-                <th className="px-4 py-3 min-w-[120px]">Activity</th>
-                <th className="px-4 py-3 min-w-[120px]">Temp Code</th>
-                <th className="px-4 py-3 min-w-[120px]">LOA Sr No</th>
-                <th className="px-4 py-3">Unit</th>
+                <th className="px-4 py-3 dn-new-name dn-sticky-bg-header">Item Name</th>
+                <th className="px-4 py-3 dn-new-act dn-sticky-bg-header">Activity</th>
+                <th className="px-4 py-3 dn-new-mc dn-sticky-bg-header">Temp Code</th>
+                <th className="px-4 py-3 dn-new-loa dn-sticky-bg-header">LOA Sr No</th>
+                <th className="px-4 py-3 dn-new-unit dn-sticky-bg-header">Unit</th>
                 <th className="px-4 py-3">Total Pkg LOA</th>
                 <th className="px-4 py-3">Circle LOA</th>
                 <th className="px-4 py-3">WO Qty</th>
@@ -786,16 +788,16 @@ function DemandNoteEditForm() {
                   </tr>
                   {group.map(({ item, idx }: {item: any, idx: number}) => (
                     <tr key={idx} className="hover:bg-slate-50">
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 dn-new-name dn-sticky-bg-white">
                         <div className="font-medium text-slate-800 max-w-[200px] truncate" title={item.itemName || 'Unknown Item'}>
                           {item.itemName || 'Unknown Item'}
                         </div>
                         {item.isLoadingContext && <Loader2 className="w-4 h-4 animate-spin text-indigo-500 mt-2" />}
                       </td>
-                      <td className="px-4 py-3 text-sm text-slate-600 truncate max-w-[150px]" title={item.activity}>{item.activity || 'N/A'}</td>
-                      <td className="px-4 py-3 text-sm text-slate-600">{item.tempCode || 'N/A'}</td>
-                      <td className="px-4 py-3 text-sm text-slate-600">{item.loaSrNo || 'N/A'}</td>
-                      <td className="px-4 py-3 text-sm text-slate-600">{item.unit || 'N/A'}</td>
+                      <td className="px-4 py-3 text-sm text-slate-600 truncate max-w-[150px] dn-new-act dn-sticky-bg-white" title={item.activity}>{item.activity || 'N/A'}</td>
+                      <td className="px-4 py-3 text-sm text-slate-600 dn-new-mc dn-sticky-bg-white">{item.tempCode || 'N/A'}</td>
+                      <td className="px-4 py-3 text-sm text-slate-600 dn-new-loa dn-sticky-bg-white">{item.loaSrNo || 'N/A'}</td>
+                      <td className="px-4 py-3 text-sm text-slate-600 dn-new-unit dn-sticky-bg-white">{item.unit || 'N/A'}</td>
                       <td className="px-4 py-3 text-sm text-slate-600">{item.totalPackageLoaQty}</td>
                       <td className="px-4 py-3 text-sm text-slate-600">{item.circleLoaQty}</td>
                       <td className="px-4 py-3 font-medium text-slate-700">{item.woQty}</td>

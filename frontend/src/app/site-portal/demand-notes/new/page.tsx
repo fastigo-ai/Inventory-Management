@@ -853,7 +853,7 @@ function DemandNoteForm() {
 
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left whitespace-nowrap">
+          <table className="w-full text-sm text-left whitespace-nowrap border-separate border-spacing-0">
             <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase">
               <tr>
                 <th className="px-4 py-3 dn-new-name dn-sticky-bg-header">Item Name</th>

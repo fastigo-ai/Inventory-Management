@@ -36,6 +36,7 @@ import sseRoutes from './core/routes/sse.routes';
 
 import { contextMiddleware } from './core/middlewares/context.middleware';
 import rateLimit from 'express-rate-limit';
+import logger from './core/utils/logger';
 
 const app: Express = express();
 
@@ -79,7 +80,18 @@ app.use(cors({
   },
   credentials: true
 }));
-app.use(morgan('dev'));
+
+// Define custom morgan token for user ID
+morgan.token('user', (req: any) => {
+  return req.user?.id || req.user?.email || 'Anonymous';
+});
+
+// Configure morgan to use winston
+const morganFormat = ':remote-addr - :user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] - :response-time ms';
+app.use(morgan(morganFormat, {
+  stream: { write: (message: string) => logger.info(message.trim()) }
+}));
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());

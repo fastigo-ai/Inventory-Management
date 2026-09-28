@@ -750,7 +750,7 @@ export default function StoreContractorIssueEditPage() {
                           <td className="p-4 align-top">
                             <Input 
                               type="number"
-                              max={item.availableQty}
+                              min={0}
                               value={item.quantity}
                               onChange={(e) => updateLineItem(originalIndex, 'quantity', e.target.value)}
                               className={`h-9 w-full text-center font-bold text-blue-700 ${item.quantity > item.availableQty ? 'border-red-500 bg-red-50 text-red-700' : ''}`}

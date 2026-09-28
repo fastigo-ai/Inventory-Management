@@ -199,7 +199,10 @@ export default function StoreContractorIssueNewPage() {
     const newItems = [...lineItems];
     
     if (field === "itemId") {
-      const selectedStock = stockSummary.find(s => s.itemId === value);
+      const selectedStock = stockSummary.find(s => 
+        String(s.itemId) === String(value) || 
+        (s.tempCode && newItems[index].tempCode && String(s.tempCode) === String(newItems[index].tempCode))
+      );
       if (selectedStock) {
         newItems[index].itemId = selectedStock.itemId;
         newItems[index].itemName = selectedStock.description;

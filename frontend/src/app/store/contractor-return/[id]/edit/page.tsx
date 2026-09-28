@@ -154,7 +154,10 @@ export default function EditContractorReturnPage() {
     const newItems = [...lineItems];
     
     if (field === "itemId") {
-      const selectedStock = stockSummary.find(s => s.itemId === value);
+      const selectedStock = stockSummary.find(s => 
+        String(s.itemId) === String(value) || 
+        (s.tempCode && newItems[index].tempCode && String(s.tempCode) === String(newItems[index].tempCode))
+      );
       if (selectedStock) {
         newItems[index].itemId = selectedStock.itemId;
         newItems[index].itemName = selectedStock.description;
@@ -180,12 +183,17 @@ export default function EditContractorReturnPage() {
 
   const handleAddSelectedItems = (selectedItems: any[]) => {
     const newLineItems = selectedItems.map(item => {
-      const stock = stockSummary.find(s => s.itemId === item._id);
+      const itemTempCode = item.dynamicData?.tempCode || item.itemCode || "";
+      const stock = stockSummary.find(s => 
+        String(s.itemId) === String(item._id) || 
+        (s.tempCode && String(s.tempCode) === String(itemTempCode))
+      );
+      
       return {
         itemId: item._id,
         itemName: item.dynamicData?.name || item.dynamicData?.description || "",
         loaSrNo: item.dynamicData?.sku || item.dynamicData?.loaSrNo || item.dynamicData?.loaSerialNo || "",
-        tempCode: item.dynamicData?.tempCode || item.itemCode || "",
+        tempCode: itemTempCode,
         unit: item.dynamicData?.unit || item.dynamicData?.uom || item.unit || "Nos",
         hsnCode: item.dynamicData?.hsnCode || item.hsnCode || "",
         quantity: 1,

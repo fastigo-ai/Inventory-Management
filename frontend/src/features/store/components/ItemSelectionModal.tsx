@@ -25,13 +25,19 @@ export function ItemSelectionModal({ isOpen, onClose, onSelectItems }: ItemSelec
   const [isLoading, setIsLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
+  // Handle subcircles mapping to their parent circle for item filtering
+  const userCircle = (user?.assignedCircle || "").toLowerCase();
+  const defaultCircleFilter = ["kumarhatti", "nalagarh"].includes(userCircle) 
+    ? "Solan" 
+    : (user?.assignedCircle || "");
+
   // Filter states
   const [filters, setFilters] = useState({
     activity: "",
     tempCode: "",
     itemName: "",
     package: user?.assignedPackage || "",
-    circle: user?.assignedCircle || "",
+    circle: defaultCircleFilter,
     unit: ""
   });
 
@@ -107,7 +113,7 @@ export function ItemSelectionModal({ isOpen, onClose, onSelectItems }: ItemSelec
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[90vw] max-w-[1200px] max-h-[90vh] flex flex-col p-0">
+      <DialogContent className="w-[90vw] max-w-[1200px] sm:max-w-[1200px] max-h-[90vh] flex flex-col p-0">
         <DialogHeader className="px-6 py-4 border-b border-slate-200">
           <DialogTitle>Select Items to Return</DialogTitle>
         </DialogHeader>

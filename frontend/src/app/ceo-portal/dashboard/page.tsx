@@ -5,15 +5,15 @@ import { Package, TrendingUp, Settings, MapPin, Layers, Briefcase, Calendar, Bel
 import { fetchCeoDashboardData } from '@/features/ceo-portal/api/dashboard.api';
 import { useAuthStore } from '@/shared/store/auth.store';
 import { format } from 'date-fns';
-import { 
-  KpiCard, 
-  ProjectStructure, 
-  PhysicalStockChart, 
-  FinancialProgressChart, 
-  PackageSummary, 
-  CirclePerformance, 
-  KeyInsights, 
-  WorkflowTimeline 
+import {
+  KpiCard,
+  ProjectStructure,
+  PhysicalStockChart,
+  FinancialProgressChart,
+  PackageSummary,
+  CirclePerformance,
+  KeyInsights,
+  WorkflowTimeline
 } from '@/features/ceo-portal/components/DashboardComponents';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -136,7 +136,7 @@ export default function CeoDashboardPage() {
           <div className="flex flex-col">
             <h1 className="text-2xl font-bold text-gray-900">Good Morning, {user?.firstName} 👋</h1>
             <p className="text-sm text-gray-500 mt-1">Here's your project and business performance at a glance.</p>
-            
+
             <div className="flex items-center text-xs text-gray-500 mt-2 font-medium">
               <Calendar className="w-3.5 h-3.5 mr-1.5" />
               {format(new Date(), 'dd MMM yyyy')}
@@ -146,7 +146,7 @@ export default function CeoDashboardPage() {
             <div className="flex gap-3 mt-6">
               {Object.entries(filters).map(([key, value]) => {
                 if (key === 'subCircle' && !filters.circle.includes('Solan')) return null;
-                
+
                 // For UI display
                 let displayValue = 'All';
                 if (key === 'dateRange') {
@@ -156,48 +156,49 @@ export default function CeoDashboardPage() {
                 }
 
                 return (
-                <div key={key} className="flex flex-col">
-                  <span className="text-[10px] font-bold text-gray-500 uppercase mb-1 ml-1">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
-                  <Select
-                    value={key === 'dateRange' ? (value as string) : ''}
-                    onValueChange={(newVal) => setFilters(prev => {
-                      if (!newVal) return prev;
-                      if (key === 'dateRange') return { ...prev, dateRange: newVal };
-                      
-                      const newFilters = { ...prev };
-                      if (newVal.startsWith('All ')) {
-                        (newFilters as any)[key] = [];
-                        if (key === 'package') newFilters.circle = [];
-                        if (key === 'circle') newFilters.subCircle = [];
-                      } else {
-                        const arr = (newFilters as any)[key] as string[];
-                        if (arr.includes(newVal)) {
-                           (newFilters as any)[key] = arr.filter(i => i !== newVal);
+                  <div key={key} className="flex flex-col">
+                    <span className="text-[10px] font-bold text-gray-500 uppercase mb-1 ml-1">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                    <Select
+                      value={key === 'dateRange' ? (value as string) : ''}
+                      onValueChange={(newVal) => setFilters(prev => {
+                        if (!newVal) return prev;
+                        if (key === 'dateRange') return { ...prev, dateRange: newVal };
+
+                        const newFilters = { ...prev };
+                        if (newVal.startsWith('All ')) {
+                          (newFilters as any)[key] = [];
+                          if (key === 'package') newFilters.circle = [];
+                          if (key === 'circle') newFilters.subCircle = [];
                         } else {
-                           (newFilters as any)[key] = [...arr, newVal];
+                          const arr = (newFilters as any)[key] as string[];
+                          if (arr.includes(newVal)) {
+                            (newFilters as any)[key] = arr.filter(i => i !== newVal);
+                          } else {
+                            (newFilters as any)[key] = [...arr, newVal];
+                          }
                         }
-                      }
-                      return newFilters;
-                    })}
-                  >
-                    <SelectTrigger className="text-xs h-8 px-3 border-gray-200 text-gray-700 bg-white shadow-sm min-w-[120px]">
-                      <div className="flex-1 text-left">{displayValue}</div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {dynamicFilterOptions[key]?.map(opt => (
-                        <SelectItem key={opt} value={opt} className="text-xs">
-                          {key !== 'dateRange' && Array.isArray(value) && value.includes(opt) ? `✓ ${opt}` : opt}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )})}
+                        return newFilters;
+                      })}
+                    >
+                      <SelectTrigger className="text-xs h-8 px-3 border-gray-200 text-gray-700 bg-white shadow-sm min-w-[120px]">
+                        <div className="flex-1 text-left">{displayValue}</div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {dynamicFilterOptions[key]?.map(opt => (
+                          <SelectItem key={opt} value={opt} className="text-xs">
+                            {key !== 'dateRange' && Array.isArray(value) && value.includes(opt) ? `✓ ${opt}` : opt}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )
+              })}
             </div>
           </div>
-          
+
           <div className="flex-1 ml-10 max-w-[800px]">
-            <ProjectStructure 
+            <ProjectStructure
               filters={filters}
               onFilterChange={(key, val) => setFilters(prev => {
                 const newFilters = { ...prev };

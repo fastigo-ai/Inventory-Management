@@ -265,11 +265,20 @@ export default function StoreContractorIssuePage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
-                      Loading assignments...
-                    </td>
-                  </tr>
+                  Array.from({ length: 5 }).map((_, idx) => (
+                    <tr key={idx} className="animate-pulse hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
+                      <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
+                      <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-48"></div></td>
+                      <td className="px-6 py-4"><div className="h-6 bg-slate-200 rounded-full w-16"></div></td>
+                      <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-12 ml-auto"></div></td>
+                      <td className="px-6 py-4 flex justify-center gap-2">
+                        <div className="h-8 w-8 bg-slate-200 rounded"></div>
+                        <div className="h-8 w-8 bg-slate-200 rounded"></div>
+                        <div className="h-8 w-8 bg-slate-200 rounded"></div>
+                      </td>
+                    </tr>
+                  ))
                 ) : assignments.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center">

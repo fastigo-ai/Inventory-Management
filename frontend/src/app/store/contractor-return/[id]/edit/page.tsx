@@ -179,16 +179,19 @@ export default function EditContractorReturnPage() {
   };
 
   const handleAddSelectedItems = (selectedItems: any[]) => {
-    const newLineItems = selectedItems.map(item => ({
-      itemId: item._id,
-      itemName: item.dynamicData?.name || item.dynamicData?.description || "",
-      loaSrNo: item.dynamicData?.sku || item.dynamicData?.loaSrNo || item.dynamicData?.loaSerialNo || "",
-      tempCode: item.dynamicData?.tempCode || item.itemCode || "",
-      unit: item.dynamicData?.unit || item.dynamicData?.uom || item.unit || "Nos",
-      hsnCode: item.dynamicData?.hsnCode || item.hsnCode || "",
-      quantity: 1,
-      availableQty: 0 // You might want to match this with stock summary later if needed
-    }));
+    const newLineItems = selectedItems.map(item => {
+      const stock = stockSummary.find(s => s.itemId === item._id);
+      return {
+        itemId: item._id,
+        itemName: item.dynamicData?.name || item.dynamicData?.description || "",
+        loaSrNo: item.dynamicData?.sku || item.dynamicData?.loaSrNo || item.dynamicData?.loaSerialNo || "",
+        tempCode: item.dynamicData?.tempCode || item.itemCode || "",
+        unit: item.dynamicData?.unit || item.dynamicData?.uom || item.unit || "Nos",
+        hsnCode: item.dynamicData?.hsnCode || item.hsnCode || "",
+        quantity: 1,
+        availableQty: stock?.totalBalanceQty || 0
+      };
+    });
     
     // Filter out completely empty rows if they exist
     const filteredCurrent = lineItems.filter(li => li.itemId !== "");

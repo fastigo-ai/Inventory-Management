@@ -364,6 +364,219 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
   }, 'Context data fetched'));
 });
 
+// Endpoint to fetch real-time constraints for MULTIPLE items in a single request (Batch API)
+export const getContextDataBatch = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = req.user as any;
+  const { contractorId, contractorName, excludeDemandNoteId, items: requestedItems } = req.body;
+  const pkg = req.body.package || user?.assignedPackage;
+  const circle = req.body.circle || user?.assignedCircle;
+
+  if (!Array.isArray(requestedItems) || requestedItems.length === 0) {
+    return res.status(200).json(new ApiResponse(200, [], 'No items provided'));
+  }
+
+  // 1. Resolve Contractor
+  let resolvedContractorId = contractorId;
+  if (!resolvedContractorId && contractorName) {
+    const assignment = await mongoose.model('ContractorAssignment').findOne({
+      contractorFarmName: new RegExp(`^${String(contractorName).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')
+    }).lean() as any;
+    if (assignment && assignment.contractorId) resolvedContractorId = assignment.contractorId.toString();
+  }
+  const cIdStr = resolvedContractorId ? String(resolvedContractorId).trim() : '';
+  const cIdObj = mongoose.Types.ObjectId.isValid(cIdStr) ? new mongoose.Types.ObjectId(cIdStr) : cIdStr;
+  const contractorFilter = cIdStr ? { $in: [cIdStr, cIdObj] } : undefined;
+
+  let pkgRegex: RegExp | undefined = undefined;
+  if (pkg && pkg !== 'All Packages' && pkg !== 'All' && pkg !== 'all') {
+    let flexiblePkg = String(pkg).replace(/\s+/g, ' ').trim().replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&').replace(/(\\s|\s)+/g, '\\s*').replace(/\\([()[\]{}|\/?.*+^$])/g, '\\s*\\$1\\s*');
+    pkgRegex = new RegExp(`^\\s*${flexiblePkg}\\s*$`, 'i');
+  }
+  const circleFilter = (circle && circle !== 'All Circles' && circle !== 'All' && circle !== 'all') ? String(circle) : undefined;
+
+  // 2. Fetch all required bulk data IN ONCE
+  const itemIds = requestedItems.filter(i => i.itemId).map(i => i.itemId);
+  const itemsDocs = itemIds.length > 0 ? await Item.find({ _id: { $in: itemIds } }).lean() : [];
+  
+  const missingItemIdReqs = requestedItems.filter(i => !i.itemId);
+  if (missingItemIdReqs.length > 0) {
+     const orCond = missingItemIdReqs.map(i => {
+       if (i.tempCode) return { 'dynamicData.tempCode': String(i.tempCode).trim() };
+       if (i.loaSrNo) return { $or: [{ 'dynamicData.sku': String(i.loaSrNo).trim() }, { 'dynamicData.loaSerialNo': String(i.loaSrNo).trim() }, { 'dynamicData.loaSerialNumber': String(i.loaSrNo).trim() }] };
+       return null;
+     }).filter((x: any) => x !== null) as any[];
+     if (orCond.length > 0) {
+       const extraItems = await Item.find({ $or: orCond, isDeleted: false }).lean();
+       itemsDocs.push(...extraItems);
+     }
+  }
+
+  const itemsDocsIds = itemsDocs.map(i => i._id);
+  const summaryQuery: any = { itemId: { $in: itemsDocsIds } };
+  if (circleFilter) summaryQuery.circle = { $regex: new RegExp(`^${circleFilter}$`, 'i') };
+  if (pkgRegex) summaryQuery.package = { $regex: pkgRegex };
+  const summaries = await mongoose.model('ItemSummary').find(summaryQuery).lean() as any[];
+  const allSummaries = await mongoose.model('ItemSummary').find({ itemId: { $in: itemsDocsIds } }).lean() as any[];
+
+  let workOrders: any[] = [];
+  if (contractorFilter) {
+    const woQuery: any = { contractorId: contractorFilter };
+    if (pkgRegex) woQuery.package = { $regex: pkgRegex };
+    if (circleFilter) woQuery.circle = { $regex: new RegExp(`^${circleFilter}$`, 'i') };
+    workOrders = await mongoose.model('ContractorWorkOrder').find(woQuery).lean();
+  }
+
+  let assignments: any[] = [];
+  if (contractorFilter) {
+    assignments = await mongoose.model('ContractorAssignment').find({ contractorId: contractorFilter, status: { $ne: 'Cancelled' } }).lean();
+  }
+
+  const dnQuery: any = { status: { $in: ['Draft', 'Pending PM Approval', 'Pending PD Approval', 'Approved', 'Fulfilled'] } };
+  if (excludeDemandNoteId) dnQuery._id = { $ne: excludeDemandNoteId };
+  if (pkgRegex) dnQuery.package = { $regex: pkgRegex };
+  if (circleFilter) dnQuery.circle = circleFilter;
+  const pastDemandNotes = await DemandNote.find(dnQuery).lean();
+
+  let jmcRegisters: any[] = [];
+  let wipRegisters: any[] = [];
+  let wipRequiredRegisters: any[] = [];
+  if (contractorFilter) {
+    const regQuery: any = { contractorId: contractorFilter, status: 'Approved' };
+    if (pkgRegex) regQuery.package = { $regex: pkgRegex };
+    if (circleFilter) regQuery.circle = { $regex: new RegExp(`^${circleFilter}$`, 'i') };
+    jmcRegisters = await mongoose.model('JmcRegister').find(regQuery).lean();
+    wipRegisters = await mongoose.model('WipRegister').find(regQuery).lean();
+    wipRequiredRegisters = await mongoose.model('WipRequiredRegister').find(regQuery).lean();
+  }
+
+  // 3. Process each requested item
+  const results = requestedItems.map(reqItem => {
+     let item = reqItem.itemId ? itemsDocs.find(i => String(i._id) === String(reqItem.itemId)) : null;
+     if (!item && reqItem.tempCode) {
+       item = itemsDocs.find(i => i.dynamicData?.tempCode === String(reqItem.tempCode).trim());
+     }
+     if (!item && reqItem.loaSrNo) {
+       const l = String(reqItem.loaSrNo).trim();
+       item = itemsDocs.find(i => i.dynamicData?.sku === l || i.dynamicData?.loaSerialNo === l || i.dynamicData?.loaSerialNumber === l);
+     }
+
+     const matchLogic = (child: any) => {
+         return (item?._id && child.itemId && String(child.itemId) === String(item._id)) ||
+                (!item?._id && reqItem.tempCode && child.tempCode && String(child.tempCode).trim().toLowerCase() === String(reqItem.tempCode).trim().toLowerCase()) ||
+                (!item?._id && !reqItem.tempCode && reqItem.loaSrNo && (child.loaSrNo || child.loaSerialNo) && String(child.loaSrNo || child.loaSerialNo).trim().toLowerCase() === String(reqItem.loaSrNo).trim().toLowerCase());
+     };
+
+     let summary = item?._id ? summaries.find(s => String(s.itemId) === String(item._id)) : null;
+     if (!summary && item?._id) summary = allSummaries.find(s => String(s.itemId) === String(item._id));
+
+     let woItem: any = null;
+     for (const wo of workOrders) {
+       for (const wi of wo.items || []) {
+         if (matchLogic(wi)) { woItem = wi; break; }
+       }
+       if (woItem) break;
+     }
+
+     let storeIssuedQty = 0;
+     assignments.forEach(asg => {
+       asg.lineItems?.forEach((li: any) => {
+         if (matchLogic(li)) storeIssuedQty += (Number(li.quantity) || 0);
+       });
+     });
+
+     let pastDemandQty = 0;
+     for (const dn of pastDemandNotes) {
+       for (const dnItem of dn.items || []) {
+         if (matchLogic(dnItem)) pastDemandQty += dnItem.demandQty || 0;
+       }
+     }
+     const alreadyIssuedQty = Math.max(storeIssuedQty, pastDemandQty);
+
+     let stockBal = 0;
+     let transferFromOther = 0;
+     let transferToOther = 0;
+     let initialStock = 0;
+     if (item?.dynamicData?.stockLocations && Array.isArray(item.dynamicData.stockLocations)) {
+       const loc = item.dynamicData.stockLocations.find((l: any) => l.circle && circleFilter && String(l.circle).trim().toLowerCase() === String(circleFilter).trim().toLowerCase());
+       if (loc) initialStock = Number(loc.quantity || 0);
+     }
+     if (initialStock === 0 && item?.dynamicData) {
+       initialStock = Number(item.dynamicData.stockBal || item.dynamicData.stockBalance || item.dynamicData.stock || item.dynamicData.quantity || 0);
+     }
+     if (summary) {
+       const act = summary.actQty || 0;
+       const tin = summary.transferInQty || 0;
+       const tout = summary.transferOutQty || 0;
+       const iss = summary.issuedQty || 0;
+       const ret = summary.returnedQty || 0;
+       const baseStock = act > 0 ? act : initialStock;
+       stockBal = Math.max(0, baseStock + tin + ret - iss - tout);
+       transferFromOther = tin;
+       transferToOther = tout;
+     } else {
+       stockBal = Math.max(0, initialStock);
+     }
+
+     let jmcQty = 0;
+     let wipQty = 0;
+     let wipRequiredQty = 0;
+     
+     jmcRegisters.forEach(reg => {
+       reg.items?.forEach((i: any) => { if (matchLogic(i)) jmcQty += (Number(i.approvedQty) || Number(i.claimedQty) || Number(i.quantity) || 0); });
+     });
+     wipRegisters.forEach(reg => {
+       reg.items?.forEach((i: any) => { if (matchLogic(i)) wipQty += (Number(i.approvedQty) || Number(i.claimedQty) || Number(i.quantity) || 0); });
+     });
+     wipRequiredRegisters.forEach(reg => {
+       reg.items?.forEach((i: any) => { if (matchLogic(i)) wipRequiredQty += (Number(i.approvedQty) || Number(i.claimedQty) || Number(i.quantity) || 0); });
+     });
+
+     let derivedCircleLoaQty = 0;
+     let derivedBomQty = 0;
+     if (circleFilter && item?.dynamicData) {
+        const cleanCircle = String(circleFilter).toLowerCase().replace(/\s+/g, '');
+        const cKey = cleanCircle + 'LoaQuantity';
+        if (item.dynamicData[cKey]) derivedCircleLoaQty = Number(item.dynamicData[cKey]);
+        const bKey = cleanCircle + 'BomQuantity';
+        if (item.dynamicData[bKey]) derivedBomQty = Number(item.dynamicData[bKey]);
+     }
+
+     const circleLoaQty = Number(woItem?.circleLoaQty || summary?.loaQty || derivedCircleLoaQty || item?.dynamicData?.circleLoaQty || item?.dynamicData?.loaQuantity || 0);
+     const totalPackageLoaQty = Number(item?.dynamicData?.totalPackageLoaQty || item?.dynamicData?.totalLoaQty || item?.dynamicData?.loaQuantity || 0);
+     const woQty = Number(woItem?.woQty || 0);
+     const bomQty = Number(woItem?.circleBomQty || summary?.bomQty || derivedBomQty || item?.dynamicData?.circleBomQty || item?.dynamicData?.bomQuantity || 0);
+     const contractorErectionRate = Number(woItem?.contractorErectionRate || item?.dynamicData?.contractorErectionRate || item?.dynamicData?.rate || item?.dynamicData?.erectionRateWithGst || 0);
+     const amount = Number(woItem?.amount || (woQty * contractorErectionRate) || 0);
+     const gstType = woItem?.gstType || item?.dynamicData?.gstType || 'Intra State';
+     const gstAmount = Number(woItem?.gstAmount || (amount * 0.18) || 0);
+     const totalAmount = Number(woItem?.totalAmount || (amount + gstAmount) || 0);
+
+     return {
+        _reqIndex: reqItem._reqIndex,
+        itemDescription: item?.dynamicData?.itemDescription || item?.dynamicData?.description || item?.description || reqItem.description || '',
+        unit: item?.dynamicData?.unit || item?.dynamicData?.uom || woItem?.unit || '',
+        circleLoaQty,
+        totalPackageLoaQty,
+        woQty,
+        bomQty,
+        contractorErectionRate,
+        amount,
+        gstType,
+        gstAmount,
+        totalAmount,
+        stockBal,
+        alreadyIssuedQty,
+        transferFromOther,
+        transferToOther,
+        jmcQty,
+        wipQty,
+        wipRequiredQty
+     };
+  });
+
+  res.status(200).json(new ApiResponse(200, results, 'Batch context data fetched'));
+});
+
 export const getDemandNotes = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = req.user as any;
   const filter: any = {};

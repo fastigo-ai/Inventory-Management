@@ -348,10 +348,10 @@ export default function StoreContractorIssueEditPage() {
       return;
     }
 
-    const validLineItems = lineItems.filter(item => item.itemId && item.quantity > 0);
+    const validLineItems = lineItems.filter(item => item.itemId && item.quantity !== 0);
     
     if (validLineItems.length === 0) {
-      alert("Please add at least one item with a valid issued quantity greater than 0.");
+      alert("Please add at least one item with a valid issued quantity (non-zero).");
       return;
     }
 
@@ -750,7 +750,6 @@ export default function StoreContractorIssueEditPage() {
                           <td className="p-4 align-top">
                             <Input 
                               type="number"
-                              min={0}
                               max={item.availableQty}
                               value={item.quantity}
                               onChange={(e) => updateLineItem(originalIndex, 'quantity', e.target.value)}

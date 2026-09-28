@@ -284,10 +284,6 @@ export default function StoreContractorIssueNewPage() {
         alert(`Please select an item for row ${i + 1}`);
         return;
       }
-      if (item.quantity < 0) {
-        alert(`Issued Qty cannot be negative for ${item.itemName}`);
-        return;
-      }
       if (item.quantity > item.availableQty) {
         negativeStockWarnings.push(`- ${item.itemName} (Issuing: ${item.quantity}, Available: ${item.availableQty})`);
       }
@@ -559,7 +555,6 @@ export default function StoreContractorIssueNewPage() {
                         <td className="p-4 align-top">
                           <Input 
                             type="number"
-                            min={1}
                             max={item.availableQty}
                             value={item.quantity}
                             onChange={(e) => updateLineItem(item.originalIndex, 'quantity', e.target.value)}

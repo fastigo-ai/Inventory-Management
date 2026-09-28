@@ -7,7 +7,7 @@ import { Save, Plus, Trash2, Loader2, ArrowLeft } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { updateDemandNote, getDemandNoteById, getContextData } from '@/features/site-portal/api/demand-notes.api';
+import { updateDemandNote, getDemandNoteById, getContextData, getContextDataBatch } from '@/features/site-portal/api/demand-notes.api';
 import { getItems } from '@/features/items/api/items.api';
 import { getContractorWorkOrderById } from '@/features/contractors/api/contractorWorkOrder.api';
 import { getContractorAggregatedQuantities, getContractors } from '@/features/contractors/api/contractors.api';
@@ -317,54 +317,49 @@ function DemandNoteEditForm() {
           const initialItems = mappedItems.map((item: any) => ({ ...item, isLoadingContext: true }));
           setItems(initialItems);
 
-          initialItems.forEach(async (item: any, idx: number) => {
-            try {
-              const res = await getContextData(
-                item.itemId,
-                cId || undefined,
-                wo.contractorName || undefined,
-                item.activity,
-                item.itemName,
-                item.tempCode,
-                item.loaSrNo,
-                wo.package || undefined,
-                wo.circle || undefined
-              );
-              if (res.success) {
-                setItems(prev => {
-                  const updated = [...prev];
+          const batchPayload = initialItems.map((item: any, idx: number) => ({
+            itemId: item.itemId,
+            tempCode: item.tempCode,
+            loaSrNo: item.loaSrNo,
+            activity: item.activity,
+            description: item.itemName,
+            _reqIndex: idx
+          }));
+          
+          try {
+            const res = await getContextDataBatch({
+              contractorId: cId || undefined,
+              contractorName: wo.contractorName || undefined,
+              package: wo.package || undefined,
+              circle: wo.circle || undefined,
+              excludeDemandNoteId: id as string,
+              items: batchPayload
+            });
+            if (res.success && Array.isArray(res.data)) {
+              setItems(prev => {
+                const updated = [...prev];
+                res.data.forEach((ctx: any) => {
+                  const idx = ctx._reqIndex;
                   const curr = updated[idx];
                   if (curr) {
-                    if (res.data.alreadyIssuedQty !== undefined && res.data.alreadyIssuedQty >= 0) {
-                      curr.alreadyIssuedQty = res.data.alreadyIssuedQty;
-                    }
-                    if (res.data.stockBal !== undefined && res.data.stockBal > 0) {
-                      curr.stockBal = res.data.stockBal;
-                    }
-                    if (res.data.jmcQty !== undefined && res.data.jmcQty > 0) curr.jmcQty = res.data.jmcQty;
-                    if (res.data.wipQty !== undefined && res.data.wipQty > 0) curr.wipQty = res.data.wipQty;
-                    if (res.data.wipRequiredQty !== undefined && res.data.wipRequiredQty > 0) curr.wipRequiredQty = res.data.wipRequiredQty;
+                    if (ctx.alreadyIssuedQty !== undefined && ctx.alreadyIssuedQty >= 0) curr.alreadyIssuedQty = ctx.alreadyIssuedQty;
+                    if (ctx.stockBal !== undefined && ctx.stockBal >= 0) curr.stockBal = ctx.stockBal;
+                    if (ctx.jmcQty !== undefined && ctx.jmcQty >= 0) curr.jmcQty = ctx.jmcQty;
+                    if (ctx.wipQty !== undefined && ctx.wipQty >= 0) curr.wipQty = ctx.wipQty;
+                    if (ctx.wipRequiredQty !== undefined && ctx.wipRequiredQty >= 0) curr.wipRequiredQty = ctx.wipRequiredQty;
                     
                     curr.balBomQty = curr.bomQty - curr.alreadyIssuedQty - (curr.demandQty || 0);
                     curr.isLoadingContext = false;
                   }
-                  return updated;
                 });
-              } else {
-                setItems(prev => {
-                  const updated = [...prev];
-                  if (updated[idx]) updated[idx].isLoadingContext = false;
-                  return updated;
-                });
-              }
-            } catch (error) {
-              setItems(prev => {
-                const updated = [...prev];
-                if (updated[idx]) updated[idx].isLoadingContext = false;
                 return updated;
               });
+            } else {
+              setItems(prev => prev.map(item => ({ ...item, isLoadingContext: false })));
             }
-          });
+          } catch (error) {
+            setItems(prev => prev.map(item => ({ ...item, isLoadingContext: false })));
+          }
           
         } else {
           toast.warning('This Work Order does not contain any items.');
@@ -447,28 +442,41 @@ function DemandNoteEditForm() {
     
     const startIdx = items.length;
 
-    selectedItems.forEach(async (selectedItem, idx) => {
-      const itemId = workOrderId ? selectedItem.itemId : (selectedItem._id || selectedItem.itemId || '');
-      const actualIndex = startIdx + idx;
+    const contractorId = overrideContractorId || formData.contractorId || contractorIdParam;
+    const contractorName = formData.contractorName || contractorNameParam;
+    const currentPkg = formData.package || packageParam;
+    const currentCircle = formData.circle || circleParam;
+
+    const batchPayload = selectedItems.map((selectedItem, idx) => {
       const dynamic = selectedItem.dynamicData || {};
+      const itemId = workOrderId ? selectedItem.itemId : (selectedItem._id || selectedItem.itemId || '');
+      return {
+        itemId,
+        tempCode: dynamic.tempCode || selectedItem.tempCode || tempCodeParam || '',
+        loaSrNo: dynamic.loaSrNo || dynamic.loaSerialNo || dynamic.loaSerialNumber || dynamic.sku || selectedItem.sku || '',
+        activity: dynamic.activity || selectedItem.activity || activityParam || '',
+        description: dynamic.itemName || dynamic.name || selectedItem.name || dynamic.description || itemNameParam || '',
+        _reqIndex: startIdx + idx
+      };
+    });
 
-      try {
-        const contractorId = overrideContractorId || formData.contractorId || contractorIdParam;
-        const contractorName = formData.contractorName || contractorNameParam;
-        const currentPkg = formData.package || packageParam;
-        const currentCircle = formData.circle || circleParam;
-        const activity = dynamic.activity || selectedItem.activity || activityParam || '';
-        const description = dynamic.itemName || dynamic.name || selectedItem.name || dynamic.description || itemNameParam || '';
-        const tempCode = dynamic.tempCode || selectedItem.tempCode || tempCodeParam || '';
-        const loaSrNo = dynamic.loaSrNo || dynamic.loaSerialNo || dynamic.loaSerialNumber || dynamic.sku || selectedItem.sku || '';
+    try {
+      const res = await getContextDataBatch({
+        contractorId: contractorId || undefined,
+        contractorName: contractorName || undefined,
+        package: currentPkg || undefined,
+        circle: currentCircle || undefined,
+        excludeDemandNoteId: id as string,
+        items: batchPayload
+      });
 
-        const res = await getContextData(itemId, contractorId || undefined, contractorName || undefined, activity, description, tempCode, loaSrNo, currentPkg || undefined, currentCircle || undefined, id as string);
-        if (res.success) {
-          const ctx = res.data;
-          setItems(prev => {
-            const updated = [...prev];
+      if (res.success && Array.isArray(res.data)) {
+        setItems(prev => {
+          const updated = [...prev];
+          res.data.forEach((ctx: any) => {
+            const actualIndex = ctx._reqIndex;
             const curr = updated[actualIndex];
-            if (!curr) return prev;
+            if (!curr) return;
             
             if (ctx.itemDescription) curr.itemDescription = ctx.itemDescription;
             if (ctx.unit && !curr.unit) curr.unit = ctx.unit;
@@ -498,17 +506,27 @@ function DemandNoteEditForm() {
             if (ctx.wipRequiredQty !== undefined && ctx.wipRequiredQty > 0) curr.wipRequiredQty = ctx.wipRequiredQty;
             curr.balBomQty = curr.bomQty - curr.alreadyIssuedQty - (curr.demandQty || 0);
             curr.isLoadingContext = false;
-            return updated;
           });
-        }
-      } catch (error) {
+          return updated;
+        });
+      } else {
         setItems(prev => {
           const updated = [...prev];
-          if (updated[actualIndex]) updated[actualIndex].isLoadingContext = false;
+          for (let i = 0; i < selectedItems.length; i++) {
+            if (updated[startIdx + i]) updated[startIdx + i].isLoadingContext = false;
+          }
           return updated;
         });
       }
-    });
+    } catch (error) {
+      setItems(prev => {
+        const updated = [...prev];
+        for (let i = 0; i < selectedItems.length; i++) {
+          if (updated[startIdx + i]) updated[startIdx + i].isLoadingContext = false;
+        }
+        return updated;
+      });
+    }
   };
 
   const handleItemChange = (index: number, field: string, value: any) => {

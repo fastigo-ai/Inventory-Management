@@ -6,6 +6,7 @@ import {
   updateDemandNote,
   deleteDemandNote,
   getContextData,
+  getContextDataBatch,
   downloadSampleCSV,
   importDemandNotes
 } from './demandNote.controller';
@@ -21,6 +22,7 @@ router.use(authenticate);
 const allRoles = ['Admin', 'Site Manager', 'Project Manager', 'Project Director', 'Store Manager', 'System Admin'];
 
 router.get('/context', requireRole(allRoles), getContextData);
+router.post('/context/batch', requireRole(allRoles), getContextDataBatch);
 router.get('/sample-csv', requireRole(allRoles), downloadSampleCSV);
 router.post('/import', requireRole(allRoles), upload.single('file'), importDemandNotes);
 

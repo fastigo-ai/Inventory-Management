@@ -7,7 +7,7 @@ import { Save, Plus, Trash2, Loader2, ArrowLeft } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { createDemandNote, getContextData } from '@/features/site-portal/api/demand-notes.api';
+import { createDemandNote, getContextData, getContextDataBatch } from '@/features/site-portal/api/demand-notes.api';
 import { getItems } from '@/features/items/api/items.api';
 import { getContractorWorkOrderById } from '@/features/contractors/api/contractorWorkOrder.api';
 import { getContractorAggregatedQuantities } from '@/features/contractors/api/contractors.api';
@@ -202,26 +202,32 @@ function DemandNoteForm() {
     
     const startIdx = items.length;
 
-    selectedItems.forEach(async (selectedItem, idx) => {
+    const batchPayload = selectedItems.map((selectedItem, idx) => {
       const itemId = workOrderId ? selectedItem.itemId : selectedItem._id;
-      const actualIndex = startIdx + idx;
+      return {
+        itemId,
+        tempCode: selectedItem.dynamicData?.tempCode || '',
+        loaSrNo: selectedItem.dynamicData?.loaSrNo || selectedItem.dynamicData?.loaSerialNo || selectedItem.dynamicData?.loaSerialNumber || selectedItem.dynamicData?.sku || selectedItem.sku || '',
+        activity: selectedItem.dynamicData?.activity || '',
+        description: selectedItem.dynamicData?.itemName || selectedItem.dynamicData?.name || selectedItem.name || selectedItem.dynamicData?.description || '',
+        _reqIndex: startIdx + idx
+      };
+    });
 
-      try {
-        // Fetch context including BOM and aggregated JMC/WIP qty
-        const contractorId = formData.contractorId;
-        const contractorName = formData.contractorName;
-        const activity = selectedItem.dynamicData?.activity || '';
-        const description = selectedItem.dynamicData?.itemName || selectedItem.dynamicData?.name || selectedItem.name || selectedItem.dynamicData?.description || '';
-        const tempCode = selectedItem.dynamicData?.tempCode || '';
-        const loaSrNo = selectedItem.dynamicData?.loaSrNo || selectedItem.dynamicData?.loaSerialNo || selectedItem.dynamicData?.loaSerialNumber || selectedItem.dynamicData?.sku || selectedItem.sku || '';
-
-        const res = await getContextData(itemId, contractorId, contractorName, activity, description, tempCode, loaSrNo);
-        if (res.success) {
-          const ctx = res.data;
-          setItems(prev => {
-            const updated = [...prev];
+    try {
+      const res = await getContextDataBatch({
+        contractorId: formData.contractorId || undefined,
+        contractorName: formData.contractorName || undefined,
+        items: batchPayload
+      });
+      
+      if (res.success && Array.isArray(res.data)) {
+        setItems(prev => {
+          const updated = [...prev];
+          res.data.forEach((ctx: any) => {
+            const actualIndex = ctx._reqIndex;
             const curr = updated[actualIndex];
-            if (!curr) return prev;
+            if (!curr) return;
             
             curr.itemDescription = ctx.itemDescription || '';
             if (!workOrderId) {
@@ -236,18 +242,28 @@ function DemandNoteForm() {
             curr.wipRequiredQty = ctx.wipRequiredQty || 0;
             curr.balBomQty = curr.bomQty - curr.alreadyIssuedQty - (curr.demandQty || 0);
             curr.isLoadingContext = false;
-            return updated;
           });
-        }
-      } catch (error) {
-        toast.error('Failed to load item context constraints.');
+          return updated;
+        });
+      } else {
         setItems(prev => {
           const updated = [...prev];
-          if (updated[actualIndex]) updated[actualIndex].isLoadingContext = false;
+          for (let i = 0; i < selectedItems.length; i++) {
+            if (updated[startIdx + i]) updated[startIdx + i].isLoadingContext = false;
+          }
           return updated;
         });
       }
-    });
+    } catch (error) {
+      toast.error('Failed to load item context constraints.');
+      setItems(prev => {
+        const updated = [...prev];
+        for (let i = 0; i < selectedItems.length; i++) {
+          if (updated[startIdx + i]) updated[startIdx + i].isLoadingContext = false;
+        }
+        return updated;
+      });
+    }
   };
 
   const handleItemChange = (index: number, field: string, value: any) => {

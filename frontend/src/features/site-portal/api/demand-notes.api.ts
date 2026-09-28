@@ -53,3 +53,24 @@ export const getContextData = async (
   const response = await api.get(url);
   return response.data;
 };
+
+export const getContextDataBatch = async (
+  payload: {
+    contractorId?: string;
+    contractorName?: string;
+    package?: string;
+    circle?: string;
+    excludeDemandNoteId?: string;
+    items: Array<{
+      itemId: string;
+      tempCode?: string;
+      loaSrNo?: string;
+      activity?: string;
+      description?: string;
+      _reqIndex?: number;
+    }>;
+  }
+) => {
+  const response = await api.post('/demand-notes/context/batch', payload);
+  return response.data;
+};

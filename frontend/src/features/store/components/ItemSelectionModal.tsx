@@ -78,9 +78,9 @@ export function ItemSelectionModal({ isOpen, onClose, onSelectItems }: ItemSelec
 
       return (
         activity.includes(filters.activity.toLowerCase()) &&
-        tempCode.includes(filters.tempCode.toLowerCase()) &&
+        (!filters.tempCode || tempCode === filters.tempCode.toLowerCase()) &&
         itemName.includes(filters.itemName.toLowerCase()) &&
-        pkg.includes(filters.package.toLowerCase()) &&
+        (!filters.package || pkg === filters.package.toLowerCase()) &&
         circle.includes(filters.circle.toLowerCase()) &&
         unit.includes(filters.unit.toLowerCase())
       );

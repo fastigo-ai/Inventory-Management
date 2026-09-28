@@ -107,7 +107,7 @@ export function ItemSelectionModal({ isOpen, onClose, onSelectItems }: ItemSelec
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[90vw] max-h-[90vh] flex flex-col p-0">
+      <DialogContent className="w-[90vw] max-w-[1200px] max-h-[90vh] flex flex-col p-0">
         <DialogHeader className="px-6 py-4 border-b border-slate-200">
           <DialogTitle>Select Items to Return</DialogTitle>
         </DialogHeader>

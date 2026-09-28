@@ -36,13 +36,13 @@ export function ItemSelectionModal({ isOpen, onClose, onSelectItems }: ItemSelec
     activity: "",
     tempCode: "",
     itemName: "",
-    package: user?.assignedPackage || "",
+    package: "",
     circle: defaultCircleFilter,
     unit: ""
   });
 
   const isCircleLocked = !!user?.assignedCircle;
-  const isPackageLocked = !!user?.assignedPackage;
+  const isPackageLocked = false;
 
   useEffect(() => {
     if (isOpen) {
@@ -55,7 +55,7 @@ export function ItemSelectionModal({ isOpen, onClose, onSelectItems }: ItemSelec
     setIsLoading(true);
     try {
       const res = await getItems({ limit: 2000 });
-      setItems(res.data || []);
+      setItems(res.items || []);
     } catch (error) {
       console.error("Failed to fetch items:", error);
     } finally {

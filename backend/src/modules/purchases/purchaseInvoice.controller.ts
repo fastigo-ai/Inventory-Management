@@ -1039,6 +1039,14 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
         }
         
         const itemId = item._id;
+        const rowUnit = row['unit'] || '';
+        const masterUnit = item.dynamicData?.uom || item.dynamicData?.unit;
+        
+        if (rowUnit && masterUnit && rowUnit.toLowerCase() !== masterUnit.toLowerCase()) {
+          errors.push(`Row ${actualRowNumber}: Unit Mismatch - Master Item list specifies '${masterUnit}', but you provided '${rowUnit}' for item "${itemName}"`);
+          continue;
+        }
+
         const qty = safeNum(row['invqty'] || row['invoicequantity'] || row['quantity'] || row['act']);
         const rate = safeNum(row['rate']);
         const amount = qty * rate;

@@ -706,19 +706,28 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
           errors.push(`Row error in DI ${diNumber}: Item '${itemName}' (TempCode: '${tempCode}', LoaSerialNo: '${loaSerialNo}') was not found in the master item list.`);
         }
 
+        const masterUnit = item?.dynamicData ? (
+          item.dynamicData.unit || 
+          item.dynamicData.Unit || 
+          item.dynamicData.uom || 
+          item.dynamicData.UOM || 
+          item.dynamicData.unitName || 
+          item.dynamicData['Unit Name'] || 
+          item.dynamicData.unitOfMeasurement || 
+          item.dynamicData['Unit of Measurement'] || 
+          item.dynamicData.measurementUnit ||
+          item.dynamicData['Measurement Unit'] ||
+          ''
+        ) : '';
+
+        if (unit && masterUnit && unit.toLowerCase() !== masterUnit.toLowerCase()) {
+          errors.push(`Row error in DI ${diNumber}: Unit Mismatch - Master Item list specifies '${masterUnit}', but you provided '${unit}' for item "${itemName}"`);
+          continue;
+        }
+
         // Auto-fetch unit from master item if unit is missing or empty in the CSV row
-        if (!unit && item?.dynamicData) {
-          unit = item.dynamicData.unit || 
-                 item.dynamicData.Unit || 
-                 item.dynamicData.uom || 
-                 item.dynamicData.UOM || 
-                 item.dynamicData.unitName || 
-                 item.dynamicData['Unit Name'] || 
-                 item.dynamicData.unitOfMeasurement || 
-                 item.dynamicData['Unit of Measurement'] || 
-                 item.dynamicData.measurementUnit ||
-                 item.dynamicData['Measurement Unit'] ||
-                 '';
+        if (!unit && masterUnit) {
+          unit = masterUnit;
         }
 
         const finalUnit = unit || (item ? (item.dynamicData?.unit || item.unit || 'Nos') : 'Nos');

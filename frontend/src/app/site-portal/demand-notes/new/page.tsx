@@ -619,18 +619,16 @@ function DemandNoteForm() {
       return;
     }
 
-    const exceedsQty = itemsToSave.find(i => {
-      // balBomQty is calculated during getContextData and item change.
-      // Maximum allowed demand is bomQty - alreadyIssuedQty
-      const allowed = i.bomQty - i.alreadyIssuedQty;
-      return i.demandQty > allowed;
-    });
-
-    if (exceedsQty) {
-      const allowed = exceedsQty.bomQty - exceedsQty.alreadyIssuedQty;
-      toast.error(`Demand quantity for "${exceedsQty.itemName || 'item'}" exceeds the allowed balance (Max: ${allowed}).`);
-      return;
-    }
+    // Validation removed as per request: allow demandQty to exceed allowed balance
+    // const exceedsQty = itemsToSave.find(i => {
+    //   const allowed = i.bomQty - i.alreadyIssuedQty;
+    //   return i.demandQty > allowed;
+    // });
+    // if (exceedsQty) {
+    //   const allowed = exceedsQty.bomQty - exceedsQty.alreadyIssuedQty;
+    //   toast.error(`Demand quantity for "${exceedsQty.itemName || 'item'}" exceeds the allowed balance (Max: ${allowed}).`);
+    //   return;
+    // }
 
     setIsSubmitting(true);
     try {

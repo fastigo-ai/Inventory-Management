@@ -35,10 +35,10 @@ export const applyDemandQtyToWorkOrder = async (
     }
 
     if (!isReverting) {
-      const available = (woItem.woQty || 0) - (woItem.demandedQty || 0);
-      if (qtyChange > available) {
-        throw new ApiError(400, `Quantity exceeded for ${requestedItem.tempCode}. Available: ${available}, Requested: ${qtyChange}`);
-      }
+      // const available = (woItem.woQty || 0) - (woItem.demandedQty || 0);
+      // if (qtyChange > available) {
+      //   throw new ApiError(400, `Quantity exceeded for ${requestedItem.tempCode}. Available: ${available}, Requested: ${qtyChange}`);
+      // }
     }
 
     woItem.demandedQty = (woItem.demandedQty || 0) + actualChange;

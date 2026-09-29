@@ -222,6 +222,7 @@ function DemandNoteForm() {
               division: res.data[0].drawings[0].division,
               subDivision: res.data[0].drawings[0].subDivision,
               location: res.data[0].drawings[0].location,
+              subcircle: res.data[0].subcircle || res.data[0].drawings[0].subcircle || '',
             }));
           }
         } else {
@@ -267,7 +268,8 @@ function DemandNoteForm() {
           subDivision: (wo.drawings && wo.drawings.length > 0) ? wo.drawings[0].subDivision : '',
           location: (wo.drawings && wo.drawings.length > 0) ? wo.drawings[0].location : '',
           package: wo.package || '',
-          circle: wo.circle || ''
+          circle: wo.circle || '',
+          subcircle: wo.subcircle || (wo.drawings && wo.drawings.length > 0 ? wo.drawings[0].subcircle : '') || ''
         }));
 
         if (wo.items && wo.items.length > 0) {

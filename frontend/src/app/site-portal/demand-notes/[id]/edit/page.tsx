@@ -258,7 +258,8 @@ function DemandNoteEditForm() {
           subDivision: wo.subDivision || '',
           location: wo.location || '',
           package: wo.package || '',
-          circle: wo.circle || ''
+          circle: wo.circle || '',
+          subcircle: wo.subcircle || (wo.drawings && wo.drawings.length > 0 ? wo.drawings[0].subcircle : '') || ''
         }));
 
         if (wo.items && wo.items.length > 0) {

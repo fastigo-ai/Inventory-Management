@@ -461,9 +461,15 @@ export default function NewPurchaseInvoicePage() {
       return;
     }
 
-    const hasMissingLoa = lineItems.some(item => !item.loaSerialNo || String(item.loaSerialNo).trim() === '');
-    if (hasMissingLoa) {
-      alert("Please provide LOA Sr. No for all items before saving.");
+    const hasMissingFields = lineItems.some(item => 
+      !item.loaSerialNo || String(item.loaSerialNo).trim() === '' ||
+      !item.circle || String(item.circle).trim() === '' ||
+      !item.itemName || String(item.itemName).trim() === '' ||
+      !item.unit || String(item.unit).trim() === '' ||
+      !item.package || String(item.package).trim() === ''
+    );
+    if (hasMissingFields) {
+      alert("Please ensure LOA Sr. No, Circle, Package, Item Name, and Unit are provided for all line items before saving.");
       return;
     }
 
@@ -473,12 +479,6 @@ export default function NewPurchaseInvoicePage() {
       if (!confirmSave) {
         return;
       }
-    }
-
-    const hasMissingMandatory = lineItems.some(item => !item.package || !item.circle);
-    if (hasMissingMandatory) {
-      alert("Package and Circle are mandatory for all items");
-      return;
     }
 
     try {

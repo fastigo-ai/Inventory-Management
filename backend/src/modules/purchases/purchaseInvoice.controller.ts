@@ -1042,8 +1042,14 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
         const rowUnit = row['unit'] || '';
         const masterUnit = item.dynamicData?.uom || item.dynamicData?.unit;
         
-        if (rowUnit && masterUnit && rowUnit.toLowerCase() !== masterUnit.toLowerCase()) {
+        if (rowUnit && masterUnit && rowUnit.toLowerCase().replace(/\./g, '') !== masterUnit.toLowerCase().replace(/\./g, '')) {
           errors.push(`Row ${actualRowNumber}: Unit Mismatch - Master Item list specifies '${masterUnit}', but you provided '${rowUnit}' for item "${itemName}"`);
+          continue;
+        }
+
+        const masterLoaSerialNo = item.dynamicData?.loaSerialNo || item.dynamicData?.sku || item.dynamicData?.loaSrNo || '';
+        if (loaSerialNo && masterLoaSerialNo && loaSerialNo.toString().trim() !== masterLoaSerialNo.toString().trim()) {
+          errors.push(`Row ${actualRowNumber}: LOA Serial No Mismatch - Master Item list specifies '${masterLoaSerialNo}', but you provided '${loaSerialNo}' for item "${itemName}"`);
           continue;
         }
 

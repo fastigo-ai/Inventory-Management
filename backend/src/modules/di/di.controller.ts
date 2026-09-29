@@ -606,51 +606,33 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
 
     const existingItems = orConditions.length > 0 ? await Item.find({ $or: orConditions }) : [];
 
-    const findItemInMemory = (tCode?: string, lSerial?: string, name?: string, pkg?: string, circle?: string) => {
-      const matchCriteria = (i: any) => {
-        if (pkg && i.dynamicData?.package && i.dynamicData.package.toLowerCase() !== pkg.toLowerCase()) return false;
-        if (circle && i.dynamicData?.circle && i.dynamicData.circle.toLowerCase() !== circle.toLowerCase()) return false;
-        return true;
+    const findItemInMemory = (tCode?: string, loaSrNo?: string, name?: string, pkg?: string, circ?: string) => {
+      const isMatch = (a?: string, b?: string) => {
+        const valA = (a || '').replace(/\s+/g, '').toLowerCase();
+        const valB = (b || '').replace(/\s+/g, '').toLowerCase();
+        return valA === valB;
       };
 
-      // 1. Highest specificity: LOA Serial No + Package + Circle
-      if (lSerial) {
-        const found = existingItems.find(i => 
-          (i.dynamicData?.loaSerialNo === lSerial || 
-           i.dynamicData?.loaSerialNumber === lSerial || 
-           i.dynamicData?.sku === lSerial) && matchCriteria(i)
-        );
-        if (found) return found;
-      }
-      // 2. Temp Code + Package + Circle
-      if (tCode) {
-        const found = existingItems.find(i => i.dynamicData?.tempCode === tCode && matchCriteria(i));
-        if (found) return found;
-      }
-      // 3. Name + Package + Circle
-      if (name) {
-        const found = existingItems.find(i => i.dynamicData?.name?.toLowerCase() === name.toLowerCase() && matchCriteria(i));
-        if (found) return found;
+      let circleCandidates = existingItems;
+      if (circ) {
+        circleCandidates = circleCandidates.filter(i => isMatch(i.dynamicData?.circle, circ));
       }
 
-      // Fallback matching without strict package/circle requirement
-      if (lSerial) {
-        const found = existingItems.find(i => 
-          i.dynamicData?.loaSerialNo === lSerial || 
-          i.dynamicData?.loaSerialNumber === lSerial || 
-          i.dynamicData?.sku === lSerial
-        );
-        if (found) return found;
+      // 1. Try to find by unique LOA Serial No first
+      if (loaSrNo) {
+        const loaMatches = circleCandidates.filter(i => isMatch(i.dynamicData?.loaSerialNo || i.dynamicData?.sku || i.dynamicData?.loaSrNo, loaSrNo));
+        if (loaMatches.length === 1) {
+          return loaMatches[0];
+        }
       }
-      if (tCode) {
-        const found = existingItems.find(i => i.dynamicData?.tempCode === tCode);
-        if (found) return found;
-      }
-      if (name) {
-        const found = existingItems.find(i => i.dynamicData?.name?.toLowerCase() === name.toLowerCase());
-        if (found) return found;
-      }
-      return null;
+      
+      // 2. If LOA Sr No is missing or wrong, fallback to Core Identity Match
+      let candidates = circleCandidates;
+      if (tCode) candidates = candidates.filter(i => isMatch(i.dynamicData?.tempCode, tCode));
+      if (name) candidates = candidates.filter(i => isMatch(i.dynamicData?.name, name));
+      if (pkg) candidates = candidates.filter(i => isMatch(i.dynamicData?.package, pkg));
+      
+      return candidates.length > 0 ? candidates[0] : null;
     };
 
     // 2. Build disMap in-memory
@@ -720,8 +702,14 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
           ''
         ) : '';
 
-        if (unit && masterUnit && unit.toLowerCase() !== masterUnit.toLowerCase()) {
+        if (unit && masterUnit && unit.toLowerCase().replace(/\./g, '').trim() !== masterUnit.toLowerCase().replace(/\./g, '').trim()) {
           errors.push(`Row error in DI ${diNumber}: Unit Mismatch - Master Item list specifies '${masterUnit}', but you provided '${unit}' for item "${itemName}"`);
+          continue;
+        }
+
+        const masterLoaSerialNo = item.dynamicData?.loaSerialNo || item.dynamicData?.sku || item.dynamicData?.loaSrNo || '';
+        if (loaSerialNo && masterLoaSerialNo && loaSerialNo.toString().trim() !== masterLoaSerialNo.toString().trim()) {
+          errors.push(`Row error in DI ${diNumber}: LOA Serial No Mismatch - Master Item list specifies '${masterLoaSerialNo}', but you provided '${loaSerialNo}' for item "${itemName}"`);
           continue;
         }
 

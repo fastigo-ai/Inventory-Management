@@ -965,49 +965,25 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
         return valA === valB;
       };
 
-      let candidates = existingItems;
-      
-      // 1. Circle
+      let circleCandidates = existingItems;
       if (circ) {
-        const filtered = candidates.filter(i => isMatch(i.dynamicData?.circle, circ));
-        if (filtered.length > 0) candidates = filtered;
-      }
-      
-      // 2. LOA Serial No
-      if (loaSrNo) {
-        const filtered = candidates.filter(i => isMatch(i.dynamicData?.loaSerialNo || i.dynamicData?.sku || i.dynamicData?.loaSrNo, loaSrNo));
-        if (filtered.length > 0) candidates = filtered;
-      }
-      
-      // 3. Temp Code
-      if (tCode) {
-        const filtered = candidates.filter(i => isMatch(i.dynamicData?.tempCode, tCode));
-        if (filtered.length > 0) candidates = filtered;
-      }
-      
-      // 4. Unit
-      if (unit) {
-        const filtered = candidates.filter(i => {
-           const u = i.dynamicData?.uom || i.dynamicData?.unit || '';
-           const stripDots = (s: string) => (s || '').replace(/\./g, '').trim().toLowerCase();
-           return stripDots(u) === stripDots(unit);
-        });
-        if (filtered.length > 0) candidates = filtered;
-      }
-      
-      // 5. Item Name
-      if (name) {
-        const filtered = candidates.filter(i => isMatch(i.dynamicData?.name, name));
-        if (filtered.length > 0) candidates = filtered;
+        circleCandidates = circleCandidates.filter(i => isMatch(i.dynamicData?.circle, circ));
       }
 
-      // 6. Package
-      if (pkg) {
-         const filtered = candidates.filter(i => isMatch(i.dynamicData?.package, pkg));
-         if (filtered.length > 0) candidates = filtered;
+      // 1. Try to find by unique LOA Serial No first
+      if (loaSrNo) {
+        const loaMatches = circleCandidates.filter(i => isMatch(i.dynamicData?.loaSerialNo || i.dynamicData?.sku || i.dynamicData?.loaSrNo, loaSrNo));
+        if (loaMatches.length === 1) {
+          return loaMatches[0];
+        }
       }
       
-      // Return the best match if one exists
+      // 2. If LOA Sr No is missing or wrong, fallback to Core Identity Match
+      let candidates = circleCandidates;
+      if (tCode) candidates = candidates.filter(i => isMatch(i.dynamicData?.tempCode, tCode));
+      if (name) candidates = candidates.filter(i => isMatch(i.dynamicData?.name, name));
+      if (pkg) candidates = candidates.filter(i => isMatch(i.dynamicData?.package, pkg));
+      
       return candidates.length > 0 ? candidates[0] : null;
     };
 

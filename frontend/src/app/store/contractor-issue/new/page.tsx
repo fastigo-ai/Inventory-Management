@@ -8,7 +8,7 @@ import { X, Trash2, PlusCircle, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { getContractors, createAssignment } from "@/features/contractors/api/contractors.api";
 import { getStockSummary } from "@/features/store/api/store.api";
-import { getDemandNotes } from "@/features/site-portal/api/demand-notes.api";
+import { getDemandNotes, getDemandNoteById } from "@/features/site-portal/api/demand-notes.api";
 import { useAuthStore } from "@/shared/store/auth.store";
 import Select, { StylesConfig } from 'react-select';
 
@@ -131,8 +131,22 @@ export default function StoreContractorIssueNewPage() {
       setDemandNotes(dnList);
       
       if (initialDemandNoteId) {
-        const dn = dnList.find((d: any) => d._id === initialDemandNoteId);
-        if (dn) {
+        let dn = dnList.find((d: any) => d._id === initialDemandNoteId);
+        if (!dn) {
+          getDemandNoteById(initialDemandNoteId).then(res => {
+            if (res && res.data && (res.data.demandNote || res.data)) {
+              dn = res.data.demandNote || res.data;
+              setDemandNotes(prev => [...prev, dn]);
+              const option = {
+                value: dn._id,
+                label: `${dn.demandNoteNumber} - ${dn.status} (${dn.circle})`,
+                dn
+              };
+              setSelectedDemandNoteOption(option);
+              handleDemandNoteSelect(option, cList, sList);
+            }
+          }).catch(err => console.error("Failed to fetch specific demand note", err));
+        } else {
           const option = {
             value: dn._id,
             label: `${dn.demandNoteNumber} - ${dn.status} (${dn.circle})`,

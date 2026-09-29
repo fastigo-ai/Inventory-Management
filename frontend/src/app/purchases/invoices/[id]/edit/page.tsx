@@ -221,11 +221,10 @@ export default function EditPurchaseInvoicePage() {
       if (match) {
         const d = match.dynamicData || {};
         let newTempCode = item.tempCode || getDVal(d, 'tempCode', 'sku', 'itemCode');
-        let newLoa = item.loaSerialNo || getDVal(d, 'loaSerialNo', 'loaSerial', 'sku');
 
-        if (newTempCode !== item.tempCode || newLoa !== item.loaSerialNo) {
+        if (newTempCode !== item.tempCode) {
            changed = true;
-           return { ...item, tempCode: newTempCode, loaSerialNo: newLoa, itemId: item.itemId || match._id };
+           return { ...item, tempCode: newTempCode, itemId: item.itemId || match._id };
         }
       }
       return item;
@@ -263,7 +262,7 @@ export default function EditPurchaseInvoicePage() {
       } else {
         setLineItems(po.lineItems.map((item: any) => ({
           itemId: item.itemId,
-          loaSerialNo: item.loaSerialNo || '',
+          loaSerialNo: '', // Disabled as per user request
           itemName: item.itemName,
           itemDescription: item.description || '',
           tempCode: item.tempCode || '',
@@ -368,7 +367,7 @@ export default function EditPurchaseInvoicePage() {
             tempCode: item.tempCode || '',
             itemName: item.itemName,
             itemDescription: item.description || item.itemName || '',
-            loaSerialNo: item.loaSerialNo || item.sku || '',
+            loaSerialNo: '', // Disabled as per user request
             hsnCode: item.hsnCode || '',
             poQuantity: poQty,
             diQuantity: remaining,
@@ -413,67 +412,15 @@ export default function EditPurchaseInvoicePage() {
     }
 
     // Auto fill LOA Serial No based on package, circle, tempCode, itemName
+    // Disabled as per user request
+    /*
     if (['package', 'circle', 'tempCode', 'itemName', 'itemDescription'].includes(field)) {
        const updatedItem = newItems[index];
        if (!updatedItem.loaSerialNo) {
-          const getDVal = (d: any, ...keys: string[]): string => {
-            if (!d) return '';
-            for (const key of keys) {
-              if (d[key] !== undefined && d[key] !== null && d[key] !== '') return String(d[key]);
-              const found = Object.keys(d).find(k => k.toLowerCase() === key.toLowerCase());
-              if (found && d[found] !== undefined && d[found] !== null && d[found] !== '') return String(d[found]);
-            }
-            return '';
-          };
-          
-          const filtered = itemsList.filter(i => {
-            const d = i.dynamicData || {};
-            if (updatedItem.tempCode) {
-              const dbTemp = getDVal(d, 'tempCode').trim();
-              const rowTemp = String(updatedItem.tempCode).trim();
-              if (!dbTemp || dbTemp !== rowTemp) return false;
-            }
-            if (updatedItem.itemName) {
-              const dbName = getDVal(d, 'name', 'itemName', 'itemDescription').trim().toLowerCase();
-              const rowName = String(updatedItem.itemName).trim().toLowerCase();
-              if (!dbName || (!dbName.includes(rowName) && !rowName.includes(dbName))) return false;
-            }
-            if (updatedItem.package) {
-              const dbPkg = getDVal(d, 'package').replace(/\s+/g, '').toLowerCase();
-              const rowPkg = String(updatedItem.package).replace(/\s+/g, '').toLowerCase();
-              if (!dbPkg || (!rowPkg.includes(dbPkg) && !dbPkg.includes(rowPkg))) return false;
-            }
-            if (updatedItem.circle) {
-              const dbCirc = getDVal(d, 'circle').trim().toLowerCase();
-              const rowCirc = String(updatedItem.circle).trim().toLowerCase();
-              if (!dbCirc || dbCirc !== rowCirc) return false;
-            }
-            if (updatedItem.itemDescription) {
-              const dbDesc = getDVal(d, 'description', 'itemDescription').trim().toLowerCase();
-              const rowDesc = String(updatedItem.itemDescription).trim().toLowerCase();
-              if (dbDesc && (!dbDesc.includes(rowDesc) && !rowDesc.includes(dbDesc))) return false;
-            }
-            return true;
-          });
-
-          if (filtered.length > 0) {
-            const loaSerialNos = Array.from(new Set(
-              filtered.map(i => {
-                const d = i.dynamicData || {};
-                const loaKey = Object.keys(d).find(k => {
-                  const normalized = k.toLowerCase().replace(/[^a-z0-9]/g, '');
-                  return normalized === 'loaserialno' || normalized === 'loaserial';
-                });
-                return loaKey ? String(d[loaKey]) : (d.sku ? String(d.sku) : null);
-              }).filter(v => v && v.trim() !== '')
-            ));
-
-            if (loaSerialNos.length === 1) {
-              newItems[index].loaSerialNo = loaSerialNos[0];
-            }
-          }
+          ...
        }
     }
+    */
 
     setLineItems(newItems);
   };
@@ -486,6 +433,12 @@ export default function EditPurchaseInvoicePage() {
 
     if (!vendorName || !PurchaseInvoiceNumber || !receiveDate) {
       alert("Please fill in the required fields");
+      return;
+    }
+
+    const hasMissingLoa = lineItems.some(item => !item.loaSerialNo || String(item.loaSerialNo).trim() === '');
+    if (hasMissingLoa) {
+      alert("Please provide LOA Sr. No for all items before saving.");
       return;
     }
 
@@ -935,7 +888,7 @@ export default function EditPurchaseInvoicePage() {
                                circle: circ || newItems[index].circle,
                                tempCode: getVal('tempCode') || getVal('sku') || getVal('itemCode') || newItems[index].tempCode,
                                itemDescription: getVal('description') || getVal('itemDescription') || newItems[index].itemDescription,
-                               loaSerialNo: getVal('loaSerialNo') || getVal('loaSerial') || getVal('sku') || (loaSerialNos.length === 1 ? loaSerialNos[0] : ''),
+                               loaSerialNo: '', // Disabled as per user request
                                hsnCode: getVal('hsnCode') || getVal('hsn') || '',
                                unit: getVal('unit') || getVal('uom') || '',
                                gstType: newItems[index].gstType || 'Intra State',
@@ -1398,7 +1351,7 @@ export default function EditPurchaseInvoicePage() {
                         tempCode: d.tempCode || '',
                         itemName: d.name || d.itemDescription || '',
                         itemDescription: d.description || d.itemDescription || '',
-                        loaSerialNo: d.sku || d.loaSerialNo || d['LOA Serial No.'] || d.loa || '',
+                        loaSerialNo: '', // Disabled as per user request
                         hsnCode: '', poQuantity: 0, poDate: '',
                         srt: 0, act: 0, totalInvoiceQuantity: 0,
                         unit: d.unit || '', gstType: 'Intra State',

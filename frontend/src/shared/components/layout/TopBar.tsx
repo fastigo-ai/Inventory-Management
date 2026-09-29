@@ -71,10 +71,10 @@ export function TopBar() {
   const handleLogout = async () => {
     try {
       await api.post('/auth/logout');
-      logout();
-      router.push('/login');
     } catch (err) {
-      console.error('Logout failed:', err);
+      // Just warn, don't error so Next.js doesn't show an overlay if backend is down
+      console.warn('Logout failed or backend unreachable');
+    } finally {
       logout();
       router.push('/login');
     }

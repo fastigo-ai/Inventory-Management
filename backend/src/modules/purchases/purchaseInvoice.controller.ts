@@ -1237,7 +1237,10 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
           await ValidationService.validateConsumption(diIdForConsumption, diLinesToConsume, excludeId);
           prData._diIdForConsumption = diIdForConsumption;
         } catch (err: any) {
-          errors.push(`Validation Error for Invoice# ${prData.invoiceNumber}: ${err.message}`);
+          const splitErrors = err.message.split('\n');
+          for (const splitErr of splitErrors) {
+            errors.push(`Validation Error for Invoice# ${prData.invoiceNumber}: ${splitErr}`);
+          }
         }
       }
     }

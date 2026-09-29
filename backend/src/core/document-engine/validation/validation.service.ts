@@ -14,12 +14,17 @@ export class ValidationService {
     const allocations = await AllocationService.getDiAllocation(sourceId, excludePiId);
     const allocationMap = new Map(allocations.map(a => [a.lineId, a.remainingQuantity]));
 
+    const errors: string[] = [];
     for (const req of requestedQuantities) {
       const remaining = allocationMap.get(req.lineId) || 0;
       if (req.quantity > remaining) {
         const itemStr = req.itemName ? `item "${req.itemName}"` : `line ${req.lineId}`;
-        throw new Error(`Allocation exceeded for ${itemStr}. Requested: ${req.quantity}, Remaining: ${remaining}`);
+        errors.push(`Allocation exceeded for ${itemStr}. Requested: ${req.quantity}, Remaining: ${remaining}`);
       }
+    }
+    
+    if (errors.length > 0) {
+      throw new Error(errors.join('\n'));
     }
   }
 }

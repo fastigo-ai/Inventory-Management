@@ -73,12 +73,14 @@ function DemandNoteEditForm() {
 
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [items, setItems] = useState<any[]>([]);
+  const [dnNumber, setDnNumber] = useState('');
   const hasAutoPopulated = React.useRef(false);
 
   useEffect(() => {
     if (id) {
       getDemandNoteById(id).then(res => {
         const dn = res.data.demandNote || res.data;
+        if (dn.demandNoteNumber) setDnNumber(dn.demandNoteNumber);
         if (dn.status === 'Approved' || dn.status === 'Fulfilled' || dn.status === 'Pending PD Approval') {
           toast.error('This Demand Note cannot be edited.');
           router.push('/site-portal/demand-notes');
@@ -221,6 +223,14 @@ function DemandNoteEditForm() {
     });
   }, [contractorIdParam, contractorNameParam, packageParam, circleParam, itemIdParam, tempCodeParam, itemNameParam, activityParam, finalBalQtyParam, wipConsumedParam, wipRequiredParam, jmcDoneParam, alreadyIssuedParam, stockBalParam, id]);
 
+  const formatSubcircle = (val: string) => {
+    if (!val) return '';
+    const lower = val.toLowerCase().trim();
+    if (lower === 'nalagarh') return 'Nalagarh';
+    if (lower === 'kumarhatti') return 'Kumarhatti';
+    return val;
+  };
+
   useEffect(() => {
     if (workOrderId) {
       fetchWorkOrderData(workOrderId);
@@ -259,7 +269,7 @@ function DemandNoteEditForm() {
           location: wo.location || '',
           package: wo.package || '',
           circle: wo.circle || '',
-          subcircle: wo.subcircle || (wo.drawings && wo.drawings.length > 0 ? wo.drawings[0].subcircle : '') || ''
+          subcircle: formatSubcircle(wo.subcircle || (wo.drawings && wo.drawings.length > 0 ? wo.drawings[0].subcircle : '') || '')
         }));
 
         if (wo.items && wo.items.length > 0) {
@@ -643,7 +653,7 @@ function DemandNoteEditForm() {
             <ArrowLeft className="w-6 h-6" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">Edit Demand Note</h1>
+            <h1 className="text-2xl font-bold text-slate-800">Edit Demand Note {dnNumber ? `- ${dnNumber}` : ''}</h1>
             <p className="text-slate-500 text-sm mt-1">
               Modify the details of this demand note.
             </p>

@@ -949,29 +949,66 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
       const nameRegexes = Array.from(itemNames).map(n => new RegExp(`^${n}$`, 'i'));
       orConditions.push({ 'dynamicData.name': { $in: nameRegexes } });
     }
+    if (loaSerialNos.size > 0) {
+      const loaArr = Array.from(loaSerialNos);
+      orConditions.push({ 'dynamicData.loaSerialNo': { $in: loaArr } });
+      orConditions.push({ 'dynamicData.sku': { $in: loaArr } });
+      orConditions.push({ 'dynamicData.loaSrNo': { $in: loaArr } });
+    }
 
     const existingItems = orConditions.length > 0 ? await Item.find({ $or: orConditions }) : [];
 
-    const findItemInMemory = (tCode?: string, name?: string, pkg?: string, circ?: string) => {
+    const findItemInMemory = (tCode?: string, name?: string, pkg?: string, circ?: string, loaSrNo?: string, unit?: string) => {
       const isMatch = (a?: string, b?: string) => {
         const valA = (a || '').replace(/\s+/g, '').toLowerCase();
         const valB = (b || '').replace(/\s+/g, '').toLowerCase();
         return valA === valB;
       };
 
-      const found = existingItems.find((i: any) => {
-        const iTempCode = i.dynamicData?.tempCode;
-        const iName = i.dynamicData?.name;
-        const iPkg = i.dynamicData?.package;
-        const iCirc = i.dynamicData?.circle;
-
-        return isMatch(iTempCode, tCode) && 
-               isMatch(iName, name) && 
-               isMatch(iPkg, pkg) && 
-               isMatch(iCirc, circ);
-      });
+      let candidates = existingItems;
       
-      return found || null;
+      // 1. Circle
+      if (circ) {
+        const filtered = candidates.filter(i => isMatch(i.dynamicData?.circle, circ));
+        if (filtered.length > 0) candidates = filtered;
+      }
+      
+      // 2. LOA Serial No
+      if (loaSrNo) {
+        const filtered = candidates.filter(i => isMatch(i.dynamicData?.loaSerialNo || i.dynamicData?.sku || i.dynamicData?.loaSrNo, loaSrNo));
+        if (filtered.length > 0) candidates = filtered;
+      }
+      
+      // 3. Temp Code
+      if (tCode) {
+        const filtered = candidates.filter(i => isMatch(i.dynamicData?.tempCode, tCode));
+        if (filtered.length > 0) candidates = filtered;
+      }
+      
+      // 4. Unit
+      if (unit) {
+        const filtered = candidates.filter(i => {
+           const u = i.dynamicData?.uom || i.dynamicData?.unit || '';
+           const stripDots = (s: string) => (s || '').replace(/\./g, '').trim().toLowerCase();
+           return stripDots(u) === stripDots(unit);
+        });
+        if (filtered.length > 0) candidates = filtered;
+      }
+      
+      // 5. Item Name
+      if (name) {
+        const filtered = candidates.filter(i => isMatch(i.dynamicData?.name, name));
+        if (filtered.length > 0) candidates = filtered;
+      }
+
+      // 6. Package
+      if (pkg) {
+         const filtered = candidates.filter(i => isMatch(i.dynamicData?.package, pkg));
+         if (filtered.length > 0) candidates = filtered;
+      }
+      
+      // Return the best match if one exists
+      return candidates.length > 0 ? candidates[0] : null;
     };
 
     const prMap: Record<string, any> = {};
@@ -1030,16 +1067,16 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
       const loaSerialNo = row['loaserialno'] || row['serialno'] || '';
       const pkg = row['package'] || '';
       const circle = row['circle'] || '';
+      const rowUnit = row['unit'] || '';
 
       if (itemName) {
-        const item = findItemInMemory(tempCode, itemName, pkg, circle);
+        const item = findItemInMemory(tempCode, itemName, pkg, circle, loaSerialNo, rowUnit);
         if (!item) {
-          errors.push(`Row ${actualRowNumber}: UNRESOLVED_ITEM - Could not find item matching Temp Code "${tempCode}", Name "${itemName}", Package "${pkg}", and Circle "${circle}" in the master list.`);
+          errors.push(`Row ${actualRowNumber}: UNRESOLVED_ITEM - Could not find item matching Circle "${circle}", LOA Sr No "${loaSerialNo}", Temp Code "${tempCode}", Unit "${rowUnit}", and Name "${itemName}" in the master list.`);
           continue;
         }
         
         const itemId = item._id;
-        const rowUnit = row['unit'] || '';
         const masterUnit = item.dynamicData?.uom || item.dynamicData?.unit;
         
         if (rowUnit && masterUnit && rowUnit.toLowerCase().replace(/\./g, '').trim() !== masterUnit.toLowerCase().replace(/\./g, '').trim()) {

@@ -448,6 +448,12 @@ export default function EditPurchaseInvoicePage() {
       return;
     }
 
+    const hasUnmatchedItems = lineItems.some(item => !item.itemId);
+    if (hasUnmatchedItems) {
+      alert("One or more items are not matched to the Master Item List. Please ensure all items are valid master items before saving.");
+      return;
+    }
+
     const hasInvalidQuantity = lineItems.some(item => (Number(item.totalInvoiceQuantity) || 0) > (Number(item.invoiceQuantity) || 0));
     if (hasInvalidQuantity) {
       const confirmSave = window.confirm("Total Invoice Quantity is greater than Balance Quantity. Are you sure you want to save changes?");

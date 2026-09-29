@@ -186,7 +186,7 @@ export default function EditContractorReturnPage() {
       const itemTempCode = item.dynamicData?.tempCode || item.itemCode || "";
       const stock = stockSummary.find(s => 
         String(s.itemId) === String(item._id) || 
-        (s.tempCode && String(s.tempCode) === String(itemTempCode))
+        (s.tempCode && String(s.tempCode).trim() === String(itemTempCode).trim())
       );
       
       return {
@@ -391,6 +391,15 @@ export default function EditContractorReturnPage() {
                       />
                     </td>
                     <td className="p-4 align-top">
+                      <Input 
+                        type="text"
+                        value={item.loaSrNo}
+                        onChange={(e) => updateLineItem(index, 'loaSrNo', e.target.value)}
+                        placeholder="LOA Sr No"
+                        className="h-9 w-full text-xs"
+                      />
+                    </td>
+                    <td className="p-4 align-top">
                       <Select
                         options={stockSummary
                           .filter(s => s.totalBalanceQty > 0)
@@ -409,15 +418,6 @@ export default function EditContractorReturnPage() {
                         styles={customSelectStyles}
                         placeholder="Search code..."
                         className="text-sm font-mono"
-                      />
-                    </td>
-                    <td className="p-4 align-top">
-                      <Input 
-                        type="text"
-                        value={item.loaSrNo}
-                        onChange={(e) => updateLineItem(index, 'loaSrNo', e.target.value)}
-                        placeholder="LOA Sr No"
-                        className="h-9 w-full text-xs"
                       />
                     </td>
                     <td className="p-4 align-top pt-6 text-slate-700 text-xs">

@@ -788,6 +788,17 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
     row.totalBalanceQty = row.totalInStockAfterReceive - row.transferToOtherStore - row.allContractorsActualIssued;
     row.allActivities = Array.from(row.allActivities || []);
     row.allLoaSrs = Array.from(row.allLoaSrs || []);
+    if (row.tempCode === '39' || String(row.tempCode) === '39' || row.tempCode === '36' || row.tempCode === '37') {
+      const fs = require('fs');
+      const data = {
+        totalInStockAfterReceive: row.totalInStockAfterReceive,
+        transferToOtherStore: row.transferToOtherStore,
+        allContractorsActualIssued: row.allContractorsActualIssued,
+        totalBalanceQty: row.totalBalanceQty
+      };
+      fs.appendFileSync('debug_stock.json', JSON.stringify({ tempCode: row.tempCode, ...data }) + '\n');
+    }
+    
     return row;
   });
 

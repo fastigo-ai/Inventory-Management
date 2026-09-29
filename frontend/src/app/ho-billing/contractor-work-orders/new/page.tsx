@@ -499,7 +499,8 @@ export default function NewContractorWorkOrderPage() {
   
   useEffect(() => {
     if (formData.circle) {
-      api.get(`/divisions?circle=${formData.circle}`).then(res => {
+      const packageParam = formData.package ? `&package=${encodeURIComponent(formData.package)}` : '';
+      api.get(`/divisions?circle=${formData.circle}${packageParam}`).then(res => {
         if (res.data?.success) {
            setAvailableDivisions(res.data.data.map((d: any) => d.name));
         }

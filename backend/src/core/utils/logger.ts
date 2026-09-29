@@ -5,7 +5,7 @@ import path from 'path';
 // Define log format
 const logFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
-  winston.format.printf((info) => `${info.timestamp} ${info.level}: ${info.message}`)
+  winston.format.printf((info: any) => `${info.timestamp} ${info.level}: ${info.message}`)
 );
 
 // Define transports

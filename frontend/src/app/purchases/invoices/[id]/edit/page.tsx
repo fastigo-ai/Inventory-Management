@@ -454,6 +454,28 @@ export default function EditPurchaseInvoicePage() {
       return;
     }
 
+    const hasMismatchedUnit = lineItems.some(item => {
+      const matchedItem = itemsList.find(i => i._id === item.itemId);
+      if (matchedItem) {
+        const d = matchedItem.dynamicData || {};
+        const getMasterUnit = () => {
+          if (d.unit) return String(d.unit);
+          if (d.uom) return String(d.uom);
+          const unitKey = Object.keys(d).find(k => k.toLowerCase() === 'unit' || k.toLowerCase() === 'uom');
+          return unitKey ? String(d[unitKey]) : '';
+        };
+        const masterUnit = getMasterUnit().trim().toLowerCase();
+        const itemUnit = String(item.unit || '').trim().toLowerCase();
+        return masterUnit && itemUnit !== masterUnit;
+      }
+      return false;
+    });
+
+    if (hasMismatchedUnit) {
+      alert("One or more items have a Unit that does not match the Master Item List. Please ensure the units are correct.");
+      return;
+    }
+
     const hasInvalidQuantity = lineItems.some(item => (Number(item.totalInvoiceQuantity) || 0) > (Number(item.invoiceQuantity) || 0));
     if (hasInvalidQuantity) {
       const confirmSave = window.confirm("Total Invoice Quantity is greater than Balance Quantity. Are you sure you want to save changes?");

@@ -6,6 +6,13 @@ import { WipRegister } from '../wip/wip.schema';
 import { Mhrov } from '../store/mhrov.schema';
 import { ContractorInvoice } from '../contractor-billing/contractorInvoice.schema';
 import { WipRequiredRegister } from '../wip-required/wipRequired.schema';
+import { DI } from '../di/di.schema';
+import { PurchaseInvoice } from '../purchases/purchaseInvoice.schema';
+import { ContractorWorkOrder } from '../contractors/contractorWorkOrder.schema';
+import DemandNote from '../demand-notes/demandNote.schema';
+import { ContractorInvoice as ContractorBill } from '../contractor-billing/contractorInvoice.schema';
+import { ClientBill } from '../client-billing/clientBill.schema';
+import { JmcRegister } from '../jmc/jmc.schema';
 
 export const buildCeoDashboardSummary = async (filters: any) => {
   const { package: pkg, circle, subCircle, site, activity, startDate, endDate } = filters;
@@ -53,13 +60,7 @@ export const buildCeoDashboardSummary = async (filters: any) => {
   }
 
   // 2. Fetch KPI Data (Parallel)
-  const DI = mongoose.model('DI');
-  const PurchaseInvoice = mongoose.model('PurchaseInvoice');
-  const ContractorWorkOrder = mongoose.model('ContractorWorkOrder');
-  const DemandNote = mongoose.model('DemandNote');
-  const JmcRegister = mongoose.model('JmcRegister');
-  const ClientBill = mongoose.model('ClientBill');
-  
+  // Models are imported directly above  
   // Physical Stock Progress Aggregations
   // Since real physical stock tracking across 11 stages requires querying ItemSummary or all collections,
   // we will aggregate quantities dynamically.

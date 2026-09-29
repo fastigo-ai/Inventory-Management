@@ -17,6 +17,7 @@ const emptyForm = {
   password: "",
   assignedPackage: PACKAGES[0],
   assignedCircle: CIRCLES[0],
+  assignedSubcircle: "",
 };
 
 export default function StoreManagersPage() {
@@ -61,6 +62,7 @@ export default function StoreManagersPage() {
       password: "",
       assignedPackage: user.assignedPackage || PACKAGES[0],
       assignedCircle: user.assignedCircle || CIRCLES[0],
+      assignedSubcircle: user.assignedSubcircle || "",
     });
     setIsModalOpen(true);
   };
@@ -81,6 +83,7 @@ export default function StoreManagersPage() {
           email: formData.email,
           assignedPackage: formData.assignedPackage,
           assignedCircle: formData.assignedCircle,
+          assignedSubcircle: formData.assignedSubcircle,
           roleId: storeManagerRole._id,
         };
         if (formData.password) payload.password = formData.password;
@@ -138,6 +141,7 @@ export default function StoreManagersPage() {
                   <th className="px-6 py-3">EMAIL</th>
                   <th className="px-6 py-3">PACKAGE</th>
                   <th className="px-6 py-3">CIRCLE</th>
+                  <th className="px-6 py-3">SUBCIRCLE</th>
                   <th className="px-6 py-3 text-right">ACTIONS</th>
                 </tr>
               </thead>
@@ -151,6 +155,13 @@ export default function StoreManagersPage() {
                     </td>
                     <td className="px-6 py-4">
                       <span className="px-2 py-1 bg-purple-50 text-purple-700 rounded-md text-xs font-semibold">{u.assignedCircle || 'N/A'}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {u.assignedSubcircle ? (
+                        <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-md text-xs font-semibold">{u.assignedSubcircle}</span>
+                      ) : (
+                        <span className="text-slate-400 text-xs italic">N/A</span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -235,12 +246,31 @@ export default function StoreManagersPage() {
                   <select
                     className="w-full h-9 rounded-md border border-slate-200 px-3 text-sm"
                     value={formData.assignedCircle}
-                    onChange={e => setFormData({...formData, assignedCircle: e.target.value})}
+                    onChange={e => {
+                      const circle = e.target.value;
+                      setFormData({...formData, assignedCircle: circle, assignedSubcircle: circle.toLowerCase() === "solan" ? formData.assignedSubcircle : "" });
+                    }}
                   >
                     {CIRCLES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
               </div>
+
+              {formData.assignedCircle.toLowerCase() === "solan" && (
+                <div>
+                  <label className="text-xs font-medium text-slate-700 mb-1 block">Assigned Subcircle</label>
+                  <select
+                    className="w-full h-9 rounded-md border border-slate-200 px-3 text-sm"
+                    value={formData.assignedSubcircle}
+                    onChange={e => setFormData({...formData, assignedSubcircle: e.target.value})}
+                    required
+                  >
+                    <option value="">Select Subcircle</option>
+                    <option value="Kumarhatti">Kumarhatti</option>
+                    <option value="Nalagarh">Nalagarh</option>
+                  </select>
+                </div>
+              )}
 
               <div className="pt-4 flex justify-end gap-2">
                 <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancel</Button>

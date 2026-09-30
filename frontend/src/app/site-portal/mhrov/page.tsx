@@ -180,25 +180,52 @@ export default function MhrovPage() {
             </div>
           ) : (
             <>
-              {/* Metrics Row */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
-                  <p className="text-sm font-medium text-slate-500">Total Inward Items</p>
-                  <p className="text-3xl font-bold text-slate-900 mt-2">{dashboardData?.metrics.totalItems || 0}</p>
+              {/* Voucher Metrics Row */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div className="bg-indigo-50 p-5 rounded-xl border border-indigo-100 shadow-sm flex flex-col justify-between">
+                  <p className="text-sm font-medium text-indigo-700">Total MHROV Vouchers</p>
+                  <div>
+                    <p className="text-3xl font-bold text-indigo-700 mt-2">{dashboardData?.metrics.totalMhrovVouchers || 0}</p>
+                    <p className="text-xs text-indigo-600 mt-1">Unique vouchers imported</p>
+                  </div>
                 </div>
                 <div className="bg-emerald-50 p-5 rounded-xl border border-emerald-100 shadow-sm flex flex-col justify-between">
-                  <p className="text-sm font-medium text-emerald-700">MHROV Completed</p>
-                  <p className="text-3xl font-bold text-emerald-700 mt-2">{dashboardData?.metrics.doneCount || 0}</p>
+                  <p className="text-sm font-medium text-emerald-700">Completed MHROVs</p>
+                  <div>
+                    <p className="text-3xl font-bold text-emerald-700 mt-2">{dashboardData?.metrics.doneMhrovVouchers || 0}</p>
+                    <p className="text-xs text-emerald-600 mt-1">Fully verified & done</p>
+                  </div>
                 </div>
                 <div className="bg-amber-50 p-5 rounded-xl border border-amber-100 shadow-sm flex flex-col justify-between">
-                  <p className="text-sm font-medium text-amber-700">MHROV Pending</p>
-                  <p className="text-3xl font-bold text-amber-700 mt-2">{
-                    (dashboardData?.metrics.pendingCount || 0) + (dashboardData?.metrics.doneNotSignedCount || 0)
-                  }</p>
+                  <p className="text-sm font-medium text-amber-700">Pending MHROVs</p>
+                  <div>
+                    <p className="text-3xl font-bold text-amber-700 mt-2">{dashboardData?.metrics.pendingMhrovVouchers || 0}</p>
+                    <p className="text-xs text-amber-600 mt-1">Awaiting completion</p>
+                  </div>
                 </div>
-                <div className="bg-red-50 p-5 rounded-xl border border-red-100 shadow-sm flex flex-col justify-between">
-                  <p className="text-sm font-medium text-red-700">Not Started</p>
-                  <p className="text-3xl font-bold text-red-700 mt-2">{dashboardData?.metrics.notStartedCount || 0}</p>
+              </div>
+
+              {/* Item Metrics Row */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                  <p className="text-sm font-medium text-slate-500">Total Inward Items</p>
+                  <div>
+                    <p className="text-3xl font-bold text-slate-900 mt-2">{dashboardData?.metrics.totalItems || 0}</p>
+                  </div>
+                </div>
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                  <p className="text-sm font-medium text-emerald-600">Completed Items</p>
+                  <div>
+                    <p className="text-3xl font-bold text-slate-900 mt-2">{dashboardData?.metrics.doneCount || 0}</p>
+                  </div>
+                </div>
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                  <p className="text-sm font-medium text-amber-600">Pending / Not Started Items</p>
+                  <div>
+                    <p className="text-3xl font-bold text-slate-900 mt-2">{
+                      (dashboardData?.metrics.pendingCount || 0) + (dashboardData?.metrics.doneNotSignedCount || 0) + (dashboardData?.metrics.notStartedCount || 0)
+                    }</p>
+                  </div>
                 </div>
               </div>
 

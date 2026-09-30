@@ -1527,12 +1527,24 @@ export const getMhrovDashboardData = asyncHandler(async (req: Request, res: Resp
     mergedItems.push(item);
   });
 
+  const totalMhrovVouchers = mhrovs.length;
+  let doneMhrovVouchers = 0;
+  let pendingMhrovVouchers = 0;
+
+  mhrovs.forEach(m => {
+    if (m.status?.toUpperCase() === 'DONE' || m.status?.toUpperCase() === 'VERIFIED') doneMhrovVouchers++;
+    else pendingMhrovVouchers++;
+  });
+
   const metrics = {
     totalItems,
     doneCount,
     pendingCount,
     doneNotSignedCount,
-    notStartedCount
+    notStartedCount,
+    totalMhrovVouchers,
+    doneMhrovVouchers,
+    pendingMhrovVouchers
   };
 
   res.status(200).json(new ApiResponse(200, { metrics, items: mergedItems }, 'Dashboard data fetched successfully'));

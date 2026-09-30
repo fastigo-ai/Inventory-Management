@@ -1434,7 +1434,11 @@ export const getMhrovDashboardData = asyncHandler(async (req: Request, res: Resp
   const filter: any = { status: { $in: ['Verified', 'Approved'] } };
   const mhrovFilter: any = {};
   
-  if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
+  if (req.query.circle && req.query.circle !== 'all' && req.query.circle !== 'All Circles') {
+    const exp = expandCircle(req.query.circle as string) || [req.query.circle as string];
+    filter.circle = { $in: exp };
+    mhrovFilter.circle = { $in: exp };
+  } else if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
     if (user.assignedPackage && user.assignedPackage.trim()) {
       filter.package = user.assignedPackage;
       mhrovFilter.package = user.assignedPackage;

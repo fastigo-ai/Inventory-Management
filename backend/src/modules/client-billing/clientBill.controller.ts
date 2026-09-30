@@ -485,9 +485,17 @@ export const bulkImportClientBills = asyncHandler(async (req: any, res: Response
   const worksheet = workbook.Sheets[sheetName];
   const rows = xlsx.utils.sheet_to_json<any>(worksheet);
 
+  // Normalize all rows first so we can extract keys reliably
+  const normalizedRows = rows.map(row => {
+    const rawRow: any = {};
+    for (const key of Object.keys(row)) {
+       rawRow[key.trim().toLowerCase().replace(/[^a-z0-9]/g, '')] = row[key];
+    }
+    return rawRow;
+  });
 
-  const uniqueDiNos = [...new Set(rows.map(r => String(r.dino || r.dinumber || '').trim()).filter(Boolean))];
-  const uniqueMhrovNos = [...new Set(rows.map(r => String(r.mhrovno || r.mhrovnumber || r.sourceref || '').trim()).filter(Boolean))];
+  const uniqueDiNos = [...new Set(normalizedRows.map(r => String(r.dino || r.dinumber || '').trim()).filter(Boolean))];
+  const uniqueMhrovNos = [...new Set(normalizedRows.map(r => String(r.mhrovno || r.mhrovnumber || r.sourceref || '').trim()).filter(Boolean))];
   
   const allItems = await Item.find({}).lean();
   const allDIs = await DI.find({ diNumber: { $in: uniqueDiNos } }).lean();
@@ -497,13 +505,7 @@ export const bulkImportClientBills = asyncHandler(async (req: any, res: Response
   // Group rows by RA Bill No
   const billGroups: Record<string, any[]> = {};
   
-  for (const row of rows) {
-    // Normalize keys
-    const rawRow: any = {};
-    for (const key of Object.keys(row)) {
-       rawRow[key.trim().toLowerCase().replace(/[^a-z0-9]/g, '')] = row[key];
-    }
-    
+  for (const rawRow of normalizedRows) {
     const raBillNo = String(rawRow.rabillno || rawRow.rabillnumber || '').trim();
     if (!raBillNo || raBillNo === 'undefined') continue; // Skip empty rows
     

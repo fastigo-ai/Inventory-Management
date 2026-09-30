@@ -603,7 +603,7 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
       orConditions.push({ 'dynamicData.sku': { $in: serials } });
     }
     if (itemNames.size > 0) {
-      const names = Array.from(itemNames).map(n => new RegExp(`^${n.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}$`, 'i'));
+      const names = Array.from(itemNames).map(n => new RegExp(`^${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'));
       orConditions.push({ 'dynamicData.name': { $in: names } });
     }
 
@@ -940,13 +940,14 @@ export const getDIItemSummary = asyncHandler(async (req: Request, res: Response)
 
   if (search) {
     const s = search.toString();
+    const escapedS = s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     pipeline.push({
       $match: {
         $or: [
-          { 'lineItems.itemName': { $regex: new RegExp(s, 'i') } },
-          { 'lineItems.loaSerialNo': { $regex: new RegExp(s, 'i') } },
-          { 'lineItems.tempCode': { $regex: new RegExp(s, 'i') } },
-          { 'diNumber': { $regex: new RegExp(s, 'i') } }
+          { 'lineItems.itemName': { $regex: new RegExp(escapedS, 'i') } },
+          { 'lineItems.loaSerialNo': { $regex: new RegExp(escapedS, 'i') } },
+          { 'lineItems.tempCode': { $regex: new RegExp(escapedS, 'i') } },
+          { 'diNumber': { $regex: new RegExp(escapedS, 'i') } }
         ]
       }
     });

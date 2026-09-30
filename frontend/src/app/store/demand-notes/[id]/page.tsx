@@ -351,7 +351,7 @@ export default function DemandNoteDetailPage() {
                           <td className="px-6 py-4 text-center font-medium text-orange-600">{Math.round(Number(consumption || 0))}</td>
                           <td className="px-6 py-4 text-center font-medium text-purple-600">{Math.round(Number(jmcDone || 0))}</td>
                           <td className="px-6 py-4 text-center font-bold text-teal-600">{Math.round(contractorBalance)}</td>
-                          <td className="px-6 py-4 font-bold text-indigo-600 bg-indigo-50/30">{Math.round(Number(item.demandQty || 0))}</td>
+                          <td className="px-6 py-4 font-bold text-indigo-600 bg-indigo-50/30">{Number(item.demandQty || 0)}</td>
                         </tr>
                       );
                     })}

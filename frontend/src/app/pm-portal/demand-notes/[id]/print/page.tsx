@@ -164,7 +164,7 @@ export default function DemandNotePrintPage() {
                       <td className="border border-black px-2 py-1 text-center">{item.loaSrNo || ""}</td>
                       <td className="border border-black px-2 py-1 text-blue-800 italic">{item.itemName}</td>
                       <td className="border border-black px-2 py-1 text-center text-blue-800 italic">{item.unit || ""}</td>
-                      <td className="border border-black px-2 py-1 text-center text-blue-800 italic">{item.demandQty ? Math.round(Number(item.demandQty)) : ""}</td>
+                      <td className="border border-black px-2 py-1 text-center text-blue-800 italic">{item.demandQty ? Number(item.demandQty) : ""}</td>
                     </tr>
                   ))}
                 </React.Fragment>

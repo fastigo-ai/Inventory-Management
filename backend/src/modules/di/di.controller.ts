@@ -584,9 +584,9 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
       const row = r as Record<string, string>;
       rows.push(row);
 
-      const tempCode = row['TempCode'] || row['tempCode'];
-      const loaSerialNo = row['LoaSerialNo'] || row['loaSerialNo'];
-      const itemName = row['ItemName'] || row['itemName'] || row['Item Name'];
+      const tempCode = (row['TempCode'] || row['tempCode'] || '').trim();
+      const loaSerialNo = (row['LoaSerialNo'] || row['loaSerialNo'] || '').trim();
+      const itemName = (row['ItemName'] || row['itemName'] || row['Item Name'] || '').trim();
 
       if (tempCode) tempCodes.add(tempCode);
       if (loaSerialNo) loaSerialNos.add(loaSerialNo);
@@ -602,7 +602,10 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
       orConditions.push({ 'dynamicData.loaSerialNumber': { $in: serials } });
       orConditions.push({ 'dynamicData.sku': { $in: serials } });
     }
-    if (itemNames.size > 0) orConditions.push({ 'dynamicData.name': { $in: Array.from(itemNames) } });
+    if (itemNames.size > 0) {
+      const names = Array.from(itemNames).map(n => new RegExp(`^${n.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}$`, 'i'));
+      orConditions.push({ 'dynamicData.name': { $in: names } });
+    }
 
     const existingItems = orConditions.length > 0 ? await Item.find({ $or: orConditions }) : [];
 
@@ -613,25 +616,25 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
         return valA === valB;
       };
 
-      let circleCandidates = existingItems;
+      // Circle is a primary key — always filter by it first
+      let candidates = existingItems;
       if (circ) {
-        circleCandidates = circleCandidates.filter(i => isMatch(i.dynamicData?.circle, circ));
+        candidates = candidates.filter(i => isMatch(i.dynamicData?.circle, circ));
       }
 
-      // 1. Try to find by unique LOA Serial No first
+      // 1. Primary match: LOA Serial No within the circle
       if (loaSrNo) {
-        const loaMatches = circleCandidates.filter(i => isMatch(i.dynamicData?.loaSerialNo || i.dynamicData?.sku || i.dynamicData?.loaSrNo, loaSrNo));
-        if (loaMatches.length === 1) {
-          return loaMatches[0];
-        }
+        const loaMatches = candidates.filter(i =>
+          isMatch(i.dynamicData?.loaSerialNo || i.dynamicData?.sku || i.dynamicData?.loaSrNo, loaSrNo)
+        );
+        if (loaMatches.length > 0) return loaMatches[0];
       }
-      
-      // 2. If LOA Sr No is missing or wrong, fallback to Core Identity Match
-      let candidates = circleCandidates;
+
+      // 2. Secondary match: TempCode + Name + Package within the circle
       if (tCode) candidates = candidates.filter(i => isMatch(i.dynamicData?.tempCode, tCode));
       if (name) candidates = candidates.filter(i => isMatch(i.dynamicData?.name, name));
       if (pkg) candidates = candidates.filter(i => isMatch(i.dynamicData?.package, pkg));
-      
+
       return candidates.length > 0 ? candidates[0] : null;
     };
 
@@ -685,7 +688,8 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
         const itemId = item ? item._id : null;
 
         if (!itemId && itemName) {
-          errors.push(`Row error in DI ${diNumber}: Item '${itemName}' (TempCode: '${tempCode}', LoaSerialNo: '${loaSerialNo}') was not found in the master item list.`);
+          errors.push(`Row error in DI ${diNumber}: Item '${itemName}' (TempCode: '${tempCode}', LoaSerialNo: '${loaSerialNo}', Circle: '${itemCircle || 'none'}') was not found in the master item list.`);
+          continue; // MUST continue to prevent crashing when accessing item.dynamicData below
         }
 
         const masterUnit = item?.dynamicData ? (
@@ -722,12 +726,14 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
         const resolvedItemName = item ? (item.dynamicData?.name || item.name || itemName) : (itemName || 'Unknown Item');
         const resolvedTempCode = tempCode || item?.dynamicData?.tempCode || '';
         const resolvedLoaSerialNo = loaSerialNo || item?.dynamicData?.loaSerialNo || item?.dynamicData?.loaSerialNumber || item?.dynamicData?.sku || '';
+        const resolvedPackage = item?.dynamicData?.package || itemPackage;
+        const resolvedCircle = item?.dynamicData?.circle || itemCircle;
 
         const existingLineIndex = disMap[diNumber].lineItems.findIndex((li: any) => 
           ((itemId && li.itemId && itemId.toString() === li.itemId.toString()) ||
            (resolvedItemName === li.itemName && resolvedLoaSerialNo === li.loaSerialNo)) &&
-          (itemCircle === li.circle) &&
-          (itemPackage === li.package)
+          (resolvedCircle === li.circle) &&
+          (resolvedPackage === li.package)
         );
 
         if (existingLineIndex > -1) {
@@ -738,8 +744,8 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
             itemName: resolvedItemName,
             tempCode: resolvedTempCode,
             loaSerialNo: resolvedLoaSerialNo,
-            package: itemPackage,
-            circle: itemCircle,
+            package: resolvedPackage,
+            circle: resolvedCircle,
             unit: finalUnit,
             quantity
           });

@@ -12,7 +12,7 @@ export default function ItemSummaryMatrixPage() {
   const [loading, setLoading] = useState(true);
 
   // Filters from URL
-  const { filters, setFilter, debouncedFilters } = useUrlFilters({
+  const { filters, setFilter, setFilters, debouncedFilters } = useUrlFilters({
     packageFilter: '',
     circleFilter: '',
     targetCircle: 'ALL',

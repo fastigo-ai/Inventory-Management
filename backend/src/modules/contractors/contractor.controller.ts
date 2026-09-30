@@ -114,7 +114,11 @@ export const getAssignments = asyncHandler(async (req: Request, res: Response) =
   if (startDate || endDate) {
     filter.date = {};
     if (startDate) filter.date.$gte = new Date(startDate as string);
-    if (endDate) filter.date.$lte = new Date(endDate as string);
+    if (endDate) {
+      const end = new Date(endDate as string);
+      end.setUTCHours(23, 59, 59, 999);
+      filter.date.$lte = end;
+    }
   }
 
   const SUB_STORE_MAP: Record<string, string[]> = {
@@ -124,32 +128,59 @@ export const getAssignments = asyncHandler(async (req: Request, res: Response) =
     'Rampur': ['Rampur'],
   };
 
+  // Build user-scoped access constraints using $and so conditions don't overwrite each other
+  const andConditions: any[] = [];
+
   if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
     if (user.assignedPackage && user.assignedPackage.trim()) {
       const normalizedPkg = user.assignedPackage.replace(/\s+/g, '');
       const regexStr = normalizedPkg.split('').map((char: string) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*');
-      filter.package = { $regex: new RegExp(`^\\s*${regexStr}\\s*$`, 'i') };
+      const pkgRegex = { $regex: new RegExp(`^\\s*${regexStr}\\s*$`, 'i') };
+      // Allow records where package matches OR where package was not saved (legacy MINs)
+      andConditions.push({
+        $or: [
+          { package: pkgRegex },
+          { package: { $in: [null, ''] } },
+          { package: { $exists: false } },
+        ]
+      });
     }
+
     if (user.assignedSubcircle) {
-      filter.subcircle = { $regex: new RegExp(`^\\s*${user.assignedSubcircle.trim()}\\s*$`, 'i') };
+      const subcircleRegex = { $regex: new RegExp(`^\\s*${user.assignedSubcircle.trim()}\\s*$`, 'i') };
+      andConditions.push({
+        $or: [
+          { subcircle: subcircleRegex },
+          { circle: subcircleRegex },
+        ]
+      });
     } else if (user.assignedCircle) {
       const allowedCircles = SUB_STORE_MAP[user.assignedCircle] || [user.assignedCircle];
       const regexCircles = allowedCircles.map(c => new RegExp(`^${c}$`, 'i'));
-      filter.$or = [
-        { location: { $in: regexCircles } },
-        { circle: { $in: regexCircles } }
-      ];
+      andConditions.push({
+        $or: [
+          { location: { $in: regexCircles } },
+          { circle: { $in: regexCircles } }
+        ]
+      });
     }
   }
 
-  // Handle Search inside assignments (by AssignmentNumber or MIN No)
+  // Handle Search inside assignments (by AssignmentNumber / MIN No, or by Demand Note No)
   if (search) {
     const searchStr = String(search);
-    if (/^\d+$/.test(searchStr)) {
-      filter.assignmentNumber = searchStr;
-    } else {
-      filter.assignmentNumber = { $regex: new RegExp(searchStr, 'i') };
-    }
+    const searchRegex = { $regex: new RegExp(searchStr, 'i') };
+    andConditions.push({
+      $or: [
+        { assignmentNumber: searchRegex },
+        { minNo: searchRegex },
+        { demandNo: searchRegex },
+      ]
+    });
+  }
+
+  if (andConditions.length > 0) {
+    filter.$and = andConditions;
   }
   
   if (page && limit) {
@@ -160,7 +191,7 @@ export const getAssignments = asyncHandler(async (req: Request, res: Response) =
     const total = await ContractorAssignment.countDocuments(filter);
     const assignments = await ContractorAssignment.find(filter)
       .populate('contractorId', 'dynamicData.displayName name farmName companyName')
-      .sort({ createdAt: 1 })
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limitNumber);
 
@@ -174,7 +205,7 @@ export const getAssignments = asyncHandler(async (req: Request, res: Response) =
 
   const assignments = await ContractorAssignment.find(filter)
     .populate('contractorId', 'dynamicData.displayName name farmName companyName')
-    .sort({ createdAt: 1 });
+    .sort({ createdAt: -1 });
   res.status(200).json(new ApiResponse(200, assignments, 'Assignments fetched successfully'));
 });
 
@@ -188,7 +219,11 @@ export const getAssignmentSummary = asyncHandler(async (req: Request, res: Respo
   if (startDate || endDate) {
     filter.date = {};
     if (startDate) filter.date.$gte = new Date(startDate as string);
-    if (endDate) filter.date.$lte = new Date(endDate as string);
+    if (endDate) {
+      const end = new Date(endDate as string);
+      end.setUTCHours(23, 59, 59, 999);
+      filter.date.$lte = end;
+    }
   }
 
   const SUB_STORE_MAP: Record<string, string[]> = {
@@ -1000,7 +1035,11 @@ export const exportContractorAssignments = asyncHandler(async (req: Request, res
   if (startDate || endDate) {
     filter.date = {};
     if (startDate) filter.date.$gte = new Date(startDate as string);
-    if (endDate) filter.date.$lte = new Date(endDate as string);
+    if (endDate) {
+      const end = new Date(endDate as string);
+      end.setUTCHours(23, 59, 59, 999);
+      filter.date.$lte = end;
+    }
   }
   
   if (search) {

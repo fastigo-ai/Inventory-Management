@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plus, Upload, Eye, Edit, Trash2, Box, PackageOpen, FileText, Users, Calculator, Download, Printer } from "lucide-react";
@@ -22,8 +23,10 @@ export default function StoreContractorIssuePage() {
   const [loading, setLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
+  const searchParams = useSearchParams();
+
   // Server-side pagination & filter state
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || "");
   const debouncedSearch = useDebounce(searchTerm, 500);
   const [contractorId, setContractorId] = useState("");
   const [startDate, setStartDate] = useState("");

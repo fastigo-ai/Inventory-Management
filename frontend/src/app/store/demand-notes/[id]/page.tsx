@@ -294,6 +294,10 @@ export default function DemandNoteDetailPage() {
                 <th className="px-6 py-4 text-center print:px-2 print:py-2">Invoice Qty</th>
                 <th className="px-6 py-4 print:px-2 print:py-2">Unit</th>
                 <th className="px-6 py-4 text-center print:px-2 print:py-2">In Stock</th>
+                <th className="px-6 py-4 text-center print:px-2 print:py-2">Issued Till Date</th>
+                <th className="px-6 py-4 text-center print:px-2 print:py-2">WIP Consumed</th>
+                <th className="px-6 py-4 text-center print:px-2 print:py-2">JMC Done</th>
+                <th className="px-6 py-4 text-center print:px-2 print:py-2">Bal at Contractor</th>
                 <th className="px-6 py-4 font-bold text-indigo-700 bg-indigo-50/50 print:px-2 print:py-2">Demand Qty</th>
               </tr>
             </thead>

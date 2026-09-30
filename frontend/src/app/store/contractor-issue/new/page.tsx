@@ -320,7 +320,9 @@ export default function StoreContractorIssueNewPage() {
         location: "Store",
         assignmentNumber: minNo, // Mapping MIN No to primary assignment number
         date: minDate,
-        circle: user?.assignedCircle || "",
+        circle: user?.assignedSubcircle || user?.assignedCircle || "",
+        subcircle: user?.assignedSubcircle || "",
+        package: user?.assignedPackage || "",
         
         demandNo,
         demandBookNo,

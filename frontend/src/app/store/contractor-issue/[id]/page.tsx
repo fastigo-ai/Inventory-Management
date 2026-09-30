@@ -214,7 +214,7 @@ export default function ContractorIssueDetailPage() {
                         <td className="px-6 py-4 print:px-2 print:py-2 text-right font-medium text-slate-600">
                           {item.demandQty || '-'}
                         </td>
-                        <td className="px-6 py-4 print:px-2 print:py-2 text-right font-bold text-[#0076f2]">
+                        <td className="px-6 py-4 print:px-2 print:py-2 text-right font-bold text-[#0076f2] print:text-black">
                           {item.quantity}
                         </td>
                       </tr>

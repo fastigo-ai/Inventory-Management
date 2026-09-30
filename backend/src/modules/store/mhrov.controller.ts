@@ -1044,11 +1044,19 @@ export const importMhrovs = asyncHandler(async (req: Request, res: Response) => 
       }
 
       if (!matchedLineItem) {
-         let debugStr = '';
-         if (item.loaSerialNo === '2086' && bulkEntries.length > 0) {
+         let debugStr = ` | DEBUG -> parsed CSV: di="${item.diNo}", serial="${item.loaSerialNo}", name="${item.itemName}", temp="${item.tempCode}"`;
+         
+         if (bulkEntries.length > 0) {
              const entry = bulkEntries.find((e: any) => cleanStrLower(e.diNumber) === cleanStrLower(item.diNo));
-             if (!entry) debugStr = " (DI number not found in bulkEntries)";
-             else debugStr = " (Line item loop failed, likely a package or item name mismatch. See terminal logs.)";
+             if (entry) {
+                 debugStr += ` | Found DI ${entry.diNumber} with ${entry.lineItems?.length} items.`;
+                 const closest = entry.lineItems?.find((li: any) => String(li.loaSerialNo).includes(item.loaSerialNo) || String(item.loaSerialNo).includes(li.loaSerialNo) || String(li.itemName).toLowerCase().includes(String(item.itemName).toLowerCase()));
+                 if (closest) {
+                     debugStr += ` | Closest DB item: serial="${closest.loaSerialNo}", name="${closest.itemName}", temp="${closest.tempCode}", circle="${closest.circle}"`;
+                 }
+             } else {
+                 debugStr += ` | DI number not found in bulkEntries`;
+             }
          }
          errors.push(`Row ${item.rowNumber}: Could not find DI "${item.diNo}" with Item "${item.itemName}", Serial "${item.loaSerialNo}", TempCode "${item.tempCode}"${debugStr}`);
       } else {
@@ -1091,17 +1099,31 @@ export const importMhrovs = asyncHandler(async (req: Request, res: Response) => 
       { upsert: true, setDefaultsOnInsert: true }
     );
     
-    // Sync items
+    const uniqueInwardEntries = new Set<string>();
+    const uniqueDiItems = new Set<string>(); // format: "diId|itemId"
+
+    // Sync items optimally
     if (data.finalItems && Array.isArray(data.finalItems)) {
       for (const it of data.finalItems) {
-        if (it.inwardEntryId) {
-          await syncMhrovQuantities(undefined, undefined, it.inwardEntryId);
-        }
-        if (it.diId && it.itemId) {
-          await syncMhrovQuantities(it.diId, it.itemId);
-        }
+        if (it.inwardEntryId) uniqueInwardEntries.add(it.inwardEntryId.toString());
+        if (it.diId && it.itemId) uniqueDiItems.add(`${it.diId.toString()}|${it.itemId.toString()}`);
       }
     }
+
+    // Run syncs asynchronously but sequentially in the background to prevent Mongoose VersionError
+    (async () => {
+      try {
+        for (const entryId of uniqueInwardEntries) {
+          await syncMhrovQuantities(undefined, undefined, entryId);
+        }
+        for (const pair of uniqueDiItems) {
+          const [diId, itemId] = pair.split('|');
+          await syncMhrovQuantities(diId, itemId);
+        }
+      } catch (err) {
+        console.error("Background sync error:", err);
+      }
+    })();
     
     successCount++;
   }
@@ -1184,16 +1206,30 @@ export const updateMhrov = asyncHandler(async (req: Request, res: Response) => {
 
   await mhrov.save();
 
-  // Sync old and new items
+  // Sync old and new items optimally
   const allItemsToSync = [...oldItems, ...parsedItems];
+  const uniqueInwardEntries = new Set<string>();
+  const uniqueDiItems = new Set<string>();
+
   for (const it of allItemsToSync) {
-    if (it.inwardEntryId) {
-      await syncMhrovQuantities(undefined, undefined, it.inwardEntryId);
-    }
-    if (it.diId && it.itemId) {
-      await syncMhrovQuantities(it.diId, it.itemId);
-    }
+    if (it.inwardEntryId) uniqueInwardEntries.add(it.inwardEntryId.toString());
+    if (it.diId && it.itemId) uniqueDiItems.add(`${it.diId.toString()}|${it.itemId.toString()}`);
   }
+
+  // Run syncs in background sequentially
+  (async () => {
+    try {
+      for (const entryId of uniqueInwardEntries) {
+        await syncMhrovQuantities(undefined, undefined, entryId);
+      }
+      for (const pair of uniqueDiItems) {
+        const [diId, itemId] = pair.split('|');
+        await syncMhrovQuantities(diId, itemId);
+      }
+    } catch (err) {
+      console.error("Background sync error:", err);
+    }
+  })();
 
   res.status(200).json(new ApiResponse(200, mhrov, 'MHROV updated successfully'));
 });
@@ -1397,11 +1433,16 @@ export const getMhrovDashboardData = asyncHandler(async (req: Request, res: Resp
     .sort({ createdAt: 1 })
     .lean();
 
-  // 2. Fetch all MHROVs to cross-reference
-  const mhrovs = await Mhrov.find(mhrovFilter).lean();
+  // 2. Fetch all MHROVs to cross-reference and extract direct items
+  const mhrovs = await Mhrov.find(mhrovFilter)
+    .populate('items.itemId', 'name dynamicData')
+    .populate('items.diId', 'diNumber')
+    .lean();
 
   // 3. Create a map of inwardEntryId -> mhrov details
   const inwardToMhrovMap = new Map<string, any>();
+  const directMhrovItems = new Map<string, any>(); // Deduplicate direct items
+
   mhrovs.forEach(mhrov => {
     if (mhrov.inwardEntries && Array.isArray(mhrov.inwardEntries)) {
       mhrov.inwardEntries.forEach(entryId => {
@@ -1423,15 +1464,21 @@ export const getMhrovDashboardData = asyncHandler(async (req: Request, res: Resp
         };
         if (item.inwardEntryId) {
           inwardToMhrovMap.set(item.inwardEntryId.toString(), data);
-        }
-        if (item.diId && item.itemId) {
+        } else if (item.diId && item.itemId) {
+          // Direct DI import
           const diIdStr = item.diId._id ? item.diId._id.toString() : item.diId.toString();
           const itemIdStr = item.itemId._id ? item.itemId._id.toString() : item.itemId.toString();
           inwardToMhrovMap.set(`${diIdStr}_${itemIdStr}`, data);
-        }
-        if (item.itemId) {
-          const itemIdStr = item.itemId._id ? item.itemId._id.toString() : item.itemId.toString();
-          inwardToMhrovMap.set(`ITEM_${itemIdStr}`, data);
+          
+          const uniqueKey = `${mhrov._id}_${itemIdStr}`;
+          if (!directMhrovItems.has(uniqueKey)) {
+            directMhrovItems.set(uniqueKey, {
+              _id: uniqueKey,
+              itemName: item.itemId.name || item.itemId.dynamicData?.name || item.itemId.dynamicData?.description || 'Unknown Item',
+              invoiceNumber: item.diId.diNumber || '-',
+              mhrovData: data
+            });
+          }
         }
       });
     }
@@ -1468,6 +1515,16 @@ export const getMhrovDashboardData = asyncHandler(async (req: Request, res: Resp
       notStartedCount++;
       return { ...entry, mhrovData: { status: 'NOT STARTED' } };
     }
+  });
+
+  // 5. Append direct MHROV items to merged items
+  directMhrovItems.forEach(item => {
+    totalItems++;
+    if (item.mhrovData.status?.toUpperCase() === 'DONE' || item.mhrovData.status?.toUpperCase() === 'Verified') doneCount++;
+    else if (item.mhrovData.status?.toUpperCase() === 'PENDING') pendingCount++;
+    else if (item.mhrovData.status === 'Pending Signature') doneNotSignedCount++;
+    else pendingCount++; // Fallback
+    mergedItems.push(item);
   });
 
   const metrics = {

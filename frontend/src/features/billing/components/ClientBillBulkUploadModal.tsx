@@ -49,12 +49,12 @@ export const ClientBillBulkUploadModal: React.FC<Props> = ({ isOpen, onClose, on
   const downloadSample = (e: React.MouseEvent) => {
     e.preventDefault();
     const headers = [
-      'RA Bill No', 'Bill Type', 'Stage', 'MHROV No', 'LOA Sr No', 'Temp Code', 
+      'RA Bill No', 'Bill Type', 'Stage', 'Circle', 'MHROV No', 'LOA Sr No', 'Temp Code', 
       'Item Name', 'DI No', 'DI Qty', 'DI Date', 'MHROV Qty', 'RA Bill Qty', 'BOQ Rate',
       'GST %', 'Amount After GST'
     ];
     const row = [
-      'RABILL-001', 'Supply', '60%', 'MHR-1234', 'LOA-01', 'T-123', 
+      'RABILL-001', 'Supply', '60%', 'Solan', 'MHR-1234', 'LOA-01', 'T-123', 
       'Sample Transformer', 'DI-001', '10', '2023-10-01', '10', '10', '5000',
       '18', '35400'
     ];

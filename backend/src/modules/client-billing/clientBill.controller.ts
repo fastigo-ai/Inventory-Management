@@ -9,6 +9,8 @@ import { ClientBillingLedger } from './clientBillingLedger.schema';
 import * as xlsx from 'xlsx';
 import { Mhrov } from '../store/mhrov.schema';
 import Item from '../items/item.model';
+import { DI } from '../di/di.schema';
+import { expandCircle } from '../../utils/hierarchy';
 const uploadToCloudinary = (buffer: Buffer, folder: string): Promise<any> => {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
@@ -483,8 +485,14 @@ export const bulkImportClientBills = asyncHandler(async (req: any, res: Response
   const worksheet = workbook.Sheets[sheetName];
   const rows = xlsx.utils.sheet_to_json<any>(worksheet);
 
-  // Pre-fetch all items for quick matching
+
+  const uniqueDiNos = [...new Set(rows.map(r => String(r.dino || r.dinumber || '').trim()).filter(Boolean))];
+  const uniqueMhrovNos = [...new Set(rows.map(r => String(r.mhrovno || r.mhrovnumber || r.sourceref || '').trim()).filter(Boolean))];
+  
   const allItems = await Item.find({}).lean();
+  const allDIs = await DI.find({ diNumber: { $in: uniqueDiNos } }).lean();
+  const allMhrovs = await Mhrov.find({ mhrovNumber: { $in: uniqueMhrovNos } }).lean();
+
   
   // Group rows by RA Bill No
   const billGroups: Record<string, any[]> = {};
@@ -538,7 +546,9 @@ export const bulkImportClientBills = asyncHandler(async (req: any, res: Response
       const items: any[] = [];
       const mhrovNumbers = new Set<string>();
 
+      let billValid = true;
       for (const r of billRows) {
+         const circleFromCsv = String(r.circle || r.circlename || '').trim();
          const mhrovNo = String(r.mhrovno || r.mhrovnumber || r.sourceref || '').trim();
          if (mhrovNo) mhrovNumbers.add(mhrovNo);
          
@@ -548,6 +558,74 @@ export const bulkImportClientBills = asyncHandler(async (req: any, res: Response
          const diNo = String(r.dino || r.dinumber || '').trim();
          const diQty = Number(r.diqty || 0);
          
+         // User circle validation
+         const assignedCircle = user.assignedCircle;
+         const allowedCircles = assignedCircle ? (expandCircle(assignedCircle) || [assignedCircle]) : null;
+         
+         // 1. Validate Circle
+         if (allowedCircles && circleFromCsv && !allowedCircles.includes(circleFromCsv)) {
+            results.failed++;
+            results.errors.push({ raBillNo, reason: `Circle mismatch in row. Expected ${assignedCircle}, got ${circleFromCsv}` });
+            billValid = false;
+            break;
+         }
+
+         // 2. Validate Item
+         let itemIdObj = allItems.find(i => 
+           (i.dynamicData?.tempCode && String(i.dynamicData.tempCode).trim().toLowerCase() === tempCode.toLowerCase()) || 
+           (i.dynamicData?.sku && String(i.dynamicData.sku).trim().toLowerCase() === loaSrNo.toLowerCase())
+         );
+         
+         if (!itemIdObj) {
+            results.failed++;
+            results.errors.push({ raBillNo, reason: `Item not found in master data for LOA Sr No: ${loaSrNo}, TempCode: ${tempCode}` });
+            billValid = false;
+            break;
+         }
+
+         // 3. Validate DI
+         if (diNo) {
+             const diDoc = allDIs.find(d => String(d.diNumber).trim().toLowerCase() === diNo.toLowerCase());
+             if (!diDoc) {
+                 results.failed++;
+                 results.errors.push({ raBillNo, reason: `DI '${diNo}' not found in database` });
+                 billValid = false;
+                 break;
+             }
+             // check if DI has this item and circle matches
+             const diItemMatch = diDoc.lineItems?.find((li: any) => String(li.loaSerialNo) === String(loaSrNo) || String(li.tempCode) === String(tempCode));
+             if (!diItemMatch) {
+                 results.failed++;
+                 results.errors.push({ raBillNo, reason: `DI '${diNo}' does not contain LOA Sr No '${loaSrNo}'` });
+                 billValid = false;
+                 break;
+             }
+             if (circleFromCsv && diItemMatch.circle && diItemMatch.circle !== circleFromCsv) {
+                 results.failed++;
+                 results.errors.push({ raBillNo, reason: `DI '${diNo}' circle ('${diItemMatch.circle}') does not match CSV circle ('${circleFromCsv}')` });
+                 billValid = false;
+                 break;
+             }
+         }
+
+         // 4. Validate MHROV
+         if (referenceType === 'MHROV' && mhrovNo) {
+             const mhrovDoc = allMhrovs.find(m => String(m.mhrovNumber).trim().toLowerCase() === mhrovNo.toLowerCase());
+             if (!mhrovDoc) {
+                 results.failed++;
+                 results.errors.push({ raBillNo, reason: `MHROV '${mhrovNo}' not found in database` });
+                 billValid = false;
+                 break;
+             }
+             if (circleFromCsv && mhrovDoc.circle && mhrovDoc.circle !== circleFromCsv) {
+                 results.failed++;
+                 results.errors.push({ raBillNo, reason: `MHROV '${mhrovNo}' circle ('${mhrovDoc.circle}') does not match CSV circle ('${circleFromCsv}')` });
+                 billValid = false;
+                 break;
+             }
+             // (MHROV items have .itemId reference normally, but they might not be populated in lean array, so skip deep item check here to avoid complexity unless necessary)
+         }
+
          // Extract DI Date safely
          let diDate: Date | undefined;
          if (r.didate) {
@@ -573,16 +651,10 @@ export const bulkImportClientBills = asyncHandler(async (req: any, res: Response
          } else if (billType === 'Erection' && stage === '90%') {
            gstAmount = Number((raBillQty * boqRate * 0.18).toFixed(2));
          }
-
-         // Try to find item id
-         let itemIdObj = allItems.find(i => 
-           (i.dynamicData?.tempCode && String(i.dynamicData.tempCode).trim().toLowerCase() === tempCode.toLowerCase()) || 
-           (i.dynamicData?.sku && String(i.dynamicData.sku).trim().toLowerCase() === loaSrNo.toLowerCase())
-         );
          
          items.push({
            loaSrNo,
-           itemId: itemIdObj ? itemIdObj._id : undefined,
+           itemId: itemIdObj._id,
            tempCode,
            refNumber: mhrovNo,
            itemName,
@@ -596,6 +668,9 @@ export const bulkImportClientBills = asyncHandler(async (req: any, res: Response
            gstAmount
          });
       }
+      
+      if (!billValid) continue;
+
 
       // Resolve reference IDs
       let referenceIds: any[] = [];

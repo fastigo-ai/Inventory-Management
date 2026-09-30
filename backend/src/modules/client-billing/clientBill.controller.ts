@@ -515,8 +515,24 @@ export const bulkImportClientBills = asyncHandler(async (req: any, res: Response
       // Determine Bill Type and Stage from first row
       const firstRow = billRows[0];
       const billType = String(firstRow.billtype || 'Supply').trim();
-      const stage = String(firstRow.stage || '60%').trim();
-      
+      const rawStage = String(firstRow.stage || '60%').trim();
+
+      // Normalize stage: Excel often stores '60%' as 0.6 (decimal number)
+      const STAGE_MAP: Record<string, string> = {
+        '0.6': '60%', '60': '60%', '60%': '60%',
+        '0.3': '30%', '30': '30%', '30%': '30%',
+        '0.1': '10%', '10': '10%', '10%': '10%',
+        '0.9': '90%', '90': '90%', '90%': '90%',
+      };
+      const stage = STAGE_MAP[rawStage] || rawStage;
+
+      const VALID_STAGES = ['60%', '30%', '10%', '90%'];
+      if (!VALID_STAGES.includes(stage)) {
+        results.failed++;
+        results.errors.push({ raBillNo, reason: `Invalid stage '${rawStage}'. Valid values: ${VALID_STAGES.join(', ')} (or decimals: 0.6, 0.3, 0.1, 0.9).` });
+        continue;
+      }
+
       const referenceType = (billType === 'Supply' && stage === '60%') ? 'MHROV' : 'JMCRegister';
       
       const items: any[] = [];

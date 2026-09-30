@@ -915,6 +915,10 @@ export const importMhrovs = asyncHandler(async (req: Request, res: Response) => 
 
   const mhrovMap: Record<string, any> = {};
 
+  const VALID_PACKAGES = ['Package 1(S/N)', 'Package 2(R/R)'];
+  const normalizePackage = (pkg: string) => pkg.replace(/\s+/g, '').toLowerCase();
+  const validNormalized = VALID_PACKAGES.map(normalizePackage);
+
   for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
     const row = rows[rowIndex];
     const actualRowNumber = rowIndex + 2;
@@ -922,12 +926,27 @@ export const importMhrovs = asyncHandler(async (req: Request, res: Response) => 
     
     if (!mhrovNumber) continue;
 
+    const rawPackage = (row['package'] || '').trim();
+
+    // --- STRICT PACKAGE VALIDATION ---
+    if (!rawPackage) {
+      errors.push(`Row ${actualRowNumber} (MHROV: ${mhrovNumber}): 'Package' column is missing or empty. Valid values are: ${VALID_PACKAGES.join(', ')}.`);
+      continue;
+    }
+    if (!validNormalized.includes(normalizePackage(rawPackage))) {
+      errors.push(`Row ${actualRowNumber} (MHROV: ${mhrovNumber}): Invalid package '${rawPackage}'. Valid values are: ${VALID_PACKAGES.join(', ')}.`);
+      continue;
+    }
+
+    // Normalize to the canonical package name
+    const canonicalPackage = VALID_PACKAGES[validNormalized.indexOf(normalizePackage(rawPackage))];
+
     if (!mhrovMap[mhrovNumber]) {
       mhrovMap[mhrovNumber] = {
         mhrovNumber,
         mhrovDate: safeDate(row['mhrovdate']),
         status: row['status'] || 'Pending',
-        package: row['package'] || '',
+        package: canonicalPackage,
         circle: row['circle'] || '',
         items: []
       };
@@ -950,7 +969,7 @@ export const importMhrovs = asyncHandler(async (req: Request, res: Response) => 
         invoiceNo,
         mhrovDoneQty,
         circle: row['circle'] || '',
-        package: row['package'] || ''
+        package: canonicalPackage
       });
     }
   }

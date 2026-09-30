@@ -994,42 +994,50 @@ export const importMhrovs = asyncHandler(async (req: Request, res: Response) => 
          if (csvDi && dbDi && dbDi !== csvDi) continue;
 
          if (entry.lineItems && Array.isArray(entry.lineItems)) {
-             for (const li of entry.lineItems) {
-                 let match = true;
-                 
-                 const csvCircle = normalizeForMatch(item.circle || mhrovData.circle);
-                 const dbCircle = normalizeForMatch(li.circle || entry.circle);
-                 if (csvCircle && dbCircle && dbCircle !== csvCircle) match = false;
-                 
-                 const csvSerial = normalizeForMatch(item.loaSerialNo);
-                 const dbSerial = normalizeForMatch(li.loaSerialNo);
-                 if (csvSerial && dbSerial && dbSerial !== csvSerial) {
-                    match = false;
-                 }
-                 
-                 const csvItem = normalizeForMatch(item.itemName);
-                 const dbItem = normalizeForMatch(li.itemName);
-                 if (csvItem && dbItem !== csvItem) {
-                    match = false;
-                 }
-                 
-                 const csvTemp = normalizeForMatch(item.tempCode);
-                 const dbTemp = normalizeForMatch(li.tempCode);
-                 if (csvTemp && dbTemp !== csvTemp) {
-                    match = false;
-                 }
-                 
-                 const csvPackage = normalizeForMatch(item.package || mhrovData.package);
-                 const dbPackage = normalizeForMatch(li.package || entry.package);
-                 if (csvPackage && dbPackage && dbPackage !== csvPackage) {
-                    match = false;
-                 }
+             const csvCircle = normalizeForMatch(item.circle || mhrovData.circle);
+             let circleCandidates = entry.lineItems;
+             if (csvCircle) {
+                 circleCandidates = circleCandidates.filter((li: any) => {
+                     const dbCircle = normalizeForMatch(li.circle || entry.circle);
+                     // If dbCircle is missing, we assume it matches. If present, it must match.
+                     return !dbCircle || dbCircle === csvCircle;
+                 });
+             }
 
-                 if (match) {
-                     matchedLineItem = li;
+             const csvSerial = normalizeForMatch(item.loaSerialNo);
+             const csvItem = normalizeForMatch(item.itemName);
+             const csvTemp = normalizeForMatch(item.tempCode);
+             const csvPackage = normalizeForMatch(item.package || mhrovData.package);
+
+             // 1. Try strict matching by LOA Serial No (most reliable)
+             if (csvSerial) {
+                 const serialMatch = circleCandidates.find((li: any) => normalizeForMatch(li.loaSerialNo) === csvSerial);
+                 if (serialMatch) {
+                     matchedLineItem = serialMatch;
                      matchedDI = entry;
                      break;
                  }
+             }
+
+             // 2. Fallback to Name + TempCode + Package match
+             const fallbackMatch = circleCandidates.find((li: any) => {
+                 let match = true;
+                 const dbItem = normalizeForMatch(li.itemName);
+                 if (csvItem && dbItem && dbItem !== csvItem) match = false;
+                 
+                 const dbTemp = normalizeForMatch(li.tempCode);
+                 if (csvTemp && dbTemp && dbTemp !== csvTemp) match = false;
+                 
+                 const dbPackage = normalizeForMatch(li.package || entry.package);
+                 if (csvPackage && dbPackage && dbPackage !== csvPackage) match = false;
+                 
+                 return match;
+             });
+
+             if (fallbackMatch) {
+                 matchedLineItem = fallbackMatch;
+                 matchedDI = entry;
+                 break;
              }
          }
          if (matchedLineItem) break;

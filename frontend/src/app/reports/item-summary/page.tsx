@@ -384,14 +384,16 @@ export default function ItemSummaryMatrixPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
         <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
           <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total Items</div>
-          <div className="text-lg font-extrabold text-slate-900 mt-0.5">{totalItems}</div>
+          <div className="text-lg font-extrabold text-slate-900 mt-0.5">
+            {loading ? <div className="h-7 w-16 bg-slate-200 animate-pulse rounded"></div> : totalItems}
+          </div>
           <div className="text-[10px] text-slate-400 mt-0.5">Master Temp Codes</div>
         </div>
 
         <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-200/80 shadow-sm">
           <div className="text-[11px] font-semibold text-amber-800 uppercase tracking-wider">Total LOA Qty</div>
           <div className="text-lg font-extrabold text-amber-950 mt-0.5 font-mono">
-            {(totals.solanLoa + totals.nahanLoa + totals.rampurLoa + totals.rohruLoa).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            {loading ? <div className="h-7 w-20 bg-amber-200/50 animate-pulse rounded"></div> : (totals.solanLoa + totals.nahanLoa + totals.rampurLoa + totals.rohruLoa).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
           </div>
           <div className="text-[10px] text-amber-700 mt-0.5">All 4 Circles Sum</div>
         </div>
@@ -399,7 +401,7 @@ export default function ItemSummaryMatrixPage() {
         <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-200/80 shadow-sm">
           <div className="text-[11px] font-semibold text-blue-800 uppercase tracking-wider">Total Dispatched</div>
           <div className="text-lg font-extrabold text-blue-950 mt-0.5 font-mono">
-            {(totals.dispatchedSolan + totals.dispatchedNahan + totals.dispatchedRampur + totals.dispatchedRohru).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            {loading ? <div className="h-7 w-20 bg-blue-200/50 animate-pulse rounded"></div> : (totals.dispatchedSolan + totals.dispatchedNahan + totals.dispatchedRampur + totals.dispatchedRohru).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
           </div>
           <div className="text-[10px] text-blue-700 mt-0.5">All DIs</div>
         </div>
@@ -407,7 +409,7 @@ export default function ItemSummaryMatrixPage() {
         <div className="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200/80 shadow-sm">
           <div className="text-[11px] font-semibold text-emerald-800 uppercase tracking-wider">Total Inward (IR)</div>
           <div className="text-lg font-extrabold text-emerald-950 mt-0.5 font-mono">
-            {(totals.inwardSolan + totals.inwardNahan + totals.inwardRampur + totals.inwardRohru).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            {loading ? <div className="h-7 w-20 bg-emerald-200/50 animate-pulse rounded"></div> : (totals.inwardSolan + totals.inwardNahan + totals.inwardRampur + totals.inwardRohru).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
           </div>
           <div className="text-[10px] text-emerald-700 mt-0.5">Received Store Stock</div>
         </div>
@@ -415,7 +417,7 @@ export default function ItemSummaryMatrixPage() {
         <div className="bg-cyan-50/50 p-3 rounded-xl border border-cyan-200/80 shadow-sm">
           <div className="text-[11px] font-semibold text-cyan-800 uppercase tracking-wider">Total MRHOV</div>
           <div className="text-lg font-extrabold text-cyan-950 mt-0.5 font-mono">
-            {(totals.mhrovSolan + totals.mhrovNahan + totals.mhrovRampur + totals.mhrovRohru).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            {loading ? <div className="h-7 w-20 bg-cyan-200/50 animate-pulse rounded"></div> : (totals.mhrovSolan + totals.mhrovNahan + totals.mhrovRampur + totals.mhrovRohru).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
           </div>
           <div className="text-[10px] text-cyan-700 mt-0.5">Handed over to Contractor</div>
         </div>
@@ -423,7 +425,7 @@ export default function ItemSummaryMatrixPage() {
         <div className="bg-sky-50/50 p-3 rounded-xl border border-sky-200/80 shadow-sm">
           <div className="text-[11px] font-semibold text-sky-800 uppercase tracking-wider">Total Supply Billed</div>
           <div className="text-lg font-extrabold text-sky-950 mt-0.5 font-mono">
-            {(totals.supSolan + totals.supNahan + totals.supRampur + totals.supRohru).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            {loading ? <div className="h-7 w-20 bg-sky-200/50 animate-pulse rounded"></div> : (totals.supSolan + totals.supNahan + totals.supRampur + totals.supRohru).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
           </div>
           <div className="text-[10px] text-sky-700 mt-0.5">Purchase Invoices Billed</div>
         </div>
@@ -431,7 +433,7 @@ export default function ItemSummaryMatrixPage() {
         <div className="bg-pink-50/50 p-3 rounded-xl border border-pink-200/80 shadow-sm">
           <div className="text-[11px] font-semibold text-pink-800 uppercase tracking-wider">Total WIP Consumed</div>
           <div className="text-lg font-extrabold text-pink-950 mt-0.5 font-mono">
-            {(totals.wipConsSolan + totals.wipConsNahan + totals.wipConsRampur + totals.wipConsRohru).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            {loading ? <div className="h-7 w-20 bg-pink-200/50 animate-pulse rounded"></div> : (totals.wipConsSolan + totals.wipConsNahan + totals.wipConsRampur + totals.wipConsRohru).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
           </div>
           <div className="text-[10px] text-pink-700 mt-0.5">WIP Consumed</div>
         </div>
@@ -439,7 +441,7 @@ export default function ItemSummaryMatrixPage() {
         <div className="bg-teal-50/50 p-3 rounded-xl border border-teal-200/80 shadow-sm">
           <div className="text-[11px] font-semibold text-teal-800 uppercase tracking-wider">Total WIP Required</div>
           <div className="text-lg font-extrabold text-teal-950 mt-0.5 font-mono">
-            {(totals.wipReqSolan + totals.wipReqNahan + totals.wipReqRampur + totals.wipReqRohru).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            {loading ? <div className="h-7 w-20 bg-teal-200/50 animate-pulse rounded"></div> : (totals.wipReqSolan + totals.wipReqNahan + totals.wipReqRampur + totals.wipReqRohru).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
           </div>
           <div className="text-[10px] text-teal-700 mt-0.5">WIP Required</div>
         </div>
@@ -460,12 +462,13 @@ export default function ItemSummaryMatrixPage() {
               value={(filters.packageFilter ? filters.packageFilter.split(',') : []).map(v => ({ value: v, label: v }))}
               onChange={(selected) => {
                 const val = selected ? selected.map((s: any) => s.value).join(',') : '';
-                setFilter('packageFilter', val);
-                setFilter('page', '1');
-                
-                // Reset circles if package changes to prevent invalid selections
-                setFilter('circleFilter', '');
-                setFilter('targetCircle', 'ALL');
+                setFilters(prev => ({
+                  ...prev,
+                  packageFilter: val,
+                  page: '1',
+                  circleFilter: '',
+                  targetCircle: 'ALL'
+                }));
               }}
               className="text-xs font-medium"
               placeholder="All Packages"
@@ -481,8 +484,11 @@ export default function ItemSummaryMatrixPage() {
               value={(filters.circleFilter ? filters.circleFilter.split(',') : []).map(v => ({ value: v, label: v }))}
               onChange={(selected) => {
                 const val = selected ? selected.map((s: any) => s.value).join(',') : '';
-                setFilter('circleFilter', val);
-                setFilter('page', '1');
+                setFilters(prev => ({
+                  ...prev,
+                  circleFilter: val,
+                  page: '1'
+                }));
               }}
               className="text-xs font-medium"
               placeholder="All Circles"
@@ -501,8 +507,11 @@ export default function ItemSummaryMatrixPage() {
               })}
               onChange={(selected) => {
                 const val = selected && selected.length > 0 ? selected.map((s: any) => s.value).join(',') : 'ALL';
-                setFilter('targetCircle', val);
-                setFilter('page', '1');
+                setFilters(prev => ({
+                  ...prev,
+                  targetCircle: val,
+                  page: '1'
+                }));
               }}
               className="text-xs font-medium"
               placeholder="Target Circle"
@@ -516,7 +525,14 @@ export default function ItemSummaryMatrixPage() {
               type="text"
               placeholder="Temp Code, Name, SKU..."
               value={filters.search || ''}
-              onChange={e => { setFilter('search', e.target.value); setFilter('page', '1'); }}
+              onChange={e => { 
+                const val = e.target.value;
+                setFilters(prev => ({
+                  ...prev,
+                  search: val,
+                  page: '1'
+                }));
+              }}
               className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 font-medium"
             />
           </div>

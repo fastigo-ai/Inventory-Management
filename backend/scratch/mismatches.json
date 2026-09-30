@@ -1,0 +1,226 @@
+[
+  {
+    "rowNum": 448,
+    "csv": {
+      "name": "TRANSFORMER CIVIL WORK BED",
+      "description": "Transformer Bed( Civil Work (As Per HPSR))",
+      "tempCode": 203,
+      "loaSerialNo": 1010,
+      "activity": "Feeder Bifurcation DTR work-11/0.4 kV 400 KVA DTR"
+    },
+    "dbFound": {
+      "name": "TRANSFORMER CIVIL WORK BED",
+      "tempCode": "203",
+      "loaSerialNo": "1886",
+      "activity": "augmentationdtrsaugmentionofdt100kvato250kva"
+    }
+  },
+  {
+    "rowNum": 484,
+    "csv": {
+      "name": "TRANSFORMER CIVIL WORK BED",
+      "description": "Transformer Bed( Civil Work (As Per HPSR))",
+      "tempCode": 203,
+      "loaSerialNo": 1047,
+      "activity": "Feeder Bifurcation DTR work-11/0.4 kV 630 KVA DTR"
+    },
+    "dbFound": {
+      "name": "TRANSFORMER CIVIL WORK BED",
+      "tempCode": "203",
+      "loaSerialNo": "1886",
+      "activity": "augmentationdtrsaugmentionofdt100kvato250kva"
+    }
+  },
+  {
+    "rowNum": 786,
+    "csv": {
+      "name": "TRANSFORMER CIVIL WORK BED",
+      "description": "Transformer Bed( Civil Work (As Per HPSR))",
+      "tempCode": 203,
+      "loaSerialNo": 1761,
+      "activity": "New DTR Work-22/0.4 kV 250 KVA DTR"
+    },
+    "dbFound": {
+      "name": "TRANSFORMER CIVIL WORK BED",
+      "tempCode": "203",
+      "loaSerialNo": "1886",
+      "activity": "augmentationdtrsaugmentionofdt100kvato250kva"
+    }
+  },
+  {
+    "rowNum": 815,
+    "csv": {
+      "name": "TRANSFORMER CIVIL WORK BED",
+      "description": "Transformer Bed( Civil Work (As Per HPSR))",
+      "tempCode": 203,
+      "loaSerialNo": 1791,
+      "activity": "New DTR Work-22/0.4 kV 400 KVA DTR"
+    },
+    "dbFound": {
+      "name": "TRANSFORMER CIVIL WORK BED",
+      "tempCode": "203",
+      "loaSerialNo": "1886",
+      "activity": "augmentationdtrsaugmentionofdt100kvato250kva"
+    }
+  },
+  {
+    "rowNum": 854,
+    "csv": {
+      "name": "TRANSFORMER CIVIL WORK BED",
+      "description": "Civil Work Bed  for 250 KVA DT  (As PER HPSR)",
+      "tempCode": 203,
+      "loaSerialNo": 1974,
+      "activity": "Augmentation DTR Work-22/0.4 kV 100 KVA to 250 KVA DTR"
+    },
+    "dbFound": {
+      "name": "TRANSFORMER CIVIL WORK BED",
+      "tempCode": "203",
+      "loaSerialNo": "1886",
+      "activity": "augmentationdtrsaugmentionofdt100kvato250kva"
+    }
+  },
+  {
+    "rowNum": 865,
+    "csv": {
+      "name": "TRANSFORMER CIVIL WORK BED",
+      "description": "Civil Work Bed  for 400 KVA DT  (As PER HPSR)",
+      "tempCode": 203,
+      "loaSerialNo": 1987,
+      "activity": "Augmentation DTR Work-22/0.4 kV 250 KVA to 400 KVA DTR"
+    },
+    "dbFound": {
+      "name": "TRANSFORMER CIVIL WORK BED",
+      "tempCode": "203",
+      "loaSerialNo": "1886",
+      "activity": "augmentationdtrsaugmentionofdt100kvato250kva"
+    }
+  },
+  {
+    "rowNum": 867,
+    "csv": {
+      "name": "LT SWITCHED CAPACITOR BANK 60 KVAR",
+      "description": "Capacitor Bank of 60VR for 400kVA,",
+      "tempCode": 240,
+      "loaSerialNo": 1989,
+      "activity": "Augmentation DTR Work-22/0.4 kV 250 KVA to 400 KVA DTR"
+    },
+    "dbFound": {
+      "name": "LT SWITCHED CAPACITOR BANK 60 KVAR",
+      "tempCode": "240",
+      "loaSerialNo": "1898",
+      "activity": "augmentationdtrsaugmentionofdt250kvato400kva"
+    }
+  },
+  {
+    "rowNum": 868,
+    "csv": {
+      "name": "22 KV, 630 KVA DTR",
+      "description": "630 KVA,22/0.4KV DISTRIBUTION TRANSFORMER,",
+      "tempCode": 17,
+      "loaSerialNo": 1992,
+      "activity": "Augmentation DTR Work-22/0.4 kV 400 KVA to 630 KVA DTR"
+    },
+    "dbFound": {
+      "name": "22 KV, 630 KVA DTR",
+      "tempCode": "17",
+      "loaSerialNo": "1804",
+      "activity": "newdtrwork2204kv630kvadtr"
+    }
+  },
+  {
+    "rowNum": 869,
+    "csv": {
+      "name": "TRANSFORMER CIVIL WORK BED",
+      "description": "Transformer Bed( Civil Work (As Per HPSR))",
+      "tempCode": 203,
+      "loaSerialNo": 1993,
+      "activity": "Augmentation DTR Work-22/0.4 kV 400 KVA to 630 KVA DTR"
+    },
+    "dbFound": {
+      "name": "TRANSFORMER CIVIL WORK BED",
+      "tempCode": "203",
+      "loaSerialNo": "1886",
+      "activity": "augmentationdtrsaugmentionofdt100kvato250kva"
+    }
+  },
+  {
+    "rowNum": 1316,
+    "csv": {
+      "name": "TRANSFORMER CIVIL WORK BED",
+      "description": "Transformer Bed( Civil Work (As Per HPSR))",
+      "tempCode": 203,
+      "loaSerialNo": 1761,
+      "activity": "New DTR Work-22/0.4 kV 250 KVA DTR"
+    },
+    "dbFound": {
+      "name": "TRANSFORMER CIVIL WORK BED",
+      "tempCode": "203",
+      "loaSerialNo": "1886",
+      "activity": "augmentationdtrsaugmentionofdt100kvato250kva"
+    }
+  },
+  {
+    "rowNum": 1345,
+    "csv": {
+      "name": "TRANSFORMER CIVIL WORK BED",
+      "description": "Transformer Bed( Civil Work (As Per HPSR))",
+      "tempCode": 203,
+      "loaSerialNo": 1791,
+      "activity": "New DTR Work-22/0.4 kV 400 KVA DTR"
+    },
+    "dbFound": {
+      "name": "TRANSFORMER CIVIL WORK BED",
+      "tempCode": "203",
+      "loaSerialNo": "1886",
+      "activity": "augmentationdtrsaugmentionofdt100kvato250kva"
+    }
+  },
+  {
+    "rowNum": 1381,
+    "csv": {
+      "name": "TRANSFORMER CIVIL WORK BED",
+      "description": "Transformer Bed( Civil Work (As Per HPSR))",
+      "tempCode": 203,
+      "loaSerialNo": 1828,
+      "activity": "New DTR Work-22/0.4 kV 630 KVA DTR"
+    },
+    "dbFound": {
+      "name": "TRANSFORMER CIVIL WORK BED",
+      "tempCode": "203",
+      "loaSerialNo": "1886",
+      "activity": "augmentationdtrsaugmentionofdt100kvato250kva"
+    }
+  },
+  {
+    "rowNum": 1393,
+    "csv": {
+      "name": "22 KV, 630 KVA DTR",
+      "description": "630 KVA,22/0.4KV DISTRIBUTION TRANSFORMER,",
+      "tempCode": 17,
+      "loaSerialNo": 1992,
+      "activity": "Augmentation DTR Work-22/0.4 kV 400 KVA to 630 KVA DTR"
+    },
+    "dbFound": {
+      "name": "22 KV, 630 KVA DTR",
+      "tempCode": "17",
+      "loaSerialNo": "1804",
+      "activity": "newdtrwork2204kv630kvadtr"
+    }
+  },
+  {
+    "rowNum": 1394,
+    "csv": {
+      "name": "TRANSFORMER CIVIL WORK BED",
+      "description": "Transformer Bed( Civil Work (As Per HPSR))",
+      "tempCode": 203,
+      "loaSerialNo": 1993,
+      "activity": "Augmentation DTR Work-22/0.4 kV 400 KVA to 630 KVA DTR"
+    },
+    "dbFound": {
+      "name": "TRANSFORMER CIVIL WORK BED",
+      "tempCode": "203",
+      "loaSerialNo": "1886",
+      "activity": "augmentationdtrsaugmentionofdt100kvato250kva"
+    }
+  }
+]

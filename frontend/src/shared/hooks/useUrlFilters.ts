@@ -55,9 +55,9 @@ export function useUrlFilters<T extends Record<string, string>>(initialFilters: 
     if (hasChanges) {
       const search = current.toString();
       const query = search ? `?${search}` : "";
-      router.replace(`${pathname}${query}`, { scroll: false });
+      window.history.replaceState(null, '', `${pathname}${query}`);
     }
-  }, [debouncedFilters, pathname, router, searchParams]);
+  }, [debouncedFilters, pathname, searchParams]);
 
   const setFilter = (key: keyof T, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));

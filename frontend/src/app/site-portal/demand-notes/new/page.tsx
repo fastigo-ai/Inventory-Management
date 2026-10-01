@@ -605,6 +605,11 @@ function DemandNoteForm() {
   };
 
   const handleSubmit = async () => {
+    if (formData.circle?.trim().toLowerCase() === 'solan' && !formData.subcircle) {
+      toast.error('Please select a Subcircle for Solan circle.');
+      return;
+    }
+
     // Filter out items that have no demand quantity
     const itemsWithDemand = items.filter(i => Number(i.demandQty) > 0);
 

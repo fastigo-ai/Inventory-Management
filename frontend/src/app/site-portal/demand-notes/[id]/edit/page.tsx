@@ -56,6 +56,8 @@ function DemandNoteEditForm() {
     authorizedByEngineer: string;
     package: string;
     circle: string;
+    subcircle: string;
+    drawingNumber: string;
     status: string;
     locationDrawing?: File | null;
     drawingPreview?: string | null;
@@ -68,6 +70,8 @@ function DemandNoteEditForm() {
     authorizedByEngineer: '',
     package: '',
     circle: '',
+    subcircle: '',
+    drawingNumber: '',
     status: 'Pending PM Approval'
   });
 
@@ -94,6 +98,8 @@ function DemandNoteEditForm() {
           location: dn.location || '',
           package: dn.package || '',
           circle: dn.circle || '',
+          subcircle: dn.subcircle || '',
+          drawingNumber: dn.drawingNumber || '',
           remarks: dn.remarks || '',
           status: dn.status || 'Pending PM Approval',
           authorizedByEngineer: dn.authorizedByEngineer || '',
@@ -566,6 +572,11 @@ function DemandNoteEditForm() {
   };
 
   const handleSubmit = async () => {
+    if (formData.circle?.trim().toLowerCase() === 'solan' && !formData.subcircle) {
+      toast.error('Please select a Subcircle for Solan circle.');
+      return;
+    }
+
     const itemsToSave = items.map(i => {
       const { isLoadingContext, ...rest } = i;
       return {
@@ -609,6 +620,8 @@ function DemandNoteEditForm() {
       submitData.append('division', formData.division);
       submitData.append('subDivision', formData.subDivision);
       submitData.append('location', formData.location);
+      submitData.append('subcircle', formData.subcircle || '');
+      submitData.append('drawingNumber', formData.drawingNumber || '');
       submitData.append('remarks', formData.remarks);
       submitData.append('package', formData.package);
       submitData.append('circle', formData.circle);

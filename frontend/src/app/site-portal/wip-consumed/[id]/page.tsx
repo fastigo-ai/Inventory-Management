@@ -142,14 +142,27 @@ export default function WipRegisterFormPage() {
       let changed = false;
       let newItems = [...formData.items];
 
+      const calcPrev = (tempCode: string, loaSrNo: string) => {
+        let total = 0;
+        previousData.forEach(jmc => {
+          (jmc.items || []).forEach((item: any) => {
+            if ((tempCode && item.tempCode === tempCode) || (loaSrNo && item.loaSrNo === loaSrNo)) {
+              let qty = Number(item.approvedQty || item.approvedWipQty || item.approvedRequiredQty || item.newWipQty || 0);
+              if (qty === 0) qty = Number(item.claimedQty || 0);
+              total += qty;
+            }
+          });
+        });
+        return total;
+      };
+
       newItems = newItems.map(item => {
-        if (item.tempCode && item.totalLoaQty > 0) return item;
         const match = availableItems.find(ai => 
           (item.loaSrNo && (String(ai.dynamicData?.sku) === String(item.loaSrNo) || String(ai.dynamicData?.loaSrNo) === String(item.loaSrNo))) || 
           (item.activity && ai.dynamicData?.activity === item.activity && ai.dynamicData?.description === item.description)
         );
+        let updated = { ...item };
         if (match) {
-           let updated = { ...item };
            if (!updated.tempCode) {
              updated.tempCode = match.rawItem?.tempCode || match.dynamicData?.tempCode || '';
              if (updated.tempCode) changed = true;
@@ -158,22 +171,19 @@ export default function WipRegisterFormPage() {
              updated.totalLoaQty = Number(match.dynamicData?.loaQty || match.dynamicData?.loaQuantity || match.dynamicData?.totalLoaQuantity || match.dynamicData?.qty || match.dynamicData?.quantity || 0);
              if (updated.totalLoaQty > 0) changed = true;
            }
-           return updated;
         }
-        return item;
+        
+        // Always recalculate prevQty dynamically
+        const currentPrev = calcPrev(updated.tempCode, updated.loaSrNo);
+        if (updated.prevQty !== currentPrev) {
+          updated.prevQty = currentPrev;
+          changed = true;
+        }
+        
+        return updated;
       });
 
-      const calcPrev = (tempCode: string, loaSrNo: string) => {
-        let total = 0;
-        previousData.forEach(jmc => {
-          (jmc.items || []).forEach((item: any) => {
-            if ((tempCode && item.tempCode === tempCode) || (loaSrNo && item.loaSrNo === loaSrNo)) {
-              total += Number(item.approvedQty || item.approvedWipQty || item.approvedRequiredQty || item.newWipQty || 0);
-            }
-          });
-        });
-        return total;
-      };
+
 
       const existingActivities = new Set(newItems.map(i => i.activity).filter(Boolean));
       
@@ -189,7 +199,7 @@ export default function WipRegisterFormPage() {
             String(item.activity || '').trim().toLowerCase() === lowerActivity.trim() &&
             String(item.tempCode || '') === String(temp || '') &&
             String(item.loaSrNo || '') === String(loa || '') &&
-            String(item.description || '') === String(desc || '')
+            String(item.description || '').trim().toLowerCase() === String(desc || '').trim().toLowerCase()
           );
           
           if (!exists) {

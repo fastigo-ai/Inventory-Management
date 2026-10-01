@@ -352,8 +352,16 @@ export default function DemandNoteDetailPage() {
               <span className="col-span-2 text-sm font-medium text-slate-800">{demandNote.circle || '-'}</span>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <span className="text-sm text-slate-500">Store Address</span>
+              <span className="text-sm text-slate-500">Sub Circle</span>
+              <span className="col-span-2 text-sm font-medium text-slate-800">{demandNote.subcircle || '-'}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <span className="text-sm text-slate-500">Division</span>
               <span className="col-span-2 text-sm font-medium text-slate-800">{demandNote.division || '-'}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <span className="text-sm text-slate-500">Sub Division</span>
+              <span className="col-span-2 text-sm font-medium text-slate-800">{demandNote.subDivision || '-'}</span>
             </div>
             <div className="grid grid-cols-3 gap-2">
               <span className="text-sm text-slate-500">Location</span>

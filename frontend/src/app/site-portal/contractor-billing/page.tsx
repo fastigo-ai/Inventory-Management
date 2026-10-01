@@ -113,7 +113,15 @@ export default function ContractorBillingDashboard() {
             onClick={() => setIsBulkUploadModalOpen(true)}
           >
             <Upload className="h-4 w-4" />
-            Bulk Upload via Excel
+            Bulk Upload (Standard)
+          </Button>
+          <Button 
+            variant="outline"
+            className="flex items-center gap-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+            onClick={() => router.push('/site-portal/contractor-billing/legacy-bulk-upload')}
+          >
+            <Upload className="h-4 w-4" />
+            Bulk Upload (Legacy/Erection)
           </Button>
           <Button 
             className="flex items-center gap-2"
@@ -250,8 +258,8 @@ export default function ContractorBillingDashboard() {
                         <td className="px-6 py-4 font-medium text-blue-600">{inv.invoiceNumber}</td>
                         <td className="px-6 py-4">{format(new Date(inv.date), 'dd MMM yyyy')}</td>
                         <td className="px-6 py-4">
-                          <div className="font-medium text-gray-900">{inv.contractorId?.dynamicData?.displayName || inv.contractorId?.name || 'Unknown'}</div>
-                          <div className="text-xs text-gray-500">{inv.workOrderId?.workOrderNumber}</div>
+                          <div className="font-medium text-gray-900">{inv.contractorId?.dynamicData?.displayName || inv.contractorId?.name || inv.legacyMetadata?.billedBy || 'Legacy Data (Unlinked)'}</div>
+                          <div className="text-xs text-gray-500">{inv.workOrderId?.workOrderNumber || inv.legacyMetadata?.package || '-'}</div>
                         </td>
                         <td className="px-6 py-4">
                           <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold bg-slate-50 text-slate-700">

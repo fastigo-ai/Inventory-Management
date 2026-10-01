@@ -1,0 +1,1256 @@
+◇ injected env (11) from .env // tip: ⌘ enable debugging { debug: true }
+Total Rampur Inward Entries found: 1129
+
+Found 156 items with multiple inward entries (potential double receipts):
+- 6439-40_68: 4 entries
+    -> ID: 6abbb0846dd4d2eb14461087 | Qty: 2000 | Invoice: 87
+    -> ID: 6abbb0846dd4d2eb14461085 | Qty: 1500 | Invoice: 87
+    -> ID: 6abbb0846dd4d2eb14461083 | Qty: 1000 | Invoice: 87
+    -> ID: 6abbb0846dd4d2eb14461081 | Qty: 500 | Invoice: 87
+- 4139-74_125: 5 entries
+    -> ID: 6abbb0856dd4d2eb144610b0 | Qty: 200 | Invoice: 51
+    -> ID: 6abbb0856dd4d2eb144610ac | Qty: 500 | Invoice: 51
+    -> ID: 6abbb0856dd4d2eb144610b4 | Qty: 100 | Invoice: 51
+    -> ID: 6abbb08a6dd4d2eb14461a9d | Qty: 200 | Invoice: 25-26/147
+    -> ID: 6abbb08a6dd4d2eb14461a9b | Qty: 268 | Invoice: 25-26/147
+- 21406-36_34: 2 entries
+    -> ID: 6abbb0856dd4d2eb144610a4 | Qty: 2.57 | Invoice: 14
+    -> ID: 6abbb0856dd4d2eb144610a8 | Qty: 6.624 | Invoice: 13
+- 4139-74_126: 3 entries
+    -> ID: 6abbb0856dd4d2eb144610aa | Qty: 500 | Invoice: 51
+    -> ID: 6abbb0856dd4d2eb144610b2 | Qty: 300 | Invoice: 51
+    -> ID: 6abbb0856dd4d2eb144610ae | Qty: 200 | Invoice: 51
+- 26171-201_93: 6 entries
+    -> ID: 6abbb0856dd4d2eb144610b8 | Qty: 2000 | Invoice: 49
+    -> ID: 6abbb0856dd4d2eb144610c0 | Qty: 2000 | Invoice: 49
+    -> ID: 6abbb0856dd4d2eb144610ba | Qty: 2000 | Invoice: 49
+    -> ID: 6abbb0856dd4d2eb144611ac | Qty: 1000 | Invoice: 353
+    -> ID: 6abbb0876dd4d2eb14461467 | Qty: 1000 | Invoice: 1485
+    -> ID: 6abbb0876dd4d2eb14461461 | Qty: 2000 | Invoice: 1485
+- 26171-201_94: 17 entries
+    -> ID: 6abbb0856dd4d2eb144610c6 | Qty: 1000 | Invoice: 49
+    -> ID: 6abbb0856dd4d2eb144610c8 | Qty: 2000 | Invoice: 49
+    -> ID: 6abbb0856dd4d2eb144610b6 | Qty: 1000 | Invoice: 49
+    -> ID: 6abbb0856dd4d2eb144610be | Qty: 2000 | Invoice: 49
+    -> ID: 6abbb0856dd4d2eb144611b4 | Qty: 2000 | Invoice: 353
+    -> ID: 6abbb0856dd4d2eb144611ae | Qty: 2000 | Invoice: 353
+    -> ID: 6abbb0856dd4d2eb144611b0 | Qty: 2000 | Invoice: 353
+    -> ID: 6abbb0856dd4d2eb144611b2 | Qty: 2000 | Invoice: 353
+    -> ID: 6abbb0856dd4d2eb144611a6 | Qty: 2000 | Invoice: 353
+    -> ID: 6abbb0856dd4d2eb144611a8 | Qty: 2000 | Invoice: 353
+    -> ID: 6abbb0856dd4d2eb144611a2 | Qty: 1000 | Invoice: 353
+    -> ID: 6abbb0856dd4d2eb144611aa | Qty: 2000 | Invoice: 353
+    -> ID: 6abbb0876dd4d2eb1446145b | Qty: 2000 | Invoice: 1485
+    -> ID: 6abbb0876dd4d2eb1446145f | Qty: 2000 | Invoice: 1485
+    -> ID: 6abbb0876dd4d2eb14461465 | Qty: 2000 | Invoice: 1485
+    -> ID: 6abbb0876dd4d2eb1446145d | Qty: 2000 | Invoice: 1485
+    -> ID: 6abbb0876dd4d2eb14461459 | Qty: 1000 | Invoice: 1485
+- 6408-38_127: 18 entries
+    -> ID: 6abbb0856dd4d2eb14461091 | Qty: 500 | Invoice: 210
+    -> ID: 6abbb0856dd4d2eb14461095 | Qty: 269 | Invoice: 210
+    -> ID: 6abbb0856dd4d2eb1446108f | Qty: 2277 | Invoice: 210
+    -> ID: 6abbb0856dd4d2eb14461093 | Qty: 500 | Invoice: 210
+    -> ID: 6abbb0896dd4d2eb14461752 | Qty: 969 | Invoice: TI/451
+    -> ID: 6abbb0896dd4d2eb14461750 | Qty: 500 | Invoice: TI/451
+    -> ID: 6abbb0896dd4d2eb14461748 | Qty: 600 | Invoice: TI/451
+    -> ID: 6abbb0896dd4d2eb1446175e | Qty: 500 | Invoice: TI/451
+    -> ID: 6abbb0896dd4d2eb14461758 | Qty: 500 | Invoice: TI/451
+    -> ID: 6abbb0896dd4d2eb14461744 | Qty: 231 | Invoice: TI/451
+    -> ID: 6abbb0896dd4d2eb1446175a | Qty: 500 | Invoice: TI/451
+    -> ID: 6abbb0896dd4d2eb1446174e | Qty: 500 | Invoice: TI/451
+    -> ID: 6abbb0896dd4d2eb14461754 | Qty: 500 | Invoice: TI/451
+    -> ID: 6abbb0896dd4d2eb14461746 | Qty: 1200 | Invoice: TI/451
+    -> ID: 6abbb0896dd4d2eb1446174c | Qty: 500 | Invoice: TI/451
+    -> ID: 6abbb0896dd4d2eb14461756 | Qty: 500 | Invoice: TI/451
+    -> ID: 6abbb0896dd4d2eb1446175c | Qty: 500 | Invoice: TI/451
+    -> ID: 6abbb0896dd4d2eb1446174a | Qty: 500 | Invoice: TI/451
+- 26171-201_91: 7 entries
+    -> ID: 6abbb0856dd4d2eb144610c4 | Qty: 220 | Invoice: 49
+    -> ID: 6abbb0856dd4d2eb144610bc | Qty: 500 | Invoice: 49
+    -> ID: 6abbb0856dd4d2eb144610c2 | Qty: 1000 | Invoice: 49
+    -> ID: 6abbb0856dd4d2eb144611a4 | Qty: 280 | Invoice: 353
+    -> ID: 6abbb0876dd4d2eb14461469 | Qty: 2000 | Invoice: 1485
+    -> ID: 6abbb0876dd4d2eb14461463 | Qty: 2000 | Invoice: 1485
+    -> ID: 6abbb0876dd4d2eb14461457 | Qty: 1000 | Invoice: 1485
+- 1417-47_91: 13 entries
+    -> ID: 6abbb0856dd4d2eb1446113a | Qty: 15 | Invoice: 280
+    -> ID: 6abbb0856dd4d2eb14461140 | Qty: 2000 | Invoice: 280
+    -> ID: 6abbb0856dd4d2eb1446113c | Qty: 15 | Invoice: 280
+    -> ID: 6abbb0856dd4d2eb1446113e | Qty: 300 | Invoice: 280
+    -> ID: 6abbb0856dd4d2eb14461142 | Qty: 300 | Invoice: 280
+    -> ID: 6abbb0856dd4d2eb14461134 | Qty: 1000 | Invoice: 280
+    -> ID: 6abbb0856dd4d2eb14461146 | Qty: 90 | Invoice: 280
+    -> ID: 6abbb0856dd4d2eb14461138 | Qty: 5000 | Invoice: 280
+    -> ID: 6abbb0856dd4d2eb14461136 | Qty: 765 | Invoice: 280
+    -> ID: 6abbb0856dd4d2eb14461132 | Qty: 200 | Invoice: 280
+    -> ID: 6abbb0856dd4d2eb14461144 | Qty: 315 | Invoice: 280
+    -> ID: 6abbb0856dd4d2eb144611be | Qty: 2500 | Invoice: 232
+    -> ID: 6abbb0856dd4d2eb144611bc | Qty: 1000 | Invoice: 232
+- 7592-7627_1: 8 entries
+    -> ID: 6abbb0856dd4d2eb14461158 | Qty: 110 | Invoice: 384
+    -> ID: 6abbb0856dd4d2eb14461150 | Qty: 50 | Invoice: 400
+    -> ID: 6abbb0856dd4d2eb14461152 | Qty: 50 | Invoice: 400
+    -> ID: 6abbb0856dd4d2eb1446115a | Qty: 50 | Invoice: 384
+    -> ID: 6abbb0856dd4d2eb14461156 | Qty: 30 | Invoice: 400
+    -> ID: 6abbb0856dd4d2eb14461154 | Qty: 50 | Invoice: 400
+    -> ID: 6abbb0866dd4d2eb144612eb | Qty: 70 | Invoice: 483
+    -> ID: 6abbb0866dd4d2eb144612ed | Qty: 100 | Invoice: 483
+- 1417-47_93: 10 entries
+    -> ID: 6abbb0856dd4d2eb1446112e | Qty: 1265 | Invoice: 280
+    -> ID: 6abbb0856dd4d2eb14461130 | Qty: 3700 | Invoice: 280
+    -> ID: 6abbb0856dd4d2eb14461162 | Qty: 700 | Invoice: 262
+    -> ID: 6abbb0856dd4d2eb1446115e | Qty: 1200 | Invoice: 262
+    -> ID: 6abbb0856dd4d2eb14461164 | Qty: 2335 | Invoice: 262
+    -> ID: 6abbb0856dd4d2eb1446115c | Qty: 4990 | Invoice: 262
+    -> ID: 6abbb0856dd4d2eb14461160 | Qty: 800 | Invoice: 262
+    -> ID: 6abbb0856dd4d2eb144611b8 | Qty: 4000 | Invoice: 232
+    -> ID: 6abbb0856dd4d2eb144611ba | Qty: 10 | Invoice: 232
+    -> ID: 6abbb0856dd4d2eb144611b6 | Qty: 1000 | Invoice: 232
+- 1417-47_94: 6 entries
+    -> ID: 6abbb0856dd4d2eb14461148 | Qty: 2000 | Invoice: 280
+    -> ID: 6abbb0856dd4d2eb1446114e | Qty: 500 | Invoice: 280
+    -> ID: 6abbb0856dd4d2eb1446114a | Qty: 2000 | Invoice: 280
+    -> ID: 6abbb0856dd4d2eb1446114c | Qty: 500 | Invoice: 280
+    -> ID: 6abbb0856dd4d2eb14461168 | Qty: 687 | Invoice: 262
+    -> ID: 6abbb0856dd4d2eb14461166 | Qty: 5005 | Invoice: 262
+- 5962-97_69: 3 entries
+    -> ID: 6abbb0856dd4d2eb14461170 | Qty: 400 | Invoice: 99
+    -> ID: 6abbb0856dd4d2eb1446116a | Qty: 250 | Invoice: 99
+    -> ID: 6abbb0856dd4d2eb1446116e | Qty: 400 | Invoice: 99
+- 21406-36_48: 3 entries
+    -> ID: 6abbb0856dd4d2eb14461172 | Qty: 914 | Invoice: 10
+    -> ID: 6abbb0856dd4d2eb14461174 | Qty: 690 | Invoice: 10
+    -> ID: 6abbb0856dd4d2eb14461176 | Qty: 380 | Invoice: 10
+- 6439-40_61: 6 entries
+    -> ID: 6abbb0856dd4d2eb14461184 | Qty: 100 | Invoice: 100
+    -> ID: 6abbb0856dd4d2eb14461188 | Qty: 60 | Invoice: 100
+    -> ID: 6abbb0856dd4d2eb14461180 | Qty: 70 | Invoice: 100
+    -> ID: 6abbb0856dd4d2eb14461182 | Qty: 100 | Invoice: 100
+    -> ID: 6abbb0856dd4d2eb1446117e | Qty: 70 | Invoice: 100
+    -> ID: 6abbb0856dd4d2eb14461186 | Qty: 100 | Invoice: 100
+- 6439-40_65: 3 entries
+    -> ID: 6abbb0856dd4d2eb1446118a | Qty: 200 | Invoice: 100
+    -> ID: 6abbb0856dd4d2eb1446118e | Qty: 400 | Invoice: 100
+    -> ID: 6abbb0856dd4d2eb1446118c | Qty: 400 | Invoice: 100
+- 7592-7627_2: 5 entries
+    -> ID: 6abbb0856dd4d2eb14461178 | Qty: 100 | Invoice: 317
+    -> ID: 6abbb0856dd4d2eb1446117c | Qty: 50 | Invoice: 315
+    -> ID: 6abbb0856dd4d2eb1446117a | Qty: 50 | Invoice: 315
+    -> ID: 6abbb0856dd4d2eb144611a0 | Qty: 100 | Invoice: 311
+    -> ID: 6abbb0866dd4d2eb144612d9 | Qty: 100 | Invoice: 540
+- 6439-40_67: 6 entries
+    -> ID: 6abbb0856dd4d2eb1446119e | Qty: 1500 | Invoice: 100
+    -> ID: 6abbb0856dd4d2eb14461196 | Qty: 1000 | Invoice: 100
+    -> ID: 6abbb0856dd4d2eb1446119a | Qty: 1000 | Invoice: 100
+    -> ID: 6abbb0856dd4d2eb1446119c | Qty: 1000 | Invoice: 100
+    -> ID: 6abbb0856dd4d2eb14461194 | Qty: 1000 | Invoice: 100
+    -> ID: 6abbb0856dd4d2eb14461198 | Qty: 1000 | Invoice: 100
+- 6439-40_74: 2 entries
+    -> ID: 6abbb0856dd4d2eb14461190 | Qty: 170 | Invoice: 100
+    -> ID: 6abbb0856dd4d2eb14461192 | Qty: 830 | Invoice: 100
+- 6176-6212_120: 4 entries
+    -> ID: 6abbb0856dd4d2eb144611c0 | Qty: 125 | Invoice: 175
+    -> ID: 6abbb0856dd4d2eb144611ee | Qty: 500 | Invoice: 175
+    -> ID: 6abbb0856dd4d2eb1446120a | Qty: 150 | Invoice: 175
+    -> ID: 6abbb0856dd4d2eb144611d6 | Qty: 100 | Invoice: 175
+- 6176-6212_100: 2 entries
+    -> ID: 6abbb0856dd4d2eb144611d4 | Qty: 6 | Invoice: 175
+    -> ID: 6abbb0856dd4d2eb14461208 | Qty: 6 | Invoice: 175
+- 6176-6212_104: 2 entries
+    -> ID: 6abbb0856dd4d2eb14461204 | Qty: 12 | Invoice: 175
+    -> ID: 6abbb0856dd4d2eb144611d0 | Qty: 12 | Invoice: 175
+- 6176-6212_119: 9 entries
+    -> ID: 6abbb0856dd4d2eb14461210 | Qty: 300 | Invoice: 175
+    -> ID: 6abbb0856dd4d2eb144611e0 | Qty: 150 | Invoice: 175
+    -> ID: 6abbb0856dd4d2eb144611dc | Qty: 150 | Invoice: 175
+    -> ID: 6abbb0856dd4d2eb144611d8 | Qty: 50 | Invoice: 175
+    -> ID: 6abbb0856dd4d2eb144611f6 | Qty: 150 | Invoice: 175
+    -> ID: 6abbb0856dd4d2eb144611c2 | Qty: 50 | Invoice: 175
+    -> ID: 6abbb0856dd4d2eb144611f2 | Qty: 150 | Invoice: 175
+    -> ID: 6abbb0856dd4d2eb1446120c | Qty: 50 | Invoice: 175
+    -> ID: 6abbb0856dd4d2eb14461214 | Qty: 300 | Invoice: 175
+- 6176-6212_101: 6 entries
+    -> ID: 6abbb0856dd4d2eb144611ce | Qty: 12 | Invoice: 175
+    -> ID: 6abbb0856dd4d2eb144611d2 | Qty: 12 | Invoice: 175
+    -> ID: 6abbb0856dd4d2eb144611c6 | Qty: 6 | Invoice: 175
+    -> ID: 6abbb0856dd4d2eb14461206 | Qty: 12 | Invoice: 175
+    -> ID: 6abbb0856dd4d2eb144611fa | Qty: 6 | Invoice: 175
+    -> ID: 6abbb0856dd4d2eb14461202 | Qty: 12 | Invoice: 175
+- 6176-6212_96: 2 entries
+    -> ID: 6abbb0856dd4d2eb144611c4 | Qty: 12 | Invoice: 175
+    -> ID: 6abbb0856dd4d2eb144611f8 | Qty: 12 | Invoice: 175
+- 6176-6212_99: 2 entries
+    -> ID: 6abbb0856dd4d2eb144611c8 | Qty: 24 | Invoice: 175
+    -> ID: 6abbb0856dd4d2eb144611fc | Qty: 24 | Invoice: 175
+- 6176-6212_117: 6 entries
+    -> ID: 6abbb0856dd4d2eb144611de | Qty: 50 | Invoice: 175
+    -> ID: 6abbb0856dd4d2eb144611f4 | Qty: 50 | Invoice: 175
+    -> ID: 6abbb0856dd4d2eb144611da | Qty: 50 | Invoice: 175
+    -> ID: 6abbb0856dd4d2eb1446120e | Qty: 100 | Invoice: 175
+    -> ID: 6abbb0856dd4d2eb14461212 | Qty: 75 | Invoice: 175
+    -> ID: 6abbb0856dd4d2eb144611f0 | Qty: 50 | Invoice: 175
+- 6176-6212_97: 2 entries
+    -> ID: 6abbb0856dd4d2eb144611fe | Qty: 12 | Invoice: 175
+    -> ID: 6abbb0856dd4d2eb144611ca | Qty: 12 | Invoice: 175
+- 6176-6212_98: 2 entries
+    -> ID: 6abbb0856dd4d2eb144611cc | Qty: 12 | Invoice: 175
+    -> ID: 6abbb0856dd4d2eb14461200 | Qty: 12 | Invoice: 175
+- 8003-38_149: 2 entries
+    -> ID: 6abbb0856dd4d2eb14461218 | Qty: 10 | Invoice: 12
+    -> ID: 6abbb0856dd4d2eb14461216 | Qty: 90 | Invoice: 12
+- 19519-52_2: 7 entries
+    -> ID: 6abbb0866dd4d2eb144612e3 | Qty: 105 | Invoice: 678
+    -> ID: 6abbb0866dd4d2eb14461301 | Qty: 100 | Invoice: 672
+    -> ID: 6abbb0866dd4d2eb144612ff | Qty: 100 | Invoice: 680
+    -> ID: 6abbb0866dd4d2eb14461303 | Qty: 100 | Invoice: 673
+    -> ID: 6abbb0866dd4d2eb144612df | Qty: 100 | Invoice: 681
+    -> ID: 6abbb0866dd4d2eb144612fd | Qty: 105 | Invoice: 677
+    -> ID: 6abbb0866dd4d2eb144612e9 | Qty: 100 | Invoice: 665
+- 12653-80_1: 7 entries
+    -> ID: 6abbb0866dd4d2eb144612c5 | Qty: 50 | Invoice: 554
+    -> ID: 6abbb0866dd4d2eb144612cd | Qty: 66 | Invoice: 554
+    -> ID: 6abbb0866dd4d2eb144612c9 | Qty: 56 | Invoice: 554
+    -> ID: 6abbb0866dd4d2eb144612cb | Qty: 48 | Invoice: 554
+    -> ID: 6abbb0866dd4d2eb144612c1 | Qty: 40 | Invoice: 554
+    -> ID: 6abbb0866dd4d2eb144612c7 | Qty: 30 | Invoice: 554
+    -> ID: 6abbb0866dd4d2eb144612c3 | Qty: 50 | Invoice: 554
+- 18476-511_4: 28 entries
+    -> ID: 6abbb0866dd4d2eb144612d5 | Qty: 93 | Invoice: 1115
+    -> ID: 6abbb0866dd4d2eb144612e7 | Qty: 93 | Invoice: 1118
+    -> ID: 6abbb0866dd4d2eb144612db | Qty: 77 | Invoice: 1137
+    -> ID: 6abbb0866dd4d2eb144612dd | Qty: 2 | Invoice: 1137
+    -> ID: 6abbb0866dd4d2eb14461308 | Qty: 2 | Invoice: 1196
+    -> ID: 6abbb0866dd4d2eb144612e1 | Qty: 79 | Invoice: 1147
+    -> ID: 6abbb0866dd4d2eb144612e5 | Qty: 93 | Invoice: 1198
+    -> ID: 6abbb0866dd4d2eb14461306 | Qty: 79 | Invoice: 1144
+    -> ID: 6abbb0866dd4d2eb144612cf | Qty: 35 | Invoice: 1132
+    -> ID: 6abbb0866dd4d2eb144612d1 | Qty: 44 | Invoice: 1132
+    -> ID: 6abbb0866dd4d2eb144612d3 | Qty: 79 | Invoice: 1135
+    -> ID: 6abbb0866dd4d2eb14461314 | Qty: 105 | Invoice: 1197
+    -> ID: 6abbb0866dd4d2eb14461316 | Qty: 14 | Invoice: 1122
+    -> ID: 6abbb0866dd4d2eb14461318 | Qty: 65 | Invoice: 1122
+    -> ID: 6abbb0866dd4d2eb144613f1 | Qty: 100 | Invoice: 1208
+    -> ID: 6abbb0876dd4d2eb1446147f | Qty: 85 | Invoice: 1203
+    -> ID: 6abbb0876dd4d2eb1446146d | Qty: 30 | Invoice: 1205
+    -> ID: 6abbb0876dd4d2eb14461471 | Qty: 50 | Invoice: 1201
+    -> ID: 6abbb0876dd4d2eb14461455 | Qty: 25 | Invoice: 1200
+    -> ID: 6abbb0876dd4d2eb14461453 | Qty: 60 | Invoice: 1200
+    -> ID: 6abbb0876dd4d2eb1446146b | Qty: 55 | Invoice: 1205
+    -> ID: 6abbb0876dd4d2eb14461475 | Qty: 40 | Invoice: 1201
+    -> ID: 6abbb0876dd4d2eb14461415 | Qty: 60 | Invoice: 1202
+    -> ID: 6abbb0876dd4d2eb14461417 | Qty: 85 | Invoice: 1206
+    -> ID: 6abbb0876dd4d2eb1446143d | Qty: 85 | Invoice: 1212
+    -> ID: 6abbb0876dd4d2eb14461419 | Qty: 80 | Invoice: 1199
+    -> ID: 6abbb0876dd4d2eb14461473 | Qty: 10 | Invoice: 1201
+    -> ID: 6abbb0876dd4d2eb1446146f | Qty: 25 | Invoice: 1201
+- 21203-38_125: 7 entries
+    -> ID: 6abbb0866dd4d2eb144612ef | Qty: 100 | Invoice: 1008
+    -> ID: 6abbb0866dd4d2eb144612f3 | Qty: 100 | Invoice: 1008
+    -> ID: 6abbb0866dd4d2eb144612fb | Qty: 100 | Invoice: 1008
+    -> ID: 6abbb0866dd4d2eb144612f7 | Qty: 100 | Invoice: 1008
+    -> ID: 6abbb0866dd4d2eb144612f9 | Qty: 500 | Invoice: 1008
+    -> ID: 6abbb0866dd4d2eb144612f1 | Qty: 500 | Invoice: 1008
+    -> ID: 6abbb0866dd4d2eb144612f5 | Qty: 100 | Invoice: 1008
+- 16003-32_1: 4 entries
+    -> ID: 6abbb0866dd4d2eb1446130a | Qty: 50 | Invoice: 588
+    -> ID: 6abbb0866dd4d2eb1446130c | Qty: 20 | Invoice: 588
+    -> ID: 6abbb0866dd4d2eb14461310 | Qty: 50 | Invoice: 588
+    -> ID: 6abbb0866dd4d2eb1446130e | Qty: 50 | Invoice: 588
+- 25647-76_83: 11 entries
+    -> ID: 6abbb0866dd4d2eb14461332 | Qty: 4 | Invoice: 1018
+    -> ID: 6abbb0866dd4d2eb14461324 | Qty: 112 | Invoice: 1018
+    -> ID: 6abbb0866dd4d2eb1446133c | Qty: 320 | Invoice: 1018
+    -> ID: 6abbb0866dd4d2eb14461334 | Qty: 16 | Invoice: 1018
+    -> ID: 6abbb0866dd4d2eb1446133e | Qty: 80 | Invoice: 1018
+    -> ID: 6abbb0866dd4d2eb14461338 | Qty: 16 | Invoice: 1018
+    -> ID: 6abbb0866dd4d2eb1446133a | Qty: 4 | Invoice: 1018
+    -> ID: 6abbb0866dd4d2eb1446132e | Qty: 50 | Invoice: 1018
+    -> ID: 6abbb0866dd4d2eb14461336 | Qty: 4 | Invoice: 1018
+    -> ID: 6abbb0866dd4d2eb14461322 | Qty: 448 | Invoice: 1018
+    -> ID: 6abbb0866dd4d2eb14461330 | Qty: 16 | Invoice: 1018
+- 25647-76_76: 2 entries
+    -> ID: 6abbb0866dd4d2eb14461320 | Qty: 163 | Invoice: 1018
+    -> ID: 6abbb0866dd4d2eb1446131a | Qty: 596 | Invoice: 1018
+- 21001-21029_94: 14 entries
+    -> ID: 6abbb0866dd4d2eb144613d9 | Qty: 200 | Invoice: 1226
+    -> ID: 6abbb0866dd4d2eb144613eb | Qty: 400 | Invoice: 1226
+    -> ID: 6abbb0866dd4d2eb144613ed | Qty: 800 | Invoice: 1226
+    -> ID: 6abbb0866dd4d2eb144613ef | Qty: 400 | Invoice: 1226
+    -> ID: 6abbb0866dd4d2eb144613df | Qty: 200 | Invoice: 1226
+    -> ID: 6abbb0866dd4d2eb144613e3 | Qty: 400 | Invoice: 1226
+    -> ID: 6abbb0866dd4d2eb144613e1 | Qty: 1000 | Invoice: 1226
+    -> ID: 6abbb0866dd4d2eb144613e5 | Qty: 200 | Invoice: 1226
+    -> ID: 6abbb0866dd4d2eb144613dd | Qty: 200 | Invoice: 1226
+    -> ID: 6abbb0866dd4d2eb144613e7 | Qty: 200 | Invoice: 1226
+    -> ID: 6abbb0866dd4d2eb144613db | Qty: 200 | Invoice: 1226
+    -> ID: 6abbb0866dd4d2eb144613d7 | Qty: 400 | Invoice: 1226
+    -> ID: 6abbb0866dd4d2eb144613d5 | Qty: 200 | Invoice: 1226
+    -> ID: 6abbb0866dd4d2eb144613e9 | Qty: 200 | Invoice: 1226
+- 13928-63_4: 25 entries
+    -> ID: 6abbb0866dd4d2eb144613d1 | Qty: 100 | Invoice: 1461
+    -> ID: 6abbb0866dd4d2eb144613d3 | Qty: 30 | Invoice: 1461
+    -> ID: 6abbb0866dd4d2eb144613f3 | Qty: 150 | Invoice: 1405
+    -> ID: 6abbb0866dd4d2eb144613cf | Qty: 20 | Invoice: 1461
+    -> ID: 6abbb0876dd4d2eb14461421 | Qty: 4 | Invoice: 1436
+    -> ID: 6abbb0876dd4d2eb1446141b | Qty: 15 | Invoice: 1436
+    -> ID: 6abbb0876dd4d2eb14461423 | Qty: 55 | Invoice: 1436
+    -> ID: 6abbb0876dd4d2eb1446141d | Qty: 66 | Invoice: 1436
+    -> ID: 6abbb0876dd4d2eb1446141f | Qty: 10 | Invoice: 1436
+    -> ID: 6abbb08a6dd4d2eb14461b22 | Qty: 20 | Invoice: BP/25-26/1354
+    -> ID: 6abbb08a6dd4d2eb14461b28 | Qty: 20 | Invoice: BP/25-26/1354
+    -> ID: 6abbb08a6dd4d2eb14461b30 | Qty: 2 | Invoice: BP/25-26/1354
+    -> ID: 6abbb08a6dd4d2eb14461b24 | Qty: 50 | Invoice: BP/25-26/1354
+    -> ID: 6abbb08a6dd4d2eb14461b34 | Qty: 2 | Invoice: BP/25-26/1354
+    -> ID: 6abbb08a6dd4d2eb14461b26 | Qty: 30 | Invoice: BP/25-26/1354
+    -> ID: 6abbb08a6dd4d2eb14461b2a | Qty: 20 | Invoice: BP/25-26/1354
+    -> ID: 6abbb08a6dd4d2eb14461b32 | Qty: 2 | Invoice: BP/25-26/1354
+    -> ID: 6abbb08a6dd4d2eb14461b36 | Qty: 76 | Invoice: BP/25-26/1354
+    -> ID: 6abbb08a6dd4d2eb14461b20 | Qty: 50 | Invoice: BP/25-26/1354
+    -> ID: 6abbb08a6dd4d2eb14461b38 | Qty: 4 | Invoice: BP/25-26/1354
+    -> ID: 6abbb08a6dd4d2eb14461b2e | Qty: 4 | Invoice: BP/25-26/1354
+    -> ID: 6abbb08a6dd4d2eb14461b2c | Qty: 20 | Invoice: BP/25-26/1354
+    -> ID: 6abbb08a6dd4d2eb14461c06 | Qty: 82 | Invoice: BP/25-26/1393
+    -> ID: 6abbb08a6dd4d2eb14461c0a | Qty: 3 | Invoice: BP/25-26/1393
+    -> ID: 6abbb08a6dd4d2eb14461c08 | Qty: 40 | Invoice: BP/25-26/1393
+- 20643-73_1: 7 entries
+    -> ID: 6abbb0876dd4d2eb1446144b | Qty: 100 | Invoice: 2429
+    -> ID: 6abbb0876dd4d2eb14461447 | Qty: 91 | Invoice: 2183
+    -> ID: 6abbb0876dd4d2eb1446144d | Qty: 44 | Invoice: 2429
+    -> ID: 6abbb0876dd4d2eb14461445 | Qty: 40 | Invoice: 2183
+    -> ID: 6abbb0876dd4d2eb14461449 | Qty: 9 | Invoice: 2429
+    -> ID: 6abbb0886dd4d2eb14461552 | Qty: 28 | Invoice: 2456
+    -> ID: 6abbb0886dd4d2eb1446155c | Qty: 28 | Invoice: 2455
+- 20901-30_4: 10 entries
+    -> ID: 6abbb0876dd4d2eb1446144f | Qty: 100 | Invoice: 1739
+    -> ID: 6abbb0876dd4d2eb14461451 | Qty: 45 | Invoice: 1739
+    -> ID: 6abbb08a6dd4d2eb14461bba | Qty: 55 | Invoice: BP/25-26/1860
+    -> ID: 6abbb08a6dd4d2eb14461bbe | Qty: 43 | Invoice: BP/25-26/1860
+    -> ID: 6abbb08a6dd4d2eb14461bbc | Qty: 52 | Invoice: BP/25-26/1860
+    -> ID: 6abbb08c6dd4d2eb14462112 | Qty: 50 | Invoice: BP/25-26/1983
+    -> ID: 6abbb08c6dd4d2eb14462110 | Qty: 100 | Invoice: BP/25-26/1983
+    -> ID: 6abbb08c6dd4d2eb14462156 | Qty: 30 | Invoice: BP/25-26/1942
+    -> ID: 6abbb08c6dd4d2eb1446215a | Qty: 20 | Invoice: BP/25-26/1942
+    -> ID: 6abbb08c6dd4d2eb14462158 | Qty: 100 | Invoice: BP/25-26/1942
+- 20744-74_1: 15 entries
+    -> ID: 6abbb0876dd4d2eb1446147d | Qty: 10 | Invoice: 2378
+    -> ID: 6abbb0876dd4d2eb14461477 | Qty: 2 | Invoice: 2378
+    -> ID: 6abbb0876dd4d2eb1446143f | Qty: 7 | Invoice: 2395
+    -> ID: 6abbb0876dd4d2eb1446142d | Qty: 82 | Invoice: 2332
+    -> ID: 6abbb0876dd4d2eb14461443 | Qty: 95 | Invoice: 2395
+    -> ID: 6abbb0876dd4d2eb1446142b | Qty: 64 | Invoice: 2332
+    -> ID: 6abbb0876dd4d2eb14461483 | Qty: 119 | Invoice: 2313
+    -> ID: 6abbb0876dd4d2eb14461429 | Qty: 29 | Invoice: 2332
+    -> ID: 6abbb0876dd4d2eb1446147b | Qty: 80 | Invoice: 2378
+    -> ID: 6abbb0876dd4d2eb1446142f | Qty: 100 | Invoice: 2262
+    -> ID: 6abbb0876dd4d2eb14461441 | Qty: 42 | Invoice: 2395
+    -> ID: 6abbb0876dd4d2eb14461479 | Qty: 70 | Invoice: 2378
+    -> ID: 6abbb0876dd4d2eb14461431 | Qty: 59 | Invoice: 2262
+    -> ID: 6abbb0876dd4d2eb14461433 | Qty: 38 | Invoice: 2262
+    -> ID: 6abbb0876dd4d2eb14461481 | Qty: 78 | Invoice: 2313
+- 20744-74_2: 6 entries
+    -> ID: 6abbb0876dd4d2eb1446143b | Qty: 100 | Invoice: 2251
+    -> ID: 6abbb0876dd4d2eb14461437 | Qty: 66 | Invoice: 2245
+    -> ID: 6abbb0876dd4d2eb14461425 | Qty: 100 | Invoice: 2224
+    -> ID: 6abbb0876dd4d2eb14461427 | Qty: 33 | Invoice: 2224
+    -> ID: 6abbb0876dd4d2eb14461435 | Qty: 67 | Invoice: 2245
+    -> ID: 6abbb0876dd4d2eb14461439 | Qty: 34 | Invoice: 2251
+- 26800-30_130: 13 entries
+    -> ID: 6abbb0886dd4d2eb14461536 | Qty: 3 | Invoice: 25261394
+    -> ID: 6abbb0886dd4d2eb1446153c | Qty: 39 | Invoice: 25261394
+    -> ID: 6abbb0886dd4d2eb14461540 | Qty: 54 | Invoice: 25261394
+    -> ID: 6abbb0886dd4d2eb14461542 | Qty: 30 | Invoice: 25261394
+    -> ID: 6abbb0886dd4d2eb14461532 | Qty: 156 | Invoice: 25261394
+    -> ID: 6abbb0886dd4d2eb1446153a | Qty: 3 | Invoice: 25261394
+    -> ID: 6abbb0886dd4d2eb14461538 | Qty: 3 | Invoice: 25261394
+    -> ID: 6abbb0886dd4d2eb1446153e | Qty: 99 | Invoice: 25261394
+    -> ID: 6abbb0886dd4d2eb1446152e | Qty: 120 | Invoice: 25261394
+    -> ID: 6abbb0886dd4d2eb14461544 | Qty: 15 | Invoice: 25261394
+    -> ID: 6abbb0886dd4d2eb14461546 | Qty: 6 | Invoice: 25261394
+    -> ID: 6abbb0886dd4d2eb14461530 | Qty: 90 | Invoice: 25261394
+    -> ID: 6abbb0886dd4d2eb14461534 | Qty: 15 | Invoice: 25261394
+- 23916-41_1: 5 entries
+    -> ID: 6abbb0886dd4d2eb1446154c | Qty: 30 | Invoice: 2638
+    -> ID: 6abbb0886dd4d2eb1446154a | Qty: 50 | Invoice: 2638
+    -> ID: 6abbb0886dd4d2eb14461548 | Qty: 50 | Invoice: 2638
+    -> ID: 6abbb0886dd4d2eb14461566 | Qty: 20 | Invoice: 2669
+    -> ID: 6abbb0886dd4d2eb1446156a | Qty: 20 | Invoice: 2668
+- 20643-73_2: 3 entries
+    -> ID: 6abbb0886dd4d2eb14461550 | Qty: 100 | Invoice: 2456
+    -> ID: 6abbb0886dd4d2eb14461558 | Qty: 84 | Invoice: 2455
+    -> ID: 6abbb0886dd4d2eb1446155a | Qty: 16 | Invoice: 2455
+- 23916-41_2: 2 entries
+    -> ID: 6abbb0886dd4d2eb14461564 | Qty: 100 | Invoice: 2669
+    -> ID: 6abbb0886dd4d2eb14461568 | Qty: 100 | Invoice: 2668
+- 1542-73_24: 3 entries
+    -> ID: 6abbb0886dd4d2eb1446156e | Qty: 489 | Invoice: PTC/25-26/203
+    -> ID: 6abbb0886dd4d2eb1446156c | Qty: 519 | Invoice: PTC/25-26/203
+    -> ID: 6abbb0886dd4d2eb14461570 | Qty: 418 | Invoice: PTC/25-26/203
+- 1386-1416_1: 4 entries
+    -> ID: 6abbb0886dd4d2eb1446152c | Qty: 100 | Invoice: GST-109/25-2663
+    -> ID: 6abbb0886dd4d2eb1446154e | Qty: 195 | Invoice: GST-078/25-2663
+    -> ID: 6abbb0886dd4d2eb144615aa | Qty: 100 | Invoice: GST-109/25-26
+    -> ID: 6abbb0886dd4d2eb1446159c | Qty: 190 | Invoice: GST-063/25-26
+- 4699-4725_4: 19 entries
+    -> ID: 6abbb0886dd4d2eb14461554 | Qty: 125 | Invoice: BP/25-26/729
+    -> ID: 6abbb0886dd4d2eb1446155e | Qty: 135 | Invoice: BP/25-26/352
+    -> ID: 6abbb0886dd4d2eb14461562 | Qty: 65 | Invoice: BP/25-26/800
+    -> ID: 6abbb0886dd4d2eb14461560 | Qty: 70 | Invoice: BP/25-26/800
+    -> ID: 6abbb0886dd4d2eb14461556 | Qty: 10 | Invoice: BP/25-26/729
+    -> ID: 6abbb0886dd4d2eb144615b0 | Qty: 30 | Invoice: BP/25-26/821
+    -> ID: 6abbb0886dd4d2eb144615b2 | Qty: 45 | Invoice: BP/25-26/852
+    -> ID: 6abbb0886dd4d2eb14461592 | Qty: 125 | Invoice: BP/25-26/456
+    -> ID: 6abbb0886dd4d2eb144615a2 | Qty: 110 | Invoice: BP/25-26/802
+    -> ID: 6abbb0886dd4d2eb144615a4 | Qty: 25 | Invoice: BP/25-26/802
+    -> ID: 6abbb0886dd4d2eb144615ae | Qty: 70 | Invoice: BP/25-26/821
+    -> ID: 6abbb0886dd4d2eb144615a6 | Qty: 135 | Invoice: BP/25-26/666
+    -> ID: 6abbb0886dd4d2eb144615ac | Qty: 31 | Invoice: BP/25-26/821
+    -> ID: 6abbb0886dd4d2eb144615b4 | Qty: 90 | Invoice: BP/25-26/852
+    -> ID: 6abbb0896dd4d2eb144616f3 | Qty: 135 | Invoice: BP/25-26/1225
+    -> ID: 6abbb0896dd4d2eb1446173a | Qty: 69 | Invoice: BP/25-26/895
+    -> ID: 6abbb0896dd4d2eb14461738 | Qty: 66 | Invoice: BP/25-26/895
+    -> ID: 6abbb0896dd4d2eb14461740 | Qty: 86 | Invoice: BP/25-26/919
+    -> ID: 6abbb0896dd4d2eb14461742 | Qty: 49 | Invoice: BP/25-26/919
+- 4373-4403_81: 4 entries
+    -> ID: 6abbb0886dd4d2eb1446157e | Qty: 333 | Invoice: A-1566
+    -> ID: 6abbb0886dd4d2eb1446158e | Qty: 1619 | Invoice: A-1566
+    -> ID: 6abbb0886dd4d2eb14461586 | Qty: 1000 | Invoice: A-1566
+    -> ID: 6abbb0886dd4d2eb14461576 | Qty: 368 | Invoice: A-1566
+- 2089-2121_32: 3 entries
+    -> ID: 6abbb0886dd4d2eb144615a0 | Qty: 14.167 | Invoice: RTPL/U12526/146
+    -> ID: 6abbb0886dd4d2eb1446159e | Qty: 14.033 | Invoice: RTPL/U12526/161
+    -> ID: 6abbb0886dd4d2eb144615a8 | Qty: 17.24 | Invoice: RTPL/U12526/158
+- 4373-4403_77: 4 entries
+    -> ID: 6abbb0886dd4d2eb1446157a | Qty: 102 | Invoice: A-1566
+    -> ID: 6abbb0886dd4d2eb14461582 | Qty: 550 | Invoice: A-1566
+    -> ID: 6abbb0886dd4d2eb1446158a | Qty: 864 | Invoice: A-1566
+    -> ID: 6abbb0886dd4d2eb14461572 | Qty: 295 | Invoice: A-1566
+- 4373-4403_82: 4 entries
+    -> ID: 6abbb0886dd4d2eb14461580 | Qty: 614 | Invoice: A-1566
+    -> ID: 6abbb0886dd4d2eb14461578 | Qty: 393 | Invoice: A-1566
+    -> ID: 6abbb0886dd4d2eb14461588 | Qty: 1000 | Invoice: A-1566
+    -> ID: 6abbb0886dd4d2eb14461590 | Qty: 1727 | Invoice: A-1566
+- 17646-74_130: 4 entries
+    -> ID: 6abbb0886dd4d2eb14461598 | Qty: 30 | Invoice: 25260886
+    -> ID: 6abbb0886dd4d2eb14461596 | Qty: 75 | Invoice: 25260886
+    -> ID: 6abbb0886dd4d2eb14461594 | Qty: 75 | Invoice: 25260886
+    -> ID: 6abbb0886dd4d2eb1446159a | Qty: 18 | Invoice: 25260886
+- 4373-4403_79: 4 entries
+    -> ID: 6abbb0886dd4d2eb1446158c | Qty: 756 | Invoice: A-1566
+    -> ID: 6abbb0886dd4d2eb14461584 | Qty: 500 | Invoice: A-1566
+    -> ID: 6abbb0886dd4d2eb14461574 | Qty: 171 | Invoice: A-1566
+    -> ID: 6abbb0886dd4d2eb1446157c | Qty: 230 | Invoice: A-1566
+- 15835-70_19: 3 entries
+    -> ID: 6abbb0896dd4d2eb144616f7 | Qty: 25 | Invoice: AKVS/136/25-26
+    -> ID: 6abbb0896dd4d2eb144616f9 | Qty: 6 | Invoice: AKVS/136/25-26
+    -> ID: 6abbb0896dd4d2eb144616f5 | Qty: 25 | Invoice: AKVS/136/25-26
+- 3459-89_90: 10 entries
+    -> ID: 6abbb0896dd4d2eb144616e5 | Qty: 50 | Invoice: GST/25-26/152
+    -> ID: 6abbb0896dd4d2eb144616ef | Qty: 60 | Invoice: GST/25-26/152
+    -> ID: 6abbb0896dd4d2eb144616e3 | Qty: 50 | Invoice: GST/25-26/152
+    -> ID: 6abbb0896dd4d2eb144616e7 | Qty: 579 | Invoice: GST/25-26/152
+    -> ID: 6abbb0896dd4d2eb144616e1 | Qty: 20 | Invoice: GST/25-26/152
+    -> ID: 6abbb0896dd4d2eb144616e9 | Qty: 900 | Invoice: GST/25-26/152
+    -> ID: 6abbb0896dd4d2eb14461736 | Qty: 50 | Invoice: GST/25-26/217
+    -> ID: 6abbb0896dd4d2eb1446172e | Qty: 290 | Invoice: GST/25-26/217
+    -> ID: 6abbb0896dd4d2eb1446182b | Qty: 200 | Invoice: GST/25-26/114
+    -> ID: 6abbb0896dd4d2eb14461831 | Qty: 300 | Invoice: GST/25-26/114
+- 3459-89_89: 9 entries
+    -> ID: 6abbb0896dd4d2eb144616ed | Qty: 1867 | Invoice: GST/25-26/152
+    -> ID: 6abbb0896dd4d2eb144616eb | Qty: 1800 | Invoice: GST/25-26/152
+    -> ID: 6abbb0896dd4d2eb14461730 | Qty: 284 | Invoice: GST/25-26/217
+    -> ID: 6abbb0896dd4d2eb14461728 | Qty: 380 | Invoice: GST/25-26/243
+    -> ID: 6abbb0896dd4d2eb1446172a | Qty: 3700 | Invoice: GST/25-26/243
+    -> ID: 6abbb0896dd4d2eb14461734 | Qty: 1853 | Invoice: GST/25-26/217
+    -> ID: 6abbb0896dd4d2eb14461732 | Qty: 2000 | Invoice: GST/25-26/217
+    -> ID: 6abbb0896dd4d2eb14461835 | Qty: 732 | Invoice: GST/25-26/114
+    -> ID: 6abbb0896dd4d2eb14461837 | Qty: 2216 | Invoice: GST/25-26/114
+- 3459-89_87: 6 entries
+    -> ID: 6abbb0896dd4d2eb14461726 | Qty: 200 | Invoice: GST/25-26/243
+    -> ID: 6abbb0896dd4d2eb1446172c | Qty: 200 | Invoice: GST/25-26/217
+    -> ID: 6abbb0896dd4d2eb1446182f | Qty: 600 | Invoice: GST/25-26/114
+    -> ID: 6abbb0896dd4d2eb14461833 | Qty: 300 | Invoice: GST/25-26/114
+    -> ID: 6abbb0896dd4d2eb1446182d | Qty: 100 | Invoice: GST/25-26/114
+    -> ID: 6abbb0896dd4d2eb14461839 | Qty: 300 | Invoice: GST/25-26/114
+- 11114-44_12: 6 entries
+    -> ID: 6abbb0896dd4d2eb14461762 | Qty: 1 | Invoice: RJB/D/25-26/209
+    -> ID: 6abbb0896dd4d2eb1446173c | Qty: 14 | Invoice: RJB/D/25-26/211
+    -> ID: 6abbb0896dd4d2eb1446173e | Qty: 14 | Invoice: RJB/D/25-26/208
+    -> ID: 6abbb0896dd4d2eb144617a4 | Qty: 2 | Invoice: RJB/D/25-26/219
+    -> ID: 6abbb0896dd4d2eb1446183b | Qty: 8 | Invoice: RJB/D/25-26/217
+    -> ID: 6abbb0896dd4d2eb1446183d | Qty: 6 | Invoice: RJB/D/25-26/217
+- 14687-721_106: 9 entries
+    -> ID: 6abbb0896dd4d2eb1446176a | Qty: 300 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb1446177a | Qty: 400 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb14461790 | Qty: 300 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb144617b0 | Qty: 450 | Invoice: SRP/339/25-26
+    -> ID: 6abbb0896dd4d2eb144617ca | Qty: 350 | Invoice: SRP/339/25-26
+    -> ID: 6abbb0896dd4d2eb144617be | Qty: 600 | Invoice: SRP/339/25-26
+    -> ID: 6abbb08a6dd4d2eb14461a8b | Qty: 100 | Invoice: SRP/381/25-26
+    -> ID: 6abbb08a6dd4d2eb14461a97 | Qty: 69 | Invoice: SRP/381/25-26
+    -> ID: 6abbb08a6dd4d2eb14461a91 | Qty: 111 | Invoice: SRP/381/25-26
+- 14687-721_120: 34 entries
+    -> ID: 6abbb0896dd4d2eb144617d0 | Qty: 160 | Invoice: SRP/339/25-26
+    -> ID: 6abbb0896dd4d2eb144617d2 | Qty: 100 | Invoice: SRP/339/25-26
+    -> ID: 6abbb0896dd4d2eb144617de | Qty: 250 | Invoice: SRP/342/25-26
+    -> ID: 6abbb0896dd4d2eb14461786 | Qty: 17 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb144617a0 | Qty: 216 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb144617aa | Qty: 120 | Invoice: SRP/339/25-26
+    -> ID: 6abbb0896dd4d2eb144617b6 | Qty: 100 | Invoice: SRP/339/25-26
+    -> ID: 6abbb0896dd4d2eb144617c4 | Qty: 200 | Invoice: SRP/339/25-26
+    -> ID: 6abbb0896dd4d2eb14461784 | Qty: 17 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb144617b8 | Qty: 300 | Invoice: SRP/339/25-26
+    -> ID: 6abbb0896dd4d2eb14461788 | Qty: 17 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb144617ae | Qty: 190 | Invoice: SRP/339/25-26
+    -> ID: 6abbb0896dd4d2eb1446178a | Qty: 250 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb14461796 | Qty: 180 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb1446179c | Qty: 85 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb144617a8 | Qty: 365 | Invoice: SRP/339/25-26
+    -> ID: 6abbb0896dd4d2eb144617c2 | Qty: 150 | Invoice: SRP/339/25-26
+    -> ID: 6abbb0896dd4d2eb1446178c | Qty: 150 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb144617e4 | Qty: 250 | Invoice: SRP/342/25-26
+    -> ID: 6abbb0896dd4d2eb144617ec | Qty: 235 | Invoice: SRP/342/25-26
+    -> ID: 6abbb0896dd4d2eb144617b4 | Qty: 150 | Invoice: SRP/339/25-26
+    -> ID: 6abbb0896dd4d2eb14461798 | Qty: 150 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb14461770 | Qty: 300 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb14461772 | Qty: 300 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb14461774 | Qty: 300 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb14461776 | Qty: 200 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb1446179a | Qty: 150 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb144617c6 | Qty: 150 | Invoice: SRP/339/25-26
+    -> ID: 6abbb0896dd4d2eb144617ce | Qty: 165 | Invoice: SRP/339/25-26
+    -> ID: 6abbb0896dd4d2eb144617a2 | Qty: 32 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb14461782 | Qty: 202 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb1446179e | Qty: 34 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb144617ba | Qty: 200 | Invoice: SRP/339/25-26
+    -> ID: 6abbb0896dd4d2eb144617d4 | Qty: 150 | Invoice: SRP/339/25-26
+- 18310-40_1: 20 entries
+    -> ID: 6abbb0896dd4d2eb144617ee | Qty: 30 | Invoice: DPPL1/25-26/2019
+    -> ID: 6abbb0896dd4d2eb144617f2 | Qty: 30 | Invoice: DPPL1/25-26/2019
+    -> ID: 6abbb0896dd4d2eb144617f0 | Qty: 30 | Invoice: DPPL1/25-26/2019
+    -> ID: 6abbb0896dd4d2eb14461804 | Qty: 60 | Invoice: DPPL1/25-26/2020
+    -> ID: 6abbb0896dd4d2eb14461808 | Qty: 46 | Invoice: DPPL1/25-26/2020
+    -> ID: 6abbb0896dd4d2eb144617fa | Qty: 28 | Invoice: DPPL1/25-26/2019
+    -> ID: 6abbb0896dd4d2eb14461829 | Qty: 6 | Invoice: DT.16.12. 2025
+    -> ID: 6abbb0896dd4d2eb144617fc | Qty: 30 | Invoice: DPPL1/25-26/2019
+    -> ID: 6abbb0896dd4d2eb144617fe | Qty: 3 | Invoice: DPPL1/25-26/2019
+    -> ID: 6abbb0896dd4d2eb14461806 | Qty: 60 | Invoice: DPPL1/25-26/2020
+    -> ID: 6abbb0896dd4d2eb14461802 | Qty: 6 | Invoice: DPPL1/25-26/2020
+    -> ID: 6abbb0896dd4d2eb144617f8 | Qty: 6 | Invoice: DPPL1/25-26/2019
+    -> ID: 6abbb0896dd4d2eb144617f6 | Qty: 6 | Invoice: DPPL1/25-26/2019
+    -> ID: 6abbb0896dd4d2eb14461800 | Qty: 3 | Invoice: DPPL1/25-26/2020
+    -> ID: 6abbb0896dd4d2eb144617f4 | Qty: 6 | Invoice: DPPL1/25-26/2019
+    -> ID: 6abbb08a6dd4d2eb14461b60 | Qty: 6 | Invoice: DPPL1/25-26/2065
+    -> ID: 6abbb08a6dd4d2eb14461b5c | Qty: 14 | Invoice: DPPL1/25-26/2065
+    -> ID: 6abbb08a6dd4d2eb14461b64 | Qty: 45 | Invoice: DPPL1/25-26/2065
+    -> ID: 6abbb08a6dd4d2eb14461b5e | Qty: 60 | Invoice: DPPL1/25-26/2065
+    -> ID: 6abbb08a6dd4d2eb14461b62 | Qty: 50 | Invoice: DPPL1/25-26/2065
+- 14687-721_107: 8 entries
+    -> ID: 6abbb0896dd4d2eb1446177c | Qty: 200 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb144617c0 | Qty: 91 | Invoice: SRP/339/25-26
+    -> ID: 6abbb0896dd4d2eb144617cc | Qty: 209 | Invoice: SRP/339/25-26
+    -> ID: 6abbb0896dd4d2eb1446176c | Qty: 150 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb14461792 | Qty: 150 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb144617b2 | Qty: 200 | Invoice: SRP/339/25-26
+    -> ID: 6abbb08a6dd4d2eb14461a93 | Qty: 285 | Invoice: SRP/381/25-26
+    -> ID: 6abbb08a6dd4d2eb14461a8d | Qty: 50 | Invoice: SRP/381/25-26
+- 14687-721_110: 9 entries
+    -> ID: 6abbb0896dd4d2eb144617dc | Qty: 62 | Invoice: SRP/342/25-26
+    -> ID: 6abbb0896dd4d2eb144617d8 | Qty: 62 | Invoice: SRP/342/25-26
+    -> ID: 6abbb0896dd4d2eb144617ea | Qty: 207 | Invoice: SRP/342/25-26
+    -> ID: 6abbb0896dd4d2eb144617e2 | Qty: 69 | Invoice: SRP/342/25-26
+    -> ID: 6abbb0896dd4d2eb1446186b | Qty: 36 | Invoice: SRP/321/25-26
+    -> ID: 6abbb0896dd4d2eb14461857 | Qty: 38 | Invoice: SRP/321/25-26
+    -> ID: 6abbb0896dd4d2eb1446184b | Qty: 38 | Invoice: SRP/321/25-26
+    -> ID: 6abbb0896dd4d2eb1446184d | Qty: 38 | Invoice: SRP/321/25-26
+    -> ID: 6abbb08a6dd4d2eb14461a99 | Qty: 50 | Invoice: SRP/381/25-26
+- 14687-721_111: 6 entries
+    -> ID: 6abbb0896dd4d2eb144617e0 | Qty: 100 | Invoice: SRP/342/25-26
+    -> ID: 6abbb0896dd4d2eb144617e8 | Qty: 50 | Invoice: SRP/342/25-26
+    -> ID: 6abbb0896dd4d2eb144617da | Qty: 50 | Invoice: SRP/342/25-26
+    -> ID: 6abbb0896dd4d2eb144617d6 | Qty: 50 | Invoice: SRP/342/25-26
+    -> ID: 6abbb0896dd4d2eb144617e6 | Qty: 50 | Invoice: SRP/342/25-26
+    -> ID: 6abbb08a6dd4d2eb14461a95 | Qty: 50 | Invoice: SRP/381/25-26
+- 14687-721_105: 8 entries
+    -> ID: 6abbb0896dd4d2eb14461778 | Qty: 200 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb1446178e | Qty: 238 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb144617c8 | Qty: 121 | Invoice: SRP/339/25-26
+    -> ID: 6abbb0896dd4d2eb14461764 | Qty: 250 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb144617ac | Qty: 63 | Invoice: SRP/339/25-26
+    -> ID: 6abbb0896dd4d2eb144617bc | Qty: 516 | Invoice: SRP/339/25-26
+    -> ID: 6abbb0896dd4d2eb14461768 | Qty: 12 | Invoice: SRP/337/25-26
+    -> ID: 6abbb08a6dd4d2eb14461a8f | Qty: 89 | Invoice: SRP/381/25-26
+- 14687-721_109: 5 entries
+    -> ID: 6abbb0896dd4d2eb14461794 | Qty: 20 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb14461780 | Qty: 20 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb1446176e | Qty: 20 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb1446177e | Qty: 20 | Invoice: SRP/337/25-26
+    -> ID: 6abbb0896dd4d2eb14461766 | Qty: 20 | Invoice: SRP/337/25-26
+- 18310-40_2: 6 entries
+    -> ID: 6abbb0896dd4d2eb14461849 | Qty: 67 | Invoice: DPPL1/25-26/2067
+    -> ID: 6abbb0896dd4d2eb14461841 | Qty: 34 | Invoice: DPPL1/25-26/2071
+    -> ID: 6abbb0896dd4d2eb14461843 | Qty: 33 | Invoice: DPPL1/25-26/2045
+    -> ID: 6abbb0896dd4d2eb14461847 | Qty: 66 | Invoice: DPPL1/25-26/2067
+    -> ID: 6abbb0896dd4d2eb1446183f | Qty: 100 | Invoice: DPPL1/25-26/2071
+    -> ID: 6abbb0896dd4d2eb14461845 | Qty: 100 | Invoice: DPPL1/25-26/2045
+- 14687-721_119: 21 entries
+    -> ID: 6abbb0896dd4d2eb14461851 | Qty: 128 | Invoice: SRP/321/25-26
+    -> ID: 6abbb0896dd4d2eb14461877 | Qty: 140 | Invoice: SRP/321/25-26
+    -> ID: 6abbb0896dd4d2eb14461861 | Qty: 192 | Invoice: SRP/321/25-26
+    -> ID: 6abbb0896dd4d2eb1446185d | Qty: 9 | Invoice: SRP/321/25-26
+    -> ID: 6abbb0896dd4d2eb14461881 | Qty: 223 | Invoice: SRP/321/25-26
+    -> ID: 6abbb0896dd4d2eb14461853 | Qty: 100 | Invoice: SRP/321/25-26
+    -> ID: 6abbb0896dd4d2eb1446185b | Qty: 9 | Invoice: SRP/321/25-26
+    -> ID: 6abbb0896dd4d2eb1446185f | Qty: 9 | Invoice: SRP/321/25-26
+    -> ID: 6abbb0896dd4d2eb14461875 | Qty: 100 | Invoice: SRP/321/25-26
+    -> ID: 6abbb0896dd4d2eb1446187d | Qty: 18 | Invoice: SRP/321/25-26
+    -> ID: 6abbb0896dd4d2eb14461855 | Qty: 150 | Invoice: SRP/321/25-26
+    -> ID: 6abbb0896dd4d2eb14461859 | Qty: 150 | Invoice: SRP/321/25-26
+    -> ID: 6abbb0896dd4d2eb14461863 | Qty: 130 | Invoice: SRP/321/25-26
+    -> ID: 6abbb0896dd4d2eb14461869 | Qty: 223 | Invoice: SRP/321/25-26
+    -> ID: 6abbb0896dd4d2eb14461885 | Qty: 224 | Invoice: SRP/321/25-26
+    -> ID: 6abbb0896dd4d2eb14461867 | Qty: 223 | Invoice: SRP/321/25-26
+    -> ID: 6abbb0896dd4d2eb1446184f | Qty: 100 | Invoice: SRP/321/25-26
+    -> ID: 6abbb0896dd4d2eb14461879 | Qty: 120 | Invoice: SRP/321/25-26
+    -> ID: 6abbb0896dd4d2eb14461873 | Qty: 224 | Invoice: SRP/321/25-26
+    -> ID: 6abbb0896dd4d2eb1446187b | Qty: 45 | Invoice: SRP/321/25-26
+    -> ID: 6abbb0896dd4d2eb1446186f | Qty: 223 | Invoice: SRP/321/25-26
+- 14687-721_117: 5 entries
+    -> ID: 6abbb0896dd4d2eb14461871 | Qty: 250 | Invoice: SRP/321/25-26
+    -> ID: 6abbb0896dd4d2eb14461865 | Qty: 300 | Invoice: SRP/321/25-26
+    -> ID: 6abbb0896dd4d2eb1446187f | Qty: 100 | Invoice: SRP/321/25-26
+    -> ID: 6abbb0896dd4d2eb1446186d | Qty: 100 | Invoice: SRP/321/25-26
+    -> ID: 6abbb0896dd4d2eb14461883 | Qty: 250 | Invoice: SRP/321/25-26
+- 24110-45_87: 8 entries
+    -> ID: 6abbb08a6dd4d2eb14461a4d | Qty: 100 | Invoice: 475/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461a51 | Qty: 200 | Invoice: 475/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461a69 | Qty: 59 | Invoice: 482/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461a5d | Qty: 400 | Invoice: 475/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461a73 | Qty: 228 | Invoice: 482/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461a4f | Qty: 100 | Invoice: 475/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461a59 | Qty: 600 | Invoice: 475/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461a63 | Qty: 313 | Invoice: 475/2025-26
+- 24110-45_90: 8 entries
+    -> ID: 6abbb08a6dd4d2eb14461a5b | Qty: 200 | Invoice: 475/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461a55 | Qty: 100 | Invoice: 475/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461a5f | Qty: 105 | Invoice: 475/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461a61 | Qty: 14 | Invoice: 475/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461a53 | Qty: 64 | Invoice: 475/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461a6d | Qty: 12 | Invoice: 482/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461a65 | Qty: 29 | Invoice: 482/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461a57 | Qty: 181 | Invoice: 475/2025-26
+- 24110-45_89: 4 entries
+    -> ID: 6abbb08a6dd4d2eb14461a71 | Qty: 500 | Invoice: 482/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461a6f | Qty: 500 | Invoice: 482/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461a6b | Qty: 300 | Invoice: 482/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461a67 | Qty: 200 | Invoice: 482/2025-26
+- 21129-64_119: 22 entries
+    -> ID: 6abbb08a6dd4d2eb14461a79 | Qty: 36 | Invoice: DTIGST/210/2526
+    -> ID: 6abbb08a6dd4d2eb14461a81 | Qty: 56 | Invoice: DTIGST/210/2526
+    -> ID: 6abbb08a6dd4d2eb14461a7b | Qty: 563 | Invoice: DTIGST/210/2526
+    -> ID: 6abbb08a6dd4d2eb14461a7d | Qty: 1922 | Invoice: DTIGST/210/2526
+    -> ID: 6abbb08a6dd4d2eb14461a7f | Qty: 630 | Invoice: DTIGST/210/2526
+    -> ID: 6abbb08a6dd4d2eb14461a83 | Qty: 200 | Invoice: DTIGST/210/2526
+    -> ID: 6abbb08a6dd4d2eb14461b40 | Qty: 207 | Invoice: DTIGST/195/2526
+    -> ID: 6abbb08a6dd4d2eb14461b42 | Qty: 1274 | Invoice: DTIGST/195/2526
+    -> ID: 6abbb08a6dd4d2eb14461b4a | Qty: 2850 | Invoice: DTIGST/195/2526
+    -> ID: 6abbb08a6dd4d2eb14461b5a | Qty: 500 | Invoice: DTIGST/195/2526
+    -> ID: 6abbb08a6dd4d2eb14461b50 | Qty: 26 | Invoice: DTIGST/195/2526
+    -> ID: 6abbb08a6dd4d2eb14461b56 | Qty: 177 | Invoice: DTIGST/195/2526
+    -> ID: 6abbb08a6dd4d2eb14461b44 | Qty: 726 | Invoice: DTIGST/195/2526
+    -> ID: 6abbb08a6dd4d2eb14461b96 | Qty: 159 | Invoice: DTIGST/182/2526
+    -> ID: 6abbb08a6dd4d2eb14461ba2 | Qty: 421 | Invoice: DTIGST/182/2526
+    -> ID: 6abbb08a6dd4d2eb14461b94 | Qty: 579 | Invoice: DTIGST/182/2526
+    -> ID: 6abbb08a6dd4d2eb14461b92 | Qty: 310 | Invoice: DTIGST/182/2526
+    -> ID: 6abbb08a6dd4d2eb14461bf2 | Qty: 274 | Invoice: DTIGST/187/2526
+    -> ID: 6abbb08a6dd4d2eb14461c04 | Qty: 100 | Invoice: DTIGST/187/2526
+    -> ID: 6abbb08a6dd4d2eb14461bda | Qty: 737 | Invoice: DTIGST/187/2526
+    -> ID: 6abbb08a6dd4d2eb14461bee | Qty: 493 | Invoice: DTIGST/187/2526
+    -> ID: 6abbb08a6dd4d2eb14461bf0 | Qty: 417 | Invoice: DTIGST/187/2526
+- 18556-70_50: 6 entries
+    -> ID: 6abbb08a6dd4d2eb14461b18 | Qty: 100 | Invoice: HKCPL/2025-26/234
+    -> ID: 6abbb08a6dd4d2eb14461b10 | Qty: 116 | Invoice: HKCPL/2025-26/234
+    -> ID: 6abbb08a6dd4d2eb14461b02 | Qty: 20 | Invoice: HKCPL/2025-26/234
+    -> ID: 6abbb08a6dd4d2eb14461b06 | Qty: 20 | Invoice: HKCPL/2025-26/234
+    -> ID: 6abbb08a6dd4d2eb14461b1c | Qty: 50 | Invoice: HKCPL/2025-26/234
+    -> ID: 6abbb08a6dd4d2eb14461b14 | Qty: 10 | Invoice: HKCPL/2025-26/234
+- 861-90_28: 13 entries
+    -> ID: 6abbb08a6dd4d2eb14461b3a | Qty: 97 | Invoice: S325Y-00023
+    -> ID: 6abbb08a6dd4d2eb14461b3c | Qty: 35.657 | Invoice: S325Y-00023
+    -> ID: 6abbb08a6dd4d2eb14461c8c | Qty: 31.224 | Invoice: S125Y-01103
+    -> ID: 6abbb08a6dd4d2eb14461c8a | Qty: 30 | Invoice: S125Y-01103
+    -> ID: 6abbb08a6dd4d2eb14461c9a | Qty: 30 | Invoice: S125Y-00614
+    -> ID: 6abbb08a6dd4d2eb14461ca2 | Qty: 7 | Invoice: S125Y-00614
+    -> ID: 6abbb08a6dd4d2eb14461ca6 | Qty: 8 | Invoice: S125Y-00614
+    -> ID: 6abbb08a6dd4d2eb14461ca4 | Qty: 10 | Invoice: S125Y-00614
+    -> ID: 6abbb08a6dd4d2eb14461caa | Qty: 10 | Invoice: S125Y-00614
+    -> ID: 6abbb08a6dd4d2eb14461c9c | Qty: 5 | Invoice: S125Y-00614
+    -> ID: 6abbb08a6dd4d2eb14461c9e | Qty: 20 | Invoice: S125Y-00614
+    -> ID: 6abbb08a6dd4d2eb14461ca0 | Qty: 30 | Invoice: S125Y-00614
+    -> ID: 6abbb08a6dd4d2eb14461ca8 | Qty: 12.63 | Invoice: S125Y-00614
+- 21129-64_120: 4 entries
+    -> ID: 6abbb08a6dd4d2eb14461a75 | Qty: 150 | Invoice: DTIGST/210/2526
+    -> ID: 6abbb08a6dd4d2eb14461a77 | Qty: 500 | Invoice: DTIGST/210/2526
+    -> ID: 6abbb08a6dd4d2eb14461ba0 | Qty: 500 | Invoice: DTIGST/182/2526
+    -> ID: 6abbb08a6dd4d2eb14461bb4 | Qty: 450 | Invoice: DTIGST/182/2526
+- 22989-23022_22: 2 entries
+    -> ID: 6abbb08a6dd4d2eb14461a87 | Qty: 1 | Invoice: PTI/2025-26/136
+    -> ID: 6abbb08a6dd4d2eb14461a89 | Qty: 1 | Invoice: PTI/2025-26/136
+- 18556-70_43: 4 entries
+    -> ID: 6abbb08a6dd4d2eb14461afc | Qty: 500 | Invoice: HKCPL/2025-26/234
+    -> ID: 6abbb08a6dd4d2eb14461af8 | Qty: 100 | Invoice: HKCPL/2025-26/234
+    -> ID: 6abbb08a6dd4d2eb14461b1e | Qty: 1200 | Invoice: HKCPL/2025-26/234
+    -> ID: 6abbb08a6dd4d2eb14461afe | Qty: 1600 | Invoice: HKCPL/2025-26/234
+- 18556-70_48: 3 entries
+    -> ID: 6abbb08a6dd4d2eb14461b16 | Qty: 280 | Invoice: HKCPL/2025-26/234
+    -> ID: 6abbb08a6dd4d2eb14461b08 | Qty: 400 | Invoice: HKCPL/2025-26/234
+    -> ID: 6abbb08a6dd4d2eb14461b0e | Qty: 300 | Invoice: HKCPL/2025-26/234
+- 18556-70_44: 4 entries
+    -> ID: 6abbb08a6dd4d2eb14461afa | Qty: 400 | Invoice: HKCPL/2025-26/234
+    -> ID: 6abbb08a6dd4d2eb14461b0c | Qty: 200 | Invoice: HKCPL/2025-26/234
+    -> ID: 6abbb08a6dd4d2eb14461b00 | Qty: 300 | Invoice: HKCPL/2025-26/234
+    -> ID: 6abbb08a6dd4d2eb14461b0a | Qty: 200 | Invoice: HKCPL/2025-26/234
+- 18556-70_45: 3 entries
+    -> ID: 6abbb08a6dd4d2eb14461b04 | Qty: 90 | Invoice: HKCPL/2025-26/234
+    -> ID: 6abbb08a6dd4d2eb14461b12 | Qty: 180 | Invoice: HKCPL/2025-26/234
+    -> ID: 6abbb08a6dd4d2eb14461b1a | Qty: 360 | Invoice: HKCPL/2025-26/234
+- 21129-64_100: 4 entries
+    -> ID: 6abbb08a6dd4d2eb14461b3e | Qty: 15 | Invoice: DTIGST/195/2526
+    -> ID: 6abbb08a6dd4d2eb14461b9e | Qty: 5 | Invoice: DTIGST/182/2526
+    -> ID: 6abbb08a6dd4d2eb14461bec | Qty: 20 | Invoice: DTIGST/187/2526
+    -> ID: 6abbb08a6dd4d2eb14461c02 | Qty: 10 | Invoice: DTIGST/187/2526
+- 21129-64_117: 3 entries
+    -> ID: 6abbb08a6dd4d2eb14461b46 | Qty: 250 | Invoice: DTIGST/195/2526
+    -> ID: 6abbb08a6dd4d2eb14461b48 | Qty: 768 | Invoice: DTIGST/195/2526
+    -> ID: 6abbb08a6dd4d2eb14461b58 | Qty: 232 | Invoice: DTIGST/195/2526
+- 21129-64_101: 11 entries
+    -> ID: 6abbb08a6dd4d2eb14461b4c | Qty: 10 | Invoice: DTIGST/195/2526
+    -> ID: 6abbb08a6dd4d2eb14461b52 | Qty: 10 | Invoice: DTIGST/195/2526
+    -> ID: 6abbb08a6dd4d2eb14461ba6 | Qty: 20 | Invoice: DTIGST/182/2526
+    -> ID: 6abbb08a6dd4d2eb14461bac | Qty: 40 | Invoice: DTIGST/182/2526
+    -> ID: 6abbb08a6dd4d2eb14461b9a | Qty: 20 | Invoice: DTIGST/182/2526
+    -> ID: 6abbb08a6dd4d2eb14461bb2 | Qty: 40 | Invoice: DTIGST/182/2526
+    -> ID: 6abbb08a6dd4d2eb14461b98 | Qty: 10 | Invoice: DTIGST/182/2526
+    -> ID: 6abbb08a6dd4d2eb14461b9c | Qty: 20 | Invoice: DTIGST/182/2526
+    -> ID: 6abbb08a6dd4d2eb14461bfc | Qty: 20 | Invoice: DTIGST/187/2526
+    -> ID: 6abbb08a6dd4d2eb14461be4 | Qty: 30 | Invoice: DTIGST/187/2526
+    -> ID: 6abbb08a6dd4d2eb14461bea | Qty: 30 | Invoice: DTIGST/187/2526
+- 21129-64_99: 4 entries
+    -> ID: 6abbb08a6dd4d2eb14461b4e | Qty: 40 | Invoice: DTIGST/195/2526
+    -> ID: 6abbb08a6dd4d2eb14461b54 | Qty: 40 | Invoice: DTIGST/195/2526
+    -> ID: 6abbb08a6dd4d2eb14461bf6 | Qty: 60 | Invoice: DTIGST/187/2526
+    -> ID: 6abbb08a6dd4d2eb14461bde | Qty: 60 | Invoice: DTIGST/187/2526
+- 14060-96_155: 13 entries
+    -> ID: 6abbb08a6dd4d2eb14461b6e | Qty: 5 | Invoice: EPIPL/25-26/185
+    -> ID: 6abbb08a6dd4d2eb14461b76 | Qty: 6 | Invoice: EPIPL/25-26/185
+    -> ID: 6abbb08a6dd4d2eb14461b86 | Qty: 2 | Invoice: EPIPL/25-26/185
+    -> ID: 6abbb08a6dd4d2eb14461b66 | Qty: 2 | Invoice: EPIPL/25-26/185
+    -> ID: 6abbb08a6dd4d2eb14461b78 | Qty: 4 | Invoice: EPIPL/25-26/185
+    -> ID: 6abbb08a6dd4d2eb14461b6a | Qty: 5 | Invoice: EPIPL/25-26/185
+    -> ID: 6abbb08a6dd4d2eb14461b72 | Qty: 4 | Invoice: EPIPL/25-26/185
+    -> ID: 6abbb08a6dd4d2eb14461b7c | Qty: 4 | Invoice: EPIPL/25-26/185
+    -> ID: 6abbb08a6dd4d2eb14461b80 | Qty: 3 | Invoice: EPIPL/25-26/185
+    -> ID: 6abbb08a6dd4d2eb14461b82 | Qty: 3 | Invoice: EPIPL/25-26/185
+    -> ID: 6abbb08a6dd4d2eb14461b8a | Qty: 2 | Invoice: EPIPL/25-26/185
+    -> ID: 6abbb08a6dd4d2eb14461b8e | Qty: 1 | Invoice: EPIPL/25-26/185
+    -> ID: 6abbb08a6dd4d2eb14461b68 | Qty: 9 | Invoice: EPIPL/25-26/185
+- 14060-96_156: 9 entries
+    -> ID: 6abbb08a6dd4d2eb14461b90 | Qty: 2 | Invoice: EPIPL/25-26/185
+    -> ID: 6abbb08a6dd4d2eb14461b6c | Qty: 6 | Invoice: EPIPL/25-26/185
+    -> ID: 6abbb08a6dd4d2eb14461b8c | Qty: 5 | Invoice: EPIPL/25-26/185
+    -> ID: 6abbb08a6dd4d2eb14461b88 | Qty: 5 | Invoice: EPIPL/25-26/185
+    -> ID: 6abbb08a6dd4d2eb14461b84 | Qty: 8 | Invoice: EPIPL/25-26/185
+    -> ID: 6abbb08a6dd4d2eb14461b7e | Qty: 6 | Invoice: EPIPL/25-26/185
+    -> ID: 6abbb08a6dd4d2eb14461b70 | Qty: 6 | Invoice: EPIPL/25-26/185
+    -> ID: 6abbb08a6dd4d2eb14461b74 | Qty: 6 | Invoice: EPIPL/25-26/185
+    -> ID: 6abbb08a6dd4d2eb14461b7a | Qty: 6 | Invoice: EPIPL/25-26/185
+- 4764-99_70: 7 entries
+    -> ID: 6abbb08a6dd4d2eb14461bc6 | Qty: 82 | Invoice: NCDPL/2025-26/55
+    -> ID: 6abbb08a6dd4d2eb14461bd6 | Qty: 80 | Invoice: NCDPL/2025-26/55
+    -> ID: 6abbb08a6dd4d2eb14461bd8 | Qty: 96 | Invoice: NCDPL/2025-26/55
+    -> ID: 6abbb08a6dd4d2eb14461bce | Qty: 80 | Invoice: NCDPL/2025-26/55
+    -> ID: 6abbb08a6dd4d2eb14461bc4 | Qty: 50 | Invoice: NCDPL/2025-26/55
+    -> ID: 6abbb08a6dd4d2eb14461bd0 | Qty: 52 | Invoice: NCDPL/2025-26/55
+    -> ID: 6abbb08a6dd4d2eb14461bca | Qty: 60 | Invoice: NCDPL/2025-26/55
+- 21129-64_104: 3 entries
+    -> ID: 6abbb08a6dd4d2eb14461bae | Qty: 40 | Invoice: DTIGST/182/2526
+    -> ID: 6abbb08a6dd4d2eb14461be6 | Qty: 30 | Invoice: DTIGST/187/2526
+    -> ID: 6abbb08a6dd4d2eb14461bfe | Qty: 30 | Invoice: DTIGST/187/2526
+- 4764-99_73: 4 entries
+    -> ID: 6abbb08a6dd4d2eb14461bd4 | Qty: 25 | Invoice: NCDPL/2025-26/55
+    -> ID: 6abbb08a6dd4d2eb14461bc8 | Qty: 25 | Invoice: NCDPL/2025-26/55
+    -> ID: 6abbb08a6dd4d2eb14461bd2 | Qty: 25 | Invoice: NCDPL/2025-26/55
+    -> ID: 6abbb08a6dd4d2eb14461bcc | Qty: 25 | Invoice: NCDPL/2025-26/55
+- 21129-64_96: 3 entries
+    -> ID: 6abbb08a6dd4d2eb14461ba4 | Qty: 40 | Invoice: DTIGST/182/2526
+    -> ID: 6abbb08a6dd4d2eb14461bf4 | Qty: 30 | Invoice: DTIGST/187/2526
+    -> ID: 6abbb08a6dd4d2eb14461bdc | Qty: 30 | Invoice: DTIGST/187/2526
+- 21129-64_103: 3 entries
+    -> ID: 6abbb08a6dd4d2eb14461bb0 | Qty: 80 | Invoice: DTIGST/182/2526
+    -> ID: 6abbb08a6dd4d2eb14461be8 | Qty: 60 | Invoice: DTIGST/187/2526
+    -> ID: 6abbb08a6dd4d2eb14461c00 | Qty: 60 | Invoice: DTIGST/187/2526
+- 21129-64_98: 3 entries
+    -> ID: 6abbb08a6dd4d2eb14461baa | Qty: 40 | Invoice: DTIGST/182/2526
+    -> ID: 6abbb08a6dd4d2eb14461be2 | Qty: 30 | Invoice: DTIGST/187/2526
+    -> ID: 6abbb08a6dd4d2eb14461bfa | Qty: 30 | Invoice: DTIGST/187/2526
+- 21129-64_97: 3 entries
+    -> ID: 6abbb08a6dd4d2eb14461ba8 | Qty: 40 | Invoice: DTIGST/182/2526
+    -> ID: 6abbb08a6dd4d2eb14461bf8 | Qty: 30 | Invoice: DTIGST/187/2526
+    -> ID: 6abbb08a6dd4d2eb14461be0 | Qty: 30 | Invoice: DTIGST/187/2526
+- 25074-104_127: 25 entries
+    -> ID: 6abbb08a6dd4d2eb14461bb8 | Qty: 9331 | Invoice: TI/789
+    -> ID: 6abbb08a6dd4d2eb14461bb6 | Qty: 5669 | Invoice: TI/789
+    -> ID: 6abbb08a6dd4d2eb14461c98 | Qty: 5115 | Invoice: TI/790
+    -> ID: 6abbb08a6dd4d2eb14461c94 | Qty: 1911 | Invoice: TI/790
+    -> ID: 6abbb08a6dd4d2eb14461c96 | Qty: 2135 | Invoice: TI/790
+    -> ID: 6abbb08a6dd4d2eb14461c92 | Qty: 997 | Invoice: TI/790
+    -> ID: 6abbb08a6dd4d2eb14461c90 | Qty: 4842 | Invoice: TI/790
+    -> ID: 6abbb08b6dd4d2eb14461d14 | Qty: 44 | Invoice: TI/26-27/175
+    -> ID: 6abbb08b6dd4d2eb14461d0e | Qty: 135 | Invoice: TI/26-27/175
+    -> ID: 6abbb08b6dd4d2eb14461d16 | Qty: 162 | Invoice: TI/26-27/175
+    -> ID: 6abbb08b6dd4d2eb14461d10 | Qty: 54 | Invoice: TI/26-27/175
+    -> ID: 6abbb08b6dd4d2eb14461d18 | Qty: 24 | Invoice: TI/26-27/175
+    -> ID: 6abbb08b6dd4d2eb14461d1a | Qty: 10 | Invoice: TI/26-27/175
+    -> ID: 6abbb08b6dd4d2eb14461d12 | Qty: 153 | Invoice: TI/26-27/175
+    -> ID: 6abbb08b6dd4d2eb14461d1c | Qty: 1022 | Invoice: TI/26-27/175
+    -> ID: 6abbb08b6dd4d2eb14461d0a | Qty: 389 | Invoice: TI/26-27/175
+    -> ID: 6abbb08b6dd4d2eb14461d0c | Qty: 540 | Invoice: TI/26-27/175
+    -> ID: 6abbb08b6dd4d2eb14461d22 | Qty: 1215 | Invoice: TI/26-27/60
+    -> ID: 6abbb08b6dd4d2eb14461d2a | Qty: 661 | Invoice: TI/26-27/60
+    -> ID: 6abbb08b6dd4d2eb14461d20 | Qty: 3231 | Invoice: TI/26-27/60
+    -> ID: 6abbb08b6dd4d2eb14461d26 | Qty: 27 | Invoice: TI/26-27/60
+    -> ID: 6abbb08b6dd4d2eb14461d24 | Qty: 27 | Invoice: TI/26-27/60
+    -> ID: 6abbb08b6dd4d2eb14461d1e | Qty: 18309 | Invoice: TI/26-27/60
+    -> ID: 6abbb08b6dd4d2eb14461d28 | Qty: 27 | Invoice: TI/26-27/60
+    -> ID: 6abbb08b6dd4d2eb14461d2c | Qty: 2003 | Invoice: TI/26-27/60
+- 861-90_29: 3 entries
+    -> ID: 6abbb08a6dd4d2eb14461bc0 | Qty: 40 | Invoice: S125Y-00471
+    -> ID: 6abbb08a6dd4d2eb14461bc2 | Qty: 25.01 | Invoice: S125Y-00471
+    -> ID: 6abbb08a6dd4d2eb14461c8e | Qty: 34.979 | Invoice: S125Y-01103
+- 23565-95_83: 29 entries
+    -> ID: 6abbb08a6dd4d2eb14461c1e | Qty: 608 | Invoice: A-4540/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461c20 | Qty: 152 | Invoice: A-4540/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461c40 | Qty: 64 | Invoice: A-4540/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461c12 | Qty: 372 | Invoice: A-4540/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461c28 | Qty: 96 | Invoice: A-4540/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461c26 | Qty: 384 | Invoice: A-4540/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461c32 | Qty: 8 | Invoice: A-4540/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461c10 | Qty: 1488 | Invoice: A-4540/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461c24 | Qty: 172 | Invoice: A-4540/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461c2e | Qty: 80 | Invoice: A-4540/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461c14 | Qty: 1232 | Invoice: A-4540/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461c1a | Qty: 670 | Invoice: A-4540/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461c42 | Qty: 16 | Invoice: A-4540/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461c16 | Qty: 308 | Invoice: A-4540/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461c34 | Qty: 2448 | Invoice: A-4540/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461c36 | Qty: 612 | Invoice: A-4540/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461c2c | Qty: 132 | Invoice: A-4540/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461c46 | Qty: 8 | Invoice: A-4540/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461c22 | Qty: 688 | Invoice: A-4540/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461c38 | Qty: 704 | Invoice: A-4540/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461c1c | Qty: 180 | Invoice: A-4540/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461c2a | Qty: 528 | Invoice: A-4540/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461c3a | Qty: 176 | Invoice: A-4540/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461c0c | Qty: 976 | Invoice: A-4540/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461c3e | Qty: 108 | Invoice: A-4540/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461c0e | Qty: 244 | Invoice: A-4540/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461c3c | Qty: 432 | Invoice: A-4540/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461c30 | Qty: 32 | Invoice: A-4540/2025-26
+    -> ID: 6abbb08a6dd4d2eb14461c44 | Qty: 32 | Invoice: A-4540/2025-26
+- 23503-33_60: 7 entries
+    -> ID: 6abbb08a6dd4d2eb14461c6c | Qty: 900 | Invoice: NCDPL/25-26/101
+    -> ID: 6abbb08a6dd4d2eb14461c5c | Qty: 1000 | Invoice: NCDPL/25-26/101
+    -> ID: 6abbb08a6dd4d2eb14461c6a | Qty: 2600 | Invoice: NCDPL/25-26/101
+    -> ID: 6abbb08a6dd4d2eb14461c5a | Qty: 500 | Invoice: NCDPL/25-26/101
+    -> ID: 6abbb08a6dd4d2eb14461c64 | Qty: 3000 | Invoice: NCDPL/25-26/101
+    -> ID: 6abbb08a6dd4d2eb14461c62 | Qty: 500 | Invoice: NCDPL/25-26/101
+    -> ID: 6abbb08a6dd4d2eb14461c88 | Qty: 500 | Invoice: NCDPL/25-26/104
+- 23503-33_70: 4 entries
+    -> ID: 6abbb08a6dd4d2eb14461c50 | Qty: 100 | Invoice: NCDPL/25-26/101
+    -> ID: 6abbb08a6dd4d2eb14461c48 | Qty: 200 | Invoice: NCDPL/25-26/101
+    -> ID: 6abbb08a6dd4d2eb14461c4e | Qty: 100 | Invoice: NCDPL/25-26/101
+    -> ID: 6abbb08a6dd4d2eb14461c58 | Qty: 100 | Invoice: NCDPL/25-26/101
+- 23503-33_75: 5 entries
+    -> ID: 6abbb08a6dd4d2eb14461c52 | Qty: 400 | Invoice: NCDPL/25-26/101
+    -> ID: 6abbb08a6dd4d2eb14461c5e | Qty: 100 | Invoice: NCDPL/25-26/101
+    -> ID: 6abbb08a6dd4d2eb14461c78 | Qty: 200 | Invoice: NCDPL/25-26/104
+    -> ID: 6abbb08a6dd4d2eb14461c82 | Qty: 100 | Invoice: NCDPL/25-26/104
+    -> ID: 6abbb08a6dd4d2eb14461c76 | Qty: 200 | Invoice: NCDPL/25-26/104
+- 23503-33_65: 3 entries
+    -> ID: 6abbb08a6dd4d2eb14461c4c | Qty: 300 | Invoice: NCDPL/25-26/101
+    -> ID: 6abbb08a6dd4d2eb14461c68 | Qty: 100 | Invoice: NCDPL/25-26/101
+    -> ID: 6abbb08a6dd4d2eb14461c60 | Qty: 100 | Invoice: NCDPL/25-26/101
+- 23503-33_63: 2 entries
+    -> ID: 6abbb08a6dd4d2eb14461c4a | Qty: 500 | Invoice: NCDPL/25-26/101
+    -> ID: 6abbb08a6dd4d2eb14461c56 | Qty: 500 | Invoice: NCDPL/25-26/101
+- 23503-33_73: 5 entries
+    -> ID: 6abbb08a6dd4d2eb14461c7e | Qty: 3 | Invoice: NCDPL/25-26/104
+    -> ID: 6abbb08a6dd4d2eb14461c86 | Qty: 6 | Invoice: NCDPL/25-26/104
+    -> ID: 6abbb08a6dd4d2eb14461c7a | Qty: 3 | Invoice: NCDPL/25-26/104
+    -> ID: 6abbb08a6dd4d2eb14461c84 | Qty: 5 | Invoice: NCDPL/25-26/104
+    -> ID: 6abbb08a6dd4d2eb14461c80 | Qty: 3 | Invoice: NCDPL/25-26/104
+- 23503-33_74: 5 entries
+    -> ID: 6abbb08a6dd4d2eb14461c7c | Qty: 74 | Invoice: NCDPL/25-26/104
+    -> ID: 6abbb08a6dd4d2eb14461c74 | Qty: 159 | Invoice: NCDPL/25-26/104
+    -> ID: 6abbb08a6dd4d2eb14461c6e | Qty: 99 | Invoice: NCDPL/25-26/104
+    -> ID: 6abbb08a6dd4d2eb14461c70 | Qty: 145 | Invoice: NCDPL/25-26/104
+    -> ID: 6abbb08a6dd4d2eb14461c72 | Qty: 579 | Invoice: NCDPL/25-26/104
+- 27170-200_1: 17 entries
+    -> ID: 6abbb08b6dd4d2eb14461d2e | Qty: 180 | Invoice: DPPL1/25-26/2674
+    -> ID: 6abbb08b6dd4d2eb14461d32 | Qty: 180 | Invoice: DPPL1/25-26/2707
+    -> ID: 6abbb08b6dd4d2eb14461d55 | Qty: 60 | Invoice: DPPL1/26-27/0033
+    -> ID: 6abbb08b6dd4d2eb14461d53 | Qty: 120 | Invoice: DPPL1/26-27/0033
+    -> ID: 6abbb08b6dd4d2eb14461d5d | Qty: 162 | Invoice: DPPL1/25-26/2710
+    -> ID: 6abbb08b6dd4d2eb14461d5f | Qty: 18 | Invoice: DPPL1/25-26/2710
+    -> ID: 6abbb08b6dd4d2eb14461d85 | Qty: 90 | Invoice: DPPL1/26-27/0014
+    -> ID: 6abbb08b6dd4d2eb14461d81 | Qty: 50 | Invoice: DPPL1/26-27/0014
+    -> ID: 6abbb08b6dd4d2eb14461d73 | Qty: 108 | Invoice: DPPL1/26-27/0015
+    -> ID: 6abbb08b6dd4d2eb14461d71 | Qty: 72 | Invoice: DPPL1/26-27/0015
+    -> ID: 6abbb08b6dd4d2eb14461d79 | Qty: 180 | Invoice: DPPL1/25-26/2702
+    -> ID: 6abbb08b6dd4d2eb14461d83 | Qty: 10 | Invoice: DPPL1/26-27/0014
+    -> ID: 6abbb08b6dd4d2eb14461d7f | Qty: 30 | Invoice: DPPL1/26-27/0014
+    -> ID: 6abbb08b6dd4d2eb14461d8f | Qty: 141 | Invoice: DPPL1/26-27/0025
+    -> ID: 6abbb08b6dd4d2eb14461d89 | Qty: 180 | Invoice: DPPL1/26-27/0035
+    -> ID: 6abbb08b6dd4d2eb14461d9f | Qty: 180 | Invoice: DPPL1/26-27/0024
+    -> ID: 6abbb08b6dd4d2eb14461d91 | Qty: 39 | Invoice: DPPL1/26-27/0025
+- 27170-200_2: 9 entries
+    -> ID: 6abbb08b6dd4d2eb14461d30 | Qty: 129 | Invoice: DPPL1/25-26/2671
+    -> ID: 6abbb08b6dd4d2eb14461d57 | Qty: 82 | Invoice: DPPL1/25-26/2689
+    -> ID: 6abbb08b6dd4d2eb14461d59 | Qty: 47 | Invoice: DPPL1/25-26/2689
+    -> ID: 6abbb08b6dd4d2eb14461d5b | Qty: 129 | Invoice: DPPL1/25-26/2703
+    -> ID: 6abbb08b6dd4d2eb14461d61 | Qty: 129 | Invoice: DPPL1/25-26/2675
+    -> ID: 6abbb08b6dd4d2eb14461d75 | Qty: 93 | Invoice: DPPL1/25-26/2704
+    -> ID: 6abbb08b6dd4d2eb14461d6d | Qty: 77 | Invoice: DPPL1/26-27/0006
+    -> ID: 6abbb08b6dd4d2eb14461d6f | Qty: 51 | Invoice: DPPL1/26-27/0006
+    -> ID: 6abbb08b6dd4d2eb14461d77 | Qty: 35 | Invoice: DPPL1/25-26/2704
+- 27202-32_29: 5 entries
+    -> ID: 6abbb08b6dd4d2eb14461d7b | Qty: 82.5 | Invoice: JBPPL/25-26/391
+    -> ID: 6abbb08b6dd4d2eb14461d7d | Qty: 77.5 | Invoice: JBPPL/25-26/390
+    -> ID: 6abbb08b6dd4d2eb14461d99 | Qty: 67.5 | Invoice: JBPPL/25-26/396
+    -> ID: 6abbb08b6dd4d2eb14461d87 | Qty: 27.497 | Invoice: JBPPL/25-26/399
+    -> ID: 6abbb08b6dd4d2eb14461d97 | Qty: 40 | Invoice: JBPPL/25-26/396
+- 27202-32_28: 6 entries
+    -> ID: 6abbb08b6dd4d2eb14461d93 | Qty: 20 | Invoice: JBPPL/25-26/394
+    -> ID: 6abbb08b6dd4d2eb14461d8b | Qty: 60 | Invoice: JBPPL/25-26/392
+    -> ID: 6abbb08b6dd4d2eb14461d9b | Qty: 100 | Invoice: JBPPL/25-26/386
+    -> ID: 6abbb08b6dd4d2eb14461d95 | Qty: 50 | Invoice: JBPPL/25-26/394
+    -> ID: 6abbb08b6dd4d2eb14461d9d | Qty: 40 | Invoice: JBPPL/25-26/386
+    -> ID: 6abbb08b6dd4d2eb14461d8d | Qty: 80 | Invoice: JBPPL/25-26/392
+- 26024-58_99: 13 entries
+    -> ID: 6abbb08c6dd4d2eb14461fa4 | Qty: 4 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14461fae | Qty: 4 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14461fb8 | Qty: 68 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14461f9e | Qty: 180 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14461f38 | Qty: 180 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461f78 | Qty: 92 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461fc4 | Qty: 32 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb1446205c | Qty: 292 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb144620d6 | Qty: 80 | Invoice: Srp/560/25-26
+    -> ID: 6abbb08c6dd4d2eb144620a2 | Qty: 180 | Invoice: Srp/560/25-26
+    -> ID: 6abbb08c6dd4d2eb144620de | Qty: 16 | Invoice: Srp/560/25-26
+    -> ID: 6abbb08c6dd4d2eb144620ca | Qty: 68 | Invoice: Srp/560/25-26
+    -> ID: 6abbb08c6dd4d2eb144620c0 | Qty: 4 | Invoice: Srp/560/25-26
+- 26024-58_108: 5 entries
+    -> ID: 6abbb08c6dd4d2eb14461fbc | Qty: 243 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14461f30 | Qty: 206 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461f82 | Qty: 731 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb144620b2 | Qty: 415 | Invoice: Srp/560/25-26
+    -> ID: 6abbb08c6dd4d2eb144620ae | Qty: 605 | Invoice: Srp/560/25-26
+- 26474-504_33: 2 entries
+    -> ID: 6abbb08c6dd4d2eb14461fca | Qty: 11 | Invoice: HKCPL/364/25-26
+    -> ID: 6abbb08c6dd4d2eb14461fcc | Qty: 11 | Invoice: HKCPL/364/25-26
+- 26024-58_120: 9 entries
+    -> ID: 6abbb08c6dd4d2eb14461f3c | Qty: 137 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461f9c | Qty: 1044 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14461fa2 | Qty: 563 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14461f36 | Qty: 1756 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14462060 | Qty: 359 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb14462088 | Qty: 123 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb14462064 | Qty: 3488 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb144620a6 | Qty: 381 | Invoice: Srp/560/25-26
+    -> ID: 6abbb08c6dd4d2eb14462096 | Qty: 217 | Invoice: Srp/560/25-26
+- 26024-58_98: 10 entries
+    -> ID: 6abbb08c6dd4d2eb14461f44 | Qty: 116 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461fc0 | Qty: 30 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14461fb4 | Qty: 34 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14461f8c | Qty: 60 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14461faa | Qty: 2 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14462052 | Qty: 60 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb144620d0 | Qty: 34 | Invoice: Srp/560/25-26
+    -> ID: 6abbb08c6dd4d2eb144620bc | Qty: 2 | Invoice: Srp/560/25-26
+    -> ID: 6abbb08c6dd4d2eb144620b6 | Qty: 60 | Invoice: Srp/560/25-26
+    -> ID: 6abbb08c6dd4d2eb144620c6 | Qty: 2 | Invoice: Srp/560/25-26
+- 26024-58_109: 4 entries
+    -> ID: 6abbb08c6dd4d2eb14461f4e | Qty: 29 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461f98 | Qty: 50 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb1446204a | Qty: 71 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb1446209a | Qty: 50 | Invoice: Srp/560/25-26
+- 26024-58_101: 31 entries
+    -> ID: 6abbb08c6dd4d2eb14461f58 | Qty: 2 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461f52 | Qty: 60 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461fb6 | Qty: 34 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14461f46 | Qty: 116 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461f8e | Qty: 60 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14461fac | Qty: 2 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14461f60 | Qty: 1 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461fc2 | Qty: 20 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14461f50 | Qty: 30 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461f76 | Qty: 8 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461f92 | Qty: 116 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14461f62 | Qty: 2 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461f90 | Qty: 58 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14461f6c | Qty: 34 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461f56 | Qty: 1 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461f6a | Qty: 17 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14462058 | Qty: 60 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb14462054 | Qty: 60 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb14462074 | Qty: 1 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb14462076 | Qty: 2 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb1446208a | Qty: 20 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb1446207e | Qty: 17 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb14462080 | Qty: 34 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb1446208c | Qty: 40 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb14462056 | Qty: 30 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb144620c8 | Qty: 2 | Invoice: Srp/560/25-26
+    -> ID: 6abbb08c6dd4d2eb144620d2 | Qty: 34 | Invoice: Srp/560/25-26
+    -> ID: 6abbb08c6dd4d2eb144620dc | Qty: 17 | Invoice: Srp/560/25-26
+    -> ID: 6abbb08c6dd4d2eb1446209e | Qty: 60 | Invoice: Srp/560/25-26
+    -> ID: 6abbb08c6dd4d2eb144620be | Qty: 2 | Invoice: Srp/560/25-26
+    -> ID: 6abbb08c6dd4d2eb144620b8 | Qty: 60 | Invoice: Srp/560/25-26
+- 26024-58_103: 14 entries
+    -> ID: 6abbb08c6dd4d2eb14461f7a | Qty: 10 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461f40 | Qty: 106 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461f5e | Qty: 2 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461f74 | Qty: 40 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461fc8 | Qty: 4 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14461f68 | Qty: 16 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461f88 | Qty: 82 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14461fc6 | Qty: 26 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb1446206c | Qty: 90 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb14462072 | Qty: 2 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb1446207c | Qty: 2 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb14462086 | Qty: 6 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb14462090 | Qty: 8 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb144620aa | Qty: 150 | Invoice: Srp/560/25-26
+- 26024-58_96: 10 entries
+    -> ID: 6abbb08c6dd4d2eb14461f42 | Qty: 116 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461f8a | Qty: 60 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14461fa8 | Qty: 2 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14461fbe | Qty: 30 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14461fb2 | Qty: 34 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb144620ce | Qty: 34 | Invoice: Srp/560/25-26
+    -> ID: 6abbb08c6dd4d2eb1446209c | Qty: 60 | Invoice: Srp/560/25-26
+    -> ID: 6abbb08c6dd4d2eb144620ba | Qty: 2 | Invoice: Srp/560/25-26
+    -> ID: 6abbb08c6dd4d2eb144620c4 | Qty: 2 | Invoice: Srp/560/25-26
+    -> ID: 6abbb08c6dd4d2eb144620b4 | Qty: 60 | Invoice: Srp/560/25-26
+- 26024-58_100: 14 entries
+    -> ID: 6abbb08c6dd4d2eb14461f5a | Qty: 1 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461f54 | Qty: 15 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461f4c | Qty: 15 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461f64 | Qty: 1 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461f6e | Qty: 22 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461f94 | Qty: 30 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14461f80 | Qty: 15 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14462050 | Qty: 15 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb14462082 | Qty: 22 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb14462078 | Qty: 1 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb14462092 | Qty: 13 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb1446208e | Qty: 20 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb1446205a | Qty: 15 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb144620a0 | Qty: 15 | Invoice: Srp/560/25-26
+- 26024-58_119: 8 entries
+    -> ID: 6abbb08c6dd4d2eb14461f84 | Qty: 3718 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14461f32 | Qty: 1270 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14462068 | Qty: 2790 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb1446206e | Qty: 255 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb144620da | Qty: 80 | Invoice: Srp/560/25-26
+    -> ID: 6abbb08c6dd4d2eb144620b0 | Qty: 6143 | Invoice: Srp/560/25-26
+    -> ID: 6abbb08c6dd4d2eb144620ac | Qty: 152 | Invoice: Srp/560/25-26
+    -> ID: 6abbb08c6dd4d2eb144620d4 | Qty: 692 | Invoice: Srp/560/25-26
+- 26024-58_97: 10 entries
+    -> ID: 6abbb08c6dd4d2eb14461f5c | Qty: 2 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461f3e | Qty: 60 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461f72 | Qty: 30 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461f86 | Qty: 60 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14461f66 | Qty: 34 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14462070 | Qty: 2 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb1446207a | Qty: 2 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb1446206a | Qty: 60 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb14462084 | Qty: 34 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb144620a8 | Qty: 116 | Invoice: Srp/560/25-26
+- 26024-58_107: 4 entries
+    -> ID: 6abbb08c6dd4d2eb14461f34 | Qty: 200 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14462066 | Qty: 200 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb14462062 | Qty: 400 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb14462094 | Qty: 200 | Invoice: Srp/560/25-26
+- 1350-80_11: 6 entries
+    -> ID: 6abbb08c6dd4d2eb14461f7c | Qty: 12 | Invoice: 102/2026-27
+    -> ID: 6abbb08c6dd4d2eb14461f2c | Qty: 3 | Invoice: 392/2026-27
+    -> ID: 6abbb08c6dd4d2eb14461fce | Qty: 12 | Invoice: 128/2026-27
+    -> ID: 6abbb08c6dd4d2eb14462042 | Qty: 2 | Invoice: 159/2026-27
+    -> ID: 6abbb08c6dd4d2eb144620e0 | Qty: 14 | Invoice: 151/2026-27
+    -> ID: 6abbb08c6dd4d2eb144621d6 | Qty: 2 | Invoice: 132/2026-27
+- 26024-58_110: 3 entries
+    -> ID: 6abbb08c6dd4d2eb14461f4a | Qty: 400 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461f7e | Qty: 200 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb1446204e | Qty: 200 | Invoice: Srp/555/25-26
+- 26024-58_105: 2 entries
+    -> ID: 6abbb08c6dd4d2eb14461f48 | Qty: 500 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb1446204c | Qty: 500 | Invoice: Srp/555/25-26
+- 1350-80_14: 5 entries
+    -> ID: 6abbb08c6dd4d2eb14461f2e | Qty: 3 | Invoice: 392/2026-27
+    -> ID: 6abbb08c6dd4d2eb14462046 | Qty: 3 | Invoice: 159/2026-27
+    -> ID: 6abbb08c6dd4d2eb144621da | Qty: 2 | Invoice: 132/2026-27
+    -> ID: 6abbb08c6dd4d2eb144621dc | Qty: 5 | Invoice: 111/2026-27
+    -> ID: 6abbb08c6dd4d2eb144621d8 | Qty: 2 | Invoice: 132/2026-27
+- 26024-58_104: 10 entries
+    -> ID: 6abbb08c6dd4d2eb14461f3a | Qty: 60 | Invoice: Srp/567/25-26
+    -> ID: 6abbb08c6dd4d2eb14461fa0 | Qty: 60 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14461fb0 | Qty: 2 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14461fba | Qty: 34 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14461fa6 | Qty: 2 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb1446205e | Qty: 116 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb144620a4 | Qty: 60 | Invoice: Srp/560/25-26
+    -> ID: 6abbb08c6dd4d2eb144620c2 | Qty: 2 | Invoice: Srp/560/25-26
+    -> ID: 6abbb08c6dd4d2eb144620cc | Qty: 34 | Invoice: Srp/560/25-26
+    -> ID: 6abbb08c6dd4d2eb144620d8 | Qty: 30 | Invoice: Srp/560/25-26
+- 26024-58_106: 4 entries
+    -> ID: 6abbb08c6dd4d2eb14461f9a | Qty: 400 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14461f96 | Qty: 800 | Invoice: Srp/16/26-27
+    -> ID: 6abbb08c6dd4d2eb14462048 | Qty: 400 | Invoice: Srp/555/25-26
+    -> ID: 6abbb08c6dd4d2eb14462098 | Qty: 400 | Invoice: Srp/560/25-26
+- 27557-92_12: 7 entries
+    -> ID: 6abbb08c6dd4d2eb14462034 | Qty: 12 | Invoice: RJB/D/26-27/031
+    -> ID: 6abbb08c6dd4d2eb14462038 | Qty: 2 | Invoice: RJB/D/26-27/032
+    -> ID: 6abbb08c6dd4d2eb1446203c | Qty: 2 | Invoice: RJB/D/26-27/032
+    -> ID: 6abbb08c6dd4d2eb14462036 | Qty: 3 | Invoice: RJB/D/26-27/032
+    -> ID: 6abbb08c6dd4d2eb1446203a | Qty: 5 | Invoice: RJB/D/26-27/032
+    -> ID: 6abbb08c6dd4d2eb14462040 | Qty: 13 | Invoice: RJB/D/26-27/034
+    -> ID: 6abbb08c6dd4d2eb144620e2 | Qty: 13 | Invoice: RJB/D/26-27/033
+- 25861-91_18: 3 entries
+    -> ID: 6abbb08c6dd4d2eb1446203e | Qty: 25 | Invoice: PTI/2026-27/009
+    -> ID: 6abbb08c6dd4d2eb14462148 | Qty: 5 | Invoice: PTI/2026-27/011
+    -> ID: 6abbb08c6dd4d2eb1446214a | Qty: 5 | Invoice: PTI/2026-27/011
+- 27557-92_13: 3 entries
+    -> ID: 6abbb08c6dd4d2eb14462102 | Qty: 10 | Invoice: RJB/D/26-27/029
+    -> ID: 6abbb08c6dd4d2eb14462104 | Qty: 10 | Invoice: RJB/D/26-27/028
+    -> ID: 6abbb08c6dd4d2eb14462154 | Qty: 10 | Invoice: RJB/D/26-27/030
+- 26070-103_73: 14 entries
+    -> ID: 6abbb08c6dd4d2eb144620f4 | Qty: 3 | Invoice: NCDPL/26-27/05
+    -> ID: 6abbb08c6dd4d2eb144620f6 | Qty: 3 | Invoice: NCDPL/26-27/05
+    -> ID: 6abbb08c6dd4d2eb144620e4 | Qty: 254 | Invoice: NCDPL/26-27/05
+    -> ID: 6abbb08c6dd4d2eb144620f8 | Qty: 3 | Invoice: NCDPL/26-27/05
+    -> ID: 6abbb08c6dd4d2eb144620f2 | Qty: 135 | Invoice: NCDPL/26-27/05
+    -> ID: 6abbb08c6dd4d2eb144620e6 | Qty: 287 | Invoice: NCDPL/26-27/05
+    -> ID: 6abbb08c6dd4d2eb14462136 | Qty: 93 | Invoice: NCDPL/25-26/146
+    -> ID: 6abbb08c6dd4d2eb14462132 | Qty: 60 | Invoice: NCDPL/25-26/146
+    -> ID: 6abbb08c6dd4d2eb1446213a | Qty: 6 | Invoice: NCDPL/25-26/146
+    -> ID: 6abbb08c6dd4d2eb14462134 | Qty: 67 | Invoice: NCDPL/25-26/146
+    -> ID: 6abbb08c6dd4d2eb1446211c | Qty: 101 | Invoice: NCDPL/25-26/146
+    -> ID: 6abbb08c6dd4d2eb14462118 | Qty: 183 | Invoice: NCDPL/25-26/146
+    -> ID: 6abbb08c6dd4d2eb1446211a | Qty: 86 | Invoice: NCDPL/25-26/146
+    -> ID: 6abbb08c6dd4d2eb14462138 | Qty: 15 | Invoice: NCDPL/25-26/146
+- 26070-103_62: 4 entries
+    -> ID: 6abbb08c6dd4d2eb144620ee | Qty: 822 | Invoice: NCDPL/26-27/05
+    -> ID: 6abbb08c6dd4d2eb144620e8 | Qty: 1000 | Invoice: NCDPL/26-27/05
+    -> ID: 6abbb08c6dd4d2eb14462114 | Qty: 499 | Invoice: NCDPL/25-26/146
+    -> ID: 6abbb08c6dd4d2eb14462128 | Qty: 412 | Invoice: NCDPL/25-26/146
+- 26070-103_60: 6 entries
+    -> ID: 6abbb08c6dd4d2eb144620fe | Qty: 57 | Invoice: NCDPL/26-27/05
+    -> ID: 6abbb08c6dd4d2eb14462142 | Qty: 381 | Invoice: NCDPL/25-26/146
+    -> ID: 6abbb08c6dd4d2eb1446211e | Qty: 391 | Invoice: NCDPL/25-26/146
+    -> ID: 6abbb08c6dd4d2eb14462122 | Qty: 716 | Invoice: NCDPL/25-26/146
+    -> ID: 6abbb08c6dd4d2eb1446213c | Qty: 111 | Invoice: NCDPL/25-26/146
+    -> ID: 6abbb08c6dd4d2eb1446212c | Qty: 688 | Invoice: NCDPL/25-26/146
+- 26070-103_61: 3 entries
+    -> ID: 6abbb08c6dd4d2eb14462100 | Qty: 117 | Invoice: NCDPL/26-27/05
+    -> ID: 6abbb08c6dd4d2eb144620fa | Qty: 100 | Invoice: NCDPL/26-27/05
+    -> ID: 6abbb08c6dd4d2eb14462144 | Qty: 100 | Invoice: NCDPL/25-26/146
+- 26070-103_63: 3 entries
+    -> ID: 6abbb08c6dd4d2eb144620ea | Qty: 841 | Invoice: NCDPL/26-27/05
+    -> ID: 6abbb08c6dd4d2eb14462116 | Qty: 499 | Invoice: NCDPL/25-26/146
+    -> ID: 6abbb08c6dd4d2eb1446212a | Qty: 262 | Invoice: NCDPL/25-26/146
+- 26070-103_67: 6 entries
+    -> ID: 6abbb08c6dd4d2eb144620fc | Qty: 530 | Invoice: NCDPL/26-27/05
+    -> ID: 6abbb08c6dd4d2eb14462124 | Qty: 1216 | Invoice: NCDPL/25-26/146
+    -> ID: 6abbb08c6dd4d2eb14462120 | Qty: 98 | Invoice: NCDPL/25-26/146
+    -> ID: 6abbb08c6dd4d2eb1446212e | Qty: 832 | Invoice: NCDPL/25-26/146
+    -> ID: 6abbb08c6dd4d2eb1446213e | Qty: 1000 | Invoice: NCDPL/25-26/146
+    -> ID: 6abbb08c6dd4d2eb14462146 | Qty: 1000 | Invoice: NCDPL/25-26/146
+- 25137-67_125: 4 entries
+    -> ID: 6abbb08c6dd4d2eb14462108 | Qty: 801 | Invoice: BIG10687/2025-26
+    -> ID: 6abbb08c6dd4d2eb1446210a | Qty: 343 | Invoice: BIG10687/2025-26
+    -> ID: 6abbb08c6dd4d2eb1446210e | Qty: 198 | Invoice: BIG10687/2025-26
+    -> ID: 6abbb08c6dd4d2eb1446210c | Qty: 1158 | Invoice: BIG10687/2025-26
+- 25861-91_19: 4 entries
+    -> ID: 6abbb08c6dd4d2eb1446214c | Qty: 5 | Invoice: PTI/2026-27/011
+    -> ID: 6abbb08c6dd4d2eb14462152 | Qty: 50 | Invoice: PTI/2026-27/011
+    -> ID: 6abbb08c6dd4d2eb1446215e | Qty: 5 | Invoice: PTI/2026-27/028
+    -> ID: 6abbb08c6dd4d2eb1446215c | Qty: 40 | Invoice: PTI/2026-27/028
+- 25861-91_21: 2 entries
+    -> ID: 6abbb08c6dd4d2eb14462150 | Qty: 2 | Invoice: PTI/2026-27/011
+    -> ID: 6abbb08c6dd4d2eb14462164 | Qty: 13 | Invoice: PTI/2026-27/028
+- 25861-91_20: 3 entries
+    -> ID: 6abbb08c6dd4d2eb1446214e | Qty: 20 | Invoice: PTI/2026-27/011
+    -> ID: 6abbb08c6dd4d2eb14462162 | Qty: 21 | Invoice: PTI/2026-27/028
+    -> ID: 6abbb08c6dd4d2eb14462160 | Qty: 20 | Invoice: PTI/2026-27/028
+- 26070-103_68: 3 entries
+    -> ID: 6abbb08c6dd4d2eb14462140 | Qty: 500 | Invoice: NCDPL/25-26/146
+    -> ID: 6abbb08c6dd4d2eb14462126 | Qty: 608 | Invoice: NCDPL/25-26/146
+    -> ID: 6abbb08c6dd4d2eb14462130 | Qty: 1000 | Invoice: NCDPL/25-26/146
+- 4505-20_89: 2 entries
+    -> ID: 6abbb08c6dd4d2eb14462206 | Qty: 175 | Invoice: 88/2026-27
+    -> ID: 6abbb08c6dd4d2eb1446220e | Qty: 2075 | Invoice: 88/2026-27
+- 4505-20_86: 2 entries
+    -> ID: 6abbb08c6dd4d2eb1446222a | Qty: 800 | Invoice: 77/2026-27
+    -> ID: 6abbb08c6dd4d2eb14462204 | Qty: 300 | Invoice: 88/2026-27
+- 2885-2920_70: 4 entries
+    -> ID: 6abbb08c6dd4d2eb144621e4 | Qty: 62 | Invoice: NCDPL/26-27/22
+    -> ID: 6abbb08c6dd4d2eb144621ec | Qty: 148 | Invoice: NCDPL/26-27/22
+    -> ID: 6abbb08c6dd4d2eb144621f2 | Qty: 100 | Invoice: NCDPL/26-27/22
+    -> ID: 6abbb08c6dd4d2eb144621e8 | Qty: 190 | Invoice: NCDPL/26-27/22
+- 4505-20_90: 7 entries
+    -> ID: 6abbb08c6dd4d2eb1446220a | Qty: 8 | Invoice: 88/2026-27
+    -> ID: 6abbb08c6dd4d2eb14462208 | Qty: 48 | Invoice: 88/2026-27
+    -> ID: 6abbb08c6dd4d2eb14462228 | Qty: 91 | Invoice: 77/2026-27
+    -> ID: 6abbb08c6dd4d2eb14462202 | Qty: 304 | Invoice: 88/2026-27
+    -> ID: 6abbb08c6dd4d2eb1446220c | Qty: 3 | Invoice: 88/2026-27
+    -> ID: 6abbb08c6dd4d2eb14462220 | Qty: 75 | Invoice: 77/2026-27
+    -> ID: 6abbb08c6dd4d2eb14462226 | Qty: 100 | Invoice: 77/2026-27
+- 2630-55_124: 7 entries
+    -> ID: 6abbb08c6dd4d2eb14462214 | Qty: 2 | Invoice: DTIGST/020/2627
+    -> ID: 6abbb08c6dd4d2eb1446221c | Qty: 1 | Invoice: DTIGST/020/2627
+    -> ID: 6abbb08c6dd4d2eb1446221a | Qty: 2 | Invoice: DTIGST/020/2627
+    -> ID: 6abbb08c6dd4d2eb14462216 | Qty: 2 | Invoice: DTIGST/020/2627
+    -> ID: 6abbb08c6dd4d2eb14462210 | Qty: 1 | Invoice: DTIGST/020/2627
+    -> ID: 6abbb08c6dd4d2eb14462212 | Qty: 1 | Invoice: DTIGST/020/2627
+    -> ID: 6abbb08c6dd4d2eb14462218 | Qty: 6 | Invoice: DTIGST/020/2627
+- 4505-20_87: 3 entries
+    -> ID: 6abbb08c6dd4d2eb1446221e | Qty: 500 | Invoice: 77/2026-27
+    -> ID: 6abbb08c6dd4d2eb14462222 | Qty: 200 | Invoice: 77/2026-27
+    -> ID: 6abbb08c6dd4d2eb14462224 | Qty: 200 | Invoice: 77/2026-27
+- 2885-2920_74: 2 entries
+    -> ID: 6abbb08c6dd4d2eb144621fa | Qty: 150 | Invoice: NCDPL/26-27/22
+    -> ID: 6abbb08c6dd4d2eb14462200 | Qty: 100 | Invoice: NCDPL/26-27/22
+- 2885-2920_69: 4 entries
+    -> ID: 6abbb08c6dd4d2eb144621f8 | Qty: 526 | Invoice: NCDPL/26-27/22
+    -> ID: 6abbb08c6dd4d2eb144621f4 | Qty: 193 | Invoice: NCDPL/26-27/22
+    -> ID: 6abbb08c6dd4d2eb144621fc | Qty: 247 | Invoice: NCDPL/26-27/22
+    -> ID: 6abbb08c6dd4d2eb144621fe | Qty: 34 | Invoice: NCDPL/26-27/22
+- 2885-2920_65: 4 entries
+    -> ID: 6abbb08c6dd4d2eb144621ea | Qty: 93 | Invoice: NCDPL/26-27/22
+    -> ID: 6abbb08c6dd4d2eb144621e6 | Qty: 61 | Invoice: NCDPL/26-27/22
+    -> ID: 6abbb08c6dd4d2eb144621ee | Qty: 7 | Invoice: NCDPL/26-27/22
+    -> ID: 6abbb08c6dd4d2eb144621e0 | Qty: 200 | Invoice: NCDPL/26-27/22
+- 2885-2920_75: 2 entries
+    -> ID: 6abbb08c6dd4d2eb144621f0 | Qty: 300 | Invoice: NCDPL/26-27/22
+    -> ID: 6abbb08c6dd4d2eb144621e2 | Qty: 200 | Invoice: NCDPL/26-27/22
+- 4429-45_155: 4 entries
+    -> ID: 6abbb08d6dd4d2eb14462234 | Qty: 10 | Invoice: IPI/26-27/022
+    -> ID: 6abbb08d6dd4d2eb1446223e | Qty: 10 | Invoice: IPI/26-27/022
+    -> ID: 6abbb08d6dd4d2eb1446223a | Qty: 10 | Invoice: IPI/26-27/022
+    -> ID: 6abbb08d6dd4d2eb14462230 | Qty: 10 | Invoice: IPI/26-27/022
+- 4429-45_156: 4 entries
+    -> ID: 6abbb08d6dd4d2eb1446222c | Qty: 10 | Invoice: IPI/26-27/022
+    -> ID: 6abbb08d6dd4d2eb1446222e | Qty: 10 | Invoice: IPI/26-27/022
+    -> ID: 6abbb08d6dd4d2eb1446223c | Qty: 10 | Invoice: IPI/26-27/022
+    -> ID: 6abbb08d6dd4d2eb14462232 | Qty: 10 | Invoice: IPI/26-27/022

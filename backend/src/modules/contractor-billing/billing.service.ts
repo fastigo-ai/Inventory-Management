@@ -29,13 +29,14 @@ export const createInvoiceService = async (data: any, user: any) => {
     supplyRaBillNo,
     billingCategory,
     linkedSupplyBillId,
-    linkedErectionBillId
+    linkedErectionBillId,
+    legacyMetadata
   } = data;
 
-  if (!workOrderId) throw new ApiError(400, 'Work Order ID is required');
+  if (!workOrderId && !data.isLegacyBulkUpload) throw new ApiError(400, 'Work Order ID is required');
 
   // Enforce JMC link requirement for erection bills
-  if (billingCategory === 'Erection Bill' && !jmcId) {
+  if (billingCategory === 'Erection Bill' && !jmcId && !data.isLegacyBulkUpload) {
     throw new ApiError(400, 'Erection bills must be linked to a JMC (only JMC and erection RA bill supported).');
   }
 
@@ -107,7 +108,8 @@ export const createInvoiceService = async (data: any, user: any) => {
       baseAmount,
       gstRate: Number(item.gstRate || 0),
       gstAmount,
-      totalAmount
+      totalAmount,
+      legacyData: item.legacyData
     };
   });
 
@@ -132,7 +134,8 @@ export const createInvoiceService = async (data: any, user: any) => {
     linkedSupplyBillId,
     linkedErectionBillId,
     status: 'Pending PM Approval',
-    createdBy: user._id
+    createdBy: user._id,
+    legacyMetadata
   });
 
   return invoice;
@@ -163,7 +166,7 @@ export const updateInvoiceService = async (id: string, data: any, user: any) => 
   }
 
   // Same validation pattern as create
-  if (invoice.billingCategory === 'Erection Bill' && !invoice.jmcId) {
+  if (invoice.billingCategory === 'Erection Bill' && !invoice.jmcId && !data.isLegacyBulkUpload) {
     throw new ApiError(400, 'Erection bills must be linked to a JMC.');
   }
 

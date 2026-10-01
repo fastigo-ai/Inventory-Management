@@ -77,7 +77,7 @@ const parseUploadedFiles = async (files: Express.Multer.File[]) => {
 // CREATE CLIENT BILL
 // ─────────────────────────────────────────────────────────────────────────────
 export const createClientBill = asyncHandler(async (req: any, res: Response) => {
-  const { raBillNo, raBillDate, billType, stage, referenceType, referenceIds, items, status, linkedSupplyBillId } = req.body;
+  const { raBillNo, raBillDate, billType, stage, referenceType, referenceIds, items, status, linkedSupplyBillId, isLegacyBulkUpload } = req.body;
 
   if (req.user?.role?.name !== 'Super Admin' && (!req.user?.assignedCircle || !req.user?.assignedPackage)) {
     return res.status(400).json(new ApiResponse(400, null, 'User missing assigned circle/package'));
@@ -88,9 +88,11 @@ export const createClientBill = asyncHandler(async (req: any, res: Response) => 
   let parsedReferenceIds = [];
   try { parsedReferenceIds = typeof referenceIds === 'string' ? JSON.parse(referenceIds) : referenceIds; } catch (e) {}
 
-  const validation = await validateClientLedgerLimits(req.user.assignedCircle, req.user.assignedPackage, parsedItems, billType, stage);
-  if (!validation.valid) {
-    return res.status(400).json(new ApiResponse(400, null, validation.message));
+  if (!isLegacyBulkUpload) {
+    const validation = await validateClientLedgerLimits(req.user.assignedCircle, req.user.assignedPackage, parsedItems, billType, stage);
+    if (!validation.valid) {
+      return res.status(400).json(new ApiResponse(400, null, validation.message));
+    }
   }
 
   const { invoiceDocUrl, diDocUrl, mhrovDocUrl, additionalDocsUrls } = await parseUploadedFiles(req.files as Express.Multer.File[]);
@@ -127,16 +129,18 @@ export const updateClientBill = asyncHandler(async (req: any, res: Response) => 
 
   if (!bill) return res.status(404).json(new ApiResponse(404, null, 'Client Bill not found'));
 
-  const { raBillNo, raBillDate, billType, stage, referenceType, referenceIds, items, status, linkedSupplyBillId } = req.body;
+  const { raBillNo, raBillDate, billType, stage, referenceType, referenceIds, items, status, linkedSupplyBillId, isLegacyBulkUpload } = req.body;
 
   let parsedItems = [];
   try { parsedItems = typeof items === 'string' ? JSON.parse(items) : items; } catch (e) {}
   let parsedReferenceIds = [];
   try { parsedReferenceIds = typeof referenceIds === 'string' ? JSON.parse(referenceIds) : referenceIds; } catch (e) {}
 
-  const validation = await validateClientLedgerLimits(bill.circle, bill.package, parsedItems, billType || bill.billType, stage || bill.stage, id);
-  if (!validation.valid) {
-    return res.status(400).json(new ApiResponse(400, null, validation.message));
+  if (!isLegacyBulkUpload) {
+    const validation = await validateClientLedgerLimits(bill.circle, bill.package, parsedItems, billType || bill.billType, stage || bill.stage, id);
+    if (!validation.valid) {
+      return res.status(400).json(new ApiResponse(400, null, validation.message));
+    }
   }
 
   const files = req.files as Express.Multer.File[];

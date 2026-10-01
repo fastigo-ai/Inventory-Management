@@ -14,6 +14,10 @@ export interface IContractorInvoiceItem {
   gstRate: number;
   gstAmount: number;
   totalAmount: number;
+  legacyData?: {
+    unit?: string;
+    finalBillAmount?: number;
+  };
 }
 
 export interface IContractorInvoice extends Document {
@@ -42,6 +46,14 @@ export interface IContractorInvoice extends Document {
   totalGstAmount: number;
   grandTotal: number;
 
+  legacyMetadata?: {
+    package?: string;
+    circle?: string;
+    workName?: string;
+    employerName?: string;
+    billedBy?: string;
+  };
+
   jmcDocUrl?: string;
   signedBillDocUrl?: string;
   drawingNumber?: string;
@@ -67,7 +79,11 @@ const contractorInvoiceItemSchema = new Schema<IContractorInvoiceItem>({
   baseAmount: { type: Number, required: true },
   gstRate: { type: Number, required: true, default: 0 },
   gstAmount: { type: Number, required: true, default: 0 },
-  totalAmount: { type: Number, required: true }
+  totalAmount: { type: Number, required: true },
+  legacyData: {
+    unit: { type: String },
+    finalBillAmount: { type: Number }
+  }
 }, { _id: true });
 
 const contractorInvoiceSchema = new Schema<IContractorInvoice>({
@@ -99,6 +115,14 @@ const contractorInvoiceSchema = new Schema<IContractorInvoice>({
   totalBaseAmount: { type: Number, required: true, default: 0 },
   totalGstAmount: { type: Number, required: true, default: 0 },
   grandTotal: { type: Number, required: true, default: 0 },
+
+  legacyMetadata: {
+    package: { type: String },
+    circle: { type: String },
+    workName: { type: String },
+    employerName: { type: String },
+    billedBy: { type: String }
+  },
 
   jmcDocUrl: { type: String },
   signedBillDocUrl: { type: String },

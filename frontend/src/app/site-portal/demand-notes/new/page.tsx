@@ -313,6 +313,8 @@ function DemandNoteForm() {
               circleBomQty: i.circleBomQty || 0,
               loaQty: i.loaQty || i.circleLoaQty || 0,
               woQty: i.woQty || i.issuedQty || 0,
+              package: wo.package || '',
+              circle: wo.circle || '',
               bomQty: i.bomQty || i.circleBomQty || 0,
               alreadyIssuedQty: 0,
               contractorErectionRate: i.contractorErectionRate || 0,
@@ -435,7 +437,7 @@ function DemandNoteForm() {
     let newRows: any[] = [];
     
     selectedItems.forEach(selectedItem => {
-      const itemId = workOrderId ? selectedItem.itemId : (selectedItem._id || selectedItem.itemId || '');
+      const itemId = selectedItem.itemId || selectedItem._id || '';
       const dynamic = selectedItem.dynamicData || {};
 
       let newItem = {
@@ -452,7 +454,8 @@ function DemandNoteForm() {
         miscellaneousQty: 0, demandQty: initialDemandQty || 0, balBomQty: 0, isLoadingContext: false
       };
 
-      if (workOrderId) {
+      const isFromWorkOrder = !!selectedItem.itemId && !selectedItem._id;
+      if (isFromWorkOrder) {
         newItem = {
           ...newItem,
           ...selectedItem,
@@ -500,7 +503,7 @@ function DemandNoteForm() {
 
     const batchPayload = selectedItems.map((selectedItem, idx) => {
       const dynamic = selectedItem.dynamicData || {};
-      const itemId = workOrderId ? selectedItem.itemId : (selectedItem._id || selectedItem.itemId || '');
+      const itemId = selectedItem.itemId || selectedItem._id || '';
       return {
         itemId,
         tempCode: dynamic.tempCode || selectedItem.tempCode || tempCodeParam || '',
@@ -992,9 +995,13 @@ function DemandNoteForm() {
       <ItemSelectionModal
         isOpen={isItemModalOpen}
         onClose={() => setIsItemModalOpen(false)}
-        items={workOrderId ? workOrderItems : itemsList}
+        items={
+          workOrderId && formData.circle
+            ? itemsList.filter(i => (i.dynamicData?.circle || i.circle)?.toLowerCase() === formData.circle.toLowerCase())
+            : itemsList
+        }
         onSelect={handleAddNewItem}
-        isWorkOrderContext={!!workOrderId}
+        isWorkOrderContext={false}
       />
     </div>
   );

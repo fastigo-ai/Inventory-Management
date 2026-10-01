@@ -7,7 +7,8 @@ import {
   getInvoicesService, 
   getInvoiceByIdService, 
   updateInvoiceStatusService, 
-  getBillingAnalyticsService 
+  getBillingAnalyticsService,
+  deleteInvoiceService
 } from './billing.service';
 
 export const createInvoice = asyncHandler(async (req: Request, res: Response) => {
@@ -46,4 +47,11 @@ export const updateInvoiceStatus = asyncHandler(async (req: Request, res: Respon
 export const getBillingAnalytics = asyncHandler(async (req: Request, res: Response) => {
   const analytics = await getBillingAnalyticsService();
   res.status(200).json(new ApiResponse(200, analytics, 'Billing analytics fetched successfully'));
+});
+
+export const deleteInvoice = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const user = (req as any).user;
+  await deleteInvoiceService(id as string, user);
+  res.status(200).json(new ApiResponse(200, null, 'Invoice deleted successfully'));
 });

@@ -22,6 +22,11 @@ export const updateContractorInvoice = async (id: string, payload: any) => {
   return response.data;
 };
 
+export const deleteContractorInvoice = async (id: string) => {
+  const response = await api.delete(`/contractor-billing/invoices/${id}`);
+  return response.data;
+};
+
 export const updateInvoiceStatus = async (id: string, payload: { status: string; remarks?: string }) => {
   const response = await api.patch(`/contractor-billing/invoices/${id}/status`, payload);
   return response.data;

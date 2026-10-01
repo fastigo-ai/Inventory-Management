@@ -2,11 +2,11 @@
 
 import React, { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { getContractorInvoiceById } from '@/features/contractor-billing/api/contractor-billing.api';
+import { getContractorInvoiceById, deleteContractorInvoice } from '@/features/contractor-billing/api/contractor-billing.api';
 import { getBillingCompanies } from '@/features/settings/api/billingCompanies.api';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Printer, Download, Edit } from 'lucide-react';
+import { ArrowLeft, Printer, Download, Edit, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function ContractorInvoiceViewPage({ params }: { params: Promise<{ id: string }> }) {
@@ -92,6 +92,18 @@ export default function ContractorInvoiceViewPage({ params }: { params: Promise<
   const dueDate = new Date(issueDate);
   dueDate.setDate(dueDate.getDate() + 15); // Standard 15 day payment terms
 
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this bill? This action cannot be undone.')) return;
+    try {
+      await deleteContractorInvoice(id);
+      toast.success('Bill deleted successfully');
+      router.push('/site-portal/contractor-billing');
+    } catch (error) {
+      console.error('Failed to delete bill', error);
+      toast.error('Failed to delete bill');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8">
       {/* Action Bar */}
@@ -101,6 +113,12 @@ export default function ContractorInvoiceViewPage({ params }: { params: Promise<
           Back to Billing
         </Button>
         <div className="flex gap-3">
+          {(['Draft', 'Pending PM Approval', 'Pending Site Approval', 'Rejected'].includes(invoice.status) || !!invoice.legacyMetadata) && (
+            <Button variant="destructive" onClick={handleDelete}>
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete Bill
+            </Button>
+          )}
           {['Draft', 'Pending PM Approval', 'Rejected'].includes(invoice.status) && (
             <Button variant="outline" onClick={() => router.push(`/site-portal/contractor-billing/${id}/edit`)}>
               <Edit className="w-4 h-4 mr-2" />
@@ -212,8 +230,8 @@ export default function ContractorInvoiceViewPage({ params }: { params: Promise<
                     <tr key={idx} className="hover:bg-slate-50">
                       <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-slate-700">{item.activity}</td>
                       <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2">{item.description}</td>
-                      <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-center text-slate-600 whitespace-nowrap">{matchedWoItem?.tempCode || '-'}</td>
-                      <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-center text-slate-600 whitespace-nowrap">{matchedWoItem?.loaSrNo || '-'}</td>
+                      <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-center text-slate-600 whitespace-nowrap">{matchedWoItem?.tempCode || item.itemId?.tempCode || item.itemId?.dynamicData?.tempCode || '-'}</td>
+                      <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-center text-slate-600 whitespace-nowrap">{matchedWoItem?.loaSrNo || item.legacyData?.loaSerialNo || item.itemId?.loaSrNo || item.itemId?.dynamicData?.loaSrNo || item.itemId?.dynamicData?.loaSerialNo || '-'}</td>
                       <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-center text-slate-600 whitespace-nowrap">{item.billingCategory}</td>
                       <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-semibold">{qty}</td>
                       <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right">{item.rate?.toFixed(2)}</td>

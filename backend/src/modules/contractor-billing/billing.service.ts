@@ -311,9 +311,20 @@ export const getInvoicesService = async (query: any, user: any) => {
     .populate('createdBy', 'name email role')
     .sort({ createdAt: -1 });
 
-  // Filter out any where populated workOrderId is null because it didn't match the circle/package criteria
+  // Filter out any where populated workOrderId is null because it didn't match the circle/package criteria,
+  // BUT allow legacy invoices (which have no workOrderId) to pass if they match via legacyMetadata.
   if (Object.keys(matchFilter).length > 0) {
-    return invoices.filter((inv: any) => inv.workOrderId != null);
+    return invoices.filter((inv: any) => {
+      if (inv.workOrderId != null) return true;
+      
+      if (inv.legacyMetadata) {
+        // Bypass strict circle/package filtering for legacy uploads 
+        // to ensure they always show up in the billing list regardless of user portal
+        return true;
+      }
+
+      return false;
+    });
   }
 
   return invoices;
@@ -325,7 +336,8 @@ export const getInvoiceByIdService = async (id: string) => {
     .populate('workOrderId', 'workOrderNumber items')
     .populate('mhrovId', 'mhrovNumber')
     .populate('jmcId', 'jmcNumber')
-    .populate('handoverCertificateId', 'certificateNumber');
+    .populate('handoverCertificateId', 'certificateNumber')
+    .populate('lineItems.itemId', 'tempCode loaSrNo itemName description dynamicData');
 
   if (!invoice) throw new ApiError(404, 'Invoice not found');
   return invoice;
@@ -492,4 +504,23 @@ export const getBillingAnalyticsService = async () => {
       oldSubmittedCount: oldSubmittedInvoices
     }
   };
+};
+
+export const deleteInvoiceService = async (id: string, user: any) => {
+  const invoice = await ContractorInvoice.findById(id);
+  if (!invoice) {
+    throw new ApiError(404, 'Invoice not found');
+  }
+
+  // Allow delete if pending or if it is a legacy bulk upload (they have no work order)
+  const isPending = invoice.status === 'Pending PM Approval';
+  const isLegacy = !!invoice.legacyMetadata;
+  const isAdmin = user.role?.name === 'Admin';
+  
+  if (!isPending && !isLegacy && !isAdmin) {
+    throw new ApiError(403, 'Only pending or legacy invoices can be deleted, unless you are an Admin');
+  }
+
+  await ContractorInvoice.findByIdAndDelete(id);
+  return { success: true };
 };

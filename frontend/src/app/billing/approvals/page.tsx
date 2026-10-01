@@ -219,8 +219,10 @@ export default function ApprovalsDashboardPage() {
                         </>
                       ) : (
                         <>
-                          <span className="font-semibold">{bill.contractorId?.name || 'Unknown'}</span>
-                          <div className="text-xs text-slate-500">{bill.stage}</div>
+                          <span className="font-semibold">{bill.billingCategory || 'Contractor Bill'}</span>
+                          <div className="text-xs text-slate-500">
+                            {bill.contractorId?.name || bill.legacyMetadata?.billedBy || 'Multiple Contractors'} • {bill.stage}
+                          </div>
                         </>
                       )}
                     </td>

@@ -3,11 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Plus, FileText, CheckCircle, SearchX, Upload } from 'lucide-react';
+import { Plus, FileText, CheckCircle, SearchX, Upload, Trash2, Edit } from 'lucide-react';
 import { 
   getContractorInvoices, 
   getHandoverCertificates,
-  getBillingAnalytics
+  getBillingAnalytics,
+  deleteContractorInvoice
 } from '@/features/contractor-billing/api/contractor-billing.api';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -54,6 +55,20 @@ export default function ContractorBillingDashboard() {
       }
     } catch (error) {
       console.error('Failed to fetch billing analytics', error);
+    }
+  };
+
+  const handleDeleteInvoice = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (!confirm('Are you sure you want to delete this bill? This action cannot be undone.')) return;
+    try {
+      await deleteContractorInvoice(id);
+      toast.success('Bill deleted successfully');
+      fetchData();
+      fetchAnalytics();
+    } catch (error) {
+      console.error('Failed to delete bill', error);
+      toast.error('Failed to delete bill');
     }
   };
 
@@ -213,6 +228,7 @@ export default function ContractorBillingDashboard() {
                     <th className="px-6 py-3 text-left font-semibold text-gray-900">Stage</th>
                     <th className="px-6 py-3 text-right font-semibold text-gray-900">Amount (₹)</th>
                     <th className="px-6 py-3 text-left font-semibold text-gray-900">Status</th>
+                    <th className="px-6 py-3 text-right font-semibold text-gray-900">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
@@ -228,11 +244,12 @@ export default function ContractorBillingDashboard() {
                         <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-16"></div></td>
                         <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-20 ml-auto"></div></td>
                         <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-16"></div></td>
+                        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-16 ml-auto"></div></td>
                       </tr>
                     ))
                   ) : invoicePageData.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-16 text-center">
+                      <td colSpan={7} className="px-6 py-16 text-center">
                         <div className="flex flex-col items-center justify-center text-gray-500">
                           <SearchX className="w-12 h-12 text-gray-300 mb-3" />
                           <p className="text-base font-medium text-gray-900 mb-1">No bills found</p>
@@ -273,6 +290,35 @@ export default function ContractorBillingDashboard() {
                           <span className={`inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold ${getStatusColor(inv.status)}`}>
                             {inv.status}
                           </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {['Draft', 'Pending PM Approval', 'Rejected'].includes(inv.status) && (
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                className="h-8 w-8 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  router.push(`/site-portal/contractor-billing/${inv._id}/edit`);
+                                }}
+                                title="Edit Bill"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {(['Draft', 'Pending PM Approval', 'Pending Site Approval', 'Rejected'].includes(inv.status) || !!inv.legacyMetadata) && (
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                className="h-8 w-8 text-slate-500 hover:text-red-600 hover:bg-red-50"
+                                onClick={(e) => handleDeleteInvoice(e, inv._id)}
+                                title="Delete Bill"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))

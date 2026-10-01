@@ -18,6 +18,7 @@ export interface IContractorInvoiceItem {
     unit?: string;
     finalBillAmount?: number;
     raBillNo?: string;
+    loaSerialNo?: string;
   };
 }
 
@@ -53,6 +54,7 @@ export interface IContractorInvoice extends Document {
     workName?: string;
     employerName?: string;
     billedBy?: string;
+    loaSerialNo?: string;
   };
 
   jmcDocUrl?: string;
@@ -84,7 +86,8 @@ const contractorInvoiceItemSchema = new Schema<IContractorInvoiceItem>({
   legacyData: {
     unit: { type: String },
     finalBillAmount: { type: Number },
-    raBillNo: { type: String }
+    raBillNo: { type: String },
+    loaSerialNo: { type: String }
   }
 }, { _id: true });
 
@@ -123,7 +126,8 @@ const contractorInvoiceSchema = new Schema<IContractorInvoice>({
     circle: { type: String },
     workName: { type: String },
     employerName: { type: String },
-    billedBy: { type: String }
+    billedBy: { type: String },
+    loaSerialNo: { type: String }
   },
 
   jmcDocUrl: { type: String },

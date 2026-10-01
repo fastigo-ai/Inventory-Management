@@ -70,7 +70,15 @@ export default function LegacyBulkUpload() {
           if (row[0] && row[1] !== undefined) {
             const key = String(row[0]).trim();
             const val = String(row[1]).trim();
-            if (key.toLowerCase().includes('erection bill type')) metadata.stage = val;
+            if (key.toLowerCase().includes('erection bill type')) {
+              let s = val.toString().trim();
+              if (!isNaN(Number(s)) && Number(s) <= 1 && Number(s) > 0) {
+                s = `${Math.round(Number(s) * 100)}%`;
+              } else if (!s.includes('%') && !isNaN(Number(s))) {
+                s = `${s}%`;
+              }
+              metadata.stage = s;
+            }
             if (key.toLowerCase().includes('name of package')) metadata.package = val;
             if (key.toLowerCase().includes('name of circle')) metadata.circle = val;
             if (key.toLowerCase().includes('name of work')) metadata.workName = val;
@@ -150,7 +158,8 @@ export default function LegacyBulkUpload() {
             legacyData: {
               unit: unitIdx !== -1 ? String(row[unitIdx] || '') : undefined,
               finalBillAmount: finalAmountIdx !== -1 ? Number(row[finalAmountIdx]) || 0 : undefined,
-              raBillNo: raBillNoIdx !== -1 ? String(row[raBillNoIdx] || '') : undefined
+              raBillNo: raBillNoIdx !== -1 ? String(row[raBillNoIdx] || '') : undefined,
+              loaSerialNo: loaNo
             },
             _parsedLoa: loaNo // For display only
           });
@@ -180,9 +189,9 @@ export default function LegacyBulkUpload() {
       ['Name of work', ''],
       ['Name of employer', ''],
       ['Billed by', ''],
-      ['Loa serial no', 'Item name', 'Unit', 'Erected qty', 'Gst%', 'Final Bill amount'],
-      ['LOA-12345', 'Sample Item 1', 'NOS', 10, 18, 0],
-      ['LOA-67890', 'Sample Item 2', 'MTR', 50, 18, 0]
+      ['Loa serial no', 'Item name', 'RA BILL NO', 'Unit', 'Erected qty', 'Gst%', 'Final Bill amount'],
+      ['LOA-12345', 'Sample Item 1', '1', 'NOS', 10, 18, 0],
+      ['LOA-67890', 'Sample Item 2', '1', 'MTR', 50, 18, 0]
     ];
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
     const wb = XLSX.utils.book_new();
@@ -202,7 +211,6 @@ export default function LegacyBulkUpload() {
         isLegacyBulkUpload: true, // Special flag for backend bypass
         lineItems: parsedItems,
         legacyMetadata: parsedMetadata,
-        supplyBasis: 'Legacy Bulk',
         jmcDocUrl: 'https://placeholder.url/legacy-bulk-upload', // Dummy URLs since it's legacy bulk
         signedBillDocUrl: 'https://placeholder.url/legacy-bulk-upload'
       };

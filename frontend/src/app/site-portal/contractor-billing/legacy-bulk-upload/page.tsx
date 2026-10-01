@@ -89,6 +89,7 @@ export default function LegacyBulkUpload() {
         const qtyIdx = headers.findIndex(h => h === 'erected qty');
         const gstIdx = headers.findIndex(h => h.includes('gst'));
         const nameIdx = headers.findIndex(h => h === 'item name');
+        const raBillNoIdx = headers.findIndex(h => h === 'ra bill no' || h === 'ra bill');
         const unitIdx = headers.findIndex(h => h === 'unit');
         const finalAmountIdx = headers.findIndex(h => h.includes('final bill amount') || h.includes('final'));
 
@@ -148,7 +149,8 @@ export default function LegacyBulkUpload() {
             totalAmount: baseAmount + gstAmount,
             legacyData: {
               unit: unitIdx !== -1 ? String(row[unitIdx] || '') : undefined,
-              finalBillAmount: finalAmountIdx !== -1 ? Number(row[finalAmountIdx]) || 0 : undefined
+              finalBillAmount: finalAmountIdx !== -1 ? Number(row[finalAmountIdx]) || 0 : undefined,
+              raBillNo: raBillNoIdx !== -1 ? String(row[raBillNoIdx] || '') : undefined
             },
             _parsedLoa: loaNo // For display only
           });

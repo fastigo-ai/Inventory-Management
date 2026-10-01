@@ -17,6 +17,7 @@ export interface IContractorInvoiceItem {
   legacyData?: {
     unit?: string;
     finalBillAmount?: number;
+    raBillNo?: string;
   };
 }
 
@@ -82,7 +83,8 @@ const contractorInvoiceItemSchema = new Schema<IContractorInvoiceItem>({
   totalAmount: { type: Number, required: true },
   legacyData: {
     unit: { type: String },
-    finalBillAmount: { type: Number }
+    finalBillAmount: { type: Number },
+    raBillNo: { type: String }
   }
 }, { _id: true });
 

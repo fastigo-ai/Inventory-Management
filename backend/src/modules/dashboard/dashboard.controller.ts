@@ -341,10 +341,19 @@ export const getPMPortalDashboardSummary = asyncHandler(async (req: any, res: Re
   // Base query for the PM's scope
   const baseQuery: any = {};
   if (user.assignedPackage && user.assignedPackage !== 'All') {
-    baseQuery.package = { $regex: new RegExp(`^${escapeRegExp(user.assignedPackage.trim())}$`, 'i') };
+    const packageRegexStr = escapeRegExp(user.assignedPackage.trim()).replace(/ /g, '\\s*');
+    baseQuery.package = { $regex: new RegExp(`^${packageRegexStr}$`, 'i') };
   }
   if (user.assignedCircle && user.assignedCircle !== 'All') {
-    baseQuery.circle = { $regex: new RegExp(`^${escapeRegExp(user.assignedCircle.trim())}$`, 'i') };
+    const SUB_STORE_MAP: Record<string, string[]> = {
+      'Solan': ['Solan', 'Kumarhatti', 'Nalagarh'],
+      'Nahan': ['Nahan'],
+      'Rohru': ['Rohru'],
+      'Rampur': ['Rampur'],
+    };
+    const allowedCircles = SUB_STORE_MAP[user.assignedCircle] || [user.assignedCircle];
+    const regexCircles = allowedCircles.map(c => new RegExp(`^${escapeRegExp(c.trim())}$`, 'i'));
+    baseQuery.circle = { $in: regexCircles };
   }
   
   const DemandNote = mongoose.model('DemandNote');
@@ -468,10 +477,19 @@ export const getPDPortalDashboardSummary = asyncHandler(async (req: any, res: Re
   // Base query for the PD's scope
   const baseQuery: any = {};
   if (user.assignedPackage && user.assignedPackage !== 'All') {
-    baseQuery.package = { $regex: new RegExp(`^${escapeRegExp(user.assignedPackage.trim())}$`, 'i') };
+    const packageRegexStr = escapeRegExp(user.assignedPackage.trim()).replace(/ /g, '\\s*');
+    baseQuery.package = { $regex: new RegExp(`^${packageRegexStr}$`, 'i') };
   }
   if (user.assignedCircle && user.assignedCircle !== 'All') {
-    baseQuery.circle = { $regex: new RegExp(`^${escapeRegExp(user.assignedCircle.trim())}$`, 'i') };
+    const SUB_STORE_MAP: Record<string, string[]> = {
+      'Solan': ['Solan', 'Kumarhatti', 'Nalagarh'],
+      'Nahan': ['Nahan'],
+      'Rohru': ['Rohru'],
+      'Rampur': ['Rampur'],
+    };
+    const allowedCircles = SUB_STORE_MAP[user.assignedCircle] || [user.assignedCircle];
+    const regexCircles = allowedCircles.map(c => new RegExp(`^${escapeRegExp(c.trim())}$`, 'i'));
+    baseQuery.circle = { $in: regexCircles };
   }
   
   const DemandNote = mongoose.model('DemandNote');

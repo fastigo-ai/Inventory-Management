@@ -185,18 +185,22 @@ export const getClientBills = asyncHandler(async (req: any, res: Response) => {
 
   if (req.user?.role?.name !== 'Super Admin') {
     if (req.user?.assignedCircle && req.user.assignedCircle !== 'All') {
-      query.circle = { $regex: new RegExp(`^${escapeRegExp(req.user.assignedCircle)}$`, 'i') };
+      const allowedCircles = expandCircle(req.user.assignedCircle) || [req.user.assignedCircle];
+      query.circle = { $in: allowedCircles.map(c => new RegExp(`^${escapeRegExp(c)}$`, 'i')) };
     }
     if (req.user?.assignedPackage && req.user.assignedPackage !== 'All') {
-      query.package = { $regex: new RegExp(`^${escapeRegExp(req.user.assignedPackage)}$`, 'i') };
+      const packageRegexStr = escapeRegExp(req.user.assignedPackage.trim()).replace(/ /g, '\\s*');
+      query.package = { $regex: new RegExp(`^${packageRegexStr}$`, 'i') };
     }
   }
 
   if (req.query.circle && req.query.circle !== 'All') {
-    query.circle = { $regex: new RegExp(`^${escapeRegExp(String(req.query.circle))}$`, 'i') };
+    const allowedCircles = expandCircle(String(req.query.circle)) || [String(req.query.circle)];
+    query.circle = { $in: allowedCircles.map(c => new RegExp(`^${escapeRegExp(c)}$`, 'i')) };
   }
   if (req.query.package && req.query.package !== 'All') {
-    query.package = { $regex: new RegExp(`^${escapeRegExp(String(req.query.package))}$`, 'i') };
+    const packageRegexStr = escapeRegExp(String(req.query.package)).replace(/ /g, '\\s*');
+    query.package = { $regex: new RegExp(`^${packageRegexStr}$`, 'i') };
   }
 
   const bills = await ClientBill.find(query)
@@ -391,18 +395,22 @@ export const getClientBillingAnalytics = asyncHandler(async (req: any, res: Resp
 
   if (req.user?.role?.name !== 'Super Admin') {
     if (req.user?.assignedCircle && req.user.assignedCircle !== 'All') {
-      query.circle = { $regex: new RegExp(`^${escapeRegExp(req.user.assignedCircle)}$`, 'i') };
+      const allowedCircles = expandCircle(req.user.assignedCircle) || [req.user.assignedCircle];
+      query.circle = { $in: allowedCircles.map(c => new RegExp(`^${escapeRegExp(c)}$`, 'i')) };
     }
     if (req.user?.assignedPackage && req.user.assignedPackage !== 'All') {
-      query.package = { $regex: new RegExp(`^${escapeRegExp(req.user.assignedPackage)}$`, 'i') };
+      const packageRegexStr = escapeRegExp(req.user.assignedPackage.trim()).replace(/ /g, '\\s*');
+      query.package = { $regex: new RegExp(`^${packageRegexStr}$`, 'i') };
     }
   }
 
   if (req.query.circle && req.query.circle !== 'All') {
-    query.circle = { $regex: new RegExp(`^${escapeRegExp(String(req.query.circle))}$`, 'i') };
+    const allowedCircles = expandCircle(String(req.query.circle)) || [String(req.query.circle)];
+    query.circle = { $in: allowedCircles.map(c => new RegExp(`^${escapeRegExp(c)}$`, 'i')) };
   }
   if (req.query.package && req.query.package !== 'All') {
-    query.package = { $regex: new RegExp(`^${escapeRegExp(String(req.query.package))}$`, 'i') };
+    const packageRegexStr = escapeRegExp(String(req.query.package)).replace(/ /g, '\\s*');
+    query.package = { $regex: new RegExp(`^${packageRegexStr}$`, 'i') };
   }
 
   // Aggregate by billType and stage to calculate totals correctly
@@ -619,12 +627,7 @@ export const bulkImportClientBills = asyncHandler(async (req: any, res: Response
                  billValid = false;
                  break;
              }
-             if (circleFromCsv && mhrovDoc.circle && mhrovDoc.circle !== circleFromCsv) {
-                 results.failed++;
-                 results.errors.push({ raBillNo, reason: `MHROV '${mhrovNo}' circle ('${mhrovDoc.circle}') does not match CSV circle ('${circleFromCsv}')` });
-                 billValid = false;
-                 break;
-             }
+             // (MHROV items have .itemId reference normally, but they might not be populated in lean array, so skip deep item check here to avoid complexity unless necessary)
              // (MHROV items have .itemId reference normally, but they might not be populated in lean array, so skip deep item check here to avoid complexity unless necessary)
          }
 

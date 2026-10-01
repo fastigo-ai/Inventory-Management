@@ -283,11 +283,19 @@ export const getInvoicesService = async (query: any, user: any) => {
   // Performance Fix: Filter by package/circle directly using populated match
   const matchFilter: any = {};
   if (targetCircle) {
-    // Regex allows matching even with slightly different spacing or case, but an exact match is better if standardized
-    matchFilter.circle = new RegExp(`^${targetCircle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+    const SUB_STORE_MAP: Record<string, string[]> = {
+      'Solan': ['Solan', 'Kumarhatti', 'Nalagarh'],
+      'Nahan': ['Nahan'],
+      'Rohru': ['Rohru'],
+      'Rampur': ['Rampur'],
+    };
+    const allowedCircles = SUB_STORE_MAP[targetCircle] || [targetCircle];
+    const regexCircles = allowedCircles.map(c => new RegExp(`^${c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'));
+    matchFilter.circle = { $in: regexCircles };
   }
   if (targetPackage) {
-    matchFilter.package = new RegExp(`^${targetPackage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+    const packageEscaped = targetPackage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s*');
+    matchFilter.package = new RegExp(`^${packageEscaped}$`, 'i');
   }
 
   const invoices = await ContractorInvoice.find(filter)

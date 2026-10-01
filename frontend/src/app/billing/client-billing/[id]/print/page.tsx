@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getClientBillById } from '@/features/billing/api/client-billing.api';
+import { getBillingCompanies } from '@/features/settings/api/billingCompanies.api';
 import { Printer, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -13,14 +14,21 @@ export default function PrintClientBillPage() {
   const { id } = params as { id: string };
 
   const [bill, setBill] = useState<any>(null);
+  const [billingCompany, setBillingCompany] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchBill = async () => {
       try {
-        const res = await getClientBillById(id);
+        const [res, companyRes] = await Promise.all([
+          getClientBillById(id),
+          getBillingCompanies()
+        ]);
         if (res.success) {
           setBill(res.data);
+        }
+        if (companyRes.success && companyRes.data?.length > 0) {
+          setBillingCompany(companyRes.data[0]);
         }
       } catch (error) {
         console.error('Failed to load bill data');
@@ -50,22 +58,13 @@ export default function PrintClientBillPage() {
 
   return (
     <>
-      <div className="print:hidden fixed top-6 left-72 z-50">
-        <button 
-          onClick={() => { window.history.length > 1 ? router.back() : window.close(); window.close(); }}
-          className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg shadow-lg transition-all font-sans text-sm font-medium"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-          Back / Close
-        </button>
-      </div>
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
-          @page { size: landscape; margin: 10mm; }
+          @page { size: landscape; margin: 0; }
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
       `}} />
-      <div className="min-h-screen bg-slate-100 p-8 print:bg-white print:p-0">
+      <div className="min-h-screen bg-slate-100 p-8 print:bg-white print:p-[10mm]">
         
         {/* Non-printable controls */}
         <div className="max-w-[1400px] mx-auto mb-6 flex justify-between items-center print:hidden">
@@ -85,10 +84,14 @@ export default function PrintClientBillPage() {
           {/* Header */}
           <div className="flex justify-between items-start mb-12">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-xl">F</span>
-              </div>
-              <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Fastigo Pvt Ltd</h1>
+              {billingCompany?.logoUrl ? (
+                <img src={billingCompany.logoUrl} alt={billingCompany?.name || 'Company Logo'} className="h-12 w-auto object-contain" />
+              ) : (
+                <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-xl">{billingCompany?.name?.charAt(0) || 'F'}</span>
+                </div>
+              )}
+              <h1 className="text-2xl font-bold text-slate-800 tracking-tight">{billingCompany?.name || 'Fastigo'}</h1>
             </div>
             <div className="text-right">
               <h2 className="text-2xl font-bold text-slate-800 uppercase tracking-wider mb-2">Client RA Bill</h2>
@@ -137,45 +140,45 @@ export default function PrintClientBillPage() {
           {/* Table */}
           <div className="mb-8">
             <h3 className="text-sm font-bold text-slate-800 mb-2">Work Details</h3>
-            <table className="w-full text-xs md:text-sm border-collapse border border-slate-400 print:text-[10px]">
+            <table className="w-full table-fixed text-xs md:text-sm border-collapse border border-slate-400 print:text-[10px]">
               <thead>
                 <tr className="bg-slate-200">
-                  <th className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-left font-bold text-slate-800">Ref / JMC</th>
-                  <th className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-left font-bold text-slate-800">Item Name</th>
-                  <th className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-center font-bold text-slate-800">Temp Code</th>
-                  <th className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-center font-bold text-slate-800">LOA Sr No</th>
+                  <th className="w-[10%] border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-left font-bold text-slate-800">Ref / JMC</th>
+                  <th className="w-[22%] border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-left font-bold text-slate-800">Item Name</th>
+                  <th className="w-[8%] border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-center font-bold text-slate-800">Temp Code</th>
+                  <th className="w-[8%] border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-center font-bold text-slate-800">LOA Sr No</th>
                   {bill.billType === 'Supply' && (
-                    <th className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-center font-bold text-slate-800">DI No</th>
+                    <th className="w-[8%] border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-center font-bold text-slate-800">DI No</th>
                   )}
-                  <th className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-bold text-slate-800">RA Qty</th>
-                  <th className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-bold text-slate-800">BOQ Rate</th>
-                  <th className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-bold text-slate-800">Base Amt</th>
-                  <th className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-bold text-slate-800">GST Amt</th>
-                  <th className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-bold text-slate-800">Total</th>
+                  <th className="w-[8%] border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-right font-bold text-slate-800">RA Qty</th>
+                  <th className="w-[10%] border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-right font-bold text-slate-800">BOQ Rate</th>
+                  <th className="w-[10%] border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-right font-bold text-slate-800">Base Amt</th>
+                  <th className="w-[8%] border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-right font-bold text-slate-800">GST Amt</th>
+                  <th className="w-[10%] border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-right font-bold text-slate-800">Total</th>
                 </tr>
               </thead>
               <tbody>
                 {bill.items.map((item: any, idx: number) => (
-                  <tr key={idx}>
-                    <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-slate-700">{item.refNumber || '-'}</td>
-                    <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-slate-700"><p className="line-clamp-2">{item.itemName}</p></td>
-                    <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-center text-slate-700">{item.tempCode || '-'}</td>
-                    <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-center text-slate-700">{item.loaSrNo || '-'}</td>
+                  <tr key={idx} className="print:break-inside-avoid">
+                    <td className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-slate-700 break-words">{item.refNumber || '-'}</td>
+                    <td className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-slate-700 break-words">{item.itemName}</td>
+                    <td className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-center text-slate-700 break-words">{item.tempCode || '-'}</td>
+                    <td className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-center text-slate-700 break-words">{item.loaSrNo || '-'}</td>
                     {bill.billType === 'Supply' && (
-                      <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-center text-slate-700">{item.diNo || '-'}</td>
+                      <td className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-center text-slate-700 break-words">{item.diNo || '-'}</td>
                     )}
-                    <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right text-slate-700">{item.raBillQty}</td>
-                    <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right text-slate-700">₹{item.boqRate?.toLocaleString('en-IN', { maximumFractionDigits: 2 }) || '0'}</td>
-                    <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right text-slate-700">₹{(item.totalAmount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
-                    <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right text-slate-700">₹{(item.gstAmount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
-                    <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-bold text-slate-800">₹{((item.totalAmount || 0) + (item.gstAmount || 0)).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
+                    <td className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-right text-slate-700">{item.raBillQty}</td>
+                    <td className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-right text-slate-700">₹{item.boqRate?.toLocaleString('en-IN', { maximumFractionDigits: 2 }) || '0'}</td>
+                    <td className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-right text-slate-700">₹{(item.totalAmount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
+                    <td className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-right text-slate-700">₹{(item.gstAmount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
+                    <td className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-right font-bold text-slate-800">₹{((item.totalAmount || 0) + (item.gstAmount || 0)).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
                   </tr>
                 ))}
-                <tr className="bg-slate-100 font-bold text-slate-800">
-                  <td colSpan={bill.billType === 'Supply' ? 7 : 6} className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right">Grand Total</td>
-                  <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right">₹{totalBaseAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
-                  <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right">₹{totalGstAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
-                  <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right">₹{grandTotalAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
+                <tr className="bg-slate-100 font-bold text-slate-800 print:break-inside-avoid">
+                  <td colSpan={bill.billType === 'Supply' ? 7 : 6} className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-right">Grand Total</td>
+                  <td className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-right">₹{totalBaseAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
+                  <td className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-right">₹{totalGstAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
+                  <td className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-right">₹{grandTotalAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
                 </tr>
               </tbody>
             </table>

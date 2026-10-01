@@ -79,10 +79,6 @@ export function MhrovImportModal({ isOpen, onClose, onSuccess }: MhrovImportModa
         if (res.data.successCount > 0) {
           toast.success(`Imported successfully! ${res.data.successCount} MHROVs saved.`);
           onSuccess();
-          if (!res.data.errors || res.data.errors.length === 0) {
-            onClose();
-            return;
-          }
         }
         setResult(res.data);
       }, 600);
@@ -227,7 +223,7 @@ export function MhrovImportModal({ isOpen, onClose, onSuccess }: MhrovImportModa
                   <CheckCircle className="w-6 h-6 text-green-600 shrink-0" />
                   <div>
                     <h4 className="font-medium text-green-900">Successfully Imported</h4>
-                    <p className="text-sm text-green-700">{result.successCount} purchase invoices saved</p>
+                    <p className="text-sm text-green-700">{result.successCount} MHROVs saved</p>
                   </div>
                 </div>
               )}

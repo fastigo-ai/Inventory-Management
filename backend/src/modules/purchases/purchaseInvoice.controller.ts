@@ -103,7 +103,7 @@ export const createPurchaseInvoice = async (req: Request, res: Response): Promis
         .map((i: any) => ({
           lineId: i.diLineId.toString(),
           quantity: Number(i.quantity) || 0,
-          itemName: `${i.itemName} (DI: ${prData.diNumber || prData.diNo || 'N/A'}, Temp Code: ${i.tempCode || 'N/A'}, Circle: ${i.circle || 'N/A'}, Package: ${i.package || 'N/A'})`
+          itemName: `${i.itemName} (DI: ${prData.diNumber || prData.diNo || 'N/A'}, Temp Code: ${i.tempCode || 'N/A'}, LOA Sr No: ${i.loaSerialNo || 'N/A'}, Circle: ${i.circle || 'N/A'}, Package: ${i.package || 'N/A'})`
         }));
       
       if (diLinesToConsume.length > 0) {
@@ -1102,6 +1102,7 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
           itemName,
           description: row['description'] || row['itemdescription'] || '',
           loaSerialNo,
+          diNumber: row['dino'] || row['dinumber'] || '',
           tempCode,
           package: row['package'] || '',
           circle: row['circle'] || '',
@@ -1136,7 +1137,14 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
 
     const prNumbers = Object.keys(prMap);
     const poNumbers = Array.from(new Set(prNumbers.map(n => prMap[n].purchaseOrderNumber).filter(Boolean)));
-    const diNumbers = Array.from(new Set(prNumbers.map(n => prMap[n].diNumber).filter(Boolean)));
+    const diNumbersSet = new Set<string>();
+    prNumbers.forEach(n => {
+      if (prMap[n].diNumber) diNumbersSet.add(prMap[n].diNumber);
+      prMap[n].lineItems.forEach((li: any) => {
+        if (li.diNumber) diNumbersSet.add(li.diNumber);
+      });
+    });
+    const diNumbers = Array.from(diNumbersSet);
 
     const [existingPRs, existingPOs, existingDIs] = await Promise.all([
       PurchaseInvoice.find({ invoiceNumber: { $in: prNumbers } }),
@@ -1154,32 +1162,49 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
             prData.purchaseOrderId = di.purchaseOrderId;
             prData.purchaseOrderNumber = di.poNumber;
           }
-          prData.lineItems.forEach((li: any) => {
-            li.diId = di._id;
-            const diLine = di.lineItems.find((dli: any) => {
-              const itemMatch = (dli.itemId && li.itemId && dli.itemId.toString() === li.itemId.toString()) ||
-                (dli.tempCode && li.tempCode && dli.tempCode === li.tempCode) ||
-                dli.itemName === li.itemName;
-              if (!itemMatch) return false;
-              
-              const circleMatch = (!dli.circle || !li.circle || dli.circle.trim().toLowerCase() === li.circle.trim().toLowerCase());
-              const packageMatch = (!dli.package || !li.package || dli.package.trim().toLowerCase() === li.package.trim().toLowerCase());
-              return circleMatch && packageMatch;
-            });
-            if (diLine) {
-              li.diLineId = (diLine as any)._id;
-              if (!li.loaSerialNo && diLine.loaSerialNo) {
-                li.loaSerialNo = diLine.loaSerialNo;
-              }
-              if (!li.circle) li.circle = diLine.circle || di.circle;
-              if (!li.package) li.package = diLine.package || di.package;
-              if (!li.subcircle) li.subcircle = diLine.subcircle || di.subcircle;
-            }
-          });
         } else {
           errors.push(`Validation Error for Invoice# ${prData.invoiceNumber}: DI number "${prData.diNumber}" does not exist in the system.`);
         }
       }
+
+      prData.lineItems.forEach((li: any) => {
+        const itemDiNumber = li.diNumber || prData.diNumber;
+        if (!itemDiNumber) return;
+        
+        const di = existingDIs.find((d: any) => d.diNumber === itemDiNumber);
+        if (di) {
+          li.diId = di._id;
+          if (!prData.diId) {
+             prData.diId = di._id;
+             if (di.purchaseOrderId) {
+                prData.purchaseOrderId = di.purchaseOrderId;
+                prData.purchaseOrderNumber = di.poNumber;
+             }
+          }
+          const diLine = di.lineItems.find((dli: any) => {
+            const itemMatch = (dli.itemId && li.itemId && dli.itemId.toString() === li.itemId.toString()) ||
+              (dli.tempCode && li.tempCode && dli.tempCode === li.tempCode) ||
+              dli.itemName === li.itemName;
+            if (!itemMatch) return false;
+            
+            const circleMatch = (!dli.circle || !li.circle || dli.circle.trim().toLowerCase() === li.circle.trim().toLowerCase());
+            const packageMatch = (!dli.package || !li.package || dli.package.trim().toLowerCase() === li.package.trim().toLowerCase());
+            const loaMatch = (!dli.loaSerialNo || !li.loaSerialNo || String(dli.loaSerialNo).trim() === String(li.loaSerialNo).trim());
+            return circleMatch && packageMatch && loaMatch;
+          });
+          if (diLine) {
+            li.diLineId = (diLine as any)._id;
+            if (!li.loaSerialNo && diLine.loaSerialNo) {
+              li.loaSerialNo = diLine.loaSerialNo;
+            }
+            if (!li.circle) li.circle = diLine.circle || di.circle;
+            if (!li.package) li.package = diLine.package || di.package;
+            if (!li.subcircle) li.subcircle = diLine.subcircle || di.subcircle;
+          }
+        } else if (!prData.diNumber || itemDiNumber !== prData.diNumber) {
+           errors.push(`Validation Error for Row ${li.rowNumber}: DI number "${itemDiNumber}" does not exist in the system.`);
+        }
+      });
     }
 
     let successCount = 0;
@@ -1226,20 +1251,29 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
         .map((i: any) => ({ 
           lineId: i.diLineId.toString(), 
           quantity: Number(i.quantity) || 0, 
-          itemName: `${i.itemName} (DI: ${prData.diNumber || 'N/A'}, Temp Code: ${i.tempCode || 'N/A'}, Circle: ${i.circle || 'N/A'}, Package: ${i.package || 'N/A'})` 
+          diIdForValidation: i.diId.toString(),
+          itemName: `${i.itemName} (DI: ${i.diNumber || prData.diNumber || 'N/A'}, Temp Code: ${i.tempCode || 'N/A'}, LOA Sr No: ${i.loaSerialNo || 'N/A'}, Circle: ${i.circle || 'N/A'}, Package: ${i.package || 'N/A'})` 
         }));
 
       if (diLinesToConsume.length > 0) {
-        const diIdForConsumption = prData.lineItems.find((i: any) => i.diId).diId.toString();
-        // For existing PIs, exclude the PI itself from allocation check to allow re-import
+        // Group lines by diId
+        const diIdMap = new Map<string, any[]>();
+        diLinesToConsume.forEach((li: any) => {
+          if (!diIdMap.has(li.diIdForValidation)) diIdMap.set(li.diIdForValidation, []);
+          diIdMap.get(li.diIdForValidation)?.push(li);
+        });
+        
         const excludeId = prData._existingId ? prData._existingId.toString() : undefined;
-        try {
-          await ValidationService.validateConsumption(diIdForConsumption, diLinesToConsume, excludeId);
-          prData._diIdForConsumption = diIdForConsumption;
-        } catch (err: any) {
-          const splitErrors = err.message.split('\n');
-          for (const splitErr of splitErrors) {
-            errors.push(`Validation Error for Invoice# ${prData.invoiceNumber}: ${splitErr}`);
+        
+        for (const [diIdForConsumption, lines] of diIdMap.entries()) {
+          try {
+            await ValidationService.validateConsumption(diIdForConsumption, lines, excludeId);
+            prData._diIdForConsumption = diIdForConsumption;
+          } catch (err: any) {
+            const splitErrors = err.message.split('\n');
+            for (const splitErr of splitErrors) {
+              errors.push(`Validation Error for Invoice# ${prData.invoiceNumber}: ${splitErr}`);
+            }
           }
         }
       }

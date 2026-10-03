@@ -18,6 +18,14 @@ import { JmcRegister } from '../jmc/jmc.schema';
 import cloudinary from '../../core/utils/cloudinary';
 import { SummaryService } from '../reports/summary/summary.service';
 import { expandCircle } from '../../utils/hierarchy';
+
+const normalizeUserPackage = (pkg: string) => {
+  if (!pkg) return pkg;
+  const normalized = pkg.replace(/\s+/g, '').toLowerCase();
+  if (normalized === 'package1(s/n)') return 'Package 1(S/N)';
+  if (normalized === 'package2(r/r)') return 'Package 2(R/R)';
+  return pkg;
+};
 // 
 // NEW API: Filter Options for MHROV DI Search
 // 
@@ -793,8 +801,11 @@ export const getMhrovs = asyncHandler(async (req: Request, res: Response) => {
   }
 
   if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
-    if (user.assignedPackage) filter.package = user.assignedPackage;
-    if (user.assignedCircle) filter.circle = { $in: expandCircle(user.assignedCircle) || [user.assignedCircle] };
+    if (user.assignedPackage) filter.package = normalizeUserPackage(user.assignedPackage);
+    if (user.assignedCircle) {
+      const exp = expandCircle(user.assignedCircle) || [user.assignedCircle];
+      filter.circle = { $in: exp.map(c => new RegExp(`^${c}$`, 'i')) };
+    }
   }
 
   if (req.query.unbilled === 'true') {
@@ -826,8 +837,11 @@ export const exportMhrovs = asyncHandler(async (req: Request, res: Response) => 
   const filter: any = {};
   
   if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
-    if (user.assignedPackage) filter.package = user.assignedPackage;
-    if (user.assignedCircle) filter.circle = { $in: expandCircle(user.assignedCircle) || [user.assignedCircle] };
+    if (user.assignedPackage) filter.package = normalizeUserPackage(user.assignedPackage);
+    if (user.assignedCircle) {
+      const exp = expandCircle(user.assignedCircle) || [user.assignedCircle];
+      filter.circle = { $in: exp.map(c => new RegExp(`^${c}$`, 'i')) };
+    }
   }
 
   const mhrovs = await Mhrov.find(filter)
@@ -1436,17 +1450,19 @@ export const getMhrovDashboardData = asyncHandler(async (req: Request, res: Resp
   
   if (req.query.circle && req.query.circle !== 'all' && req.query.circle !== 'All Circles') {
     const exp = expandCircle(req.query.circle as string) || [req.query.circle as string];
-    filter.circle = { $in: exp };
-    mhrovFilter.circle = { $in: exp };
+    const regexExp = exp.map(c => new RegExp(`^${c}$`, 'i'));
+    filter.circle = { $in: regexExp };
+    mhrovFilter.circle = { $in: regexExp };
   } else if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
     if (user.assignedPackage && user.assignedPackage.trim()) {
-      filter.package = user.assignedPackage;
-      mhrovFilter.package = user.assignedPackage;
+      filter.package = normalizeUserPackage(user.assignedPackage);
+      mhrovFilter.package = normalizeUserPackage(user.assignedPackage);
     }
     if (user.assignedCircle) {
       const exp = expandCircle(user.assignedCircle) || [user.assignedCircle];
-      filter.circle = { $in: exp };
-      mhrovFilter.circle = { $in: exp };
+      const regexExp = exp.map(c => new RegExp(`^${c}$`, 'i'));
+      filter.circle = { $in: regexExp };
+      mhrovFilter.circle = { $in: regexExp };
     }
   }
 

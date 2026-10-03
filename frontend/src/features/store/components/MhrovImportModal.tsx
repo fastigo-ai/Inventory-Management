@@ -76,11 +76,12 @@ export function MhrovImportModal({ isOpen, onClose, onSuccess }: MhrovImportModa
 
       setTimeout(() => {
         setIsUploading(false);
-        if (res.data.successCount > 0) {
-          toast.success(`Imported successfully! ${res.data.successCount} MHROVs saved.`);
+        const successData = res.data?.data || res.data;
+        if (successData.successCount > 0) {
+          toast.success(`Imported successfully! ${successData.successCount} MHROVs saved.`);
           onSuccess();
         }
-        setResult(res.data);
+        setResult(successData);
       }, 600);
     } catch (err: any) {
       stopProgressSimulation();
@@ -224,6 +225,15 @@ export function MhrovImportModal({ isOpen, onClose, onSuccess }: MhrovImportModa
                   <div>
                     <h4 className="font-medium text-green-900">Successfully Imported</h4>
                     <p className="text-sm text-green-700">{result.successCount} MHROVs saved</p>
+                  </div>
+                </div>
+              )}
+              {result.successCount === 0 && (!result.errors || result.errors.length === 0) && (
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center gap-3">
+                  <AlertCircle className="w-6 h-6 text-yellow-600 shrink-0" />
+                  <div>
+                    <h4 className="font-medium text-yellow-900">No Data Imported</h4>
+                    <p className="text-sm text-yellow-700">We couldn't find any valid rows in your CSV. Please check that your headers match the sample template exactly (e.g. 'MHROV No', 'MHROV Done Qty').</p>
                   </div>
                 </div>
               )}

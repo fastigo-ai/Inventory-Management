@@ -2,10 +2,56 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Loader2, Edit, Trash2, Handshake, X, Printer } from 'lucide-react';
+import { ArrowLeft, Loader2, Edit, Trash2, Handshake, X, Printer, Columns, Check } from 'lucide-react';
 import { api } from '@/shared/api/axios';
 import { getContractorWorkOrderById, deleteContractorWorkOrder } from '@/features/contractors/api/contractorWorkOrder.api';
 import { toast } from 'sonner';
+
+const ResizableHeader = ({ children, className }: { children: React.ReactNode, className?: string }) => {
+  const [width, setWidth] = useState<string | number>('auto');
+  const thRef = React.useRef<HTMLTableCellElement>(null);
+  
+  const startResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!thRef.current) return;
+    
+    const startX = e.pageX;
+    const startWidth = thRef.current.getBoundingClientRect().width;
+    
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const newWidth = startWidth + (moveEvent.pageX - startX);
+      setWidth(Math.max(30, newWidth)); // Min width 30px so it can be collapsed almost entirely
+    };
+    
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = '';
+    };
+    
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+    document.body.style.cursor = 'col-resize';
+  };
+  
+  return (
+    <th 
+      ref={thRef} 
+      style={{ width, minWidth: width !== 'auto' ? width : undefined, maxWidth: width !== 'auto' ? width : undefined }} 
+      className={`${className} relative group bg-white`}
+    >
+      <div className="overflow-hidden text-ellipsis whitespace-nowrap">
+        {children}
+      </div>
+      <div 
+        onMouseDown={startResize}
+        className="absolute right-0 top-0 bottom-0 w-[5px] cursor-col-resize hover:bg-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+        title="Drag to resize"
+      />
+    </th>
+  );
+};
 
 export default function ContractorWorkOrderDetailPage() {
   const router = useRouter();
@@ -18,6 +64,24 @@ export default function ContractorWorkOrderDetailPage() {
   const [contractors, setContractors] = useState<any[]>([]);
   const [handoverAssignments, setHandoverAssignments] = useState<Record<number, string>>({});
   const [isHandovering, setIsHandovering] = useState(false);
+  
+  const [showColumnDropdown, setShowColumnDropdown] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState({
+    tempCode: true,
+    activity: true,
+    loaSrNo: true,
+    description: true,
+    unit: true,
+    woQty: true,
+    rate: true,
+    amount: true,
+    gstType: true,
+    totalAmount: true
+  });
+  
+  const toggleColumn = (col: keyof typeof visibleColumns) => {
+    setVisibleColumns(prev => ({ ...prev, [col]: !prev[col] }));
+  };
 
   const fetchContractors = async () => {
     try {
@@ -210,24 +274,63 @@ export default function ContractorWorkOrderDetailPage() {
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6">
         <div className="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
           <h2 className="text-sm font-semibold text-slate-800">Work Order Items</h2>
-          <div className="text-sm font-bold text-indigo-700">
-            Total WO Amount: ₹{workOrder.totalWoAmount?.toLocaleString() || 0}
+          <div className="flex items-center space-x-4">
+            <div className="relative">
+              <button
+                onClick={() => setShowColumnDropdown(!showColumnDropdown)}
+                className="flex items-center space-x-2 px-3 py-1.5 bg-white border border-slate-300 text-slate-700 text-xs font-medium rounded hover:bg-slate-50 transition-colors"
+              >
+                <Columns className="w-4 h-4" />
+                <span>Columns</span>
+              </button>
+              {showColumnDropdown && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowColumnDropdown(false)}></div>
+                  <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-2">
+                    {Object.entries({
+                      tempCode: 'Temp Code',
+                      activity: 'Activity',
+                      loaSrNo: 'LOA Sr No',
+                      description: 'Description',
+                      unit: 'Unit',
+                      woQty: 'WO Qty',
+                      rate: 'Rate',
+                      amount: 'Amount',
+                      gstType: 'GST Type',
+                      totalAmount: 'Total Amount'
+                    }).map(([key, label]) => (
+                      <button
+                        key={key}
+                        onClick={() => toggleColumn(key as keyof typeof visibleColumns)}
+                        className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center justify-between"
+                      >
+                        <span>{label}</span>
+                        {visibleColumns[key as keyof typeof visibleColumns] && <Check className="w-4 h-4 text-indigo-600" />}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="text-sm font-bold text-indigo-700">
+              Total WO Amount: ₹{workOrder.totalWoAmount?.toLocaleString() || 0}
+            </div>
           </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full whitespace-nowrap">
             <thead className="bg-white text-slate-500 text-[11px] uppercase tracking-wider font-medium border-b border-slate-200">
               <tr>
-                <th className="px-4 py-3 text-left whitespace-nowrap">Temp Code</th>
-                <th className="px-4 py-3 text-left">Activity</th>
-                <th className="px-4 py-3 text-left whitespace-nowrap">LOA Sr No</th>
-                <th className="px-4 py-3 text-left max-w-[200px]">Description</th>
-                <th className="px-4 py-3 text-left">Unit</th>
-                <th className="px-4 py-3 text-right text-indigo-600 whitespace-nowrap">WO Qty</th>
-                <th className="px-4 py-3 text-right text-indigo-600">Rate</th>
-                <th className="px-4 py-3 text-right">Amount</th>
-                <th className="px-4 py-3 text-left whitespace-nowrap">GST Type</th>
-                <th className="px-4 py-3 text-right whitespace-nowrap">Total Amount</th>
+                {visibleColumns.tempCode && <ResizableHeader className="px-4 py-3 text-left">Temp Code</ResizableHeader>}
+                {visibleColumns.activity && <ResizableHeader className="px-4 py-3 text-left">Activity</ResizableHeader>}
+                {visibleColumns.loaSrNo && <ResizableHeader className="px-4 py-3 text-left">LOA Sr No</ResizableHeader>}
+                {visibleColumns.description && <ResizableHeader className="px-4 py-3 text-left">Description</ResizableHeader>}
+                {visibleColumns.unit && <ResizableHeader className="px-4 py-3 text-left">Unit</ResizableHeader>}
+                {visibleColumns.woQty && <ResizableHeader className="px-4 py-3 text-right text-indigo-600">WO Qty</ResizableHeader>}
+                {visibleColumns.rate && <ResizableHeader className="px-4 py-3 text-right text-indigo-600">Rate</ResizableHeader>}
+                {visibleColumns.amount && <ResizableHeader className="px-4 py-3 text-right">Amount</ResizableHeader>}
+                {visibleColumns.gstType && <ResizableHeader className="px-4 py-3 text-left">GST Type</ResizableHeader>}
+                {visibleColumns.totalAmount && <ResizableHeader className="px-4 py-3 text-right">Total Amount</ResizableHeader>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
@@ -248,31 +351,31 @@ export default function ContractorWorkOrderDetailPage() {
                       <React.Fragment key={index}>
                         {isNewGroup && (
                           <tr className="bg-indigo-50/80 border-y border-indigo-100/50">
-                            <td colSpan={10} className="px-4 py-2 font-bold text-indigo-900 text-xs tracking-wide uppercase">
+                            <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="px-4 py-2 font-bold text-indigo-900 text-xs tracking-wide uppercase">
                               {currentActivity || 'Uncategorized Activity'}
                             </td>
                           </tr>
                         )}
                         <tr className="hover:bg-slate-50 transition-colors">
-                          <td className="px-4 py-3 text-slate-700">{item.tempCode || 'N/A'}</td>
-                          <td className="px-4 py-3 text-slate-700 truncate max-w-[150px]" title={item.activity}>{item.activity || 'N/A'}</td>
-                          <td className="px-4 py-3 text-slate-700">{item.loaSrNo || 'N/A'}</td>
-                          <td className="px-4 py-3 text-slate-700 truncate max-w-[200px]" title={item.description}>{item.description || 'N/A'}</td>
-                          <td className="px-4 py-3 text-slate-700">{item.unit || 'N/A'}</td>
-                          <td className="px-4 py-3 text-right font-medium text-slate-800">{item.woQty || 0}</td>
-                          <td className="px-4 py-3 text-right font-medium text-slate-800">₹{item.contractorErectionRate || 0}</td>
-                          <td className="px-4 py-3 text-right text-slate-800">₹{item.amount?.toLocaleString() || 0}</td>
-                          <td className="px-4 py-3 text-slate-700">{item.gstType || 'N/A'}</td>
-                          <td className="px-4 py-3 text-right font-bold text-indigo-700 bg-indigo-50/20">
+                          {visibleColumns.tempCode && <td className="px-4 py-3 text-slate-700 whitespace-nowrap overflow-hidden text-ellipsis">{item.tempCode || 'N/A'}</td>}
+                          {visibleColumns.activity && <td className="px-4 py-3 text-slate-700 whitespace-nowrap overflow-hidden text-ellipsis" title={item.activity}>{item.activity || 'N/A'}</td>}
+                          {visibleColumns.loaSrNo && <td className="px-4 py-3 text-slate-700 whitespace-nowrap overflow-hidden text-ellipsis">{item.loaSrNo || 'N/A'}</td>}
+                          {visibleColumns.description && <td className="px-4 py-3 text-slate-700 whitespace-nowrap overflow-hidden text-ellipsis" title={item.description}>{item.description || 'N/A'}</td>}
+                          {visibleColumns.unit && <td className="px-4 py-3 text-slate-700 whitespace-nowrap overflow-hidden text-ellipsis">{item.unit || 'N/A'}</td>}
+                          {visibleColumns.woQty && <td className="px-4 py-3 text-right font-medium text-slate-800 whitespace-nowrap overflow-hidden text-ellipsis">{item.woQty || 0}</td>}
+                          {visibleColumns.rate && <td className="px-4 py-3 text-right font-medium text-slate-800 whitespace-nowrap overflow-hidden text-ellipsis">₹{item.contractorErectionRate || 0}</td>}
+                          {visibleColumns.amount && <td className="px-4 py-3 text-right text-slate-800 whitespace-nowrap overflow-hidden text-ellipsis">₹{item.amount?.toLocaleString() || 0}</td>}
+                          {visibleColumns.gstType && <td className="px-4 py-3 text-slate-700 whitespace-nowrap overflow-hidden text-ellipsis">{item.gstType || 'N/A'}</td>}
+                          {visibleColumns.totalAmount && <td className="px-4 py-3 text-right font-bold text-indigo-700 bg-indigo-50/20 whitespace-nowrap overflow-hidden text-ellipsis">
                             ₹{item.totalAmount?.toLocaleString() || 0}
-                          </td>
+                          </td>}
                         </tr>
                       </React.Fragment>
                     );
                   })
                 ) : (
                   <tr>
-                    <td colSpan={10} className="px-6 py-8 text-center text-slate-500">
+                    <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="px-6 py-8 text-center text-slate-500">
                       No items with a Work Order quantity greater than 0 were found.
                     </td>
                   </tr>

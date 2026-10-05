@@ -20,15 +20,19 @@ export class AllocationService {
    * Calculates the allocation details for a given Dispatch Instruction.
    * This aggregates all Purchase Invoices that consume lines from this DI.
    */
-  static async getDiAllocation(diId: string, excludePiId?: string): Promise<LineItemAllocation[]> {
+  static async getDiAllocation(diId: string, excludePiIds?: string | string[]): Promise<LineItemAllocation[]> {
     // 1. Fetch the original DI
     const di = await mongoose.model('DI').findById(diId).lean() as any;
     if (!di || !di.lineItems) return [];
 
     // 2. Fetch all PIs that reference this DI
     const query: any = { 'lineItems.diId': new mongoose.Types.ObjectId(diId) };
-    if (excludePiId) {
-      query._id = { $ne: new mongoose.Types.ObjectId(excludePiId) };
+    if (excludePiIds) {
+      if (Array.isArray(excludePiIds) && excludePiIds.length > 0) {
+        query._id = { $nin: excludePiIds.map(id => new mongoose.Types.ObjectId(id)) };
+      } else if (typeof excludePiIds === 'string') {
+        query._id = { $ne: new mongoose.Types.ObjectId(excludePiIds) };
+      }
     }
     const pis = await PurchaseInvoice.find(query).lean();
 

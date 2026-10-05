@@ -1001,6 +1001,9 @@ export const importMhrovs = asyncHandler(async (req: Request, res: Response) => 
     // Collect all possible keys, cleaned of asterisks and whitespace
     const uniqueDiNos = [...new Set(mhrovData.items.map((i: any) => cleanStr(i.diNo)).filter(Boolean))];
     
+    // Fetch existing MHROV to account for updates so we don't double count already done qty
+    const existingMhrov = await Mhrov.findOne({ mhrovNumber }).lean();
+
     // We use a broad $or query to catch the record if ANY of the identifiers match
     const fetchCondition: any = { $or: [] };
     // MHROV depends strictly on DI
@@ -1093,11 +1096,35 @@ export const importMhrovs = asyncHandler(async (req: Request, res: Response) => 
          }
          errors.push(`Row ${item.rowNumber}: Could not find DI "${item.diNo}" with Item "${item.itemName}", Serial "${item.loaSerialNo}", TempCode "${item.tempCode}"${debugStr}`);
       } else {
-         finalItems.push({ 
-             diId: matchedDI._id,
-             itemId: matchedLineItem.itemId, 
-             mhrovDoneQty: item.mhrovDoneQty 
-         });
+         // Validate Quantity
+         const totalDiQty = matchedLineItem.quantity || 0;
+         let alreadyDoneQty = matchedLineItem.mhrovDoneQty || 0;
+         
+         // If updating an existing MHROV, subtract its old quantity from alreadyDoneQty so we don't double count
+         if (existingMhrov && existingMhrov.items) {
+             const oldItem = existingMhrov.items.find((i: any) => 
+                 i.itemId?.toString() === matchedLineItem.itemId?.toString() &&
+                 i.diId?.toString() === matchedDI._id?.toString()
+             );
+             if (oldItem) {
+                 alreadyDoneQty = Math.max(0, alreadyDoneQty - (oldItem.mhrovDoneQty || 0));
+             }
+         }
+
+         const remainingQty = Math.max(0, totalDiQty - alreadyDoneQty);
+
+         if (item.mhrovDoneQty > remainingQty) {
+             const dbCircle = matchedLineItem.circle || matchedDI.circle || 'N/A';
+             const dbLoa = matchedLineItem.loaSerialNo || 'N/A';
+             errors.push(`Row ${item.rowNumber}: MHROV Qty (${item.mhrovDoneQty}) cannot exceed remaining DI Qty (${remainingQty}) for Item "${item.itemName}" (DI: ${matchedDI.diNumber}, LOA: ${dbLoa}, Circle: ${dbCircle}). Total DI Qty: ${totalDiQty}, Already Done: ${alreadyDoneQty}`);
+         } else {
+             finalItems.push({ 
+                 diId: matchedDI._id,
+                 itemId: matchedLineItem.itemId, 
+                 mhrovDoneQty: item.mhrovDoneQty,
+                 invoiceNo: item.invoiceNo
+             });
+         }
       }
     }
     mhrovData.inwardEntries = [];

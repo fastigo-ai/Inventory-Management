@@ -5,6 +5,7 @@ export interface IMhrovItem {
   diId?: mongoose.Types.ObjectId;
   itemId?: mongoose.Types.ObjectId;
   mhrovDoneQty: number;
+  invoiceNo?: string;
 }
 
 export interface IMhrov extends Document {
@@ -23,7 +24,8 @@ const mhrovItemSchema = new Schema({
   inwardEntryId: { type: Schema.Types.ObjectId, ref: 'StoreInwardEntry', index: true },
   diId: { type: Schema.Types.ObjectId, ref: 'DI', index: true },
   itemId: { type: Schema.Types.ObjectId, ref: 'Item', index: true },
-  mhrovDoneQty: { type: Number, required: true, min: 0 }
+  mhrovDoneQty: { type: Number, required: true, min: 0 },
+  invoiceNo: { type: String }
 }, { _id: false });
 
 const mhrovSchema = new Schema(

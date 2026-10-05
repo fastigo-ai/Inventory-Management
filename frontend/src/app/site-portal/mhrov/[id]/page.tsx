@@ -227,7 +227,7 @@ export default function MhrovDetailPage() {
                     const diNo = item.diId?.diNumber || item.diRefNo || "N/A";
                     const itemName = item.itemName || item.itemId?.dynamicData?.name || item.itemId?.name || "Unknown Item";
                     const vendorName = item.vendorName || "Unknown Vendor";
-                    const invoiceNo = item.invoiceNumber || (item.rowType === 'direct' ? "N/A (DI Only)" : "N/A");
+                    const invoiceNo = item.invoiceNumber || item.invoiceNo || (item.rowType === 'direct' ? "N/A (DI Only)" : "N/A");
                     const loaSrNo = item.loaSrNo || item.inwardEntryId?.loaSrNo || item.itemId?.dynamicData?.loaSerialNo || '-';
                     const tempCode = item.tempCode || item.inwardEntryId?.tempCode || item.itemId?.dynamicData?.tempCode || '-';
                     const qty = item.mhrovDoneQty || 0;

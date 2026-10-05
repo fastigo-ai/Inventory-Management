@@ -27,6 +27,29 @@ interface UpdateSummaryParams {
   session?: ClientSession;
 }
 
+/**
+ * Normalizes package names to a canonical form to prevent duplicates due to spacing.
+ * e.g. "Package 1 (S/N)" -> "Package 1(S/N)", "package 2 (r/r)" -> "Package 2(R/R)"
+ */
+const normalizePkg = (pkg: string): string => {
+  if (!pkg) return '';
+  // Remove spaces before opening parenthesis, trim, normalize case
+  let normalized = pkg.trim().replace(/\s+\(/g, '(').replace(/\(\s+/g, '(').replace(/\s+\)/g, ')');
+  // Capitalize "Package N(X/Y)" pattern
+  normalized = normalized.replace(/^package\s+(\d+)\((.+)\)$/i, (_, n, inner) =>
+    `Package ${n}(${inner.toUpperCase()})`
+  );
+  return normalized;
+};
+
+/**
+ * Normalizes circle names to Title Case to avoid NAHAN vs Nahan duplicates.
+ */
+const normalizeCircle = (circ: string): string => {
+  if (!circ) return '';
+  return circ.trim().charAt(0).toUpperCase() + circ.trim().slice(1).toLowerCase();
+};
+
 export class SummaryService {
   /**
    * Automatically updates or creates an ItemSummary record for the given dimensions.
@@ -35,8 +58,8 @@ export class SummaryService {
     const { itemId, circle, increments, session, companyId, warehouseId } = params;
     
     // In JS/TS 'package' is a reserved keyword, so we alias it carefully
-    let pkg = params.package || '';
-    let circ = circle || '';
+    let pkg = normalizePkg(params.package || '');
+    let circ = normalizeCircle(circle || '');
 
     // Remove undefined increments
     const incObj: any = {};

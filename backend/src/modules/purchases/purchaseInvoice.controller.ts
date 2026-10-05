@@ -410,7 +410,7 @@ export const getPurchaseInvoiceById = async (req: Request, res: Response): Promi
         
         // Map quantity and inventory fields for frontend components expecting these keys
         item.invoiceQuantity = item.quantity || 0;
-        item.totalInvoiceQuantity = item.totalInventory || 0;
+        item.totalInvoiceQuantity = item.totalInventory || item.quantity || 0;
         
         return item;
       });
@@ -1019,7 +1019,10 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
       const row = rows[rowIndex];
       const actualRowNumber = rowIndex + 2; // +1 for header, +1 for 0-index
       const prNumber = row['purchaseinvoicenumber'] || row['invoicenumber'] || row['purchaseinvoice'] || row['purchasereceivenumber'] || row['storeinwardnumber'] || row['prnumber'];
-      if (!prNumber) continue;
+      if (!prNumber) {
+        errors.push(`Row ${actualRowNumber}: Missing Purchase Invoice Number.`);
+        continue;
+      }
 
       if (!prMap[prNumber]) {
         prMap[prNumber] = {
@@ -1218,13 +1221,24 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
       return chunked;
     };
 
+    // Collect all existing IDs to exclude from DB checks
+    const globalExcludePiIds = [];
+    for (const prNumber of prNumbers) {
+      const prData = prMap[prNumber];
+      const existing = existingPRs.find(p => p.invoiceNumber === prData.invoiceNumber);
+      if (existing) {
+        prData._existingId = existing._id;
+        globalExcludePiIds.push(existing._id.toString());
+      } else {
+        prData._existingId = null;
+      }
+    }
+
+    const batchConsumptionMap = new Map<string, number>();
+
     // ── PASS 1: Validate DI allocations before writing ─────────────────────
     for (const prNumber of prNumbers) {
       const prData = prMap[prNumber];
-
-      // Mark if existing (for upsert decision)
-      const existing = existingPRs.find(p => p.invoiceNumber === prData.invoiceNumber);
-      prData._existingId = existing ? existing._id : null;
 
       if (prData.purchaseOrderNumber) {
         const po = existingPOs.find(p => p.purchaseOrderNumber === prData.purchaseOrderNumber);
@@ -1263,11 +1277,9 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
           diIdMap.get(li.diIdForValidation)?.push(li);
         });
         
-        const excludeId = prData._existingId ? prData._existingId.toString() : undefined;
-        
         for (const [diIdForConsumption, lines] of diIdMap.entries()) {
           try {
-            await ValidationService.validateConsumption(diIdForConsumption, lines, excludeId);
+            await ValidationService.validateConsumption(diIdForConsumption, lines, globalExcludePiIds, batchConsumptionMap);
             prData._diIdForConsumption = diIdForConsumption;
           } catch (err: any) {
             const splitErrors = err.message.split('\n');

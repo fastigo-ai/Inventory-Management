@@ -312,14 +312,33 @@ export const getInvoicesService = async (query: any, user: any) => {
     .sort({ createdAt: -1 });
 
   // Filter out any where populated workOrderId is null because it didn't match the circle/package criteria,
-  // BUT allow legacy invoices (which have no workOrderId) to pass if they match via legacyMetadata.
+  // For legacy invoices (which have no workOrderId), filter them based on their legacyMetadata.
   if (Object.keys(matchFilter).length > 0) {
+    const LOCAL_SUB_STORE_MAP: Record<string, string[]> = {
+      'Solan': ['Solan', 'Kumarhatti', 'Nalagarh'],
+      'Nahan': ['Nahan'],
+      'Rohru': ['Rohru'],
+      'Rampur': ['Rampur'],
+    };
+    const allowedCircles = targetCircle ? (LOCAL_SUB_STORE_MAP[targetCircle] || [targetCircle]).map(c => c.toLowerCase()) : [];
+    
     return invoices.filter((inv: any) => {
       if (inv.workOrderId != null) return true;
       
       if (inv.legacyMetadata) {
-        // Bypass strict circle/package filtering for legacy uploads 
-        // to ensure they always show up in the billing list regardless of user portal
+        if (targetCircle && inv.legacyMetadata.circle) {
+          const legacyCircleStr = inv.legacyMetadata.circle.toLowerCase();
+          if (!allowedCircles.includes(legacyCircleStr)) {
+            return false;
+          }
+        }
+        if (targetPackage && inv.legacyMetadata.package) {
+          const packageEscaped = targetPackage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s*');
+          const packageRegex = new RegExp(`^${packageEscaped}$`, 'i');
+          if (!packageRegex.test(inv.legacyMetadata.package)) {
+            return false;
+          }
+        }
         return true;
       }
 

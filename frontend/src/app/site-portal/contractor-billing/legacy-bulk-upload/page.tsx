@@ -236,18 +236,36 @@ export default function LegacyBulkUpload() {
 
     try {
       setLoading(true);
-      const payload = {
-        billingCategory: uploadType,
-        stage: parsedMetadata.stage,
-        isLegacyBulkUpload: true, // Special flag for backend bypass
-        lineItems: parsedItems,
-        legacyMetadata: parsedMetadata,
-        jmcDocUrl: 'https://placeholder.url/legacy-bulk-upload', // Dummy URLs since it's legacy bulk
-        signedBillDocUrl: 'https://placeholder.url/legacy-bulk-upload'
-      };
+      // Group items by raBillNo
+      const groupedItems = parsedItems.reduce((acc, item) => {
+        const raBillNo = item.legacyData?.raBillNo || 'Default';
+        if (!acc[raBillNo]) acc[raBillNo] = [];
+        acc[raBillNo].push(item);
+        return acc;
+      }, {} as Record<string, any[]>);
 
-      await createContractorInvoice(payload);
-      toast.success(`${uploadType} (Legacy Bulk) submitted successfully!`);
+      let generatedCount = 0;
+      for (const [raBillNo, items] of Object.entries(groupedItems)) {
+        const metadataForGroup = { ...parsedMetadata };
+        if (raBillNo !== 'Default') {
+            metadataForGroup.raBillNo = raBillNo;
+        }
+
+        const payload = {
+          billingCategory: uploadType,
+          stage: parsedMetadata.stage,
+          isLegacyBulkUpload: true,
+          lineItems: items,
+          legacyMetadata: metadataForGroup,
+          jmcDocUrl: 'https://placeholder.url/legacy-bulk-upload',
+          signedBillDocUrl: 'https://placeholder.url/legacy-bulk-upload'
+        };
+        
+        await createContractorInvoice(payload);
+        generatedCount++;
+      }
+
+      toast.success(`${uploadType} (Legacy Bulk) submitted successfully! ${generatedCount > 1 ? `(${generatedCount} bills generated)` : ''}`);
       router.push('/site-portal/contractor-billing');
     } catch (err: any) {
       console.error(err);

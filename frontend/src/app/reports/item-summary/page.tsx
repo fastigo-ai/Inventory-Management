@@ -239,7 +239,7 @@ export default function ItemSummaryMatrixPage() {
 
       return [
         r.srNo || (i + 1),
-        r.loaSerialNo || r.tempCode || '-',
+        r.sku || r.loaSerialNo || '-',
         r.tempCode || '-',
         r.itemName || '-',
         r.package || '-',
@@ -602,6 +602,7 @@ export default function ItemSummaryMatrixPage() {
                     />
                   </th>
                   <th className="p-2 min-w-[40px] text-center bg-slate-100">Sr. No.</th>
+                  <th className="p-2 min-w-[100px] bg-slate-100">LOA Sr. No.</th>
                   <th className="p-2 min-w-[80px] bg-slate-100">Temp Code</th>
                   <th className="p-2 min-w-[220px] bg-slate-100">Item Name</th>
                   <th className="p-2 min-w-[120px] bg-slate-100">Package</th>
@@ -683,6 +684,7 @@ export default function ItemSummaryMatrixPage() {
                           />
                         </td>
                         <td className="p-2 text-center text-slate-500 border-r">{idx + 1 + (Number(filters.page || 1) - 1) * Number(filters.limit || 50)}</td>
+                        <td className="p-2 text-slate-700 border-r">{r.sku || r.loaSerialNo || '-'}</td>
                         <td className="p-2 text-slate-700 border-r">{r.tempCode}</td>
                         <td className="p-2 font-medium text-slate-900 border-r max-w-[220px] truncate" title={r.itemName || r.name}>{r.itemName || r.name}</td>
                         <td className="p-2 text-slate-700 border-r">{r.package}</td>

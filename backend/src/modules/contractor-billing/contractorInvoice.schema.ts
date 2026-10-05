@@ -34,7 +34,7 @@ export interface IContractorInvoice extends Document {
   
   // References to the source documents that trigger the billing
   mhrovId?: mongoose.Types.ObjectId; // For Supply
-  jmcId?: mongoose.Types.ObjectId;   // For Erection
+  jmcIds?: mongoose.Types.ObjectId[];   // For Erection (Multiple JMCs)
   handoverCertificateId?: mongoose.Types.ObjectId; // For Final
   linkedSupplyBillId?: mongoose.Types.ObjectId; // To link 90% Erection to 60% Supply
   linkedErectionBillId?: mongoose.Types.ObjectId; // To link 10% Erection to 90% Erection
@@ -105,7 +105,7 @@ const contractorInvoiceSchema = new Schema<IContractorInvoice>({
   },
   
   mhrovId: { type: Schema.Types.ObjectId, ref: 'Mhrov' },
-  jmcId: { type: Schema.Types.ObjectId, ref: 'JmcRegister' },
+  jmcIds: [{ type: Schema.Types.ObjectId, ref: 'JmcRegister' }],
   handoverCertificateId: { type: Schema.Types.ObjectId, ref: 'HandoverCertificate' },
   linkedSupplyBillId: { type: Schema.Types.ObjectId, ref: 'ClientBill' },
   linkedErectionBillId: { type: Schema.Types.ObjectId, ref: 'ContractorInvoice' },

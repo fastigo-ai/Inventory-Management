@@ -572,12 +572,14 @@ export async function computeStoreItemisedSummary(params: {
       const circleVal = String(d.circle || it.circle || circle || '').trim();
 
       const groupKey = hasValidTemp ? `TEMP_${temp}` : `NAME_${name.toLowerCase()}`;
+      const sku = String(d.sku || d.loaSerialNo || it.sku || '').trim();
 
       if (!groupMap.has(groupKey)) {
         groupMap.set(groupKey, {
           itemIds: new Set<string>(),
           tempCode: temp || '-',
           tempNum: hasValidTemp ? tempNum : 9999999,
+          sku: sku || '-',
           name,
           unit,
           circle: circleVal,

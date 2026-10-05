@@ -162,11 +162,11 @@ export default function ContractorInvoiceViewPage({ params }: { params: Promise<
                 <h3 className="text-sm font-bold text-slate-800 bg-slate-100 p-2 mb-2">Contract Details</h3>
                 <div className="grid grid-cols-[100px_1fr] gap-y-1 text-sm">
                   <div className="font-semibold text-slate-700">Contractor</div>
-                  <div className="border border-slate-300 px-2 py-0.5">{contractorName}</div>
+                  <div className="border border-slate-300 px-2 py-0.5">{contractorName !== 'Unknown Contractor' ? contractorName : ''}</div>
                   <div className="font-semibold text-slate-700">Address</div>
-                  <div className="border border-slate-300 px-2 py-0.5">{contractorAddress}</div>
+                  <div className="border border-slate-300 px-2 py-0.5">{contractorAddress !== 'Address not provided' ? contractorAddress : ''}</div>
                   <div className="font-semibold text-slate-700">Phone/Email</div>
-                  <div className="border border-slate-300 px-2 py-0.5">{contractorContact}</div>
+                  <div className="border border-slate-300 px-2 py-0.5">{contractorContact !== 'Contact not provided' ? contractorContact : ''}</div>
                 </div>
               </div>
 
@@ -174,11 +174,11 @@ export default function ContractorInvoiceViewPage({ params }: { params: Promise<
                 <h3 className="text-sm font-bold text-slate-800 bg-slate-100 p-2 mb-2">Client Details</h3>
                 <div className="grid grid-cols-[100px_1fr] gap-y-1 text-sm">
                   <div className="font-semibold text-slate-700">Client</div>
-                  <div className="border border-slate-300 px-2 py-0.5">{billingCompany?.name || 'Fastigo Pvt Ltd'}</div>
+                  <div className="border border-slate-300 px-2 py-0.5">{billingCompany?.name || ''}</div>
                   <div className="font-semibold text-slate-700">Address</div>
-                  <div className="border border-slate-300 px-2 py-0.5 whitespace-pre-wrap">{billingCompany?.address || '123 Tech Park, Phase 1, Bangalore'}</div>
+                  <div className="border border-slate-300 px-2 py-0.5 whitespace-pre-wrap">{billingCompany?.address || ''}</div>
                   <div className="font-semibold text-slate-700">Contact</div>
-                  <div className="border border-slate-300 px-2 py-0.5">{billingCompany?.email || billingCompany?.phone || 'finance@fastigo.com'}</div>
+                  <div className="border border-slate-300 px-2 py-0.5">{billingCompany?.email || billingCompany?.phone || ''}</div>
                 </div>
               </div>
             </div>
@@ -194,19 +194,18 @@ export default function ContractorInvoiceViewPage({ params }: { params: Promise<
                   <div className="font-semibold text-slate-700">Due Date</div>
                   <div className="border border-slate-300 px-2 py-0.5 bg-white text-right">{format(dueDate, 'yyyy-MM-dd')}</div>
                   <div className="font-semibold text-slate-700">Drawing No.</div>
-                  <div className="border border-slate-300 px-2 py-0.5 bg-white text-right">{invoice.drawingNumber || 'N/A'}</div>
+                  <div className="border border-slate-300 px-2 py-0.5 bg-white text-right">{invoice.drawingNumber || ''}</div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Table */}
-          <div className="mb-8">
+          <div className="mb-8 w-full overflow-x-auto print:overflow-visible">
             <h3 className="text-sm font-bold text-slate-800 mb-2">Work Details</h3>
-            <table className="w-full text-xs md:text-sm border-collapse border border-slate-400 print:text-[10px]">
+            <table className="w-full text-xs md:text-sm border-collapse border border-slate-400 print:text-[9px]">
               <thead>
                 <tr className="bg-slate-200">
-                  <th className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-left font-bold text-slate-800">Activity</th>
                   <th className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-left font-bold text-slate-800">Description of Work</th>
                   <th className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-center font-bold text-slate-800">Temp Code</th>
                   <th className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-center font-bold text-slate-800">LOA Sl No</th>
@@ -221,28 +220,45 @@ export default function ContractorInvoiceViewPage({ params }: { params: Promise<
                 </tr>
               </thead>
               <tbody>
-                {invoice.lineItems.map((item: any, idx: number) => {
-                  const qty = item.billingCategory === 'JMC Done' ? item.jmcDoneQty : item.erectedQty;
-                  const matchedWoItem = invoice.workOrderId?.items?.find((woItem: any) => 
-                    (woItem.itemId?._id || woItem.itemId)?.toString() === (item.itemId?._id || item.itemId)?.toString()
-                  );
-                  return (
-                    <tr key={idx} className="hover:bg-slate-50">
-                      <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-slate-700">{item.activity}</td>
-                      <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2">{item.description}</td>
-                      <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-center text-slate-600 whitespace-nowrap">{matchedWoItem?.tempCode || item.itemId?.tempCode || item.itemId?.dynamicData?.tempCode || '-'}</td>
-                      <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-center text-slate-600 whitespace-nowrap">{matchedWoItem?.loaSrNo || item.legacyData?.loaSerialNo || item.itemId?.loaSrNo || item.itemId?.dynamicData?.loaSrNo || item.itemId?.dynamicData?.loaSerialNo || '-'}</td>
-                      <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-center text-slate-600 whitespace-nowrap">{item.billingCategory}</td>
-                      <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-semibold">{qty}</td>
-                      <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right">{item.rate?.toFixed(2)}</td>
-                      <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right whitespace-nowrap">{item.gstRate}%</td>
-                      <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right whitespace-nowrap">{item.percentageApplied}%</td>
-                      <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right">{item.baseAmount?.toFixed(2)}</td>
-                      <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right">{item.gstAmount?.toFixed(2)}</td>
-                      <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-medium">{item.totalAmount?.toFixed(2)}</td>
-                    </tr>
-                  )
-                })}
+                {(() => {
+                  const groupedItems = invoice.lineItems.reduce((acc: any, item: any) => {
+                    const activity = item.activity || 'Legacy Activity';
+                    if (!acc[activity]) acc[activity] = [];
+                    acc[activity].push(item);
+                    return acc;
+                  }, {});
+
+                  return Object.entries(groupedItems).map(([activity, items]: [string, any]) => (
+                    <React.Fragment key={activity}>
+                      <tr className="bg-indigo-50 border-b border-indigo-100">
+                        <td colSpan={11} className="px-3 py-2 font-bold text-indigo-800 border border-slate-400">
+                          {activity}
+                        </td>
+                      </tr>
+                      {items.map((item: any, idx: number) => {
+                        const qty = item.billingCategory === 'JMC Done' ? item.jmcDoneQty : item.erectedQty;
+                        const matchedWoItem = invoice.workOrderId?.items?.find((woItem: any) => 
+                          (woItem.itemId?._id || woItem.itemId)?.toString() === (item.itemId?._id || item.itemId)?.toString()
+                        );
+                        return (
+                          <tr key={`${activity}-${idx}`} className="hover:bg-slate-50">
+                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 max-w-[250px] truncate print:whitespace-normal print:max-w-none print:break-words" title={item.description}>{item.description}</td>
+                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-center text-slate-600 whitespace-nowrap">{matchedWoItem?.tempCode || item.itemId?.tempCode || item.itemId?.dynamicData?.tempCode || ''}</td>
+                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-center text-slate-600 whitespace-nowrap">{matchedWoItem?.loaSrNo || item.legacyData?.loaSerialNo || item.itemId?.loaSrNo || item.itemId?.dynamicData?.loaSrNo || item.itemId?.dynamicData?.loaSerialNo || ''}</td>
+                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-center text-slate-600 whitespace-nowrap">{item.billingCategory}</td>
+                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-semibold">{qty}</td>
+                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right">{item.rate?.toFixed(2)}</td>
+                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right whitespace-nowrap">{item.gstRate}%</td>
+                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right whitespace-nowrap">{item.percentageApplied}%</td>
+                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right">{item.baseAmount?.toFixed(2)}</td>
+                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right">{item.gstAmount?.toFixed(2)}</td>
+                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-medium">{item.totalAmount?.toFixed(2)}</td>
+                          </tr>
+                        )
+                      })}
+                    </React.Fragment>
+                  ));
+                })()}
               </tbody>
             </table>
           </div>

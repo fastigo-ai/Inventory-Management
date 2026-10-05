@@ -145,6 +145,9 @@
     min-height: auto !important;
     overflow: visible !important;
   }
+  th {
+    resize: none !important;
+  }
   
   /* Reset some Tailwind layout behaviors that break printing */
   .print\:hidden {

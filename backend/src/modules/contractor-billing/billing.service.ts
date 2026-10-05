@@ -8,9 +8,24 @@ import { ContractorWorkOrder } from '../contractors/contractorWorkOrder.schema';
 import { ClientBill } from '../client-billing/clientBill.schema';
 
 // Helper to generate Invoice Number atomically-ish (or closest to existing pattern)
-const generateInvoiceNumber = async () => {
-  const count = await ContractorInvoice.countDocuments();
-  return `INV/CB/${new Date().getFullYear().toString().slice(-2)}/${(count + 1).toString().padStart(4, '0')}`;
+const generateInvoiceNumber = async (billingCategory: string) => {
+  const currentYear = new Date().getFullYear().toString().slice(-2);
+  const typeCode = billingCategory === 'Erection Bill' ? 'ER' : 'CB';
+  const prefix = `INV/${typeCode}/${currentYear}/`;
+  
+  const lastInvoice = await ContractorInvoice.findOne({ invoiceNumber: new RegExp(`^${prefix}`) })
+    .sort({ invoiceNumber: -1 })
+    .lean();
+    
+  let nextNumber = 1;
+  if (lastInvoice && lastInvoice.invoiceNumber) {
+    const lastNumStr = lastInvoice.invoiceNumber.split('/').pop();
+    if (lastNumStr && !isNaN(Number(lastNumStr))) {
+      nextNumber = parseInt(lastNumStr, 10) + 1;
+    }
+  }
+  
+  return `${prefix}${nextNumber.toString().padStart(4, '0')}`;
 };
 
 export const createInvoiceService = async (data: any, user: any) => {
@@ -19,7 +34,7 @@ export const createInvoiceService = async (data: any, user: any) => {
     workOrderId,
     stage,
     mhrovId,
-    jmcId,
+    jmcIds,
     handoverCertificateId,
     supplyBasis,
     lineItems,
@@ -36,11 +51,18 @@ export const createInvoiceService = async (data: any, user: any) => {
   if (!workOrderId && !data.isLegacyBulkUpload) throw new ApiError(400, 'Work Order ID is required');
 
   // Enforce JMC link requirement for erection bills
-  if (billingCategory === 'Erection Bill' && !jmcId && !data.isLegacyBulkUpload) {
+  if (billingCategory === 'Erection Bill' && (!jmcIds || jmcIds.length === 0) && !data.isLegacyBulkUpload) {
     throw new ApiError(400, 'Erection bills must be linked to a JMC (only JMC and erection RA bill supported).');
   }
 
-  const invoiceNumber = await generateInvoiceNumber();
+  let invoiceNumber = '';
+  if (data.isLegacyBulkUpload && legacyMetadata?.raBillNo) {
+    const typeCode = billingCategory === 'Erection Bill' ? 'ER' : 'CB';
+    const circleStr = legacyMetadata.circle ? `-${legacyMetadata.circle.trim().toUpperCase().replace(/\s+/g, '_')}` : '';
+    invoiceNumber = `INV/${typeCode}/${legacyMetadata.raBillNo}${circleStr}`;
+  } else {
+    invoiceNumber = await generateInvoiceNumber(billingCategory);
+  }
 
   let totalBaseAmount = 0;
   let totalGstAmount = 0;
@@ -50,10 +72,10 @@ export const createInvoiceService = async (data: any, user: any) => {
     percentage = parseInt(stage.replace('%', '')) || 100;
   }
 
-  let dbJmc: any = null;
+  let dbJmcs: any[] = [];
   let dbMhrov: any = null;
-  if (jmcId) {
-    dbJmc = await JmcRegister.findById(jmcId).lean();
+  if (jmcIds && jmcIds.length > 0) {
+    dbJmcs = await JmcRegister.find({ _id: { $in: jmcIds } }).lean();
   }
   if (mhrovId) {
     dbMhrov = await Mhrov.findById(mhrovId).lean();
@@ -65,10 +87,16 @@ export const createInvoiceService = async (data: any, user: any) => {
     let authoritativeQty = 0;
 
     // Validate quantities against JMC/MHROV if linked
-    if (jmcId && dbJmc) {
-      const dbItem = dbJmc.items.find((i: any) => i.itemId?.toString() === item.itemId?.toString());
-      if (!dbItem) throw new ApiError(400, `Item ${item.itemId} not found in linked JMC`);
-      authoritativeQty = Number(dbItem.approvedQty || dbItem.claimedQty || 0);
+    if (jmcIds && jmcIds.length > 0 && dbJmcs.length > 0) {
+      let found = false;
+      dbJmcs.forEach(dbJmc => {
+        const dbItem = dbJmc.items.find((i: any) => i.itemId?.toString() === item.itemId?.toString());
+        if (dbItem) {
+          found = true;
+          authoritativeQty += Number(dbItem.approvedQty || dbItem.claimedQty || 0);
+        }
+      });
+      if (!found) throw new ApiError(400, `Item ${item.itemId} not found in any linked JMC`);
     } else if (mhrovId && dbMhrov) {
       const dbItem = dbMhrov.items?.find((i: any) => i.itemId?.toString() === item.itemId?.toString());
       if (!dbItem) throw new ApiError(400, `Item ${item.itemId} not found in linked MHROV`);
@@ -89,7 +117,7 @@ export const createInvoiceService = async (data: any, user: any) => {
       baseAmount = authoritativeQty * itemRate * (percentage / 100);
     }
 
-    const gstAmount = authoritativeQty * itemRate * (Number(item.gstRate || 0) / 100);
+    const gstAmount = baseAmount * (Number(item.gstRate || 0) / 100);
     const totalAmount = baseAmount + gstAmount;
 
     totalBaseAmount += baseAmount;
@@ -101,8 +129,8 @@ export const createInvoiceService = async (data: any, user: any) => {
       activity: item.activity,
       description: item.description,
       billingCategory: item.billingCategory,
-      jmcDoneQty: (jmcId && stage !== 'Amount' && stage !== 'Advance' && percentage === 100) ? authoritativeQty : Number(item.jmcDoneQty || 0),
-      erectedQty: (jmcId && percentage !== 100) ? authoritativeQty : (mhrovId ? authoritativeQty : Number(item.erectedQty || 0)),
+      jmcDoneQty: (jmcIds && jmcIds.length > 0 && stage !== 'Amount' && stage !== 'Advance' && percentage === 100) ? authoritativeQty : Number(item.jmcDoneQty || 0),
+      erectedQty: (jmcIds && jmcIds.length > 0 && percentage !== 100) ? authoritativeQty : (mhrovId ? authoritativeQty : Number(item.erectedQty || 0)),
       rate: itemRate,
       percentageApplied: percentage,
       baseAmount,
@@ -120,7 +148,7 @@ export const createInvoiceService = async (data: any, user: any) => {
     workOrderId,
     stage,
     mhrovId,
-    jmcId,
+    jmcIds,
     handoverCertificateId,
     supplyBasis,
     lineItems: processedItems,
@@ -166,7 +194,7 @@ export const updateInvoiceService = async (id: string, data: any, user: any) => 
   }
 
   // Same validation pattern as create
-  if (invoice.billingCategory === 'Erection Bill' && !invoice.jmcId && !data.isLegacyBulkUpload) {
+  if (invoice.billingCategory === 'Erection Bill' && (!invoice.jmcIds || invoice.jmcIds.length === 0) && !data.isLegacyBulkUpload) {
     throw new ApiError(400, 'Erection bills must be linked to a JMC.');
   }
 
@@ -178,10 +206,10 @@ export const updateInvoiceService = async (id: string, data: any, user: any) => 
     percentage = parseInt(stage.replace('%', '')) || 100;
   }
 
-  let dbJmc: any = null;
+  let dbJmcs: any[] = [];
   let dbMhrov: any = null;
-  if (invoice.jmcId) {
-    dbJmc = await JmcRegister.findById(invoice.jmcId).lean();
+  if (invoice.jmcIds && invoice.jmcIds.length > 0) {
+    dbJmcs = await JmcRegister.find({ _id: { $in: invoice.jmcIds } }).lean();
   }
   if (invoice.mhrovId) {
     dbMhrov = await Mhrov.findById(invoice.mhrovId).lean();
@@ -192,10 +220,16 @@ export const updateInvoiceService = async (id: string, data: any, user: any) => 
   const processedItems = lineItems.map((item: any) => {
     let authoritativeQty = 0;
 
-    if (invoice.jmcId && dbJmc) {
-      const dbItem = dbJmc.items.find((i: any) => i.itemId?.toString() === item.itemId?.toString());
-      if (!dbItem) throw new ApiError(400, `Item ${item.itemId} not found in linked JMC`);
-      authoritativeQty = Number(dbItem.approvedQty || dbItem.claimedQty || 0);
+    if (invoice.jmcIds && invoice.jmcIds.length > 0 && dbJmcs.length > 0) {
+      let found = false;
+      dbJmcs.forEach(dbJmc => {
+        const dbItem = dbJmc.items.find((i: any) => i.itemId?.toString() === item.itemId?.toString());
+        if (dbItem) {
+          found = true;
+          authoritativeQty += Number(dbItem.approvedQty || dbItem.claimedQty || 0);
+        }
+      });
+      if (!found) throw new ApiError(400, `Item ${item.itemId} not found in any linked JMC`);
     } else if (invoice.mhrovId && dbMhrov) {
       const dbItem = dbMhrov.items?.find((i: any) => i.itemId?.toString() === item.itemId?.toString());
       if (!dbItem) throw new ApiError(400, `Item ${item.itemId} not found in linked MHROV`);
@@ -216,7 +250,7 @@ export const updateInvoiceService = async (id: string, data: any, user: any) => 
       baseAmount = authoritativeQty * itemRate * (percentage / 100);
     }
 
-    const gstAmount = authoritativeQty * itemRate * (Number(item.gstRate || 0) / 100);
+    const gstAmount = baseAmount * (Number(item.gstRate || 0) / 100);
     const totalAmount = baseAmount + gstAmount;
 
     totalBaseAmount += baseAmount;
@@ -228,8 +262,8 @@ export const updateInvoiceService = async (id: string, data: any, user: any) => 
       activity: item.activity,
       description: item.description,
       billingCategory: item.billingCategory,
-      jmcDoneQty: (invoice.jmcId && stage !== 'Amount' && stage !== 'Advance' && percentage === 100) ? authoritativeQty : Number(item.jmcDoneQty || 0),
-      erectedQty: (invoice.jmcId && percentage !== 100) ? authoritativeQty : (invoice.mhrovId ? authoritativeQty : Number(item.erectedQty || 0)),
+      jmcDoneQty: (invoice.jmcIds && invoice.jmcIds.length > 0 && stage !== 'Amount' && stage !== 'Advance' && percentage === 100) ? authoritativeQty : Number(item.jmcDoneQty || 0),
+      erectedQty: (invoice.jmcIds && invoice.jmcIds.length > 0 && percentage !== 100) ? authoritativeQty : (invoice.mhrovId ? authoritativeQty : Number(item.erectedQty || 0)),
       rate: itemRate,
       percentageApplied: percentage,
       baseAmount,
@@ -297,7 +331,7 @@ export const getInvoicesService = async (query: any, user: any) => {
     matchFilter.circle = { $in: regexCircles };
   }
   if (targetPackage) {
-    const packageEscaped = targetPackage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s*');
+    const packageEscaped = targetPackage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/[- ]/g, '[\\s\\-]*');
     matchFilter.package = new RegExp(`^${packageEscaped}$`, 'i');
   }
 
@@ -333,7 +367,7 @@ export const getInvoicesService = async (query: any, user: any) => {
           }
         }
         if (targetPackage && inv.legacyMetadata.package) {
-          const packageEscaped = targetPackage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s*');
+          const packageEscaped = targetPackage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/[- ]/g, '[\\s\\-]*');
           const packageRegex = new RegExp(`^${packageEscaped}$`, 'i');
           if (!packageRegex.test(inv.legacyMetadata.package)) {
             return false;
@@ -354,7 +388,7 @@ export const getInvoiceByIdService = async (id: string) => {
     .populate('contractorId', 'name vendorName dynamicData')
     .populate('workOrderId', 'workOrderNumber items')
     .populate('mhrovId', 'mhrovNumber')
-    .populate('jmcId', 'jmcNumber')
+    .populate('jmcIds', 'jmcNumber')
     .populate('handoverCertificateId', 'certificateNumber')
     .populate('lineItems.itemId', 'tempCode loaSrNo itemName description dynamicData');
 

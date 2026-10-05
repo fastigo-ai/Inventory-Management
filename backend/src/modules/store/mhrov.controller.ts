@@ -1521,7 +1521,7 @@ export const getMhrovDashboardData = asyncHandler(async (req: Request, res: Resp
       });
     }
     if (mhrov.items && Array.isArray(mhrov.items)) {
-      mhrov.items.forEach((item: any) => {
+      mhrov.items.forEach((item: any, index: number) => {
         const data = {
           mhrovId: mhrov._id,
           mhrovNumber: mhrov.mhrovNumber,
@@ -1536,7 +1536,7 @@ export const getMhrovDashboardData = asyncHandler(async (req: Request, res: Resp
           const itemIdStr = item.itemId._id ? item.itemId._id.toString() : item.itemId.toString();
           inwardToMhrovMap.set(`${diIdStr}_${itemIdStr}`, data);
           
-          const uniqueKey = `${mhrov._id}_${itemIdStr}`;
+          const uniqueKey = `${mhrov._id}_${itemIdStr}_${index}`;
           if (!directMhrovItems.has(uniqueKey)) {
             directMhrovItems.set(uniqueKey, {
               _id: uniqueKey,

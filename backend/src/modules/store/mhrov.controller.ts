@@ -998,8 +998,11 @@ export const importMhrovs = asyncHandler(async (req: Request, res: Response) => 
     const cleanStrLower = (s: any) => cleanStr(s).toLowerCase();
     const normalizeForMatch = (s: any) => cleanStrLower(s).replace(/\s+/g, '');
 
-    // Collect all possible keys, cleaned of asterisks and whitespace
-    const uniqueDiNos = [...new Set(mhrovData.items.map((i: any) => cleanStr(i.diNo)).filter(Boolean))];
+    // Collect all possible keys, cleaned of asterisks and whitespace, splitting by common delimiters
+    const uniqueDiNos = [...new Set(mhrovData.items.flatMap((i: any) => {
+        if (!i.diNo) return [];
+        return String(i.diNo).split(/[\s,&|/]+/).map(s => cleanStr(s)).filter(Boolean);
+    }))];
     
     // Fetch existing MHROV to account for updates so we don't double count already done qty
     const existingMhrov = await Mhrov.findOne({ mhrovNumber }).lean();
@@ -1007,7 +1010,7 @@ export const importMhrovs = asyncHandler(async (req: Request, res: Response) => 
     // We use a broad $or query to catch the record if ANY of the identifiers match
     const fetchCondition: any = { $or: [] };
     // MHROV depends strictly on DI
-    if (uniqueDiNos.length > 0) fetchCondition.$or.push({ diNumber: { $in: uniqueDiNos } });
+    if (uniqueDiNos.length > 0) fetchCondition.$or.push({ diNumber: { $in: uniqueDiNos.map(d => new RegExp(`^${d}$`, 'i')) } });
     
     // Fallback if somehow there are no identifiers (rare)
     if (fetchCondition.$or.length === 0) {
@@ -1024,10 +1027,12 @@ export const importMhrovs = asyncHandler(async (req: Request, res: Response) => 
       let matchedLineItem: any = null;
       let matchedDI: any = null;
 
+      const csvDis = String(item.diNo || '').toLowerCase().split(/[\s,&|/]+/).map(s => cleanStrLower(s)).filter(Boolean);
+
       for (const entry of bulkEntries) {
-         const csvDi = cleanStrLower(item.diNo);
          const dbDi = cleanStrLower(entry.diNumber);
-         if (csvDi && dbDi && dbDi !== csvDi) continue;
+         // If CSV provided DIs, check if this entry's DI is in the list
+         if (csvDis.length > 0 && dbDi && !csvDis.includes(dbDi)) continue;
 
          if (entry.lineItems && Array.isArray(entry.lineItems)) {
              const csvCircle = normalizeForMatch(item.circle || mhrovData.circle);

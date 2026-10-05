@@ -45,7 +45,8 @@ export const updateInvoiceStatus = asyncHandler(async (req: Request, res: Respon
 });
 
 export const getBillingAnalytics = asyncHandler(async (req: Request, res: Response) => {
-  const analytics = await getBillingAnalyticsService();
+  const user = (req as any).user;
+  const analytics = await getBillingAnalyticsService(req.query, user);
   res.status(200).json(new ApiResponse(200, analytics, 'Billing analytics fetched successfully'));
 });
 

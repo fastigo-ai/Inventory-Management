@@ -501,26 +501,58 @@ export const updateInvoiceStatusService = async (id: string, status: string, rem
   }
 };
 
-export const getBillingAnalyticsService = async () => {
-  const stageBreakdown = await ContractorInvoice.aggregate([
-    { $match: { status: { $ne: 'Rejected' } } },
-    { $group: { _id: '$stage', totalAmount: { $sum: '$grandTotal' }, count: { $sum: 1 } } }
-  ]);
-
-  const statusDistribution = await ContractorInvoice.aggregate([
-    { $group: { _id: '$status', count: { $sum: 1 }, totalAmount: { $sum: '$grandTotal' } } }
-  ]);
-
-  const oldSubmittedInvoices = await ContractorInvoice.countDocuments({
-    status: { $in: ['Pending PM Approval', 'Pending PD Approval', 'Pending HO Approval'] },
-    updatedAt: { $lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } 
+export const getBillingAnalyticsService = async (query: any, user: any) => {
+  // Fetch all invoices using the same filtering logic as the list endpoint
+  const allInvoices = await getInvoicesService(query, user);
+  
+  const stageBreakdownMap: Record<string, { totalAmount: number, count: number }> = {};
+  const statusDistributionMap: Record<string, { totalAmount: number, count: number }> = {};
+  let oldSubmittedCount = 0;
+  
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  
+  allInvoices.forEach((inv: any) => {
+    // 1. Status Distribution
+    if (!statusDistributionMap[inv.status]) {
+      statusDistributionMap[inv.status] = { totalAmount: 0, count: 0 };
+    }
+    statusDistributionMap[inv.status].count += 1;
+    statusDistributionMap[inv.status].totalAmount += (inv.grandTotal || 0);
+    
+    // 2. Stage Breakdown (Exclude Rejected)
+    if (inv.status !== 'Rejected') {
+      if (!stageBreakdownMap[inv.stage]) {
+        stageBreakdownMap[inv.stage] = { totalAmount: 0, count: 0 };
+      }
+      stageBreakdownMap[inv.stage].count += 1;
+      stageBreakdownMap[inv.stage].totalAmount += (inv.grandTotal || 0);
+    }
+    
+    // 3. Aging
+    if (['Pending PM Approval', 'Pending PD Approval', 'Pending HO Approval'].includes(inv.status)) {
+      if (new Date(inv.updatedAt) < sevenDaysAgo) {
+        oldSubmittedCount += 1;
+      }
+    }
   });
+  
+  const stageBreakdown = Object.keys(stageBreakdownMap).map(stage => ({
+    _id: stage,
+    totalAmount: stageBreakdownMap[stage].totalAmount,
+    count: stageBreakdownMap[stage].count
+  }));
+  
+  const statusDistribution = Object.keys(statusDistributionMap).map(status => ({
+    _id: status,
+    totalAmount: statusDistributionMap[status].totalAmount,
+    count: statusDistributionMap[status].count
+  }));
 
   return {
     stageBreakdown,
     statusDistribution,
     aging: {
-      oldSubmittedCount: oldSubmittedInvoices
+      oldSubmittedCount
     }
   };
 };

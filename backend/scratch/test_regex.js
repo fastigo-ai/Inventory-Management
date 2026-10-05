@@ -1,7 +1,7 @@
-const n = 'GI STAY WIRE (7/3.15 MM)';
-try {
-  const regex = new RegExp(`^${n.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}$`, 'i');
-  console.log('Regex built successfully:', regex);
-} catch (e) {
-  console.error('Error building regex:', e);
-}
+const targetPackage = "Package-1(S/N)";
+const packageEscaped = targetPackage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s*');
+const packageRegex = new RegExp(`^${packageEscaped}$`, 'i');
+console.log('Regex:', packageRegex);
+console.log('Test "Package-1(S/N)":', packageRegex.test('Package-1(S/N)'));
+console.log('Test "Package 1(S/N)":', packageRegex.test('Package 1(S/N)'));
+console.log('Test "Package 1 (S/N)":', packageRegex.test('Package 1 (S/N)'));

@@ -37,7 +37,8 @@ export default function NewContractorBill() {
   const [signedBillDocUrl, setSignedBillDocUrl] = useState('');
   const [drawingNumber, setDrawingNumber] = useState('');
   const [supplyRaBillNo, setSupplyRaBillNo] = useState('');
-
+  const [mhrovId, setMhrovId] = useState('');
+  const [availableMhrovs, setAvailableMhrovs] = useState<any[]>([]);
   // Items
   const [lineItems, setLineItems] = useState<any[]>([]);
 
@@ -107,6 +108,14 @@ export default function NewContractorBill() {
         arr = data.contractors;
       }
       setContractors(arr);
+    }).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    api.get("/store/mhrov").then(res => {
+      const arr = res.data?.data?.data || res.data?.data || res.data || [];
+      const mhrovs = Array.isArray(arr) ? arr : (arr.mhrovs && Array.isArray(arr.mhrovs) ? arr.mhrovs : []);
+      setAvailableMhrovs(mhrovs);
     }).catch(console.error);
   }, []);
 
@@ -440,6 +449,7 @@ export default function NewContractorBill() {
         contractorId,
         jmcIds: selectedJmcIds.length > 0 ? selectedJmcIds : undefined,
         workOrderId: selectedWorkOrderId || undefined,
+        mhrovId: mhrovId || undefined,
         stage,
         jmcDocUrl,
         signedBillDocUrl,

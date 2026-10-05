@@ -725,7 +725,7 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
         const finalUnit = unit || (item ? (item.dynamicData?.unit || item.unit || 'Nos') : 'Nos');
         const resolvedItemName = item ? (item.dynamicData?.name || item.name || itemName) : (itemName || 'Unknown Item');
         const resolvedTempCode = tempCode || item?.dynamicData?.tempCode || '';
-        const resolvedLoaSerialNo = loaSerialNo || item?.dynamicData?.loaSerialNo || item?.dynamicData?.loaSerialNumber || item?.dynamicData?.sku || '';
+        const resolvedLoaSerialNo = masterLoaSerialNo || loaSerialNo;
         const resolvedPackage = item?.dynamicData?.package || itemPackage;
         const resolvedCircle = item?.dynamicData?.circle || itemCircle;
 

@@ -1,28 +1,75 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, Search, Filter, Upload, Download, Loader2 } from 'lucide-react';
-import { getContractorWorkOrders } from '@/features/contractors/api/contractorWorkOrder.api';
+import { Plus, Search, Filter, Upload, Download, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { getContractorWorkOrders, getContractorWorkOrderFilters } from '@/features/contractors/api/contractorWorkOrder.api';
 import { ImportWOModal } from '@/features/contractors/components/ImportWOModal';
 import { toast } from 'sonner';
 import Papa from 'papaparse';
 
 export default function ContractorWorkOrdersPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [workOrders, setWorkOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [search, setSearch] = useState('');
+
+  const search = searchParams.get('search') || '';
+  const packageFilter = searchParams.get('package') || '';
+  const circleFilter = searchParams.get('circle') || '';
+  const activityFilter = searchParams.get('activity') || '';
+  const dateFrom = searchParams.get('dateFrom') || '';
+  const dateTo = searchParams.get('dateTo') || '';
+  const page = parseInt(searchParams.get('page') || '1', 10);
+  const limit = parseInt(searchParams.get('limit') || '50', 10);
+
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+
+  const [availableFilters, setAvailableFilters] = useState<{packages: string[], circles: string[], activities: string[]}>({ packages: [], circles: [], activities: [] });
+
+  const [localFilters, setLocalFilters] = useState({
+    search, package: packageFilter, circle: circleFilter, activity: activityFilter, dateFrom, dateTo
+  });
+  const [showFilters, setShowFilters] = useState(false);
+
+  const fetchFilters = async () => {
+    try {
+      const res = await getContractorWorkOrderFilters({ package: localFilters.package, circle: localFilters.circle });
+      if (res.success) {
+        setAvailableFilters(res.data || { packages: [], circles: [], activities: [] });
+      }
+    } catch (error) {
+      console.error('Failed to load filters', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchFilters();
+  }, [localFilters.package, localFilters.circle]);
 
   const fetchWorkOrders = async () => {
     try {
       setIsLoading(true);
-      const res = await getContractorWorkOrders({ search });
+      const res = await getContractorWorkOrders({ 
+        search, 
+        package: packageFilter, 
+        circle: circleFilter, 
+        activity: activityFilter, 
+        dateFrom, 
+        dateTo, 
+        page, 
+        limit 
+      });
       if (res.success) {
         setWorkOrders(res.data?.data || []);
+        setTotalPages(res.data?.pagination?.totalPages || 1);
+        setTotalItems(res.data?.pagination?.totalItems || 0);
       }
     } catch (error) {
       toast.error('Failed to load work orders');
@@ -33,7 +80,25 @@ export default function ContractorWorkOrdersPage() {
 
   useEffect(() => {
     fetchWorkOrders();
-  }, [search]);
+    setLocalFilters({ search, package: packageFilter, circle: circleFilter, activity: activityFilter, dateFrom, dateTo });
+  }, [search, packageFilter, circleFilter, activityFilter, dateFrom, dateTo, page, limit]);
+
+  const applyFilters = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(localFilters).forEach(([key, value]) => {
+      if (!value) params.delete(key);
+      else params.set(key, String(value));
+    });
+    params.set('page', '1');
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', String(newPage));
+    router.push(`${pathname}?${params.toString()}`);
+  };
 
   const handleExport = async () => {
     try {
@@ -151,23 +216,96 @@ export default function ContractorWorkOrdersPage() {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-          <div className="relative w-64">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search WO Number..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-            />
+        <div className="p-4 border-b border-slate-200 flex flex-col gap-4 bg-slate-50">
+          <div className="flex justify-between items-center w-full">
+            <div className="relative w-64">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search WO Number..."
+                value={localFilters.search}
+                onChange={(e) => setLocalFilters({ ...localFilters, search: e.target.value })}
+                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+                className="w-full pl-9 pr-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={applyFilters} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">
+                Search / Apply
+              </button>
+              <button 
+                onClick={() => setShowFilters(!showFilters)}
+                className="flex items-center space-x-2 px-3 py-2 border border-slate-200 rounded-lg hover:bg-slate-100 text-slate-600 text-sm bg-white"
+              >
+                <Filter className="w-4 h-4" />
+                <span>Filters {showFilters ? '▲' : '▼'}</span>
+              </button>
+            </div>
           </div>
-          <button className="flex items-center space-x-2 px-3 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 text-sm">
-            <Filter className="w-4 h-4" />
-            <span>Filters</span>
-          </button>
+          
+          {showFilters && (
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 pt-4 border-t border-slate-200">
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Package</label>
+                <select
+                  value={localFilters.package}
+                  onChange={(e) => setLocalFilters({ ...localFilters, package: e.target.value, circle: '', activity: '' })}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white"
+                >
+                  <option value="">All Packages</option>
+                  {availableFilters.packages.map((pkg: string) => (
+                    <option key={pkg} value={pkg}>{pkg}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Circle</label>
+                <select
+                  value={localFilters.circle}
+                  onChange={(e) => setLocalFilters({ ...localFilters, circle: e.target.value, activity: '' })}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white"
+                >
+                  <option value="">All Circles</option>
+                  {availableFilters.circles.map((circ: string) => (
+                    <option key={circ} value={circ}>{circ}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Activity</label>
+                <select
+                  value={localFilters.activity}
+                  onChange={(e) => setLocalFilters({ ...localFilters, activity: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white"
+                >
+                  <option value="">All Activities</option>
+                  {availableFilters.activities.map((act: string) => (
+                    <option key={act} value={act}>{act}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">From Date</label>
+                <input
+                  type="date"
+                  value={localFilters.dateFrom}
+                  onChange={(e) => setLocalFilters({ ...localFilters, dateFrom: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">To Date</label>
+                <input
+                  type="date"
+                  value={localFilters.dateTo}
+                  onChange={(e) => setLocalFilters({ ...localFilters, dateTo: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                />
+              </div>
+            </div>
+          )}
         </div>
-
+        
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-slate-50 text-slate-600 text-sm border-b border-slate-200">
@@ -240,9 +378,32 @@ export default function ContractorWorkOrdersPage() {
               )}
             </tbody>
           </table>
+        
+        <div className="p-4 border-t border-slate-200 flex items-center justify-between bg-white rounded-b-xl">
+          <div className="text-sm text-slate-500">
+            Showing <span className="font-medium text-slate-900">{workOrders.length > 0 ? (page - 1) * limit + 1 : 0}</span> to <span className="font-medium text-slate-900">{Math.min(page * limit, totalItems)}</span> of <span className="font-medium text-slate-900">{totalItems}</span> results
+          </div>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => handlePageChange(page - 1)}
+              disabled={page === 1}
+              className="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 disabled:opacity-50 disabled:hover:bg-white"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-sm text-slate-600 px-2">Page {page} of {totalPages || 1}</span>
+            <button
+              onClick={() => handlePageChange(page + 1)}
+              disabled={page >= totalPages}
+              className="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 disabled:opacity-50 disabled:hover:bg-white"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
-
+      
+      </div>
       <ImportWOModal 
         isOpen={isImportModalOpen} 
         onClose={() => setIsImportModalOpen(false)} 

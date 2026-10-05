@@ -59,7 +59,7 @@ export const createWip = asyncHandler(async (req: Request, res: Response) => {
     try {
       items = JSON.parse(items);
     } catch (err) {
-      items = [];
+      throw new ApiError(400, "Invalid JSON format for items array.");
     }
   }
 
@@ -202,7 +202,7 @@ export const updateWip = asyncHandler(async (req: Request, res: Response) => {
     try {
       items = JSON.parse(items);
     } catch (err) {
-      items = [];
+      throw new ApiError(400, "Invalid JSON format for items array.");
     }
   }
 
@@ -569,7 +569,9 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
       return itemCircle === sheetCircle || itemCircle.includes(sheetCircle) || sheetCircle.includes(itemCircle);
     });
 
-    if (!matchedItemObj) matchedItemObj = candidateItems[0];
+    if (!matchedItemObj) {
+      return { error: `Item matches LOA/TempCode but belongs to a different circle. Expected circle: ${sheetCircle}` } as any;
+    }
 
     if (matchedItemObj) {
       // We no longer throw an error on Activity mismatch.
@@ -835,7 +837,8 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
                 (!i.itemId && !newItem.itemId && i.description === newItem.description && i.activity === newItem.activity)
               );
               if (existingItem) {
-                existingItem.claimedQty = (existingItem.claimedQty || 0) + (newItem.claimedQty || 0);
+                // BUG FIX: Replace the quantity instead of adding to prevent infinite doubling
+                existingItem.claimedQty = newItem.claimedQty || 0;
               } else {
                 existingWip.items.push(newItem);
               }
@@ -849,7 +852,6 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
           }
         }
       }
-
       if (existingWipNo && !existingWip) {
         await WipRegister.findOneAndUpdate({ wipNumber: existingWipNo }, {
           $set: {
@@ -865,6 +867,12 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
             feeder,
             items: wipItems,
             remarks: `Updated via Bulk Upload from ${sourceFile} (${sheetName}).`,
+          },
+          $setOnInsert: {
+            claimedAmount: 0,
+            approvedAmount: 0,
+            status: 'Submitted',
+            createdBy: user._id
           }
         }, { upsert: true });
       } else {

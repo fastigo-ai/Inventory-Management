@@ -34,3 +34,8 @@ export const updateContractorWorkOrderStatus = async (id: string, status: string
   const response = await api.patch(`/ho-billing/contractor-work-orders/${id}/status`, { status });
   return response.data;
 };
+
+export const getContractorWorkOrderFilters = async (params?: { package?: string, circle?: string }) => {
+  const response = await api.get('/ho-billing/contractor-work-orders/filters', { params });
+  return response.data;
+};

@@ -46,7 +46,7 @@ export const createWorkOrder = asyncHandler(async (req: AuthRequest, res: Respon
 });
 
 export const getWorkOrders = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { page = 1, limit = 50, package: pkg, circle, division, search, status, contractorId } = req.query;
+  const { page = 1, limit = 50, package: pkg, circle, division, search, status, contractorId, activity, dateFrom, dateTo } = req.query;
   const filter: any = {};
 
   if (contractorId) filter.contractorId = contractorId;
@@ -58,6 +58,22 @@ export const getWorkOrders = asyncHandler(async (req: AuthRequest, res: Response
       filter.status = { $in: (status as string).split(',') };
     } else {
       filter.status = status;
+    }
+  }
+
+  if (activity) {
+    filter.activities = activity;
+  }
+
+  if (dateFrom || dateTo) {
+    filter.createdAt = {};
+    if (dateFrom) {
+      filter.createdAt.$gte = new Date(dateFrom as string);
+    }
+    if (dateTo) {
+      const toDate = new Date(dateTo as string);
+      toDate.setHours(23, 59, 59, 999);
+      filter.createdAt.$lte = toDate;
     }
   }
 
@@ -133,6 +149,26 @@ export const getWorkOrders = asyncHandler(async (req: AuthRequest, res: Response
     },
     message: 'Work Orders fetched successfully'
   });
+});
+
+export const getFilters = asyncHandler(async (req: Request, res: Response) => {
+  const { package: pkg, circle } = req.query;
+
+  const packageFilter: any = {};
+  if (pkg) packageFilter['package'] = String(pkg);
+
+  const circleFilter: any = { ...packageFilter };
+  if (circle) circleFilter['circle'] = String(circle);
+
+  const packages = await ContractorWorkOrder.distinct('package');
+  const circles = await ContractorWorkOrder.distinct('circle', packageFilter);
+  const activities = await ContractorWorkOrder.distinct('activities', circleFilter);
+  
+  res.status(200).json(new ApiResponse(200, {
+    packages: packages.filter(Boolean),
+    circles: circles.filter(Boolean),
+    activities: activities.filter(Boolean)
+  }, 'Filters fetched successfully'));
 });
 
 export const getWorkOrderById = asyncHandler(async (req: AuthRequest, res: Response) => {

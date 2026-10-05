@@ -51,7 +51,7 @@ export const createJmc = asyncHandler(async (req: Request, res: Response) => {
     try {
       items = JSON.parse(items);
     } catch (err) {
-      items = [];
+      throw new ApiError(400, "Invalid JSON format for items array.");
     }
   }
 
@@ -253,7 +253,7 @@ export const updateJmc = asyncHandler(async (req: Request, res: Response) => {
     try {
       items = JSON.parse(items);
     } catch (err) {
-      items = [];
+      throw new ApiError(400, "Invalid JSON format for items array.");
     }
   }
 
@@ -988,7 +988,8 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
                 (!i.itemId && !newItem.itemId && i.description === newItem.description && i.activity === newItem.activity)
               );
               if (existingItem) {
-                existingItem.claimedQty = (existingItem.claimedQty || 0) + (newItem.claimedQty || 0);
+                // BUG FIX: Replace the quantity instead of adding to prevent infinite doubling
+                existingItem.claimedQty = newItem.claimedQty || 0;
               } else {
                 existingJmc.items.push(newItem);
               }
@@ -1021,8 +1022,14 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
             feeder,
             items: jmcItems,
             remarks: `Updated via Bulk Upload from ${sourceFile} (${sheetName}).`,
+          },
+          $setOnInsert: {
+            claimedAmount: 0,
+            approvedAmount: 0,
+            status: 'Submitted',
+            createdBy: user._id
           }
-        });
+        }, { upsert: true });
       } else {
         let saved = false;
         let attempts = 0;

@@ -12,9 +12,11 @@ import * as XLSX from 'xlsx';
 import { api } from '@/shared/api/axios';
 import { createContractorInvoice } from '@/features/contractor-billing/api/contractor-billing.api';
 import { getItems } from '@/features/items/api/items.api';
+import { useAuthStore } from '@/shared/store/auth.store';
 
 export default function LegacyBulkUpload() {
   const router = useRouter();
+  const { user } = useAuthStore();
   const [loading, setLoading] = useState(false);
   
   const [uploadType, setUploadType] = useState<'Contractor Bill' | 'Erection Bill'>('Erection Bill');
@@ -92,6 +94,26 @@ export default function LegacyBulkUpload() {
           return;
         }
 
+        // Validate metadata against logged in user
+        const assignedCircle = user?.assignedCircle;
+        const assignedPackage = user?.assignedPackage;
+        
+        if (assignedCircle && assignedCircle !== 'All' && metadata.circle) {
+           if (metadata.circle.toLowerCase() !== assignedCircle.toLowerCase()) {
+              toast.error(`Circle mismatch! You are logged into ${assignedCircle} but the file is for ${metadata.circle}`);
+              return;
+           }
+        }
+        
+        if (assignedPackage && assignedPackage !== 'All' && metadata.package) {
+           const pkgNormTarget = assignedPackage.toLowerCase().replace(/[^a-z0-9]/g, '');
+           const pkgNormExcel = metadata.package.toLowerCase().replace(/[^a-z0-9]/g, '');
+           if (pkgNormTarget !== pkgNormExcel) {
+              toast.error(`Package mismatch! You are assigned to ${assignedPackage} but the file is for ${metadata.package}`);
+              return;
+           }
+        }
+
         const headers = data[headerRowIndex].map(h => String(h || '').trim().toLowerCase());
         const loaIdx = headers.findIndex(h => h === 'loa serial no');
         const qtyIdx = headers.findIndex(h => h === 'erected qty');
@@ -117,10 +139,19 @@ export default function LegacyBulkUpload() {
           const erectedQty = Number(row[qtyIdx]) || 0;
           if (erectedQty <= 0) continue;
 
+          const unit = unitIdx !== -1 ? String(row[unitIdx] || '').trim() : '';
+
           // Find Item in Master DB
           const masterItem = masterItems.find(m => {
             const mLoa = String(m.dynamicData?.loaSrNo || m.dynamicData?.loaSerialNo || m.loaSrNo || m.loaSerialNo || m.sku || '').trim();
-            return mLoa.toLowerCase() === loaNo.toLowerCase();
+            const mCircle = String(m.dynamicData?.circle || '').trim();
+            const mUnit = String(m.dynamicData?.unit || m.unit || '').trim();
+            
+            const loaMatch = mLoa.toLowerCase() === loaNo.toLowerCase();
+            const circleMatch = metadata.circle ? mCircle.toLowerCase() === metadata.circle.toLowerCase() : true;
+            const unitMatch = unit ? mUnit.toLowerCase() === unit.toLowerCase() : true;
+            
+            return loaMatch && circleMatch && unitMatch;
           });
 
           if (!masterItem) {

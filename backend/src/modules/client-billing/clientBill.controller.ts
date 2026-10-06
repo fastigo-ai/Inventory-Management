@@ -688,14 +688,6 @@ export const bulkImportClientBills = asyncHandler(async (req: any, res: Response
         referenceIds = mhrovs.map(m => m._id);
       }
 
-      // Check for existing bill with same RA Bill No
-      const existing = await ClientBill.findOne({ raBillNo });
-      if (existing) {
-         results.failed++;
-         results.errors.push({ raBillNo, reason: 'Bill with this RA Bill No already exists' });
-         continue;
-      }
-
       const assignedCircle = user.assignedCircle || 'Unknown';
       const assignedPackage = user.assignedPackage || 'Unknown';
 
@@ -707,21 +699,26 @@ export const bulkImportClientBills = asyncHandler(async (req: any, res: Response
          continue;
       }
 
-      const clientBill = new ClientBill({
-        raBillNo,
-        raBillDate: new Date(),
-        billType,
-        stage,
-        referenceType,
-        referenceIds,
-        items,
-        circle: assignedCircle,
-        package: assignedPackage,
-        createdBy: user._id,
-        status: 'Pending PM Approval'
-      });
-
-      await clientBill.save();
+      await ClientBill.findOneAndUpdate(
+        { raBillNo },
+        {
+          $set: {
+            billType,
+            stage,
+            referenceType,
+            referenceIds,
+            items,
+            circle: assignedCircle,
+            package: assignedPackage,
+            status: 'Pending PM Approval' // Reset status on update
+          },
+          $setOnInsert: {
+            raBillDate: new Date(),
+            createdBy: user._id
+          }
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
       results.success++;
 
     } catch (err: any) {

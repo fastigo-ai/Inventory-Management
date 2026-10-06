@@ -1203,6 +1203,8 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
             if (!li.circle) li.circle = diLine.circle || di.circle;
             if (!li.package) li.package = diLine.package || di.package;
             if (!li.subcircle) li.subcircle = diLine.subcircle || di.subcircle;
+          } else {
+            errors.push(`Validation Error for Row ${li.rowNumber}: Could not find matching line inside DI "${itemDiNumber}" for Item "${li.itemName}", Serial "${li.loaSerialNo}", Circle "${li.circle}", Package "${li.package}". Check for typos.`);
           }
         } else if (!prData.diNumber || itemDiNumber !== prData.diNumber) {
            errors.push(`Validation Error for Row ${li.rowNumber}: DI number "${itemDiNumber}" does not exist in the system.`);

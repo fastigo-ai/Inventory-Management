@@ -729,7 +729,7 @@ export const bulkImportClientBills = asyncHandler(async (req: any, res: Response
       }
 
       await ClientBill.findOneAndUpdate(
-        { raBillNo },
+        { raBillNo, circle: assignedCircle },
         {
           $set: {
             billType,

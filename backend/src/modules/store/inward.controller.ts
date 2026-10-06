@@ -75,6 +75,24 @@ export const getPurchaseInvoicePrefillData = asyncHandler(async (req: Request, r
       itemUnit = itemData.unit;
     }
   }
+  // Calculate remaining quantity
+  let remainingQty = invoiceItem ? Number(invoiceItem.quantity || 0) : 0;
+  if (invoiceItem && invoiceItem.tempCode) {
+    const existingInwards = await StoreInwardEntry.find({ 
+      purchaseInvoiceId: invoice._id, 
+      tempCode: invoiceItem.tempCode,
+      status: { $in: ['Approved', 'Verified', 'Submitted'] }
+    });
+    let receivedSum = 0;
+    existingInwards.forEach((inw: any) => {
+      let packSum = 0;
+      if (inw.packingList) {
+        inw.packingList.forEach((p: any) => packSum += Number(p.quantity || 0));
+      }
+      receivedSum += packSum > 0 ? packSum : Number(inw.invoiceQty || 0);
+    });
+    remainingQty = Math.max(0, remainingQty - receivedSum);
+  }
 
   const prefillData = {
     purchaseInvoiceId: invoice._id,
@@ -85,7 +103,7 @@ export const getPurchaseInvoicePrefillData = asyncHandler(async (req: Request, r
     vendorName: invoice.vendorName || po?.vendorName,
     itemName: invoiceItem?.itemName || poItem?.itemName || '',
     unit: itemUnit,
-    invoiceQty: invoiceItem ? invoiceItem.quantity : 0,
+    invoiceQty: remainingQty,
     totalQty: poItem ? poItem.quantity : (invoiceItem ? invoiceItem.quantity : 0),
     rate: invoiceItem ? invoiceItem.rate : 0,
     amount: invoiceItem ? invoiceItem.amount : 0,
@@ -173,22 +191,8 @@ export const createInwardEntry = asyncHandler(async (req: Request, res: Response
     throw new ApiError(400, 'DI ID or Purchase Invoice ID is required');
   }
 
-  // Enforce 1 active inward entry per PI + tempCode combination
-  // (A single PI can have multiple line items/tempCodes, each needing their own GRN)
-  const existingFilter: any = { status: { $ne: 'Draft' } };
-  if (data.purchaseInvoiceId) {
-    existingFilter.purchaseInvoiceId = data.purchaseInvoiceId;
-    if (data.tempCode) existingFilter.tempCode = data.tempCode;
-  } else {
-    existingFilter.diId = data.diId;
-    if (data.tempCode) existingFilter.tempCode = data.tempCode;
-  }
-
-  const existing = await StoreInwardEntry.findOne(existingFilter);
-
-  if (existing) {
-    throw new ApiError(400, `A submitted Inward Entry already exists for this Invoice/DI and item (TempCode: ${data.tempCode || 'unknown'})`);
-  }
+  // Split deliveries are now allowed, no longer blocking multiple GRNs.
+  // We still query for existing DRAFT to upsert if needed, handled below.
 
   // Truck number validation
   if (data.truckNumber) {
@@ -1741,9 +1745,40 @@ export async function processInwardStockUpdate(entryId: string) {
       }
       if (entry.purchaseInvoiceId) {
         const invoice = await PurchaseInvoice.findById(entry.purchaseInvoiceId);
-        if (invoice && invoice.receiptStatus !== 'Received') {
-          invoice.receiptStatus = 'Received';
-          await invoice.save();
+        if (invoice) {
+          // Aggregate all approved/verified inwards for this invoice
+          const allInwards = await StoreInwardEntry.find({ 
+            purchaseInvoiceId: entry.purchaseInvoiceId,
+            status: { $in: ['Approved', 'Verified', 'Submitted'] }
+          });
+          
+          let isPartiallyReceived = false;
+          let isFullyReceived = true;
+          
+          if (invoice.lineItems && invoice.lineItems.length > 0) {
+            for (const line of invoice.lineItems) {
+              const poQty = Number(line.quantity || 0);
+              let receivedForLine = 0;
+              allInwards.forEach((inw: any) => {
+                if (inw.tempCode === line.tempCode) {
+                  let packSum = 0;
+                  if (inw.packingList) {
+                    inw.packingList.forEach((p: any) => packSum += Number(p.quantity || 0));
+                  }
+                  receivedForLine += packSum > 0 ? packSum : Number(inw.invoiceQty || 0);
+                }
+              });
+              
+              if (receivedForLine > 0) isPartiallyReceived = true;
+              if (receivedForLine < poQty) isFullyReceived = false;
+            }
+          }
+          
+          const newStatus = isFullyReceived ? 'Received' : (isPartiallyReceived ? 'Partially Received' : 'Pending Receipt');
+          if (invoice.receiptStatus !== newStatus) {
+            invoice.receiptStatus = newStatus;
+            await invoice.save();
+          }
         }
       }
     } catch (err) {
@@ -1757,9 +1792,39 @@ export async function processInwardStockUpdate(entryId: string) {
   
   try {
     const invoice = await PurchaseInvoice.findById(entry.purchaseInvoiceId);
-    if (invoice && invoice.receiptStatus !== 'Received') {
-      invoice.receiptStatus = 'Received';
-      await invoice.save();
+    if (invoice) {
+      const allInwards = await StoreInwardEntry.find({ 
+        purchaseInvoiceId: entry.purchaseInvoiceId,
+        status: { $in: ['Approved', 'Verified', 'Submitted'] }
+      });
+      
+      let isPartiallyReceived = false;
+      let isFullyReceived = true;
+      
+      if (invoice.lineItems && invoice.lineItems.length > 0) {
+        for (const line of invoice.lineItems) {
+          const poQty = Number(line.quantity || 0);
+          let receivedForLine = 0;
+          allInwards.forEach((inw: any) => {
+            if (inw.tempCode === line.tempCode) {
+              let packSum = 0;
+              if (inw.packingList) {
+                inw.packingList.forEach((p: any) => packSum += Number(p.quantity || 0));
+              }
+              receivedForLine += packSum > 0 ? packSum : Number(inw.invoiceQty || 0);
+            }
+          });
+          
+          if (receivedForLine > 0) isPartiallyReceived = true;
+          if (receivedForLine < poQty) isFullyReceived = false;
+        }
+      }
+      
+      const newStatus = isFullyReceived ? 'Received' : (isPartiallyReceived ? 'Partially Received' : 'Pending Receipt');
+      if (invoice.receiptStatus !== newStatus) {
+        invoice.receiptStatus = newStatus;
+        await invoice.save();
+      }
       if (invoice.lineItems && invoice.lineItems.length > 0) {
         for (const lineItem of invoice.lineItems) {
           if (lineItem.itemId) {

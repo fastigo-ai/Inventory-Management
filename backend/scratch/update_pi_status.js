@@ -7,7 +7,7 @@ mongoose.connect(process.env.MONGO_URI)
     const PI = mongoose.connection.collection('purchaseinvoices');
     
     const result = await PI.updateMany(
-      {}, 
+      { status: 'Draft' }, 
       { $set: { status: 'Posted' } }
     );
     console.log('Update result:', result);

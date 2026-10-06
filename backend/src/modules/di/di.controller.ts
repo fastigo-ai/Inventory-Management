@@ -799,6 +799,53 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
 
           const oldItemIds = existing.lineItems.map((li: any) => li.itemId?.toString()).filter(Boolean);
 
+          // SAP STRICT MODE: validate line items against MHROV
+          let sapValidationError = null;
+          for (const oldLi of existing.lineItems) {
+            const mhrovDoneQty = oldLi.mhrovDoneQty || 0;
+            if (mhrovDoneQty > 0) {
+              const newLi = diData.lineItems.find((li: any) => 
+                (li.itemId && oldLi.itemId && li.itemId.toString() === oldLi.itemId.toString()) || 
+                (li.itemName === oldLi.itemName)
+              );
+              
+              if (!newLi) {
+                sapValidationError = `Cannot delete item '${oldLi.itemName}' from DI ${existing.diNumber} via import because it has active MHROVs attached.`;
+                break;
+              }
+              
+              if (Number(newLi.quantity || 0) < mhrovDoneQty) {
+                sapValidationError = `Cannot reduce quantity of '${oldLi.itemName}' below ${mhrovDoneQty} in DI ${existing.diNumber} because MHROVs are already attached.`;
+                break;
+              }
+            }
+          }
+
+          if (sapValidationError) {
+            errors.push(sapValidationError);
+            continue; // Skip updating this DI and report the error
+          }
+
+          // Preserve MHROV tracking fields on line items instead of wiping them
+          diData.lineItems = diData.lineItems.map((newLi: any) => {
+            const oldLi = existing.lineItems.find((li: any) => 
+              (li.itemId && newLi.itemId && li.itemId.toString() === newLi.itemId.toString()) || 
+              (li.itemName === newLi.itemName)
+            );
+            const mhrovDoneQty = oldLi?.mhrovDoneQty || 0;
+            const pendingMhrovQty = Math.max(0, Number(newLi.quantity || 0) - mhrovDoneQty);
+            let mhrovStatus = 'PENDING';
+            if (mhrovDoneQty > 0) {
+              mhrovStatus = pendingMhrovQty <= 0 ? 'COMPLETED' : 'PARTIAL';
+            }
+            return {
+              ...newLi,
+              mhrovDoneQty,
+              pendingMhrovQty,
+              mhrovStatus
+            };
+          });
+
           bulkUpdateOps.push({
             updateOne: {
               filter: { _id: existing._id },
@@ -898,6 +945,12 @@ export const deleteDI = asyncHandler(async (req: Request, res: Response) => {
   const lifecycle = await getDiLifecycleState(di);
   if (lifecycle.state !== 'Draft') {
     throw new ApiError(400, `Cannot delete DI ${di.diNumber}. Linked to Purchase Invoice or Store Inward Entry.`);
+  }
+
+  // SAP STRICT MODE: Prevent deletion if any MHROV is attached
+  const hasMhrovs = di.lineItems.some((li: any) => (li.mhrovDoneQty || 0) > 0);
+  if (hasMhrovs) {
+    throw new ApiError(400, `Cannot delete DI ${di.diNumber}. It has active MHROVs attached. Please delete or reverse the MHROVs first.`);
   }
 
   // Soft delete instead of hard delete

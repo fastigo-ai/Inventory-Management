@@ -36,7 +36,7 @@ export const buildCeoDashboardV2Summary = async (filters: any) => {
   const totalPOValue = poAgg[0]?.total || 57000000;
 
   const clientBillCollectedAgg = await ClientBill.aggregate([
-    { $match: { ...baseQuery, status: 'Paid' } },
+    { $match: { ...baseQuery, status: 'Cleared' } },
     { $group: { _id: null, total: { $sum: "$grandTotal" } } }
   ]);
   const clientCollected = clientBillCollectedAgg[0]?.total || 42000000;

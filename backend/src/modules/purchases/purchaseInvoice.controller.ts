@@ -26,8 +26,8 @@ export const createPurchaseInvoice = async (req: Request, res: Response): Promis
     }
     prData.date = prData.date || prData.receiveDate || new Date();
     
-    // Always set invoice status to Paid
-    prData.status = 'Paid';
+    // Always set invoice status to Cleared
+    prData.status = 'Cleared';
     
     if (prData.billingFrom) {
       prData.billingCompany = { name: prData.billingFrom };
@@ -507,8 +507,8 @@ export const updatePurchaseInvoice = async (req: Request, res: Response): Promis
       updateData.billingCompany = { name: updateData.billingFrom };
     }
     
-    // Always set status to Paid as requested
-    updateData.status = 'Paid';
+    // Always set status to Cleared as requested
+    updateData.status = 'Cleared';
 
     if (updateData.lineItems) {
       // Validate units against Master Item List

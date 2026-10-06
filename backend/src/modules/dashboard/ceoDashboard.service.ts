@@ -145,7 +145,7 @@ export const buildCeoDashboardSummary = async (filters: any) => {
   const diCompleted = await DI.countDocuments({ ...baseQuery, status: 'Active' });
   
   const piTotal = await PurchaseInvoice.countDocuments({ ...baseQuery, status: { $ne: 'Cancelled' } });
-  const piCompleted = await PurchaseInvoice.countDocuments({ ...baseQuery, status: { $in: ['Paid', 'Partially Paid'] } });
+  const piCompleted = await PurchaseInvoice.countDocuments({ ...baseQuery, status: 'Cleared' });
   
   const inwardTotal = await StoreInwardEntry.countDocuments({ ...baseQuery, status: { $ne: 'Voided' } });
   const inwardCompleted = await StoreInwardEntry.countDocuments({ ...baseQuery, status: { $in: ['Approved', 'Verified'] } });

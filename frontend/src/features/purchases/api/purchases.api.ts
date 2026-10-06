@@ -170,7 +170,7 @@ export interface CreatePurchaseInvoiceDto {
   total: number;
   amountPaid: number;
   balanceDue: number;
-  status: 'Draft' | 'Sent' | 'Unpaid' | 'Overdue' | 'Partially Paid' | 'Paid';
+  status: 'Draft' | 'Posted' | 'Cleared' | 'Cancelled';
 }
 
 export const createPurchaseInvoice = async (payload: any) => {

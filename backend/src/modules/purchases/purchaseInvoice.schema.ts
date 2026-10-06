@@ -69,7 +69,7 @@ export interface IPurchaseInvoice extends Document, ITrackingPlugin {
   balanceDue: number;
   
   paymentTerms?: 'Paid' | 'Unpaid' | 'Lcterm' | 'Credit';
-  status: 'Draft' | 'Sent' | 'Unpaid' | 'Overdue' | 'Partially Paid' | 'Paid' | 'Void' | 'Cancelled';
+  status: 'Draft' | 'Posted' | 'Cleared' | 'Cancelled';
   receiptStatus: 'Pending Receipt' | 'Partially Received' | 'Received';
   billed?: boolean;
   billedStatus?: 'Billed' | 'Unbilled' | 'Partially Billed';
@@ -156,7 +156,7 @@ const purchaseInvoiceSchema = new Schema<IPurchaseInvoice>(
     },
     status: { 
       type: String, 
-      enum: ['Draft', 'Sent', 'Unpaid', 'Overdue', 'Partially Paid', 'Paid', 'Void', 'Cancelled'], 
+      enum: ['Draft', 'Posted', 'Cleared', 'Cancelled'], 
       default: 'Draft'
     },
     receiptStatus: {
@@ -194,14 +194,12 @@ purchaseInvoiceSchema.pre('save', function() {
   if (this.isModified('total') || this.isModified('amountPaid')) {
     this.balanceDue = this.total - (this.amountPaid || 0);
     
-    // Automatically manage Paid / Partially Paid statuses
-    if (this.status !== 'Draft' && this.status !== 'Sent') {
-      if (this.amountPaid > 0 && this.amountPaid < this.total) {
-        this.status = 'Partially Paid';
-      } else if (this.amountPaid >= this.total && this.total > 0) {
-        this.status = 'Paid';
-      } else if (this.amountPaid === 0 && (this.status === 'Partially Paid' || this.status === 'Paid')) {
-        this.status = 'Unpaid';
+    // Automatically manage Posted / Cleared statuses based on payments
+    if (this.status !== 'Draft' && this.status !== 'Cancelled') {
+      if (this.amountPaid >= this.total && this.total > 0) {
+        this.status = 'Cleared';
+      } else {
+        this.status = 'Posted';
       }
     }
   }

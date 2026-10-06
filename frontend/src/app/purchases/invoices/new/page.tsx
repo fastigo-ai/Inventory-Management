@@ -522,7 +522,7 @@ export default function NewPurchaseInvoicePage() {
         paymentTerms,
         notes,
         lineItems,
-        status: 'Paid',
+        status: 'Cleared',
         receiptStatus: status === 'Received' ? 'Received' : 'Pending Receipt',
         attachments: uploadedDocs.map(doc => ({ name: doc.fileName, url: doc.url }))
       };

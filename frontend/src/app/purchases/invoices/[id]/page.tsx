@@ -130,11 +130,9 @@ export default function PurchaseInvoiceDetailPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Draft': return 'bg-slate-100 text-slate-600 border-slate-300';
-      case 'Sent': return 'bg-blue-100 text-blue-700 border-blue-300';
-      case 'Unpaid': return 'bg-yellow-100 text-yellow-700 border-yellow-300';
-      case 'Overdue': return 'bg-red-100 text-red-700 border-red-300';
-      case 'Partially Paid': return 'bg-indigo-100 text-indigo-700 border-indigo-300';
-      case 'Paid': return 'bg-green-100 text-green-700 border-green-300';
+      case 'Posted': return 'bg-blue-100 text-blue-700 border-blue-300';
+      case 'Cleared': return 'bg-green-100 text-green-700 border-green-300';
+      case 'Cancelled': return 'bg-red-100 text-red-700 border-red-300';
       default: return 'bg-slate-100 text-slate-600 border-slate-300';
     }
   };
@@ -142,11 +140,9 @@ export default function PurchaseInvoiceDetailPage() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'Draft': return <FileText className="w-4 h-4 mr-1.5" />;
-      case 'Sent': return <CheckCircle2 className="w-4 h-4 mr-1.5" />;
-      case 'Unpaid': return <HelpCircle className="w-4 h-4 mr-1.5" />;
-      case 'Overdue': return <AlertCircle className="w-4 h-4 mr-1.5" />;
-      case 'Partially Paid': return <Clock className="w-4 h-4 mr-1.5" />;
-      case 'Paid': return <Banknote className="w-4 h-4 mr-1.5" />;
+      case 'Posted': return <CheckCircle2 className="w-4 h-4 mr-1.5" />;
+      case 'Cleared': return <Banknote className="w-4 h-4 mr-1.5" />;
+      case 'Cancelled': return <AlertCircle className="w-4 h-4 mr-1.5" />;
       default: return null;
     }
   };
@@ -156,15 +152,13 @@ export default function PurchaseInvoiceDetailPage() {
   // Status workflow nodes
   const workflowNodes = [
     { id: 'Draft', label: 'Draft', icon: FileText, color: 'slate' },
-    { id: 'Sent', label: 'SENT', icon: CheckCircle2, color: 'blue' },
-    { id: 'Unpaid', label: 'UNPAID', icon: HelpCircle, color: 'blue' },
+    { id: 'Posted', label: 'POSTED', icon: CheckCircle2, color: 'blue' }
   ];
 
   // For the branching statuses at the end
   const endNodes = [
-    { id: 'Overdue', label: 'OVERDUE', icon: AlertCircle, color: 'red' },
-    { id: 'Partially Paid', label: 'PARTIALLY PAID', icon: Clock, color: 'indigo' },
-    { id: 'Paid', label: 'PAID', icon: Banknote, color: 'green' }
+    { id: 'Cancelled', label: 'CANCELLED', icon: AlertCircle, color: 'red' },
+    { id: 'Cleared', label: 'CLEARED', icon: Banknote, color: 'green' }
   ];
 
   const handleApproveReceipt = async () => {

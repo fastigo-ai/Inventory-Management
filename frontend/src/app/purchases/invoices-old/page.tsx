@@ -47,11 +47,9 @@ export default function PurchaseInvoicesPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Draft': return 'bg-slate-100 text-slate-600';
-      case 'Sent': return 'bg-blue-100 text-blue-700';
-      case 'Unpaid': return 'bg-yellow-100 text-yellow-700';
-      case 'Overdue': return 'bg-red-100 text-red-700';
-      case 'Partially Paid': return 'bg-indigo-100 text-indigo-700';
-      case 'Paid': return 'bg-green-100 text-green-700';
+      case 'Posted': return 'bg-blue-100 text-blue-700';
+      case 'Cleared': return 'bg-green-100 text-green-700';
+      case 'Cancelled': return 'bg-red-100 text-red-700';
       default: return 'bg-slate-100 text-slate-600';
     }
   };

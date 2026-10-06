@@ -536,7 +536,8 @@ export const bulkImportClientBills = asyncHandler(async (req: any, res: Response
     try {
       // Determine Bill Type and Stage from first row
       const firstRow = billRows[0];
-      const billType = String(firstRow.billtype || 'Supply').trim();
+      const billTypeRaw = String(firstRow.billtype || 'Supply').trim().toLowerCase();
+      const billType = billTypeRaw === 'erection' ? 'Erection' : 'Supply';
       const rawStage = String(firstRow.stage || '60%').trim();
 
       // Normalize stage: Excel often stores '60%' as 0.6 (decimal number)

@@ -104,8 +104,8 @@ const clientBillSchema = new Schema<IClientBill>(
   { timestamps: true }
 );
 
-// We need an index to ensure unique RA Bill Nos per circle/package (or globally depending on business logic)
-clientBillSchema.index({ raBillNo: 1 }, { unique: true });
+// We need an index to ensure unique RA Bill Nos per circle
+clientBillSchema.index({ raBillNo: 1, circle: 1 }, { unique: true });
 
 // Removed manual plugin attachment; it is now global
 

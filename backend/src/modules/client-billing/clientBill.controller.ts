@@ -606,17 +606,28 @@ export const bulkImportClientBills = asyncHandler(async (req: any, res: Response
                  billValid = false;
                  break;
              }
-             // check if DI has this item and circle matches
-             const diItemMatch = diDoc.lineItems?.find((li: any) => String(li.loaSerialNo) === String(loaSrNo) || String(li.tempCode) === String(tempCode));
-             if (!diItemMatch) {
+             // Try to find exact match by item and circle first
+             const diItemMatches = diDoc.lineItems?.filter((li: any) => String(li.loaSerialNo) === String(loaSrNo) || String(li.tempCode) === String(tempCode));
+             
+             if (!diItemMatches || diItemMatches.length === 0) {
                  results.failed++;
                  results.errors.push({ raBillNo, reason: `DI '${diNo}' does not contain LOA Sr No '${loaSrNo}'` });
                  billValid = false;
                  break;
              }
-             if (circleFromCsv && diItemMatch.circle && diItemMatch.circle !== circleFromCsv) {
+
+             // If there's multiple matches, find the one with the correct circle
+             let bestMatch = diItemMatches[0];
+             if (circleFromCsv) {
+                 const exactCircleMatch = diItemMatches.find((li: any) => li.circle && li.circle.toLowerCase() === circleFromCsv.toLowerCase());
+                 if (exactCircleMatch) {
+                     bestMatch = exactCircleMatch;
+                 }
+             }
+
+             if (circleFromCsv && bestMatch.circle && bestMatch.circle.toLowerCase() !== circleFromCsv.toLowerCase()) {
                  results.failed++;
-                 results.errors.push({ raBillNo, reason: `DI '${diNo}' circle ('${diItemMatch.circle}') does not match CSV circle ('${circleFromCsv}')` });
+                 results.errors.push({ raBillNo, reason: `DI '${diNo}' circle ('${bestMatch.circle}') does not match CSV circle ('${circleFromCsv}')` });
                  billValid = false;
                  break;
              }

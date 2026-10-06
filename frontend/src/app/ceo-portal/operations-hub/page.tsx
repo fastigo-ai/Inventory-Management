@@ -192,7 +192,7 @@ export default function OperationsHub() {
   const selSubs = SUBS.filter(s => sel.has(s.id));
 
   const curCols = useMemo(() => {
-    const out = STATIC.filter(c => !hidden.has(c.id)).map(c => ({ ...c, sp: null, k: c.id, m: null }));
+    const out: any[] = STATIC.filter(c => !hidden.has(c.id)).map(c => ({ ...c, sp: null, k: c.id, m: null }));
     selSubs.forEach(s => s.cols.forEach(([k, label, type], i) => {
       const id = s.id + '.' + k;
       if (!hidden.has(id)) out.push({ id, label, type, sp: s.id, k, m: s.m, cls: i === 0 ? 'border-l border-slate-200' : '' });

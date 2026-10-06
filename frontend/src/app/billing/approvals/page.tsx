@@ -104,7 +104,7 @@ export default function ApprovalsDashboardPage() {
   const roleName = user?.role?.name || '';
   const isPM = roleName === 'Project Manager';
   const isPD = roleName === 'Project Director';
-  const isHO = roleName === 'System Admin' || roleName === 'Super Admin' || roleName === 'Billing Engineer' || roleName === 'Quantity Surveyor'; // Adapt as needed for HO
+  const isHO = roleName === 'System Admin' || roleName === 'Super Admin' || roleName === 'Billing Engineer' || roleName === 'Quantity Surveyor' || roleName === 'HO billing'; // Adapt as needed for HO
 
   return (
     <div className="p-6 md:p-8 max-w-[95%] mx-auto space-y-6">

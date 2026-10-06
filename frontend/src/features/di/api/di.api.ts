@@ -63,8 +63,9 @@ export const deleteDI = async (id: string) => {
   return response.data;
 };
 
-export const importDIsFromCsv = async (file: File) => {
+export const importDIsFromCsv = async (file: File, mode: 'replace' | 'merge' = 'replace') => {
   const formData = new FormData();
+  formData.append('mode', mode);
   formData.append('file', file);
   
   const response = await api.post('/di/import', formData, {

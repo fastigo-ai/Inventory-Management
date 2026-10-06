@@ -13,6 +13,7 @@ interface DIImportModalProps {
 
 export function DIImportModal({ isOpen, onClose, onSuccess }: DIImportModalProps) {
   const [file, setFile] = useState<File | null>(null);
+  const [uploadMode, setUploadMode] = useState<'replace' | 'merge'>('replace');
   const [isUploading, setIsUploading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +45,7 @@ export function DIImportModal({ isOpen, onClose, onSuccess }: DIImportModalProps
     }, 250);
 
     try {
-      const res = await importDIsFromCsv(file);
+      const res = await importDIsFromCsv(file, uploadMode);
       
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -133,6 +134,27 @@ export function DIImportModal({ isOpen, onClose, onSuccess }: DIImportModalProps
             </div>
           ) : (
             <div className="border border-slate-200 rounded-lg p-4 bg-slate-50">
+              
+              <div className="mb-4 bg-white border border-slate-200 rounded p-3">
+                <p className="text-sm font-medium text-slate-800 mb-2">Upload Mode for Existing DIs:</p>
+                <div className="flex gap-4">
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input type="radio" name="uploadMode" value="replace" checked={uploadMode === 'replace'} onChange={() => setUploadMode('replace')} className="mt-1" />
+                    <div>
+                      <p className="text-sm font-medium text-slate-700">Update All (Replace)</p>
+                      <p className="text-xs text-slate-500">Overwrites existing items with the CSV data.</p>
+                    </div>
+                  </label>
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input type="radio" name="uploadMode" value="merge" checked={uploadMode === 'merge'} onChange={() => setUploadMode('merge')} className="mt-1" />
+                    <div>
+                      <p className="text-sm font-medium text-slate-700">Merge (Append)</p>
+                      <p className="text-xs text-slate-500">Adds new items without deleting existing ones.</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 overflow-hidden">
                   <div className="bg-blue-100 p-2 rounded text-blue-600 shrink-0">

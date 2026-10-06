@@ -574,6 +574,8 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'No CSV file uploaded' });
     }
 
+    const uploadMode = req.body.mode === 'merge' ? 'merge' : 'replace';
+
     const parser = parseAndSanitizeCsv(req.file.buffer);
     const rows: Record<string, string>[] = [];
     const tempCodes = new Set<string>();
@@ -731,9 +733,10 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
 
         const existingLineIndex = disMap[diNumber].lineItems.findIndex((li: any) => 
           ((itemId && li.itemId && itemId.toString() === li.itemId.toString()) ||
-           (resolvedItemName === li.itemName && resolvedLoaSerialNo === li.loaSerialNo)) &&
+           (resolvedItemName === li.itemName)) &&
           (resolvedCircle === li.circle) &&
-          (resolvedPackage === li.package)
+          (resolvedPackage === li.package) &&
+          (resolvedLoaSerialNo === li.loaSerialNo)
         );
 
         if (existingLineIndex > -1) {
@@ -758,7 +761,7 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
     const poNumbers = Array.from(new Set(diNumbers.map(n => disMap[n]._poNumber).filter(Boolean)));
 
     const [existingDIs, existingPOs] = await Promise.all([
-      DI.find({ diNumber: { $in: diNumbers } }),
+      DI.find({ diNumber: { $in: diNumbers } }).lean(),
       poNumbers.length > 0 ? PurchaseOrder.find({ purchaseOrderNumber: { $in: poNumbers }, isDeleted: { $ne: true } }) : []
     ]);
 
@@ -799,14 +802,36 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
 
           const oldItemIds = existing.lineItems.map((li: any) => li.itemId?.toString()).filter(Boolean);
 
+          let finalLineItems = uploadMode === 'merge' ? [...existing.lineItems] : [...diData.lineItems];
+
+          if (uploadMode === 'merge') {
+            for (const newLi of diData.lineItems) {
+              const existingMatchIndex = finalLineItems.findIndex((li: any) => 
+                ((li.itemId && newLi.itemId && li.itemId.toString() === newLi.itemId.toString()) || 
+                 (li.itemName === newLi.itemName)) &&
+                (li.circle === newLi.circle) &&
+                (li.package === newLi.package) &&
+                (li.loaSerialNo === newLi.loaSerialNo)
+              );
+              if (existingMatchIndex > -1) {
+                finalLineItems[existingMatchIndex] = { ...finalLineItems[existingMatchIndex], quantity: newLi.quantity };
+              } else {
+                finalLineItems.push(newLi);
+              }
+            }
+          }
+
           // SAP STRICT MODE: validate line items against MHROV
           let sapValidationError = null;
           for (const oldLi of existing.lineItems) {
             const mhrovDoneQty = oldLi.mhrovDoneQty || 0;
             if (mhrovDoneQty > 0) {
-              const newLi = diData.lineItems.find((li: any) => 
-                (li.itemId && oldLi.itemId && li.itemId.toString() === oldLi.itemId.toString()) || 
-                (li.itemName === oldLi.itemName)
+              const newLi = finalLineItems.find((li: any) => 
+                ((li.itemId && oldLi.itemId && li.itemId.toString() === oldLi.itemId.toString()) || 
+                 (li.itemName === oldLi.itemName)) &&
+                (li.circle === oldLi.circle) &&
+                (li.package === oldLi.package) &&
+                (li.loaSerialNo === oldLi.loaSerialNo)
               );
               
               if (!newLi) {
@@ -814,7 +839,7 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
                 break;
               }
               
-              if (Number(newLi.quantity || 0) < mhrovDoneQty) {
+              if (Number(newLi.quantity || 0) < mhrovDoneQty && Number(newLi.quantity || 0) < Number(oldLi.quantity || 0)) {
                 sapValidationError = `Cannot reduce quantity of '${oldLi.itemName}' below ${mhrovDoneQty} in DI ${existing.diNumber} because MHROVs are already attached.`;
                 break;
               }
@@ -826,11 +851,14 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
             continue; // Skip updating this DI and report the error
           }
 
-          // Preserve MHROV tracking fields on line items instead of wiping them
-          diData.lineItems = diData.lineItems.map((newLi: any) => {
+          // Preserve MHROV tracking fields on final line items
+          diData.lineItems = finalLineItems.map((newLi: any) => {
             const oldLi = existing.lineItems.find((li: any) => 
-              (li.itemId && newLi.itemId && li.itemId.toString() === newLi.itemId.toString()) || 
-              (li.itemName === newLi.itemName)
+              ((li.itemId && newLi.itemId && li.itemId.toString() === newLi.itemId.toString()) || 
+               (li.itemName === newLi.itemName)) &&
+              (li.circle === newLi.circle) &&
+              (li.package === newLi.package) &&
+              (li.loaSerialNo === newLi.loaSerialNo)
             );
             const mhrovDoneQty = oldLi?.mhrovDoneQty || 0;
             const pendingMhrovQty = Math.max(0, Number(newLi.quantity || 0) - mhrovDoneQty);
@@ -851,13 +879,13 @@ export const importDIs = asyncHandler(async (req: Request, res: Response) => {
               filter: { _id: existing._id },
               update: {
                 $set: {
-                  date: diData.date,
-                  ...(diData.circle && { circle: diData.circle }),
-                  ...(diData.package && { package: diData.package }),
-                  ...(diData.status && { status: diData.status }),
-                  ...(diData.notes !== undefined && { notes: diData.notes }),
-                  ...(diData.vendorName && { vendorName: diData.vendorName }),
-                  ...(diData.purchaseOrderId && { purchaseOrderId: diData.purchaseOrderId }),
+                  date: uploadMode === 'merge' ? existing.date : diData.date,
+                  ...(diData.circle && (uploadMode === 'replace' || !existing.circle) && { circle: diData.circle }),
+                  ...(diData.package && (uploadMode === 'replace' || !existing.package) && { package: diData.package }),
+                  ...(diData.status && (uploadMode === 'replace' || !existing.status) && { status: diData.status }),
+                  ...(diData.notes !== undefined && (uploadMode === 'replace' || !existing.notes) && { notes: diData.notes }),
+                  ...(diData.vendorName && (uploadMode === 'replace' || !existing.vendorName) && { vendorName: diData.vendorName }),
+                  ...(diData.purchaseOrderId && (uploadMode === 'replace' || !existing.purchaseOrderId) && { purchaseOrderId: diData.purchaseOrderId }),
                   lineItems: diData.lineItems
                 }
               }

@@ -506,7 +506,14 @@ export const bulkImportClientBills = asyncHandler(async (req: any, res: Response
     return rawRow;
   });
 
-  const uniqueDiNos = [...new Set(normalizedRows.map(r => String(r.dino || r.dinumber || '').trim()).filter(Boolean))];
+  const uniqueDiNosSet = new Set<string>();
+  normalizedRows.forEach(r => {
+      const val = String(r.dino || r.dinumber || '').trim();
+      if (val) {
+          val.split(/[&,+/]+/).map(s => s.trim()).filter(Boolean).forEach(d => uniqueDiNosSet.add(d));
+      }
+  });
+  const uniqueDiNos = Array.from(uniqueDiNosSet);
   const uniqueMhrovNos = [...new Set(normalizedRows.map(r => String(r.mhrovno || r.mhrovnumber || r.sourceref || '').trim()).filter(Boolean))];
   
   const allItems = await Item.find({}).lean();
@@ -600,35 +607,45 @@ export const bulkImportClientBills = asyncHandler(async (req: any, res: Response
 
          // 3. Validate DI
          if (diNo) {
-             const diDoc = allDIs.find(d => String(d.diNumber).trim().toLowerCase() === diNo.toLowerCase());
-             if (!diDoc) {
-                 results.failed++;
-                 results.errors.push({ raBillNo, reason: `DI '${diNo}' not found in database` });
-                 billValid = false;
-                 break;
-             }
-             // Try to find exact match by item and circle first
-             const diItemMatches = diDoc.lineItems?.filter((li: any) => String(li.loaSerialNo) === String(loaSrNo) || String(li.tempCode) === String(tempCode));
-             
-             if (!diItemMatches || diItemMatches.length === 0) {
-                 results.failed++;
-                 results.errors.push({ raBillNo, reason: `DI '${diNo}' does not contain LOA Sr No '${loaSrNo}'` });
-                 billValid = false;
-                 break;
-             }
+             const diNosArray = diNo.split(/[&,+/]+/).map(s => s.trim()).filter(Boolean);
+             let foundValidDI = false;
+             let errorReason = '';
 
-             // If there's multiple matches, find the one with the correct circle
-             let bestMatch = diItemMatches[0];
-             if (circleFromCsv) {
-                 const exactCircleMatch = diItemMatches.find((li: any) => li.circle && li.circle.toLowerCase() === circleFromCsv.toLowerCase());
-                 if (exactCircleMatch) {
-                     bestMatch = exactCircleMatch;
+             for (const singleDiNo of diNosArray) {
+                 const diDoc = allDIs.find(d => String(d.diNumber).trim().toLowerCase() === singleDiNo.toLowerCase());
+                 if (!diDoc) {
+                     errorReason = `DI '${singleDiNo}' not found in database (from '${diNo}')`;
+                     continue;
                  }
+                 // Try to find exact match by item and circle first
+                 const diItemMatches = diDoc.lineItems?.filter((li: any) => String(li.loaSerialNo) === String(loaSrNo) || String(li.tempCode) === String(tempCode));
+                 
+                 if (!diItemMatches || diItemMatches.length === 0) {
+                     errorReason = `DI '${singleDiNo}' does not contain LOA Sr No '${loaSrNo}'`;
+                     continue;
+                 }
+
+                 // If there's multiple matches, find the one with the correct circle
+                 let bestMatch = diItemMatches[0];
+                 if (circleFromCsv) {
+                     const exactCircleMatch = diItemMatches.find((li: any) => li.circle && li.circle.toLowerCase() === circleFromCsv.toLowerCase());
+                     if (exactCircleMatch) {
+                         bestMatch = exactCircleMatch;
+                     }
+                 }
+
+                 if (circleFromCsv && bestMatch.circle && bestMatch.circle.toLowerCase() !== circleFromCsv.toLowerCase()) {
+                     errorReason = `DI '${singleDiNo}' circle ('${bestMatch.circle}') does not match CSV circle ('${circleFromCsv}')`;
+                     continue;
+                 }
+
+                 foundValidDI = true;
+                 break;
              }
 
-             if (circleFromCsv && bestMatch.circle && bestMatch.circle.toLowerCase() !== circleFromCsv.toLowerCase()) {
+             if (!foundValidDI) {
                  results.failed++;
-                 results.errors.push({ raBillNo, reason: `DI '${diNo}' circle ('${bestMatch.circle}') does not match CSV circle ('${circleFromCsv}')` });
+                 results.errors.push({ raBillNo, reason: errorReason || `Valid DI not found for '${diNo}'` });
                  billValid = false;
                  break;
              }

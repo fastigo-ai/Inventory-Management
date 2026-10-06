@@ -140,27 +140,29 @@ export default function PrintClientBillPage() {
           {/* Table */}
           <div className="mb-8">
             <h3 className="text-sm font-bold text-slate-800 mb-2">Work Details</h3>
-            <table className="w-full table-fixed text-xs md:text-sm border-collapse border border-slate-400 print:text-[10px]">
+            <table className="w-full text-xs md:text-sm border-collapse border border-slate-400 print:text-[10px]">
               <thead>
                 <tr className="bg-slate-200">
-                  <th className="w-[10%] border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-left font-bold text-slate-800">Ref / JMC</th>
-                  <th className="w-[22%] border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-left font-bold text-slate-800">Item Name</th>
-                  <th className="w-[8%] border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-center font-bold text-slate-800">Temp Code</th>
-                  <th className="w-[8%] border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-center font-bold text-slate-800">LOA Sr No</th>
+                  <th className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-left font-bold text-slate-800">
+                    {bill.billType === 'Supply' ? 'MHROV No' : 'Ref/JMC'}
+                  </th>
+                  <th className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-left font-bold text-slate-800">Item Name</th>
+                  <th className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-center font-bold text-slate-800">Code</th>
+                  <th className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-center font-bold text-slate-800">LOA Sr</th>
                   {bill.billType === 'Supply' && (
-                    <th className="w-[8%] border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-center font-bold text-slate-800">DI No</th>
+                    <th className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-center font-bold text-slate-800">DI No</th>
                   )}
-                  <th className="w-[8%] border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-right font-bold text-slate-800">RA Qty</th>
-                  <th className="w-[10%] border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-right font-bold text-slate-800">BOQ Rate</th>
-                  <th className="w-[10%] border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-right font-bold text-slate-800">Base Amt</th>
-                  <th className="w-[8%] border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-right font-bold text-slate-800">GST Amt</th>
-                  <th className="w-[10%] border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-right font-bold text-slate-800">Total</th>
+                  <th className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-right font-bold text-slate-800">RA Qty</th>
+                  <th className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-right font-bold text-slate-800">BOQ Rate</th>
+                  <th className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-right font-bold text-slate-800">Base Amt</th>
+                  <th className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-right font-bold text-slate-800">GST Amt</th>
+                  <th className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-right font-bold text-slate-800">Total</th>
                 </tr>
               </thead>
               <tbody>
                 {bill.items.map((item: any, idx: number) => (
                   <tr key={idx} className="print:break-inside-avoid">
-                    <td className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-slate-700 break-words">{item.refNumber || '-'}</td>
+                    <td className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-center text-slate-700 break-words">{item.refNumber || '-'}</td>
                     <td className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-slate-700 break-words">{item.itemName}</td>
                     <td className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-center text-slate-700 break-words">{item.tempCode || '-'}</td>
                     <td className="border border-slate-400 px-1 py-1 md:px-2 md:py-2 text-center text-slate-700 break-words">{item.loaSrNo || '-'}</td>

@@ -215,8 +215,8 @@ export const createInwardEntry = asyncHandler(async (req: Request, res: Response
       throw new ApiError(400, 'Sum of packing list quantities must be > 0 to submit');
     }
     
-    // Auto-approve upon submission
-    data.status = 'Approved';
+    // Change to Pending Receipt instead of auto-approving
+    data.status = 'Pending Receipt';
   }
 
   // If a Purchase Invoice matches another PO
@@ -1409,6 +1409,41 @@ export const approveStoreReceipt = asyncHandler(async (req: Request, res: Respon
     return res.status(400).json(new ApiResponse(400, null, 'Entry is not pending receipt'));
   }
 
+  if (entry.purchaseInvoiceId) {
+    const invoice = await PurchaseInvoice.findById(entry.purchaseInvoiceId);
+    if (invoice) {
+      const allInwards = await StoreInwardEntry.find({
+        purchaseInvoiceId: entry.purchaseInvoiceId,
+        status: { $in: ['Pending Receipt', 'Approved', 'Verified', 'Submitted'] }
+      });
+      
+      let isFullyReceived = true;
+      if (invoice.lineItems && invoice.lineItems.length > 0) {
+        for (const line of invoice.lineItems) {
+          const poQty = Number(line.quantity || 0);
+          let receivedForLine = 0;
+          allInwards.forEach((inw: any) => {
+            if (inw.tempCode === line.tempCode) {
+              let packSum = 0;
+              if (inw.packingList) {
+                inw.packingList.forEach((p: any) => packSum += Number(p.quantity || 0));
+              }
+              receivedForLine += packSum > 0 ? packSum : Number(inw.invoiceQty || 0);
+            }
+          });
+          
+          if (receivedForLine < poQty) {
+            isFullyReceived = false;
+            break;
+          }
+        }
+      }
+      if (!isFullyReceived) {
+        throw new ApiError(400, "Cannot approve GRN because the overall Purchase Invoice hasn't been 100% received yet.");
+      }
+    }
+  }
+
   entry.status = 'Approved';
   await entry.save();
   
@@ -1486,8 +1521,8 @@ export const updateInwardEntry = asyncHandler(async (req: Request, res: Response
       throw new ApiError(400, 'Sum of packing list quantities must be > 0 to submit');
     }
     
-    // Auto-approve upon submission
-    payload.status = 'Approved';
+    // Change to Pending Receipt instead of auto-approving
+    payload.status = 'Pending Receipt';
   }
 
   // Remove fields that shouldn't be overwritten directly or handle them carefully
@@ -1591,7 +1626,7 @@ export const bulkUpdateInwardEntries = asyncHandler(async (req: Request, res: Re
       })()
     : null;
 
-  const submissionStatus: string = status || 'Submitted';
+  const submissionStatus: string = status === 'Submitted' ? 'Pending Receipt' : (status || 'Pending Receipt');
   const results: any[] = [];
 
   for (const item of items) {
@@ -2071,7 +2106,7 @@ export const bulkImportInwardEntries = asyncHandler(async (req: Request, res: Re
         biltyNumber,
         receivedDate,
         remarks,
-        status: 'Submitted', // Move directly to SUBMITTED
+        status: 'Pending Receipt', // Move directly to Pending Receipt
         packingList: [{
           packType,
           quantity: packQty,

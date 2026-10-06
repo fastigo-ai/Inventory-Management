@@ -1411,36 +1411,38 @@ export const approveStoreReceipt = asyncHandler(async (req: Request, res: Respon
 
   if (entry.purchaseInvoiceId) {
     const invoice = await PurchaseInvoice.findById(entry.purchaseInvoiceId);
-    if (invoice) {
-      const allInwards = await StoreInwardEntry.find({
-        purchaseInvoiceId: entry.purchaseInvoiceId,
+    if (!invoice) {
+      return res.status(404).json(new ApiResponse(404, null, 'Associated Purchase Invoice not found or has been deleted. Cannot approve GRN.'));
+    }
+    
+    const allInwards = await StoreInwardEntry.find({
+      purchaseInvoiceId: entry.purchaseInvoiceId,
         status: { $in: ['Pending Receipt', 'Approved', 'Verified', 'Submitted'] }
       });
       
-      let isFullyReceived = true;
-      if (invoice.lineItems && invoice.lineItems.length > 0) {
-        for (const line of invoice.lineItems) {
-          const poQty = Number(line.quantity || 0);
-          let receivedForLine = 0;
-          allInwards.forEach((inw: any) => {
-            if (inw.tempCode === line.tempCode) {
-              let packSum = 0;
-              if (inw.packingList) {
-                inw.packingList.forEach((p: any) => packSum += Number(p.quantity || 0));
-              }
-              receivedForLine += packSum > 0 ? packSum : Number(inw.invoiceQty || 0);
+    let missingItems: string[] = [];
+    if (invoice.lineItems && invoice.lineItems.length > 0) {
+      for (const line of invoice.lineItems) {
+        const poQty = Number(line.quantity || 0);
+        let receivedForLine = 0;
+        allInwards.forEach((inw: any) => {
+          if (inw.tempCode === line.tempCode) {
+            let packSum = 0;
+            if (inw.packingList) {
+              inw.packingList.forEach((p: any) => packSum += Number(p.quantity || 0));
             }
-          });
-          
-          if (receivedForLine < poQty) {
-            isFullyReceived = false;
-            break;
+            receivedForLine += packSum > 0 ? packSum : Number(inw.invoiceQty || 0);
           }
+        });
+        
+        if (receivedForLine < poQty) {
+          const shortBy = poQty - receivedForLine;
+          missingItems.push(`${line.itemName || line.loaSerialNo || 'Item'} (Short by: ${shortBy})`);
         }
       }
-      if (!isFullyReceived) {
-        throw new ApiError(400, "Cannot approve GRN because the overall Purchase Invoice hasn't been 100% received yet.");
-      }
+    }
+    if (missingItems.length > 0) {
+      throw new ApiError(400, `Cannot approve GRN because the invoice hasn't been 100% received yet. Missing: ${missingItems.join(', ')}`);
     }
   }
 
@@ -1571,11 +1573,10 @@ export const getInwardEntriesByInvoice = asyncHandler(async (req: Request, res: 
       const regexStr = normalizedPkg.split('').map((char: string) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*');
       filter.package = { $regex: new RegExp(`^\\s*${regexStr}\\s*$`, 'i') };
     }
-    if (user.assignedCircle) {
-      filter.circle = { $in: expandCircle(user.assignedCircle) || [user.assignedCircle] };
-    }
     if (user.assignedSubcircle) {
       filter.subcircle = { $regex: new RegExp(`^\\s*${user.assignedSubcircle.trim()}\\s*$`, 'i') };
+    } else if (user.assignedCircle) {
+      filter.circle = { $in: expandCircle(user.assignedCircle) || [user.assignedCircle] };
     }
   } else {
     // Admin: allow optional query param filters for scoping to a specific circle+subcircle+package group

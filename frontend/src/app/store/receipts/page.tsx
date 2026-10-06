@@ -159,6 +159,14 @@ export default function StoreReceiptsPage() {
   const handleApproveAll = async (items: any[]) => {
     const pendingItems = items.filter(i => i.status === 'Pending Receipt');
     if (pendingItems.length === 0) return;
+    
+    // Check if they haven't registered GRN yet (fresh items lack a reiceivedDate)
+    const hasUnregistered = pendingItems.some(i => !i.receivedDate);
+    if (hasUnregistered) {
+      alert("Inward (GRN) is not done for all items. Please Register GRN first before approving.");
+      return;
+    }
+
     if (!confirm(`Approve all ${pendingItems.length} item(s) in this invoice?`)) return;
     try {
       await Promise.all(pendingItems.map(i => approveStoreReceipt(i._id)));

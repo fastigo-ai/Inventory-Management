@@ -308,8 +308,12 @@ export default function SystemLogsPage() {
                         <Database className="w-3.5 h-3.5 text-slate-400" />
                         {log.module || log.entityType || '–'}
                       </div>
-                      {log.entityId && (
-                        <div className="text-slate-400 text-xs font-mono mt-0.5">
+                      {log.entityDisplay ? (
+                        <div className="text-slate-800 text-xs font-bold mt-0.5" title={log.entityId}>
+                          {log.entityDisplay}
+                        </div>
+                      ) : log.entityId && (
+                        <div className="text-slate-400 text-xs font-mono mt-0.5" title={log.entityId}>
                           …{String(log.entityId).slice(-8)}
                         </div>
                       )}

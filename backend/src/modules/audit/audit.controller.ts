@@ -73,7 +73,7 @@ export const getAuditLogs = asyncHandler(async (req: Request, res: Response) => 
   }
 
   // Map display fields
-  const formattedLogs = result.map(log => {
+  let formattedLogs = result.map(log => {
     const logObj = log.toObject ? log.toObject() : log;
     if (logObj.changes && Array.isArray(logObj.changes)) {
       logObj.changes = logObj.changes.map((change: any) => ({
@@ -83,6 +83,70 @@ export const getAuditLogs = asyncHandler(async (req: Request, res: Response) => 
     }
     return logObj;
   });
+
+  // Resolve human-readable entity displays
+  try {
+    const toFetch: Record<string, Set<string>> = {};
+    for (const log of formattedLogs) {
+      if (!log.entityId || !log.entityType) continue;
+      const type = log.entityType.toLowerCase();
+      let modelName = '';
+      if (type.includes('demand note') || type === 'demandnote') modelName = 'DemandNote';
+      else if (type.includes('ho billing') || type.includes('work order') || type === 'contractorworkorder') modelName = 'ContractorWorkOrder';
+      else if (type.includes('purchase order')) modelName = 'PurchaseOrder';
+      else if (type.includes('di') || type === 'dispatchinstruction') modelName = 'DispatchInstruction';
+      else if (type.includes('jmc')) modelName = 'JmcRegister';
+      else if (type.includes('mhrov')) modelName = 'Mhrov';
+      else if (type.includes('wip required') || type === 'wiprequired') modelName = 'WipRequired';
+      else if (type.includes('wip consumed') || type === 'wipconsumed') modelName = 'WipConsumed';
+      else if (type.includes('contractor') && !type.includes('work') && !type.includes('billing')) modelName = 'Contractor';
+      else if (type.includes('item')) modelName = 'Item';
+      else if (type.includes('user')) modelName = 'User';
+      
+      if (modelName) {
+        if (!toFetch[modelName]) toFetch[modelName] = new Set();
+        toFetch[modelName].add(log.entityId.toString());
+      }
+    }
+
+    const displayMap: Record<string, string> = {};
+    const promises = Object.entries(toFetch).map(async ([modelName, ids]) => {
+      if (!mongoose.models[modelName]) return;
+      try {
+        const Model = mongoose.models[modelName];
+        let displayField = '';
+        if (modelName === 'DemandNote') displayField = 'demandNoteNumber';
+        else if (modelName === 'ContractorWorkOrder') displayField = 'workOrderNumber';
+        else if (modelName === 'PurchaseOrder') displayField = 'orderNumber';
+        else if (modelName === 'DispatchInstruction') displayField = 'diNumber';
+        else if (modelName === 'JmcRegister') displayField = 'jmcNumber';
+        else if (modelName === 'Mhrov') displayField = 'mhrovNumber';
+        else if (modelName === 'WipRequired') displayField = 'wipReqNumber';
+        else if (modelName === 'WipConsumed') displayField = 'wipConNumber';
+        else if (modelName === 'Contractor') displayField = 'dynamicData.contractorName';
+        else if (modelName === 'Item') displayField = 'itemName';
+        else if (modelName === 'User') displayField = 'email';
+        else return;
+
+        const docs = await Model.find({ _id: { $in: Array.from(ids) } }).select(displayField).lean();
+        for (const doc of docs as any[]) {
+          const val = displayField.split('.').reduce((o: any, i: string) => o?.[i], doc);
+          if (val) displayMap[doc._id.toString()] = String(val);
+        }
+      } catch (e) {}
+    });
+
+    await Promise.all(promises);
+
+    formattedLogs = formattedLogs.map(log => {
+      if (log.entityId && displayMap[log.entityId.toString()]) {
+        log.entityDisplay = displayMap[log.entityId.toString()];
+      }
+      return log;
+    });
+  } catch (err) {
+    console.error('Error resolving entity displays:', err);
+  }
 
   res.status(200).json(new ApiResponse(200, {
     logs: formattedLogs,

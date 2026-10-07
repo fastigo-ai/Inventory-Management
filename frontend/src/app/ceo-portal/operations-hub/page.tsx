@@ -225,9 +225,9 @@ export default function OperationsHub() {
   useEffect(() => {
     let active = true;
     const filters: any = {};
-    if (f.circle !== 'All') filters.circle = [f.circle, f.circle.toUpperCase()];
+    if (f.circle !== 'All') filters.circle = f.circle;
     if (f.circle === 'Solan' && f.subCircle !== 'All') filters.subCircle = f.subCircle;
-    if (f.pkg !== 'All') filters.package = [f.pkg, f.pkg.replace('(', ' (')];
+    if (f.pkg !== 'All') filters.package = f.pkg;
     
     fetchCeoDashboardData(filters).then((res: any) => {
       if (!active) return;

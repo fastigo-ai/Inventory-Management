@@ -264,31 +264,40 @@ export const buildCeoDashboardSummary = async (filters: any) => {
   const circlesMap: any = {};
   
   const initCircle = (cName: string) => {
-    const circleName = cName || 'Unknown';
-    if (!circlesMap[circleName]) {
-      circlesMap[circleName] = { circle: circleName, totalQty: 0, issuedQty: 0, progress: 0, subCircles: {} };
+    const originalName = (cName || 'Unknown').trim();
+    // Normalize to Title Case for display (e.g., "NAHAN" -> "Nahan")
+    const displayCircleName = originalName === 'Unknown' ? 'Unknown' : 
+      originalName.charAt(0).toUpperCase() + originalName.slice(1).toLowerCase();
+    const key = displayCircleName.toUpperCase();
+
+    if (!circlesMap[key]) {
+      circlesMap[key] = { circle: displayCircleName, totalQty: 0, issuedQty: 0, progress: 0, subCircles: {} };
     }
-    return circleName;
+    return key;
   };
 
   circleInwards.forEach(c => {
-    const circleName = initCircle(c._id.circle);
+    const circleKey = initCircle(c._id.circle);
     const sub = c._id.subCircle;
     if (sub) {
-      if (!circlesMap[circleName].subCircles[sub]) circlesMap[circleName].subCircles[sub] = { name: sub, totalQty: 0, issuedQty: 0, progress: 0 };
-      circlesMap[circleName].subCircles[sub].totalQty += c.totalQty;
+      const subKey = sub.trim().toUpperCase();
+      const displaySubName = sub.trim().charAt(0).toUpperCase() + sub.trim().slice(1).toLowerCase();
+      if (!circlesMap[circleKey].subCircles[subKey]) circlesMap[circleKey].subCircles[subKey] = { name: displaySubName, totalQty: 0, issuedQty: 0, progress: 0 };
+      circlesMap[circleKey].subCircles[subKey].totalQty += c.totalQty;
     }
-    circlesMap[circleName].totalQty += c.totalQty;
+    circlesMap[circleKey].totalQty += c.totalQty;
   });
 
   circleIssued.forEach(c => {
-    const circleName = initCircle(c._id.circle);
+    const circleKey = initCircle(c._id.circle);
     const sub = c._id.subCircle;
     if (sub) {
-      if (!circlesMap[circleName].subCircles[sub]) circlesMap[circleName].subCircles[sub] = { name: sub, totalQty: 0, issuedQty: 0, progress: 0 };
-      circlesMap[circleName].subCircles[sub].issuedQty += c.issuedQty;
+      const subKey = sub.trim().toUpperCase();
+      const displaySubName = sub.trim().charAt(0).toUpperCase() + sub.trim().slice(1).toLowerCase();
+      if (!circlesMap[circleKey].subCircles[subKey]) circlesMap[circleKey].subCircles[subKey] = { name: displaySubName, totalQty: 0, issuedQty: 0, progress: 0 };
+      circlesMap[circleKey].subCircles[subKey].issuedQty += c.issuedQty;
     }
-    circlesMap[circleName].issuedQty += c.issuedQty;
+    circlesMap[circleKey].issuedQty += c.issuedQty;
   });
 
   const circleStats = Object.values(circlesMap).map((c: any) => {

@@ -45,6 +45,7 @@ export enum AuditAction {
 
 export interface IAuditChange {
   field: string;
+  displayField?: string;
   oldValue?: any;
   newValue?: any;
   message?: string;

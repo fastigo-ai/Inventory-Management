@@ -192,7 +192,7 @@ export function AuditTimeline({ entityType, entityId }: AuditTimelineProps) {
                               <p className="text-slate-600">{change.message}</p>
                             ) : (
                               <div className="flex items-baseline gap-2">
-                                <span className="font-medium text-slate-700 capitalize">{change.field.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                                <span className="font-medium text-slate-700 capitalize">{change.displayField || change.field.replace(/([A-Z])/g, ' $1').trim()}:</span>
                                 {change.oldValue !== undefined && (
                                   <>
                                     <span className="line-through text-slate-400">{formatValue(change.oldValue)}</span>

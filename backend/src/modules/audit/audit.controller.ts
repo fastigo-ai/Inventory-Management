@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import AuditLog, { AuditAction } from './auditLog.model';
+import { translateAuditField } from '../../core/utils/auditDictionary';
 import { asyncHandler } from '../../core/utils/asyncHandler';
 import { ApiResponse } from '../../core/utils/ApiResponse';
 import { AuthRequest } from '../../core/middlewares/auth.middleware';
@@ -71,8 +72,20 @@ export const getAuditLogs = asyncHandler(async (req: Request, res: Response) => 
     });
   }
 
+  // Map display fields
+  const formattedLogs = result.map(log => {
+    const logObj = log.toObject ? log.toObject() : log;
+    if (logObj.changes && Array.isArray(logObj.changes)) {
+      logObj.changes = logObj.changes.map((change: any) => ({
+        ...change,
+        displayField: translateAuditField(change.field)
+      }));
+    }
+    return logObj;
+  });
+
   res.status(200).json(new ApiResponse(200, {
-    logs: result,
+    logs: formattedLogs,
     pagination: {
       total: totalLogs,
       page,

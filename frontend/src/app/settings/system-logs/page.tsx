@@ -326,7 +326,7 @@ export default function SystemLogsPage() {
                             <div className="space-y-1">
                               {log.changes.slice(0, 4).map((c: any, ci: number) => (
                                 <div key={ci} className="flex items-center gap-1.5 text-[11px]">
-                                  <span className="font-mono font-bold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">{c.field}</span>
+                                  <span className="font-mono font-bold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">{c.displayField || c.field}</span>
                                   {c.oldValue !== undefined && (
                                     <>
                                       <span className="text-red-500 bg-red-50 px-1.5 py-0.5 rounded line-through max-w-[80px] truncate">{String(c.oldValue)}</span>

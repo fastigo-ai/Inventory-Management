@@ -330,7 +330,7 @@ export default function ActivityPage() {
                                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
                                       {log.changes.map((change: any, idx: number) => (
                                         <div key={idx} className="bg-white rounded-lg border border-slate-200 p-2.5 text-xs">
-                                          <p className="font-bold text-slate-700 mb-1 truncate" title={change.field}>{change.field}</p>
+                                          <p className="font-bold text-slate-700 mb-1 truncate" title={change.displayField || change.field}>{change.displayField || change.field}</p>
                                           {change.message ? (
                                             <p className="text-slate-600">{change.message}</p>
                                           ) : log.action === 'UPDATE' && change.oldValue !== undefined ? (

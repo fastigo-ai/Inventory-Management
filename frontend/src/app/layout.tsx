@@ -1,11 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-sans",
-});
 
 export const metadata: Metadata = {
   title: "Fastigo ERP",
@@ -25,7 +19,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} font-sans h-full antialiased`}
+      className="font-sans h-full antialiased"
     >
       <body className="min-h-full">
         <NextTopLoader color="#2563eb" showSpinner={false} />

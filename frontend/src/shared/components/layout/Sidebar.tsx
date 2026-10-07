@@ -164,12 +164,9 @@ const navItems: NavItem[] = [
     ]
   },
   {
-    title: 'CEO Portal',
-    icon: <BarChart2 className="w-5 h-5" />,
-    children: [
-      { title: 'Dashboard', href: '/ceo-portal/dashboard' },
-      { title: 'Operations Hub (Overall Summary)', href: '/ceo-portal/operations-hub' }
-    ]
+    title: 'Overall Summary',
+    href: '/ceo-portal/operations-hub',
+    icon: <BarChart2 className="w-5 h-5" />
   },
   {
     title: 'Billing',
@@ -217,7 +214,7 @@ export function Sidebar() {
   // Determine visibility based on permissions
   const visibleNavItems = navItems.filter(item => {
     if (user?.role?.name === 'CEO') {
-      return item.title === 'Home' || item.title === 'Reports' || item.title === 'CEO Portal';
+      return item.title === 'Home' || item.title === 'Reports' || item.title === 'Overall Summary';
     }
 
     // Super Admins see everything

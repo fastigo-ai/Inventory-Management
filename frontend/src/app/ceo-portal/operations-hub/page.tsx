@@ -262,10 +262,12 @@ export default function OperationsHub() {
   const subcircles = useMemo(() => ['All', ...Array.from(new Set(items.filter(i => i.circle === 'Solan' && i.subcircle).map(i => i.subcircle))).sort()], [items]);
   const pkgs = ['All', 'Package 1(S/N)', 'Package 2(R/R)'];
   const codes = useMemo(() => ['All', ...Array.from(new Set(items.map(i => i.code))).sort((a, b) => {
-    const numA = parseInt(a.replace(/\D/g, ''), 10) || 0;
-    const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
+    const strA = String(a || '');
+    const strB = String(b || '');
+    const numA = parseInt(strA.replace(/\D/g, ''), 10) || 0;
+    const numB = parseInt(strB.replace(/\D/g, ''), 10) || 0;
     if (numA !== numB) return numA - numB;
-    return a.localeCompare(b);
+    return strA.localeCompare(strB);
   })], [items]);
 
   const filteredItems = useMemo(() => {

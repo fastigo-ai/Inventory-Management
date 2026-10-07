@@ -225,7 +225,7 @@ export default function OperationsHub() {
   useEffect(() => {
     let active = true;
     const filters: any = {};
-    if (f.circle !== 'All') filters.circle = f.circle;
+    if (f.circle !== 'All') filters.circle = [f.circle, f.circle.toUpperCase()];
     if (f.circle === 'Solan' && f.subCircle !== 'All') filters.subCircle = f.subCircle;
     if (f.pkg !== 'All') filters.package = [f.pkg, f.pkg.replace('(', ' (')];
     
@@ -258,7 +258,7 @@ export default function OperationsHub() {
   const [alert, setAlert] = useState<string | null>(null);
 
   // Derived filters
-  const circles = useMemo(() => ['All', ...Array.from(new Set(items.map(i => i.circle))).sort()], [items]);
+  const circles = ['All', 'Solan', 'Nahan', 'Rampur', 'Rohru'];
   const subcircles = useMemo(() => ['All', ...Array.from(new Set(items.filter(i => i.circle === 'Solan' && i.subcircle).map(i => i.subcircle))).sort()], [items]);
   const pkgs = ['All', 'Package 1(S/N)', 'Package 2(R/R)'];
   const codes = useMemo(() => ['All', ...Array.from(new Set(items.map(i => i.code))).sort()], [items]);
@@ -266,7 +266,7 @@ export default function OperationsHub() {
   const filteredItems = useMemo(() => {
     const nm = f.name.trim().toLowerCase();
     let res = items.filter(it =>
-      (f.circle === 'All' || it.circle === f.circle) && 
+      (f.circle === 'All' || (it.circle || '').toLowerCase() === f.circle.toLowerCase()) && 
       (f.circle !== 'Solan' || f.subCircle === 'All' || it.subcircle === f.subCircle) &&
       (f.pkg === 'All' || (it.pkg || '').replace(/\s*\(/g, '(') === f.pkg) && 
       (f.code === 'All' || it.code === f.code) &&

@@ -227,7 +227,7 @@ export default function OperationsHub() {
     const filters: any = {};
     if (f.circle !== 'All') filters.circle = f.circle;
     if (f.circle === 'Solan' && f.subCircle !== 'All') filters.subCircle = f.subCircle;
-    if (f.pkg !== 'All') filters.package = f.pkg;
+    if (f.pkg !== 'All') filters.package = [f.pkg, f.pkg.replace('(', ' (')];
     
     fetchCeoDashboardData(filters).then((res: any) => {
       if (!active) return;
@@ -260,7 +260,7 @@ export default function OperationsHub() {
   // Derived filters
   const circles = useMemo(() => ['All', ...Array.from(new Set(items.map(i => i.circle))).sort()], [items]);
   const subcircles = useMemo(() => ['All', ...Array.from(new Set(items.filter(i => i.circle === 'Solan' && i.subcircle).map(i => i.subcircle))).sort()], [items]);
-  const pkgs = useMemo(() => ['All', ...Array.from(new Set(items.map(i => i.pkg))).sort()], [items]);
+  const pkgs = ['All', 'Package 1(S/N)', 'Package 2(R/R)'];
   const codes = useMemo(() => ['All', ...Array.from(new Set(items.map(i => i.code))).sort()], [items]);
 
   const filteredItems = useMemo(() => {
@@ -268,7 +268,7 @@ export default function OperationsHub() {
     let res = items.filter(it =>
       (f.circle === 'All' || it.circle === f.circle) && 
       (f.circle !== 'Solan' || f.subCircle === 'All' || it.subcircle === f.subCircle) &&
-      (f.pkg === 'All' || it.pkg === f.pkg) && 
+      (f.pkg === 'All' || (it.pkg || '').replace(/\s*\(/g, '(') === f.pkg) && 
       (f.code === 'All' || it.code === f.code) &&
       (!nm || it.name.toLowerCase().includes(nm)) &&
       (f.date === 'all' || (f.date === 'fy' ? it.date >= FY : it.date >= TODAY - (+f.date) * DAY)) &&

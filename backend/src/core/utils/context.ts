@@ -10,6 +10,7 @@ export interface RequestContext {
   browser?: string;
   os?: string;
   requestId?: string;
+  transactionId?: string;
   route?: string;
   method?: string;
 }

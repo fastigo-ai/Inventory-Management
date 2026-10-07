@@ -88,6 +88,7 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions = {}) {
         action,
         module: moduleName || entityType,
         requestId: ctx?.requestId,
+        transactionId: ctx?.transactionId,
         performedBy,
         changes,
         ip: ctx?.ip,
@@ -230,6 +231,69 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions = {}) {
       console.error('Audit plugin findOneAndUpdate error:', err);
     }
   });
+
+  // --- UPDATE ONE HOOKS ---
+  schema.pre('updateOne', async function (this: any) {
+    const entityType = getEntityName(this, options);
+    if (!isEntityTracked(entityType, options)) return;
+
+    try {
+      const docToUpdate = await this.model.findOne(this.getQuery()).lean();
+      this.$locals = this.$locals || {};
+      this.$locals.original = docToUpdate;
+    } catch (err) {
+      console.warn('Audit plugin could not fetch original document for updateOne');
+    }
+  });
+
+  schema.post('updateOne', async function (this: any) {
+    const entityType = getEntityName(this, options);
+    if (!isEntityTracked(entityType, options)) return;
+    
+    try {
+      const original: Record<string, any> = this.$locals?.original;
+      if (!original) return;
+
+      // We have to re-fetch the updated document since `updateOne` doesn't return it
+      const doc = await this.model.findOne(this.getQuery()).lean();
+      if (!doc) return;
+
+      const current: Record<string, any> = doc;
+      const changes: IAuditChange[] = [];
+      
+      if (current.isDeleted === true && original.isDeleted !== true) {
+        await createLog(entityType, doc._id, AuditAction.DELETE, [{ field: 'isDeleted', oldValue: false, newValue: true }]);
+        return;
+      }
+
+      for (const key of Object.keys(current)) {
+        if (!shouldTrackField(key, entityType, options)) continue;
+        
+        if (!isEqual(original[key], current[key])) {
+          changes.push({
+            field: key,
+            oldValue: original[key],
+            newValue: current[key]
+          });
+        }
+      }
+
+      for (const key of Object.keys(original)) {
+        if (!shouldTrackField(key, entityType, options)) continue;
+        if (current[key] === undefined && original[key] !== undefined) {
+           changes.push({
+             field: key,
+             oldValue: original[key],
+             newValue: null
+           });
+        }
+      }
+
+      await createLog(entityType, doc._id, AuditAction.UPDATE, changes);
+    } catch (err) {
+      console.error('Audit plugin updateOne error:', err);
+    }
+  });
   
   // --- DELETE HOOKS ---
   schema.pre('findOneAndDelete', async function (this: any) {
@@ -274,6 +338,7 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions = {}) {
             performedBy,
             changes: [{ field: 'bulk', message: `Bulk updated ${res.modifiedCount} records` }],
             requestId: ctx?.requestId,
+            transactionId: ctx?.transactionId,
             ip: ctx?.ip,
             userAgent: ctx?.userAgent
           });
@@ -281,5 +346,45 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions = {}) {
     } catch(err) {
       console.error(err);
     }
+  });
+
+  // --- INSERT MANY (BULK IMPORT) HOOKS ---
+  schema.post('insertMany', async function (errorOrDocs: any, docsOrNext?: any, nextOrUndefined?: any) {
+    let docs = Array.isArray(errorOrDocs) ? errorOrDocs : (Array.isArray(docsOrNext) ? docsOrNext : []);
+    let next = typeof nextOrUndefined === 'function' ? nextOrUndefined : (typeof docsOrNext === 'function' ? docsOrNext : undefined);
+
+    if (!docs || docs.length === 0) {
+      if (next) return next();
+      return;
+    }
+    
+    // Determine entity type from the first doc or context
+    const entityType = docs.length > 0 ? getEntityName(docs[0], options) : options.entityName || 'UnknownEntity';
+    if (!isEntityTracked(entityType, options)) {
+      if (next) return next();
+      return;
+    }
+
+    try {
+      const promises = docs.map(async (doc) => {
+        if (doc.$isSubdocument || typeof doc.ownerDocument === 'function') return;
+
+        const changes: IAuditChange[] = [];
+        const obj: Record<string, any> = doc.toObject ? doc.toObject() : doc;
+        
+        for (const key of Object.keys(obj)) {
+          if (shouldTrackField(key, entityType, options)) {
+            changes.push({ field: key, newValue: obj[key] });
+          }
+        }
+
+        await createLog(entityType, doc._id, AuditAction.IMPORT, changes);
+      });
+      
+      await Promise.allSettled(promises);
+    } catch (err) {
+      console.error('Audit plugin insertMany error:', err);
+    }
+    if (next) next();
   });
 }

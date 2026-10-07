@@ -97,8 +97,12 @@ export const buildCeoDashboardSummary = async (filters: any) => {
   ]);
   const totalTransferOutQty = toAgg[0]?.qty || 0;
 
-  const availableStock = totalInwardQty + totalTransferInQty - totalIssuedQty - totalTransferOutQty;
-
+  const minAgg = await ContractorAssignment.aggregate([
+    { $match: baseQuery },
+    { $unwind: "$lineItems" },
+    { $group: { _id: null, totalIssuedQty: { $sum: "$lineItems.quantity" } } }
+  ]);
+  const totalIssuedQty = minAgg[0]?.totalIssuedQty || 0;
 
   const mhrovAgg = await Mhrov.aggregate([
     { $match: baseQuery },
@@ -107,12 +111,7 @@ export const buildCeoDashboardSummary = async (filters: any) => {
   ]);
   const totalMhrovQty = mhrovAgg[0]?.totalMhrovQty || 0;
 
-  const minAgg = await ContractorAssignment.aggregate([
-    { $match: baseQuery },
-    { $unwind: "$lineItems" },
-    { $group: { _id: null, totalIssuedQty: { $sum: "$lineItems.quantity" } } }
-  ]);
-  const totalIssuedQty = minAgg[0]?.totalIssuedQty || 0;
+  const availableStock = totalInwardQty + totalTransferInQty - totalIssuedQty - totalTransferOutQty;
 
   const jmcAgg = await JmcRegister.aggregate([
     { $match: baseQuery },

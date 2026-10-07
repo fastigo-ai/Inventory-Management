@@ -4,6 +4,7 @@ import crypto from 'crypto';
 
 export const contextMiddleware = (req: Request, res: Response, next: NextFunction) => {
   const requestId = req.headers['x-request-id'] as string || crypto.randomUUID();
+  const transactionId = crypto.randomUUID(); // Unique CDHDR identifier per API call
   const userAgent = req.headers['user-agent'] || '';
   
   // Basic naive parsing for browser and os (in a real app, use ua-parser-js)
@@ -26,6 +27,7 @@ export const contextMiddleware = (req: Request, res: Response, next: NextFunctio
     browser,
     os,
     requestId,
+    transactionId,
     route: req.originalUrl,
     method: req.method,
   };

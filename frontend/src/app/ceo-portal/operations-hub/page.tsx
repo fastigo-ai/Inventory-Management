@@ -52,35 +52,60 @@ const BASE: any[] = [
 ];
 
 function build(b: any, i: number) {
-  const r = rng(i * 977 + 13);
-  const it: any = { sr: i + 1, code: b[8] || ('TC-' + (1001 + i)), name: b[0], cat: b[1], pkg: b[2], circle: b[3], unit: b[4], rate: b[5], loa: b[6], stock: b[7] };
-  const poDate = TODAY - Math.floor(r() * 280) * DAY, s = r();
-  const status = s < .5 ? 'Approved' : s < .75 ? 'Cleared' : 'Pending';
-  const poQty = Math.max(1, Math.round(it.loa * (.3 + r() * .7))), poVal = poQty * it.rate;
+  const db = b[9] || {};
+  const it: any = { 
+    sr: i + 1, 
+    code: b[8] || ('TC-' + (1001 + i)), 
+    name: b[0], 
+    cat: b[1], 
+    pkg: b[2], 
+    circle: b[3], 
+    unit: b[4], 
+    rate: b[5], 
+    loa: b[6], 
+    stock: b[7],
+    date: Date.now()
+  };
+  
   const d: any = {};
+  
+  const loaQty = db.loaQty || 0;
+  const poQty = db.loaQty || 0; 
+  const poVal = poQty * it.rate;
+  
+  const diQty = db.diQty || 0;
+  const invQty = db.invQty || 0;
+  const actQty = db.actQty || 0;
+  const billedQty = db.billedQty || 0;
+  
+  const issuedQty = db.issuedQty || 0;
+  const returnedQty = db.returnedQty || 0;
+  const transferInQty = db.transferInQty || 0;
+  const transferOutQty = db.transferOutQty || 0;
+  
   d.item = { unit: it.unit, rate: it.rate, loa: it.loa, stock: it.stock };
-  d.po = { no: 'PO/26-27/' + (101 + i * 3), date: poDate, qty: poQty, val: poVal, status };
-  const diQty = Math.round(poQty * (.4 + r() * .5));
-  d.di = r() < .85 ? { no: 'DI-' + (2200 + i), qty: diQty, date: poDate + (7 + Math.floor(r() * 20)) * DAY } : null;
-  const piAmt = Math.round(poVal * (.3 + r() * .6));
-  d.pi = r() < .8 ? { no: 'PI-' + (5100 + i), amt: piAmt, status: r() < .6 ? 'Paid' : 'Due' } : null;
-  d.store = { depot: DEPOT[it.circle] || (it.circle + ' Central'), reorder: Math.round(it.loa * .15) };
-  const rcv = Math.round(diQty * .9);
-  d.receipt = d.di ? { no: 'GRN-' + (7300 + i), qty: rcv } : null;
-  d.inward = d.receipt ? { qty: rcv, date: d.di.date + (2 + Math.floor(r() * 5)) * DAY } : null;
-  d.min = r() < .8 ? { no: 'MIN-' + (4100 + i), qty: Math.round(it.stock * (.2 + r() * .4)) } : null;
-  d.cret = r() < .4 ? { qty: Math.max(1, Math.round(it.stock * .05 * (1 + r()))) } : null;
-  d.outward = r() < .75 ? { qty: Math.round(it.stock * (.15 + r() * .3)) } : null;
-  const dptStr = DEPOT[it.circle] || (it.circle + ' Central');
-  d.inter = r() < .45 ? { qty: Math.max(1, Math.round(it.stock * .1)), route: dptStr.split(' ')[0] + ' → ' + ['Jaipur', 'Pune', 'Indore', 'Lucknow'][Math.floor(r() * 4)] } : null;
-  const wkey = it.pkg + '/' + (CODE[it.circle] || it.circle.slice(0,3).toUpperCase()), wr = rng(wkey.split('').reduce((a: any, c: any) => a * 31 + c.charCodeAt(0) | 0, 7));
-  d.wo = r() < .9 ? { no: 'WO/' + wkey, val: Math.round(poVal * .4), prog: Math.round(25 + wr() * 70) } : null;
-  d.dn = r() < .8 ? { no: 'DN-' + (3300 + i), qty: Math.round(poQty * .5) } : null;
-  d.mrhov = r() < .7 ? { status: ['Cleared', 'Pending', 'Under review'][Math.floor(r() * 3)] } : null;
-  const ra = piAmt * (1.05 + r() * .1);
-  d.cbill = d.pi ? { amt: Math.round(ra), ra: 'RA-' + (i % 6 + 1) } : null;
-  d.kbill = d.pi ? { amt: Math.round(piAmt * .82), status: r() < .55 ? 'Paid' : 'Due' } : null;
-  it.date = poDate; it.d = d; return it;
+  d.po = poQty > 0 ? { no: 'N/A', date: it.date, qty: poQty, val: poVal, status: 'Active' } : null;
+  d.di = diQty > 0 ? { no: 'N/A', qty: diQty, date: it.date } : null;
+  d.pi = invQty > 0 ? { no: 'N/A', amt: invQty * it.rate, status: 'N/A' } : null;
+  
+  d.store = { depot: DEPOT[it.circle] || (it.circle + ' Central'), reorder: Math.round(loaQty * 0.15) };
+  d.receipt = invQty > 0 ? { no: 'N/A', qty: invQty } : null;
+  d.inward = invQty > 0 ? { qty: invQty, date: it.date } : null;
+  
+  d.min = issuedQty > 0 ? { no: 'N/A', qty: issuedQty } : null;
+  d.cret = returnedQty > 0 ? { qty: returnedQty } : null;
+  d.outward = actQty > 0 ? { qty: actQty } : null;
+  d.inter = (transferInQty > 0 || transferOutQty > 0) ? { qty: transferInQty + transferOutQty, route: 'N/A' } : null;
+  
+  d.wo = loaQty > 0 ? { no: 'N/A', val: poVal, prog: loaQty ? Math.round((actQty / loaQty) * 100) : 0 } : null;
+  d.dn = issuedQty > 0 ? { no: 'N/A', qty: issuedQty } : null;
+  d.mrhov = returnedQty > 0 ? { status: 'N/A' } : null;
+  
+  d.cbill = billedQty > 0 ? { amt: billedQty * it.rate, ra: 'N/A' } : null;
+  d.kbill = billedQty > 0 ? { amt: billedQty * it.rate, status: 'N/A' } : null;
+  
+  it.d = d; 
+  return it;
 }
 
 const MODS = [
@@ -134,7 +159,7 @@ function health(it: any) {
 function flags(it: any) {
   const f = [], d = it.d;
   if (health(it) === 'crit') f.push({ t: 'Low stock', c: 'crit' });
-  if (d.po.status === 'Pending') f.push({ t: 'PO pending', c: 'warn' });
+  if (d.po && d.po.status === 'Pending') f.push({ t: 'PO pending', c: 'warn' });
   if (d.mrhov && d.mrhov.status !== 'Cleared') f.push({ t: 'MRHOV open', c: 'warn' });
   if (d.pi && d.pi.status === 'Due') f.push({ t: 'Invoice due', c: 'warn' });
   if (d.wo && d.wo.prog < 50) f.push({ t: 'WO behind', c: 'crit' });
@@ -143,7 +168,7 @@ function flags(it: any) {
 
 const ALERTS = [
   { id: 'low', label: 'Items running low on stock', tone: 'crit', test: (i: any) => health(i) === 'crit', view: 'stock' },
-  { id: 'pend', label: 'Purchase orders waiting for approval', tone: 'warn', test: (i: any) => i.d.po.status === 'Pending', view: 'money' },
+  { id: 'pend', label: 'Purchase orders waiting for approval', tone: 'warn', test: (i: any) => i.d.po && i.d.po.status === 'Pending', view: 'money' },
   { id: 'wo', label: 'Items on work orders under 50% done', tone: 'crit', test: (i: any) => !!(i.d.wo && i.d.wo.prog < 50), view: 'site' },
   { id: 'mrhov', label: 'MRHOV not yet cleared', tone: 'warn', test: (i: any) => !!(i.d.mrhov && i.d.mrhov.status !== 'Cleared'), view: 'site' },
   { id: 'due', label: 'Supplier invoices not yet paid', tone: 'warn', test: (i: any) => !!(i.d.pi && i.d.pi.status === 'Due'), view: 'money' }
@@ -182,7 +207,8 @@ export default function OperationsHub() {
             150, 
             d.loaQty || 10, 
             Math.max(0, (d.invQty || 0) - (d.actQty || 0)),
-            d.tempCode || ''
+            d.tempCode || '',
+            d
           ]);
           setItems(dbItems.map(build));
         } else {
@@ -240,7 +266,7 @@ export default function OperationsHub() {
       (f.circle === 'All' || it.circle === f.circle) && (f.pkg === 'All' || it.pkg === f.pkg) && (f.code === 'All' || it.code === f.code) &&
       (!nm || it.name.toLowerCase().includes(nm)) &&
       (f.date === 'all' || (f.date === 'fy' ? it.date >= FY : it.date >= TODAY - (+f.date) * DAY)) &&
-      (f.status === 'all' || it.d.po.status === f.status)
+      (f.status === 'all' || (it.d.po && it.d.po.status === f.status))
     );
     if (alert) {
       const a = ALERTS.find(x => x.id === alert);
@@ -336,7 +362,7 @@ export default function OperationsHub() {
   };
 
   // KPIs
-  const poVal = filteredItems.reduce((a, i) => a + i.d.po.val, 0);
+  const poVal = filteredItems.reduce((a, i) => a + (i.d.po ? i.d.po.val : 0), 0);
   const stock = filteredItems.reduce((a, i) => a + i.stock, 0);
   const low = filteredItems.filter(i => health(i) === 'crit').length;
   
@@ -349,9 +375,9 @@ export default function OperationsHub() {
   const sup = filteredItems.reduce((a, i) => a + (i.d.pi ? i.d.pi.amt : 0), 0);
   const inv = filteredItems.filter(i => i.d.pi).length;
   
-  const pend = filteredItems.filter(i => i.d.po.status === 'Pending').length;
-  const clr = filteredItems.filter(i => i.d.po.status === 'Cleared').length;
-  const app = filteredItems.filter(i => i.d.po.status === 'Approved').length;
+  const pend = filteredItems.filter(i => i.d.po && i.d.po.status === 'Pending').length;
+  const clr = filteredItems.filter(i => i.d.po && i.d.po.status === 'Cleared').length;
+  const app = filteredItems.filter(i => i.d.po && i.d.po.status === 'Approved').length;
 
   useEffect(() => { applyView('overview'); }, []);
 

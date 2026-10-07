@@ -11,11 +11,46 @@ export interface AuditPluginOptions {
 
 const defaultIgnoredFields = ['updatedAt', 'createdAt', '__v', 'password', 'passwordHash', 'refreshToken', 'loginTime', 'lastSeen'];
 
-// Helper to determine deep equality
 const isEqual = (a: any, b: any): boolean => {
   if (a === b) return true;
   if (a == null || b == null) return false;
   return JSON.stringify(a) === JSON.stringify(b);
+};
+
+// Helper for CDPOS line-item tracking
+const getDeepDifferences = (original: any, current: any, prefix: string, changes: IAuditChange[]) => {
+  if (!original || !current || typeof original !== 'object' || typeof current !== 'object') {
+    changes.push({ field: prefix, oldValue: original, newValue: current });
+    return;
+  }
+
+  if (original instanceof Date || current instanceof Date) {
+     if (new Date(original).getTime() !== new Date(current).getTime()) {
+        changes.push({ field: prefix, oldValue: original, newValue: current });
+     }
+     return;
+  }
+  
+  if (original instanceof mongoose.Types.ObjectId || current instanceof mongoose.Types.ObjectId) {
+      if (original.toString() !== current.toString()) {
+          changes.push({ field: prefix, oldValue: original, newValue: current });
+      }
+      return;
+  }
+
+  const allKeys = new Set([...Object.keys(original), ...Object.keys(current)]);
+  for (const key of allKeys) {
+    const isArray = Array.isArray(current) || Array.isArray(original);
+    const displayPath = isArray ? `${prefix}[${key}]` : `${prefix}.${key}`;
+
+    if (!isEqual(original[key], current[key])) {
+      if (original[key] && current[key] && typeof original[key] === 'object' && typeof current[key] === 'object') {
+         getDeepDifferences(original[key], current[key], displayPath, changes);
+      } else {
+         changes.push({ field: displayPath, oldValue: original[key], newValue: current[key] });
+      }
+    }
+  }
 };
 
 // Helper to resolve entity name from document or query
@@ -147,11 +182,15 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions = {}) {
           if (!shouldTrackField(key, entityType, options)) continue;
           
           if (!isEqual(original[key], current[key])) {
-            changes.push({
-              field: key,
-              oldValue: original[key],
-              newValue: current[key]
-            });
+             if (original[key] && current[key] && typeof original[key] === 'object' && typeof current[key] === 'object') {
+               getDeepDifferences(original[key], current[key], key, changes);
+             } else {
+               changes.push({
+                 field: key,
+                 oldValue: original[key],
+                 newValue: current[key]
+               });
+             }
           }
         }
         
@@ -207,11 +246,15 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions = {}) {
         if (!shouldTrackField(key, entityType, options)) continue;
         
         if (!isEqual(original[key], current[key])) {
-          changes.push({
-            field: key,
-            oldValue: original[key],
-            newValue: current[key]
-          });
+          if (original[key] && current[key] && typeof original[key] === 'object' && typeof current[key] === 'object') {
+            getDeepDifferences(original[key], current[key], key, changes);
+          } else {
+            changes.push({
+              field: key,
+              oldValue: original[key],
+              newValue: current[key]
+            });
+          }
         }
       }
 
@@ -270,11 +313,15 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions = {}) {
         if (!shouldTrackField(key, entityType, options)) continue;
         
         if (!isEqual(original[key], current[key])) {
-          changes.push({
-            field: key,
-            oldValue: original[key],
-            newValue: current[key]
-          });
+          if (original[key] && current[key] && typeof original[key] === 'object' && typeof current[key] === 'object') {
+            getDeepDifferences(original[key], current[key], key, changes);
+          } else {
+            changes.push({
+              field: key,
+              oldValue: original[key],
+              newValue: current[key]
+            });
+          }
         }
       }
 

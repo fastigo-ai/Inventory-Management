@@ -624,10 +624,15 @@ export default function ItemSummaryMatrixPage() {
                   {showImc && <th className="p-2 min-w-[100px] bg-fuchsia-50 text-right font-bold text-fuchsia-900">Total JMC Done</th>}
                   {showImc && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900">Bal for JMC</th>}
                   
-                  {showSupplyBill && <th className="p-2 min-w-[100px] bg-indigo-50 text-right font-bold text-indigo-900">Supply Bill RA</th>}
+                  {showSupplyBill && <th className="p-2 min-w-[100px] bg-indigo-50 text-right font-bold text-indigo-900">Supply Bill 60%</th>}
+                  {showSupplyBill && <th className="p-2 min-w-[100px] bg-indigo-50 text-right font-bold text-indigo-900">Supply Bill 30%</th>}
+                  {showSupplyBill && <th className="p-2 min-w-[100px] bg-indigo-50 text-right font-bold text-indigo-900">Supply Bill 10%</th>}
+                  {showSupplyBill && <th className="p-2 min-w-[100px] bg-indigo-50 text-right font-bold text-indigo-900">Supply Bill Cumulative</th>}
                   {showSupplyBill && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900">Bal for Supply Bill</th>}
                   
-                  {showErectionBill && <th className="p-2 min-w-[100px] bg-violet-50 text-right font-bold text-violet-900">Erection Bill RA</th>}
+                  {showErectionBill && <th className="p-2 min-w-[100px] bg-violet-50 text-right font-bold text-violet-900">Erection Bill 90%</th>}
+                  {showErectionBill && <th className="p-2 min-w-[100px] bg-violet-50 text-right font-bold text-violet-900">Erection Bill 10%</th>}
+                  {showErectionBill && <th className="p-2 min-w-[100px] bg-violet-50 text-right font-bold text-violet-900">Erection Bill Cumulative</th>}
                   {showErectionBill && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900">Bal for Erection Bill</th>}
 
                   {showWipConsumed && <th className="p-2 min-w-[100px] bg-pink-50 text-right font-bold text-pink-900">WIP Consumed</th>}
@@ -656,7 +661,12 @@ export default function ItemSummaryMatrixPage() {
                     
                     const mhrovQty = r.mhrovSolan || r.mhrovNahan || r.mhrovRampur || r.mhrovRohru || r.mhrov?.solan || r.mhrov?.nahan || r.mhrov?.rampur || r.mhrov?.rohru || 0;
                     const jmcQty = r.imcSolan || r.imcNahan || r.imcRampur || r.imcRohru || r.imc?.solan || r.imc?.nahan || r.imc?.rampur || r.imc?.rohru || 0;
+                    const supplyBillQty_60 = r.supplyBilledSolan_60 || r.supplyBilledNahan_60 || r.supplyBilledRampur_60 || r.supplyBilledRohru_60 || 0;
+                    const supplyBillQty_30 = r.supplyBilledSolan_30 || r.supplyBilledNahan_30 || r.supplyBilledRampur_30 || r.supplyBilledRohru_30 || 0;
+                    const supplyBillQty_10 = r.supplyBilledSolan_10 || r.supplyBilledNahan_10 || r.supplyBilledRampur_10 || r.supplyBilledRohru_10 || 0;
                     const supplyBillQty = r.supplyBilledSolan || r.supplyBilledNahan || r.supplyBilledRampur || r.supplyBilledRohru || 0;
+                    const erectionBillQty_90 = r.erectionBilledSolan_90 || r.erectionBilledNahan_90 || r.erectionBilledRampur_90 || r.erectionBilledRohru_90 || 0;
+                    const erectionBillQty_10 = r.erectionBilledSolan_10 || r.erectionBilledNahan_10 || r.erectionBilledRampur_10 || r.erectionBilledRohru_10 || 0;
                     const erectionBillQty = r.erectionBilledSolan || r.erectionBilledNahan || r.erectionBilledRampur || r.erectionBilledRohru || 0;
                     
                     const wipConsQty = r.wipConsumedSolan || r.wipConsumedNahan || r.wipConsumedRampur || r.wipConsumedRohru || r.wipConsumed?.solan || r.wipConsumed?.nahan || r.wipConsumed?.rampur || r.wipConsumed?.rohru || 0;
@@ -706,10 +716,15 @@ export default function ItemSummaryMatrixPage() {
                         {showImc && <td className="p-2 text-right text-fuchsia-900 font-medium bg-fuchsia-50/20">{fmtQty(jmcQty)}</td>}
                         {showImc && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{fmtBal(bal?.imc)}</td>}
                         
-                        {showSupplyBill && <td className="p-2 text-right text-indigo-900 font-medium bg-indigo-50/20">{fmtQty(supplyBillQty)}</td>}
+                        {showSupplyBill && <td className="p-2 text-right text-indigo-900 font-medium bg-indigo-50/20">{fmtQty(supplyBillQty_60)}</td>}
+                        {showSupplyBill && <td className="p-2 text-right text-indigo-900 font-medium bg-indigo-50/20">{fmtQty(supplyBillQty_30)}</td>}
+                        {showSupplyBill && <td className="p-2 text-right text-indigo-900 font-medium bg-indigo-50/20">{fmtQty(supplyBillQty_10)}</td>}
+                        {showSupplyBill && <td className="p-2 text-right text-indigo-900 font-bold bg-indigo-100/30">{fmtQty(supplyBillQty)}</td>}
                         {showSupplyBill && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{fmtBal(bal?.supplyBill)}</td>}
                         
-                        {showErectionBill && <td className="p-2 text-right text-violet-900 font-medium bg-violet-50/20">{fmtQty(erectionBillQty)}</td>}
+                        {showErectionBill && <td className="p-2 text-right text-violet-900 font-medium bg-violet-50/20">{fmtQty(erectionBillQty_90)}</td>}
+                        {showErectionBill && <td className="p-2 text-right text-violet-900 font-medium bg-violet-50/20">{fmtQty(erectionBillQty_10)}</td>}
+                        {showErectionBill && <td className="p-2 text-right text-violet-900 font-bold bg-violet-100/30">{fmtQty(erectionBillQty)}</td>}
                         {showErectionBill && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{fmtBal(bal?.erectionBill)}</td>}
 
                         {showWipConsumed && <td className="p-2 text-right text-pink-900 font-medium bg-pink-50/20">{fmtQty(wipConsQty)}</td>}

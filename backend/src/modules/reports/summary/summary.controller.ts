@@ -1246,11 +1246,11 @@ async function computeItemMatrixSummary(params: {
     ).lean(),
     ClientBill.find(
       { billType: 'Erection', status: { $nin: ['Draft', 'Rejected'] as any[] } },
-      { circle: 1, package: 1, 'items.raBillQty': 1, 'items.itemId': 1, 'items.tempCode': 1, 'items.loaSrNo': 1 }
+      { circle: 1, package: 1, stage: 1, 'items.raBillQty': 1, 'items.itemId': 1, 'items.tempCode': 1, 'items.loaSrNo': 1 }
     ).lean(),
     ClientBill.find(
       { billType: 'Supply', status: { $nin: ['Draft', 'Rejected'] as any[] } },
-      { circle: 1, package: 1, 'items.raBillQty': 1, 'items.itemId': 1, 'items.tempCode': 1, 'items.loaSrNo': 1 }
+      { circle: 1, package: 1, stage: 1, 'items.raBillQty': 1, 'items.itemId': 1, 'items.tempCode': 1, 'items.loaSrNo': 1 }
     ).lean(),
     WipRegister.find(
       { status: { $nin: ['Rejected', 'Cancelled'] } },
@@ -1526,23 +1526,34 @@ async function computeItemMatrixSummary(params: {
   });
 
   // 4b. Erection Billed
+  const getErecInit = () => ({ solan: 0, solan_90: 0, solan_60: 0, solan_30: 0, solan_10: 0, nahan: 0, nahan_90: 0, nahan_60: 0, nahan_30: 0, nahan_10: 0, rampur: 0, rampur_90: 0, rampur_60: 0, rampur_30: 0, rampur_10: 0, rohru: 0, rohru_90: 0, rohru_60: 0, rohru_30: 0, rohru_10: 0 });
   const erectionMap = new Map<string, Record<string, number>>();
   contractorInvoices.forEach(doc => {
     const docCirc = ((doc as any).circle || '').toLowerCase();
+    const stageStr = ((doc as any).stage || '').toLowerCase();
     ((doc as any).items || []).forEach((line: any) => {
       const qty = Number(line.raBillQty || 0);
       if (qty > 0) {
         const lineCirc = (line.circle || docCirc || '').toLowerCase();
         const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku, line.package || (doc as any).package, lineCirc);
+        
+        const applyQty = (obj: any, c: string, q: number) => {
+           obj[c] += q;
+           if (stageStr.includes('90')) obj[`${c}_90`] += q;
+           else if (stageStr.includes('60')) obj[`${c}_60`] += q;
+           else if (stageStr.includes('30')) obj[`${c}_30`] += q;
+           else if (stageStr.includes('10')) obj[`${c}_10`] += q;
+        };
+
         if (targetTCs.length === 1) {
            const tc = targetTCs[0];
-           if (!erectionMap.has(tc)) erectionMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
+           if (!erectionMap.has(tc)) erectionMap.set(tc, getErecInit());
            const erecObj = erectionMap.get(tc)!;
-           if (lineCirc.includes('solan')) erecObj.solan += qty;
-           else if (lineCirc.includes('nahan')) erecObj.nahan += qty;
-           else if (lineCirc.includes('rampur')) erecObj.rampur += qty;
-           else if (lineCirc.includes('rohru')) erecObj.rohru += qty;
-           else erecObj.nahan += qty;
+           if (lineCirc.includes('solan')) applyQty(erecObj, 'solan', qty);
+           else if (lineCirc.includes('nahan')) applyQty(erecObj, 'nahan', qty);
+           else if (lineCirc.includes('rampur')) applyQty(erecObj, 'rampur', qty);
+           else if (lineCirc.includes('rohru')) applyQty(erecObj, 'rohru', qty);
+           else applyQty(erecObj, 'nahan', qty);
         } else if (targetTCs.length > 1) {
            let totalLoaQty = 0;
            targetTCs.forEach(tc => {
@@ -1564,13 +1575,13 @@ async function computeItemMatrixSummary(params: {
                  else if (lineCirc.includes('rohru')) myLoaQty = grp.rohruLoaQty;
                  
                  const distributedQty = totalLoaQty > 0 ? (qty * (myLoaQty / totalLoaQty)) : (qty / targetTCs.length);
-                 if (!erectionMap.has(tc)) erectionMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
+                 if (!erectionMap.has(tc)) erectionMap.set(tc, getErecInit());
                  const erecObj = erectionMap.get(tc)!;
-                 if (lineCirc.includes('solan')) erecObj.solan += distributedQty;
-                 else if (lineCirc.includes('nahan')) erecObj.nahan += distributedQty;
-                 else if (lineCirc.includes('rampur')) erecObj.rampur += distributedQty;
-                 else if (lineCirc.includes('rohru')) erecObj.rohru += distributedQty;
-                 else erecObj.nahan += distributedQty;
+                 if (lineCirc.includes('solan')) applyQty(erecObj, 'solan', distributedQty);
+                 else if (lineCirc.includes('nahan')) applyQty(erecObj, 'nahan', distributedQty);
+                 else if (lineCirc.includes('rampur')) applyQty(erecObj, 'rampur', distributedQty);
+                 else if (lineCirc.includes('rohru')) applyQty(erecObj, 'rohru', distributedQty);
+                 else applyQty(erecObj, 'nahan', distributedQty);
               }
            });
         }
@@ -1579,23 +1590,34 @@ async function computeItemMatrixSummary(params: {
   });
 
   // 5. Supply Billed (Client Bill - Supply)
+  const getSupInit = () => ({ solan: 0, solan_60: 0, solan_30: 0, solan_10: 0, nahan: 0, nahan_60: 0, nahan_30: 0, nahan_10: 0, rampur: 0, rampur_60: 0, rampur_30: 0, rampur_10: 0, rohru: 0, rohru_60: 0, rohru_30: 0, rohru_10: 0 });
   const supplyBilledMap = new Map<string, Record<string, number>>();
   pis.forEach(doc => {
     const docCirc = ((doc as any).circle || '').toLowerCase();
+    const stageStr = ((doc as any).stage || '').toLowerCase();
+    
     ((doc as any).items || []).forEach((line: any) => {
       const qty = Number(line.raBillQty || 0);
       if (qty > 0) {
         const lineCirc = (line.circle || docCirc || '').toLowerCase();
         const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku, line.package || (doc as any).package, lineCirc);
+        
+        const applyQty = (supObj: any, c: string, q: number) => {
+           supObj[c] += q;
+           if (stageStr.includes('60')) supObj[`${c}_60`] += q;
+           else if (stageStr.includes('30')) supObj[`${c}_30`] += q;
+           else if (stageStr.includes('10')) supObj[`${c}_10`] += q;
+        };
+
         if (targetTCs.length === 1) {
            const tc = targetTCs[0];
-           if (!supplyBilledMap.has(tc)) supplyBilledMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
+           if (!supplyBilledMap.has(tc)) supplyBilledMap.set(tc, getSupInit());
            const supObj = supplyBilledMap.get(tc)!;
-           if (lineCirc.includes('solan')) supObj.solan += qty;
-           else if (lineCirc.includes('nahan')) supObj.nahan += qty;
-           else if (lineCirc.includes('rampur')) supObj.rampur += qty;
-           else if (lineCirc.includes('rohru')) supObj.rohru += qty;
-           else supObj.nahan += qty;
+           if (lineCirc.includes('solan')) applyQty(supObj, 'solan', qty);
+           else if (lineCirc.includes('nahan')) applyQty(supObj, 'nahan', qty);
+           else if (lineCirc.includes('rampur')) applyQty(supObj, 'rampur', qty);
+           else if (lineCirc.includes('rohru')) applyQty(supObj, 'rohru', qty);
+           else applyQty(supObj, 'nahan', qty);
         } else if (targetTCs.length > 1) {
            let totalLoaQty = 0;
            targetTCs.forEach(tc => {
@@ -1617,13 +1639,13 @@ async function computeItemMatrixSummary(params: {
                  else if (lineCirc.includes('rohru')) myLoaQty = grp.rohruLoaQty;
                  
                  const distributedQty = totalLoaQty > 0 ? (qty * (myLoaQty / totalLoaQty)) : (qty / targetTCs.length);
-                 if (!supplyBilledMap.has(tc)) supplyBilledMap.set(tc, { solan: 0, nahan: 0, rampur: 0, rohru: 0 });
+                 if (!supplyBilledMap.has(tc)) supplyBilledMap.set(tc, getSupInit());
                  const supObj = supplyBilledMap.get(tc)!;
-                 if (lineCirc.includes('solan')) supObj.solan += distributedQty;
-                 else if (lineCirc.includes('nahan')) supObj.nahan += distributedQty;
-                 else if (lineCirc.includes('rampur')) supObj.rampur += distributedQty;
-                 else if (lineCirc.includes('rohru')) supObj.rohru += distributedQty;
-                 else supObj.nahan += distributedQty;
+                 if (lineCirc.includes('solan')) applyQty(supObj, 'solan', distributedQty);
+                 else if (lineCirc.includes('nahan')) applyQty(supObj, 'nahan', distributedQty);
+                 else if (lineCirc.includes('rampur')) applyQty(supObj, 'rampur', distributedQty);
+                 else if (lineCirc.includes('rohru')) applyQty(supObj, 'rohru', distributedQty);
+                 else applyQty(supObj, 'nahan', distributedQty);
               }
            });
         }
@@ -1758,8 +1780,8 @@ async function computeItemMatrixSummary(params: {
     const mhrovObj = mhrovMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
     const minObj = minMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
     const imcObj = imcMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
-    const supObj = supplyBilledMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
-    const erecObj = erectionMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
+    const supObj = supplyBilledMap.get(groupKey) || getSupInit();
+    const erecObj = erectionMap.get(groupKey) || { solan: 0, solan_90: 0, solan_60: 0, solan_30: 0, solan_10: 0, nahan: 0, nahan_90: 0, nahan_60: 0, nahan_30: 0, nahan_10: 0, rampur: 0, rampur_90: 0, rampur_60: 0, rampur_30: 0, rampur_10: 0, rohru: 0, rohru_90: 0, rohru_60: 0, rohru_30: 0, rohru_10: 0 };
     const wipConsObj = wipConsumedMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
     const wipReqObj = wipRequiredMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
 
@@ -1896,11 +1918,36 @@ async function computeItemMatrixSummary(params: {
       supplyBilledRampur: supObj.rampur,
       supplyBilledRohru: supObj.rohru,
 
+      supplyBilledNahan_60: supObj.nahan_60,
+      supplyBilledSolan_60: supObj.solan_60,
+      supplyBilledRampur_60: supObj.rampur_60,
+      supplyBilledRohru_60: supObj.rohru_60,
+
+      supplyBilledNahan_30: supObj.nahan_30,
+      supplyBilledSolan_30: supObj.solan_30,
+      supplyBilledRampur_30: supObj.rampur_30,
+      supplyBilledRohru_30: supObj.rohru_30,
+
+      supplyBilledNahan_10: supObj.nahan_10,
+      supplyBilledSolan_10: supObj.solan_10,
+      supplyBilledRampur_10: supObj.rampur_10,
+      supplyBilledRohru_10: supObj.rohru_10,
+
       // Flat Erection Billed
       erectionBilledNahan: erecObj.nahan,
       erectionBilledSolan: erecObj.solan,
       erectionBilledRampur: erecObj.rampur,
       erectionBilledRohru: erecObj.rohru,
+
+      erectionBilledNahan_90: erecObj.nahan_90,
+      erectionBilledSolan_90: erecObj.solan_90,
+      erectionBilledRampur_90: erecObj.rampur_90,
+      erectionBilledRohru_90: erecObj.rohru_90,
+      
+      erectionBilledNahan_10: erecObj.nahan_10,
+      erectionBilledSolan_10: erecObj.solan_10,
+      erectionBilledRampur_10: erecObj.rampur_10,
+      erectionBilledRohru_10: erecObj.rohru_10,
 
       // Flat WIP Consumed
       wipConsumedNahan: wipConsObj.nahan,

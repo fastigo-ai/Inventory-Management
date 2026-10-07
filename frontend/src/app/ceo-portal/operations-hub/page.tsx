@@ -329,7 +329,7 @@ export default function OperationsHub() {
         {/* KPIs */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {[
-            { t: 'Total Purchase Orders', v: filteredItems.length, sub: `₹${cr(poVal)} Cr`, tag: `${app} Approved`, color: 'text-emerald-700 bg-emerald-50', ex: 'po' },
+            { t: 'Total Purchase Invoices', v: inv, sub: `₹${cr(sup)} Cr`, tag: `${inv} Invoices`, color: 'text-indigo-700 bg-indigo-50', ex: 'pi' },
             { t: 'Available Stock', v: inr(stock), sub: `${filteredItems.length} SKUs`, tag: low ? `${low} Low stock` : 'Healthy', color: low ? 'text-red-700 bg-red-50' : 'text-emerald-700 bg-emerald-50', ex: 'item' },
             { t: 'Active Work Orders', v: wos.size, sub: `₹${cr(woVal)} Cr target`, tag: `${avg}% avg progress`, color: 'text-blue-700 bg-blue-50', ex: 'wo' },
             { t: 'Total RA Billing', v: `₹${cr(ra)} Cr`, sub: `Supply ₹${cr(sup)} Cr`, tag: `${inv} invoices`, color: 'text-purple-700 bg-purple-50', ex: 'cbill' },

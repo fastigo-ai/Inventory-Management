@@ -60,6 +60,7 @@ function build(b: any, i: number) {
     cat: b[1], 
     pkg: b[2], 
     circle: b[3], 
+    subcircle: db.subcircle || db.subCircle || '', 
     unit: b[4], 
     rate: b[5], 
     loa: b[6], 
@@ -182,7 +183,7 @@ export default function OperationsHub() {
   const [mode, setMode] = useState<'single' | 'multi' | 'all'>('single');
   const [sel, setSel] = useState<Set<string>>(new Set(['item']));
   
-  const [f, setF] = useState({ circle: 'All', pkg: 'All', code: 'All', name: '', date: 'all', status: 'all' });
+  const [f, setF] = useState({ circle: 'All', subCircle: 'All', pkg: 'All', code: 'All', name: '', date: 'all', status: 'all' });
   const [q, setQ] = useState('');
 
   const [apiKpis, setApiKpis] = useState({ 
@@ -225,6 +226,7 @@ export default function OperationsHub() {
     let active = true;
     const filters: any = {};
     if (f.circle !== 'All') filters.circle = f.circle;
+    if (f.circle === 'Solan' && f.subCircle !== 'All') filters.subCircle = f.subCircle;
     if (f.pkg !== 'All') filters.package = f.pkg;
     
     fetchCeoDashboardData(filters).then((res: any) => {
@@ -245,7 +247,7 @@ export default function OperationsHub() {
     }).catch(console.error);
     
     return () => { active = false; };
-  }, [f.circle, f.pkg]);
+  }, [f.circle, f.pkg, f.subCircle]);
   
   const [sort, setSort] = useState({ id: 'sr', dir: 1 });
   const [page, setPage] = useState(1);
@@ -257,13 +259,17 @@ export default function OperationsHub() {
 
   // Derived filters
   const circles = useMemo(() => ['All', ...Array.from(new Set(items.map(i => i.circle))).sort()], [items]);
+  const subcircles = useMemo(() => ['All', ...Array.from(new Set(items.filter(i => i.circle === 'Solan' && i.subcircle).map(i => i.subcircle))).sort()], [items]);
   const pkgs = useMemo(() => ['All', ...Array.from(new Set(items.map(i => i.pkg))).sort()], [items]);
   const codes = useMemo(() => ['All', ...Array.from(new Set(items.map(i => i.code))).sort()], [items]);
 
   const filteredItems = useMemo(() => {
     const nm = f.name.trim().toLowerCase();
     let res = items.filter(it =>
-      (f.circle === 'All' || it.circle === f.circle) && (f.pkg === 'All' || it.pkg === f.pkg) && (f.code === 'All' || it.code === f.code) &&
+      (f.circle === 'All' || it.circle === f.circle) && 
+      (f.circle !== 'Solan' || f.subCircle === 'All' || it.subcircle === f.subCircle) &&
+      (f.pkg === 'All' || it.pkg === f.pkg) && 
+      (f.code === 'All' || it.code === f.code) &&
       (!nm || it.name.toLowerCase().includes(nm)) &&
       (f.date === 'all' || (f.date === 'fy' ? it.date >= FY : it.date >= TODAY - (+f.date) * DAY)) &&
       (f.status === 'all' || (it.d.po && it.d.po.status === f.status))
@@ -535,23 +541,30 @@ export default function OperationsHub() {
                   <SlidersHorizontal className="w-3.5 h-3.5" /> Global Telemetry Filters
                 </h2>
                 <button 
-                  onClick={() => { setF({ circle: 'All', pkg: 'All', code: 'All', name: '', date: 'all', status: 'all' }); setQ(''); setPage(1); }}
+                  onClick={() => { setF({ circle: 'All', subCircle: 'All', pkg: 'All', code: 'All', name: '', date: 'all', status: 'all' }); setQ(''); setPage(1); }}
                   className="text-indigo-600 text-[11px] font-bold hover:text-indigo-700 uppercase tracking-wider"
                 >
                   Reset filters
                 </button>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                <label className="flex flex-col gap-1.5"><span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Circle</span>
-                  <select className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" value={f.circle} onChange={e => setF({...f, circle: e.target.value})}>
-                    {circles.map(c => <option key={c}>{c}</option>)}
-                  </select>
-                </label>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
                 <label className="flex flex-col gap-1.5"><span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Package</span>
                   <select className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" value={f.pkg} onChange={e => setF({...f, pkg: e.target.value})}>
                     {pkgs.map(c => <option key={c}>{c}</option>)}
                   </select>
                 </label>
+                <label className="flex flex-col gap-1.5"><span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Circle</span>
+                  <select className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" value={f.circle} onChange={e => setF({...f, circle: e.target.value, subCircle: 'All'})}>
+                    {circles.map(c => <option key={c}>{c}</option>)}
+                  </select>
+                </label>
+                {f.circle === 'Solan' && (
+                  <label className="flex flex-col gap-1.5"><span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Sub-Circle</span>
+                    <select className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" value={f.subCircle} onChange={e => setF({...f, subCircle: e.target.value})}>
+                      {subcircles.map(c => <option key={c}>{c}</option>)}
+                    </select>
+                  </label>
+                )}
                 <label className="flex flex-col gap-1.5"><span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Temp Code</span>
                   <select className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" value={f.code} onChange={e => setF({...f, code: e.target.value})}>
                     {codes.map(c => <option key={c}>{c}</option>)}

@@ -87,7 +87,7 @@ function build(b: any, i: number) {
   
   d.item = { unit: it.unit, rate: it.rate, loa: it.loa, stock: it.stock };
   d.po = poQty > 0 ? { no: 'N/A', date: it.date, qty: poQty, val: poVal, status: 'Active' } : null;
-  d.di = diQty > 0 ? { no: 'N/A', qty: diQty, date: it.date } : null;
+  d.di = diQty > 0 ? { no: db.diNo || 'N/A', qty: diQty, date: it.date } : null;
   d.pi = invQty > 0 ? { no: 'N/A', amt: invQty * it.rate, status: 'N/A' } : null;
   
   d.store = { depot: DEPOT[it.circle] || (it.circle + ' Central'), reorder: Math.round(loaQty * 0.15) };

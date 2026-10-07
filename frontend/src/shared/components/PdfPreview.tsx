@@ -54,7 +54,11 @@ export function PdfPreview({ fileUrl }: PdfPreviewProps) {
         onLoadSuccess={onDocumentLoadSuccess}
         onLoadError={onDocumentLoadError}
         className="flex flex-col gap-4 items-center w-full"
-        loading={<div className="text-sm text-slate-500 py-10">Loading PDF...</div>}
+        loading={
+          <div className="w-full flex flex-col items-center gap-4 py-4 animate-pulse">
+            <div className="w-full max-w-[750px] h-[800px] bg-slate-200 rounded shadow-md border border-slate-100"></div>
+          </div>
+        }
         error={<div className="text-sm text-slate-500 py-10">Preview not available.</div>}
       >
         {numPages && Array.from(new Array(numPages), (el, index) => (

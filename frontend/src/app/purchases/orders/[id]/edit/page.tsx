@@ -38,10 +38,20 @@ export default function EditPurchaseOrderPage() {
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-slate-50 h-full">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-slate-500 font-medium">Loading Purchase Order...</p>
+      <div className="flex-1 flex flex-col bg-slate-50 h-full p-6 animate-pulse space-y-6">
+        <div className="w-48 h-8 bg-slate-200 rounded"></div>
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-6">
+          <div className="grid grid-cols-2 gap-8">
+            <div className="space-y-4">
+              <div className="w-1/4 h-4 bg-slate-200 rounded"></div>
+              <div className="w-full h-10 bg-slate-200 rounded"></div>
+            </div>
+            <div className="space-y-4">
+              <div className="w-1/4 h-4 bg-slate-200 rounded"></div>
+              <div className="w-full h-10 bg-slate-200 rounded"></div>
+            </div>
+          </div>
+          <div className="w-full h-40 bg-slate-200 rounded mt-4"></div>
         </div>
       </div>
     );

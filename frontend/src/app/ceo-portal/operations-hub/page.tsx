@@ -372,33 +372,7 @@ export default function OperationsHub() {
           ))}
         </section>
 
-        {/* Attention */}
-        <section className="bg-white border border-slate-200 rounded-xl p-4 md:p-5 shadow-sm">
-          <h2 className="text-base font-bold text-slate-800 mb-1 flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-amber-500"/> Needs your attention</h2>
-          <p className="text-sm text-slate-500 mb-4">Tap a card to filter the ledger to exactly which items are affected.</p>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            {ALERTS.map(a => {
-              const n = filteredItems.filter(a.test).length;
-              const isActive = alert === a.id;
-              const isCrit = a.tone === 'crit';
-              return (
-                <button 
-                  key={a.id} 
-                  disabled={!n} 
-                  onClick={() => { applyView(a.view); setAlert(a.id); }}
-                  className={`text-left border p-3 rounded-xl flex flex-col gap-1 transition-all
-                    ${!n ? 'opacity-50 cursor-not-allowed bg-slate-50 border-slate-200' : 'hover:shadow-md cursor-pointer'}
-                    ${isActive ? 'ring-2 ring-indigo-500 ring-offset-1' : ''}
-                    ${n && isCrit ? 'bg-red-50/50 border-red-200' : n ? 'bg-amber-50/50 border-amber-200' : ''}
-                  `}
-                >
-                  <b className={`text-2xl font-bold leading-none ${!n ? 'text-emerald-600' : isCrit ? 'text-red-600' : 'text-amber-600'}`}>{n}</b>
-                  <span className="text-[11px] font-medium text-slate-600 leading-tight">{a.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
+
 
         {/* Modules Hub */}
         <section className="bg-white border border-slate-200 rounded-xl p-4 md:p-5 shadow-sm">

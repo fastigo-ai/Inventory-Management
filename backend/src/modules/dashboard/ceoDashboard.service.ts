@@ -113,9 +113,24 @@ export const buildCeoDashboardSummary = async (filters: any) => {
   ]);
   const totalPurchaseValue = poAgg[0]?.totalValue || 0;
 
+  const piLineItemQuery: any = {};
+  if (pkgFilters) piLineItemQuery["lineItems.package"] = { $in: pkgFilters };
+  if (circleFilters) piLineItemQuery["lineItems.circle"] = { $in: circleFilters };
+  if (subCircleFilters) {
+    piLineItemQuery.$and = [{
+      $or: [
+        { "lineItems.subcircle": { $in: subCircleFilters } },
+        { "lineItems.subCircle": { $in: subCircleFilters } }
+      ]
+    }];
+  }
+  if (Object.keys(dateQuery).length > 0) piLineItemQuery.createdAt = dateQuery;
+
   const piAgg = await PurchaseInvoice.aggregate([
-    { $match: { ...baseQuery, status: { $ne: 'Cancelled' } } },
-    { $group: { _id: null, totalValue: { $sum: "$total" }, totalQty: { $sum: "$totalInventory" } } }
+    { $match: { status: { $ne: 'Cancelled' } } },
+    { $unwind: "$lineItems" },
+    { $match: piLineItemQuery },
+    { $group: { _id: null, totalValue: { $sum: "$total" }, totalQty: { $sum: "$lineItems.quantity" } } }
   ]);
   const totalPIValue = piAgg[0]?.totalValue || 0;
   const totalPIQty = piAgg[0]?.totalQty || 0;
@@ -152,8 +167,23 @@ export const buildCeoDashboardSummary = async (filters: any) => {
   const diTotal = await DI.countDocuments({ ...baseQuery, status: { $ne: 'Cancelled' } });
   const diCompleted = await DI.countDocuments({ ...baseQuery, status: 'Active' });
   
-  const piTotal = await PurchaseInvoice.countDocuments({ ...baseQuery, status: { $ne: 'Cancelled' } });
-  const piCompleted = await PurchaseInvoice.countDocuments({ ...baseQuery, status: 'Cleared' });
+  const piCountAgg = await PurchaseInvoice.aggregate([
+    { $match: { status: { $ne: 'Cancelled' } } },
+    { $unwind: "$lineItems" },
+    { $match: piLineItemQuery },
+    { $group: { _id: "$_id" } },
+    { $count: "count" }
+  ]);
+  const piTotal = piCountAgg[0]?.count || 0;
+  
+  const piCompletedAgg = await PurchaseInvoice.aggregate([
+    { $match: { status: 'Cleared' } },
+    { $unwind: "$lineItems" },
+    { $match: piLineItemQuery },
+    { $group: { _id: "$_id" } },
+    { $count: "count" }
+  ]);
+  const piCompleted = piCompletedAgg[0]?.count || 0;
   
   const inwardTotal = await StoreInwardEntry.countDocuments({ ...baseQuery, status: { $ne: 'Voided' } });
   const inwardCompleted = await StoreInwardEntry.countDocuments({ ...baseQuery, status: { $in: ['Approved', 'Verified'] } });

@@ -277,11 +277,20 @@ export const buildCeoDashboardSummary = async (filters: any) => {
   };
 
   circleInwards.forEach(c => {
-    const circleKey = initCircle(c._id.circle);
-    const sub = c._id.subCircle;
-    if (sub) {
-      const subKey = sub.trim().toUpperCase();
-      const displaySubName = sub.trim().charAt(0).toUpperCase() + sub.trim().slice(1).toLowerCase();
+    let rawCircle = c._id.circle;
+    let rawSub = c._id.subCircle;
+    
+    // Auto-correct bad database records where SubCircle is mistakenly entered as Circle
+    const cUpper = (rawCircle || '').trim().toUpperCase();
+    if (cUpper === 'KUMARHATTI' || cUpper === 'NALAGARH') {
+      rawCircle = 'Solan';
+      if (!rawSub) rawSub = cUpper === 'KUMARHATTI' ? 'Kumarhatti' : 'Nalagarh';
+    }
+
+    const circleKey = initCircle(rawCircle);
+    if (rawSub) {
+      const subKey = rawSub.trim().toUpperCase();
+      const displaySubName = rawSub.trim().charAt(0).toUpperCase() + rawSub.trim().slice(1).toLowerCase();
       if (!circlesMap[circleKey].subCircles[subKey]) circlesMap[circleKey].subCircles[subKey] = { name: displaySubName, totalQty: 0, issuedQty: 0, progress: 0 };
       circlesMap[circleKey].subCircles[subKey].totalQty += c.totalQty;
     }
@@ -289,11 +298,20 @@ export const buildCeoDashboardSummary = async (filters: any) => {
   });
 
   circleIssued.forEach(c => {
-    const circleKey = initCircle(c._id.circle);
-    const sub = c._id.subCircle;
-    if (sub) {
-      const subKey = sub.trim().toUpperCase();
-      const displaySubName = sub.trim().charAt(0).toUpperCase() + sub.trim().slice(1).toLowerCase();
+    let rawCircle = c._id.circle;
+    let rawSub = c._id.subCircle;
+    
+    // Auto-correct bad database records where SubCircle is mistakenly entered as Circle
+    const cUpper = (rawCircle || '').trim().toUpperCase();
+    if (cUpper === 'KUMARHATTI' || cUpper === 'NALAGARH') {
+      rawCircle = 'Solan';
+      if (!rawSub) rawSub = cUpper === 'KUMARHATTI' ? 'Kumarhatti' : 'Nalagarh';
+    }
+
+    const circleKey = initCircle(rawCircle);
+    if (rawSub) {
+      const subKey = rawSub.trim().toUpperCase();
+      const displaySubName = rawSub.trim().charAt(0).toUpperCase() + rawSub.trim().slice(1).toLowerCase();
       if (!circlesMap[circleKey].subCircles[subKey]) circlesMap[circleKey].subCircles[subKey] = { name: displaySubName, totalQty: 0, issuedQty: 0, progress: 0 };
       circlesMap[circleKey].subCircles[subKey].issuedQty += c.issuedQty;
     }

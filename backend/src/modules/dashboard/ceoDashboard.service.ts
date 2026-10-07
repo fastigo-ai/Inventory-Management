@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { PurchaseOrder } from '../purchases/purchaseOrder.schema';
 import { StoreInwardEntry } from '../store/storeInwardEntry.schema';
+import { StoreTransfer } from '../store/storeTransfer.schema';
 import { ContractorAssignment } from '../contractors/contractorAssignment.schema';
 import { WipRegister } from '../wip/wip.schema';
 import { Mhrov } from '../store/mhrov.schema';
@@ -70,6 +71,34 @@ export const buildCeoDashboardSummary = async (filters: any) => {
     { $group: { _id: null, totalInwardQty: { $sum: "$totalQty" } } }
   ]);
   const totalInwardQty = inwardAgg[0]?.totalInwardQty || 0;
+
+  // Transfer IN / OUT
+  const transferInMatch: any = { status: 'RECEIVED' };
+  if (circleFilters) transferInMatch.toStore = { $in: circleFilters };
+  if (subCircleFilters) transferInMatch.toStore = { $in: subCircleFilters }; // fallback assuming toStore holds subcircle sometimes
+  if (dateQuery && Object.keys(dateQuery).length) transferInMatch.createdAt = dateQuery;
+
+  const tiAgg = await StoreTransfer.aggregate([
+    { $match: transferInMatch },
+    { $unwind: "$items" },
+    { $group: { _id: null, qty: { $sum: "$items.receivedQty" } } }
+  ]);
+  const totalTransferInQty = tiAgg[0]?.qty || 0;
+
+  const transferOutMatch: any = { status: { $in: ['IN_TRANSIT', 'RECEIVED'] } };
+  if (circleFilters) transferOutMatch.fromStore = { $in: circleFilters };
+  if (subCircleFilters) transferOutMatch.fromStore = { $in: subCircleFilters };
+  if (dateQuery && Object.keys(dateQuery).length) transferOutMatch.createdAt = dateQuery;
+
+  const toAgg = await StoreTransfer.aggregate([
+    { $match: transferOutMatch },
+    { $unwind: "$items" },
+    { $group: { _id: null, qty: { $sum: "$items.dispatchedQty" } } }
+  ]);
+  const totalTransferOutQty = toAgg[0]?.qty || 0;
+
+  const availableStock = totalInwardQty + totalTransferInQty - totalIssuedQty - totalTransferOutQty;
+
 
   const mhrovAgg = await Mhrov.aggregate([
     { $match: baseQuery },
@@ -151,18 +180,34 @@ export const buildCeoDashboardSummary = async (filters: any) => {
   // Client Billing
   const clientBillAgg = await ClientBill.aggregate([
     { $match: baseQuery },
-    { $group: { _id: "$status", totalValue: { $sum: "$grandTotal" } } }
+    { $group: { _id: { status: "$status", type: "$billType" }, totalValue: { $sum: "$grandTotal" } } }
   ]);
   let supplyBilled = 0;
+  let erectionBilled = 0;
   let supplyPending = 0;
+  let erectionPending = 0;
   clientBillAgg.forEach(b => {
-    if (b._id === 'Approved') supplyBilled += b.totalValue;
-    else supplyPending += b.totalValue;
+    if (b._id.status === 'Approved') {
+      if (b._id.type === 'Supply') supplyBilled += b.totalValue;
+      else if (b._id.type === 'Erection') erectionBilled += b.totalValue;
+    } else {
+      if (b._id.type === 'Supply') supplyPending += b.totalValue;
+      else if (b._id.type === 'Erection') erectionPending += b.totalValue;
+    }
   });
+
+  const woAgg = await ContractorWorkOrder.aggregate([
+    { $match: { ...baseQuery, status: { $ne: 'Cancelled' } } },
+    { $group: { _id: null, totalValue: { $sum: "$totalWoAmount" }, count: { $sum: 1 } } }
+  ]);
+  const totalWoValue = woAgg[0]?.totalValue || 0;
+  const woCount = woAgg[0]?.count || 0;
 
   // Workflow Timeline Counts
   const poTotal = await PurchaseOrder.countDocuments({ ...baseQuery, status: { $ne: 'Cancelled' } });
   const poCompleted = await PurchaseOrder.countDocuments({ ...baseQuery, status: 'Sent' });
+  const poPending = await PurchaseOrder.countDocuments({ ...baseQuery, status: 'Pending' });
+  const poCleared = await PurchaseOrder.countDocuments({ ...baseQuery, status: 'Cleared' });
   
   const diTotal = await DI.countDocuments({ ...baseQuery, status: { $ne: 'Cancelled' } });
   const diCompleted = await DI.countDocuments({ ...baseQuery, status: 'Active' });
@@ -382,15 +427,21 @@ export const buildCeoDashboardSummary = async (filters: any) => {
 
   return {
     kpis: {
-      physicalStock: totalInwardQty,
+      physicalStock: availableStock, // Changed to available stock
       materialIssued: totalIssuedQty,
       jmcConsumed: totalJmcQty,
       wip: totalWipQty,
-      totalBillingValue: (contractorBilled + supplyBilled) / 10000000,
-      pendingBilling: (contractorPending + supplyPending) / 10000000,
+      totalBillingValue: (supplyBilled + erectionBilled) / 10000000,
+      pendingBilling: (supplyPending + erectionPending) / 10000000,
+      supplyBilled: supplyBilled / 10000000,
+      erectionBilled: erectionBilled / 10000000,
       piValue: totalPIValue,
       piCount: piTotal,
-      piQty: totalPIQty
+      piQty: totalPIQty,
+      woCount,
+      totalWoValue: totalWoValue / 10000000,
+      poPending,
+      poCleared
     },
     charts: {
       physicalStockProgress: [

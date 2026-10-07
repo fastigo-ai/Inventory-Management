@@ -158,7 +158,13 @@ export default function OperationsHub() {
   const [f, setF] = useState({ circle: 'All', pkg: 'All', code: 'All', name: '', date: 'all', status: 'all' });
   const [q, setQ] = useState('');
 
-  const [realPiData, setRealPiData] = useState({ count: 0, val: 0, qty: 0 });
+  const [apiKpis, setApiKpis] = useState({ 
+    piCount: 0, val: 0, qty: 0, 
+    availableStock: 0,
+    woCount: 0, totalWoValue: 0,
+    supplyBilled: 0, erectionBilled: 0,
+    poPending: 0, poCleared: 0
+  });
 
   useEffect(() => {
     setItems(BASE.map(build));
@@ -172,10 +178,17 @@ export default function OperationsHub() {
     
     fetchCeoDashboardData(filters).then((res: any) => {
       if (!active) return;
-      setRealPiData({
-        count: res?.kpis?.piCount || 0,
+      setApiKpis({
+        piCount: res?.kpis?.piCount || 0,
         val: res?.kpis?.piValue || 0,
-        qty: res?.kpis?.piQty || 0
+        qty: res?.kpis?.piQty || 0,
+        availableStock: res?.kpis?.physicalStock || 0,
+        woCount: res?.kpis?.woCount || 0,
+        totalWoValue: res?.kpis?.totalWoValue || 0,
+        supplyBilled: res?.kpis?.supplyBilled || 0,
+        erectionBilled: res?.kpis?.erectionBilled || 0,
+        poPending: res?.kpis?.poPending || 0,
+        poCleared: res?.kpis?.poCleared || 0,
       });
     }).catch(console.error);
     
@@ -350,11 +363,11 @@ export default function OperationsHub() {
         {/* KPIs */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {[
-            { t: 'Total Purchase Invoices', v: realPiData.qty.toLocaleString(), sub: `₹${cr(realPiData.val)} Cr`, tag: `${realPiData.count} Invoices`, color: 'text-indigo-700 bg-indigo-50', ex: 'pi' },
-            { t: 'Available Stock', v: inr(stock), sub: `${filteredItems.length} SKUs`, tag: low ? `${low} Low stock` : 'Healthy', color: low ? 'text-red-700 bg-red-50' : 'text-emerald-700 bg-emerald-50', ex: 'item' },
-            { t: 'Active Work Orders', v: wos.size, sub: `₹${cr(woVal)} Cr target`, tag: `${avg}% avg progress`, color: 'text-blue-700 bg-blue-50', ex: 'wo' },
-            { t: 'Total RA Billing', v: `₹${cr(ra)} Cr`, sub: `Supply ₹${cr(sup)} Cr`, tag: `${inv} invoices`, color: 'text-purple-700 bg-purple-50', ex: 'cbill' },
-            { t: 'Pending Approvals', v: pend, sub: `${clr} cleared`, tag: pend ? 'Urgent action' : 'All clear', color: pend ? 'text-amber-700 bg-amber-50' : 'text-emerald-700 bg-emerald-50', ex: 'po' },
+            { t: 'Total Purchase Invoices', v: apiKpis.qty.toLocaleString(), sub: `₹${cr(apiKpis.val)} Cr`, tag: `${apiKpis.piCount} Invoices`, color: 'text-indigo-700 bg-indigo-50', ex: 'pi' },
+            { t: 'Available Stock', v: apiKpis.availableStock.toLocaleString(), sub: ``, tag: low ? `${low} Low stock` : 'Healthy', color: low ? 'text-red-700 bg-red-50' : 'text-emerald-700 bg-emerald-50', ex: 'item' },
+            { t: 'Active Work Orders', v: apiKpis.woCount, sub: `₹${apiKpis.totalWoValue.toFixed(2)} Cr target`, tag: `${avg}% avg progress`, color: 'text-blue-700 bg-blue-50', ex: 'wo' },
+            { t: 'Total RA Billing', v: `₹${(apiKpis.supplyBilled + apiKpis.erectionBilled).toFixed(2)} Cr`, sub: `Supply ₹${apiKpis.supplyBilled.toFixed(2)} Cr • Erection ₹${apiKpis.erectionBilled.toFixed(2)} Cr`, tag: `Client Bills`, color: 'text-purple-700 bg-purple-50', ex: 'cbill' },
+            { t: 'Pending Approvals', v: apiKpis.poPending, sub: `${apiKpis.poCleared} cleared`, tag: apiKpis.poPending ? 'Urgent action' : 'All clear', color: apiKpis.poPending ? 'text-amber-700 bg-amber-50' : 'text-emerald-700 bg-emerald-50', ex: 'po' },
           ].map((k, i) => (
             <div key={i} className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm flex flex-col justify-between">
               <div>

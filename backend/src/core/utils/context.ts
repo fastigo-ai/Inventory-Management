@@ -13,6 +13,7 @@ export interface RequestContext {
   transactionId?: string;
   route?: string;
   method?: string;
+  moduleName?: string;
 }
 
 export const requestContext = new AsyncLocalStorage<RequestContext>();

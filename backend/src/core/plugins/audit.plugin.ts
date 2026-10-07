@@ -121,7 +121,7 @@ export function auditPlugin(schema: Schema, options: AuditPluginOptions = {}) {
         entityType,
         entityId: docId,
         action,
-        module: moduleName || entityType,
+        module: moduleName || ctx?.moduleName || entityType,
         requestId: ctx?.requestId,
         transactionId: ctx?.transactionId,
         performedBy,

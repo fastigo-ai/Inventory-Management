@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { requestContext, RequestContext } from '../utils/context';
+import { getModuleNameFromRoute } from '../utils/routeMapper';
 import crypto from 'crypto';
 
 export const contextMiddleware = (req: Request, res: Response, next: NextFunction) => {
@@ -30,6 +31,7 @@ export const contextMiddleware = (req: Request, res: Response, next: NextFunctio
     transactionId,
     route: req.originalUrl,
     method: req.method,
+    moduleName: getModuleNameFromRoute(req.originalUrl, req.method),
   };
 
   requestContext.run(context, () => {

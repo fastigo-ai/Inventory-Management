@@ -209,7 +209,7 @@ export default function OperationsHub() {
             d.circle || 'Unknown', 
             'Nos', 
             150, 
-            d.loaQty || 10, 
+            d.loaQty || 0, 
             Math.max(0, (d.invQty || 0) - (d.actQty || 0)),
             d.tempCode || '',
             d

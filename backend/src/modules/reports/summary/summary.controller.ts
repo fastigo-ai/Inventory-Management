@@ -123,6 +123,14 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
         billedQty: { $sum: "$billedQty" }
       }
     },
+    { $lookup: {
+        from: 'items',
+        localField: 'itemId',
+        foreignField: '_id',
+        as: 'masterItem'
+      }
+    },
+    { $unwind: { path: '$masterItem', preserveNullAndEmptyArrays: true } },
     { $project: {
         _id: 0,
         itemId: 1,
@@ -131,13 +139,57 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
         package: "$_id.package",
         loaSerialNo: 1,
         tempCode: 1,
-        loaQty: 1,
-        bomQty: 1,
         diQty: 1,
         invQty: 1,
         actQty: 1,
         srtQty: 1,
-        billedQty: 1
+        billedQty: 1,
+        loaQty: {
+          $let: {
+            vars: { c: { $toLower: "$_id.circle" } },
+            in: {
+              $convert: {
+                input: {
+                  $switch: {
+                    branches: [
+                      { case: { $eq: ["$$c", "solan"] }, then: "$masterItem.dynamicData.solanLoaQuantity" },
+                      { case: { $eq: ["$$c", "nahan"] }, then: "$masterItem.dynamicData.nahanLoaQuantity" },
+                      { case: { $eq: ["$$c", "rampur"] }, then: "$masterItem.dynamicData.rampurLoaQuantity" },
+                      { case: { $eq: ["$$c", "rohru"] }, then: "$masterItem.dynamicData.rohruLoaQuantity" }
+                    ],
+                    default: "$masterItem.dynamicData.loaQuantity"
+                  }
+                },
+                to: "double",
+                onError: { $ifNull: ["$loaQty", 0] },
+                onNull: { $ifNull: ["$loaQty", 0] }
+              }
+            }
+          }
+        },
+        bomQty: {
+          $let: {
+            vars: { c: { $toLower: "$_id.circle" } },
+            in: {
+              $convert: {
+                input: {
+                  $switch: {
+                    branches: [
+                      { case: { $eq: ["$$c", "solan"] }, then: "$masterItem.dynamicData.solanBomQuantity" },
+                      { case: { $eq: ["$$c", "nahan"] }, then: "$masterItem.dynamicData.nahanBomQuantity" },
+                      { case: { $eq: ["$$c", "rampur"] }, then: "$masterItem.dynamicData.rampurBomQuantity" },
+                      { case: { $eq: ["$$c", "rohru"] }, then: "$masterItem.dynamicData.rohruBomQuantity" }
+                    ],
+                    default: "$masterItem.dynamicData.bomQuantity"
+                  }
+                },
+                to: "double",
+                onError: { $ifNull: ["$bomQty", 0] },
+                onNull: { $ifNull: ["$bomQty", 0] }
+              }
+            }
+          }
+        }
       }
     },
     { $addFields: {

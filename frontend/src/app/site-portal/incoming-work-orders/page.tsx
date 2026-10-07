@@ -1,13 +1,20 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useEffect, useState, Suspense } from 'react';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { Plus, Search, Filter, Layers, FileText, ChevronRight, CheckCircle } from 'lucide-react';
 import { getContractorWorkOrders, updateContractorWorkOrderStatus } from '@/features/contractors/api/contractorWorkOrder.api';
 import { toast } from 'sonner';
+import { DataTableBottomControls } from '@/shared/components/DataTableControls';
 
-export default function IncomingWorkOrdersPage() {
+function IncomingWorkOrdersContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  
+  const page = parseInt(searchParams.get('page') || '1', 10);
+  const [pagination, setPagination] = useState({ totalItems: 0, totalPages: 1, limit: 50 });
+
   const [workOrders, setWorkOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -38,10 +45,20 @@ export default function IncomingWorkOrdersPage() {
         search, 
         circle: selectedCircle, 
         division: selectedDivision,
-        status: 'Approved,Site Approved'
+        status: 'Approved,Site Approved',
+        page,
+        limit: pagination.limit
       });
       if (res.success) {
         setWorkOrders(res.data?.data || []);
+        if (res.data?.pagination) {
+          setPagination(prev => ({
+            ...prev,
+            totalItems: res.data.pagination.totalItems || 0,
+            totalPages: res.data.pagination.totalPages || 1,
+            limit: res.data.pagination.limit || 50
+          }));
+        }
       }
     } catch (error) {
       toast.error('Failed to load work orders');
@@ -52,7 +69,7 @@ export default function IncomingWorkOrdersPage() {
 
   useEffect(() => {
     fetchWorkOrders();
-  }, [search, selectedCircle, selectedDivision]);
+  }, [search, selectedCircle, selectedDivision, page]);
 
   const handleApprove = async (id: string) => {
     try {
@@ -83,6 +100,7 @@ export default function IncomingWorkOrdersPage() {
             onChange={(e) => {
               setSelectedCircle(e.target.value);
               setSelectedDivision(''); // Reset division when circle changes
+              if (page !== 1) router.replace(`${pathname}?page=1`);
             }}
             className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500 bg-white"
           >
@@ -95,7 +113,10 @@ export default function IncomingWorkOrdersPage() {
           <label className="block text-[13px] font-semibold text-slate-800 mb-1">Division</label>
           <select
             value={selectedDivision}
-            onChange={(e) => setSelectedDivision(e.target.value)}
+            onChange={(e) => {
+              setSelectedDivision(e.target.value);
+              if (page !== 1) router.replace(`${pathname}?page=1`);
+            }}
             disabled={!selectedCircle || getDivisions(selectedCircle).length === 0}
             className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500 bg-white disabled:bg-slate-50 disabled:text-slate-500"
           >
@@ -112,7 +133,10 @@ export default function IncomingWorkOrdersPage() {
               type="text"
               placeholder="Search WO Number..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                if (page !== 1) router.replace(`${pathname}?page=1`);
+              }}
               className="w-full pl-9 pr-4 py-2 rounded-md border border-slate-200 focus:outline-none focus:border-indigo-500 text-sm"
             />
           </div>
@@ -191,7 +215,26 @@ export default function IncomingWorkOrdersPage() {
             </tbody>
           </table>
         </div>
+        <DataTableBottomControls
+          currentPage={page}
+          setCurrentPage={(newPage) => {
+            const params = new URLSearchParams(searchParams.toString());
+            params.set('page', newPage.toString());
+            router.push(`${pathname}?${params.toString()}`);
+          }}
+          totalPages={pagination.totalPages}
+          pageSize={pagination.limit}
+          totalItems={pagination.totalItems}
+        />
       </div>
     </div>
+  );
+}
+
+export default function IncomingWorkOrdersPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-slate-500">Loading incoming work orders...</div>}>
+      <IncomingWorkOrdersContent />
+    </Suspense>
   );
 }

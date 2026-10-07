@@ -165,7 +165,8 @@ export default function OperationsHub() {
     availableStock: 0,
     woCount: 0, totalWoValue: 0,
     supplyBilled: 0, erectionBilled: 0,
-    poPending: 0, poCleared: 0
+    poPending: 0, poCleared: 0,
+    workflow: {} as any
   });
 
   useEffect(() => {
@@ -213,6 +214,7 @@ export default function OperationsHub() {
         erectionBilled: res?.kpis?.erectionBilled || 0,
         poPending: res?.kpis?.poPending || 0,
         poCleared: res?.kpis?.poCleared || 0,
+        workflow: res?.workflow || {}
       });
     }).catch(console.error);
     
@@ -470,7 +472,7 @@ export default function OperationsHub() {
                         <button key={s.id} onClick={() => handleSubClick(s.id)} className={`flex items-center justify-between w-full p-2 text-left text-xs font-bold rounded-lg transition-colors ${isSubOn ? theme.active : 'hover:bg-slate-50 text-slate-700'}`}>
                           <span>{s.name}</span>
                           <span className={`min-w-[20px] h-5 rounded-full flex items-center justify-center text-[10px] px-1.5 ${isSubOn ? 'bg-white/20 text-white' : theme.bg + ' ' + theme.text}`}>
-                            {filteredItems.filter(i => i.d[s.id]).length}
+                            {apiKpis.workflow?.[s.id === 'cbill' || s.id === 'kbill' ? 'billing' : s.id]?.total ?? filteredItems.filter(i => i.d[s.id]).length}
                           </span>
                         </button>
                       );

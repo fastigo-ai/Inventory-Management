@@ -64,6 +64,7 @@ function build(b: any, i: number) {
     unit: b[4], 
     rate: b[5], 
     loa: b[6], 
+    bom: db.bomQty || 0,
     stock: b[7],
     date: Date.now()
   };
@@ -117,7 +118,7 @@ const MODS = [
 ];
 
 const SUBS = [
-  { id: 'item', m: 'm1', name: 'Item Master', cols: [['unit', 'Unit', 'text'], ['rate', 'Unit rate (₹)', 'money'], ['loa', 'LOA quantity', 'qty'], ['stock', 'Available stock', 'stock']] },
+  { id: 'item', m: 'm1', name: 'Item Master', cols: [['unit', 'Unit', 'text'], ['rate', 'Unit rate (₹)', 'money'], ['stock', 'Available stock', 'stock']] },
   { id: 'po', m: 'm1', name: 'Purchase Order (PO)', cols: [['no', 'PO no.', 'code'], ['date', 'PO date', 'date'], ['qty', 'PO qty', 'qty'], ['val', 'PO value (₹)', 'money'], ['status', 'PO status', 'status']] },
   { id: 'di', m: 'm1', name: 'Dispatch Instruction (DI)', cols: [['no', 'DI no.', 'code'], ['qty', 'Dispatched qty', 'qty'], ['date', 'DI date', 'date']] },
   { id: 'pi', m: 'm1', name: 'Purchase Invoice (PI)', cols: [['no', 'Invoice no.', 'code'], ['amt', 'Invoice amount (₹)', 'money'], ['status', 'Payment', 'status']] },
@@ -136,9 +137,11 @@ const SUBS = [
 ];
 
 const STATIC = [
-  { id: 'sr', label: 'Sr. No.', type: 'sr', cls: 'text-center sticky left-0 z-10 bg-white min-w-[64px]' },
-  { id: 'code', label: 'Temp code', type: 'tcode', cls: 'sticky left-[64px] z-10 bg-white min-w-[112px]' },
-  { id: 'name', label: 'Item name', type: 'name', cls: 'sticky left-[176px] z-10 bg-white min-w-[260px] max-w-[300px] border-r border-slate-200' },
+  { id: 'sr', label: 'Sr. No.', type: 'sr', cls: 'text-center sticky left-0 z-10 bg-white min-w-[64px] max-w-[64px]' },
+  { id: 'code', label: 'Temp code', type: 'tcode', cls: 'sticky left-[64px] z-10 bg-white min-w-[112px] max-w-[112px]' },
+  { id: 'name', label: 'Item name', type: 'name', cls: 'sticky left-[176px] z-10 bg-white min-w-[260px] max-w-[260px]' },
+  { id: 'loa', label: 'LOA qty', type: 'qty', cls: 'sticky left-[436px] z-10 bg-white min-w-[100px] max-w-[100px]' },
+  { id: 'bom', label: 'BOM qty', type: 'qty', cls: 'sticky left-[536px] z-10 bg-white min-w-[100px] max-w-[100px] border-r border-slate-200' },
   { id: 'pkg', label: 'Package', type: 'text', cls: '' },
   { id: 'circle', label: 'Circle', type: 'text', cls: '' },
   { id: 'flags', label: 'Flags', type: 'flags', cls: '' }
@@ -147,7 +150,7 @@ const STATIC = [
 const VIEWS = [
   { id: 'overview', name: 'CEO overview', sel: ['item', 'po', 'wo', 'cbill'], keep: ['item.stock', 'po.val', 'po.status', 'wo.prog', 'cbill.amt'] },
   { id: 'money', name: 'Money: orders & billing', sel: ['po', 'pi', 'cbill', 'kbill'], keep: ['po.val', 'po.status', 'pi.amt', 'pi.status', 'cbill.amt', 'kbill.amt', 'kbill.status'] },
-  { id: 'stock', name: 'Stock position', sel: ['item', 'receipt', 'min', 'outward'], keep: ['item.unit', 'item.loa', 'item.stock', 'receipt.qty', 'min.qty', 'outward.qty'] },
+  { id: 'stock', name: 'Stock position', sel: ['item', 'receipt', 'min', 'outward'], keep: ['item.unit', 'item.stock', 'receipt.qty', 'min.qty', 'outward.qty'] },
   { id: 'site', name: 'Site progress', sel: ['wo', 'dn', 'mrhov'], keep: null },
   { id: 'all', name: 'Everything', sel: SUBS.map(s => s.id), keep: null }
 ];

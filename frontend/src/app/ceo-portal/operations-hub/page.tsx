@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Download, ChevronLeft, ChevronRight, Search, X, SlidersHorizontal, ArrowUpRight, CheckCircle2, AlertTriangle, XCircle, Info } from 'lucide-react';
 import { fetchCeoDashboardData } from '@/features/ceo-portal/api/dashboard.api';
+import { api } from '@/shared/api/axios';
 
 // --- UTILS & DATA GENERATOR ---
 const DAY = 864e5;
@@ -52,7 +53,7 @@ const BASE: any[] = [
 
 function build(b: any, i: number) {
   const r = rng(i * 977 + 13);
-  const it: any = { sr: i + 1, code: 'TC-' + (1001 + i), name: b[0], cat: b[1], pkg: b[2], circle: b[3], unit: b[4], rate: b[5], loa: b[6], stock: b[7] };
+  const it: any = { sr: i + 1, code: b[8] || ('TC-' + (1001 + i)), name: b[0], cat: b[1], pkg: b[2], circle: b[3], unit: b[4], rate: b[5], loa: b[6], stock: b[7] };
   const poDate = TODAY - Math.floor(r() * 280) * DAY, s = r();
   const status = s < .5 ? 'Approved' : s < .75 ? 'Cleared' : 'Pending';
   const poQty = Math.max(1, Math.round(it.loa * (.3 + r() * .7))), poVal = poQty * it.rate;
@@ -63,15 +64,16 @@ function build(b: any, i: number) {
   d.di = r() < .85 ? { no: 'DI-' + (2200 + i), qty: diQty, date: poDate + (7 + Math.floor(r() * 20)) * DAY } : null;
   const piAmt = Math.round(poVal * (.3 + r() * .6));
   d.pi = r() < .8 ? { no: 'PI-' + (5100 + i), amt: piAmt, status: r() < .6 ? 'Paid' : 'Due' } : null;
-  d.store = { depot: DEPOT[it.circle], reorder: Math.round(it.loa * .15) };
+  d.store = { depot: DEPOT[it.circle] || (it.circle + ' Central'), reorder: Math.round(it.loa * .15) };
   const rcv = Math.round(diQty * .9);
   d.receipt = d.di ? { no: 'GRN-' + (7300 + i), qty: rcv } : null;
   d.inward = d.receipt ? { qty: rcv, date: d.di.date + (2 + Math.floor(r() * 5)) * DAY } : null;
   d.min = r() < .8 ? { no: 'MIN-' + (4100 + i), qty: Math.round(it.stock * (.2 + r() * .4)) } : null;
   d.cret = r() < .4 ? { qty: Math.max(1, Math.round(it.stock * .05 * (1 + r()))) } : null;
   d.outward = r() < .75 ? { qty: Math.round(it.stock * (.15 + r() * .3)) } : null;
-  d.inter = r() < .45 ? { qty: Math.max(1, Math.round(it.stock * .1)), route: DEPOT[it.circle].split(' ')[0] + ' → ' + ['Jaipur', 'Pune', 'Indore', 'Lucknow'][Math.floor(r() * 4)] } : null;
-  const wkey = it.pkg + '/' + CODE[it.circle], wr = rng(wkey.split('').reduce((a: any, c: any) => a * 31 + c.charCodeAt(0) | 0, 7));
+  const dptStr = DEPOT[it.circle] || (it.circle + ' Central');
+  d.inter = r() < .45 ? { qty: Math.max(1, Math.round(it.stock * .1)), route: dptStr.split(' ')[0] + ' → ' + ['Jaipur', 'Pune', 'Indore', 'Lucknow'][Math.floor(r() * 4)] } : null;
+  const wkey = it.pkg + '/' + (CODE[it.circle] || it.circle.slice(0,3).toUpperCase()), wr = rng(wkey.split('').reduce((a: any, c: any) => a * 31 + c.charCodeAt(0) | 0, 7));
   d.wo = r() < .9 ? { no: 'WO/' + wkey, val: Math.round(poVal * .4), prog: Math.round(25 + wr() * 70) } : null;
   d.dn = r() < .8 ? { no: 'DN-' + (3300 + i), qty: Math.round(poQty * .5) } : null;
   d.mrhov = r() < .7 ? { status: ['Cleared', 'Pending', 'Under review'][Math.floor(r() * 3)] } : null;
@@ -167,7 +169,29 @@ export default function OperationsHub() {
   });
 
   useEffect(() => {
-    setItems(BASE.map(build));
+    api.get('/reports/item-summary', { params: { limit: 100 } })
+      .then(res => {
+        if (res.data?.data?.items) {
+          const dbItems = res.data.data.items.map((d: any) => [
+            d.itemName || 'Unknown', 
+            'Materials', 
+            d.package || 'Unknown', 
+            d.circle || 'Unknown', 
+            'Nos', 
+            150, 
+            d.loaQty || 10, 
+            Math.max(0, (d.invQty || 0) - (d.actQty || 0)),
+            d.tempCode || ''
+          ]);
+          setItems(dbItems.map(build));
+        } else {
+          setItems(BASE.map(build));
+        }
+      })
+      .catch((err) => {
+        console.error('API FETCH ERROR:', err);
+        setItems(BASE.map(build));
+      });
   }, []);
 
   useEffect(() => {
@@ -206,7 +230,7 @@ export default function OperationsHub() {
   // Derived filters
   const circles = useMemo(() => ['All', ...Array.from(new Set(items.map(i => i.circle))).sort()], [items]);
   const pkgs = useMemo(() => ['All', ...Array.from(new Set(items.map(i => i.pkg))).sort()], [items]);
-  const codes = useMemo(() => ['All', ...items.map(i => i.code)], [items]);
+  const codes = useMemo(() => ['All', ...Array.from(new Set(items.map(i => i.code))).sort()], [items]);
 
   const filteredItems = useMemo(() => {
     const nm = f.name.trim().toLowerCase();
@@ -363,11 +387,11 @@ export default function OperationsHub() {
         {/* KPIs */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {[
-            { t: 'Total Purchase Invoices', v: apiKpis.qty.toLocaleString(), sub: `₹${cr(apiKpis.val)} Cr`, tag: `${apiKpis.piCount} Invoices`, color: 'text-indigo-700 bg-indigo-50', ex: 'pi' },
-            { t: 'Available Stock', v: apiKpis.availableStock.toLocaleString(), sub: ``, tag: low ? `${low} Low stock` : 'Healthy', color: low ? 'text-red-700 bg-red-50' : 'text-emerald-700 bg-emerald-50', ex: 'item' },
-            { t: 'Active Work Orders', v: apiKpis.woCount, sub: `₹${apiKpis.totalWoValue.toFixed(2)} Cr target`, tag: `${avg}% avg progress`, color: 'text-blue-700 bg-blue-50', ex: 'wo' },
-            { t: 'Total RA Billing', v: `₹${(apiKpis.supplyBilled + apiKpis.erectionBilled).toFixed(2)} Cr`, sub: `Supply ₹${apiKpis.supplyBilled.toFixed(2)} Cr • Erection ₹${apiKpis.erectionBilled.toFixed(2)} Cr`, tag: `Client Bills`, color: 'text-purple-700 bg-purple-50', ex: 'cbill' },
-            { t: 'Pending Approvals', v: apiKpis.poPending, sub: `${apiKpis.poCleared} cleared`, tag: apiKpis.poPending ? 'Urgent action' : 'All clear', color: apiKpis.poPending ? 'text-amber-700 bg-amber-50' : 'text-emerald-700 bg-emerald-50', ex: 'po' },
+            { t: 'Total Purchase Invoices', v: inv.toLocaleString(), sub: `₹${cr(sup)} Cr`, tag: `${inv} Invoices`, color: 'text-indigo-700 bg-indigo-50', ex: 'pi' },
+            { t: 'Available Stock', v: stock.toLocaleString(), sub: ``, tag: low ? `${low} Low stock` : 'Healthy', color: low ? 'text-red-700 bg-red-50' : 'text-emerald-700 bg-emerald-50', ex: 'item' },
+            { t: 'Active Work Orders', v: wos.size, sub: `₹${cr(woVal)} Cr target`, tag: `${avg}% avg progress`, color: 'text-blue-700 bg-blue-50', ex: 'wo' },
+            { t: 'Total RA Billing', v: `₹${cr(ra)} Cr`, sub: `Client Billed Value`, tag: `Client Bills`, color: 'text-purple-700 bg-purple-50', ex: 'cbill' },
+            { t: 'Pending Approvals', v: pend, sub: `${clr} cleared`, tag: pend ? 'Urgent action' : 'All clear', color: pend ? 'text-amber-700 bg-amber-50' : 'text-emerald-700 bg-emerald-50', ex: 'po' },
           ].map((k, i) => (
             <div key={i} className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm flex flex-col justify-between">
               <div>

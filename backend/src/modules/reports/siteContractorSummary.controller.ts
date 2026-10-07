@@ -42,12 +42,25 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
   
   const skuMap: Record<string, { tempCode: string, name: string }> = {};
   allItems.forEach(item => {
-    if (item.dynamicData?.sku) {
-      skuMap[item.dynamicData.sku] = {
-        tempCode: item.dynamicData.tempCode || '',
-        name: item.dynamicData.name || item.dynamicData.description || ''
+    const circle = String(item.dynamicData?.circle || '').trim().toLowerCase();
+    const skuVal = String(item.dynamicData?.sku || item.dynamicData?.loaSerialNo || item.dynamicData?.loaSrNo || '').trim().toLowerCase();
+    if (skuVal) {
+      skuMap[skuVal] = {
+        tempCode: item.dynamicData?.tempCode || '',
+        name: item.dynamicData?.name || item.dynamicData?.description || ''
       };
+      if (circle) {
+        skuMap[`${circle}_${skuVal}`] = {
+          tempCode: item.dynamicData?.tempCode || '',
+          name: item.dynamicData?.name || item.dynamicData?.description || ''
+        };
+      }
     }
+    // Also map by itemId as a fallback
+    skuMap[item._id.toString()] = {
+      tempCode: item.dynamicData?.tempCode || '',
+      name: item.dynamicData?.name || item.dynamicData?.description || ''
+    };
   });
 
   // Find the relevant work orders to get the baseline items and quantities
@@ -63,17 +76,20 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
   // Helper to normalize activity strings for consistent matching
   const normalizeActivity = (act: string) => (act || '').replace(/\s+/g, '').toLowerCase();
 
-  const getOrAddRow = (itemIdStr: string, loaSrNo: string, tempCode: string | number, activity: string, itemName: string) => {
+  const getOrAddRow = (itemIdStr: string, loaSrNo: string, tempCode: string | number, activity: string, itemName: string, circle: string) => {
     const cleanLoa = String(loaSrNo || '').trim().toLowerCase();
     const cleanTemp = String(tempCode || '').trim().toLowerCase();
+    const cleanCircle = String(circle || '').trim().toLowerCase();
 
     const actKey = normalizeActivity(activity);
     
     let primaryKey = '';
-    if (cleanTemp) {
-      primaryKey = `${actKey}_temp_${cleanTemp}`;
+    if (cleanCircle && cleanLoa) {
+      primaryKey = `${actKey}_${cleanCircle}_loa_${cleanLoa}`;
     } else if (cleanLoa) {
       primaryKey = `${actKey}_loa_${cleanLoa}`;
+    } else if (cleanTemp) {
+      primaryKey = `${actKey}_temp_${cleanTemp}`;
     } else {
       primaryKey = itemIdStr;
     }
@@ -107,7 +123,7 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
        const sku = String(item.dynamicData?.sku || item.dynamicData?.loaSerialNo || item.dynamicData?.loaSrNo || '');
        const tempCode = String(item.dynamicData?.tempCode || '');
        const itemName = String(item.dynamicData?.name || item.dynamicData?.description || item.name || '');
-       getOrAddRow(itemIdStr, sku, tempCode, item.dynamicData?.activity || '', itemName);
+       getOrAddRow(itemIdStr, sku, tempCode, item.dynamicData?.activity || '', itemName, item.dynamicData?.circle || '');
     }
   });
 
@@ -115,7 +131,7 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
     wo.items.forEach((item: any) => {
       const itemIdStr = item.itemId?._id?.toString() || item.itemId?.toString();
       if (!itemIdStr) return;
-      const row = getOrAddRow(itemIdStr, item.loaSrNo, item.tempCode, item.activity, item.description || (item.itemId as any)?.name || '');
+      const row = getOrAddRow(itemIdStr, item.loaSrNo, item.tempCode, item.activity, item.description || (item.itemId as any)?.name || '', wo.circle || '');
       row.bomQty += (item.circleBomQty || 0);
       if (item.tempCode && !row.tempCode) row.tempCode = item.tempCode;
       if (item.activity && !row.activity) row.activity = item.activity;
@@ -151,11 +167,12 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
     record.items?.forEach((item: any) => {
       const itemIdStr = item.itemId?._id?.toString() || item.itemId?.toString();
       if (!itemIdStr) return;
-      const sku = String(item.loaSerialNo || item.loaSrNo || '');
-      const mapped = skuMap[sku];
+      const sku = String(item.loaSerialNo || item.loaSrNo || '').trim().toLowerCase();
+      const cleanCircle = String(record.circle || '').trim().toLowerCase();
+      const mapped = skuMap[`${cleanCircle}_${sku}`] || skuMap[sku] || skuMap[itemIdStr];
       const tempCode = item.tempCode || mapped?.tempCode || '';
       const name = item.description || mapped?.name || '';
-      const row = getOrAddRow(itemIdStr, sku, tempCode, item.activity, name);
+      const row = getOrAddRow(itemIdStr, String(item.loaSerialNo || item.loaSrNo || ''), tempCode, item.activity, name, record.circle || '');
       row.jmcDone += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
     });
   });
@@ -165,11 +182,12 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
     record.items?.forEach((item: any) => {
       const itemIdStr = item.itemId?._id?.toString() || item.itemId?.toString();
       if (!itemIdStr) return;
-      const sku = String(item.loaSerialNo || item.loaSrNo || '');
-      const mapped = skuMap[sku];
+      const sku = String(item.loaSerialNo || item.loaSrNo || '').trim().toLowerCase();
+      const cleanCircle = String(record.circle || '').trim().toLowerCase();
+      const mapped = skuMap[`${cleanCircle}_${sku}`] || skuMap[sku] || skuMap[itemIdStr];
       const tempCode = item.tempCode || mapped?.tempCode || '';
       const name = item.description || mapped?.name || '';
-      const row = getOrAddRow(itemIdStr, sku, tempCode, item.activity, name);
+      const row = getOrAddRow(itemIdStr, String(item.loaSerialNo || item.loaSrNo || ''), tempCode, item.activity, name, record.circle || '');
       row.wipConsumed += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
     });
   });
@@ -179,11 +197,12 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
     record.items?.forEach((item: any) => {
       const itemIdStr = item.itemId?._id?.toString() || item.itemId?.toString();
       if (!itemIdStr) return;
-      const sku = String(item.loaSerialNo || item.loaSrNo || '');
-      const mapped = skuMap[sku];
+      const sku = String(item.loaSerialNo || item.loaSrNo || '').trim().toLowerCase();
+      const cleanCircle = String(record.circle || '').trim().toLowerCase();
+      const mapped = skuMap[`${cleanCircle}_${sku}`] || skuMap[sku] || skuMap[itemIdStr];
       const tempCode = item.tempCode || mapped?.tempCode || '';
       const name = item.description || mapped?.name || '';
-      const row = getOrAddRow(itemIdStr, sku, tempCode, item.activity, name);
+      const row = getOrAddRow(itemIdStr, String(item.loaSerialNo || item.loaSrNo || ''), tempCode, item.activity, name, record.circle || '');
       row.wipRequired += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
     });
   });
@@ -193,7 +212,7 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
     assignment.lineItems?.forEach((item: any) => {
       const itemIdStr = item.itemId?._id?.toString() || item.itemId?.toString();
       if (!itemIdStr) return;
-      const row = getOrAddRow(itemIdStr, '', item.tempCode, item.activity, item.itemName);
+      const row = getOrAddRow(itemIdStr, item.loaSrNo || '', item.tempCode, item.activity, item.itemName, assignment.circle || '');
       row.totalIssued += (Number(item.quantity) || 0);
     });
   });
@@ -203,7 +222,7 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
     ret.lineItems?.forEach((item: any) => {
       const itemIdStr = item.itemId?._id?.toString() || item.itemId?.toString();
       if (!itemIdStr) return;
-      const row = getOrAddRow(itemIdStr, '', item.tempCode, item.activity, item.itemName);
+      const row = getOrAddRow(itemIdStr, item.loaSrNo || '', item.tempCode, item.activity, item.itemName, ret.circle || '');
       row.totalReturned += (Number(item.quantity) || 0);
     });
   });

@@ -326,57 +326,6 @@ export default function OperationsHub() {
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-12 font-sans">
       <div className="max-w-[1400px] mx-auto p-4 md:p-6 space-y-6">
         
-        {/* Filters */}
-        <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xs font-bold tracking-widest uppercase text-slate-500 flex items-center gap-2">
-              <SlidersHorizontal className="w-4 h-4" /> Global Telemetry Filters
-            </h2>
-            <button 
-              onClick={() => { setF({ circle: 'All', pkg: 'All', code: 'All', name: '', date: 'all', status: 'all' }); setQ(''); setPage(1); }}
-              className="text-indigo-600 text-sm font-semibold hover:text-indigo-700"
-            >
-              Reset filters
-            </button>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <label className="flex flex-col gap-1.5"><span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Circle</span>
-              <select className="h-9 w-full rounded-md border border-slate-200 bg-slate-50 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" value={f.circle} onChange={e => setF({...f, circle: e.target.value})}>
-                {circles.map(c => <option key={c}>{c}</option>)}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1.5"><span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Package</span>
-              <select className="h-9 w-full rounded-md border border-slate-200 bg-slate-50 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" value={f.pkg} onChange={e => setF({...f, pkg: e.target.value})}>
-                {pkgs.map(c => <option key={c}>{c}</option>)}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1.5"><span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Temp Code</span>
-              <select className="h-9 w-full rounded-md border border-slate-200 bg-slate-50 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" value={f.code} onChange={e => setF({...f, code: e.target.value})}>
-                {codes.map(c => <option key={c}>{c}</option>)}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1.5"><span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Item Name</span>
-              <input type="search" placeholder="Search..." className="h-9 w-full rounded-md border border-slate-200 bg-slate-50 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" value={f.name} onChange={e => setF({...f, name: e.target.value})} />
-            </label>
-            <label className="flex flex-col gap-1.5"><span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Date Range</span>
-              <select className="h-9 w-full rounded-md border border-slate-200 bg-slate-50 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" value={f.date} onChange={e => setF({...f, date: e.target.value})}>
-                <option value="all">All Time</option>
-                <option value="30">Last 30 Days</option>
-                <option value="90">Last 90 Days</option>
-                <option value="fy">FY 2026-27</option>
-              </select>
-            </label>
-            <label className="flex flex-col gap-1.5"><span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">PO Status</span>
-              <select className="h-9 w-full rounded-md border border-slate-200 bg-slate-50 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" value={f.status} onChange={e => setF({...f, status: e.target.value})}>
-                <option value="all">All</option>
-                <option>Approved</option>
-                <option>Cleared</option>
-                <option>Pending</option>
-              </select>
-            </label>
-          </div>
-        </section>
-
         {/* KPIs */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {[
@@ -501,20 +450,75 @@ export default function OperationsHub() {
           </div>
         </section>
 
-        {/* Live Ledger Table */}
+        {/* Live Ledger Table & Filters */}
         <section className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
-          <div className="p-4 md:p-5 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 bg-slate-50/50">
-            <div>
-              <h3 className="text-lg font-bold text-slate-900 tracking-tight">{selSubs.length === 1 ? selSubs[0].name + ' Directory' : 'Combined Live Ledger'}</h3>
-              <p className="text-xs text-slate-500 font-medium mt-1">Showing identifiers + {selSubs.length} selected topics.</p>
-            </div>
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <div className="relative w-full sm:w-64">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input type="search" placeholder="Search in ledger..." className="w-full h-9 pl-9 pr-3 rounded-md border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" value={q} onChange={e => { setQ(e.target.value); setPage(1); }} />
+          <div className="p-4 md:p-5 border-b border-slate-100 flex flex-col space-y-4 bg-slate-50/50">
+            
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 tracking-tight">{selSubs.length === 1 ? selSubs[0].name + ' Directory' : 'Combined Live Ledger'}</h3>
+                <p className="text-xs text-slate-500 font-medium mt-1">Showing identifiers + {selSubs.length} selected topics.</p>
               </div>
-              <button className="h-9 px-3 border border-slate-200 bg-white rounded-md text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 whitespace-nowrap"><Download className="w-3.5 h-3.5"/> CSV</button>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="relative w-full sm:w-64">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input type="search" placeholder="Search in ledger..." className="w-full h-9 pl-9 pr-3 rounded-md border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" value={q} onChange={e => { setQ(e.target.value); setPage(1); }} />
+                </div>
+                <button className="h-9 px-3 border border-slate-200 bg-white rounded-md text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 whitespace-nowrap"><Download className="w-3.5 h-3.5"/> CSV</button>
+              </div>
             </div>
+
+            {/* Injected Filters */}
+            <div className="pt-4 border-t border-slate-200/60 mt-2">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-[11px] font-bold tracking-widest uppercase text-slate-500 flex items-center gap-2">
+                  <SlidersHorizontal className="w-3.5 h-3.5" /> Global Telemetry Filters
+                </h2>
+                <button 
+                  onClick={() => { setF({ circle: 'All', pkg: 'All', code: 'All', name: '', date: 'all', status: 'all' }); setQ(''); setPage(1); }}
+                  className="text-indigo-600 text-[11px] font-bold hover:text-indigo-700 uppercase tracking-wider"
+                >
+                  Reset filters
+                </button>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                <label className="flex flex-col gap-1.5"><span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Circle</span>
+                  <select className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" value={f.circle} onChange={e => setF({...f, circle: e.target.value})}>
+                    {circles.map(c => <option key={c}>{c}</option>)}
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1.5"><span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Package</span>
+                  <select className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" value={f.pkg} onChange={e => setF({...f, pkg: e.target.value})}>
+                    {pkgs.map(c => <option key={c}>{c}</option>)}
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1.5"><span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Temp Code</span>
+                  <select className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" value={f.code} onChange={e => setF({...f, code: e.target.value})}>
+                    {codes.map(c => <option key={c}>{c}</option>)}
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1.5"><span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Item Name</span>
+                  <input type="search" placeholder="Search..." className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" value={f.name} onChange={e => setF({...f, name: e.target.value})} />
+                </label>
+                <label className="flex flex-col gap-1.5"><span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Date Range</span>
+                  <select className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" value={f.date} onChange={e => setF({...f, date: e.target.value})}>
+                    <option value="all">All Time</option>
+                    <option value="30">Last 30 Days</option>
+                    <option value="90">Last 90 Days</option>
+                    <option value="fy">FY 2026-27</option>
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1.5"><span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">PO Status</span>
+                  <select className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" value={f.status} onChange={e => setF({...f, status: e.target.value})}>
+                    <option value="all">All</option>
+                    <option>Approved</option>
+                    <option>Cleared</option>
+                    <option>Pending</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
           </div>
           
           {alert && (

@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Download, ChevronLeft, ChevronRight, Search, X, SlidersHorizontal, ArrowUpRight, CheckCircle2, AlertTriangle, XCircle, Info } from 'lucide-react';
+import { fetchCeoDashboardData } from '@/features/ceo-portal/api/dashboard.api';
 
 // --- UTILS & DATA GENERATOR ---
 const DAY = 864e5;
@@ -151,15 +152,34 @@ const ALERTS = [
 export default function OperationsHub() {
   const [items, setItems] = useState<any[]>([]);
   
-  useEffect(() => {
-    setItems(BASE.map(build));
-  }, []);
-
   const [mode, setMode] = useState<'single' | 'multi' | 'all'>('single');
   const [sel, setSel] = useState<Set<string>>(new Set(['item']));
   
   const [f, setF] = useState({ circle: 'All', pkg: 'All', code: 'All', name: '', date: 'all', status: 'all' });
   const [q, setQ] = useState('');
+
+  const [realPiData, setRealPiData] = useState({ count: 0, val: 0 });
+
+  useEffect(() => {
+    setItems(BASE.map(build));
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const filters: any = {};
+    if (f.circle !== 'All') filters.circle = f.circle;
+    if (f.pkg !== 'All') filters.package = f.pkg;
+    
+    fetchCeoDashboardData(filters).then((res: any) => {
+      if (!active) return;
+      setRealPiData({
+        count: res?.kpis?.piCount || 0,
+        val: res?.kpis?.piValue || 0
+      });
+    }).catch(console.error);
+    
+    return () => { active = false; };
+  }, [f.circle, f.pkg]);
   
   const [sort, setSort] = useState({ id: 'sr', dir: 1 });
   const [page, setPage] = useState(1);
@@ -329,7 +349,7 @@ export default function OperationsHub() {
         {/* KPIs */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {[
-            { t: 'Total Purchase Invoices', v: inv, sub: `₹${cr(sup)} Cr`, tag: `${inv} Invoices`, color: 'text-indigo-700 bg-indigo-50', ex: 'pi' },
+            { t: 'Total Purchase Invoices', v: realPiData.count, sub: `₹${cr(realPiData.val)} Cr`, tag: `${realPiData.count} Invoices`, color: 'text-indigo-700 bg-indigo-50', ex: 'pi' },
             { t: 'Available Stock', v: inr(stock), sub: `${filteredItems.length} SKUs`, tag: low ? `${low} Low stock` : 'Healthy', color: low ? 'text-red-700 bg-red-50' : 'text-emerald-700 bg-emerald-50', ex: 'item' },
             { t: 'Active Work Orders', v: wos.size, sub: `₹${cr(woVal)} Cr target`, tag: `${avg}% avg progress`, color: 'text-blue-700 bg-blue-50', ex: 'wo' },
             { t: 'Total RA Billing', v: `₹${cr(ra)} Cr`, sub: `Supply ₹${cr(sup)} Cr`, tag: `${inv} invoices`, color: 'text-purple-700 bg-purple-50', ex: 'cbill' },

@@ -113,6 +113,13 @@ export const buildCeoDashboardSummary = async (filters: any) => {
   ]);
   const totalPurchaseValue = poAgg[0]?.totalValue || 0;
 
+  const piAgg = await PurchaseInvoice.aggregate([
+    { $match: { ...baseQuery, status: { $ne: 'Cancelled' } } },
+    { $group: { _id: null, totalValue: { $sum: "$total" } } }
+  ]);
+  const totalPIValue = piAgg[0]?.totalValue || 0;
+
+
   // Contractor Billing
   const contractorBillAgg = await ContractorInvoice.aggregate([
     { $match: baseQuery },
@@ -349,7 +356,9 @@ export const buildCeoDashboardSummary = async (filters: any) => {
       jmcConsumed: totalJmcQty,
       wip: totalWipQty,
       totalBillingValue: (contractorBilled + supplyBilled) / 10000000,
-      pendingBilling: (contractorPending + supplyPending) / 10000000
+      pendingBilling: (contractorPending + supplyPending) / 10000000,
+      piValue: totalPIValue,
+      piCount: piTotal
     },
     charts: {
       physicalStockProgress: [

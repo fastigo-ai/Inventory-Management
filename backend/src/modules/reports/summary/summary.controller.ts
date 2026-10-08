@@ -136,20 +136,30 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
         localField: 'itemId',
         foreignField: 'lineItems.itemId',
         pipeline: [
-          { $sort: { date: -1 } },
           { $limit: 1 }
         ],
         as: 'latestDI'
       }
     },
     { $unwind: { path: '$latestDI', preserveNullAndEmptyArrays: true } },
+    { $lookup: {
+        from: 'purchaseinvoices',
+        localField: 'itemId',
+        foreignField: 'lineItems.itemId',
+        pipeline: [
+          { $limit: 1 }
+        ],
+        as: 'latestPI'
+      }
+    },
+    { $unwind: { path: '$latestPI', preserveNullAndEmptyArrays: true } },
     { $project: {
         _id: 0,
         itemId: 1,
         itemName: "$_id.itemName",
         circle: "$_id.circle",
         package: "$_id.package",
-        loaSerialNo: 1,
+        loaSerialNo: "$masterItem.dynamicData.loaSerialNo",
         tempCode: 1,
         diQty: 1,
         invQty: 1,
@@ -157,6 +167,7 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
         srtQty: 1,
         billedQty: 1,
         diNo: "$latestDI.diNumber",
+        piNo: "$latestPI.invoiceNumber",
         loaQty: {
           $let: {
             vars: { c: { $toLower: "$_id.circle" } },

@@ -54,7 +54,7 @@ const BASE: any[] = [
 function build(b: any, i: number) {
   const db = b[9] || {};
   const it: any = { 
-    sr: i + 1, 
+    sr: db.loaSerialNo || (i + 1), 
     code: b[8] || ('TC-' + (1001 + i)), 
     name: b[0], 
     cat: b[1], 
@@ -88,7 +88,7 @@ function build(b: any, i: number) {
   d.item = { unit: it.unit, rate: it.rate, loa: it.loa, stock: it.stock };
   d.po = poQty > 0 ? { no: 'N/A', date: it.date, qty: poQty, val: poVal, status: 'Active' } : null;
   d.di = diQty > 0 ? { no: db.diNo || 'N/A', qty: diQty, date: it.date } : null;
-  d.pi = invQty > 0 ? { no: 'N/A', amt: invQty * it.rate, status: 'N/A' } : null;
+  d.pi = invQty > 0 ? { no: db.piNo || 'N/A', qty: invQty, amt: invQty * it.rate, status: 'N/A' } : null;
   
   d.store = { depot: DEPOT[it.circle] || (it.circle + ' Central'), reorder: Math.round(loaQty * 0.15) };
   d.receipt = invQty > 0 ? { no: 'N/A', qty: invQty } : null;
@@ -121,7 +121,7 @@ const SUBS = [
   { id: 'item', m: 'm1', name: 'Item Master', cols: [['unit', 'Unit', 'text'], ['rate', 'Unit rate (₹)', 'money'], ['stock', 'Available stock', 'stock']] },
   { id: 'po', m: 'm1', name: 'Purchase Order (PO)', cols: [['no', 'PO no.', 'code'], ['date', 'PO date', 'date'], ['qty', 'PO qty', 'qty'], ['val', 'PO value (₹)', 'money'], ['status', 'PO status', 'status']] },
   { id: 'di', m: 'm1', name: 'Dispatch Instruction (DI)', cols: [['no', 'DI no.', 'code'], ['qty', 'Dispatched qty', 'qty'], ['date', 'DI date', 'date']] },
-  { id: 'pi', m: 'm1', name: 'Purchase Invoice (PI)', cols: [['no', 'Invoice no.', 'code'], ['amt', 'Invoice amount (₹)', 'money'], ['status', 'Payment', 'status']] },
+  { id: 'pi', m: 'm1', name: 'Purchase Invoice (PI)', cols: [['no', 'Invoice no.', 'code'], ['qty', 'Invoice qty', 'qty'], ['amt', 'Invoice amount (₹)', 'money'], ['status', 'Payment', 'status']] },
   { id: 'store', m: 'm2', name: 'Store Master', cols: [['depot', 'Depot', 'text'], ['reorder', 'Reorder level', 'qty']] },
   { id: 'receipt', m: 'm2', name: 'Store Receipt', cols: [['no', 'GRN no.', 'code'], ['qty', 'Received qty', 'qty']] },
   { id: 'inward', m: 'm2', name: 'Store Inward', cols: [['qty', 'Inward qty', 'qty'], ['date', 'Inward date', 'date']] },

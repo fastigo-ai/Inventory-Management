@@ -652,7 +652,7 @@ export default function OperationsHub() {
                   <tr><td colSpan={curCols.length} className="px-6 py-12 text-center text-slate-500 font-medium bg-white">No items match the current filters.</td></tr>
                 ) : (
                   slice.map((it, i) => (
-                    <tr key={it.sr} className="hover:bg-slate-50/80 bg-white transition-colors group">
+                    <tr key={it.id || i} className="hover:bg-slate-50/80 bg-white transition-colors group">
                       {curCols.map(c => {
                         const v = raw(c, it);
                         const isNull = v === null || v === undefined;

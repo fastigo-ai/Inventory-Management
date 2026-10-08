@@ -26,6 +26,7 @@ interface UpdateSummaryParams {
   setFields?: {
     stockBalance?: number;
   };
+  addVendor?: string;
   session?: ClientSession;
 }
 
@@ -147,6 +148,9 @@ export class SummaryService {
     if (Object.keys(setObj).length > 0) {
       update.$set = setObj;
     }
+    if (params.addVendor && params.addVendor.trim() !== '') {
+      update.$addToSet = { vendors: params.addVendor.trim() };
+    }
 
     await ItemSummary.findOneAndUpdate(filter, update, {
       upsert: true,
@@ -240,6 +244,7 @@ export class SummaryService {
               circle: cName,
               package: pName,
               increments: { poQty: line.quantity || 0 },
+              addVendor: po.vendorName,
               companyId: item.companyId?.toString()
             });
           }
@@ -264,6 +269,7 @@ export class SummaryService {
               circle: cName,
               package: pName,
               increments: { diQty: line.quantity || 0 },
+              addVendor: di.vendorName,
               companyId: item.companyId?.toString()
             });
           }
@@ -338,6 +344,7 @@ export class SummaryService {
               circle: cName,
               package: pName,
               increments: { billedQty: line.quantity || 0 },
+              addVendor: invoice.vendorName,
               companyId: item.companyId?.toString()
             });
           }

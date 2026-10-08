@@ -110,7 +110,9 @@ function build(b: any, i: number) {
   
   d.mis_s = { di: diQty, mrhov: mhrovQty, issued: issuedQty, balStore: it.stock };
   d.mis_c = { dn: issuedQty, jmc: billedQty, wipC: actQty, wipR: Math.max(0, Math.round((loaQty - actQty)*1000)/1000), issued: issuedQty, balCont: Math.max(0, Math.round((issuedQty - actQty - returnedQty)*1000)/1000) };
-  d.mis_v = { poQty: poQty, diQty: diQty, invQty: invQty, mrhovQty: mhrovQty };
+  
+  const vendorStr = Array.isArray(db.vendors) && db.vendors.length > 0 ? db.vendors.join(', ') : 'N/A';
+  d.mis_v = { vendors: vendorStr, poQty: poQty, diQty: diQty, invQty: invQty, mrhovQty: mhrovQty };
   
   it.d = d; 
   return it;
@@ -148,7 +150,7 @@ const SUBS = [
   { id: 'kbill', m: 'm4', name: 'Contractor Billing', cols: [['amt', 'Payable (₹)', 'money'], ['status', 'Payment', 'status']] },
   { id: 'mis_s', m: 'm5', name: 'Store MIS', cols: [['di', 'DI qty', 'qty'], ['mrhov', 'MRHOV qty', 'qty'], ['issued', 'Issued qty', 'qty'], ['balStore', 'Balance at store', 'qty']] },
   { id: 'mis_c', m: 'm6', name: 'Contractor MIS', cols: [['dn', 'Demand Notes', 'qty'], ['jmc', 'JMC qty', 'qty'], ['wipC', 'WIP Consumed', 'qty'], ['wipR', 'WIP Required', 'qty'], ['issued', 'Store Issued', 'qty'], ['balCont', 'Balance at contractor', 'qty']] },
-  { id: 'mis_v', m: 'm7', name: 'Vendor MIS', cols: [['poQty', 'PO qty', 'qty'], ['diQty', 'DI qty', 'qty'], ['invQty', 'Invoice qty', 'qty'], ['mrhovQty', 'MRHOV qty', 'qty']] }
+  { id: 'mis_v', m: 'm7', name: 'Vendor MIS', cols: [['vendors', 'Vendor(s)', 'text'], ['poQty', 'PO qty', 'qty'], ['diQty', 'DI qty', 'qty'], ['invQty', 'Invoice qty', 'qty'], ['mrhovQty', 'MRHOV qty', 'qty']] }
 ];
 
 const STATIC = [

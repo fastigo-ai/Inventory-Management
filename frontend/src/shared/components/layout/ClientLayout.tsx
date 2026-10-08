@@ -13,7 +13,7 @@ import { useUIStore } from "@/shared/store/ui.store";
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isLoginPage = pathname === '/login';
-  const { isMobileSidebarOpen, setMobileSidebarOpen } = useUIStore();
+  const { isMobileSidebarOpen, setMobileSidebarOpen, isDesktopSidebarOpen } = useUIStore();
 
   // Close sidebar on navigation in mobile
   useEffect(() => {
@@ -41,8 +41,9 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             )}
 
             <div className={cn(
-              "print:hidden h-full shrink-0 z-50 transition-transform duration-300 ease-in-out absolute md:relative",
-              isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+              "print:hidden h-full shrink-0 z-50 transition-all duration-300 ease-in-out absolute md:relative overflow-hidden",
+              isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full",
+              isDesktopSidebarOpen ? "md:translate-x-0 md:w-64" : "md:-translate-x-full md:w-0 md:absolute"
             )}>
               <Sidebar />
             </div>

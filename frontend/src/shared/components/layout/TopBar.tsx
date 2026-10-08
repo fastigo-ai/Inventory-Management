@@ -32,7 +32,7 @@ export function TopBar() {
   // State for dropdowns
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   
-  const { toggleMobileSidebar } = useUIStore();
+  const { toggleMobileSidebar, toggleDesktopSidebar } = useUIStore();
   const { user, logout } = useAuthStore();
   
   const topBarRef = useRef<HTMLDivElement>(null);
@@ -93,8 +93,14 @@ export function TopBar() {
       {/* Left side: Logo & Search */}
       <div className="flex items-center gap-4 flex-1">
         <button 
-          onClick={toggleMobileSidebar}
-          className="md:hidden p-2 -ml-2 text-slate-300 hover:bg-slate-800 hover:text-white rounded-md transition-colors"
+          onClick={() => {
+            if (window.innerWidth < 768) {
+              toggleMobileSidebar();
+            } else {
+              toggleDesktopSidebar();
+            }
+          }}
+          className="p-2 -ml-2 text-slate-300 hover:bg-slate-800 hover:text-white rounded-md transition-colors"
         >
           <Menu className="w-5 h-5" />
         </button>

@@ -397,10 +397,44 @@ export default function StoreReceiptsPage() {
           {/* Invoice Group Table */}
           <div className="overflow-x-auto">
             {loading ? (
-              <div className="py-16 flex flex-col items-center justify-center text-slate-500">
-                <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-3" />
-                <p className="text-sm">Loading receipts...</p>
-              </div>
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="bg-slate-50/50 border-b border-slate-200 text-slate-500">
+                    <th className="px-5 py-3.5 font-medium text-xs tracking-wider uppercase">Invoice & PO</th>
+                    <th className="px-5 py-3.5 font-medium text-xs tracking-wider uppercase">Vendor</th>
+                    <th className="px-5 py-3.5 font-medium text-xs tracking-wider uppercase">Circle / Package</th>
+                    <th className="px-5 py-3.5 font-medium text-xs tracking-wider uppercase text-center">Items</th>
+                    <th className="px-5 py-3.5 font-medium text-xs tracking-wider uppercase">Status</th>
+                    <th className="px-5 py-3.5 font-medium text-xs tracking-wider uppercase text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <tr key={i} className="animate-pulse">
+                      <td className="px-5 py-4 align-middle">
+                        <div className="h-4 bg-slate-200/70 rounded w-32 mb-2"></div>
+                        <div className="h-3 bg-slate-200/50 rounded w-20"></div>
+                      </td>
+                      <td className="px-5 py-4 align-middle">
+                        <div className="h-4 bg-slate-200/70 rounded w-40"></div>
+                      </td>
+                      <td className="px-5 py-4 align-middle">
+                        <div className="h-4 bg-slate-200/70 rounded w-24 mb-2"></div>
+                        <div className="h-3 bg-slate-200/50 rounded w-28"></div>
+                      </td>
+                      <td className="px-5 py-4 align-middle text-center">
+                        <div className="h-6 bg-slate-200/70 rounded-full w-12 mx-auto"></div>
+                      </td>
+                      <td className="px-5 py-4 align-middle">
+                        <div className="h-6 bg-slate-200/70 rounded-full w-24"></div>
+                      </td>
+                      <td className="px-5 py-4 align-middle text-right">
+                        <div className="h-8 bg-slate-200/70 rounded w-28 ml-auto"></div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             ) : invoiceGroups.length === 0 ? (
               <div className="py-16 flex flex-col items-center justify-center text-slate-500">
                 <div className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center mb-4">

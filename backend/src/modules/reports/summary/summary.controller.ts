@@ -168,6 +168,8 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
         actQty: 1,
         srtQty: 1,
         billedQty: 1,
+        poQty: 1,
+        mhrovQty: 1,
         diNo: "$latestDI.diNumber",
         piNo: "$latestPI.invoiceNumber",
         loaQty: {

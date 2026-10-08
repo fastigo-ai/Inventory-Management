@@ -73,7 +73,7 @@ function build(b: any, i: number) {
   const d: any = {};
   
   const loaQty = db.loaQty || 0;
-  const poQty = db.loaQty || 0; 
+  const poQty = db.poQty || db.loaQty || 0; 
   const poVal = poQty * it.rate;
   
   const diQty = db.diQty || 0;
@@ -83,6 +83,7 @@ function build(b: any, i: number) {
   
   const issuedQty = db.issuedQty || 0;
   const returnedQty = db.returnedQty || 0;
+  const mhrovQty = db.mhrovQty || returnedQty; // Fallback to returned if missing
   const transferInQty = db.transferInQty || 0;
   const transferOutQty = db.transferOutQty || 0;
   
@@ -107,9 +108,9 @@ function build(b: any, i: number) {
   d.cbill = billedQty > 0 ? { amt: billedQty * it.rate, ra: 'N/A' } : null;
   d.kbill = billedQty > 0 ? { amt: billedQty * it.rate, status: 'N/A' } : null;
   
-  d.mis_s = { di: diQty, mrhov: returnedQty, issued: issuedQty, balStore: it.stock };
+  d.mis_s = { di: diQty, mrhov: mhrovQty, issued: issuedQty, balStore: it.stock };
   d.mis_c = { dn: issuedQty, jmc: billedQty, wipC: actQty, wipR: Math.max(0, Math.round((loaQty - actQty)*1000)/1000), issued: issuedQty, balCont: Math.max(0, Math.round((issuedQty - actQty - returnedQty)*1000)/1000) };
-  d.mis_v = { poQty: poQty, diQty: diQty, invQty: invQty, mrhovQty: returnedQty };
+  d.mis_v = { poQty: poQty, diQty: diQty, invQty: invQty, mrhovQty: mhrovQty };
   
   it.d = d; 
   return it;

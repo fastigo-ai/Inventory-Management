@@ -20,6 +20,8 @@ interface UpdateSummaryParams {
     transferOutQty?: number;
     issuedQty?: number;
     returnedQty?: number;
+    poQty?: number;
+    mhrovQty?: number;
   };
   setFields?: {
     stockBalance?: number;
@@ -219,6 +221,31 @@ export class SummaryService {
         }
       }
 
+      // 2.5 Rebuild from POs
+      const { PurchaseOrder } = await import('../../purchases/purchaseOrder.schema');
+      const pos = await PurchaseOrder.find({ 'lineItems.itemId': itemId });
+      for (const po of pos) {
+        for (const line of po.lineItems) {
+          if (line.itemId?.toString() === itemIdStr) {
+            let cName = line.circle || po.circle || item.dynamicData?.circle || '';
+            let pName = line.package || po.package || item.dynamicData?.package || '';
+            
+            if (cName.toLowerCase().includes('package')) {
+              pName = cName;
+              cName = ''; 
+            }
+            
+            await SummaryService.updateSummary({
+              itemId,
+              circle: cName,
+              package: pName,
+              increments: { poQty: line.quantity || 0 },
+              companyId: item.companyId?.toString()
+            });
+          }
+        }
+      }
+
       // 3. Rebuild from DIs
       const dis = await DI.find({ 'lineItems.itemId': itemId });
       for (const di of dis) {
@@ -313,6 +340,33 @@ export class SummaryService {
               increments: { billedQty: line.quantity || 0 },
               companyId: item.companyId?.toString()
             });
+          }
+        }
+      }
+
+      // 6.5 Rebuild from MHROVs
+      const { Mhrov } = await import('../../store/mhrov.schema');
+      const mhrovs = await Mhrov.find({ 'items.itemId': itemId, status: { $ne: 'Cancelled' } });
+      for (const m of mhrovs) {
+        if (m.items) {
+          for (const line of m.items) {
+            if (line.itemId?.toString() === itemIdStr) {
+              let cName = m.circle || item.dynamicData?.circle || '';
+              let pName = m.package || item.dynamicData?.package || '';
+              
+              if (cName.toLowerCase().includes('package')) {
+                pName = cName;
+                cName = ''; 
+              }
+  
+              await SummaryService.updateSummary({
+                itemId,
+                circle: cName,
+                package: pName,
+                increments: { mhrovQty: line.mhrovDoneQty || 0 },
+                companyId: item.companyId?.toString()
+              });
+            }
           }
         }
       }

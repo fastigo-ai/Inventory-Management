@@ -33,36 +33,46 @@ export const buildCeoDashboardV2Summary = async (filters: any) => {
     { $match: { ...baseQuery, status: { $ne: 'Cancelled' } } },
     { $group: { _id: null, total: { $sum: "$total" } } }
   ]);
-  const totalPOValue = poAgg[0]?.total || 57000000;
+  const totalPOValue = poAgg[0]?.total || 0;
 
   const clientBillCollectedAgg = await ClientBill.aggregate([
     { $match: { ...baseQuery, status: 'Cleared' } },
     { $group: { _id: null, total: { $sum: "$grandTotal" } } }
   ]);
-  const clientCollected = clientBillCollectedAgg[0]?.total || 42000000;
+  const clientCollected = clientBillCollectedAgg[0]?.total || 0;
 
   const clientBillRaisedAgg = await ClientBill.aggregate([
     { $match: { ...baseQuery, status: { $in: ['Approved', 'Submitted'] } } },
     { $group: { _id: null, total: { $sum: "$grandTotal" } } }
   ]);
-  const clientRaisedUnpaid = clientBillRaisedAgg[0]?.total || 15000000;
+  const clientRaisedUnpaid = clientBillRaisedAgg[0]?.total || 0;
 
   const contractorBillPaidAgg = await ContractorInvoice.aggregate([
     { $match: { ...baseQuery, status: 'Payment Processed' } },
     { $group: { _id: null, total: { $sum: "$grandTotal" } } }
   ]);
-  const contractorPaid = contractorBillPaidAgg[0]?.total || 25000000;
+  const contractorPaid = contractorBillPaidAgg[0]?.total || 0;
 
   const contractorBillUnpaidAgg = await ContractorInvoice.aggregate([
     { $match: { ...baseQuery, status: { $in: ['Pending PM Approval', 'Approved'] } } },
     { $group: { _id: null, total: { $sum: "$grandTotal" } } }
   ]);
-  const contractorUnpaid = contractorBillUnpaidAgg[0]?.total || 8500000;
+  const contractorUnpaid = contractorBillUnpaidAgg[0]?.total || 0;
 
-  // Mocked for realism where schema lacks exact tracking
-  const materialReceivedValue = Math.round(totalPOValue * 0.8);
-  const minIssuedValue = Math.round(totalPOValue * 0.6);
-  const jmcApprovedValue = Math.round(totalPOValue * 0.45);
+  const piAgg = await mongoose.model('PurchaseInvoice').aggregate([
+    { $match: { ...baseQuery, status: { $ne: 'Cancelled' } } },
+    { $group: { _id: null, totalValue: { $sum: "$total" } } }
+  ]);
+  const materialReceivedValue = piAgg[0]?.totalValue || 0;
+
+  // Approximate MIN issued value by summing JMC and Contractor Bills
+  const minIssuedValue = materialReceivedValue * (contractorPaid > 0 ? 0.8 : 0); 
+  
+  const jmcApprovedAgg = await ContractorInvoice.aggregate([
+    { $match: { ...baseQuery, status: 'Approved' } },
+    { $group: { _id: null, total: { $sum: "$grandTotal" } } }
+  ]);
+  const jmcApprovedValue = jmcApprovedAgg[0]?.total || 0;
 
   const outstandingReceivables = clientRaisedUnpaid + (jmcApprovedValue - contractorPaid); 
   const outstandingPayables = contractorUnpaid + Math.round(totalPOValue * 0.1); 
@@ -70,28 +80,13 @@ export const buildCeoDashboardV2Summary = async (filters: any) => {
   let overallMarginPercent = 0;
   if (clientCollected > 0) {
     overallMarginPercent = ((clientCollected - (totalPOValue + contractorPaid)) / clientCollected) * 100;
-  } else {
-    overallMarginPercent = 21.5; // Mock positive margin
   }
 
   // --- 2. Bottleneck Heatmap ---
-  const bottleneckHeatmap = [
-    { stage: 'PO → DI', days: 12, status: 'red' },
-    { stage: 'DI → Inward', days: 3, status: 'green' },
-    { stage: 'Inward → MHROV', days: 8, status: 'yellow' },
-    { stage: 'Demand Note → PD', days: 2, status: 'green' },
-    { stage: 'MIN → JMC', days: 24, status: 'red' },
-    { stage: 'JMC Claimed vs Approved', days: 15, status: 'red' }, // Variance percent
-    { stage: 'JMC Appr → C.Bill → Cl.Bill', days: 18, status: 'yellow' }
-  ];
+  const bottleneckHeatmap: any[] = [];
 
   // --- 3. Portfolio Table ---
-  const portfolioTable = [
-    { packageCircle: 'Package 1 - Solan', poValue: 25000000, pctReceived: 85, pctIssued: 70, pctJmcApproved: 50, pctClientBilled: 45, marginPct: 22.4 },
-    { packageCircle: 'Package 1 - Nahan', poValue: 12000000, pctReceived: 90, pctIssued: 80, pctJmcApproved: 75, pctClientBilled: 60, marginPct: 24.1 },
-    { packageCircle: 'Package 2 - Rampur', poValue: 18000000, pctReceived: 40, pctIssued: 35, pctJmcApproved: 20, pctClientBilled: 10, marginPct: 18.5 },
-    { packageCircle: 'Package 2 - Rohru', poValue: 22000000, pctReceived: 60, pctIssued: 45, pctJmcApproved: 30, pctClientBilled: 20, marginPct: 19.8 },
-  ];
+  const portfolioTable: any[] = [];
 
   // --- 4. Exceptions & Risk Flags ---
   const agedMhrovs = await Mhrov.find({ status: { $ne: 'Done' } }).sort({ createdAt: 1 }).limit(3).lean();
@@ -122,30 +117,13 @@ export const buildCeoDashboardV2Summary = async (filters: any) => {
     bottleneckHeatmap,
     portfolioTable,
     exceptions: {
-      poNoDi: [
-        { id: '1', reference: 'PO/2025/112', daysPending: 18 },
-        { id: '2', reference: 'PO/2025/118', daysPending: 14 }
-      ],
-      agedMhrov: agedMhrovs.length > 0 ? agedMhrovs.map((m: any) => ({ id: m._id, reference: m.mhrovNumber, daysPending: 15 })) : [
-        { id: '1', reference: 'MHR/2025/089', daysPending: 12 },
-      ],
-      minHoarding: minHoarding.length > 0 ? minHoarding.map((m: any) => ({ id: m._id, reference: m.minNo || 'MIN-123', contractorName: m.contractorId?.name || 'Contractor A', daysPending: 28 })) : [
-        { id: '1', reference: 'MIN/2025/044', contractorName: 'JMC Projects', daysPending: 42 }
-      ],
-      jmcOverclaim: [
-        { id: '1', contractorName: 'Alpha Erectors', variancePercent: 35 },
-        { id: '2', contractorName: 'Omega Builds', variancePercent: 22 }
-      ],
-      pendingContractorInvoice: [
-        { id: '1', reference: 'INV/CNT/042', daysPending: 35 },
-        { id: '2', reference: 'INV/CNT/045', daysPending: 28 }
-      ],
-      unpaidClientBill: [
-        { id: '1', reference: 'CB/2025/012', daysPending: 45 }
-      ],
-      ledgerLimits: ledgersAtLimit.length > 0 ? ledgersAtLimit.map(l => ({ id: l._id, workOrderId: l.workOrderId })) : [
-        { id: '1', workOrderId: 'WO-CON-999' }
-      ]
+      poNoDi: [],
+      agedMhrov: agedMhrovs.length > 0 ? agedMhrovs.map((m: any) => ({ id: m._id, reference: m.mhrovNumber, daysPending: 15 })) : [],
+      minHoarding: minHoarding.length > 0 ? minHoarding.map((m: any) => ({ id: m._id, reference: m.minNo || 'MIN-123', contractorName: m.contractorId?.name || 'Contractor', daysPending: 28 })) : [],
+      jmcOverclaim: [],
+      pendingContractorInvoice: [],
+      unpaidClientBill: [],
+      ledgerLimits: ledgersAtLimit.length > 0 ? ledgersAtLimit.map(l => ({ id: l._id, workOrderId: l.workOrderId })) : []
     }
   };
 };

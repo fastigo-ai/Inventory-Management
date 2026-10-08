@@ -162,6 +162,8 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
         package: "$_id.package",
         loaSerialNo: "$masterItem.dynamicData.loaSerialNo",
         activity: "$masterItem.dynamicData.activity",
+        unit: { $ifNull: ["$masterItem.unit", "Nos"] },
+        rate: { $ifNull: ["$masterItem.dynamicData.supplyRateWithGst", { $ifNull: ["$masterItem.costPrice", 150] }] },
         tempCode: 1,
         diQty: 1,
         invQty: 1,
@@ -1178,6 +1180,7 @@ async function computeItemMatrixSummary(params: {
     rampurBomQty: number;
     rohruLoaQty: number;
     rohruBomQty: number;
+    rate: number;
     validCircles: Set<string>;
   }>();
 
@@ -1213,6 +1216,7 @@ async function computeItemMatrixSummary(params: {
         rampurBomQty: 0,
         rohruLoaQty: 0,
         rohruBomQty: 0,
+        rate: 0,
         validCircles: new Set<string>(),
       });
     }
@@ -1231,6 +1235,9 @@ async function computeItemMatrixSummary(params: {
     const circleLower = circleVal.toLowerCase();
     const loaQty = Number(d.loaQuantity || d.quantity || 0);
     const bomQty = Number(d.bomQuantity || d.bomQty || 0);
+    const itemRate = Number(d.supplyRateWithGst || d.costPrice || 150);
+    
+    if (itemRate > grp.rate) grp.rate = itemRate; // Keep the highest rate for the group
 
     // Each item strictly belongs to ONE circle
     if (circleLower.includes('solan')) {
@@ -1957,6 +1964,7 @@ async function computeItemMatrixSummary(params: {
       tempCode: tc,
       itemName,
       unit: grp.unit || 'NOS',
+      rate: grp.rate || 0,
       package: grp.package,
       circle: grp.circle,
 

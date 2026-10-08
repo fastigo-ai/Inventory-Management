@@ -62,35 +62,43 @@ function build(b: any, i: number) {
     pkg: b[2], 
     circle: b[3], 
     subcircle: db.subcircle || db.subCircle || '', 
-    unit: b[4], 
-    rate: b[5], 
+    unit: db.unit || b[4] || 'Nos', 
+    rate: db.rate || b[5] || 0, 
     loa: b[6], 
-    bom: db.bomQty || 0,
-    stock: b[7],
+    bom: b[7],
+    stock: 0,
     date: Date.now()
   };
   
   const d: any = {};
   
-  const loaQty = db.loaQty || 0;
-  const poQty = db.poQty || db.loaQty || 0; 
+  // Calculate totals across all circles for this row's temp code and package
+  const loaQty = (db.solanLoaQty||0) + (db.nahanLoaQty||0) + (db.rampurLoaQty||0) + (db.rohruLoaQty||0);
+  const poQty = db.poQty || loaQty;
   const poVal = poQty * it.rate;
   
-  const diQty = db.diQty || 0;
-  const invQty = db.invQty || 0;
-  const actQty = db.actQty || 0;
-  const billedQty = db.billedQty || 0;
+  const diQty = (db.dispatchedSolan||0) + (db.dispatchedNahan||0) + (db.dispatchedRampur||0) + (db.dispatchedRohru||0);
+  const invQty = (db.inwardSolan||0) + (db.inwardNahan||0) + (db.inwardRampur||0) + (db.inwardRohru||0);
+  const actQty = (db.wipConsumedSolan||0) + (db.wipConsumedNahan||0) + (db.wipConsumedRampur||0) + (db.wipConsumedRohru||0);
   
-  const issuedQty = db.issuedQty || 0;
-  const returnedQty = db.returnedQty || 0;
+  const issuedQty = (db.minSolan||0) + (db.minNahan||0) + (db.minRampur||0) + (db.minRohru||0);
+  const returnedQty = (db.mhrovSolan||0) + (db.mhrovNahan||0) + (db.mhrovRampur||0) + (db.mhrovRohru||0);
   const mhrovQty = db.mhrovQty || returnedQty; // Fallback to returned if missing
   const transferInQty = db.transferInQty || 0;
   const transferOutQty = db.transferOutQty || 0;
   
+  // Total Supply + Erection Billed
+  const supplyBilled = (db.supplyBilledSolan||0) + (db.supplyBilledNahan||0) + (db.supplyBilledRampur||0) + (db.supplyBilledRohru||0);
+  const erectionBilled = (db.erectionBilledSolan||0) + (db.erectionBilledNahan||0) + (db.erectionBilledRampur||0) + (db.erectionBilledRohru||0);
+  const billedQty = supplyBilled + erectionBilled;
+  
+  it.loa = loaQty;
+  it.stock = Math.max(0, invQty - issuedQty + returnedQty);
+  
   d.item = { unit: it.unit, rate: it.rate, loa: it.loa, stock: it.stock };
   d.po = poQty > 0 ? { no: 'N/A', date: it.date, qty: poQty, val: poVal, status: 'Active' } : null;
-  d.di = diQty > 0 ? { no: db.diNo || 'N/A', qty: diQty, date: it.date } : null;
-  d.pi = invQty > 0 ? { no: db.piNo || 'N/A', qty: invQty, amt: invQty * it.rate, status: 'N/A' } : null;
+  d.di = diQty > 0 ? { no: 'N/A', qty: diQty, date: it.date } : null;
+  d.pi = invQty > 0 ? { no: 'N/A', qty: invQty, amt: invQty * it.rate, status: 'N/A' } : null;
   
   d.store = { depot: DEPOT[it.circle] || (it.circle + ' Central'), reorder: Math.round(loaQty * 0.15) };
   d.receipt = invQty > 0 ? { no: 'N/A', qty: invQty } : null;
@@ -99,7 +107,7 @@ function build(b: any, i: number) {
   d.min = issuedQty > 0 ? { no: 'N/A', qty: issuedQty } : null;
   d.cret = returnedQty > 0 ? { qty: returnedQty } : null;
   d.outward = actQty > 0 ? { qty: actQty } : null;
-  d.inter = (transferInQty > 0 || transferOutQty > 0) ? { qty: transferInQty + transferOutQty, route: 'N/A' } : null;
+  d.inter = null;
   
   d.wo = loaQty > 0 ? { no: 'N/A', val: poVal, prog: loaQty ? Math.round((actQty / loaQty) * 100) : 0 } : null;
   d.dn = issuedQty > 0 ? { no: 'N/A', qty: issuedQty } : null;
@@ -228,10 +236,10 @@ export default function OperationsHub() {
               activityLabel, 
               d.package || 'Unknown', 
               d.circle || 'Unknown', 
-              'Nos', 
-              150, 
-              d.loaQty || 0, 
-              Math.max(0, (d.invQty || 0) - (d.actQty || 0)),
+              d.unit || 'Nos', 
+              d.rate || 0, 
+              0, // loa is calculated in build()
+              0, // bom is calculated in build()
               d.tempCode || '',
               d
             ];

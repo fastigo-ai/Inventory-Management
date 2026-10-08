@@ -990,6 +990,22 @@ export default function OperationsHub() {
                 <option value={25}>25</option>
                 <option value={50}>50</option>
                 <option value={100}>100</option>
+                <option value={200}>200</option>
+                <option value={350}>350</option>
+                <option value={450}>450</option>
+                <option value={550}>550</option>
+                <option value={1000}>1000</option>
+                <option value={1300}>1300</option>
+                <option value={1600}>1600</option>
+                <option value={2300}>2300</option>
+                <option value={2700}>2700</option>
+                <option value={3200}>3200</option>
+                <option value={3500}>3500</option>
+                <option value={4000}>4000</option>
+                <option value={4300}>4300</option>
+                <option value={4800}>4800</option>
+                <option value={5000}>5000</option>
+                <option value={5300}>5300</option>
               </select>
               <span className="hidden sm:inline">Page {currentPage} of {pages} ({total} items)</span>
             </div>

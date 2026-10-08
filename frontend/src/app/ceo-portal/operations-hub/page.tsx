@@ -140,7 +140,10 @@ const MODS = [
 const MODS_MIS = [
   { id: 'm5', n: 1, name: 'Store MIS', color: 'orange' },
   { id: 'm6', n: 2, name: 'Contractor MIS', color: 'teal' },
-  { id: 'm7', n: 3, name: 'Vendor MIS', color: 'rose' }
+  { id: 'm7', n: 3, name: 'Vendor MIS', color: 'rose' },
+  { id: 'm8', n: 4, name: 'Client Billing - Supply', color: 'cyan' },
+  { id: 'm9', n: 5, name: 'Client Billing - Erection', color: 'fuchsia' },
+  { id: 'm10', n: 6, name: 'Contractor Billing MIS', color: 'amber' }
 ];
 
 const SUBS = [
@@ -451,6 +454,12 @@ export default function OperationsHub() {
     if (c === 'blue') return { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-200', active: 'bg-blue-600 text-white' };
     if (c === 'emerald') return { bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-200', active: 'bg-emerald-600 text-white' };
     if (c === 'purple') return { bg: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-200', active: 'bg-purple-600 text-white' };
+    if (c === 'orange') return { bg: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-200', active: 'bg-orange-600 text-white' };
+    if (c === 'teal') return { bg: 'bg-teal-50', text: 'text-teal-600', border: 'border-teal-200', active: 'bg-teal-600 text-white' };
+    if (c === 'rose') return { bg: 'bg-rose-50', text: 'text-rose-600', border: 'border-rose-200', active: 'bg-rose-600 text-white' };
+    if (c === 'cyan') return { bg: 'bg-cyan-50', text: 'text-cyan-600', border: 'border-cyan-200', active: 'bg-cyan-600 text-white' };
+    if (c === 'fuchsia') return { bg: 'bg-fuchsia-50', text: 'text-fuchsia-600', border: 'border-fuchsia-200', active: 'bg-fuchsia-600 text-white' };
+    if (c === 'amber') return { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-200', active: 'bg-amber-600 text-white' };
     return { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200', active: 'bg-slate-600 text-white' };
   };
 

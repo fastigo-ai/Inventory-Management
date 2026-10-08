@@ -1201,7 +1201,8 @@ export const getStoreReceiptFilterOptions = asyncHandler(async (req: Request, re
       baseFilter.package = { $regex: new RegExp(`^\\s*${regexStr}\\s*$`, 'i') };
     }
     if (user.assignedCircle) {
-      baseFilter.circle = { $in: expandCircle(user.assignedCircle) || [user.assignedCircle] };
+      const circles = expandCircle(user.assignedCircle) || [user.assignedCircle];
+      baseFilter.circle = { $in: circles.map((c: string) => new RegExp(`^\\s*${c.trim()}\\s*$`, 'i')) };
     }
     if (user.assignedSubcircle) {
       baseFilter.subcircle = { $regex: new RegExp(`^\\s*${user.assignedSubcircle.trim()}\\s*$`, 'i') };
@@ -1246,7 +1247,8 @@ export const getPendingStoreReceipts = asyncHandler(async (req: Request, res: Re
     if (user.assignedSubcircle) {
       filter.subcircle = { $regex: new RegExp(`^\\s*${user.assignedSubcircle.trim()}\\s*$`, 'i') };
     } else if (user.assignedCircle) {
-      filter.circle = { $in: expandCircle(user.assignedCircle) || [user.assignedCircle] };
+      const circles = expandCircle(user.assignedCircle) || [user.assignedCircle];
+      filter.circle = { $in: circles.map((c: string) => new RegExp(`^\\s*${c.trim()}\\s*$`, 'i')) };
     }
   } else if (user && (user.role?.name === 'Admin' || user.role?.name === 'Super Admin' || user.role?.permissions?.includes('*'))) {
     if (pkg && pkg !== 'All') filter.package = pkg;
@@ -1373,7 +1375,8 @@ export const getInwardRegister = asyncHandler(async (req: Request, res: Response
     if (user.assignedSubcircle) {
       filter.subcircle = { $regex: new RegExp(`^\\s*${user.assignedSubcircle.trim()}\\s*$`, 'i') };
     } else if (user.assignedCircle) {
-      filter.circle = { $in: expandCircle(user.assignedCircle) || [user.assignedCircle] };
+      const circles = expandCircle(user.assignedCircle) || [user.assignedCircle];
+      filter.circle = { $in: circles.map((c: string) => new RegExp(`^\\s*${c.trim()}\\s*$`, 'i')) };
     }
   }
 
@@ -1576,12 +1579,14 @@ export const getInwardEntriesByInvoice = asyncHandler(async (req: Request, res: 
     if (user.assignedSubcircle) {
       filter.subcircle = { $regex: new RegExp(`^\\s*${user.assignedSubcircle.trim()}\\s*$`, 'i') };
     } else if (user.assignedCircle) {
-      filter.circle = { $in: expandCircle(user.assignedCircle) || [user.assignedCircle] };
+      const circles = expandCircle(user.assignedCircle) || [user.assignedCircle];
+      filter.circle = { $in: circles.map((c: string) => new RegExp(`^\\s*${c.trim()}\\s*$`, 'i')) };
     }
   } else {
     // Admin: allow optional query param filters for scoping to a specific circle+subcircle+package group
     if (circleParam && circleParam !== 'All') {
-      filter.circle = { $in: expandCircle(circleParam as string) || [circleParam as string] };
+      const circles = expandCircle(circleParam as string) || [circleParam as string];
+      filter.circle = { $in: circles.map((c: string) => new RegExp(`^\\s*${c.trim()}\\s*$`, 'i')) };
     }
     if (subcircleParam && subcircleParam !== 'All') {
       filter.subcircle = { $regex: new RegExp(`^\\s*${(subcircleParam as string).trim()}\\s*$`, 'i') };

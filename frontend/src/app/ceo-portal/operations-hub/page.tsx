@@ -259,6 +259,7 @@ export default function OperationsHub() {
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [view, setView] = useState<string | null>('overview');
   const [alert, setAlert] = useState<string | null>(null);
+  const [showModules, setShowModules] = useState(true);
 
   // Derived filters
   const circles = ['All', 'Solan', 'Nahan', 'Rampur', 'Rohru'];
@@ -471,20 +472,36 @@ export default function OperationsHub() {
           </div>
 
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-            <div>
-              <h1 className="text-xl font-bold text-slate-800 tracking-tight">Or build your own view</h1>
-              <p className="text-sm text-slate-500 mt-1">Select one or multiple modules. Their data columns will be added to the Live Ledger below.</p>
-            </div>
-            <div className="flex flex-col items-end gap-2">
-              <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
-                <button onClick={() => setMode('single')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${mode === 'single' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>Single topic</button>
-                <button onClick={() => setMode('multi')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${mode === 'multi' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>Multi-select</button>
-                <button onClick={() => { setMode('all'); setSel(new Set(SUBS.map(s => s.id))); setView(null); setAlert(null); setPage(1); }} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${mode === 'all' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>All modules</button>
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => setShowModules(!showModules)}
+                className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+                title={showModules ? 'Hide modules' : 'Show modules'}
+              >
+                {showModules ? (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7"></path></svg>
+                ) : (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                )}
+              </button>
+              <div>
+                <h1 className="text-xl font-bold text-slate-800 tracking-tight cursor-pointer" onClick={() => setShowModules(!showModules)}>Or build your own view</h1>
+                <p className="text-sm text-slate-500 mt-1">Select one or multiple modules. Their data columns will be added to the Live Ledger below.</p>
               </div>
             </div>
+            {showModules && (
+              <div className="flex flex-col items-end gap-2">
+                <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+                  <button onClick={() => setMode('single')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${mode === 'single' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>Single topic</button>
+                  <button onClick={() => setMode('multi')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${mode === 'multi' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>Multi-select</button>
+                  <button onClick={() => { setMode('all'); setSel(new Set(SUBS.map(s => s.id))); setView(null); setAlert(null); setPage(1); }} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${mode === 'all' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>All modules</button>
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+          {showModules && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
             {MODS.map(m => {
               const subs = SUBS.filter(s => s.m === m.id);
               const onCount = subs.filter(s => sel.has(s.id)).length;
@@ -524,6 +541,7 @@ export default function OperationsHub() {
               );
             })}
           </div>
+          )}
         </section>
 
         {/* Live Ledger Table & Filters */}

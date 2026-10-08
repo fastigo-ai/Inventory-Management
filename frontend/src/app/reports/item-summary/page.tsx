@@ -422,7 +422,7 @@ export default function ItemSummaryMatrixPage() {
           <div className="text-lg font-extrabold text-sky-950 mt-0.5 font-mono">
             {loading ? <div className="h-7 w-20 bg-sky-200/50 animate-pulse rounded"></div> : (totals.supSolan + totals.supNahan + totals.supRampur + totals.supRohru).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
           </div>
-          <div className="text-[10px] text-sky-700 mt-0.5">Purchase Invoices Billed</div>
+          <div className="text-[10px] text-sky-700 mt-0.5">Client Bills (Supply)</div>
         </div>
 
         <div className="bg-pink-50/50 p-3 rounded-xl border border-pink-200/80 shadow-sm">

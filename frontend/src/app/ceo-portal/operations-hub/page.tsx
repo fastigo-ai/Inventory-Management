@@ -106,6 +106,9 @@ function build(b: any, i: number) {
   d.cbill = billedQty > 0 ? { amt: billedQty * it.rate, ra: 'N/A' } : null;
   d.kbill = billedQty > 0 ? { amt: billedQty * it.rate, status: 'N/A' } : null;
   
+  d.mis_s = { di: diQty, mrhov: returnedQty, issued: issuedQty, balStore: it.stock };
+  d.mis_c = { dn: issuedQty, jmc: billedQty, wipC: actQty, wipR: Math.max(0, Math.round((loaQty - actQty)*1000)/1000), issued: issuedQty, balCont: Math.max(0, Math.round((issuedQty - actQty - returnedQty)*1000)/1000) };
+  
   it.d = d; 
   return it;
 }
@@ -115,6 +118,11 @@ const MODS = [
   { id: 'm2', n: 2, name: 'Store & Inventory Management', color: 'blue' },
   { id: 'm3', n: 3, name: 'Work Order & Site Management', color: 'emerald' },
   { id: 'm4', n: 4, name: 'Billing Management', color: 'purple' }
+];
+
+const MODS_MIS = [
+  { id: 'm5', n: 1, name: 'Store MIS', color: 'orange' },
+  { id: 'm6', n: 2, name: 'Contractor MIS', color: 'teal' }
 ];
 
 const SUBS = [
@@ -133,7 +141,9 @@ const SUBS = [
   { id: 'dn', m: 'm3', name: 'Demand Note', cols: [['no', 'DN no.', 'code'], ['qty', 'Demand qty', 'qty']] },
   { id: 'mrhov', m: 'm3', name: 'MRHOV', cols: [['status', 'MRHOV status', 'status']] },
   { id: 'cbill', m: 'm4', name: 'Client Billing', cols: [['ra', 'RA bill', 'code'], ['amt', 'RA amount (₹)', 'money']] },
-  { id: 'kbill', m: 'm4', name: 'Contractor Billing', cols: [['amt', 'Payable (₹)', 'money'], ['status', 'Payment', 'status']] }
+  { id: 'kbill', m: 'm4', name: 'Contractor Billing', cols: [['amt', 'Payable (₹)', 'money'], ['status', 'Payment', 'status']] },
+  { id: 'mis_s', m: 'm5', name: 'Store MIS', cols: [['di', 'DI qty', 'qty'], ['mrhov', 'MRHOV qty', 'qty'], ['issued', 'Issued qty', 'qty'], ['balStore', 'Balance at store', 'qty']] },
+  { id: 'mis_c', m: 'm6', name: 'Contractor MIS', cols: [['dn', 'Demand Notes', 'qty'], ['jmc', 'JMC qty', 'qty'], ['wipC', 'WIP Consumed', 'qty'], ['wipR', 'WIP Required', 'qty'], ['issued', 'Store Issued', 'qty'], ['balCont', 'Balance at contractor', 'qty']] }
 ];
 
 const STATIC = [
@@ -260,6 +270,7 @@ export default function OperationsHub() {
   const [view, setView] = useState<string | null>('overview');
   const [alert, setAlert] = useState<string | null>(null);
   const [showModules, setShowModules] = useState(true);
+  const [showMis, setShowMis] = useState(false);
 
   // Derived filters
   const circles = ['All', 'Solan', 'Nahan', 'Rampur', 'Rohru'];
@@ -543,6 +554,65 @@ export default function OperationsHub() {
           </div>
           )}
         </section>
+
+        <section className="mb-6 p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => setShowMis(!showMis)}
+                className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+                title={showMis ? 'Hide MIS' : 'Show MIS'}
+              >
+                {showMis ? (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7"></path></svg>
+                ) : (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                )}
+              </button>
+              <div>
+                <h1 className="text-xl font-bold text-slate-800 tracking-tight cursor-pointer" onClick={() => setShowMis(!showMis)}>MIS Summary Modules</h1>
+                <p className="text-sm text-slate-500 mt-1">Select Store or Contractor MIS topics to view in the Live Ledger.</p>
+              </div>
+            </div>
+          </div>
+
+          {showMis && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+            {MODS_MIS.map(m => {
+              const subs = SUBS.filter(s => s.m === m.id);
+              const onCount = subs.filter(s => sel.has(s.id)).length;
+              const isOn = onCount > 0;
+              const theme = getColor(m.color);
+              
+              return (
+                <div key={m.id} className={`flex flex-col border rounded-xl overflow-hidden transition-all ${isOn ? `${theme.border} ring-1 ring-${m.color}-500/20` : 'border-slate-200 bg-white'}`}>
+                  <button onClick={() => handleModClick(m.id)} className={`w-full text-left p-3 focus:outline-none ${theme.bg}`}>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className={`w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold ${theme.active}`}>{m.n}</span>
+                      <span className={`text-[10px] font-bold uppercase tracking-wider ${theme.text}`}>{onCount ? `${onCount}/${subs.length} Active` : 'Inactive'}</span>
+                    </div>
+                    <h3 className="font-bold text-slate-800 text-sm leading-tight">{m.name}</h3>
+                  </button>
+                  <div className="p-2 flex flex-col gap-1 bg-white">
+                    {subs.map(s => {
+                      const isSubOn = sel.has(s.id);
+                      return (
+                        <button key={s.id} onClick={() => handleSubClick(s.id)} className={`flex items-center justify-between w-full p-2 text-left text-xs font-bold rounded-lg transition-colors ${isSubOn ? theme.active : 'hover:bg-slate-50 text-slate-700'}`}>
+                          <span>{s.name}</span>
+                          <span className={`min-w-[20px] h-5 rounded-full flex items-center justify-center text-[10px] px-1.5 ${isSubOn ? 'bg-white/20 text-white' : theme.bg + ' ' + theme.text}`}>
+                            {apiKpis.workflow?.[s.id === 'cbill' || s.id === 'kbill' ? 'billing' : s.id]?.total ?? filteredItems.filter(i => i.d[s.id]).length}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          )}
+        </section>
+
 
         {/* Live Ledger Table & Filters */}
         <section className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col">

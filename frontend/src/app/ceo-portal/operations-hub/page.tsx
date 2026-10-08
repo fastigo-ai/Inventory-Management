@@ -282,6 +282,7 @@ export default function OperationsHub() {
   const [alert, setAlert] = useState<string | null>(null);
   const [showModules, setShowModules] = useState(true);
   const [showMis, setShowMis] = useState(false);
+  const [showSummary, setShowSummary] = useState(true);
 
   const [viewType, setViewType] = useState<'item' | 'activity'>('item');
   const [expandedActivities, setExpandedActivities] = useState<Record<string, boolean>>({});
@@ -505,8 +506,31 @@ export default function OperationsHub() {
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-12 font-sans">
       <div className="max-w-[1400px] mx-auto p-4 md:p-6 space-y-6">
         
-        {/* KPIs */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* Overall Summary Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setShowSummary(!showSummary)}
+              className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+              title={showSummary ? 'Hide Overall Summary' : 'Show Overall Summary'}
+            >
+              {showSummary ? (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7"></path></svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+              )}
+            </button>
+            <div>
+              <h1 className="text-xl font-bold text-slate-800 tracking-tight cursor-pointer" onClick={() => setShowSummary(!showSummary)}>Overall Summary</h1>
+              <p className="text-sm text-slate-500 mt-1">High-level telemetry and stock breakdown across all locations.</p>
+            </div>
+          </div>
+        </div>
+
+        {showSummary && (
+          <>
+          {/* KPIs */}
+          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {[
             { t: 'Total Purchase Invoices', v: apiKpis.piCount.toLocaleString(), sub: `₹${cr(apiKpis.val)} Cr`, tag: `${apiKpis.piCount} Invoices`, color: 'text-indigo-700 bg-indigo-50', ex: 'pi' },
             { t: 'Available Stock', v: apiKpis.availableStock.toLocaleString(), sub: ``, tag: low ? `${low} Low stock` : 'Healthy', color: low ? 'text-red-700 bg-red-50' : 'text-emerald-700 bg-emerald-50', ex: 'item' },
@@ -584,6 +608,8 @@ export default function OperationsHub() {
             </div>
           )}
         </section>
+        </>
+        )}
 
         {/* Modules Hub */}
         <section className="bg-white border border-slate-200 rounded-xl p-4 md:p-5 shadow-sm">

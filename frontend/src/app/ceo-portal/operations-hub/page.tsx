@@ -109,6 +109,7 @@ function build(b: any, i: number) {
   
   d.mis_s = { di: diQty, mrhov: returnedQty, issued: issuedQty, balStore: it.stock };
   d.mis_c = { dn: issuedQty, jmc: billedQty, wipC: actQty, wipR: Math.max(0, Math.round((loaQty - actQty)*1000)/1000), issued: issuedQty, balCont: Math.max(0, Math.round((issuedQty - actQty - returnedQty)*1000)/1000) };
+  d.mis_v = { poQty: poQty, diQty: diQty, invQty: invQty, mrhovQty: returnedQty };
   
   it.d = d; 
   return it;
@@ -123,7 +124,8 @@ const MODS = [
 
 const MODS_MIS = [
   { id: 'm5', n: 1, name: 'Store MIS', color: 'orange' },
-  { id: 'm6', n: 2, name: 'Contractor MIS', color: 'teal' }
+  { id: 'm6', n: 2, name: 'Contractor MIS', color: 'teal' },
+  { id: 'm7', n: 3, name: 'Vendor MIS', color: 'rose' }
 ];
 
 const SUBS = [
@@ -144,7 +146,8 @@ const SUBS = [
   { id: 'cbill', m: 'm4', name: 'Client Billing', cols: [['ra', 'RA bill', 'code'], ['amt', 'RA amount (₹)', 'money']] },
   { id: 'kbill', m: 'm4', name: 'Contractor Billing', cols: [['amt', 'Payable (₹)', 'money'], ['status', 'Payment', 'status']] },
   { id: 'mis_s', m: 'm5', name: 'Store MIS', cols: [['di', 'DI qty', 'qty'], ['mrhov', 'MRHOV qty', 'qty'], ['issued', 'Issued qty', 'qty'], ['balStore', 'Balance at store', 'qty']] },
-  { id: 'mis_c', m: 'm6', name: 'Contractor MIS', cols: [['dn', 'Demand Notes', 'qty'], ['jmc', 'JMC qty', 'qty'], ['wipC', 'WIP Consumed', 'qty'], ['wipR', 'WIP Required', 'qty'], ['issued', 'Store Issued', 'qty'], ['balCont', 'Balance at contractor', 'qty']] }
+  { id: 'mis_c', m: 'm6', name: 'Contractor MIS', cols: [['dn', 'Demand Notes', 'qty'], ['jmc', 'JMC qty', 'qty'], ['wipC', 'WIP Consumed', 'qty'], ['wipR', 'WIP Required', 'qty'], ['issued', 'Store Issued', 'qty'], ['balCont', 'Balance at contractor', 'qty']] },
+  { id: 'mis_v', m: 'm7', name: 'Vendor MIS', cols: [['poQty', 'PO qty', 'qty'], ['diQty', 'DI qty', 'qty'], ['invQty', 'Invoice qty', 'qty'], ['mrhovQty', 'MRHOV qty', 'qty']] }
 ];
 
 const STATIC = [

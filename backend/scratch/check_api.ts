@@ -1,19 +1,9 @@
-import mongoose from 'mongoose';
-import * as dotenv from 'dotenv';
-dotenv.config();
+import axios from 'axios';
 
-mongoose.connect(process.env.MONGO_URI || '').then(async () => {
-  const db = mongoose.connection.db;
-  if (!db) return;
-
-  try {
-     const dn = await db.collection('demandnotes').findOne({ demandNoteNumber: 'DN-2609-0017' });
-     if(dn) {
-         console.log(dn.lineItems.map(item => ({ item: item.itemName, jmcQty: item.jmcQty })));
-     }
-  } catch (error) {
-    console.error("Error:", error);
-  } finally {
-    mongoose.disconnect();
-  }
-});
+axios.get('http://localhost:5000/api/reports/item-summary', { params: { limit: 50000 } })
+  .then(res => {
+    const items = res.data.data.items.filter((i: any) => String(i.activity).includes('Augmentation DTR'));
+    console.log("Total matched items from API:", items.length);
+    items.forEach((i: any) => console.log(`- ${i.itemName} (Circle: ${i.circle})`));
+  })
+  .catch(console.error);

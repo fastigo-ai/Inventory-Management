@@ -272,6 +272,9 @@ export default function OperationsHub() {
   const [showModules, setShowModules] = useState(true);
   const [showMis, setShowMis] = useState(false);
 
+  const [viewType, setViewType] = useState<'item' | 'activity'>('item');
+  const [expandedActivities, setExpandedActivities] = useState<Record<string, boolean>>({});
+
   // Derived filters
   const circles = ['All', 'Solan', 'Nahan', 'Rampur', 'Rohru'];
   const subcircles = useMemo(() => ['All', ...Array.from(new Set(items.filter(i => i.circle === 'Solan' && i.subcircle).map(i => i.subcircle))).sort()], [items]);
@@ -334,10 +337,23 @@ export default function OperationsHub() {
     });
   }, [filteredItems, curCols, q, sort]);
 
-  const total = sortedRows.length;
+  const groupedRows = useMemo(() => {
+    if (viewType === 'item') return null;
+    const groups: Record<string, typeof sortedRows> = {};
+    sortedRows.forEach(it => {
+      const cat = it.cat || 'Other';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(it);
+    });
+    return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [sortedRows, viewType]);
+
+  const total = viewType === 'item' ? sortedRows.length : (groupedRows?.length || 0);
   const pages = Math.max(1, Math.ceil(total / size));
   const currentPage = Math.min(page, pages);
-  const slice = sortedRows.slice((currentPage - 1) * size, currentPage * size);
+  const slice = viewType === 'item' 
+    ? sortedRows.slice((currentPage - 1) * size, currentPage * size)
+    : (groupedRows || []).slice((currentPage - 1) * size, currentPage * size);
 
   // Actions
   const applyView = (id: string) => {
@@ -435,6 +451,52 @@ export default function OperationsHub() {
     if (c === 'warn') return 'bg-amber-50 text-amber-700 border border-amber-200';
     return 'bg-red-50 text-red-700 border border-red-200';
   };
+  const renderRow = (it: any, idx: number, isSub = false) => (
+    <tr key={it.id || idx} className={`hover:bg-slate-50/80 transition-colors group ${isSub ? 'bg-slate-50/40' : 'bg-white'}`}>
+      {curCols.map(c => {
+        const v = raw(c, it);
+        const isNull = v === null || v === undefined;
+        const align = (c.type === 'money' || c.type === 'qty' || c.type === 'stock' || c.type === 'pct') ? 'text-right tabular-nums' : '';
+        
+        let content: React.ReactNode = <span className="text-slate-300">—</span>;
+        
+        if (!isNull) {
+          if (c.type === 'money') content = <span className="font-medium text-slate-700">{money(v)}</span>;
+          else if (c.type === 'qty') content = <span className="font-medium text-slate-700">{inr(v)} {it.unit}</span>;
+          else if (c.type === 'stock') content = <span className={getHealth(health(it))}>{inr(v)} {it.unit}</span>;
+          else if (c.type === 'pct') content = (
+            <div className="flex items-center justify-end gap-2">
+              <div className="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden"><div className="h-full bg-emerald-500 rounded-full" style={{width: `${v}%`}}></div></div>
+              <span className="font-bold text-slate-700 w-8">{v}%</span>
+            </div>
+          );
+          else if (c.type === 'date') content = <span className="text-slate-600 font-medium">{fdate(v)}</span>;
+          else if (c.type === 'tcode') content = <span className="px-1.5 py-0.5 rounded border border-indigo-100 bg-indigo-50 text-indigo-700 font-mono text-[11px] font-bold">{v}</span>;
+          else if (c.type === 'code') content = <span className="font-mono text-xs text-slate-600 font-medium">{v}</span>;
+          else if (c.type === 'status') content = <span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${getPill(v)}`}>{v}</span>;
+          else if (c.type === 'flags') {
+            const fl = flags(it);
+            content = fl.length 
+              ? <div className="flex gap-1">{fl.map((x, idx2) => <span key={idx2} className={`px-1.5 py-0.5 rounded-sm text-[10px] font-bold ${getFlagTone(x.c)}`}>{x.t}</span>)}</div>
+              : <span className="px-1.5 py-0.5 rounded-sm text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">On track</span>;
+          }
+          else if (c.type === 'name') content = (
+            <div>
+              <div className="font-bold text-slate-800 hover:text-indigo-600 cursor-pointer truncate max-w-[280px] leading-tight mb-0.5">{v}</div>
+              <div className="text-[10px] font-medium text-slate-400">{it.cat}</div>
+            </div>
+          );
+          else content = <span className="text-slate-600">{String(v)}</span>;
+        }
+
+        return (
+          <td key={c.id} className={`px-4 py-3 ${align} ${c.cls} group-hover:bg-slate-50/80 ${isSub ? 'bg-slate-50/40' : 'bg-white'}`}>
+            {content}
+          </td>
+        );
+      })}
+    </tr>
+  );
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-12 font-sans">
@@ -623,6 +685,10 @@ export default function OperationsHub() {
                 <h3 className="text-lg font-bold text-slate-900 tracking-tight">{selSubs.length === 1 ? selSubs[0].name + ' Directory' : 'Combined Live Ledger'}</h3>
                 <p className="text-xs text-slate-500 font-medium mt-1">Showing identifiers + {selSubs.length} selected topics.</p>
               </div>
+              <div className="flex bg-slate-200/60 p-1 rounded-lg">
+                <button onClick={() => setViewType('item')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${viewType === 'item' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>Item-wise</button>
+                <button onClick={() => setViewType('activity')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${viewType === 'activity' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>Activity-wise</button>
+              </div>
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <div className="relative w-full sm:w-64">
                   <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -739,52 +805,32 @@ export default function OperationsHub() {
                 {slice.length === 0 ? (
                   <tr><td colSpan={curCols.length} className="px-6 py-12 text-center text-slate-500 font-medium bg-white">No items match the current filters.</td></tr>
                 ) : (
-                  slice.map((it, i) => (
-                    <tr key={it.id || i} className="hover:bg-slate-50/80 bg-white transition-colors group">
-                      {curCols.map(c => {
-                        const v = raw(c, it);
-                        const isNull = v === null || v === undefined;
-                        const align = (c.type === 'money' || c.type === 'qty' || c.type === 'stock' || c.type === 'pct') ? 'text-right tabular-nums' : '';
-                        
-                        let content: React.ReactNode = <span className="text-slate-300">—</span>;
-                        
-                        if (!isNull) {
-                          if (c.type === 'money') content = <span className="font-medium text-slate-700">{money(v)}</span>;
-                          else if (c.type === 'qty') content = <span className="font-medium text-slate-700">{inr(v)} {it.unit}</span>;
-                          else if (c.type === 'stock') content = <span className={getHealth(health(it))}>{inr(v)} {it.unit}</span>;
-                          else if (c.type === 'pct') content = (
-                            <div className="flex items-center justify-end gap-2">
-                              <div className="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden"><div className="h-full bg-emerald-500 rounded-full" style={{width: `${v}%`}}></div></div>
-                              <span className="font-bold text-slate-700 w-8">{v}%</span>
-                            </div>
-                          );
-                          else if (c.type === 'date') content = <span className="text-slate-600 font-medium">{fdate(v)}</span>;
-                          else if (c.type === 'tcode') content = <span className="px-1.5 py-0.5 rounded border border-indigo-100 bg-indigo-50 text-indigo-700 font-mono text-[11px] font-bold">{v}</span>;
-                          else if (c.type === 'code') content = <span className="font-mono text-xs text-slate-600 font-medium">{v}</span>;
-                          else if (c.type === 'status') content = <span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${getPill(v)}`}>{v}</span>;
-                          else if (c.type === 'flags') {
-                            const fl = flags(it);
-                            content = fl.length 
-                              ? <div className="flex gap-1">{fl.map((x, idx) => <span key={idx} className={`px-1.5 py-0.5 rounded-sm text-[10px] font-bold ${getFlagTone(x.c)}`}>{x.t}</span>)}</div>
-                              : <span className="px-1.5 py-0.5 rounded-sm text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">On track</span>;
-                          }
-                          else if (c.type === 'name') content = (
-                            <div>
-                              <div className="font-bold text-slate-800 hover:text-indigo-600 cursor-pointer truncate max-w-[280px] leading-tight mb-0.5">{v}</div>
-                              <div className="text-[10px] font-medium text-slate-400">{it.cat}</div>
-                            </div>
-                          );
-                          else content = <span className="text-slate-600">{String(v)}</span>;
-                        }
-
-                        return (
-                          <td key={c.id} className={`px-4 py-3 ${align} ${c.cls} group-hover:bg-slate-50/80 bg-white`}>
-                            {content}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))
+                  viewType === 'item' ? (
+                    (slice as any[]).map((it, i) => renderRow(it, i))
+                  ) : (
+                    (slice as [string, any[]][]).map(([cat, items], i) => {
+                      const isExpanded = expandedActivities[cat] || false;
+                      return (
+                        <React.Fragment key={cat}>
+                          <tr 
+                            className="bg-slate-50/60 hover:bg-slate-100 cursor-pointer transition-colors group"
+                            onClick={() => setExpandedActivities(prev => ({...prev, [cat]: !prev[cat]}))}
+                          >
+                            <td colSpan={curCols.length} className="px-4 py-3 text-sm font-bold text-slate-800 border-t border-slate-200">
+                              <div className="flex items-center gap-2">
+                                <span className={`transform transition-transform duration-200 text-slate-400 group-hover:text-slate-600 ${isExpanded ? 'rotate-90' : ''}`}>
+                                  <ChevronRight className="w-4 h-4" />
+                                </span>
+                                {cat} 
+                                <span className="text-xs font-semibold text-slate-500 bg-white px-2 py-0.5 rounded-full border border-slate-200 shadow-sm ml-2">{items.length} items</span>
+                              </div>
+                            </td>
+                          </tr>
+                          {isExpanded && items.map((it, idx) => renderRow(it, idx, true))}
+                        </React.Fragment>
+                      );
+                    })
+                  )
                 )}
               </tbody>
             </table>

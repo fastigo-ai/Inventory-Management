@@ -710,7 +710,7 @@ export default function OperationsHub() {
                   {selSubs.map((s, i) => {
                     const n = curCols.filter(c => c.sp === s.id).length;
                     if (!n) return null;
-                    const m = MODS.find(mod => mod.id === s.m)!;
+                    const m = [...MODS, ...MODS_MIS].find(mod => mod.id === s.m)!;
                     const theme = getColor(m.color);
                     return (
                       <th key={s.id} colSpan={n} className={`px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider border-l border-slate-200 border-b ${theme.bg} ${theme.text}`}>

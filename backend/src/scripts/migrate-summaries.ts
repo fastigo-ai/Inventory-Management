@@ -50,22 +50,20 @@ const migrate = async () => {
         const globalLoa = Number(item.dynamicData.loaQuantity) || 0;
         const globalBom = Number(item.dynamicData.bomQuantity) || Number(item.dynamicData.bom) || 0;
         
-        if (globalLoa > 0 || globalBom > 0) {
-          let cName = item.dynamicData.circle || '';
-          let pName = '';
-          
-          if (cName.toLowerCase().includes('package')) {
-            pName = cName;
-            cName = ''; // Could map to Solan/Nahan if needed, leaving blank to match DI
-          }
-          
-          await SummaryService.updateSummary({
-            itemId: item._id,
-            circle: cName,
-            package: pName,
-            increments: { loaQty: globalLoa, bomQty: globalBom }
-          });
+        let cName = item.dynamicData.circle || '';
+        let pName = '';
+        
+        if (cName.toLowerCase().includes('package')) {
+          pName = cName;
+          cName = ''; // Could map to Solan/Nahan if needed, leaving blank to match DI
         }
+        
+        await SummaryService.updateSummary({
+          itemId: item._id,
+          circle: cName,
+          package: pName,
+          increments: { loaQty: globalLoa, bomQty: globalBom }
+        });
       }
     }
 

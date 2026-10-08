@@ -212,21 +212,24 @@ export default function OperationsHub() {
   });
 
   useEffect(() => {
-    api.get('/reports/item-summary', { params: { limit: 5000 } })
+    api.get('/reports/item-summary', { params: { limit: 50000 } })
       .then(res => {
         if (res.data?.data?.items) {
-          const dbItems = res.data.data.items.map((d: any) => [
-            d.itemName || 'Unknown', 
-            'Materials', 
-            d.package || 'Unknown', 
-            d.circle || 'Unknown', 
-            'Nos', 
-            150, 
-            d.loaQty || 0, 
-            Math.max(0, (d.invQty || 0) - (d.actQty || 0)),
-            d.tempCode || '',
-            d
-          ]);
+          const dbItems = res.data.data.items.map((d: any) => {
+            const activityLabel = d.activity ? String(d.activity).trim() : 'Uncategorized';
+            return [
+              d.itemName || 'Unknown', 
+              activityLabel, 
+              d.package || 'Unknown', 
+              d.circle || 'Unknown', 
+              'Nos', 
+              150, 
+              d.loaQty || 0, 
+              Math.max(0, (d.invQty || 0) - (d.actQty || 0)),
+              d.tempCode || '',
+              d
+            ];
+          });
           setItems(dbItems.map(build));
         } else {
           setItems(BASE.map(build));
@@ -353,7 +356,7 @@ export default function OperationsHub() {
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push(it);
     });
-    return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
+    return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }));
   }, [sortedRows, viewType]);
 
   const total = viewType === 'item' ? sortedRows.length : (groupedRows?.length || 0);
@@ -469,11 +472,16 @@ export default function OperationsHub() {
           else if (c.type === 'tcode') content = <span className="px-1.5 py-0.5 rounded border border-indigo-100 bg-indigo-50 text-indigo-700 font-mono text-[11px] font-bold">{v}</span>;
           else if (c.type === 'code') content = <span className="font-mono text-xs text-slate-600 font-medium">{v}</span>;
           else if (c.type === 'status') content = <span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${getPill(v)}`}>{v}</span>;
-          else if (c.type === 'flags') {
-            const fl = flags(it);
-            content = fl.length 
-              ? <div className="flex gap-1">{fl.map((x, idx2) => <span key={idx2} className={`px-1.5 py-0.5 rounded-sm text-[10px] font-bold ${getFlagTone(x.c)}`}>{x.t}</span>)}</div>
-              : <span className="px-1.5 py-0.5 rounded-sm text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">On track</span>;
+          else if (c.type === 'sr') {
+            const srVal = (isSub && it.d?.loaSerialNo) ? it.d.loaSerialNo : v;
+            content = (
+              <div className="flex items-center justify-center gap-2">
+                {isSub && <div className="w-1.5 h-1.5 rounded-full bg-slate-300 flex-shrink-0"></div>}
+                <span className={`min-w-[24px] h-6 rounded-md px-1.5 flex items-center justify-center text-xs font-bold ${isSub ? 'bg-slate-200/70 text-slate-500' : 'bg-slate-100 text-slate-600'}`}>
+                  {srVal}
+                </span>
+              </div>
+            );
           }
           else if (c.type === 'name') content = (
             <div>
@@ -853,52 +861,64 @@ export default function OperationsHub() {
                 {slice.length === 0 ? (
                   <tr><td colSpan={curCols.length} className="px-6 py-12 text-center text-slate-500 font-medium bg-white">No items match the current filters.</td></tr>
                 ) : (
-                  slice.map((it, i) => (
-                    <tr key={it.uid || it.id || i} className="hover:bg-slate-50/80 bg-white transition-colors group">
-                      {curCols.map(c => {
-                        const v = raw(c, it);
-                        const isNull = v === null || v === undefined;
-                        const align = (c.type === 'money' || c.type === 'qty' || c.type === 'stock' || c.type === 'pct') ? 'text-right tabular-nums' : '';
-                        
-                        let content: React.ReactNode = <span className="text-slate-300">—</span>;
-                        
-                        if (!isNull) {
-                          if (c.type === 'money') content = <span className="font-medium text-slate-700">{money(v)}</span>;
-                          else if (c.type === 'qty') content = <span className="font-medium text-slate-700">{inr(v)} {it.unit}</span>;
-                          else if (c.type === 'stock') content = <span className={getHealth(health(it))}>{inr(v)} {it.unit}</span>;
-                          else if (c.type === 'pct') content = (
-                            <div className="flex items-center justify-end gap-2">
-                              <div className="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden"><div className="h-full bg-emerald-500 rounded-full" style={{width: `${v}%`}}></div></div>
-                              <span className="font-bold text-slate-700 w-8">{v}%</span>
-                            </div>
-                          );
-                          else if (c.type === 'date') content = <span className="text-slate-600 font-medium">{fdate(v)}</span>;
-                          else if (c.type === 'tcode') content = <span className="px-1.5 py-0.5 rounded border border-indigo-100 bg-indigo-50 text-indigo-700 font-mono text-[11px] font-bold">{v}</span>;
-                          else if (c.type === 'code') content = <span className="font-mono text-xs text-slate-600 font-medium">{v}</span>;
-                          else if (c.type === 'status') content = <span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${getPill(v)}`}>{v}</span>;
-                          else if (c.type === 'flags') {
-                            const fl = flags(it);
-                            content = fl.length 
-                              ? <div className="flex gap-1">{fl.map((x, idx) => <span key={idx} className={`px-1.5 py-0.5 rounded-sm text-[10px] font-bold ${getFlagTone(x.c)}`}>{x.t}</span>)}</div>
-                              : <span className="px-1.5 py-0.5 rounded-sm text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">On track</span>;
-                          }
-                          else if (c.type === 'name') content = (
-                            <div>
-                              <div className="font-bold text-slate-800 hover:text-indigo-600 cursor-pointer truncate max-w-[280px] leading-tight mb-0.5">{v}</div>
-                              <div className="text-[10px] font-medium text-slate-400">{it.cat}</div>
-                            </div>
-                          );
-                          else content = <span className="text-slate-600">{String(v)}</span>;
+                  viewType === 'item' ? (
+                    (slice as any[]).map((it, i) => renderRow(it, i))
+                  ) : (
+                    (slice as [string, any[]][]).map(([cat, items], i) => {
+                      // Default false (collapsed)
+                      const isExpanded = expandedActivities[cat] || false;
+                      const seqNo = (page - 1) * size + i + 1;
+                      const actName = items[0]?.d?.activity || cat.replace(/^[0-9]+\s*-\s*/, '') || 'Uncategorized';
+                      
+                      const aggCols = curCols.map(c => {
+                        if (['qty', 'money', 'stock'].includes(c.type)) {
+                          return items.reduce((a, it) => {
+                            const v = raw(c, it);
+                            return a + (typeof v === 'number' ? v : 0);
+                          }, 0);
                         }
+                        return null;
+                      });
+                      const firstAggIndex = aggCols.findIndex(v => v !== null);
+                      const actualSpanCount = firstAggIndex === -1 ? curCols.length : firstAggIndex;
 
-                        return (
-                          <td key={c.id} className={`px-4 py-3 ${align} ${c.cls} group-hover:bg-slate-50/80 bg-white`}>
-                            {content}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))
+                      return (
+                        <React.Fragment key={cat}>
+                          <tr 
+                            className="bg-white hover:bg-slate-50 cursor-pointer transition-colors group"
+                            onClick={() => setExpandedActivities(prev => ({...prev, [cat]: !prev[cat]}))}
+                          >
+                            <td className="px-2 py-3 border-t border-slate-200 border-r border-slate-100 text-center border-l-4 border-l-indigo-500 sticky left-0 z-10 bg-white group-hover:bg-slate-50 min-w-[64px] max-w-[64px]">
+                              <div className="flex items-center justify-center w-full h-full">
+                                <span className={`transform transition-transform duration-200 text-slate-400 group-hover:text-indigo-500 ${isExpanded ? 'rotate-90' : ''}`}>
+                                  <ChevronRight className="w-4 h-4" />
+                                </span>
+                              </div>
+                            </td>
+                            <td colSpan={actualSpanCount > 1 ? actualSpanCount - 1 : 1} className="px-4 py-3 border-t border-slate-200 sticky left-[64px] z-10 bg-white group-hover:bg-slate-50">
+                              <div className="flex items-center gap-3">
+                                <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded border border-slate-200 shadow-sm">{seqNo}</span>
+                                <span className="text-sm font-bold text-slate-800">{actName}</span>
+                                <span className="text-[11px] font-medium text-slate-400 ml-1">({items.length} items)</span>
+                              </div>
+                            </td>
+                            {actualSpanCount < curCols.length && curCols.slice(actualSpanCount).map((c, cIdx) => {
+                              const sum = aggCols[actualSpanCount + cIdx];
+                              if (sum === null) return <td key={c.id} className="border-t border-slate-200"></td>;
+                              const mod = [...MODS, ...MODS_MIS].find(m => m.id === c.m);
+                              const colorCls = mod ? getColor(mod.color).text : 'text-slate-800';
+                              return (
+                                <td key={c.id} className={`px-4 py-3 border-t border-slate-200 text-right tabular-nums text-xs font-bold ${colorCls}`}>
+                                  {c.type === 'money' ? money(sum) : sum > 0 ? inr(sum) : '0'}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                          {isExpanded && items.map((it, idx) => renderRow(it, idx, true))}
+                        </React.Fragment>
+                      );
+                    })
+                  )
                 )}
               </tbody>
             </table>

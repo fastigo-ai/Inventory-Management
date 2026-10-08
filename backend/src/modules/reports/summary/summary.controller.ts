@@ -110,7 +110,8 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
   const summaries = await ItemSummary.aggregate([
     { $match: filter },
     { $group: {
-        _id: { itemName: "$itemName", circle: "$circle", package: "$package" },
+        _id: { itemId: "$itemId", circle: "$circle", package: "$package" },
+        itemName: { $first: "$itemName" },
         itemId: { $first: "$itemId" },
         loaSerialNo: { $first: "$loaSerialNo" },
         tempCode: { $first: "$tempCode" },
@@ -156,10 +157,11 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
     { $project: {
         _id: 0,
         itemId: 1,
-        itemName: "$_id.itemName",
+        itemName: "$itemName",
         circle: "$_id.circle",
         package: "$_id.package",
         loaSerialNo: "$masterItem.dynamicData.loaSerialNo",
+        activity: "$masterItem.dynamicData.activity",
         tempCode: 1,
         diQty: 1,
         invQty: 1,

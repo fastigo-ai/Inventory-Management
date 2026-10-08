@@ -389,6 +389,24 @@ export class SummaryService {
         }
       }
 
+      // 9.5 Guarantee at least one summary exists
+      const existingSummary = await ItemSummary.findOne({ itemId });
+      if (!existingSummary) {
+        let cName = item.dynamicData?.circle || '';
+        let pName = item.dynamicData?.package || '';
+        if (cName.toLowerCase().includes('package')) {
+          pName = cName;
+          cName = '';
+        }
+        await SummaryService.updateSummary({
+          itemId,
+          circle: cName,
+          package: pName,
+          increments: {},
+          companyId: item.companyId?.toString()
+        });
+      }
+
       // 10. Compute total real-time stock balance across all circles/packages and update Master Item
       const allSummaries = await ItemSummary.find({ itemId });
       let totalStockBalance = 0;

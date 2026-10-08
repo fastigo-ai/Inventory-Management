@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Package, TrendingUp, Settings, MapPin, Layers, Briefcase, Calendar, Bell, ChevronDown, Clock } from 'lucide-react';
+import { Package, TrendingUp, Settings, MapPin, Layers, Briefcase, Calendar, Bell, ChevronDown, Clock, Info, AlertTriangle } from 'lucide-react';
 import { fetchCeoDashboardData } from '@/features/ceo-portal/api/dashboard.api';
 import { useAuthStore } from '@/shared/store/auth.store';
 import { format } from 'date-fns';
@@ -67,7 +67,26 @@ export default function CeoDashboardPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const res = await fetchCeoDashboardData({});
+      const apiFilters: any = {};
+      if (filters.package.length) apiFilters.package = filters.package.join(',');
+      if (filters.circle.length) apiFilters.circle = filters.circle.join(',');
+      if (filters.subCircle.length) apiFilters.subCircle = filters.subCircle.join(',');
+
+      if (filters.dateRange === 'This Month') {
+        const d = new Date();
+        apiFilters.startDate = new Date(d.getFullYear(), d.getMonth(), 1).toISOString();
+        apiFilters.endDate = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59).toISOString();
+      } else if (filters.dateRange === 'Last Month') {
+        const d = new Date();
+        apiFilters.startDate = new Date(d.getFullYear(), d.getMonth() - 1, 1).toISOString();
+        apiFilters.endDate = new Date(d.getFullYear(), d.getMonth(), 0, 23, 59, 59).toISOString();
+      } else if (filters.dateRange === 'This Year') {
+        const d = new Date();
+        apiFilters.startDate = new Date(d.getFullYear(), 0, 1).toISOString();
+        apiFilters.endDate = new Date(d.getFullYear(), 11, 31, 23, 59, 59).toISOString();
+      }
+
+      const res = await fetchCeoDashboardData(apiFilters);
       setData(res);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
@@ -127,6 +146,8 @@ export default function CeoDashboardPage() {
     { title: 'Total Billing Value', value: `₹ ${data?.kpis.totalBillingValue.toFixed(2)} Cr`, change: '17% vs last month', changeType: 'positive', icon: Briefcase },
     { title: 'Pending Billing', value: `₹ ${data?.kpis.pendingBilling.toFixed(2)} Cr`, change: '8% vs last month', changeType: 'negative', icon: Clock }
   ];
+
+  const inr = (v: number) => Math.round(v || 0).toLocaleString();
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -218,6 +239,61 @@ export default function CeoDashboardPage() {
         <div className="grid grid-cols-6 gap-4 mb-6">
           {kpis.map((kpi, i) => <KpiCard key={i} {...kpi} />)}
         </div>
+
+        {/* Stock Breakdown */}
+        <section className="bg-white border border-slate-200 rounded-xl p-4 md:p-5 shadow-sm mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-[11px] font-bold tracking-widest uppercase text-slate-500 flex items-center gap-2">
+              <Info className="w-3.5 h-3.5" /> Physical Stock Math Breakdown
+            </div>
+          </div>
+          <div className="flex flex-col md:flex-row items-center gap-4 text-center md:text-left justify-between bg-slate-50 p-4 rounded-lg border border-slate-100">
+            <div className="flex-1">
+              <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Total Inward</div>
+              <div className="text-lg font-extrabold text-slate-800">{inr(data?.kpis?.totalInwardQty)}</div>
+            </div>
+            <div className="text-slate-300 font-bold text-xl">+</div>
+            <div className="flex-1">
+              <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Transfer IN</div>
+              <div className="text-lg font-extrabold text-slate-800">{inr(data?.kpis?.totalTransferInQty)}</div>
+            </div>
+            <div className="text-slate-300 font-bold text-xl">-</div>
+            <div className="flex-1">
+              <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Transfer OUT</div>
+              <div className="text-lg font-extrabold text-slate-800">{inr(data?.kpis?.totalTransferOutQty)}</div>
+            </div>
+            <div className="text-slate-300 font-bold text-xl">-</div>
+            <div className="flex-1">
+              <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">MIN (Issued)</div>
+              <div className="text-lg font-extrabold text-slate-800">{inr(data?.kpis?.materialIssued)}</div>
+            </div>
+            <div className="text-slate-300 font-bold text-xl">=</div>
+            <div className="flex-1 bg-emerald-50 rounded p-3 border border-emerald-100 shadow-sm">
+              <div className="text-[10px] uppercase font-bold text-emerald-600 mb-1">Physical Stock</div>
+              <div className="text-xl font-extrabold text-emerald-700">{inr(data?.kpis?.physicalStock)}</div>
+            </div>
+          </div>
+          {(data?.kpis?.totalTransferOutQty || 0) - (data?.kpis?.totalTransferInQty || 0) > 0 && (
+            <div className="mt-3 bg-amber-50/50 p-3 rounded-lg border border-amber-100/50 w-full text-left">
+              <p className="text-[11px] text-slate-500 font-medium flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                <span className="text-amber-700 font-bold">{inr((data?.kpis?.totalTransferOutQty || 0) - (data?.kpis?.totalTransferInQty || 0))} units</span> are currently "In Transit" between stores and are not counted in the physical warehouse stock.
+              </p>
+              {data?.kpis?.transitDetails && data?.kpis?.transitDetails.length > 0 && (
+                <div className="mt-2.5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                  {data.kpis.transitDetails.map((t: any, idx: number) => (
+                    <div key={idx} className="text-[10px] text-slate-600 bg-white border border-amber-100/60 rounded px-2.5 py-1.5 flex justify-between items-center shadow-sm">
+                      <span className="font-medium truncate mr-2" title={`${t.from} → ${t.to}`}>
+                        {t.from} <span className="text-amber-400 mx-1">→</span> {t.to}
+                      </span>
+                      <span className="font-bold text-amber-700 whitespace-nowrap">{inr(t.qty)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </section>
 
         {/* Charts */}
         <div className="grid grid-cols-2 gap-6 mb-6">

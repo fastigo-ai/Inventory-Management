@@ -54,6 +54,7 @@ const BASE: any[] = [
 function build(b: any, i: number) {
   const db = b[9] || {};
   const it: any = { 
+    uid: db.itemId || `static-${i}`,
     sr: db.loaSerialNo || (i + 1), 
     code: b[8] || ('TC-' + (1001 + i)), 
     name: b[0], 
@@ -202,6 +203,8 @@ export default function OperationsHub() {
   const [apiKpis, setApiKpis] = useState({ 
     piCount: 0, val: 0, qty: 0, 
     availableStock: 0,
+    totalInwardQty: 0, totalTransferInQty: 0, totalTransferOutQty: 0, materialIssued: 0,
+    transitDetails: [] as any[],
     woCount: 0, totalWoValue: 0,
     supplyBilled: 0, erectionBilled: 0,
     poPending: 0, poCleared: 0,
@@ -249,6 +252,11 @@ export default function OperationsHub() {
         val: res?.kpis?.piValue || 0,
         qty: res?.kpis?.piQty || 0,
         availableStock: res?.kpis?.physicalStock || 0,
+        totalInwardQty: res?.kpis?.totalInwardQty || 0,
+        totalTransferInQty: res?.kpis?.totalTransferInQty || 0,
+        totalTransferOutQty: res?.kpis?.totalTransferOutQty || 0,
+        transitDetails: res?.kpis?.transitDetails || [],
+        materialIssued: res?.kpis?.materialIssued || 0,
         woCount: res?.kpis?.woCount || 0,
         totalWoValue: res?.kpis?.totalWoValue || 0,
         supplyBilled: res?.kpis?.supplyBilled || 0,
@@ -389,24 +397,11 @@ export default function OperationsHub() {
     setPage(1);
   };
 
-  // KPIs
-  const poVal = filteredItems.reduce((a, i) => a + (i.d.po ? i.d.po.val : 0), 0);
-  const stock = filteredItems.reduce((a, i) => a + i.stock, 0);
   const low = filteredItems.filter(i => health(i) === 'crit').length;
   
-  const wos = new Map();
-  filteredItems.forEach(i => { if (i.d.wo) { const w = wos.get(i.d.wo.no) || { val: 0, prog: i.d.wo.prog }; w.val += i.d.wo.val; wos.set(i.d.wo.no, w); } });
-  const woVal = [...wos.values()].reduce((a, w) => a + w.val, 0);
-  const avg = wos.size ? Math.round([...wos.values()].reduce((a, w) => a + w.prog, 0) / wos.size) : 0;
+  const woItems = filteredItems.filter(i => i.d.wo);
+  const avg = woItems.length ? Math.round(woItems.reduce((a, i) => a + i.d.wo.prog, 0) / woItems.length) : 0;
   
-  const ra = filteredItems.reduce((a, i) => a + (i.d.cbill ? i.d.cbill.amt : 0), 0);
-  const sup = filteredItems.reduce((a, i) => a + (i.d.pi ? i.d.pi.amt : 0), 0);
-  const inv = filteredItems.filter(i => i.d.pi).length;
-  
-  const pend = filteredItems.filter(i => i.d.po && i.d.po.status === 'Pending').length;
-  const clr = filteredItems.filter(i => i.d.po && i.d.po.status === 'Cleared').length;
-  const app = filteredItems.filter(i => i.d.po && i.d.po.status === 'Approved').length;
-
   useEffect(() => { applyView('overview'); }, []);
 
   // UI Helpers
@@ -443,11 +438,11 @@ export default function OperationsHub() {
         {/* KPIs */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {[
-            { t: 'Total Purchase Invoices', v: inv.toLocaleString(), sub: `₹${cr(sup)} Cr`, tag: `${inv} Invoices`, color: 'text-indigo-700 bg-indigo-50', ex: 'pi' },
-            { t: 'Available Stock', v: stock.toLocaleString(), sub: ``, tag: low ? `${low} Low stock` : 'Healthy', color: low ? 'text-red-700 bg-red-50' : 'text-emerald-700 bg-emerald-50', ex: 'item' },
-            { t: 'Active Work Orders', v: wos.size, sub: `₹${cr(woVal)} Cr target`, tag: `${avg}% avg progress`, color: 'text-blue-700 bg-blue-50', ex: 'wo' },
-            { t: 'Total RA Billing', v: `₹${cr(ra)} Cr`, sub: `Client Billed Value`, tag: `Client Bills`, color: 'text-purple-700 bg-purple-50', ex: 'cbill' },
-            { t: 'Pending Approvals', v: pend, sub: `${clr} cleared`, tag: pend ? 'Urgent action' : 'All clear', color: pend ? 'text-amber-700 bg-amber-50' : 'text-emerald-700 bg-emerald-50', ex: 'po' },
+            { t: 'Total Purchase Invoices', v: apiKpis.piCount.toLocaleString(), sub: `₹${cr(apiKpis.val)} Cr`, tag: `${apiKpis.piCount} Invoices`, color: 'text-indigo-700 bg-indigo-50', ex: 'pi' },
+            { t: 'Available Stock', v: apiKpis.availableStock.toLocaleString(), sub: ``, tag: low ? `${low} Low stock` : 'Healthy', color: low ? 'text-red-700 bg-red-50' : 'text-emerald-700 bg-emerald-50', ex: 'item' },
+            { t: 'Active Work Orders', v: apiKpis.woCount.toLocaleString(), sub: `₹${cr(apiKpis.totalWoValue)} Cr target`, tag: `${avg}% avg progress`, color: 'text-blue-700 bg-blue-50', ex: 'wo' },
+            { t: 'Total RA Billing', v: `₹${cr(apiKpis.supplyBilled + apiKpis.erectionBilled)} Cr`, sub: `Client Billed Value`, tag: `Client Bills`, color: 'text-purple-700 bg-purple-50', ex: 'cbill' },
+            { t: 'Pending Approvals', v: apiKpis.poPending, sub: `${apiKpis.poCleared} cleared`, tag: apiKpis.poPending ? 'Urgent action' : 'All clear', color: apiKpis.poPending ? 'text-amber-700 bg-amber-50' : 'text-emerald-700 bg-emerald-50', ex: 'po' },
           ].map((k, i) => (
             <div key={i} className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm flex flex-col justify-between">
               <div>
@@ -465,7 +460,60 @@ export default function OperationsHub() {
           ))}
         </section>
 
-
+        {/* Stock Breakdown */}
+        <section className="bg-white border border-slate-200 rounded-xl p-4 md:p-5 shadow-sm mt-4 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-[11px] font-bold tracking-widest uppercase text-slate-500 flex items-center gap-2">
+              <Info className="w-3.5 h-3.5" /> Physical Stock Math Breakdown
+            </div>
+          </div>
+          <div className="flex flex-col md:flex-row items-center gap-4 text-center md:text-left justify-between bg-slate-50 p-4 rounded-lg border border-slate-100">
+            <div className="flex-1">
+              <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Total Inward</div>
+              <div className="text-lg font-extrabold text-slate-800">{inr(apiKpis.totalInwardQty)}</div>
+            </div>
+            <div className="text-slate-300 font-bold text-xl">+</div>
+            <div className="flex-1">
+              <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Transfer IN</div>
+              <div className="text-lg font-extrabold text-slate-800">{inr(apiKpis.totalTransferInQty)}</div>
+            </div>
+            <div className="text-slate-300 font-bold text-xl">-</div>
+            <div className="flex-1">
+              <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Transfer OUT</div>
+              <div className="text-lg font-extrabold text-slate-800">{inr(apiKpis.totalTransferOutQty)}</div>
+            </div>
+            <div className="text-slate-300 font-bold text-xl">-</div>
+            <div className="flex-1">
+              <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">MIN (Issued)</div>
+              <div className="text-lg font-extrabold text-slate-800">{inr(apiKpis.materialIssued)}</div>
+            </div>
+            <div className="text-slate-300 font-bold text-xl">=</div>
+            <div className="flex-1 bg-emerald-50 rounded p-3 border border-emerald-100 shadow-sm">
+              <div className="text-[10px] uppercase font-bold text-emerald-600 mb-1">Physical Stock</div>
+              <div className="text-xl font-extrabold text-emerald-700">{inr(apiKpis.availableStock)}</div>
+            </div>
+          </div>
+          {apiKpis.totalTransferOutQty - apiKpis.totalTransferInQty > 0 && (
+            <div className="mt-3 bg-amber-50/50 p-3 rounded-lg border border-amber-100/50 w-full text-left">
+              <p className="text-[11px] text-slate-500 font-medium flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                <span className="text-amber-700 font-bold">{inr(apiKpis.totalTransferOutQty - apiKpis.totalTransferInQty)} units</span> are currently "In Transit" between stores and are not counted in the physical warehouse stock.
+              </p>
+              {apiKpis.transitDetails && apiKpis.transitDetails.length > 0 && (
+                <div className="mt-2.5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                  {apiKpis.transitDetails.map((t: any, idx: number) => (
+                    <div key={idx} className="text-[10px] text-slate-600 bg-white border border-amber-100/60 rounded px-2.5 py-1.5 flex justify-between items-center shadow-sm">
+                      <span className="font-medium truncate mr-2" title={`${t.from} → ${t.to}`}>
+                        {t.from} <span className="text-amber-400 mx-1">→</span> {t.to}
+                      </span>
+                      <span className="font-bold text-amber-700 whitespace-nowrap">{inr(t.qty)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </section>
 
         {/* Modules Hub */}
         <section className="bg-white border border-slate-200 rounded-xl p-4 md:p-5 shadow-sm">
@@ -520,10 +568,10 @@ export default function OperationsHub() {
               const theme = getColor(m.color);
               
               let meta = '';
-              if (m.id === 'm1') meta = `${filteredItems.length} POs • ₹${cr(poVal)} Cr`;
-              if (m.id === 'm2') meta = `${new Set(filteredItems.map(i => i.circle)).size} depots • ${inr(stock)} stock`;
-              if (m.id === 'm3') meta = `${wos.size} WOs • ₹${cr(woVal)} Cr execution`;
-              if (m.id === 'm4') meta = `₹${cr(ra)} Cr billed`;
+              if (m.id === 'm1') meta = `${apiKpis.poPending + apiKpis.poCleared} POs • ₹${cr(apiKpis.val)} Cr`;
+              if (m.id === 'm2') meta = `${new Set(filteredItems.map(i => i.circle)).size} depots • ${inr(apiKpis.availableStock)} stock`;
+              if (m.id === 'm3') meta = `${apiKpis.woCount} WOs • ₹${cr(apiKpis.totalWoValue)} Cr execution`;
+              if (m.id === 'm4') meta = `₹${cr(apiKpis.supplyBilled + apiKpis.erectionBilled)} Cr billed`;
 
               return (
                 <div key={m.id} className={`flex flex-col border rounded-xl overflow-hidden transition-all ${isOn ? `${theme.border} ring-1 ring-${m.color}-500/20` : 'border-slate-200 bg-white'}`}>
@@ -740,7 +788,7 @@ export default function OperationsHub() {
                   <tr><td colSpan={curCols.length} className="px-6 py-12 text-center text-slate-500 font-medium bg-white">No items match the current filters.</td></tr>
                 ) : (
                   slice.map((it, i) => (
-                    <tr key={it.id || i} className="hover:bg-slate-50/80 bg-white transition-colors group">
+                    <tr key={it.uid || it.id || i} className="hover:bg-slate-50/80 bg-white transition-colors group">
                       {curCols.map(c => {
                         const v = raw(c, it);
                         const isNull = v === null || v === undefined;

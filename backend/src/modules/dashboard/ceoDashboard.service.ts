@@ -97,6 +97,24 @@ export const buildCeoDashboardSummary = async (filters: any) => {
   ]);
   const totalTransferOutQty = toAgg[0]?.qty || 0;
 
+  const transitDetailsMatch: any = { status: 'IN_TRANSIT' };
+  if (circleFilters) transitDetailsMatch.fromStore = { $in: circleFilters };
+  if (subCircleFilters) transitDetailsMatch.fromStore = { $in: subCircleFilters };
+  if (dateQuery && Object.keys(dateQuery).length) transitDetailsMatch.createdAt = dateQuery;
+
+  const inTransitAgg = await StoreTransfer.aggregate([
+    { $match: transitDetailsMatch },
+    { $unwind: '$items' },
+    { $group: { _id: { from: '$fromStore', to: '$toStore' }, qty: { $sum: '$items.dispatchedQty' } } },
+    { $sort: { qty: -1 } }
+  ]);
+  
+  const transitDetails = inTransitAgg.map(t => ({
+    from: t._id.from || 'Unknown',
+    to: t._id.to || 'Unknown',
+    qty: t.qty
+  }));
+
   const minAgg = await ContractorAssignment.aggregate([
     { $match: baseQuery },
     { $unwind: "$lineItems" },
@@ -179,7 +197,8 @@ export const buildCeoDashboardSummary = async (filters: any) => {
   // Client Billing
   const clientBillAgg = await ClientBill.aggregate([
     { $match: baseQuery },
-    { $group: { _id: { status: "$status", type: "$billType" }, totalValue: { $sum: "$grandTotal" } } }
+    { $unwind: "$items" },
+    { $group: { _id: { status: "$status", type: "$billType" }, totalValue: { $sum: "$items.totalAmount" } } }
   ]);
   let supplyBilled = 0;
   let erectionBilled = 0;
@@ -454,6 +473,10 @@ export const buildCeoDashboardSummary = async (filters: any) => {
   return {
     kpis: {
       physicalStock: availableStock, // Changed to available stock
+      totalInwardQty: totalInwardQty,
+      totalTransferInQty: totalTransferInQty,
+      totalTransferOutQty: totalTransferOutQty,
+      transitDetails: transitDetails,
       materialIssued: totalIssuedQty,
       jmcConsumed: totalJmcQty,
       wip: totalWipQty,

@@ -34,7 +34,13 @@ export default function Home() {
   const [summaryLoading, setSummaryLoading] = useState(false);
 
   useEffect(() => {
-    // Only fetch dashboard data if not a store manager (since store managers don't use it)
+    // Skip fetching generic dashboard data if CEO/Admin because they render a completely different page component
+    if (isCeoOrAdmin) {
+      setLoading(false);
+      return;
+    }
+    
+    // Only fetch dashboard data if not a store manager
     if (!isStoreManager) {
       const fetchData = async () => {
         try {
@@ -58,7 +64,7 @@ export default function Home() {
     } else {
       setLoading(false);
     }
-  }, [isStoreManager, isSitePortal, siteFilters]);
+  }, [isStoreManager, isSitePortal, siteFilters, isCeoOrAdmin]);
 
   useEffect(() => {
     // Force active tab to 'stock' if the role resolves dynamically to Store Manager

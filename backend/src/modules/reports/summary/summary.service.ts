@@ -20,10 +20,20 @@ interface UpdateSummaryParams {
     transferOutQty?: number;
     issuedQty?: number;
     returnedQty?: number;
+    poQty?: number;
+    mhrovQty?: number;
+    ra60Qty?: number;
+    ra30Qty?: number;
+    ra10Qty?: number;
+    er90Qty?: number;
+    er10Qty?: number;
+    jmcQty?: number;
+    cBillQty?: number;
   };
   setFields?: {
     stockBalance?: number;
   };
+  addVendor?: string;
   session?: ClientSession;
 }
 
@@ -145,6 +155,9 @@ export class SummaryService {
     if (Object.keys(setObj).length > 0) {
       update.$set = setObj;
     }
+    if (params.addVendor && params.addVendor.trim() !== '') {
+      update.$addToSet = { vendors: params.addVendor.trim() };
+    }
 
     await ItemSummary.findOneAndUpdate(filter, update, {
       upsert: true,
@@ -219,6 +232,32 @@ export class SummaryService {
         }
       }
 
+      // 2.5 Rebuild from POs
+      const { PurchaseOrder } = await import('../../purchases/purchaseOrder.schema');
+      const pos = await PurchaseOrder.find({ 'lineItems.itemId': itemId });
+      for (const po of pos) {
+        for (const line of po.lineItems) {
+          if (line.itemId?.toString() === itemIdStr) {
+            let cName = line.circle || po.circle || item.dynamicData?.circle || '';
+            let pName = line.package || po.package || item.dynamicData?.package || '';
+            
+            if (cName.toLowerCase().includes('package')) {
+              pName = cName;
+              cName = ''; 
+            }
+            
+            await SummaryService.updateSummary({
+              itemId,
+              circle: cName,
+              package: pName,
+              increments: { poQty: line.quantity || 0 },
+              addVendor: po.vendorName,
+              companyId: item.companyId?.toString()
+            });
+          }
+        }
+      }
+
       // 3. Rebuild from DIs
       const dis = await DI.find({ 'lineItems.itemId': itemId });
       for (const di of dis) {
@@ -237,6 +276,7 @@ export class SummaryService {
               circle: cName,
               package: pName,
               increments: { diQty: line.quantity || 0 },
+              addVendor: di.vendorName,
               companyId: item.companyId?.toString()
             });
           }
@@ -311,8 +351,36 @@ export class SummaryService {
               circle: cName,
               package: pName,
               increments: { billedQty: line.quantity || 0 },
+              addVendor: invoice.vendorName,
               companyId: item.companyId?.toString()
             });
+          }
+        }
+      }
+
+      // 6.5 Rebuild from MHROVs
+      const { Mhrov } = await import('../../store/mhrov.schema');
+      const mhrovs = await Mhrov.find({ 'items.itemId': itemId, status: { $ne: 'Cancelled' } });
+      for (const m of mhrovs) {
+        if (m.items) {
+          for (const line of m.items) {
+            if (line.itemId?.toString() === itemIdStr) {
+              let cName = m.circle || item.dynamicData?.circle || '';
+              let pName = m.package || item.dynamicData?.package || '';
+              
+              if (cName.toLowerCase().includes('package')) {
+                pName = cName;
+                cName = ''; 
+              }
+  
+              await SummaryService.updateSummary({
+                itemId,
+                circle: cName,
+                package: pName,
+                increments: { mhrovQty: line.mhrovDoneQty || 0 },
+                companyId: item.companyId?.toString()
+              });
+            }
           }
         }
       }
@@ -388,6 +456,70 @@ export class SummaryService {
           }
         }
       }
+
+      // 10. Rebuild from JmcRegister
+      const { JmcRegister } = await import('../../jmc/jmc.schema');
+      const jmcs = await JmcRegister.find({ 'items.itemId': itemId, status: { $ne: 'Rejected' } });
+      for (const jmc of jmcs) {
+        for (const line of jmc.items) {
+          if (line.itemId?.toString() === itemIdStr) {
+            const qty = Number(line.approvedQty || line.claimedQty || 0);
+            if (qty > 0) {
+              await SummaryService.updateSummary({
+                itemId, circle: jmc.circle || '', package: jmc.package || '',
+                increments: { jmcQty: qty },
+                companyId: item.companyId?.toString()
+              });
+            }
+          }
+        }
+      }
+
+      // 11. Rebuild from ContractorInvoice
+      const { ContractorInvoice } = await import('../../contractor-billing/contractorInvoice.schema');
+      const cInvoices = await ContractorInvoice.find({ 'lineItems.itemId': itemId });
+      for (const inv of cInvoices) {
+        for (const line of inv.lineItems) {
+          if (line.itemId?.toString() === itemIdStr) {
+            const qty = Number(line.erectedQty || line.jmcDoneQty || 0);
+            if (qty > 0) {
+              await SummaryService.updateSummary({
+                itemId, circle: inv.legacyMetadata?.circle || '', package: inv.legacyMetadata?.package || '',
+                increments: { cBillQty: qty },
+                companyId: item.companyId?.toString()
+              });
+            }
+          }
+        }
+      }
+
+      // 12. Rebuild from ClientBill
+      const { ClientBill } = await import('../../client-billing/clientBill.schema');
+      const clientBills = await ClientBill.find({ 'items.itemId': itemId, status: { $ne: 'Rejected' } });
+      for (const cb of clientBills) {
+        for (const line of cb.items) {
+          if (line.itemId?.toString() === itemIdStr) {
+            const qty = Number(line.raBillQty || line.sourceDoneQty || 0);
+            if (qty > 0) {
+              const increments: any = {};
+              if (cb.billType === 'Supply') {
+                if (cb.stage === '60%') increments.ra60Qty = qty;
+                else if (cb.stage === '30%') increments.ra30Qty = qty;
+                else if (cb.stage === '10%') increments.ra10Qty = qty;
+              } else if (cb.billType === 'Erection') {
+                if (cb.stage === '90%') increments.er90Qty = qty;
+                else if (cb.stage === '10%') increments.er10Qty = qty;
+              }
+              await SummaryService.updateSummary({
+                itemId, circle: cb.circle || '', package: cb.package || '',
+                increments,
+                companyId: item.companyId?.toString()
+              });
+            }
+          }
+        }
+      }
+
 
       // 9.5 Guarantee at least one summary exists
       const existingSummary = await ItemSummary.findOne({ itemId });

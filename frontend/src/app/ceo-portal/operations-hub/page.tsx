@@ -73,20 +73,24 @@ function build(b: any, i: number) {
   const d: any = {};
   
   // Calculate totals across all circles for this row's temp code and package
-  const loaQty = (db.solanLoaQty||0) + (db.nahanLoaQty||0) + (db.rampurLoaQty||0) + (db.rohruLoaQty||0);
-  const poQty = loaQty; 
+  const loaQty = db.loaQty || 0;
+  const poQty = db.poQty || loaQty;
   const poVal = poQty * it.rate;
   
-  const diQty = (db.dispatchedSolan||0) + (db.dispatchedNahan||0) + (db.dispatchedRampur||0) + (db.dispatchedRohru||0);
-  const invQty = (db.inwardSolan||0) + (db.inwardNahan||0) + (db.inwardRampur||0) + (db.inwardRohru||0);
-  const actQty = (db.wipConsumedSolan||0) + (db.wipConsumedNahan||0) + (db.wipConsumedRampur||0) + (db.wipConsumedRohru||0);
+  const diQty = db.diQty || 0;
+  const invQty = db.invQty || 0;
+  const actQty = db.actQty || 0;
   
-  const issuedQty = (db.minSolan||0) + (db.minNahan||0) + (db.minRampur||0) + (db.minRohru||0);
-  const returnedQty = (db.mhrovSolan||0) + (db.mhrovNahan||0) + (db.mhrovRampur||0) + (db.mhrovRohru||0);
+  const issuedQty = db.issuedQty || 0;
+  const returnedQty = db.returnedQty || 0;
+  
+  const mhrovQty = db.mhrovQty || returnedQty; // Fallback to returned if missing
+  const transferInQty = db.transferInQty || 0;
+  const transferOutQty = db.transferOutQty || 0;
   
   // Total Supply + Erection Billed
-  const supplyBilled = (db.supplyBilledSolan||0) + (db.supplyBilledNahan||0) + (db.supplyBilledRampur||0) + (db.supplyBilledRohru||0);
-  const erectionBilled = (db.erectionBilledSolan||0) + (db.erectionBilledNahan||0) + (db.erectionBilledRampur||0) + (db.erectionBilledRohru||0);
+  const supplyBilled = db.supplyBilled || 0;
+  const erectionBilled = db.erectionBilled || 0;
   const billedQty = supplyBilled + erectionBilled;
   
   it.loa = loaQty;
@@ -113,9 +117,16 @@ function build(b: any, i: number) {
   d.cbill = billedQty > 0 ? { amt: billedQty * it.rate, ra: 'N/A' } : null;
   d.kbill = billedQty > 0 ? { amt: billedQty * it.rate, status: 'N/A' } : null;
   
-  d.mis_s = { di: diQty, mrhov: returnedQty, issued: issuedQty, balStore: it.stock };
+  d.mis_s = { di: diQty, mrhov: mhrovQty, issued: issuedQty, balStore: it.stock };
   d.mis_c = { dn: issuedQty, jmc: billedQty, wipC: actQty, wipR: Math.max(0, Math.round((loaQty - actQty)*1000)/1000), issued: issuedQty, balCont: Math.max(0, Math.round((issuedQty - actQty - returnedQty)*1000)/1000) };
   
+  const vendorStr = Array.isArray(db.vendors) && db.vendors.length > 0 ? db.vendors.join(', ') : 'N/A';
+  d.mis_v = { vendors: vendorStr, poQty: poQty, diQty: diQty, invQty: invQty, mrhovQty: mhrovQty };
+  
+  d.mis_b_c_s = { diQty: diQty, mrhovQty: mhrovQty, ra60Qty: db.ra60Qty || 0, ra30Qty: db.ra30Qty || 0, ra10Qty: db.ra10Qty || 0 };
+  d.mis_b_c_e = { diQty: diQty, mrhovQty: mhrovQty, er90Qty: db.er90Qty || 0, er10Qty: db.er10Qty || 0 };
+  d.mis_b_cont = { issuedQty: issuedQty, jmcQty: db.jmcQty || 0, cBillQty: db.cBillQty || 0 };
+
   it.d = d; 
   return it;
 }
@@ -129,7 +140,11 @@ const MODS = [
 
 const MODS_MIS = [
   { id: 'm5', n: 1, name: 'Store MIS', color: 'orange' },
-  { id: 'm6', n: 2, name: 'Contractor MIS', color: 'teal' }
+  { id: 'm6', n: 2, name: 'Contractor MIS', color: 'teal' },
+  { id: 'm7', n: 3, name: 'Vendor MIS', color: 'rose' },
+  { id: 'm8', n: 4, name: 'Client Billing - Supply', color: 'cyan' },
+  { id: 'm9', n: 5, name: 'Client Billing - Erection', color: 'fuchsia' },
+  { id: 'm10', n: 6, name: 'Contractor Billing MIS', color: 'amber' }
 ];
 
 const SUBS = [
@@ -150,7 +165,11 @@ const SUBS = [
   { id: 'cbill', m: 'm4', name: 'Client Billing', cols: [['ra', 'RA bill', 'code'], ['amt', 'RA amount (₹)', 'money']] },
   { id: 'kbill', m: 'm4', name: 'Contractor Billing', cols: [['amt', 'Payable (₹)', 'money'], ['status', 'Payment', 'status']] },
   { id: 'mis_s', m: 'm5', name: 'Store MIS', cols: [['di', 'DI qty', 'qty'], ['mrhov', 'MRHOV qty', 'qty'], ['issued', 'Issued qty', 'qty'], ['balStore', 'Balance at store', 'qty']] },
-  { id: 'mis_c', m: 'm6', name: 'Contractor MIS', cols: [['dn', 'Demand Notes', 'qty'], ['jmc', 'JMC qty', 'qty'], ['wipC', 'WIP Consumed', 'qty'], ['wipR', 'WIP Required', 'qty'], ['issued', 'Store Issued', 'qty'], ['balCont', 'Balance at contractor', 'qty']] }
+  { id: 'mis_c', m: 'm6', name: 'Contractor MIS', cols: [['dn', 'Demand Notes', 'qty'], ['jmc', 'JMC qty', 'qty'], ['wipC', 'WIP Consumed', 'qty'], ['wipR', 'WIP Required', 'qty'], ['issued', 'Store Issued', 'qty'], ['balCont', 'Balance at contractor', 'qty']] },
+  { id: 'mis_v', m: 'm7', name: 'Vendor MIS', cols: [['vendors', 'Vendor(s)', 'text'], ['poQty', 'PO qty', 'qty'], ['diQty', 'DI qty', 'qty'], ['invQty', 'Invoice qty', 'qty'], ['mrhovQty', 'MRHOV qty', 'qty']] },
+  { id: 'mis_b_c_s', m: 'm8', name: 'Client Billing - Supply', cols: [['diQty', 'DI Qty', 'qty'], ['mrhovQty', 'MRHOV Qty', 'qty'], ['ra60Qty', 'RA Bill - 60%', 'qty'], ['ra30Qty', 'RA Bill - 30%', 'qty'], ['ra10Qty', 'RA Bill - 10%', 'qty']] },
+  { id: 'mis_b_c_e', m: 'm9', name: 'Client Billing - Erection', cols: [['diQty', 'DI Qty', 'qty'], ['mrhovQty', 'MRHOV Qty', 'qty'], ['er90Qty', 'Erected Qty - 90%', 'qty'], ['er10Qty', 'Erected Qty - 10%', 'qty']] },
+  { id: 'mis_b_cont', m: 'm10', name: 'Contractor Billing MIS', cols: [['issuedQty', 'Issued Qty', 'qty'], ['jmcQty', 'JMC Qty', 'qty'], ['cBillQty', 'Contractor billing Qty', 'qty']] }
 ];
 
 const STATIC = [
@@ -436,6 +455,12 @@ export default function OperationsHub() {
     if (c === 'blue') return { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-200', active: 'bg-blue-600 text-white' };
     if (c === 'emerald') return { bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-200', active: 'bg-emerald-600 text-white' };
     if (c === 'purple') return { bg: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-200', active: 'bg-purple-600 text-white' };
+    if (c === 'orange') return { bg: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-200', active: 'bg-orange-600 text-white' };
+    if (c === 'teal') return { bg: 'bg-teal-50', text: 'text-teal-600', border: 'border-teal-200', active: 'bg-teal-600 text-white' };
+    if (c === 'rose') return { bg: 'bg-rose-50', text: 'text-rose-600', border: 'border-rose-200', active: 'bg-rose-600 text-white' };
+    if (c === 'cyan') return { bg: 'bg-cyan-50', text: 'text-cyan-600', border: 'border-cyan-200', active: 'bg-cyan-600 text-white' };
+    if (c === 'fuchsia') return { bg: 'bg-fuchsia-50', text: 'text-fuchsia-600', border: 'border-fuchsia-200', active: 'bg-fuchsia-600 text-white' };
+    if (c === 'amber') return { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-200', active: 'bg-amber-600 text-white' };
     return { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200', active: 'bg-slate-600 text-white' };
   };
 

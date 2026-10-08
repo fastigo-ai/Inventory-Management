@@ -215,7 +215,7 @@ export default function ItemSummaryMatrixPage() {
     
     // We will build the headers dynamically based on what is shown in CSV
     const headers = [
-      'Sr. No.', 'LOA Sr. No.', 'Temp Code', 'Item Name', 'Package', 'Circle',
+      'Sr. No.', 'Temp Code', 'Item Name', 'Package', 'Circle',
       'Solan LOA Qty', 'Solan BOM Qty', 'Nahan LOA Qty', 'Nahan BOM Qty', 'Rampur LOA Qty', 'Rampur BOM Qty', 'Rohru LOA Qty', 'Rohru BOM Qty',
       'Total Dispatched Solan', 'Total Dispatched Nahan', 'Total Dispatched Rampur', 'Total Dispatched Rohru',
       'Total Inward (IR) Solan', 'Total Inward (IR) Nahan', 'Total Inward (IR) Rampur', 'Total Inward (IR) Rohru',
@@ -234,28 +234,25 @@ export default function ItemSummaryMatrixPage() {
     ];
 
     const rows = data.map((r, i) => {
-      const itemCirc = String(r.circle || '').toLowerCase();
-      const cv = (circ: string, val: any) => !itemCirc.includes(circ) ? '-' : (val != null ? Math.round(val).toLocaleString('en-IN') : '0');
+      const cv = (val: any) => (val != null ? Math.round(val).toLocaleString('en-IN') : '0');
 
       return [
         r.srNo || (i + 1),
-        r.sku || r.loaSerialNo || '-',
         r.tempCode || '-',
         r.itemName || '-',
         r.package || '-',
         r.circle || '-',
-        cv('solan', r.solanLoaQty), cv('solan', r.solanBomQty), cv('nahan', r.nahanLoaQty), cv('nahan', r.nahanBomQty), cv('rampur', r.rampurLoaQty), cv('rampur', r.rampurBomQty), cv('rohru', r.rohruLoaQty), cv('rohru', r.rohruBomQty),
-        cv('solan', r.dispatchedSolan), cv('nahan', r.dispatchedNahan), cv('rampur', r.dispatchedRampur), cv('rohru', r.dispatchedRohru),
-        cv('solan', r.inwardSolan), cv('nahan', r.inwardNahan), cv('rampur', r.inwardRampur), cv('rohru', r.inwardRohru),
-        cv('solan', r.mhrovSolan), cv('nahan', r.mhrovNahan), cv('rampur', r.mhrovRampur), cv('rohru', r.mhrovRohru),
-        cv('solan', r.minSolan), cv('nahan', r.minNahan), cv('rampur', r.minRampur), cv('rohru', r.minRohru),
-        cv('solan', r.imcSolan), cv('nahan', r.imcNahan), cv('rampur', r.imcRampur), cv('rohru', r.imcRohru),
-        cv('solan', r.supplyBilledSolan), cv('nahan', r.supplyBilledNahan), cv('rampur', r.supplyBilledRampur), cv('rohru', r.supplyBilledRohru),
-        cv('solan', r.erectionBilledSolan), cv('nahan', r.erectionBilledNahan), cv('rampur', r.erectionBilledRampur), cv('rohru', r.erectionBilledRohru),
-        cv('solan', r.wipConsumedSolan), cv('nahan', r.wipConsumedNahan), cv('rampur', r.wipConsumedRampur), cv('rohru', r.wipConsumedRohru),
-        cv('solan', r.wipRequiredSolan), cv('nahan', r.wipRequiredNahan), cv('rampur', r.wipRequiredRampur), cv('rohru', r.wipRequiredRohru),
+        cv(r.solanLoaQty), cv(r.solanBomQty), cv(r.nahanLoaQty), cv(r.nahanBomQty), cv(r.rampurLoaQty), cv(r.rampurBomQty), cv(r.rohruLoaQty), cv(r.rohruBomQty),
+        cv(r.dispatchedSolan), cv(r.dispatchedNahan), cv(r.dispatchedRampur), cv(r.dispatchedRohru),
+        cv(r.inwardSolan), cv(r.inwardNahan), cv(r.inwardRampur), cv(r.inwardRohru),
+        cv(r.mhrovSolan), cv(r.mhrovNahan), cv(r.mhrovRampur), cv(r.mhrovRohru),
+        cv(r.minSolan), cv(r.minNahan), cv(r.minRampur), cv(r.minRohru),
+        cv(r.imcSolan), cv(r.imcNahan), cv(r.imcRampur), cv(r.imcRohru),
+        cv(r.supplyBilledSolan), cv(r.supplyBilledNahan), cv(r.supplyBilledRampur), cv(r.supplyBilledRohru),
+        cv(r.erectionBilledSolan), cv(r.erectionBilledNahan), cv(r.erectionBilledRampur), cv(r.erectionBilledRohru),
+        cv(r.wipConsumedSolan), cv(r.wipConsumedNahan), cv(r.wipConsumedRampur), cv(r.wipConsumedRohru),
+        cv(r.wipRequiredSolan), cv(r.wipRequiredNahan), cv(r.wipRequiredRampur), cv(r.wipRequiredRohru),
         ...['solan', 'nahan', 'rampur', 'rohru'].flatMap(c => {
-          if (!itemCirc.includes(c)) return ['-', '-', '-', '-', '-', '-', '-'];
           const b = r.allBalances ? r.allBalances[c] : (r.balances || {});
           return [
             b.diVsLoa != null ? Math.round(b.diVsLoa).toLocaleString('en-IN') : '-', 
@@ -290,7 +287,7 @@ export default function ItemSummaryMatrixPage() {
     if (data.length === 0) return;
 
     const headers = [
-      'Sr. No.', 'LOA Sr. No.', 'Temp Code', 'Item Name', 'Package', 'Circle',
+      'Sr. No.', 'Temp Code', 'Item Name', 'Package', 'Circle',
       'Solan LOA Qty', 'Solan BOM Qty', 'Nahan LOA Qty', 'Nahan BOM Qty', 'Rampur LOA Qty', 'Rampur BOM Qty', 'Rohru LOA Qty', 'Rohru BOM Qty',
       'Total Dispatched Solan', 'Total Dispatched Nahan', 'Total Dispatched Rampur', 'Total Dispatched Rohru',
       'Total Inward (IR) Solan', 'Total Inward (IR) Nahan', 'Total Inward (IR) Rampur', 'Total Inward (IR) Rohru',
@@ -309,23 +306,21 @@ export default function ItemSummaryMatrixPage() {
     ];
 
     const rows = data.map(r => {
-      const itemCirc = String(r.circle || '').toLowerCase();
-      const cv = (circ: string, val: any) => !itemCirc.includes(circ) ? '' : (val != null ? Math.round(val) : 0);
+      const cv = (val: any) => (val != null ? Math.round(val) : 0);
 
       return [
-        r.srNo, `"${r.loaSerialNo || r.tempCode || ''}"`, `"${r.tempCode || ''}"`, `"${(r.itemName || '').replace(/"/g, '""')}"`, `"${r.package || ''}"`, `"${r.circle || ''}"`,
-        cv('solan', r.solanLoaQty), cv('solan', r.solanBomQty), cv('nahan', r.nahanLoaQty), cv('nahan', r.nahanBomQty), cv('rampur', r.rampurLoaQty), cv('rampur', r.rampurBomQty), cv('rohru', r.rohruLoaQty), cv('rohru', r.rohruBomQty),
-        cv('solan', r.dispatchedSolan), cv('nahan', r.dispatchedNahan), cv('rampur', r.dispatchedRampur), cv('rohru', r.dispatchedRohru),
-        cv('solan', r.inwardSolan), cv('nahan', r.inwardNahan), cv('rampur', r.inwardRampur), cv('rohru', r.inwardRohru),
-        cv('solan', r.mhrovSolan), cv('nahan', r.mhrovNahan), cv('rampur', r.mhrovRampur), cv('rohru', r.mhrovRohru),
-        cv('solan', r.minSolan), cv('nahan', r.minNahan), cv('rampur', r.minRampur), cv('rohru', r.minRohru),
-        cv('solan', r.imcSolan), cv('nahan', r.imcNahan), cv('rampur', r.imcRampur), cv('rohru', r.imcRohru),
-        cv('solan', r.supplyBilledSolan), cv('nahan', r.supplyBilledNahan), cv('rampur', r.supplyBilledRampur), cv('rohru', r.supplyBilledRohru),
-        cv('solan', r.erectionBilledSolan), cv('nahan', r.erectionBilledNahan), cv('rampur', r.erectionBilledRampur), cv('rohru', r.erectionBilledRohru),
-        cv('solan', r.wipConsumedSolan), cv('nahan', r.wipConsumedNahan), cv('rampur', r.wipConsumedRampur), cv('rohru', r.wipConsumedRohru),
-        cv('solan', r.wipRequiredSolan), cv('nahan', r.wipRequiredNahan), cv('rampur', r.wipRequiredRampur), cv('rohru', r.wipRequiredRohru),
+        r.srNo, `"${r.tempCode || ''}"`, `"${(r.itemName || '').replace(/"/g, '""')}"`, `"${r.package || ''}"`, `"${r.circle || ''}"`,
+        cv(r.solanLoaQty), cv(r.solanBomQty), cv(r.nahanLoaQty), cv(r.nahanBomQty), cv(r.rampurLoaQty), cv(r.rampurBomQty), cv(r.rohruLoaQty), cv(r.rohruBomQty),
+        cv(r.dispatchedSolan), cv(r.dispatchedNahan), cv(r.dispatchedRampur), cv(r.dispatchedRohru),
+        cv(r.inwardSolan), cv(r.inwardNahan), cv(r.inwardRampur), cv(r.inwardRohru),
+        cv(r.mhrovSolan), cv(r.mhrovNahan), cv(r.mhrovRampur), cv(r.mhrovRohru),
+        cv(r.minSolan), cv(r.minNahan), cv(r.minRampur), cv(r.minRohru),
+        cv(r.imcSolan), cv(r.imcNahan), cv(r.imcRampur), cv(r.imcRohru),
+        cv(r.supplyBilledSolan), cv(r.supplyBilledNahan), cv(r.supplyBilledRampur), cv(r.supplyBilledRohru),
+        cv(r.erectionBilledSolan), cv(r.erectionBilledNahan), cv(r.erectionBilledRampur), cv(r.erectionBilledRohru),
+        cv(r.wipConsumedSolan), cv(r.wipConsumedNahan), cv(r.wipConsumedRampur), cv(r.wipConsumedRohru),
+        cv(r.wipRequiredSolan), cv(r.wipRequiredNahan), cv(r.wipRequiredRampur), cv(r.wipRequiredRohru),
         ...['solan', 'nahan', 'rampur', 'rohru'].flatMap(c => {
-          if (!itemCirc.includes(c)) return ['', '', '', '', '', '', ''];
           const b = r.allBalances ? r.allBalances[c] : (r.balances || {});
           return [
             b.diVsLoa != null ? String(Math.round(b.diVsLoa)) : '0', 
@@ -602,7 +597,6 @@ export default function ItemSummaryMatrixPage() {
                     />
                   </th>
                   <th className="p-2 min-w-[40px] text-center bg-slate-100">Sr. No.</th>
-                  <th className="p-2 min-w-[100px] bg-slate-100">LOA Sr. No.</th>
                   <th className="p-2 min-w-[80px] bg-slate-100">Temp Code</th>
                   <th className="p-2 min-w-[220px] bg-slate-100">Item Name</th>
                   <th className="p-2 min-w-[120px] bg-slate-100">Package</th>
@@ -652,28 +646,27 @@ export default function ItemSummaryMatrixPage() {
                     const c = String(r.circle || '').toLowerCase();
                     
                     // Compute dynamic values based on the item's circle
-                    const loaQty = r.solanLoaQty || r.nahanLoaQty || r.rampurLoaQty || r.rohruLoaQty || 0;
-                    const bomQty = r.solanBomQty || r.nahanBomQty || r.rampurBomQty || r.rohruBomQty || 0;
+                    const loaQty = (r.solanLoaQty || 0) + (r.nahanLoaQty || 0) + (r.rampurLoaQty || 0) + (r.rohruLoaQty || 0);
+                    const bomQty = (r.solanBomQty || 0) + (r.nahanBomQty || 0) + (r.rampurBomQty || 0) + (r.rohruBomQty || 0);
                     
-                    const diQty = r.dispatchedSolan || r.dispatchedNahan || r.dispatchedRampur || r.dispatchedRohru || r.dispatched?.solan || r.dispatched?.nahan || r.dispatched?.rampur || r.dispatched?.rohru || 0;
+                    const diQty = (r.dispatchedSolan || 0) + (r.dispatchedNahan || 0) + (r.dispatchedRampur || 0) + (r.dispatchedRohru || 0);
                     
-                    const piQty = r.inwardSolan || r.inwardNahan || r.inwardRampur || r.inwardRohru || r.inward?.solan || r.inward?.nahan || r.inward?.rampur || r.inward?.rohru || 0;
+                    const piQty = (r.inwardSolan || 0) + (r.inwardNahan || 0) + (r.inwardRampur || 0) + (r.inwardRohru || 0);
                     
-                    const mhrovQty = r.mhrovSolan || r.mhrovNahan || r.mhrovRampur || r.mhrovRohru || r.mhrov?.solan || r.mhrov?.nahan || r.mhrov?.rampur || r.mhrov?.rohru || 0;
-                    const jmcQty = r.imcSolan || r.imcNahan || r.imcRampur || r.imcRohru || r.imc?.solan || r.imc?.nahan || r.imc?.rampur || r.imc?.rohru || 0;
-                    const supplyBillQty_60 = r.supplyBilledSolan_60 || r.supplyBilledNahan_60 || r.supplyBilledRampur_60 || r.supplyBilledRohru_60 || 0;
-                    const supplyBillQty_30 = r.supplyBilledSolan_30 || r.supplyBilledNahan_30 || r.supplyBilledRampur_30 || r.supplyBilledRohru_30 || 0;
-                    const supplyBillQty_10 = r.supplyBilledSolan_10 || r.supplyBilledNahan_10 || r.supplyBilledRampur_10 || r.supplyBilledRohru_10 || 0;
-                    const supplyBillQty = r.supplyBilledSolan || r.supplyBilledNahan || r.supplyBilledRampur || r.supplyBilledRohru || 0;
-                    const erectionBillQty_90 = r.erectionBilledSolan_90 || r.erectionBilledNahan_90 || r.erectionBilledRampur_90 || r.erectionBilledRohru_90 || 0;
-                    const erectionBillQty_10 = r.erectionBilledSolan_10 || r.erectionBilledNahan_10 || r.erectionBilledRampur_10 || r.erectionBilledRohru_10 || 0;
-                    const erectionBillQty = r.erectionBilledSolan || r.erectionBilledNahan || r.erectionBilledRampur || r.erectionBilledRohru || 0;
+                    const mhrovQty = (r.mhrovSolan || 0) + (r.mhrovNahan || 0) + (r.mhrovRampur || 0) + (r.mhrovRohru || 0);
+                    const jmcQty = (r.imcSolan || 0) + (r.imcNahan || 0) + (r.imcRampur || 0) + (r.imcRohru || 0);
+                    const supplyBillQty_60 = (r.supplyBilledSolan_60 || 0) + (r.supplyBilledNahan_60 || 0) + (r.supplyBilledRampur_60 || 0) + (r.supplyBilledRohru_60 || 0);
+                    const supplyBillQty_30 = (r.supplyBilledSolan_30 || 0) + (r.supplyBilledNahan_30 || 0) + (r.supplyBilledRampur_30 || 0) + (r.supplyBilledRohru_30 || 0);
+                    const supplyBillQty_10 = (r.supplyBilledSolan_10 || 0) + (r.supplyBilledNahan_10 || 0) + (r.supplyBilledRampur_10 || 0) + (r.supplyBilledRohru_10 || 0);
+                    const supplyBillQty = (r.supplyBilledSolan || 0) + (r.supplyBilledNahan || 0) + (r.supplyBilledRampur || 0) + (r.supplyBilledRohru || 0);
+                    const erectionBillQty_90 = (r.erectionBilledSolan_90 || 0) + (r.erectionBilledNahan_90 || 0) + (r.erectionBilledRampur_90 || 0) + (r.erectionBilledRohru_90 || 0);
+                    const erectionBillQty_10 = (r.erectionBilledSolan_10 || 0) + (r.erectionBilledNahan_10 || 0) + (r.erectionBilledRampur_10 || 0) + (r.erectionBilledRohru_10 || 0);
+                    const erectionBillQty = (r.erectionBilledSolan || 0) + (r.erectionBilledNahan || 0) + (r.erectionBilledRampur || 0) + (r.erectionBilledRohru || 0);
                     
-                    const wipConsQty = r.wipConsumedSolan || r.wipConsumedNahan || r.wipConsumedRampur || r.wipConsumedRohru || r.wipConsumed?.solan || r.wipConsumed?.nahan || r.wipConsumed?.rampur || r.wipConsumed?.rohru || 0;
-                    const wipReqQty = r.wipRequiredSolan || r.wipRequiredNahan || r.wipRequiredRampur || r.wipRequiredRohru || r.wipRequired?.solan || r.wipRequired?.nahan || r.wipRequired?.rampur || r.wipRequired?.rohru || 0;
+                    const wipConsQty = (r.wipConsumedSolan || 0) + (r.wipConsumedNahan || 0) + (r.wipConsumedRampur || 0) + (r.wipConsumedRohru || 0);
+                    const wipReqQty = (r.wipRequiredSolan || 0) + (r.wipRequiredNahan || 0) + (r.wipRequiredRampur || 0) + (r.wipRequiredRohru || 0);
 
-                    const itemCircleKey = c === 'solan' || c === 'nahan' || c === 'rampur' || c === 'rohru' ? c : 'solan';
-                    const bal = r.allBalances ? r.allBalances[itemCircleKey] : (r.balances || {});
+                    const bal = r.balances || {};
 
                     const fmtQty = (v: any) => (v ? Math.round(v).toLocaleString('en-IN') : '-');
                     const fmtBal = (v: any) => (v != null ? Math.round(v).toLocaleString('en-IN') : '-');
@@ -694,7 +687,6 @@ export default function ItemSummaryMatrixPage() {
                           />
                         </td>
                         <td className="p-2 text-center text-slate-500 border-r">{idx + 1 + (Number(filters.page || 1) - 1) * Number(filters.limit || 50)}</td>
-                        <td className="p-2 text-slate-700 border-r">{r.sku || r.loaSerialNo || '-'}</td>
                         <td className="p-2 text-slate-700 border-r">{r.tempCode}</td>
                         <td className="p-2 font-medium text-slate-900 border-r max-w-[220px] truncate" title={r.itemName || r.name}>{r.itemName || r.name}</td>
                         <td className="p-2 text-slate-700 border-r">{r.package}</td>

@@ -1173,6 +1173,7 @@ async function computeItemMatrixSummary(params: {
     rampurBomQty: number;
     rohruLoaQty: number;
     rohruBomQty: number;
+    validCircles: Set<string>;
   }>();
 
   const itemIdToKeyMap = new Map<string, string>();
@@ -1187,7 +1188,7 @@ async function computeItemMatrixSummary(params: {
     const pkgVal = String(d.package || it.package || '').trim();
     const circleVal = String(d.circle || it.circle || '').trim();
 
-    // Group by Package + Circle + Temp Code for a flat layout
+    // Group by Package + Circle + Temp Code
     const groupKey = `${pkgVal ? pkgVal + '___' : ''}${circleVal ? circleVal + '___' : ''}${tc}`;
 
     if (!groupedItemsMap.has(groupKey)) {
@@ -1207,10 +1208,12 @@ async function computeItemMatrixSummary(params: {
         rampurBomQty: 0,
         rohruLoaQty: 0,
         rohruBomQty: 0,
+        validCircles: new Set<string>(),
       });
     }
 
     const grp = groupedItemsMap.get(groupKey)!;
+    grp.validCircles.add(circleVal.toLowerCase());
     grp.itemIds.push(it._id.toString());
     itemIdToKeyMap.set(it._id.toString(), groupKey);
     if (tc) tempCodeToKeyMap.set(`${pkgVal ? pkgVal + '___' : ''}${tc}`, groupKey);
@@ -1248,10 +1251,9 @@ async function computeItemMatrixSummary(params: {
       const mappedKey = itemIdToKeyMap.get(idStr)!;
       const grp = groupedItemsMap.get(mappedKey);
       
-      // Validation: If the circle is specified in the transaction (e.g. MIN was for Rohru)
-      // but the master item we got by ID belongs to Solan, the ID is an erroneous cross-circle 
-      // assignment from the UI. We should ignore it and rely on the fallback logic below.
-      if (grp && circ && !grp.circle.toLowerCase().includes(circ)) {
+      // Validation: If the circle is specified in the transaction
+      // but the master item we got by ID does not have this circle valid, ignore.
+      if (grp && circ && !grp.validCircles.has(circ)) {
          // Cross-circle mismatch, ignore this itemId
       } else {
          return [mappedKey];
@@ -1261,14 +1263,14 @@ async function computeItemMatrixSummary(params: {
 
     if (loaSr && circ) {
       for (const [k, grp] of groupedItemsMap.entries()) {
-        if (grp.loaSerialNo === loaSr && grp.circle.toLowerCase().includes(circ)) {
+        if (grp.loaSerialNo === loaSr && grp.validCircles.has(circ)) {
           return [k];
         }
       }
     }
     if (loaSr) {
       for (const [k, grp] of groupedItemsMap.entries()) {
-        if (grp.loaSerialNo === loaSr) {
+        if (grp.loaSerialNo === loaSr && (!circ || grp.validCircles.has(circ))) {
           return [k];
         }
       }
@@ -1284,16 +1286,21 @@ async function computeItemMatrixSummary(params: {
     if (tc && circ) {
       const matches: string[] = [];
       for (const [k, grp] of groupedItemsMap.entries()) {
-        if (grp.tempCode === tc && grp.circle.toLowerCase().includes(circ)) {
+        if (grp.tempCode === tc && grp.validCircles.has(circ)) {
           matches.push(k);
         }
       }
       if (matches.length > 0) return matches; // Return ALL matches for proportional distribution
     }
     
+
+    
     if (lineItemId) {
       const k = itemIdToKeyMap.get(lineItemId.toString());
-      if (k) return [k];
+      if (k) {
+        const grp = groupedItemsMap.get(k);
+        if (grp && (!circ || grp.validCircles.has(circ))) return [k];
+      }
     }
     return [];
   };

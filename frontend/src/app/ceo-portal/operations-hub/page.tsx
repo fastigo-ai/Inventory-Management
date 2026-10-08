@@ -122,6 +122,10 @@ function build(b: any, i: number) {
   const vendorStr = Array.isArray(db.vendors) && db.vendors.length > 0 ? db.vendors.join(', ') : 'N/A';
   d.mis_v = { vendors: vendorStr, poQty: poQty, diQty: diQty, invQty: invQty, mrhovQty: mhrovQty };
   
+  d.mis_b_c_s = { diQty: diQty, mrhovQty: mhrovQty, ra60Qty: db.ra60Qty || 0, ra30Qty: db.ra30Qty || 0, ra10Qty: db.ra10Qty || 0 };
+  d.mis_b_c_e = { diQty: diQty, mrhovQty: mhrovQty, er90Qty: db.er90Qty || 0, er10Qty: db.er10Qty || 0 };
+  d.mis_b_cont = { issuedQty: issuedQty, jmcQty: db.jmcQty || 0, cBillQty: db.cBillQty || 0 };
+
   it.d = d; 
   return it;
 }
@@ -158,7 +162,10 @@ const SUBS = [
   { id: 'kbill', m: 'm4', name: 'Contractor Billing', cols: [['amt', 'Payable (₹)', 'money'], ['status', 'Payment', 'status']] },
   { id: 'mis_s', m: 'm5', name: 'Store MIS', cols: [['di', 'DI qty', 'qty'], ['mrhov', 'MRHOV qty', 'qty'], ['issued', 'Issued qty', 'qty'], ['balStore', 'Balance at store', 'qty']] },
   { id: 'mis_c', m: 'm6', name: 'Contractor MIS', cols: [['dn', 'Demand Notes', 'qty'], ['jmc', 'JMC qty', 'qty'], ['wipC', 'WIP Consumed', 'qty'], ['wipR', 'WIP Required', 'qty'], ['issued', 'Store Issued', 'qty'], ['balCont', 'Balance at contractor', 'qty']] },
-  { id: 'mis_v', m: 'm7', name: 'Vendor MIS', cols: [['vendors', 'Vendor(s)', 'text'], ['poQty', 'PO qty', 'qty'], ['diQty', 'DI qty', 'qty'], ['invQty', 'Invoice qty', 'qty'], ['mrhovQty', 'MRHOV qty', 'qty']] }
+  { id: 'mis_v', m: 'm7', name: 'Vendor MIS', cols: [['vendors', 'Vendor(s)', 'text'], ['poQty', 'PO qty', 'qty'], ['diQty', 'DI qty', 'qty'], ['invQty', 'Invoice qty', 'qty'], ['mrhovQty', 'MRHOV qty', 'qty']] },
+  { id: 'mis_b_c_s', m: 'm8', name: 'Client Billing - Supply', cols: [['diQty', 'DI Qty', 'qty'], ['mrhovQty', 'MRHOV Qty', 'qty'], ['ra60Qty', 'RA Bill - 60%', 'qty'], ['ra30Qty', 'RA Bill - 30%', 'qty'], ['ra10Qty', 'RA Bill - 10%', 'qty']] },
+  { id: 'mis_b_c_e', m: 'm9', name: 'Client Billing - Erection', cols: [['diQty', 'DI Qty', 'qty'], ['mrhovQty', 'MRHOV Qty', 'qty'], ['er90Qty', 'Erected Qty - 90%', 'qty'], ['er10Qty', 'Erected Qty - 10%', 'qty']] },
+  { id: 'mis_b_cont', m: 'm10', name: 'Contractor Billing MIS', cols: [['issuedQty', 'Issued Qty', 'qty'], ['jmcQty', 'JMC Qty', 'qty'], ['cBillQty', 'Contractor billing Qty', 'qty']] }
 ];
 
 const STATIC = [

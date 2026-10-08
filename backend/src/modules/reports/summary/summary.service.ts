@@ -22,6 +22,13 @@ interface UpdateSummaryParams {
     returnedQty?: number;
     poQty?: number;
     mhrovQty?: number;
+    ra60Qty?: number;
+    ra30Qty?: number;
+    ra10Qty?: number;
+    er90Qty?: number;
+    er10Qty?: number;
+    jmcQty?: number;
+    cBillQty?: number;
   };
   setFields?: {
     stockBalance?: number;
@@ -449,6 +456,70 @@ export class SummaryService {
           }
         }
       }
+
+      // 10. Rebuild from JmcRegister
+      const { JmcRegister } = await import('../../jmc/jmc.schema');
+      const jmcs = await JmcRegister.find({ 'items.itemId': itemId, status: { $ne: 'Rejected' } });
+      for (const jmc of jmcs) {
+        for (const line of jmc.items) {
+          if (line.itemId?.toString() === itemIdStr) {
+            const qty = Number(line.approvedQty || line.claimedQty || 0);
+            if (qty > 0) {
+              await SummaryService.updateSummary({
+                itemId, circle: jmc.circle || '', package: jmc.package || '',
+                increments: { jmcQty: qty },
+                companyId: item.companyId?.toString()
+              });
+            }
+          }
+        }
+      }
+
+      // 11. Rebuild from ContractorInvoice
+      const { ContractorInvoice } = await import('../../contractor-billing/contractorInvoice.schema');
+      const cInvoices = await ContractorInvoice.find({ 'lineItems.itemId': itemId });
+      for (const inv of cInvoices) {
+        for (const line of inv.lineItems) {
+          if (line.itemId?.toString() === itemIdStr) {
+            const qty = Number(line.erectedQty || line.jmcDoneQty || 0);
+            if (qty > 0) {
+              await SummaryService.updateSummary({
+                itemId, circle: inv.legacyMetadata?.circle || '', package: inv.legacyMetadata?.package || '',
+                increments: { cBillQty: qty },
+                companyId: item.companyId?.toString()
+              });
+            }
+          }
+        }
+      }
+
+      // 12. Rebuild from ClientBill
+      const { ClientBill } = await import('../../client-billing/clientBill.schema');
+      const clientBills = await ClientBill.find({ 'items.itemId': itemId, status: { $ne: 'Rejected' } });
+      for (const cb of clientBills) {
+        for (const line of cb.items) {
+          if (line.itemId?.toString() === itemIdStr) {
+            const qty = Number(line.raBillQty || line.sourceDoneQty || 0);
+            if (qty > 0) {
+              const increments: any = {};
+              if (cb.billType === 'Supply') {
+                if (cb.stage === '60%') increments.ra60Qty = qty;
+                else if (cb.stage === '30%') increments.ra30Qty = qty;
+                else if (cb.stage === '10%') increments.ra10Qty = qty;
+              } else if (cb.billType === 'Erection') {
+                if (cb.stage === '90%') increments.er90Qty = qty;
+                else if (cb.stage === '10%') increments.er10Qty = qty;
+              }
+              await SummaryService.updateSummary({
+                itemId, circle: cb.circle || '', package: cb.package || '',
+                increments,
+                companyId: item.companyId?.toString()
+              });
+            }
+          }
+        }
+      }
+
 
       // 9.5 Guarantee at least one summary exists
       const existingSummary = await ItemSummary.findOne({ itemId });

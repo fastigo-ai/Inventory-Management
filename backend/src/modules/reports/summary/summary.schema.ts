@@ -20,6 +20,13 @@ export interface IItemSummary extends Document {
   poQty: number;
   mhrovQty: number;
   vendors?: string[];
+  ra60Qty: number;
+  ra30Qty: number;
+  ra10Qty: number;
+  er90Qty: number;
+  er10Qty: number;
+  jmcQty: number;
+  cBillQty: number;
   
   transferInQty: number;
   transferOutQty: number;
@@ -51,6 +58,13 @@ const itemSummarySchema = new Schema<IItemSummary>(
     poQty: { type: Number, default: 0 },
     mhrovQty: { type: Number, default: 0 },
     vendors: [{ type: String }],
+    ra60Qty: { type: Number, default: 0 },
+    ra30Qty: { type: Number, default: 0 },
+    ra10Qty: { type: Number, default: 0 },
+    er90Qty: { type: Number, default: 0 },
+    er10Qty: { type: Number, default: 0 },
+    jmcQty: { type: Number, default: 0 },
+    cBillQty: { type: Number, default: 0 },
     
     transferInQty: { type: Number, default: 0 },
     transferOutQty: { type: Number, default: 0 },

@@ -553,11 +553,10 @@ export default function OperationsHub() {
             })}
           </div>
           )}
-        </section>
 
-        <section className="mb-6 p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-            <div className="flex items-center gap-3">
+          <div className="mt-8 pt-8 border-t border-slate-100">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+              <div className="flex items-center gap-3">
               <button 
                 onClick={() => setShowMis(!showMis)}
                 className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
@@ -611,6 +610,7 @@ export default function OperationsHub() {
             })}
           </div>
           )}
+          </div>
         </section>
 
 

@@ -1,12 +1,16 @@
 const mongoose = require('mongoose');
-async function run() {
-  await mongoose.connect('mongodb+srv://fastigopvtltd_db_user:UpDQdSn25IPRy94R@cluster0.lgbl4nv.mongodb.net/?appName=Cluster0?retryWrites=true&w=majority');
-  const StoreTransfer = mongoose.model('StoreTransfer', new mongoose.Schema({}, { strict: false }));
-  const docs = await StoreTransfer.find({ toStore: /Rohru/i }).lean();
-  console.log(`Found ${docs.length} transfers to Rohru`);
-  for (let d of docs) {
-    console.log(`- from: ${d.fromStore}, to: ${d.toStore}, status: ${d.status}`);
-  }
-  await mongoose.disconnect();
+require('dotenv').config();
+
+async function main() {
+  await mongoose.connect(process.env.MONGO_URI);
+  const StoreTransfer = mongoose.connection.collection('storetransfers');
+  
+  const fromNalagarh = await StoreTransfer.countDocuments({ fromStore: /Nalagarh/i, registerType: 'OUTWARD', status: { $nin: ['Cancelled', 'REJECTED', 'CANCELLED'] } });
+  const toNalagarh = await StoreTransfer.countDocuments({ toStore: /Nalagarh/i, status: { $in: ['RECEIVED', 'IN_TRANSIT'] } });
+  
+  console.log(`Outward Transfers from Nalagarh: ${fromNalagarh}`);
+  console.log(`Inward Transfers to Nalagarh: ${toNalagarh}`);
+  
+  process.exit(0);
 }
-run().catch(console.error);
+main().catch(console.error);

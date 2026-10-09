@@ -606,10 +606,52 @@ export const getItemDetails = asyncHandler(async (req: Request, res: Response) =
   res.status(200).json(new ApiResponse(200, { pos, dis, invoices, mins }, 'Item details fetched successfully'));
 });
 
+const storeItemisedCache = new Map<string, { timestamp: number; data: any | null; promise: Promise<any> | null }>();
+const STORE_ITEMISED_CACHE_TTL = 45 * 1000;
+
 /**
  * Shared calculation engine for Store Itemised Summary (FROM CIRCLE STORE - Item Wise)
  */
 export async function computeStoreItemisedSummary(params: {
+  circle?: string;
+  store?: string;
+  package?: string;
+  search?: string;
+  tempCode?: string;
+  itemName?: string;
+  hideZeroBalance?: boolean;
+  viewMode?: 'item' | 'loa';
+}): Promise<{ rows: any[]; totals: any }> {
+  const cacheKey = JSON.stringify(params);
+  const cached = storeItemisedCache.get(cacheKey);
+  
+  if (cached && (Date.now() - cached.timestamp < STORE_ITEMISED_CACHE_TTL)) {
+    if (cached.promise) return await cached.promise;
+    if (cached.data) return cached.data;
+  }
+
+  let resolvePromise: (data: any) => void;
+  let rejectPromise: (err: any) => void;
+  const dataPromise = new Promise<any>((resolve, reject) => {
+    resolvePromise = resolve;
+    rejectPromise = reject;
+  });
+  
+  storeItemisedCache.set(cacheKey, { timestamp: Date.now(), data: null, promise: dataPromise });
+
+  try {
+    const data = await computeStoreItemisedSummaryInner(params);
+    storeItemisedCache.set(cacheKey, { timestamp: Date.now(), data, promise: null });
+    resolvePromise!(data);
+    return data;
+  } catch (error) {
+    storeItemisedCache.delete(cacheKey);
+    rejectPromise!(error);
+    throw error;
+  }
+}
+
+async function computeStoreItemisedSummaryInner(params: {
   circle?: string;
   store?: string;
   package?: string;
@@ -1160,7 +1202,7 @@ export const exportStoreItemisedSummary = asyncHandler(async (req: Request, res:
 });
 
 // In-memory cache for Matrix Summary to prevent expensive queries on every pagination/filter
-const matrixCache = new Map<string, { timestamp: number; data: any[] }>();
+const matrixCache = new Map<string, { timestamp: number; data: any[] | null; promise: Promise<any[]> | null }>();
 const MATRIX_CACHE_TTL = 45 * 1000; // 45 seconds
 
 /**
@@ -1181,9 +1223,33 @@ async function computeItemMatrixSummary(params: {
   const cacheKey = `${pkgArray.sort().join(',')}___${circArray.sort().join(',')}___${targCircArray.sort().join(',')}___${search || ''}`;
   const cached = matrixCache.get(cacheKey);
   if (cached && (Date.now() - cached.timestamp < MATRIX_CACHE_TTL)) {
-    return cached.data;
+    if (cached.promise) return await cached.promise;
+    if (cached.data) return cached.data;
   }
 
+  // Set the cache entry with a promise so concurrent requests await the same promise
+  let resolvePromise: (data: any[]) => void;
+  let rejectPromise: (err: any) => void;
+  const dataPromise = new Promise<any[]>((resolve, reject) => {
+    resolvePromise = resolve;
+    rejectPromise = reject;
+  });
+  
+  matrixCache.set(cacheKey, { timestamp: Date.now(), data: null, promise: dataPromise });
+
+  try {
+    const data = await computeItemMatrixSummaryInner(pkgArray, circArray, targCircArray, search);
+    matrixCache.set(cacheKey, { timestamp: Date.now(), data, promise: null });
+    resolvePromise!(data);
+    return data;
+  } catch (error) {
+    matrixCache.delete(cacheKey);
+    rejectPromise!(error);
+    throw error;
+  }
+}
+
+async function computeItemMatrixSummaryInner(pkgArray: string[], circArray: string[], targCircArray: string[], search: string | undefined) {
   const itemFilter: any = { isDeleted: { $ne: true } };
 
   if (pkgArray.length > 0 && !pkgArray.includes('all')) {
@@ -2164,8 +2230,6 @@ async function computeItemMatrixSummary(params: {
   // Sort by temp code numerical order
   matrixRows.sort((a, b) => a.tempNum - b.tempNum);
   matrixRows.forEach((r, i) => r.srNo = i + 1);
-
-  matrixCache.set(cacheKey, { timestamp: Date.now(), data: matrixRows });
 
   return matrixRows;
 }

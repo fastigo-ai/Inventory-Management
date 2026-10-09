@@ -1,27 +1,28 @@
 import mongoose from 'mongoose';
-import { DI } from '../src/modules/di/di.schema';
 import dotenv from 'dotenv';
 import path from 'path';
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
-const DB_URI = process.env.MONGO_URI || 'mongodb+srv://admin:pass@ac-clx6mva-shard-00-00.lgbl4nv.mongodb.net/fastigo-inventory?retryWrites=true&w=majority';
+const DB_URI = process.env.MONGO_URI || '';
 
 async function main() {
   await mongoose.connect(DB_URI);
   
-  const di = await DI.findOne({ diNumber: '21058-86' });
-  if (!di) {
-    console.log('DI not found');
-    process.exit(0);
+  const DI = mongoose.connection.collection('dis');
+  
+  const di = await DI.findOne({ diNumber: '5135-57' });
+  
+  if (di) {
+    console.log(`DI Found: ${di.diNumber}`);
+    console.log('Line Items:');
+    di.lineItems.forEach((li: any) => {
+       console.log(`- Serial: ${li.loaSerialNo}, Name: ${li.itemName}, Circle: ${li.circle}, TempCode: ${li.tempCode}`);
+    });
+  } else {
+    console.log('DI 5135-57 not found');
   }
-  
-  console.log(`Found DI: ${di.diNumber}`);
-  const item = di.lineItems.find(li => li.itemName.includes('GI STAY WIRE (7/3.15 MM)') && li.loaSerialNo === '1405');
-  
-  console.log('Line Item:');
-  console.log(JSON.stringify(item, null, 2));
-  
+
   process.exit(0);
 }
 

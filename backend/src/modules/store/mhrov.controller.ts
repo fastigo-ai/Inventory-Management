@@ -988,39 +988,40 @@ export const importMhrovs = asyncHandler(async (req: Request, res: Response) => 
     }
   }
 
-  for (const mhrovNumber of Object.keys(mhrovMap)) {
+  const cleanStr = (s: any) => String(s || '').replace(/\*+$/, '').trim();
+  const cleanStrLower = (s: any) => cleanStr(s).toLowerCase();
+  const normalizeForMatch = (s: any) => cleanStrLower(s).replace(/\s+/g, '');
+
+  // --- BULK FETCH TO PREVENT N+1 QUERY PROBLEM & API TIMEOUTS ---
+  const allUniqueDiNos = [...new Set(Object.values(mhrovMap).flatMap((m: any) => m.items).flatMap((i: any) => {
+      if (!i.diNo) return [];
+      return String(i.diNo).split(/[\s,&|/]+/).map(s => cleanStr(s)).filter(Boolean);
+  }))];
+
+  let globalBulkEntries: any[] = [];
+  if (allUniqueDiNos.length > 0) {
+      globalBulkEntries = await DI.find({ diNumber: { $in: allUniqueDiNos.map(d => new RegExp(`^${d}$`, 'i')) } }).lean();
+  }
+
+  const allMhrovNumbers = Object.keys(mhrovMap);
+  const globalExistingMhrovs = await Mhrov.find({ mhrovNumber: { $in: allMhrovNumbers } }).lean();
+  // -------------------------------------------------------------
+
+  for (const mhrovNumber of allMhrovNumbers) {
     const mhrovData = mhrovMap[mhrovNumber];
-    
     const finalItems = [];
 
-    // Bulk fetch to prevent N+1 query problem and DB timeouts
-    const cleanStr = (s: any) => String(s || '').replace(/\*+$/, '').trim();
-    const cleanStrLower = (s: any) => cleanStr(s).toLowerCase();
-    const normalizeForMatch = (s: any) => cleanStrLower(s).replace(/\s+/g, '');
+    const existingMhrov = globalExistingMhrovs.find(m => m.mhrovNumber === mhrovNumber && m.circle === mhrovData.circle);
 
-    // Collect all possible keys, cleaned of asterisks and whitespace, splitting by common delimiters
     const uniqueDiNos = [...new Set(mhrovData.items.flatMap((i: any) => {
         if (!i.diNo) return [];
         return String(i.diNo).split(/[\s,&|/]+/).map(s => cleanStr(s)).filter(Boolean);
     }))];
     
-    // Fetch existing MHROV to account for updates so we don't double count already done qty
-    const existingMhrov = await Mhrov.findOne({ mhrovNumber, circle: mhrovData.circle }).lean();
-
-    // We use a broad $or query to catch the record if ANY of the identifiers match
-    const fetchCondition: any = { $or: [] };
-    // MHROV depends strictly on DI
-    if (uniqueDiNos.length > 0) fetchCondition.$or.push({ diNumber: { $in: uniqueDiNos.map(d => new RegExp(`^${d}$`, 'i')) } });
-    
-    // Fallback if somehow there are no identifiers (rare)
-    if (fetchCondition.$or.length === 0) {
-        delete fetchCondition.$or;
-    }
-    
-    let bulkEntries: any[] = [];
-    if (Object.keys(fetchCondition).length > 0) {
-        bulkEntries = await DI.find(fetchCondition).lean();
-    }
+    // Filter globalBulkEntries for this specific MHROV to speed up inner loop
+    const bulkEntries = globalBulkEntries.filter(entry => 
+        uniqueDiNos.some(di => new RegExp(`^${di}$`, 'i').test(entry.diNumber))
+    );
 
     for (const item of mhrovData.items) {
       // Find matches in memory instead of hitting the DB sequentially

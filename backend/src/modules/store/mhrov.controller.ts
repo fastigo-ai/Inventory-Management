@@ -1179,18 +1179,26 @@ export const importMhrovs = asyncHandler(async (req: Request, res: Response) => 
     successCount++;
   }
 
-  // Run all syncs sequentially at the very end
-  for (const entryId of globalUniqueInwardEntries) {
-    await syncMhrovQuantities(undefined, undefined, entryId);
-  }
-  for (const pair of globalUniqueDiItems) {
-    const [diId, itemId] = pair.split('|');
-    await syncMhrovQuantities(diId, itemId);
-  }
+  // Run all syncs asynchronously in the background so the request doesn't timeout
+  (async () => {
+    try {
+      console.log(`Starting background sync for ${globalUniqueInwardEntries.size} inward entries and ${globalUniqueDiItems.size} DI items...`);
+      for (const entryId of globalUniqueInwardEntries) {
+        await syncMhrovQuantities(undefined, undefined, entryId);
+      }
+      for (const pair of globalUniqueDiItems) {
+        const [diId, itemId] = pair.split('|');
+        await syncMhrovQuantities(diId, itemId);
+      }
+      console.log('Background sync completed successfully.');
+    } catch (error) {
+      console.error('Error during background sync:', error);
+    }
+  })();
 
   res.status(200).json({
     success: true,
-    message: 'Import processed successfully',
+    message: 'Import processed successfully. Quantities are syncing in the background.',
     data: { successCount, errors: [] }
   });
 });

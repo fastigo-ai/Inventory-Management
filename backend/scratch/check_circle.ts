@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import { DI } from '../src/modules/di/di.schema';
 import dotenv from 'dotenv';
 import path from 'path';
 
@@ -9,18 +8,10 @@ const DB_URI = process.env.MONGO_URI || 'mongodb+srv://admin:pass@ac-clx6mva-sha
 
 async function main() {
   await mongoose.connect(DB_URI);
+  const { DI } = await import('../src/modules/di/di.schema');
   
   const di = await DI.findOne({ diNumber: '21058-86' });
-  if (!di) {
-    console.log('DI not found');
-    process.exit(0);
-  }
-  
-  console.log(`Found DI: ${di.diNumber}`);
-  const item = di.lineItems.find(li => li.itemName.includes('GI STAY WIRE (7/3.15 MM)') && li.loaSerialNo === '1405');
-  
-  console.log('Line Item:');
-  console.log(JSON.stringify(item, null, 2));
+  console.log(`Top level circle: ${di?.circle}`);
   
   process.exit(0);
 }

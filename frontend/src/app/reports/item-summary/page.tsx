@@ -730,6 +730,8 @@ export default function ItemSummaryMatrixPage() {
               </tbody>
               <tfoot className="sticky bottom-0 z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
                 {!loading && data.length > 0 && (() => {
+                  const fmtTotal = (v: any) => (v != null ? Math.round(v).toLocaleString('en-IN') : '0');
+
                   let totalLoa = 0;
                   let totalBom = 0;
                   let totalDi = 0;
@@ -782,31 +784,36 @@ export default function ItemSummaryMatrixPage() {
                       <td colSpan={6} className="p-2 text-right font-sans">
                         {selectedItems.size > 0 ? `TOTAL (Selected ${selectedItems.size} items)` : 'TOTAL (Current Page)'}
                       </td>
-                      <td className="p-2 text-right text-amber-300">{totalLoa}</td>
-                      <td className="p-2 text-right text-amber-300">{totalBom}</td>
+                      <td className="p-2 text-right text-amber-300">{fmtTotal(totalLoa)}</td>
+                      <td className="p-2 text-right text-amber-300">{fmtTotal(totalBom)}</td>
                       
-                      {showDi && <td className="p-2 text-right text-blue-300">{totalDi}</td>}
-                      {showDi && <td className="p-2 text-right text-orange-300">{totalBalDiLoa}</td>}
-                      {showDi && <td className="p-2 text-right text-orange-300">{totalBalDiBom}</td>}
+                      {showDi && <td className="p-2 text-right text-blue-300">{fmtTotal(totalDi)}</td>}
+                      {showDi && <td className="p-2 text-right text-orange-300">{fmtTotal(totalBalDiLoa)}</td>}
+                      {showDi && <td className="p-2 text-right text-orange-300">{fmtTotal(totalBalDiBom)}</td>}
                       
-                      {showMrn && <td className="p-2 text-right text-emerald-300">{totalPi}</td>}
-                      {showMrn && <td className="p-2 text-right text-emerald-300">{totalInvQty}</td>}
-                      {showMrn && <td className="p-2 text-right text-orange-300">{totalBalMrn}</td>}
+                      {showMrn && <td className="p-2 text-right text-emerald-300">{fmtTotal(totalPi)}</td>}
+                      {showMrn && <td className="p-2 text-right text-emerald-300">{fmtTotal(totalInvQty)}</td>}
+                      {showMrn && <td className="p-2 text-right text-orange-300">{fmtTotal(totalBalMrn)}</td>}
                       
-                      {showMhrov && <td className="p-2 text-right text-cyan-300">{totalMhrov}</td>}
-                      {showMhrov && <td className="p-2 text-right text-orange-300">{totalBalMhrov}</td>}
+                      {showMhrov && <td className="p-2 text-right text-cyan-300">{fmtTotal(totalMhrov)}</td>}
+                      {showMhrov && <td className="p-2 text-right text-orange-300">{fmtTotal(totalBalMhrov)}</td>}
                       
-                      {showImc && <td className="p-2 text-right text-fuchsia-300">{totalJmc}</td>}
-                      {showImc && <td className="p-2 text-right text-orange-300">{totalBalImc}</td>}
+                      {showImc && <td className="p-2 text-right text-fuchsia-300">{fmtTotal(totalJmc)}</td>}
+                      {showImc && <td className="p-2 text-right text-orange-300">{fmtTotal(totalBalImc)}</td>}
                       
-                      {showSupplyBill && <td className="p-2 text-right text-indigo-300">{totalSupplyBill}</td>}
-                      {showSupplyBill && <td className="p-2 text-right text-orange-300">{totalBalSupplyBill}</td>}
+                      {showSupplyBill && <td className="p-2 text-right text-indigo-300">{fmtTotal(totalSupplyBill)}</td>}
+                      {showSupplyBill && <td className="p-2 text-right text-indigo-300"></td>}
+                      {showSupplyBill && <td className="p-2 text-right text-indigo-300"></td>}
+                      {showSupplyBill && <td className="p-2 text-right text-indigo-300"></td>}
+                      {showSupplyBill && <td className="p-2 text-right text-orange-300">{fmtTotal(totalBalSupplyBill)}</td>}
                       
-                      {showErectionBill && <td className="p-2 text-right text-violet-300">{totalErectionBill}</td>}
-                      {showErectionBill && <td className="p-2 text-right text-orange-300">{totalBalErectionBill}</td>}
+                      {showErectionBill && <td className="p-2 text-right text-violet-300">{fmtTotal(totalErectionBill)}</td>}
+                      {showErectionBill && <td className="p-2 text-right text-violet-300"></td>}
+                      {showErectionBill && <td className="p-2 text-right text-violet-300"></td>}
+                      {showErectionBill && <td className="p-2 text-right text-orange-300">{fmtTotal(totalBalErectionBill)}</td>}
 
-                      {showWipConsumed && <td className="p-2 text-right text-rose-300">{totalWipConsumed}</td>}
-                      {showWipRequired && <td className="p-2 text-right text-emerald-300">{totalWipRequired}</td>}
+                      {showWipConsumed && <td className="p-2 text-right text-rose-300">{fmtTotal(totalWipConsumed)}</td>}
+                      {showWipRequired && <td className="p-2 text-right text-emerald-300">{fmtTotal(totalWipRequired)}</td>}
                     </tr>
                   );
                 })()}
@@ -832,9 +839,24 @@ export default function ItemSummaryMatrixPage() {
               <option value={25}>25 items per page</option>
               <option value={50}>50 items per page</option>
               <option value={100}>100 items per page</option>
+              <option value={200}>200 items per page</option>
               <option value={250}>250 items per page</option>
+              <option value={350}>350 items per page</option>
+              <option value={450}>450 items per page</option>
               <option value={500}>500 items per page</option>
+              <option value={550}>550 items per page</option>
               <option value={1000}>1000 items per page</option>
+              <option value={1300}>1300 items per page</option>
+              <option value={1600}>1600 items per page</option>
+              <option value={2300}>2300 items per page</option>
+              <option value={2700}>2700 items per page</option>
+              <option value={3200}>3200 items per page</option>
+              <option value={3500}>3500 items per page</option>
+              <option value={4000}>4000 items per page</option>
+              <option value={4300}>4300 items per page</option>
+              <option value={4800}>4800 items per page</option>
+              <option value={5000}>5000 items per page</option>
+              <option value={5300}>5300 items per page</option>
             </select>
 
             <button

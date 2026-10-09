@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { DI } from '../src/modules/di/di.schema';
+import { Mhrov } from '../src/modules/store/mhrov.schema';
 import dotenv from 'dotenv';
 import path from 'path';
 
@@ -9,18 +9,14 @@ const DB_URI = process.env.MONGO_URI || 'mongodb+srv://admin:pass@ac-clx6mva-sha
 
 async function main() {
   await mongoose.connect(DB_URI);
+  console.log('Connected to DB');
+
+  const result = await Mhrov.updateMany(
+    { circle: { $regex: /solan/i } },
+    { $set: { status: 'DONE' } }
+  );
   
-  const di = await DI.findOne({ diNumber: '21058-86' });
-  if (!di) {
-    console.log('DI not found');
-    process.exit(0);
-  }
-  
-  console.log(`Found DI: ${di.diNumber}`);
-  const item = di.lineItems.find(li => li.itemName.includes('GI STAY WIRE (7/3.15 MM)') && li.loaSerialNo === '1405');
-  
-  console.log('Line Item:');
-  console.log(JSON.stringify(item, null, 2));
+  console.log(`Updated ${result.modifiedCount} MRHOV statuses to 'DONE' for Solan circle.`);
   
   process.exit(0);
 }

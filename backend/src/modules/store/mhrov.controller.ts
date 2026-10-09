@@ -1145,6 +1145,11 @@ export const importMhrovs = asyncHandler(async (req: Request, res: Response) => 
     return;
   }
 
+  // Collect all items to sync AFTER all MRHOVs are saved
+  const globalUniqueInwardEntries = new Set<string>();
+  const globalUniqueDiItems = new Set<string>(); // format: "diId|itemId"
+
+
   let successCount = 0;
   for (const mhrovNumber of Object.keys(mhrovMap)) {
     const data = mhrovMap[mhrovNumber];
@@ -1163,34 +1168,24 @@ export const importMhrovs = asyncHandler(async (req: Request, res: Response) => 
       },
       { upsert: true, setDefaultsOnInsert: true }
     );
-    
-    const uniqueInwardEntries = new Set<string>();
-    const uniqueDiItems = new Set<string>(); // format: "diId|itemId"
-
-    // Sync items optimally
+    // Collect items for global sync
     if (data.finalItems && Array.isArray(data.finalItems)) {
       for (const it of data.finalItems) {
-        if (it.inwardEntryId) uniqueInwardEntries.add(it.inwardEntryId.toString());
-        if (it.diId && it.itemId) uniqueDiItems.add(`${it.diId.toString()}|${it.itemId.toString()}`);
+        if (it.inwardEntryId) globalUniqueInwardEntries.add(it.inwardEntryId.toString());
+        if (it.diId && it.itemId) globalUniqueDiItems.add(`${it.diId.toString()}|${it.itemId.toString()}`);
       }
     }
-
-    // Run syncs asynchronously but sequentially in the background to prevent Mongoose VersionError
-    (async () => {
-      try {
-        for (const entryId of uniqueInwardEntries) {
-          await syncMhrovQuantities(undefined, undefined, entryId);
-        }
-        for (const pair of uniqueDiItems) {
-          const [diId, itemId] = pair.split('|');
-          await syncMhrovQuantities(diId, itemId);
-        }
-      } catch (err) {
-        console.error("Background sync error:", err);
-      }
-    })();
     
     successCount++;
+  }
+
+  // Run all syncs sequentially at the very end
+  for (const entryId of globalUniqueInwardEntries) {
+    await syncMhrovQuantities(undefined, undefined, entryId);
+  }
+  for (const pair of globalUniqueDiItems) {
+    const [diId, itemId] = pair.split('|');
+    await syncMhrovQuantities(diId, itemId);
   }
 
   res.status(200).json({

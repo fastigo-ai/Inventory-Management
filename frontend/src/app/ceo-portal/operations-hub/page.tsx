@@ -1069,12 +1069,13 @@ export default function OperationsHub() {
                               return (
                                 <td 
                                   key={c.id} 
-                                  className={`border-t border-slate-200 text-right tabular-nums text-xs font-bold ${colorCls}`}
+                                  className={`border-t border-slate-200 text-right tabular-nums text-xs font-bold ${colorCls} ${c.isSticky ? 'sticky z-10 bg-white group-hover:bg-slate-50' : ''}`}
                                   style={{ 
                                     width: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
                                     minWidth: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
                                     maxWidth: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
-                                    padding: colWidths[c.id] !== undefined && colWidths[c.id] < 10 ? '0' : '12px 16px' // replace px-4 py-3
+                                    padding: colWidths[c.id] !== undefined && colWidths[c.id] < 10 ? '0' : '12px 16px', // replace px-4 py-3
+                                    left: getStickyLeft(c) !== undefined ? getStickyLeft(c) : undefined
                                   }}
                                 >
                                   <div className="w-full overflow-hidden truncate">

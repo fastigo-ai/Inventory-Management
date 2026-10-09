@@ -226,6 +226,7 @@ export default function OperationsHub() {
   
   const [f, setF] = useState({ circle: 'All', subCircle: 'All', pkg: 'All', code: 'All', name: '', date: 'all', status: 'all' });
   const [q, setQ] = useState('');
+  const [kpiLoading, setKpiLoading] = useState(true);
 
   const [apiKpis, setApiKpis] = useState({ 
     piCount: 0, val: 0, qty: 0, 
@@ -275,6 +276,7 @@ export default function OperationsHub() {
     if (f.circle === 'Solan' && f.subCircle !== 'All') filters.subCircle = f.subCircle;
     if (f.pkg !== 'All') filters.package = f.pkg;
     
+    setKpiLoading(true);
     fetchCeoDashboardData(filters).then((res: any) => {
       if (!active) return;
       setApiKpis({
@@ -295,7 +297,9 @@ export default function OperationsHub() {
         poCleared: res?.kpis?.poCleared || 0,
         workflow: res?.workflow || {}
       });
-    }).catch(console.error);
+    }).catch(console.error).finally(() => {
+      if (active) setKpiLoading(false);
+    });
     
     return () => { active = false; };
   }, [f.circle, f.pkg, f.subCircle]);
@@ -578,8 +582,16 @@ export default function OperationsHub() {
               <div>
                 <div className="text-[11px] font-bold tracking-widest text-slate-400 uppercase mb-2">{k.t}</div>
                 <div className="flex items-baseline gap-2 flex-wrap mb-4">
-                  <span className="text-2xl font-extrabold text-slate-800 tabular-nums leading-none tracking-tight">{k.v}</span>
-                  <span className="text-xs text-slate-500 font-medium">{k.sub}</span>
+                  {kpiLoading ? (
+                    <div className="h-7 w-24 bg-slate-200 animate-pulse rounded"></div>
+                  ) : (
+                    <span className="text-2xl font-extrabold text-slate-800 tabular-nums leading-none tracking-tight">{k.v}</span>
+                  )}
+                  {kpiLoading ? (
+                    <div className="h-4 w-16 bg-slate-200 animate-pulse rounded"></div>
+                  ) : (
+                    <span className="text-xs text-slate-500 font-medium">{k.sub}</span>
+                  )}
                 </div>
               </div>
               <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
@@ -600,27 +612,27 @@ export default function OperationsHub() {
           <div className="flex flex-col md:flex-row items-center gap-4 text-center md:text-left justify-between bg-slate-50 p-4 rounded-lg border border-slate-100">
             <div className="flex-1">
               <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Total Inward</div>
-              <div className="text-lg font-extrabold text-slate-800">{inr(apiKpis.totalInwardQty)}</div>
+              {kpiLoading ? <div className="h-6 w-16 bg-slate-200 animate-pulse rounded mx-auto md:mx-0"></div> : <div className="text-lg font-extrabold text-slate-800">{inr(apiKpis.totalInwardQty)}</div>}
             </div>
             <div className="text-slate-300 font-bold text-xl">+</div>
             <div className="flex-1">
               <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Transfer IN</div>
-              <div className="text-lg font-extrabold text-slate-800">{inr(apiKpis.totalTransferInQty)}</div>
+              {kpiLoading ? <div className="h-6 w-16 bg-slate-200 animate-pulse rounded mx-auto md:mx-0"></div> : <div className="text-lg font-extrabold text-slate-800">{inr(apiKpis.totalTransferInQty)}</div>}
             </div>
             <div className="text-slate-300 font-bold text-xl">-</div>
             <div className="flex-1">
               <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Transfer OUT</div>
-              <div className="text-lg font-extrabold text-slate-800">{inr(apiKpis.totalTransferOutQty)}</div>
+              {kpiLoading ? <div className="h-6 w-16 bg-slate-200 animate-pulse rounded mx-auto md:mx-0"></div> : <div className="text-lg font-extrabold text-slate-800">{inr(apiKpis.totalTransferOutQty)}</div>}
             </div>
             <div className="text-slate-300 font-bold text-xl">-</div>
             <div className="flex-1">
               <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">MIN (Issued)</div>
-              <div className="text-lg font-extrabold text-slate-800">{inr(apiKpis.materialIssued)}</div>
+              {kpiLoading ? <div className="h-6 w-16 bg-slate-200 animate-pulse rounded mx-auto md:mx-0"></div> : <div className="text-lg font-extrabold text-slate-800">{inr(apiKpis.materialIssued)}</div>}
             </div>
             <div className="text-slate-300 font-bold text-xl">=</div>
             <div className="flex-1 bg-emerald-50 rounded p-3 border border-emerald-100 shadow-sm">
               <div className="text-[10px] uppercase font-bold text-emerald-600 mb-1">Physical Stock</div>
-              <div className="text-xl font-extrabold text-emerald-700">{inr(apiKpis.availableStock)}</div>
+              {kpiLoading ? <div className="h-7 w-20 bg-emerald-200/60 animate-pulse rounded mx-auto md:mx-0"></div> : <div className="text-xl font-extrabold text-emerald-700">{inr(apiKpis.availableStock)}</div>}
             </div>
           </div>
           {apiKpis.totalTransferOutQty - apiKpis.totalTransferInQty > 0 && (

@@ -170,6 +170,18 @@ export default function StoreSummaryPage() {
     }
   }, [store]);
 
+  // Auto-set Package based on Circle
+  useEffect(() => {
+    if (circle) {
+      const cLower = circle.toLowerCase();
+      if ((cLower.includes('solan') || cLower.includes('nahan')) && pkg !== 'Package 1(S/N)') {
+        setPkg('Package 1(S/N)');
+      } else if ((cLower.includes('rampur') || cLower.includes('rohru')) && pkg !== 'Package 2(R/R)') {
+        setPkg('Package 2(R/R)');
+      }
+    }
+  }, [circle]);
+
   // Helper function to fetch all data for exports if no rows are selected
   const fetchAllForExport = async () => {
     if (selectedItems.size > 0) {

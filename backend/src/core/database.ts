@@ -20,7 +20,7 @@ const connectDB = async (retries = 5) => {
     try {
       await mongoose.connect(mongoUri, {
         serverSelectionTimeoutMS: 15000,
-        socketTimeoutMS: 45000,
+        socketTimeoutMS: 300000,
       });
       return; // Exit loop on success
     } catch (error) {

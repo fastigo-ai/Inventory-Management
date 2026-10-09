@@ -49,8 +49,16 @@ export default function StoreSummaryPage() {
     return '';
   };
 
-  const initialCircle = isStoreManager ? (user?.assignedCircle || '') : '';
-  const initialStore = isStoreManager && initialCircle.toLowerCase() === 'solan' ? (user?.assignedSubcircle || '') : '';
+  let initialCircle = isStoreManager ? (user?.assignedCircle || '') : '';
+  let initialStore = isStoreManager ? (user?.assignedSubcircle || '') : '';
+
+  if (isStoreManager && !initialCircle && initialStore) {
+    if (['Nalagarh', 'Kumarhatti', 'Solan'].includes(initialStore)) initialCircle = 'Solan';
+    else if (initialStore === 'Nahan') initialCircle = 'Nahan';
+    else if (initialStore === 'Rohru') initialCircle = 'Rohru';
+    else if (initialStore === 'Rampur') initialCircle = 'Rampur';
+  }
+
   const initialPkg = isStoreManager && initialCircle ? getDefaultPackage(initialCircle) : '';
 
   const [data, setData] = useState<any[]>([]);
@@ -538,7 +546,7 @@ export default function StoreSummaryPage() {
                 <select
                   value={circle}
                   onChange={(e) => setCircle(e.target.value)}
-                  disabled={isStoreManager && !!user?.assignedCircle}
+                  disabled={isStoreManager}
                   className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer pr-1 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="">All Circles</option>

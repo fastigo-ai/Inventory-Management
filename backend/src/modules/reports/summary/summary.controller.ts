@@ -121,7 +121,21 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
         invQty: { $sum: "$invQty" },
         actQty: { $sum: "$actQty" },
         srtQty: { $sum: "$srtQty" },
-        billedQty: { $sum: "$billedQty" }
+        billedQty: { $sum: "$billedQty" },
+        poQty: { $sum: "$poQty" },
+        mhrovQty: { $sum: "$mhrovQty" },
+        ra60Qty: { $sum: "$ra60Qty" },
+        ra30Qty: { $sum: "$ra30Qty" },
+        ra10Qty: { $sum: "$ra10Qty" },
+        er90Qty: { $sum: "$er90Qty" },
+        er10Qty: { $sum: "$er10Qty" },
+        jmcQty: { $sum: "$jmcQty" },
+        cBillQty: { $sum: "$cBillQty" },
+        transferInQty: { $sum: "$transferInQty" },
+        transferOutQty: { $sum: "$transferOutQty" },
+        issuedQty: { $sum: "$issuedQty" },
+        returnedQty: { $sum: "$returnedQty" },
+        vendors: { $push: "$vendors" }
       }
     },
     { $lookup: {
@@ -199,6 +213,10 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
         jmcQty: 1,
         cBillQty: 1,
         vendors: 1,
+        transferInQty: 1,
+        transferOutQty: 1,
+        issuedQty: 1,
+        returnedQty: 1,
         diNo: "$latestDI.diNumber",
         piNo: "$latestPI.invoiceNumber",
         loaQty: {

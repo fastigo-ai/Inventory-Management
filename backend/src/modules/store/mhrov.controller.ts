@@ -1005,7 +1005,7 @@ export const importMhrovs = asyncHandler(async (req: Request, res: Response) => 
     }))];
     
     // Fetch existing MHROV to account for updates so we don't double count already done qty
-    const existingMhrov = await Mhrov.findOne({ mhrovNumber }).lean();
+    const existingMhrov = await Mhrov.findOne({ mhrovNumber, circle: mhrovData.circle }).lean();
 
     // We use a broad $or query to catch the record if ANY of the identifiers match
     const fetchCondition: any = { $or: [] };
@@ -1154,7 +1154,7 @@ export const importMhrovs = asyncHandler(async (req: Request, res: Response) => 
   for (const mhrovNumber of Object.keys(mhrovMap)) {
     const data = mhrovMap[mhrovNumber];
     await Mhrov.findOneAndUpdate(
-      { mhrovNumber },
+      { mhrovNumber, circle: data.circle },
       {
         $set: {
           mhrovNumber: data.mhrovNumber,

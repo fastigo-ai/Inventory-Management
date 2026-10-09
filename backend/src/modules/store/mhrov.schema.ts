@@ -30,7 +30,7 @@ const mhrovItemSchema = new Schema({
 
 const mhrovSchema = new Schema(
   {
-    mhrovNumber: { type: String, required: true, unique: true },
+    mhrovNumber: { type: String, required: true, index: true },
     mhrovDate: { type: Date, required: true },
     status: { 
       type: String, 
@@ -51,6 +51,7 @@ const mhrovSchema = new Schema(
 
 mhrovSchema.index({ mhrovDate: -1 });
 mhrovSchema.index({ createdAt: -1 });
+mhrovSchema.index({ mhrovNumber: 1, circle: 1 }, { unique: true });
 
 export const Mhrov = mongoose.model<IMhrov>('Mhrov', mhrovSchema);
 

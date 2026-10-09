@@ -109,10 +109,10 @@ function build(b: any, i: number) {
   
   d.min = issuedQty > 0 ? { no: 'N/A', qty: issuedQty } : null;
   d.cret = returnedQty > 0 ? { qty: returnedQty } : null;
-  d.outward = actQty > 0 ? { qty: actQty } : null;
-  d.inter = null;
+  d.outward = (db.transferOutQty || 0) > 0 ? { qty: db.transferOutQty } : null;
+  d.inter = ((db.transferInQty || 0) + (db.transferOutQty || 0)) > 0 ? { qty: (db.transferInQty || 0) + (db.transferOutQty || 0), route: 'N/A' } : null;
   
-  d.wo = loaQty > 0 ? { no: 'N/A', val: poVal, prog: loaQty ? Math.round((actQty / loaQty) * 100) : 0 } : null;
+  d.wo = loaQty > 0 ? { no: 'N/A', val: poVal, qty: db.woQty || 0 } : null;
   d.dn = issuedQty > 0 ? { no: 'N/A', qty: issuedQty } : null;
   d.mrhov = returnedQty > 0 ? { status: 'N/A' } : null;
   
@@ -161,7 +161,7 @@ const SUBS = [
   { id: 'cret', m: 'm2', name: 'Contractor Return', cols: [['qty', 'Returned qty', 'qty']] },
   { id: 'outward', m: 'm2', name: 'Outward Register', cols: [['qty', 'Outward qty', 'qty']] },
   { id: 'inter', m: 'm2', name: 'Inter Transfer', cols: [['qty', 'Transfer qty', 'qty'], ['route', 'Route', 'text']] },
-  { id: 'wo', m: 'm3', name: 'Work Order (WO) Creation', cols: [['no', 'WO no.', 'code'], ['val', 'WO value (₹)', 'money'], ['prog', 'Progress', 'pct']] },
+  { id: 'wo', m: 'm3', name: 'Work Order (WO) Creation', cols: [['no', 'WO no.', 'code'], ['val', 'WO value (₹)', 'money'], ['qty', 'WO qty', 'qty']] },
   { id: 'dn', m: 'm3', name: 'Demand Note', cols: [['no', 'DN no.', 'code'], ['qty', 'Demand qty', 'qty']] },
   { id: 'mrhov', m: 'm3', name: 'MRHOV', cols: [['status', 'MRHOV status', 'status']] },
   { id: 'cbill', m: 'm4', name: 'Client Billing', cols: [['ra', 'RA bill', 'code'], ['amt', 'RA amount (₹)', 'money']] },
@@ -186,7 +186,7 @@ const STATIC = [
 ];
 
 const VIEWS = [
-  { id: 'overview', name: 'CEO overview', sel: ['item', 'po', 'wo', 'cbill'], keep: ['item.stock', 'po.val', 'po.status', 'wo.prog', 'cbill.amt'] },
+  { id: 'overview', name: 'CEO overview', sel: ['item', 'po', 'wo', 'cbill'], keep: ['item.stock', 'po.val', 'po.status', 'wo.qty', 'cbill.amt'] },
   { id: 'money', name: 'Money: orders & billing', sel: ['po', 'pi', 'cbill', 'kbill'], keep: ['po.val', 'po.status', 'pi.amt', 'pi.status', 'cbill.amt', 'kbill.amt', 'kbill.status'] },
   { id: 'stock', name: 'Stock position', sel: ['item', 'receipt', 'min', 'outward'], keep: ['item.unit', 'item.stock', 'receipt.qty', 'min.qty', 'outward.qty'] },
   { id: 'site', name: 'Site progress', sel: ['wo', 'dn', 'mrhov'], keep: null },
@@ -204,14 +204,15 @@ function flags(it: any) {
   if (d.po && d.po.status === 'Pending') f.push({ t: 'PO pending', c: 'warn' });
   if (d.mrhov && d.mrhov.status !== 'Cleared') f.push({ t: 'MRHOV open', c: 'warn' });
   if (d.pi && d.pi.status === 'Due') f.push({ t: 'Invoice due', c: 'warn' });
-  if (d.wo && d.wo.prog < 50) f.push({ t: 'WO behind', c: 'crit' });
+  // Instead of prog < 50, let's flag if wo qty is < 50% of loaQty
+  if (d.wo && it.loa > 0 && (d.wo.qty / it.loa) < 0.5) f.push({ t: 'WO behind', c: 'crit' });
   return f;
 }
 
 const ALERTS = [
   { id: 'low', label: 'Items running low on stock', tone: 'crit', test: (i: any) => health(i) === 'crit', view: 'stock' },
   { id: 'pend', label: 'Purchase orders waiting for approval', tone: 'warn', test: (i: any) => i.d.po && i.d.po.status === 'Pending', view: 'money' },
-  { id: 'wo', label: 'Items on work orders under 50% done', tone: 'crit', test: (i: any) => !!(i.d.wo && i.d.wo.prog < 50), view: 'site' },
+  { id: 'wo', label: 'Items on work orders under 50% done', tone: 'crit', test: (i: any) => !!(i.d.wo && i.loa > 0 && (i.d.wo.qty / i.loa) < 0.5), view: 'site' },
   { id: 'mrhov', label: 'MRHOV not yet cleared', tone: 'warn', test: (i: any) => !!(i.d.mrhov && i.d.mrhov.status !== 'Cleared'), view: 'site' },
   { id: 'due', label: 'Supplier invoices not yet paid', tone: 'warn', test: (i: any) => !!(i.d.pi && i.d.pi.status === 'Due'), view: 'money' }
 ];
@@ -494,7 +495,7 @@ export default function OperationsHub() {
   const low = filteredItems.filter(i => health(i) === 'crit').length;
   
   const woItems = filteredItems.filter(i => i.d.wo);
-  const avg = woItems.length ? Math.round(woItems.reduce((a, i) => a + i.d.wo.prog, 0) / woItems.length) : 0;
+  const avg = woItems.length ? Math.round(woItems.reduce((a, i) => a + (i.loa ? (i.d.wo.qty / i.loa) * 100 : 0), 0) / woItems.length) : 0;
   
   useEffect(() => { applyView('overview'); }, []);
 
@@ -1063,7 +1064,28 @@ export default function OperationsHub() {
                             </td>
                             {actualSpanCount < curCols.length && curCols.slice(actualSpanCount).map((c, cIdx) => {
                               const sum = aggCols[actualSpanCount + cIdx];
-                              if (sum === null) return <td key={c.id} className="border-t border-slate-200"></td>;
+                              if (sum === null) {
+                                let content = null;
+                                if (c.type === 'text') {
+                                  const v = raw(c, items[0]);
+                                  if (v) content = <span className="text-slate-600 font-medium text-[11px] truncate">{String(v)}</span>;
+                                }
+                                return (
+                                  <td 
+                                    key={c.id} 
+                                    className={`border-t border-slate-200 ${c.isSticky ? 'sticky z-10 bg-white group-hover:bg-slate-50' : ''}`}
+                                    style={{ 
+                                      width: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
+                                      minWidth: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
+                                      maxWidth: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
+                                      padding: colWidths[c.id] !== undefined && colWidths[c.id] < 10 ? '0' : '12px 16px',
+                                      left: getStickyLeft(c) !== undefined ? getStickyLeft(c) : undefined
+                                    }}
+                                  >
+                                    <div className="w-full overflow-hidden truncate">{content}</div>
+                                  </td>
+                                );
+                              }
                               const mod = [...MODS, ...MODS_MIS].find(m => m.id === c.m);
                               const colorCls = mod ? getColor(mod.color).text : 'text-slate-800';
                               return (

@@ -32,6 +32,7 @@ export interface IItemSummary extends Document {
   transferOutQty: number;
   issuedQty: number;
   returnedQty: number;
+  woQty: number;
 
   createdAt: Date;
   updatedAt: Date;
@@ -70,6 +71,7 @@ const itemSummarySchema = new Schema<IItemSummary>(
     transferOutQty: { type: Number, default: 0 },
     issuedQty: { type: Number, default: 0 },
     returnedQty: { type: Number, default: 0 },
+    woQty: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

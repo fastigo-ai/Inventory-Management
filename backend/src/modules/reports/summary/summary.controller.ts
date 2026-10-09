@@ -71,7 +71,8 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
         invQty: { $sum: "$invQty" },
         actQty: { $sum: "$actQty" },
         srtQty: { $sum: "$srtQty" },
-        billedQty: { $sum: "$billedQty" }
+        billedQty: { $sum: "$billedQty" },
+        woQty: { $sum: "$woQty" }
       } 
     },
     { $group: { 
@@ -83,7 +84,8 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
         totalInvQty: { $sum: "$invQty" },
         totalActQty: { $sum: "$actQty" },
         totalSrtQty: { $sum: "$srtQty" },
-        totalBilledQty: { $sum: "$billedQty" }
+        totalBilledQty: { $sum: "$billedQty" },
+        totalWoQty: { $sum: "$woQty" }
       } 
     }
   ]);
@@ -97,6 +99,7 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
     actQty: totalAggregation[0].totalActQty,
     srtQty: totalAggregation[0].totalSrtQty,
     billedQty: totalAggregation[0].totalBilledQty,
+    woQty: totalAggregation[0].totalWoQty,
     balLoaBilled: totalAggregation[0].totalLoaQty - totalAggregation[0].totalBilledQty,
     balBomBilled: totalAggregation[0].totalBomQty - totalAggregation[0].totalBilledQty,
     goodDispatch: totalAggregation[0].totalActQty,
@@ -217,6 +220,7 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
         transferOutQty: 1,
         issuedQty: 1,
         returnedQty: 1,
+        woQty: 1,
         diNo: "$latestDI.diNumber",
         piNo: "$latestPI.invoiceNumber",
         loaQty: {

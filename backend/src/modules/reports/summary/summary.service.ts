@@ -29,6 +29,7 @@ interface UpdateSummaryParams {
     er10Qty?: number;
     jmcQty?: number;
     cBillQty?: number;
+    woQty?: number;
   };
   setFields?: {
     stockBalance?: number;
@@ -450,6 +451,25 @@ export class SummaryService {
                 circle: r.circle || '',
                 package: r.package || '',
                 increments: { returnedQty: qty },
+                companyId: item.companyId?.toString()
+              });
+            }
+          }
+        }
+      }
+      // 9.5 Rebuild from ContractorWorkOrder
+      const { ContractorWorkOrder } = await import('../../contractors/contractorWorkOrder.schema');
+      const wos = await ContractorWorkOrder.find({ 'items.itemId': itemId });
+      for (const wo of wos) {
+        for (const line of wo.items) {
+          if (line.itemId?.toString() === itemIdStr) {
+            const qty = Number(line.woQty || 0);
+            if (qty > 0) {
+              await SummaryService.updateSummary({
+                itemId,
+                circle: wo.circle || '',
+                package: wo.package || '',
+                increments: { woQty: qty },
                 companyId: item.companyId?.toString()
               });
             }

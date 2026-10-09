@@ -162,7 +162,7 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
         package: "$_id.package",
         loaSerialNo: "$masterItem.dynamicData.loaSerialNo",
         activity: "$masterItem.dynamicData.activity",
-        unit: { $ifNull: ["$masterItem.unit", "Nos"] },
+        unit: { $ifNull: ["$masterItem.dynamicData.unit", { $ifNull: ["$masterItem.unit", "Nos"] }] },
         rate: { $ifNull: ["$masterItem.dynamicData.supplyRateWithGst", { $ifNull: ["$masterItem.costPrice", 150] }] },
         tempCode: 1,
         diQty: 1,

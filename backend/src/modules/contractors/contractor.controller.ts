@@ -112,13 +112,18 @@ export const getAssignments = asyncHandler(async (req: Request, res: Response) =
   }
   
   if (startDate || endDate) {
-    filter.date = {};
-    if (startDate) filter.date.$gte = new Date(startDate as string);
+    const dateQuery: any = {};
+    if (startDate) dateQuery.$gte = new Date(startDate as string);
     if (endDate) {
       const end = new Date(endDate as string);
       end.setUTCHours(23, 59, 59, 999);
-      filter.date.$lte = end;
+      dateQuery.$lte = end;
     }
+    // Filter matches minDate if it exists, otherwise falls back to date
+    filter.$or = [
+      { minDate: dateQuery },
+      { minDate: { $in: [null, undefined] }, date: dateQuery }
+    ];
   }
 
   const SUB_STORE_MAP: Record<string, string[]> = {
@@ -217,13 +222,17 @@ export const getAssignmentSummary = asyncHandler(async (req: Request, res: Respo
   if (contractorId) filter.contractorId = new mongoose.Types.ObjectId(contractorId as string);
   
   if (startDate || endDate) {
-    filter.date = {};
-    if (startDate) filter.date.$gte = new Date(startDate as string);
+    const dateQuery: any = {};
+    if (startDate) dateQuery.$gte = new Date(startDate as string);
     if (endDate) {
       const end = new Date(endDate as string);
       end.setUTCHours(23, 59, 59, 999);
-      filter.date.$lte = end;
+      dateQuery.$lte = end;
     }
+    filter.$or = [
+      { minDate: dateQuery },
+      { minDate: { $in: [null, undefined] }, date: dateQuery }
+    ];
   }
 
   const SUB_STORE_MAP: Record<string, string[]> = {
@@ -1033,13 +1042,17 @@ export const exportContractorAssignments = asyncHandler(async (req: Request, res
   }
   
   if (startDate || endDate) {
-    filter.date = {};
-    if (startDate) filter.date.$gte = new Date(startDate as string);
+    const dateQuery: any = {};
+    if (startDate) dateQuery.$gte = new Date(startDate as string);
     if (endDate) {
       const end = new Date(endDate as string);
       end.setUTCHours(23, 59, 59, 999);
-      filter.date.$lte = end;
+      dateQuery.$lte = end;
     }
+    filter.$or = [
+      { minDate: dateQuery },
+      { minDate: { $in: [null, undefined] }, date: dateQuery }
+    ];
   }
   
   if (search) {

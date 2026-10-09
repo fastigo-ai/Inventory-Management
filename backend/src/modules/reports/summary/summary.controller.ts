@@ -838,8 +838,8 @@ export async function computeStoreItemisedSummary(params: {
 
     // 6. DI (Dispatch Instructions)
     const diFilter: any = { status: { $ne: 'Cancelled' } };
-    if (transLocRegex) {
-      diFilter.$or = [{ circle: transLocRegex }, { 'lineItems.circle': transLocRegex }];
+    if (itemLocRegex) {
+      diFilter.$or = [{ circle: itemLocRegex }, { 'lineItems.circle': itemLocRegex }];
     }
     const dis = await DI.find(diFilter).lean();
     dis.forEach(doc => {
@@ -860,8 +860,8 @@ export async function computeStoreItemisedSummary(params: {
 
     // 7. MHROV (Material Receipt and Hand Over Voucher)
     const mhrovFilter: any = {};
-    if (transLocRegex) {
-      mhrovFilter.circle = transLocRegex;
+    if (itemLocRegex) {
+      mhrovFilter.circle = itemLocRegex;
     }
     const mhrovs = await Mhrov.find(mhrovFilter).lean();
     mhrovs.forEach(doc => {

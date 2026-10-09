@@ -607,7 +607,7 @@ export default function ItemSummaryMatrixPage() {
                   
                   {showDi && <th className="p-2 min-w-[100px] bg-blue-50 text-right font-bold text-blue-900">Total DI Done</th>}
                   {showDi && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900">Bal for DI against LOA</th>}
-                  {showDi && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900">Bal for Dispatch against LOA</th>}
+                  {showDi && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900">Bal for Dispatch against BOM</th>}
                   
                   {showMrn && <th className="p-2 min-w-[100px] bg-emerald-50 text-right font-bold text-emerald-900">Total PI Done (IR)</th>}
                   {showMrn && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900">Bal for IR</th>}

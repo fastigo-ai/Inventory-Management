@@ -372,6 +372,9 @@ export default function OperationsHub() {
       let x = raw(sc, a); let y = raw(sc, b);
       if (x === null || x === undefined) x = -Infinity;
       if (y === null || y === undefined) y = -Infinity;
+      if (x !== -Infinity && y !== -Infinity) {
+        return String(x).localeCompare(String(y), undefined, { numeric: true }) * sort.dir;
+      }
       return (x < y ? -1 : x > y ? 1 : 0) * sort.dir;
     });
   }, [filteredItems, curCols, q, sort]);

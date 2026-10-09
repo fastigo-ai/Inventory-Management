@@ -610,6 +610,7 @@ export default function ItemSummaryMatrixPage() {
                   {showDi && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900">Bal for Dispatch against BOM</th>}
                   
                   {showMrn && <th className="p-2 min-w-[100px] bg-emerald-50 text-right font-bold text-emerald-900">Total PI Done (IR)</th>}
+                  {showMrn && <th className="p-2 min-w-[100px] bg-emerald-50 text-right font-bold text-emerald-900">Invoice Qty</th>}
                   {showMrn && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900">Bal for IR</th>}
                   
                   {showMhrov && <th className="p-2 min-w-[100px] bg-cyan-50 text-right font-bold text-cyan-900">Total MRHOV Done</th>}
@@ -686,7 +687,7 @@ export default function ItemSummaryMatrixPage() {
                             className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3 h-3 cursor-pointer"
                           />
                         </td>
-                        <td className="p-2 text-center text-slate-500 border-r">{idx + 1 + (Number(filters.page || 1) - 1) * Number(filters.limit || 50)}</td>
+                        <td className="p-2 text-center text-slate-500 border-r">{r.loaSerialNo || (idx + 1 + (Number(filters.page || 1) - 1) * Number(filters.limit || 50))}</td>
                         <td className="p-2 text-slate-700 border-r">{r.tempCode}</td>
                         <td className="p-2 font-medium text-slate-900 border-r max-w-[220px] truncate" title={r.itemName || r.name}>{r.itemName || r.name}</td>
                         <td className="p-2 text-slate-700 border-r">{r.package}</td>
@@ -700,6 +701,7 @@ export default function ItemSummaryMatrixPage() {
                         {showDi && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{fmtBal(bal?.diVsBom)}</td>}
                         
                         {showMrn && <td className="p-2 text-right text-emerald-900 font-medium bg-emerald-50/20">{fmtQty(piQty)}</td>}
+                        {showMrn && <td className="p-2 text-right text-emerald-900 font-medium bg-emerald-50/20">{fmtQty(r.invQty || 0)}</td>}
                         {showMrn && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{fmtBal(bal?.mrn)}</td>}
                         
                         {showMhrov && <td className="p-2 text-right text-cyan-900 font-medium bg-cyan-50/20">{fmtQty(mhrovQty)}</td>}
@@ -732,6 +734,7 @@ export default function ItemSummaryMatrixPage() {
                   let totalBom = 0;
                   let totalDi = 0;
                   let totalPi = 0;
+                  let totalInvQty = 0;
                   let totalMhrov = 0;
                   let totalJmc = 0;
                   let totalSupplyBill = 0;
@@ -753,6 +756,7 @@ export default function ItemSummaryMatrixPage() {
                     totalBom += (r.solanBomQty || r.nahanBomQty || r.rampurBomQty || r.rohruBomQty || 0);
                     totalDi += (r.dispatchedSolan || r.dispatchedNahan || r.dispatchedRampur || r.dispatchedRohru || r.dispatched?.solan || r.dispatched?.nahan || r.dispatched?.rampur || r.dispatched?.rohru || 0);
                     totalPi += (r.inwardSolan || r.inwardNahan || r.inwardRampur || r.inwardRohru || r.inward?.solan || r.inward?.nahan || r.inward?.rampur || r.inward?.rohru || 0);
+                    totalInvQty += (r.invQty || 0);
                     totalMhrov += (r.mhrovSolan || r.mhrovNahan || r.mhrovRampur || r.mhrovRohru || r.mhrov?.solan || r.mhrov?.nahan || r.mhrov?.rampur || r.mhrov?.rohru || 0);
                     totalJmc += (r.imcSolan || r.imcNahan || r.imcRampur || r.imcRohru || r.imc?.solan || r.imc?.nahan || r.imc?.rampur || r.imc?.rohru || 0);
                     totalSupplyBill += (r.supplyBilledSolan || r.supplyBilledNahan || r.supplyBilledRampur || r.supplyBilledRohru || 0);
@@ -786,6 +790,7 @@ export default function ItemSummaryMatrixPage() {
                       {showDi && <td className="p-2 text-right text-orange-300">{totalBalDiBom}</td>}
                       
                       {showMrn && <td className="p-2 text-right text-emerald-300">{totalPi}</td>}
+                      {showMrn && <td className="p-2 text-right text-emerald-300">{totalInvQty}</td>}
                       {showMrn && <td className="p-2 text-right text-orange-300">{totalBalMrn}</td>}
                       
                       {showMhrov && <td className="p-2 text-right text-cyan-300">{totalMhrov}</td>}

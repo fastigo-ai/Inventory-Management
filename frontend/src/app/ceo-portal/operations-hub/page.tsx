@@ -74,6 +74,7 @@ function build(b: any, i: number) {
   
   // Calculate totals across all circles for this row's temp code and package
   const loaQty = db.loaQty || 0;
+  const bomQty = db.bomQty || 0;
   const poQty = db.poQty ?? loaQty;
   const poVal = poQty * it.rate;
   
@@ -94,6 +95,7 @@ function build(b: any, i: number) {
   const billedQty = supplyBilled + erectionBilled;
   
   it.loa = loaQty;
+  it.bom = bomQty;
   it.stock = Math.max(0, invQty - issuedQty + returnedQty);
   
   d.item = { unit: it.unit, rate: it.rate, loa: it.loa, stock: it.stock };

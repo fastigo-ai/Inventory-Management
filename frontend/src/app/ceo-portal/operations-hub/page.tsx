@@ -175,11 +175,11 @@ const SUBS = [
 ];
 
 const STATIC = [
-  { id: 'sr', label: 'Sr. No.', type: 'sr', cls: 'text-center sticky left-0 z-10 bg-white min-w-[64px] max-w-[64px]' },
-  { id: 'code', label: 'Temp code', type: 'tcode', cls: 'sticky left-[64px] z-10 bg-white min-w-[112px] max-w-[112px]' },
-  { id: 'name', label: 'Item name', type: 'name', cls: 'sticky left-[176px] z-10 bg-white min-w-[260px] max-w-[260px]' },
-  { id: 'loa', label: 'LOA qty', type: 'qty', cls: 'sticky left-[436px] z-10 bg-white min-w-[100px] max-w-[100px]' },
-  { id: 'bom', label: 'BOM qty', type: 'qty', cls: 'sticky left-[536px] z-10 bg-white min-w-[100px] max-w-[100px] border-r border-slate-200' },
+  { id: 'sr', label: 'Sr. No.', type: 'sr', isSticky: true, defaultW: 64, cls: 'text-center sticky z-10 bg-white' },
+  { id: 'code', label: 'Temp code', type: 'tcode', isSticky: true, defaultW: 112, cls: 'sticky z-10 bg-white' },
+  { id: 'name', label: 'Item name', type: 'name', isSticky: true, defaultW: 260, cls: 'sticky z-10 bg-white' },
+  { id: 'loa', label: 'LOA qty', type: 'qty', isSticky: true, defaultW: 100, cls: 'sticky z-10 bg-white' },
+  { id: 'bom', label: 'BOM qty', type: 'qty', isSticky: true, defaultW: 100, cls: 'sticky z-10 bg-white border-r border-slate-200' },
   { id: 'pkg', label: 'Package', type: 'text', cls: '' },
   { id: 'circle', label: 'Circle', type: 'text', cls: '' },
   { id: 'flags', label: 'Flags', type: 'flags', cls: '' }
@@ -227,6 +227,9 @@ export default function OperationsHub() {
   const [f, setF] = useState({ circle: 'All', subCircle: 'All', pkg: 'All', code: 'All', name: '', date: 'all', status: 'all' });
   const [q, setQ] = useState('');
   const [kpiLoading, setKpiLoading] = useState(true);
+
+  const [colWidths, setColWidths] = useState<Record<string, number>>({});
+  const resizingRef = React.useRef<{ id: string, startX: number, startW: number } | null>(null);
 
   const [apiKpis, setApiKpis] = useState({ 
     piCount: 0, val: 0, qty: 0, 
@@ -362,6 +365,21 @@ export default function OperationsHub() {
 
   const raw = (c: any, it: any) => c.sp ? (it.d[c.sp] ? it.d[c.sp][c.k] : null) : (c.k === 'sr' ? it.sr : c.k === 'flags' ? flags(it).length : it[c.k]);
 
+  const getStickyLeft = (c: any) => {
+    if (!c.isSticky) return undefined;
+    const colIndex = STATIC.findIndex(x => x.id === c.id);
+    if (colIndex <= 0) return 0;
+    
+    let offset = 0;
+    for (let i = 0; i < colIndex; i++) {
+      const col = STATIC[i];
+      if (!hidden.has(col.id)) {
+        offset += colWidths[col.id] !== undefined ? colWidths[col.id] : col.defaultW!;
+      }
+    }
+    return offset;
+  };
+
   const sortedRows = useMemo(() => {
     const query = q.trim().toLowerCase();
     let rows = filteredItems;
@@ -400,6 +418,28 @@ export default function OperationsHub() {
   const slice = viewType === 'item' 
     ? sortedRows.slice((currentPage - 1) * size, currentPage * size)
     : (groupedRows || []).slice((currentPage - 1) * size, currentPage * size);
+
+  // Column Resizing Handlers
+  const handleMouseDown = (e: React.MouseEvent, colId: string, currentWidth: number) => {
+    e.preventDefault();
+    resizingRef.current = { id: colId, startX: e.pageX, startW: currentWidth };
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!resizingRef.current) return;
+    const diff = e.pageX - resizingRef.current.startX;
+    // We allow collapsing down to 0 width (or very small)
+    const newW = Math.max(0, resizingRef.current.startW + diff);
+    setColWidths(prev => ({ ...prev, [resizingRef.current!.id]: newW }));
+  };
+
+  const handleMouseUp = () => {
+    resizingRef.current = null;
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+  };
 
   // Actions
   const applyView = (id: string) => {
@@ -534,8 +574,20 @@ export default function OperationsHub() {
         }
 
         return (
-          <td key={c.id} className={`px-4 py-3 ${align} ${c.cls} group-hover:bg-slate-50/80 ${isSub ? 'bg-slate-50/40' : 'bg-white'}`}>
-            {content}
+          <td 
+            key={c.id} 
+            className={`border-b border-slate-100 ${align} ${c.cls} group-hover:bg-slate-50 ${isSub ? 'bg-slate-50' : 'bg-white'}`}
+            style={{ 
+              width: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
+              minWidth: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
+              maxWidth: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
+              padding: colWidths[c.id] !== undefined && colWidths[c.id] < 10 ? '0' : '12px 16px', // replace px-4 py-3
+              left: getStickyLeft(c) !== undefined ? getStickyLeft(c) : undefined
+            }}
+          >
+            <div className={`w-full overflow-hidden truncate ${c.type === 'money' || c.type === 'qty' || c.type === 'stock' || c.type === 'pct' ? 'text-right' : ''}`}>
+              {content}
+            </div>
           </td>
         );
       })}
@@ -571,7 +623,23 @@ export default function OperationsHub() {
           <>
           {/* KPIs */}
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          {[
+          {kpiLoading ? (
+            Array(5).fill(0).map((_, i) => (
+              <div key={`sk-${i}`} className="h-[142px] bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-col justify-between">
+                <div>
+                  <div className="h-3 w-28 bg-slate-200 animate-pulse rounded mb-4"></div>
+                  <div className="flex items-baseline gap-2 mb-4">
+                    <div className="h-8 w-20 bg-slate-200 animate-pulse rounded"></div>
+                    <div className="h-4 w-16 bg-slate-200 animate-pulse rounded"></div>
+                  </div>
+                </div>
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <div className="h-4 w-20 bg-slate-200 animate-pulse rounded-full"></div>
+                  <div className="h-4 w-12 bg-slate-200 animate-pulse rounded"></div>
+                </div>
+              </div>
+            ))
+          ) : [
             { t: 'Total Purchase Invoices', v: apiKpis.piCount.toLocaleString(), sub: `₹${cr(apiKpis.val)} Cr`, tag: `${apiKpis.piCount} Invoices`, color: 'text-indigo-700 bg-indigo-50', ex: 'pi' },
             { t: 'Available Stock', v: apiKpis.availableStock.toLocaleString(), sub: ``, tag: low ? `${low} Low stock` : 'Healthy', color: low ? 'text-red-700 bg-red-50' : 'text-emerald-700 bg-emerald-50', ex: 'item' },
             { t: 'Active Work Orders', v: apiKpis.woCount.toLocaleString(), sub: `₹${cr(apiKpis.totalWoValue)} Cr target`, tag: `${avg}% avg progress`, color: 'text-blue-700 bg-blue-50', ex: 'wo' },
@@ -582,16 +650,8 @@ export default function OperationsHub() {
               <div>
                 <div className="text-[11px] font-bold tracking-widest text-slate-400 uppercase mb-2">{k.t}</div>
                 <div className="flex items-baseline gap-2 flex-wrap mb-4">
-                  {kpiLoading ? (
-                    <div className="h-7 w-24 bg-slate-200 animate-pulse rounded"></div>
-                  ) : (
-                    <span className="text-2xl font-extrabold text-slate-800 tabular-nums leading-none tracking-tight">{k.v}</span>
-                  )}
-                  {kpiLoading ? (
-                    <div className="h-4 w-16 bg-slate-200 animate-pulse rounded"></div>
-                  ) : (
-                    <span className="text-xs text-slate-500 font-medium">{k.sub}</span>
-                  )}
+                  <span className="text-2xl font-extrabold text-slate-800 tabular-nums leading-none tracking-tight">{k.v}</span>
+                  <span className="text-xs text-slate-500 font-medium">{k.sub}</span>
                 </div>
               </div>
               <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
@@ -920,13 +980,25 @@ export default function OperationsHub() {
                   {curCols.map((c, i) => (
                     <th 
                       key={c.id} 
-                      onClick={() => { setSort({ id: c.id, dir: sort.id === c.id ? -sort.dir : 1 }); setPage(1); }}
-                      className={`px-4 py-3 cursor-pointer hover:text-slate-800 hover:bg-slate-100 transition-colors ${c.cls} ${c.type === 'money' || c.type === 'qty' || c.type === 'stock' || c.type === 'pct' ? 'text-right' : ''}`}
+                      className={`relative border-r border-slate-200/50 hover:bg-slate-100 transition-colors group ${c.cls} ${c.type === 'money' || c.type === 'qty' || c.type === 'stock' || c.type === 'pct' ? 'text-right' : ''}`}
+                      style={{ 
+                        width: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
+                        minWidth: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
+                        maxWidth: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
+                        padding: colWidths[c.id] !== undefined && colWidths[c.id] < 10 ? '0' : '12px 16px', // replace px-4 py-3
+                        left: getStickyLeft(c) !== undefined ? getStickyLeft(c) : undefined
+                      }}
                     >
-                      <div className={`flex items-center gap-1 ${c.type === 'money' || c.type === 'qty' || c.type === 'stock' || c.type === 'pct' ? 'justify-end' : ''}`}>
-                        {c.label}
-                        {sort.id === c.id && (sort.dir === 1 ? '↑' : '↓')}
+                      <div className={`flex items-center gap-1 overflow-hidden ${c.type === 'money' || c.type === 'qty' || c.type === 'stock' || c.type === 'pct' ? 'justify-end' : ''}`}>
+                        <div className="flex-1 min-w-0 cursor-pointer truncate select-none" onClick={() => { setSort({ id: c.id, dir: sort.id === c.id ? -sort.dir : 1 }); setPage(1); }}>
+                          {c.label}
+                          {sort.id === c.id && (sort.dir === 1 ? ' ↑' : ' ↓')}
+                        </div>
                       </div>
+                      <div 
+                        onMouseDown={(e) => handleMouseDown(e, c.id, e.currentTarget.parentElement!.getBoundingClientRect().width)}
+                        className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-indigo-500/50 active:bg-indigo-500 z-10 touch-none"
+                      />
                     </th>
                   ))}
                 </tr>
@@ -962,14 +1034,27 @@ export default function OperationsHub() {
                             className="bg-white hover:bg-slate-50 cursor-pointer transition-colors group"
                             onClick={() => setExpandedActivities(prev => ({...prev, [cat]: !prev[cat]}))}
                           >
-                            <td className="px-2 py-3 border-t border-slate-200 border-r border-slate-100 text-center border-l-4 border-l-indigo-500 sticky left-0 z-10 bg-white group-hover:bg-slate-50 min-w-[64px] max-w-[64px]">
-                              <div className="flex items-center justify-center w-full h-full">
+                            <td 
+                              className="border-t border-slate-200 border-r border-slate-100 text-center border-l-4 border-l-indigo-500 sticky z-10 bg-white group-hover:bg-slate-50"
+                              style={{
+                                width: colWidths['sr'] !== undefined ? colWidths['sr'] : 64,
+                                minWidth: colWidths['sr'] !== undefined ? colWidths['sr'] : 64,
+                                maxWidth: colWidths['sr'] !== undefined ? colWidths['sr'] : 64,
+                                padding: colWidths['sr'] !== undefined && colWidths['sr'] < 10 ? '0' : '12px 8px', // approx px-2 py-3
+                                left: 0
+                              }}
+                            >
+                              <div className="flex items-center justify-center w-full h-full overflow-hidden">
                                 <span className={`transform transition-transform duration-200 text-slate-400 group-hover:text-indigo-500 ${isExpanded ? 'rotate-90' : ''}`}>
                                   <ChevronRight className="w-4 h-4" />
                                 </span>
                               </div>
                             </td>
-                            <td colSpan={actualSpanCount > 1 ? actualSpanCount - 1 : 1} className="px-4 py-3 border-t border-slate-200 sticky left-[64px] z-10 bg-white group-hover:bg-slate-50">
+                            <td 
+                              colSpan={actualSpanCount > 1 ? actualSpanCount - 1 : 1} 
+                              className="px-4 py-3 border-t border-slate-200 sticky z-10 bg-white group-hover:bg-slate-50"
+                              style={{ left: colWidths['sr'] !== undefined ? colWidths['sr'] : 64 }}
+                            >
                               <div className="flex items-center gap-3">
                                 <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded border border-slate-200 shadow-sm">{seqNo}</span>
                                 <span className="text-sm font-bold text-slate-800">{actName}</span>
@@ -982,8 +1067,19 @@ export default function OperationsHub() {
                               const mod = [...MODS, ...MODS_MIS].find(m => m.id === c.m);
                               const colorCls = mod ? getColor(mod.color).text : 'text-slate-800';
                               return (
-                                <td key={c.id} className={`px-4 py-3 border-t border-slate-200 text-right tabular-nums text-xs font-bold ${colorCls}`}>
-                                  {c.type === 'money' ? money(sum) : sum > 0 ? inr(sum) : '0'}
+                                <td 
+                                  key={c.id} 
+                                  className={`border-t border-slate-200 text-right tabular-nums text-xs font-bold ${colorCls}`}
+                                  style={{ 
+                                    width: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
+                                    minWidth: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
+                                    maxWidth: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
+                                    padding: colWidths[c.id] !== undefined && colWidths[c.id] < 10 ? '0' : '12px 16px' // replace px-4 py-3
+                                  }}
+                                >
+                                  <div className="w-full overflow-hidden truncate">
+                                    {c.type === 'money' ? money(sum) : sum > 0 ? inr(sum) : '0'}
+                                  </div>
                                 </td>
                               );
                             })}

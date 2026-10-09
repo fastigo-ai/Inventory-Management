@@ -159,7 +159,26 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
         itemId: 1,
         itemName: "$itemName",
         circle: "$_id.circle",
-        package: "$_id.package",
+        package: {
+          $let: {
+            vars: { c: { $toLower: { $ifNull: ["$_id.circle", ""] } }, p: { $ifNull: ["$_id.package", ""] } },
+            in: {
+              $cond: [
+                { $and: [{ $ne: ["$$p", ""] }, { $ne: ["$$p", "-"] }, { $ne: ["$$p", "Unknown"] }] },
+                "$$p",
+                {
+                  $switch: {
+                    branches: [
+                      { case: { $or: [{ $regexMatch: { input: "$$c", regex: "nahan" } }, { $regexMatch: { input: "$$c", regex: "solan" } }] }, then: "Package 1(S/N)" },
+                      { case: { $or: [{ $regexMatch: { input: "$$c", regex: "rampur" } }, { $regexMatch: { input: "$$c", regex: "rohru" } }] }, then: "Package 2(R/R)" }
+                    ],
+                    default: { $ifNull: ["$masterItem.dynamicData.package", "Unknown"] }
+                  }
+                }
+              ]
+            }
+          }
+        },
         loaSerialNo: "$masterItem.dynamicData.loaSerialNo",
         activity: "$masterItem.dynamicData.activity",
         unit: { $ifNull: ["$masterItem.dynamicData.unit", { $ifNull: ["$masterItem.unit", "Nos"] }] },

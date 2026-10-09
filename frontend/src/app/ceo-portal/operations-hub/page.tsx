@@ -74,7 +74,7 @@ function build(b: any, i: number) {
   
   // Calculate totals across all circles for this row's temp code and package
   const loaQty = db.loaQty || 0;
-  const poQty = db.poQty || loaQty;
+  const poQty = db.poQty ?? loaQty;
   const poVal = poQty * it.rate;
   
   const diQty = db.diQty || 0;
@@ -84,7 +84,7 @@ function build(b: any, i: number) {
   const issuedQty = db.issuedQty || 0;
   const returnedQty = db.returnedQty || 0;
   
-  const mhrovQty = db.mhrovQty || returnedQty; // Fallback to returned if missing
+  const mhrovQty = db.mhrovQty ?? returnedQty; // Fallback to returned if missing
   const transferInQty = db.transferInQty || 0;
   const transferOutQty = db.transferOutQty || 0;
   

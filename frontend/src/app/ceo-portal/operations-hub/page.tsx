@@ -15,7 +15,12 @@ const DEPOT: Record<string, string> = { Jaipur: 'Jaipur Central', Lucknow: 'Luck
 const inr = (n: number) => Math.round(n).toLocaleString('en-IN');
 const money = (n: number) => '₹' + inr(n);
 const cr = (n: number) => (n / 1e7).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fdate = (ms: number) => new Date(ms).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
+const fdate = (ms: any) => {
+  if (!ms) return '—';
+  const d = new Date(ms);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
+};
 
 function rng(s: number) {
   return function () {
@@ -98,29 +103,98 @@ function build(b: any, i: number) {
   it.bom = bomQty;
   it.stock = Math.max(0, invQty - issuedQty + returnedQty);
   
+  const parseDate = (val: any) => {
+    if (!val) return null;
+    const t = new Date(val).getTime();
+    return isNaN(t) ? null : t;
+  };
+
+  const demandQty = db.demandQty !== undefined && db.demandQty !== null ? db.demandQty : (db.dnQty || 0);
+  const receivedQty = db.receivedQty ?? invQty;
+
   d.item = { unit: it.unit, rate: it.rate, loa: it.loa, stock: it.stock };
-  d.po = poQty > 0 ? { no: 'N/A', date: it.date, qty: poQty, val: poVal, status: 'Active' } : null;
-  d.di = diQty > 0 ? { no: 'N/A', qty: diQty, date: it.date } : null;
-  d.pi = invQty > 0 ? { no: 'N/A', qty: invQty, amt: invQty * it.rate, status: 'N/A' } : null;
+  d.po = (poQty > 0 || db.poNo) ? { 
+    no: db.poNo || '—', 
+    date: parseDate(db.poDate), 
+    qty: poQty, 
+    val: poVal, 
+    status: db.poStatus || 'Active' 
+  } : null;
+  d.di = (diQty > 0 || db.diNo) ? { 
+    no: db.diNo || '—', 
+    qty: diQty, 
+    date: parseDate(db.diDate) 
+  } : null;
+  d.pi = (invQty > 0 || db.piNo) ? { 
+    no: db.piNo || '—', 
+    qty: invQty, 
+    amt: invQty * it.rate, 
+    status: db.piStatus || 'Posted' 
+  } : null;
   
-  d.store = { depot: DEPOT[it.circle] || (it.circle + ' Central'), reorder: Math.round(loaQty * 0.15) };
-  d.receipt = invQty > 0 ? { no: 'N/A', qty: invQty } : null;
-  d.inward = invQty > 0 ? { qty: invQty, date: it.date } : null;
+  d.store = { 
+    depot: db.depotName || DEPOT[it.circle] || (it.circle ? `${it.circle} Central` : 'Central Depot'), 
+    reorder: db.reorderLevel ?? Math.round(loaQty * 0.15) 
+  };
+  d.receipt = (receivedQty > 0 || db.grnNo) ? { 
+    no: db.grnNo || '—', 
+    qty: receivedQty 
+  } : null;
+  d.inward = (invQty > 0 || db.inwardDate) ? { 
+    qty: invQty, 
+    date: parseDate(db.inwardDate) 
+  } : null;
   
-  d.min = issuedQty > 0 ? { no: 'N/A', qty: issuedQty } : null;
+  d.min = (issuedQty > 0 || db.minNo) ? { 
+    no: db.minNo || '—', 
+    qty: issuedQty 
+  } : null;
   d.cret = returnedQty > 0 ? { qty: returnedQty } : null;
   d.outward = (db.transferOutQty || 0) > 0 ? { qty: db.transferOutQty } : null;
-  d.inter = ((db.transferInQty || 0) + (db.transferOutQty || 0)) > 0 ? { qty: (db.transferInQty || 0) + (db.transferOutQty || 0), route: 'N/A' } : null;
+  d.inter = ((db.transferInQty || 0) + (db.transferOutQty || 0)) > 0 ? { 
+    qty: (db.transferInQty || 0) + (db.transferOutQty || 0), 
+    route: db.transferRoute || '—' 
+  } : null;
   
-  d.wo = loaQty > 0 ? { no: 'N/A', val: poVal, qty: db.woQty || 0 } : null;
-  d.dn = issuedQty > 0 ? { no: 'N/A', qty: issuedQty } : null;
-  d.mrhov = returnedQty > 0 ? { status: 'N/A' } : null;
+  d.wo = (loaQty > 0 || db.woNo) ? { 
+    no: db.woNo || '—', 
+    val: db.woVal || poVal, 
+    qty: db.woQty || 0 
+  } : null;
+  d.dn = (demandQty > 0 || db.dnNo || issuedQty > 0) ? { 
+    no: db.dnNo || '—', 
+    qty: demandQty > 0 ? demandQty : issuedQty 
+  } : null;
+  d.mrhov = (mhrovQty > 0 || db.mrhovStatus || db.mrhovNo) ? { 
+    qty: mhrovQty, 
+    status: db.mrhovStatus || (mhrovQty > 0 ? 'Done' : 'Pending') 
+  } : null;
   
-  d.cbill = billedQty > 0 ? { amt: billedQty * it.rate, ra: 'N/A' } : null;
-  d.kbill = billedQty > 0 ? { amt: billedQty * it.rate, status: 'N/A' } : null;
+  d.cbill = (billedQty > 0 || db.raNo) ? { 
+    amt: billedQty * it.rate, 
+    ra: db.raNo || '—' 
+  } : null;
+  d.kbill = (billedQty > 0 || db.contractorInvoiceNo) ? { 
+    amt: db.contractorPayable || (billedQty * it.rate), 
+    status: db.contractorPaymentStatus || 'Processed' 
+  } : null;
   
+  const rawContractors = Array.isArray(db.contractors) ? db.contractors.flat() : (db.contractorName ? [db.contractorName] : []);
+  const contractorList = Array.from(new Set(rawContractors.map((c: any) => typeof c === 'string' ? c.trim() : '').filter(Boolean)));
+  it.contractors = contractorList;
+  it.contractorBreakdown = db.contractorBreakdown || {};
+  const contractorStr = contractorList.length > 0 ? contractorList.join(', ') : '—';
+
   d.mis_s = { di: diQty, mrhov: mhrovQty, issued: issuedQty, balStore: it.stock };
-  d.mis_c = { dn: issuedQty, jmc: billedQty, wipC: actQty, wipR: Math.max(0, Math.round((loaQty - actQty)*1000)/1000), issued: issuedQty, balCont: Math.max(0, Math.round((issuedQty - actQty - returnedQty)*1000)/1000) };
+  d.mis_c = { 
+    contractors: contractorStr, 
+    dn: demandQty > 0 ? demandQty : issuedQty, 
+    jmc: db.jmcQty || 0, 
+    wipC: db.wipQty || 0, 
+    wipR: Math.max(0, Math.round((loaQty - (db.wipQty || 0))*1000)/1000), 
+    issued: issuedQty, 
+    balCont: Math.max(0, Math.round((issuedQty - (db.wipQty || 0) - returnedQty)*1000)/1000) 
+  };
   
   const vendorStr = Array.isArray(db.vendors) && db.vendors.length > 0 ? db.vendors.join(', ') : 'N/A';
   d.mis_v = { vendors: vendorStr, poQty: poQty, diQty: diQty, invQty: invQty, mrhovQty: mhrovQty };
@@ -163,11 +237,11 @@ const SUBS = [
   { id: 'inter', m: 'm2', name: 'Inter Transfer', cols: [['qty', 'Transfer qty', 'qty'], ['route', 'Route', 'text']] },
   { id: 'wo', m: 'm3', name: 'Work Order (WO) Creation', cols: [['no', 'WO no.', 'code'], ['val', 'WO value (₹)', 'money'], ['qty', 'WO qty', 'qty']] },
   { id: 'dn', m: 'm3', name: 'Demand Note', cols: [['no', 'DN no.', 'code'], ['qty', 'Demand qty', 'qty']] },
-  { id: 'mrhov', m: 'm3', name: 'MRHOV', cols: [['status', 'MRHOV status', 'status']] },
+  { id: 'mrhov', m: 'm3', name: 'MRHOV', cols: [['qty', 'MRHOV qty', 'qty'], ['status', 'MRHOV status', 'status']] },
   { id: 'cbill', m: 'm4', name: 'Client Billing', cols: [['ra', 'RA bill', 'code'], ['amt', 'RA amount (₹)', 'money']] },
   { id: 'kbill', m: 'm4', name: 'Contractor Billing', cols: [['amt', 'Payable (₹)', 'money'], ['status', 'Payment', 'status']] },
   { id: 'mis_s', m: 'm5', name: 'Store MIS', cols: [['di', 'DI qty', 'qty'], ['mrhov', 'MRHOV qty', 'qty'], ['issued', 'Issued qty', 'qty'], ['balStore', 'Balance at store', 'qty']] },
-  { id: 'mis_c', m: 'm6', name: 'Contractor MIS', cols: [['dn', 'Demand Notes', 'qty'], ['jmc', 'JMC qty', 'qty'], ['wipC', 'WIP Consumed', 'qty'], ['wipR', 'WIP Required', 'qty'], ['issued', 'Store Issued', 'qty'], ['balCont', 'Balance at contractor', 'qty']] },
+  { id: 'mis_c', m: 'm6', name: 'Contractor MIS', cols: [['contractors', 'Contractor(s)', 'text'], ['dn', 'Demand Notes', 'qty'], ['jmc', 'JMC qty', 'qty'], ['wipC', 'WIP Consumed', 'qty'], ['wipR', 'WIP Required', 'qty'], ['issued', 'Store Issued', 'qty'], ['balCont', 'Balance at contractor', 'qty']] },
   { id: 'mis_v', m: 'm7', name: 'Vendor MIS', cols: [['vendors', 'Vendor(s)', 'text'], ['poQty', 'PO qty', 'qty'], ['diQty', 'DI qty', 'qty'], ['invQty', 'Invoice qty', 'qty'], ['mrhovQty', 'MRHOV qty', 'qty']] },
   { id: 'mis_b_c_s', m: 'm8', name: 'Client Billing - Supply', cols: [['diQty', 'DI Qty', 'qty'], ['mrhovQty', 'MRHOV Qty', 'qty'], ['ra60Qty', 'RA Bill - 60%', 'qty'], ['ra30Qty', 'RA Bill - 30%', 'qty'], ['ra10Qty', 'RA Bill - 10%', 'qty']] },
   { id: 'mis_b_c_e', m: 'm9', name: 'Client Billing - Erection', cols: [['diQty', 'DI Qty', 'qty'], ['mrhovQty', 'MRHOV Qty', 'qty'], ['er90Qty', 'Erected Qty - 90%', 'qty'], ['er10Qty', 'Erected Qty - 10%', 'qty']] },
@@ -225,7 +299,7 @@ export default function OperationsHub() {
   const [mode, setMode] = useState<'single' | 'multi' | 'all'>('single');
   const [sel, setSel] = useState<Set<string>>(new Set(['item']));
   
-  const [f, setF] = useState({ circle: 'All', subCircle: 'All', pkg: 'All', code: 'All', name: '', date: 'all', status: 'all' });
+  const [f, setF] = useState({ circle: 'All', subCircle: 'All', pkg: 'All', contractor: 'All', code: 'All', name: '', date: 'all', status: 'all' });
   const [q, setQ] = useState('');
   const [kpiLoading, setKpiLoading] = useState(true);
 
@@ -326,6 +400,15 @@ export default function OperationsHub() {
   const circles = ['All', 'Solan', 'Nahan', 'Rampur', 'Rohru'];
   const subcircles = useMemo(() => ['All', ...Array.from(new Set(items.filter(i => i.circle === 'Solan' && i.subcircle).map(i => i.subcircle))).sort()], [items]);
   const pkgs = ['All', 'Package 1(S/N)', 'Package 2(R/R)'];
+  const contractors = useMemo(() => {
+    const set = new Set<string>();
+    items.forEach(it => {
+      if (Array.isArray(it.contractors)) {
+        it.contractors.forEach((c: string) => { if (c && c.trim()) set.add(c.trim()); });
+      }
+    });
+    return ['All', ...Array.from(set).sort((a, b) => a.localeCompare(b))];
+  }, [items]);
   const codes = useMemo(() => ['All', ...Array.from(new Set(items.map(i => i.code))).sort((a, b) => {
     const strA = String(a || '');
     const strB = String(b || '');
@@ -341,6 +424,7 @@ export default function OperationsHub() {
       (f.circle === 'All' || (it.circle || '').toLowerCase() === f.circle.toLowerCase()) && 
       (f.circle !== 'Solan' || f.subCircle === 'All' || it.subcircle === f.subCircle) &&
       (f.pkg === 'All' || (it.pkg || '').replace(/\s*\(/g, '(') === f.pkg) && 
+      (f.contractor === 'All' || (Array.isArray(it.contractors) && it.contractors.some((c: string) => c.toLowerCase() === f.contractor.toLowerCase()))) &&
       (f.code === 'All' || it.code === f.code) &&
       (!nm || it.name.toLowerCase().includes(nm)) &&
       (f.date === 'all' || (f.date === 'fy' ? it.date >= FY : it.date >= TODAY - (+f.date) * DAY)) &&
@@ -364,7 +448,26 @@ export default function OperationsHub() {
     return out;
   }, [hidden, selSubs]);
 
-  const raw = (c: any, it: any) => c.sp ? (it.d[c.sp] ? it.d[c.sp][c.k] : null) : (c.k === 'sr' ? it.sr : c.k === 'flags' ? flags(it).length : it[c.k]);
+  const raw = (c: any, it: any) => {
+    if (c.sp) {
+      if (!it.d[c.sp]) return null;
+      if (c.sp === 'mis_c' && f.contractor !== 'All') {
+        const cMap = it.contractorBreakdown || {};
+        const contIssued = cMap[f.contractor] !== undefined 
+          ? cMap[f.contractor] 
+          : (Object.entries(cMap).find(([k]) => k.toLowerCase() === f.contractor.toLowerCase())?.[1] as number || it.d.mis_c.issued || 0);
+
+        if (c.k === 'issued') return contIssued;
+        if (c.k === 'balCont') {
+          const wipC = it.d.mis_c.wipC || 0;
+          return Math.max(0, Math.round((contIssued - wipC) * 1000) / 1000);
+        }
+        if (c.k === 'contractors') return f.contractor;
+      }
+      return it.d[c.sp][c.k];
+    }
+    return (c.k === 'sr' ? it.sr : c.k === 'flags' ? flags(it).length : it[c.k]);
+  };
 
   const getStickyLeft = (c: any) => {
     if (!c.isSticky) return undefined;
@@ -896,13 +999,13 @@ export default function OperationsHub() {
                   <SlidersHorizontal className="w-3.5 h-3.5" /> Global Telemetry Filters
                 </h2>
                 <button 
-                  onClick={() => { setF({ circle: 'All', subCircle: 'All', pkg: 'All', code: 'All', name: '', date: 'all', status: 'all' }); setQ(''); setPage(1); }}
+                  onClick={() => { setF({ circle: 'All', subCircle: 'All', pkg: 'All', contractor: 'All', code: 'All', name: '', date: 'all', status: 'all' }); setQ(''); setPage(1); }}
                   className="text-indigo-600 text-[11px] font-bold hover:text-indigo-700 uppercase tracking-wider"
                 >
                   Reset filters
                 </button>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
                 <label className="flex flex-col gap-1.5"><span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Package</span>
                   <select className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" value={f.pkg} onChange={e => setF({...f, pkg: e.target.value})}>
                     {pkgs.map(c => <option key={c}>{c}</option>)}
@@ -911,6 +1014,12 @@ export default function OperationsHub() {
                 <label className="flex flex-col gap-1.5"><span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Circle</span>
                   <select className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" value={f.circle} onChange={e => setF({...f, circle: e.target.value, subCircle: 'All'})}>
                     {circles.map(c => <option key={c}>{c}</option>)}
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1.5"><span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Contractor</span>
+                  <select className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" value={f.contractor} onChange={e => { setF({...f, contractor: e.target.value}); setPage(1); }}>
+                    <option value="All">All Contractors</option>
+                    {contractors.filter(c => c !== 'All').map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </label>
                 {f.circle === 'Solan' && (

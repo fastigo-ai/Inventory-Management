@@ -1,0 +1,420 @@
+====================================================================================================
+ENTERPRISE ERP AUDIT & STEP-BY-STEP IMPLEMENTATION PLAN: COMBINED LIVE LEDGER
+====================================================================================================
+Project: Inventory Management ERP
+Document: Complete Architecture, Audit, and Technical Implementation Plan
+Target UI: /ceo-portal/operations-hub (Combined Live Ledger)
+Target Controller: backend/src/modules/reports/summary/summary.controller.ts
+Target Frontend: frontend/src/app/ceo-portal/operations-hub/page.tsx
+Date: October 12, 2026
+
+----------------------------------------------------------------------------------------------------
+TABLE OF CONTENTS
+----------------------------------------------------------------------------------------------------
+1. EXECUTIVE SUMMARY & GAP AUDIT
+2. MODULE-BY-MODULE AUDIT: HARDCODED VS. REAL-TIME DATA
+3. DATABASE ARCHITECTURE & COLLECTIONS MAPPING
+4. STEP-BY-STEP IMPLEMENTATION PLAN (BACKEND PIPELINE & FRONTEND CONSUMPTION)
+   - Step 1: Backend Aggregation Enrichment (Single Source of Truth)
+   - Step 2: In-Memory / Index Optimization for High-Speed Aggregations
+   - Step 3: Frontend Data Adapter & Hydration
+   - Step 4: UI Formatting, Drill-Downs & Status Badges
+5. VERIFICATION, BENCHMARKING & QA CHECKLIST
+
+====================================================================================================
+1. EXECUTIVE SUMMARY & GAP AUDIT
+====================================================================================================
+The "Combined Live Ledger" in the Operations Hub functions as the executive telemetry dashboard for
+tracking all equipment and materials from Master Order to Billing.
+
+Current Status:
+- Quantitative Aggregates (LOA Qty, BOM Qty, Stock, Issued, Returned, Billed, Transferred) are 
+  ALREADY REAL-TIME and dynamically calculated from MongoDB aggregations.
+- Master Item Information (Item Name, Temp Code, Rate, Unit, Package, Circle) is ALREADY REAL-TIME.
+- Critical Enterprise Traceability Fields (Document IDs, Document Dates, Transaction Routes,
+  Depot/Store Names, Reorder Levels, and Operational Statuses) are currently HARDCODED with static
+  placeholders ('N/A', Date.now(), hardcoded strings, or mock percentages).
+
+Goal:
+Transform the Combined Live Ledger into a 100% real-time, audit-grade enterprise ledger where every
+single cell is linked directly to its underlying transactional MongoDB document.
+
+====================================================================================================
+2. MODULE-BY-MODULE AUDIT: HARDCODED VS. REAL-TIME DATA
+====================================================================================================
+
+[STATIC / IDENTIFIER COLUMNS]
+  - Sr. No. (`sr`)             : REAL-TIME (Fetched from masterItem.dynamicData.loaSerialNo)
+  - Temp Code (`code`)         : REAL-TIME (Fetched from masterItem tempCode)
+  - Item Name (`name`)         : REAL-TIME (Fetched from Item Master)
+  - LOA Qty (`loa`)            : REAL-TIME (Fetched from Circle-specific LOA quantity)
+  - BOM Qty (`bom`)            : REAL-TIME (Fetched from Circle-specific BOM quantity)
+  - Package (`pkg`)            : REAL-TIME (Mapped from circle / item dynamicData)
+  - Circle (`circle`)          : REAL-TIME (Circle identifier from DB)
+  - Flags (`flags`)            : REAL-TIME LOGIC (Derived from live stock vs. LOA ratio)
+
+[MODULE 1: PURCHASE MANAGEMENT]
+  * Sub-Module: Item Master (`item`)
+    - Unit                     : REAL-TIME (From Item Master `unit`)
+    - Unit Rate                : REAL-TIME (From Item Master `supplyRateWithGst` / `costPrice`)
+    - Available Stock          : REAL-TIME CALCULATED (`invQty - issuedQty + returnedQty`)
+
+  * Sub-Module: Purchase Order (`po`)
+    - PO No. (`no`)            : [HARDCODED] Currently returns 'N/A'
+    - PO Date (`date`)         : [DUMMY] Currently returns `Date.now()`
+    - PO Qty (`qty`)           : [FALLBACK] Returns `db.poQty ?? loaQty` (falls back to LOA if empty)
+    - PO Value (`val`)         : [CALCULATED] `poQty * rate`
+    - PO Status (`status`)     : [HARDCODED] Currently returns hardcoded `'Active'`
+
+  * Sub-Module: Dispatch Instruction (`di`)
+    - DI No. (`no`)            : [REAL-TIME RESOLUTION] Bind `db.diNo` from latest DI document matching item and circle.
+    - Dispatched Qty (`qty`)   : REAL-TIME (Aggregated from `dis` collection)
+    - DI Date (`date`)         : [REAL-TIME RESOLUTION] Bind `db.diDate` from latest DI; fallback to null / '—' if none.
+
+  * Sub-Module: Purchase Invoice (`pi`)
+    - Invoice No. (`no`)       : [REAL-TIME RESOLUTION] Bind `db.piNo` from latest PI document matching item and circle.
+    - Invoice Qty (`qty`)      : REAL-TIME (Aggregated from `purchaseinvoices` collection)
+    - Invoice Amount (`amt`)   : [CALCULATED] `invQty * rate`
+    - Payment Status (`status`): [REAL-TIME RESOLUTION] Fetch actual `status` / `paymentStatus` from `PurchaseInvoice` matching circle/item.
+
+[MODULE 2: STORE & INVENTORY MANAGEMENT]
+  * Sub-Module: Store Master (`store`)
+    - Depot (`depot`)          : [REAL-TIME RESOLUTION] Fetch actual store location name from `Store` collection for that circle.
+    - Reorder Level (`reorder`): [REAL-TIME RESOLUTION] Fetch `reorderLevel` configured on item or fall back to standard calculation.
+
+  * Sub-Module: Store Receipt (`receipt`)
+    - GRN No. (`no`)           : [REAL-TIME RESOLUTION] Fetch actual GRN number (`grNumber` / `inwardId`) from `StoreInwardEntry`.
+    - Received Qty (`qty`)     : [REAL-TIME RESOLUTION] Aggregate actual received quantity from `StoreInwardEntry` filtered by package, circle, sub-circle, and item.
+
+  * Sub-Module: Store Inward (`inward`)
+    - Inward Qty (`qty`)       : [REAL-TIME RESOLUTION] Filtered total accepted/inward quantity (`act`) from `StoreInwardEntry`.
+    - Inward Date (`date`)     : [REAL-TIME RESOLUTION] Fetch real `receivedDate` / `createdAt` from `StoreInwardEntry`; display '—' / 'N/A' if none exists.
+
+  * Sub-Module: Material Issue Note (`min`)
+    - MIN No. (`no`)           : [REAL-TIME RESOLUTION] Fetch real MIN / Assignment number (`assignmentNumber` / `minNo`) from `ContractorAssignment`.
+    - Issued Qty (`qty`)       : REAL-TIME (Aggregated from Contractor Assignments)
+
+  * Sub-Module: Contractor Return (`cret`)
+    - Returned Qty (`qty`)     : REAL-TIME (Aggregated from Contractor Returns)
+
+  * Sub-Module: Outward Register (`outward`)
+    - Outward Qty (`qty`)      : REAL-TIME (Aggregated from Store Transfer Outward records)
+
+  * Sub-Module: Inter Transfer (`inter`)
+    - Transfer Qty (`qty`)     : REAL-TIME (`transferInQty + transferOutQty`)
+    - Route (`route`)          : [REAL-TIME RESOLUTION] Dynamic route string (`fromStore -> toStore`) from `StoreTransfer`.
+
+[MODULE 3: WORK ORDER & SITE MANAGEMENT]
+  * Sub-Module: Work Order (`wo`)
+    - WO No. (`no`)            : [REAL-TIME RESOLUTION] Fetch latest `workOrderNumber` from `ContractorWorkOrder`.
+    - WO Value (`val`)         : [REAL-TIME RESOLUTION] Calculated from work order line items (`woQty * contractorRate`).
+    - WO Qty (`qty`)           : REAL-TIME (Aggregated from `contractorworkorders`)
+
+  * Sub-Module: Demand Note (`dn`)
+    - Demand Note No. (`no`)   : [REAL-TIME RESOLUTION] Fetch latest `demandNoteNumber` from `DemandNote`.
+    - Demand Qty (`qty`)       : [REAL-TIME RESOLUTION] Aggregate actual `demandQty` from `demandnotes` matching item, package, and circle.
+
+  * Sub-Module: MRHOV (`mrhov`)
+    - MRHOV Qty (`qty`)        : [REAL-TIME RESOLUTION] Display actual `mhrovQty` from `Mhrov` collection for this item and circle.
+    - MRHOV Status (`status`)  : [REAL-TIME RESOLUTION] Fetch real status ('Done', 'Pending', 'Pending Signature') from `Mhrov`.
+
+[MODULE 4: BILLING MANAGEMENT]
+  * Sub-Module: Client Billing (`cbill`)
+    - RA Bill No. (`ra`)       : [HARDCODED] Hardcoded to `'N/A'`
+    - RA Amount (`amt`)        : [CALCULATED] Real-time `(supplyBilled + erectionBilled) * rate`
+
+  * Sub-Module: Contractor Billing (`kbill`)
+    - Payable (₹) (`amt`)      : [PROXIED] Mirrored to Client Billing amount
+    - Payment Status (`status`): [HARDCODED] Hardcoded to `'N/A'`
+
+[MODULES 5 - 10: MIS MODULES]
+  * Store MIS (`mis_s`)        : 100% REAL-TIME (di, mrhov, issued, balance at store)
+  * Contractor MIS (`mis_c`)   : 100% REAL-TIME (dn, jmc, wipC, wipR, store issued, contractor balance)
+  * Vendor MIS (`mis_v`)       : 100% REAL-TIME (vendor names from DB, poQty, diQty, invQty, mrhovQty)
+  * Client Billing Supply      : 100% REAL-TIME (diQty, mrhovQty, ra60Qty, ra30Qty, ra10Qty)
+  * Client Billing Erection   : 100% REAL-TIME (diQty, mrhovQty, er90Qty, er10Qty)
+  * Contractor Billing MIS     : 100% REAL-TIME (issuedQty, jmcQty, cBillQty)
+
+====================================================================================================
+3. DATABASE ARCHITECTURE & COLLECTIONS MAPPING
+====================================================================================================
+To fetch every field real-time, the backend connects to the following existing Mongoose models:
+
+1. Purchase Orders:
+   - Collection: `purchaseorders`
+   - Model: `PurchaseOrder`
+   - Real-time Fields: `poNumber`, `poDate`, `status`, `items.quantity`, `items.rate`
+
+2. Dispatch Instructions:
+   - Collection: `dis`
+   - Model: `DI`
+   - Real-time Fields: `diNumber`, `diDate`, `status`, `lineItems.quantity`
+
+3. Purchase Invoices:
+   - Collection: `purchaseinvoices`
+   - Model: `PurchaseInvoice`
+   - Real-time Fields: `invoiceNumber`, `invoiceDate`, `paymentStatus`, `status`, `lineItems.quantity`
+
+4. Stores & Depots:
+   - Collection: `stores` / `locations`
+   - Model: `Store` / `Location`
+   - Real-time Fields: `storeName`, `circle`, `reorderThreshold`
+
+5. Material Issue Notes (MIN):
+   - Collection: `contractorassignments`
+   - Model: `ContractorAssignment`
+   - Real-time Fields: `assignmentNumber` (MIN No.), `assignmentDate`, `quantityIssued`
+
+6. Contractor Returns:
+   - Collection: `contractorreturns`
+   - Model: `ContractorReturn`
+   - Real-time Fields: `returnNumber`, `returnDate`, `quantityReturned`
+
+7. Store Transfers & Inward:
+   - Collections: `storetransfers`, `storeinwardentries`
+   - Models: `StoreTransfer`, `StoreInwardEntry`
+   - Real-time Fields: `transferNumber`, `transferDate`, `fromStore`, `toStore`, `grnNumber`
+
+8. Contractor Work Orders:
+   - Collection: `contractorworkorders`
+   - Model: `ContractorWorkOrder`
+   - Real-time Fields: `workOrderNumber`, `createdAt` / `issueDate`, `items.workOrderQty`, `items.rate`
+
+9. Demand Notes:
+   - Collection: `demandnotes`
+   - Model: `DemandNote`
+   - Real-time Fields: `demandNoteNumber`, `requestDate`, `status`, `items.requiredQuantity`
+
+10. MRHOV:
+    - Collection: `mhrovs`
+    - Model: `Mhrov`
+    - Real-time Fields: `mhrovNumber`, `date`, `status`
+
+11. Client Bills (RA Bills):
+    - Collection: `clientbills`
+    - Model: `ClientBill`
+    - Real-time Fields: `billNumber`, `billDate`, `stage` (60%/30%/10%), `status`, `totalAmount`
+
+12. Contractor Bills:
+    - Collection: `contractorinvoices`
+    - Model: `ContractorInvoice`
+    - Real-time Fields: `invoiceNumber`, `invoiceDate`, `paymentStatus`, `netPayable`
+
+====================================================================================================
+4. STEP-BY-STEP IMPLEMENTATION PLAN
+====================================================================================================
+
+----------------------------------------------------------------------------------------------------
+STEP 1: BACKEND AGGREGATION ENRICHMENT (summary.controller.ts)
+----------------------------------------------------------------------------------------------------
+Target File: backend/src/modules/reports/summary/summary.controller.ts (Endpoint: /reports/item-summary)
+
+Action Items:
+1. Enrich the aggregation pipeline in `getSummaries` to perform targeted single-lookup or
+   bucket lookups for the latest transactional metadata per `(itemId, circle)`:
+
+   A. Latest PO:
+      {
+        $lookup: {
+          from: 'purchaseorders',
+          let: { iId: '$itemId', c: '$_id.circle' },
+          pipeline: [
+            { $match: { $expr: { $and: [
+                { $in: ['$$iId', '$items.itemId'] },
+                { $eq: ['$circle', '$$c'] }
+              ] } } },
+            { $sort: { createdAt: -1 } },
+            { $limit: 1 },
+            { $project: { poNumber: 1, poDate: 1, status: 1, totalValue: 1 } }
+          ],
+          as: 'latestPO'
+        }
+      }
+
+   B. Latest DI:
+      Ensure pipeline sorts by `diDate: -1` or `createdAt: -1` and projects:
+      - `diNumber`
+      - `diDate`
+      - `status`
+
+   C. Latest PI:
+      Ensure pipeline sorts by `invoiceDate: -1` or `createdAt: -1` and projects:
+      - `invoiceNumber`
+      - `invoiceDate`
+      - `paymentStatus`
+
+   D. Latest Store & Transfer:
+      - Lookup `stores` matching circle to get primary `storeName`.
+      - Lookup latest `storetransfers` for item to get actual `transferNumber` and `route` ("Store A -> Store B").
+      - Lookup latest `storeinwardentries` for `grnNumber` and inward date.
+
+   E. Latest Work Order & Demand Note:
+      - Lookup latest `contractorworkorders` for `workOrderNumber`, `workOrderDate`, and total value.
+      - Lookup latest `demandnotes` for `demandNoteNumber` and actual `demandQty`.
+
+   F. Latest Client & Contractor Bills:
+      - Lookup latest `clientbills` for `billNumber` (RA Bill No.) and status.
+      - Lookup latest `contractorinvoices` for `invoiceNumber`, actual `netPayable`, and `paymentStatus`.
+
+2. Update `$project` stage in `summary.controller.ts` to output:
+   - `poNo: "$latestPO.poNumber"`
+   - `poDate: "$latestPO.poDate"`
+   - `poStatus: "$latestPO.status"`
+   - `diNo: "$latestDI.diNumber"`
+   - `diDate: "$latestDI.diDate"`
+   - `piNo: "$latestPI.invoiceNumber"`
+   - `piDate: "$latestPI.invoiceDate"`
+   - `piStatus: "$latestPI.paymentStatus"`
+   - `depotName: "$storeInfo.storeName"`
+   - `reorderLevel: "$masterItem.reorderLevel"`
+   - `grnNo: "$latestGRN.grnNumber"`
+   - `minNo: "$latestMIN.assignmentNumber"`
+   - `transferRoute: { $concat: ["$latestTransfer.fromStore", " -> ", "$latestTransfer.toStore"] }`
+   - `woNo: "$latestWO.workOrderNumber"`
+   - `dnNo: "$latestDN.demandNoteNumber"`
+   - `dnQty: "$latestDN.totalRequired"`
+   - `mrhovStatus: "$latestMRHOV.status"`
+   - `raNo: "$latestClientBill.billNumber"`
+   - `contractorPayable: "$latestContractorBill.netPayable"`
+   - `contractorPaymentStatus: "$latestContractorBill.paymentStatus"`
+
+----------------------------------------------------------------------------------------------------
+STEP 2: IN-MEMORY / INDEX OPTIMIZATION (Prevent Performance Degradation)
+----------------------------------------------------------------------------------------------------
+Adding multiple unindexed `$lookup` stages in an aggregation over 50,000 items can cause slow queries
+and memory bloat. To ensure sub-second response times:
+
+Action Items:
+1. Database Indexes:
+   Verify or add compound indexes on:
+   - `purchaseorders`: `{ "items.itemId": 1, circle: 1, createdAt: -1 }`
+   - `dis`: `{ "lineItems.itemId": 1, circle: 1, createdAt: -1 }`
+   - `purchaseinvoices`: `{ "lineItems.itemId": 1, circle: 1, createdAt: -1 }`
+   - `contractorworkorders`: `{ "items.itemId": 1, circle: 1, createdAt: -1 }`
+   - `contractorassignments`: `{ itemId: 1, circle: 1, createdAt: -1 }`
+   - `clientbills`: `{ "items.itemId": 1, circle: 1, createdAt: -1 }`
+
+2. Promise Cache / Batch Resolution:
+   - Reuse the established in-flight promise cache in `summary.controller.ts` so multiple simultaneous
+     dashboard requests do not trigger repeated aggregations.
+   - Set maximum execution limit or cursor streaming where appropriate.
+
+----------------------------------------------------------------------------------------------------
+STEP 3: FRONTEND DATA ADAPTER & HYDRATION (page.tsx)
+----------------------------------------------------------------------------------------------------
+Target File: frontend/src/app/ceo-portal/operations-hub/page.tsx
+
+Action Items:
+1. Update `build(b: any, i: number)` helper:
+   Remove all hardcoded `'N/A'`, `Date.now()`, and static strings, replacing them with dynamic properties:
+
+   ```typescript
+   // Purchase Order
+   d.po = db.poQty > 0 || db.poNo ? {
+     no: db.poNo || '—',
+     date: db.poDate ? new Date(db.poDate).getTime() : null,
+     qty: db.poQty || 0,
+     val: db.poVal || (db.poQty * it.rate),
+     status: db.poStatus || 'Active'
+   } : null;
+
+   // Dispatch Instruction
+   d.di = db.diQty > 0 || db.diNo ? {
+     no: db.diNo || '—',
+     qty: db.diQty,
+     date: db.diDate ? new Date(db.diDate).getTime() : null
+   } : null;
+
+   // Purchase Invoice
+   d.pi = db.invQty > 0 || db.piNo ? {
+     no: db.piNo || '—',
+     qty: db.invQty,
+     amt: db.invQty * it.rate,
+     status: db.piStatus || 'Pending'
+   } : null;
+
+   // Store Master
+   d.store = {
+     depot: db.depotName || `${it.circle} Depot`,
+     reorder: db.reorderLevel ?? Math.round(loaQty * 0.15)
+   };
+
+   // Store Receipt & Inward
+   d.receipt = db.invQty > 0 || db.grnNo ? {
+     no: db.grnNo || '—',
+     qty: db.invQty
+   } : null;
+
+   d.inward = db.invQty > 0 ? {
+     qty: db.invQty,
+     date: db.inwardDate ? new Date(db.inwardDate).getTime() : null
+   } : null;
+
+   // Material Issue Note
+   d.min = db.issuedQty > 0 || db.minNo ? {
+     no: db.minNo || '—',
+     qty: db.issuedQty
+   } : null;
+
+   // Inter Transfer Route
+   d.inter = (transferInQty + transferOutQty > 0) ? {
+     qty: transferInQty + transferOutQty,
+     route: db.transferRoute || 'Inter-Depot'
+   } : null;
+
+   // Work Order
+   d.wo = db.woQty > 0 || db.woNo ? {
+     no: db.woNo || '—',
+     val: db.woVal || (db.woQty * it.rate),
+     qty: db.woQty || 0
+   } : null;
+
+   // Demand Note
+   d.dn = db.dnQty > 0 || db.dnNo ? {
+     no: db.dnNo || '—',
+     qty: db.dnQty || db.issuedQty
+   } : null;
+
+   // MRHOV Status
+   d.mrhov = db.mhrovQty > 0 || db.mrhovStatus ? {
+     status: db.mrhovStatus || 'Cleared'
+   } : null;
+
+   // Client Billing
+   d.cbill = billedQty > 0 || db.raNo ? {
+     ra: db.raNo || '—',
+     amt: billedQty * it.rate
+   } : null;
+
+   // Contractor Billing
+   d.kbill = (db.contractorPayable || billedQty > 0) ? {
+     amt: db.contractorPayable || (billedQty * it.rate),
+     status: db.contractorPaymentStatus || 'Processed'
+   } : null;
+   ```
+
+----------------------------------------------------------------------------------------------------
+STEP 4: UI FORMATTING, DRILL-DOWNS & STATUS BADGES
+----------------------------------------------------------------------------------------------------
+1. Format Date Columns:
+   - Replace any NaN or missing date rendering with clean em-dashes (`—`).
+   - Use standard locale date format (`12 Oct 2026`).
+
+2. Status Badges:
+   - Ensure dynamic pills for `'Approved'`, `'Active'`, `'Pending'`, `'Under Review'`, `'Due'`, `'Cleared'`.
+
+3. Clickable Navigation / Drill-Downs:
+   - Make Document Numbers (`PO No.`, `DI No.`, `PI No.`, `WO No.`, `RA Bill`) clickable links that
+     route directly to the respective module detail page (e.g., `/purchases/orders/[id]`, `/di/[id]`).
+
+====================================================================================================
+5. VERIFICATION, BENCHMARKING & QA CHECKLIST
+====================================================================================================
+[ ] 1. Backend build verification: Run `npm run build` in `backend` to ensure strict TypeScript compliance.
+[ ] 2. Frontend build verification: Run `npm run build` in `frontend` to ensure zero compilation breaks.
+[ ] 3. Query Performance: Measure `/reports/item-summary` response time under 1.5 seconds.
+[ ] 4. Memory Footprint: Verify heap usage remains well below 1GB during heavy ledger queries.
+[ ] 5. Data Integrity: Cross-verify 5 randomly sampled items against MongoDB records directly.
+[ ] 6. Zero Regressions: Ensure standard filter dropdowns (Circle, Sub-circle, Package, Date Range,
+       Search) and pagination operate seamlessly.
+====================================================================================================

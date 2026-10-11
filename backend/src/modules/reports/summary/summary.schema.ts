@@ -33,6 +33,11 @@ export interface IItemSummary extends Document {
   issuedQty: number;
   returnedQty: number;
   woQty: number;
+  demandQty?: number;
+  receivedQty?: number;
+  wipQty?: number;
+  contractors?: string[];
+  contractorBreakdown?: Record<string, number>;
 
   createdAt: Date;
   updatedAt: Date;
@@ -72,6 +77,11 @@ const itemSummarySchema = new Schema<IItemSummary>(
     issuedQty: { type: Number, default: 0 },
     returnedQty: { type: Number, default: 0 },
     woQty: { type: Number, default: 0 },
+    demandQty: { type: Number, default: 0 },
+    receivedQty: { type: Number, default: 0 },
+    wipQty: { type: Number, default: 0 },
+    contractors: [{ type: String }],
+    contractorBreakdown: { type: Schema.Types.Mixed, default: {} },
   },
   { timestamps: true }
 );

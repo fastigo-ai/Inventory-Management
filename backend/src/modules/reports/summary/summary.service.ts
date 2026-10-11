@@ -28,13 +28,17 @@ interface UpdateSummaryParams {
     er90Qty?: number;
     er10Qty?: number;
     jmcQty?: number;
+    wipQty?: number;
     cBillQty?: number;
     woQty?: number;
+    demandQty?: number;
+    receivedQty?: number;
   };
   setFields?: {
     stockBalance?: number;
   };
   addVendor?: string;
+  addContractor?: string;
   session?: ClientSession;
 }
 
@@ -58,6 +62,11 @@ const normalizePkg = (pkg: string): string => {
  */
 const normalizeCircle = (circ: string): string => {
   if (!circ) return '';
+  const c = circ.trim().toLowerCase();
+  if (/solan|kumarhatti|nalagarh/.test(c)) return 'Solan';
+  if (/nahan/.test(c)) return 'Nahan';
+  if (/rampur/.test(c)) return 'Rampur';
+  if (/rohru/.test(c)) return 'Rohru';
   return circ.trim().charAt(0).toUpperCase() + circ.trim().slice(1).toLowerCase();
 };
 
@@ -157,7 +166,12 @@ export class SummaryService {
       update.$set = setObj;
     }
     if (params.addVendor && params.addVendor.trim() !== '') {
-      update.$addToSet = { vendors: params.addVendor.trim() };
+      update.$addToSet = update.$addToSet || {};
+      update.$addToSet.vendors = params.addVendor.trim();
+    }
+    if (params.addContractor && params.addContractor.trim() !== '') {
+      update.$addToSet = update.$addToSet || {};
+      update.$addToSet.contractors = params.addContractor.trim();
     }
 
     await ItemSummary.findOneAndUpdate(filter, update, {
@@ -431,6 +445,7 @@ export class SummaryService {
                 circle: a.circle || '',
                 package: a.package || '',
                 increments: { issuedQty: qty },
+                addContractor: a.contractorFarmName,
                 companyId: item.companyId?.toString()
               });
             }
@@ -440,11 +455,11 @@ export class SummaryService {
 
       // 9. Rebuild from ContractorReturns
       const { ContractorReturn } = await import('../../contractors/contractorReturn.schema');
-      const returns = await ContractorReturn.find({ 'lineItems.itemId': itemId });
+      const returns = await ContractorReturn.find({ 'lineItems.itemId': itemId, status: { $ne: 'Cancelled' } });
       for (const r of returns) {
         for (const line of r.lineItems) {
           if (line.itemId?.toString() === itemIdStr) {
-            const qty = Number(line.returnQty || line.acceptedQuantity || 0);
+            const qty = Number(line.returnQty ?? line.quantity ?? line.acceptedQuantity ?? 0);
             if (qty > 0) {
               await SummaryService.updateSummary({
                 itemId,
@@ -488,6 +503,26 @@ export class SummaryService {
               await SummaryService.updateSummary({
                 itemId, circle: jmc.circle || '', package: jmc.package || '',
                 increments: { jmcQty: qty },
+                addContractor: (jmc as any).contractorName || '',
+                companyId: item.companyId?.toString()
+              });
+            }
+          }
+        }
+      }
+
+      // 10.5 Rebuild from WipRegister
+      const { WipRegister } = await import('../../wip/wip.schema');
+      const wips = await WipRegister.find({ 'items.itemId': itemId, status: { $ne: 'Rejected' } });
+      for (const wip of wips) {
+        for (const line of wip.items) {
+          if (line.itemId?.toString() === itemIdStr) {
+            const qty = Number(line.approvedQty || line.claimedQty || 0);
+            if (qty > 0) {
+              await SummaryService.updateSummary({
+                itemId, circle: wip.circle || '', package: wip.package || '',
+                increments: { wipQty: qty },
+                addContractor: (wip as any).contractorName || '',
                 companyId: item.companyId?.toString()
               });
             }
@@ -533,6 +568,26 @@ export class SummaryService {
               await SummaryService.updateSummary({
                 itemId, circle: cb.circle || '', package: cb.package || '',
                 increments,
+                companyId: item.companyId?.toString()
+              });
+            }
+          }
+        }
+      }
+
+      // 13. Rebuild from DemandNotes
+      const { default: DemandNote } = await import('../../demand-notes/demandNote.schema');
+      const demandNotes = await DemandNote.find({ 'items.itemId': itemId, status: { $ne: 'Rejected' } });
+      for (const dn of demandNotes) {
+        for (const line of dn.items) {
+          if (line.itemId?.toString() === itemIdStr) {
+            const qty = Number(line.demandQty || 0);
+            if (qty > 0) {
+              await SummaryService.updateSummary({
+                itemId,
+                circle: dn.circle || '',
+                package: dn.package || '',
+                increments: { demandQty: qty },
                 companyId: item.companyId?.toString()
               });
             }

@@ -34,8 +34,8 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
   const { circle, package: pkg, itemName, description, loaSerialNo, tempCode, page = '1', limit = '50', companyId, sortField, sortOrder } = req.query;
 
   const filter: any = {};
-  if (circle) filter.circle = circle;
-  if (pkg) filter.package = pkg;
+  if (circle && circle !== 'All') filter.circle = { $regex: new RegExp(`^${circle}$`, 'i') };
+  if (pkg && pkg !== 'All') filter.package = { $regex: new RegExp(`^${pkg.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') };
   if (companyId) filter.companyId = companyId;
   
   if (itemName) filter.itemName = { $regex: itemName, $options: 'i' };
@@ -133,12 +133,18 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
         er90Qty: { $sum: "$er90Qty" },
         er10Qty: { $sum: "$er10Qty" },
         jmcQty: { $sum: "$jmcQty" },
+        wipQty: { $sum: "$wipQty" },
         cBillQty: { $sum: "$cBillQty" },
+        woQty: { $sum: "$woQty" },
+        demandQty: { $sum: "$demandQty" },
+        receivedQty: { $sum: "$receivedQty" },
         transferInQty: { $sum: "$transferInQty" },
         transferOutQty: { $sum: "$transferOutQty" },
         issuedQty: { $sum: "$issuedQty" },
         returnedQty: { $sum: "$returnedQty" },
-        vendors: { $push: "$vendors" }
+        contractorBreakdown: { $mergeObjects: "$contractorBreakdown" },
+        vendors: { $push: "$vendors" },
+        contractors: { $push: "$contractors" }
       }
     },
     { $lookup: {
@@ -154,6 +160,7 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
         localField: 'itemId',
         foreignField: 'lineItems.itemId',
         pipeline: [
+          { $sort: { createdAt: -1 } },
           { $limit: 1 }
         ],
         as: 'latestDI'
@@ -165,12 +172,97 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
         localField: 'itemId',
         foreignField: 'lineItems.itemId',
         pipeline: [
+          { $sort: { createdAt: -1 } },
           { $limit: 1 }
         ],
         as: 'latestPI'
       }
     },
     { $unwind: { path: '$latestPI', preserveNullAndEmptyArrays: true } },
+    { $lookup: {
+        from: 'purchaseorders',
+        localField: 'itemId',
+        foreignField: 'lineItems.itemId',
+        pipeline: [
+          { $sort: { createdAt: -1 } },
+          { $limit: 1 }
+        ],
+        as: 'latestPO'
+      }
+    },
+    { $unwind: { path: '$latestPO', preserveNullAndEmptyArrays: true } },
+    { $lookup: {
+        from: 'storeinwardentries',
+        localField: 'itemId',
+        foreignField: 'itemId',
+        pipeline: [
+          { $sort: { createdAt: -1 } },
+          { $limit: 1 }
+        ],
+        as: 'latestInward'
+      }
+    },
+    { $unwind: { path: '$latestInward', preserveNullAndEmptyArrays: true } },
+    { $lookup: {
+        from: 'contractorassignments',
+        localField: 'itemId',
+        foreignField: 'lineItems.itemId',
+        pipeline: [
+          { $sort: { createdAt: -1 } },
+          { $limit: 1 }
+        ],
+        as: 'latestMIN'
+      }
+    },
+    { $unwind: { path: '$latestMIN', preserveNullAndEmptyArrays: true } },
+    { $lookup: {
+        from: 'contractorworkorders',
+        localField: 'itemId',
+        foreignField: 'items.itemId',
+        pipeline: [
+          { $sort: { createdAt: -1 } },
+          { $limit: 1 }
+        ],
+        as: 'latestWO'
+      }
+    },
+    { $unwind: { path: '$latestWO', preserveNullAndEmptyArrays: true } },
+    { $lookup: {
+        from: 'demandnotes',
+        localField: 'itemId',
+        foreignField: 'items.itemId',
+        pipeline: [
+          { $sort: { createdAt: -1 } },
+          { $limit: 1 }
+        ],
+        as: 'latestDN'
+      }
+    },
+    { $unwind: { path: '$latestDN', preserveNullAndEmptyArrays: true } },
+    { $lookup: {
+        from: 'mhrovs',
+        localField: 'itemId',
+        foreignField: 'items.itemId',
+        pipeline: [
+          { $sort: { createdAt: -1 } },
+          { $limit: 1 }
+        ],
+        as: 'latestMHROV'
+      }
+    },
+    { $unwind: { path: '$latestMHROV', preserveNullAndEmptyArrays: true } },
+    { $lookup: {
+        from: 'clientbills',
+        localField: 'itemId',
+        foreignField: 'items.itemId',
+        pipeline: [
+          { $sort: { createdAt: -1 } },
+          { $limit: 1 }
+        ],
+        as: 'latestClientBill'
+      }
+    },
+    { $unwind: { path: '$latestClientBill', preserveNullAndEmptyArrays: true } },
     { $project: {
         _id: 0,
         itemId: 1,
@@ -214,15 +306,41 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
         er90Qty: 1,
         er10Qty: 1,
         jmcQty: 1,
+        wipQty: 1,
         cBillQty: 1,
         vendors: 1,
+        contractors: 1,
+        contractorBreakdown: 1,
+        contractorName: { $ifNull: ["$latestMIN.contractorFarmName", { $ifNull: ["$latestDN.contractorName", ""] }] },
         transferInQty: 1,
         transferOutQty: 1,
         issuedQty: 1,
         returnedQty: 1,
         woQty: 1,
+        demandQty: 1,
+        receivedQty: { $ifNull: ["$latestInward.totalQty", { $ifNull: ["$receivedQty", "$invQty"] }] },
         diNo: "$latestDI.diNumber",
+        diDate: { $ifNull: ["$latestDI.diDate", "$latestDI.date"] },
+        diStatus: "$latestDI.status",
         piNo: "$latestPI.invoiceNumber",
+        piDate: { $ifNull: ["$latestPI.invoiceDate", "$latestPI.date"] },
+        piStatus: { $ifNull: ["$latestPI.paymentStatus", "$latestPI.status"] },
+        poNo: "$latestPO.poNumber",
+        poDate: "$latestPO.poDate",
+        poStatus: "$latestPO.status",
+        grnNo: { $ifNull: ["$latestInward.grNumber", "$latestInward.inwardId"] },
+        inwardDate: { $ifNull: ["$latestInward.receivedDate", "$latestInward.invoiceDate"] },
+        minNo: { $ifNull: ["$latestMIN.minNo", "$latestMIN.assignmentNumber"] },
+        minDate: { $ifNull: ["$latestMIN.minDate", "$latestMIN.date"] },
+        woNo: "$latestWO.workOrderNumber",
+        woDate: "$latestWO.createdAt",
+        dnNo: "$latestDN.demandNoteNumber",
+        dnDate: "$latestDN.createdAt",
+        dnQty: "$demandQty",
+        mrhovNo: "$latestMHROV.mhrovNumber",
+        mrhovStatus: "$latestMHROV.status",
+        raNo: "$latestClientBill.billNumber",
+        raDate: "$latestClientBill.billDate",
         loaQty: {
           $let: {
             vars: { c: { $toLower: "$_id.circle" } },

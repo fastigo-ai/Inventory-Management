@@ -297,7 +297,7 @@ export const updateInvoiceService = async (id: string, data: any, user: any) => 
       if (!dbItem) throw new ApiError(400, `Item ${item.itemId} not found in linked MHROV`);
       authoritativeQty = Number(dbItem.mhrovDoneQty || 0);
     } else {
-      authoritativeQty = percentage === 100 ? Number(item.jmcDoneQty || 0) : Number(item.erectedQty || 0);
+      authoritativeQty = Number(item.jmcDoneQty || item.erectedQty || item.qty || 0);
     }
 
     const itemRate = Number(item.rate || 0);
@@ -330,8 +330,8 @@ export const updateInvoiceService = async (id: string, data: any, user: any) => 
       loaSrNo: loaSerialNo,
       loaSerialNo,
       billingCategory: item.billingCategory,
-      jmcDoneQty: (invoice.jmcIds && invoice.jmcIds.length > 0 && stage !== 'Amount' && stage !== 'Advance' && percentage === 100) ? authoritativeQty : Number(item.jmcDoneQty || 0),
-      erectedQty: (invoice.jmcIds && invoice.jmcIds.length > 0 && percentage !== 100) ? authoritativeQty : (invoice.mhrovId ? authoritativeQty : Number(item.erectedQty || 0)),
+      jmcDoneQty: (invoice.jmcIds && invoice.jmcIds.length > 0 && stage !== 'Amount' && stage !== 'Advance' && percentage === 100) ? authoritativeQty : Number(item.jmcDoneQty || (item.billingCategory === 'JMC Done' ? authoritativeQty : 0)),
+      erectedQty: (invoice.jmcIds && invoice.jmcIds.length > 0 && percentage !== 100) ? authoritativeQty : (invoice.mhrovId ? authoritativeQty : Number(item.erectedQty || (item.billingCategory === 'Erection' ? authoritativeQty : 0))),
       rate: itemRate,
       percentageApplied: percentage,
       baseAmount,
@@ -464,11 +464,11 @@ export const getInvoicesService = async (query: any, user: any) => {
 export const getInvoiceByIdService = async (id: string) => {
   const invoice = await ContractorInvoice.findById(id)
     .populate('contractorId', 'name vendorName dynamicData assignedLocations location')
-    .populate('workOrderId', 'workOrderNumber items')
+    .populate('workOrderId', 'workOrderNumber items circle package')
     .populate('mhrovId', 'mhrovNumber')
     .populate('jmcIds', 'jmcNumber')
     .populate('handoverCertificateId', 'certificateNumber')
-    .populate('lineItems.itemId', 'name itemName dynamicData');
+    .populate('lineItems.itemId', 'name itemName dynamicData activity rate boqRate');
 
   if (!invoice) throw new ApiError(404, 'Invoice not found');
   return invoice;
@@ -619,6 +619,8 @@ export const getBillingAnalyticsService = async (query: any, user: any) => {
   
   const stageBreakdownMap: Record<string, { totalAmount: number, count: number }> = {};
   const statusDistributionMap: Record<string, { totalAmount: number, count: number }> = {};
+  let totalContractorBilled = 0;
+  let totalContractorCount = 0;
   let oldSubmittedCount = 0;
   
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -631,8 +633,10 @@ export const getBillingAnalyticsService = async (query: any, user: any) => {
     statusDistributionMap[inv.status].count += 1;
     statusDistributionMap[inv.status].totalAmount += (inv.grandTotal || 0);
     
-    // 2. Stage Breakdown (Exclude Rejected)
+    // 2. Stage Breakdown & Total Billed (Exclude Rejected)
     if (inv.status !== 'Rejected') {
+      totalContractorBilled += (inv.grandTotal || 0);
+      totalContractorCount += 1;
       if (!stageBreakdownMap[inv.stage]) {
         stageBreakdownMap[inv.stage] = { totalAmount: 0, count: 0 };
       }
@@ -661,6 +665,8 @@ export const getBillingAnalyticsService = async (query: any, user: any) => {
   }));
 
   return {
+    totalContractorBilled,
+    totalContractorCount,
     stageBreakdown,
     statusDistribution,
     aging: {

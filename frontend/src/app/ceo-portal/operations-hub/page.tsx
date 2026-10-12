@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Download, ChevronLeft, ChevronRight, Search, X, SlidersHorizontal, ArrowUpRight, CheckCircle2, AlertTriangle, XCircle, Info } from 'lucide-react';
+import { Download, ChevronLeft, ChevronRight, Search, X, SlidersHorizontal, ArrowUpRight, CheckCircle2, AlertTriangle, XCircle, Info, CheckSquare } from 'lucide-react';
 import { fetchCeoDashboardData } from '@/features/ceo-portal/api/dashboard.api';
 import { api } from '@/shared/api/axios';
 import Item360Drawer from './Item360Drawer';
@@ -250,11 +250,12 @@ const SUBS = [
 ];
 
 const STATIC = [
-  { id: 'sr', label: 'Sr. No.', type: 'sr', isSticky: true, defaultW: 64, cls: 'text-center sticky z-10 bg-white' },
-  { id: 'code', label: 'Temp code', type: 'tcode', isSticky: true, defaultW: 112, cls: 'sticky z-10 bg-white' },
-  { id: 'name', label: 'Item name', type: 'name', isSticky: true, defaultW: 260, cls: 'sticky z-10 bg-white' },
-  { id: 'loa', label: 'LOA qty', type: 'qty', isSticky: true, defaultW: 100, cls: 'sticky z-10 bg-white' },
-  { id: 'bom', label: 'BOM qty', type: 'qty', isSticky: true, defaultW: 100, cls: 'sticky z-10 bg-white border-r border-slate-200' },
+  { id: 'select', label: '', type: 'checkbox', isSticky: true, defaultW: 44, cls: 'text-center sticky z-10' },
+  { id: 'sr', label: 'Sr. No.', type: 'sr', isSticky: true, defaultW: 64, cls: 'text-center sticky z-10' },
+  { id: 'code', label: 'Temp code', type: 'tcode', isSticky: true, defaultW: 112, cls: 'sticky z-10' },
+  { id: 'name', label: 'Item name', type: 'name', isSticky: true, defaultW: 260, cls: 'sticky z-10' },
+  { id: 'loa', label: 'LOA qty', type: 'qty', isSticky: true, defaultW: 100, cls: 'sticky z-10' },
+  { id: 'bom', label: 'BOM qty', type: 'qty', isSticky: true, defaultW: 100, cls: 'sticky z-10 border-r border-slate-200' },
   { id: 'pkg', label: 'Package', type: 'text', cls: '' },
   { id: 'circle', label: 'Circle', type: 'text', cls: '' },
   { id: 'flags', label: 'Flags', type: 'flags', cls: '' }
@@ -296,7 +297,9 @@ const ALERTS = [
 // --- COMPONENT ---
 export default function OperationsHub() {
   const [items, setItems] = useState<any[]>([]);
+  const [itemsLoading, setItemsLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   
   const [mode, setMode] = useState<'single' | 'multi' | 'all'>('single');
   const [sel, setSel] = useState<Set<string>>(new Set(['item']));
@@ -320,6 +323,7 @@ export default function OperationsHub() {
   });
 
   useEffect(() => {
+    setItemsLoading(true);
     api.get('/reports/item-summary', { params: { limit: 50000 } })
       .then(res => {
         if (res.data?.data?.items) {
@@ -346,6 +350,9 @@ export default function OperationsHub() {
       .catch((err) => {
         console.error('API FETCH ERROR:', err);
         setItems(BASE.map(build));
+      })
+      .finally(() => {
+        setItemsLoading(false);
       });
   }, []);
 
@@ -468,6 +475,7 @@ export default function OperationsHub() {
       }
       return it.d[c.sp][c.k];
     }
+    if (c.k === 'select') return selectedIds.has(it.uid || it.code);
     return (c.k === 'sr' ? it.sr : c.k === 'flags' ? flags(it).length : it[c.k]);
   };
 
@@ -524,6 +532,127 @@ export default function OperationsHub() {
   const slice = viewType === 'item' 
     ? sortedRows.slice((currentPage - 1) * size, currentPage * size)
     : (groupedRows || []).slice((currentPage - 1) * size, currentPage * size);
+
+  // Selection Logic & Selected Totals
+  const currentPageItems = useMemo(() => {
+    if (viewType === 'item') return slice as any[];
+    return (slice as [string, any[]][]).flatMap(([_, catItems]) => catItems);
+  }, [slice, viewType]);
+
+  const isAllPageSelected = currentPageItems.length > 0 && currentPageItems.every(it => selectedIds.has(it.uid || it.code));
+  const isSomePageSelected = currentPageItems.some(it => selectedIds.has(it.uid || it.code));
+
+  const toggleSelectAllPage = () => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (isAllPageSelected) {
+        currentPageItems.forEach(it => next.delete(it.uid || it.code));
+      } else {
+        currentPageItems.forEach(it => next.add(it.uid || it.code));
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectItem = (it: any) => {
+    const key = it.uid || it.code;
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const handleSelectAllFiltered = () => {
+    const next = new Set(selectedIds);
+    sortedRows.forEach(it => next.add(it.uid || it.code));
+    setSelectedIds(next);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedIds(new Set());
+  };
+
+  const selectedItemsList = useMemo(() => {
+    if (selectedIds.size === 0) return [];
+    return items.filter(it => selectedIds.has(it.uid || it.code));
+  }, [items, selectedIds]);
+
+  const selectedTotals = useMemo(() => {
+    if (selectedItemsList.length === 0) return null;
+
+    let totalLoaQty = 0;
+    let totalLoaVal = 0;
+    let totalPoQty = 0;
+    let totalPoVal = 0;
+    let totalGrnQty = 0;
+    let totalStockQty = 0;
+    let totalStockVal = 0;
+    let totalIssuedQty = 0;
+    let totalBilledVal = 0;
+
+    selectedItemsList.forEach(it => {
+      const rate = it.rate || 0;
+      const loaQty = it.loa || 0;
+      const poQty = it.d?.po?.qty ?? loaQty;
+      const poVal = it.d?.po?.val ?? (poQty * rate);
+      const grnQty = it.d?.receipt?.qty || it.d?.inward?.qty || 0;
+      const stock = it.stock || 0;
+      const issued = it.d?.min?.qty || 0;
+      
+      const supplyBilled = (it.d?.mis_b_c_s?.ra60Qty || 0) + (it.d?.mis_b_c_s?.ra30Qty || 0) + (it.d?.mis_b_c_s?.ra10Qty || 0);
+      const erectionBilled = (it.d?.mis_b_c_e?.er90Qty || 0) + (it.d?.mis_b_c_e?.er10Qty || 0);
+      const billedQty = (supplyBilled + erectionBilled) || (it.d?.cbill?.amt ? Math.round(it.d.cbill.amt / (rate || 1)) : 0);
+      const billedVal = it.d?.cbill?.amt || (billedQty * rate);
+
+      totalLoaQty += loaQty;
+      totalLoaVal += loaQty * rate;
+      totalPoQty += poQty;
+      totalPoVal += poVal;
+      totalGrnQty += grnQty;
+      totalStockQty += stock;
+      totalStockVal += stock * rate;
+      totalIssuedQty += issued;
+      totalBilledVal += billedVal;
+    });
+
+    return {
+      count: selectedItemsList.length,
+      totalLoaQty,
+      totalLoaVal,
+      totalPoQty,
+      totalPoVal,
+      totalGrnQty,
+      totalStockQty,
+      totalStockVal,
+      totalIssuedQty,
+      totalBilledVal
+    };
+  }, [selectedItemsList]);
+
+  const exportToCSV = (rowsToExport: any[], filename = 'operations-ledger.csv') => {
+    if (!rowsToExport.length) return;
+    const exportCols = curCols.filter(c => c.type !== 'checkbox');
+    const headers = exportCols.map(c => `"${c.label.replace(/"/g, '""')}"`);
+    const csvRows = rowsToExport.map(it => {
+      return exportCols.map(c => {
+        const v = raw(c, it);
+        if (v === null || v === undefined) return '""';
+        return `"${String(v).replace(/"/g, '""')}"`;
+      }).join(',');
+    });
+    const csvContent = [headers.join(','), ...csvRows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   // Column Resizing Handlers
   const handleMouseDown = (e: React.MouseEvent, colId: string, currentWidth: number) => {
@@ -636,104 +765,131 @@ export default function OperationsHub() {
     if (c === 'warn') return 'bg-amber-50 text-amber-700 border border-amber-200';
     return 'bg-red-50 text-red-700 border border-red-200';
   };
-  const renderRow = (it: any, idx: number, isSub = false) => (
-    <tr key={it.id || idx} className={`hover:bg-slate-50/80 transition-colors group ${isSub ? 'bg-slate-50/40' : 'bg-white'}`}>
-      {curCols.map(c => {
-        const v = raw(c, it);
-        const isNull = v === null || v === undefined;
-        const align = (c.type === 'money' || c.type === 'qty' || c.type === 'stock' || c.type === 'pct') ? 'text-right tabular-nums' : '';
-        
-        let content: React.ReactNode = <span className="text-slate-300">—</span>;
-        
-        if (!isNull) {
-          if (c.type === 'money') content = <span className="font-medium text-slate-700">{money(v)}</span>;
-          else if (c.type === 'qty') content = <span className="font-medium text-slate-700">{inr(v)} {it.unit}</span>;
-          else if (c.type === 'stock') content = <span className={getHealth(health(it))}>{inr(v)} {it.unit}</span>;
-          else if (c.type === 'pct') content = (
-            <div className="flex items-center justify-end gap-2">
-              <div className="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden"><div className="h-full bg-emerald-500 rounded-full" style={{width: `${v}%`}}></div></div>
-              <span className="font-bold text-slate-700 w-8">{v}%</span>
-            </div>
-          );
-          else if (c.type === 'date') content = <span className="text-slate-600 font-medium">{fdate(v)}</span>;
-          else if (c.type === 'tcode') content = (
-            <span 
-              onClick={() => setSelectedItem(it)}
-              className="px-1.5 py-0.5 rounded border border-indigo-100 bg-indigo-50 hover:bg-indigo-100 hover:border-indigo-300 text-indigo-700 font-mono text-[11px] font-bold cursor-pointer transition-colors"
-              title="Click to view 360° Item Lifecycle"
-            >
-              {v}
-            </span>
-          );
-          else if (c.type === 'code') content = <span className="font-mono text-xs text-slate-600 font-medium">{v}</span>;
-          else if (c.type === 'status') content = <span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${getPill(v)}`}>{v}</span>;
-          else if (c.type === 'flags') {
-            const fList = flags(it);
-            content = fList.length > 0 ? (
-              <div className="flex items-center gap-1 flex-wrap">
-                {fList.map((fl: any, fi: number) => (
-                  <span key={fi} className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getFlagTone(fl.c)}`}>
-                    {fl.t}
-                  </span>
-                ))}
+  const renderRow = (it: any, idx: number, isSub = false) => {
+    const isSelected = selectedIds.has(it.uid || it.code);
+    const rowBg = isSelected 
+      ? 'bg-indigo-50/90' 
+      : isSub 
+        ? 'bg-slate-50/70' 
+        : 'bg-white';
+    const hoverBg = isSelected 
+      ? 'group-hover:bg-indigo-100/90' 
+      : 'group-hover:bg-slate-50';
+
+    return (
+      <tr key={it.id || idx} className={`transition-colors group ${rowBg} ${hoverBg}`}>
+        {curCols.map(c => {
+          const v = raw(c, it);
+          const isNull = v === null || v === undefined;
+          const align = (c.type === 'money' || c.type === 'qty' || c.type === 'stock' || c.type === 'pct') ? 'text-right tabular-nums' : '';
+          
+          let content: React.ReactNode = <span className="text-slate-300">—</span>;
+          
+          if (c.type === 'checkbox') {
+            content = (
+              <div className="flex items-center justify-center w-full h-full">
+                <input 
+                  type="checkbox"
+                  aria-label={`Select item ${it.name}`}
+                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-600"
+                  checked={isSelected}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    toggleSelectItem(it);
+                  }}
+                />
               </div>
-            ) : (
-              <span className="text-[10px] font-semibold text-emerald-600 flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Optimal
+            );
+          } else if (!isNull) {
+            if (c.type === 'money') content = <span className="font-medium text-slate-700">{money(v)}</span>;
+            else if (c.type === 'qty') content = <span className="font-medium text-slate-700">{inr(v)} {it.unit}</span>;
+            else if (c.type === 'stock') content = <span className={getHealth(health(it))}>{inr(v)} {it.unit}</span>;
+            else if (c.type === 'pct') content = (
+              <div className="flex items-center justify-end gap-2">
+                <div className="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden"><div className="h-full bg-emerald-500 rounded-full" style={{width: `${v}%`}}></div></div>
+                <span className="font-bold text-slate-700 w-8">{v}%</span>
+              </div>
+            );
+            else if (c.type === 'date') content = <span className="text-slate-600 font-medium">{fdate(v)}</span>;
+            else if (c.type === 'tcode') content = (
+              <span 
+                onClick={() => setSelectedItem(it)}
+                className="px-1.5 py-0.5 rounded border border-indigo-100 bg-indigo-50 hover:bg-indigo-100 hover:border-indigo-300 text-indigo-700 font-mono text-[11px] font-bold cursor-pointer transition-colors"
+                title="Click to view 360° Item Lifecycle"
+              >
+                {v}
               </span>
             );
-          }
-          else if (c.type === 'sr') {
-            const srVal = (isSub && it.d?.loaSerialNo) ? it.d.loaSerialNo : v;
-            content = (
-              <div className="flex items-center justify-center gap-2">
-                {isSub && <div className="w-1.5 h-1.5 rounded-full bg-slate-300 flex-shrink-0"></div>}
-                <span className={`min-w-[24px] h-6 rounded-md px-1.5 flex items-center justify-center text-xs font-bold ${isSub ? 'bg-slate-200/70 text-slate-500' : 'bg-slate-100 text-slate-600'}`}>
-                  {srVal}
+            else if (c.type === 'code') content = <span className="font-mono text-xs text-slate-600 font-medium">{v}</span>;
+            else if (c.type === 'status') content = <span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${getPill(v)}`}>{v}</span>;
+            else if (c.type === 'flags') {
+              const fList = flags(it);
+              content = fList.length > 0 ? (
+                <div className="flex items-center gap-1 flex-wrap">
+                  {fList.map((fl: any, fi: number) => (
+                    <span key={fi} className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getFlagTone(fl.c)}`}>
+                      {fl.t}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-[10px] font-semibold text-emerald-600 flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Optimal
+                </span>
+              );
+            }
+            else if (c.type === 'sr') {
+              const srVal = (isSub && it.d?.loaSerialNo) ? it.d.loaSerialNo : v;
+              content = (
+                <div className="flex items-center justify-center gap-2">
+                  {isSub && <div className="w-1.5 h-1.5 rounded-full bg-slate-300 flex-shrink-0"></div>}
+                  <span className={`min-w-[24px] h-6 rounded-md px-1.5 flex items-center justify-center text-xs font-bold ${isSub ? 'bg-slate-200/70 text-slate-500' : 'bg-slate-100 text-slate-600'}`}>
+                    {srVal}
+                  </span>
+                </div>
+              );
+            }
+            else if (c.type === 'name') content = (
+              <div 
+                className="cursor-pointer group/name flex items-start justify-between gap-2" 
+                onClick={() => setSelectedItem(it)}
+                title="Click to view 360° Item Lifecycle"
+              >
+                <div className="min-w-0">
+                  <div className="font-bold text-slate-800 group-hover/name:text-indigo-600 transition-colors truncate max-w-[240px] leading-tight mb-0.5">
+                    {v}
+                  </div>
+                  <div className="text-[10px] font-medium text-slate-400">{it.cat}</div>
+                </div>
+                <span className="opacity-0 group-hover/name:opacity-100 transition-opacity bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0">
+                  360°
                 </span>
               </div>
             );
+            else content = <span className="text-slate-600">{String(v)}</span>;
           }
-          else if (c.type === 'name') content = (
-            <div 
-              className="cursor-pointer group/name flex items-start justify-between gap-2" 
-              onClick={() => setSelectedItem(it)}
-              title="Click to view 360° Item Lifecycle"
-            >
-              <div className="min-w-0">
-                <div className="font-bold text-slate-800 group-hover/name:text-indigo-600 transition-colors truncate max-w-[240px] leading-tight mb-0.5">
-                  {v}
-                </div>
-                <div className="text-[10px] font-medium text-slate-400">{it.cat}</div>
-              </div>
-              <span className="opacity-0 group-hover/name:opacity-100 transition-opacity bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0">
-                360°
-              </span>
-            </div>
-          );
-          else content = <span className="text-slate-600">{String(v)}</span>;
-        }
 
-        return (
-          <td 
-            key={c.id} 
-            className={`border-b border-slate-100 ${align} ${c.cls} group-hover:bg-slate-50 ${isSub ? 'bg-slate-50' : 'bg-white'}`}
-            style={{ 
-              width: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
-              minWidth: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
-              maxWidth: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
-              padding: colWidths[c.id] !== undefined && colWidths[c.id] < 10 ? '0' : '12px 16px', // replace px-4 py-3
-              left: getStickyLeft(c) !== undefined ? getStickyLeft(c) : undefined
-            }}
-          >
-            <div className={`w-full overflow-hidden truncate ${c.type === 'money' || c.type === 'qty' || c.type === 'stock' || c.type === 'pct' ? 'text-right' : ''}`}>
-              {content}
-            </div>
-          </td>
-        );
-      })}
-    </tr>
-  );
+          return (
+            <td 
+              key={c.id} 
+              className={`border-b border-slate-100 ${align} ${c.cls} ${rowBg} ${hoverBg}`}
+              style={{ 
+                width: c.type === 'checkbox' ? 44 : colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
+                minWidth: c.type === 'checkbox' ? 44 : colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
+                maxWidth: c.type === 'checkbox' ? 44 : colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
+                padding: c.type === 'checkbox' ? '0' : (colWidths[c.id] !== undefined && colWidths[c.id] < 10 ? '0' : '12px 16px'),
+                left: getStickyLeft(c) !== undefined ? getStickyLeft(c) : undefined
+              }}
+            >
+              <div className={`w-full overflow-hidden truncate ${c.type === 'money' || c.type === 'qty' || c.type === 'stock' || c.type === 'pct' ? 'text-right' : ''}`}>
+                {content}
+              </div>
+            </td>
+          );
+        })}
+      </tr>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-12 font-sans">
@@ -1021,11 +1177,30 @@ export default function OperationsHub() {
                 <button onClick={() => setViewType('activity')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${viewType === 'activity' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>Activity-wise</button>
               </div>
               <div className="flex items-center gap-2 w-full sm:w-auto">
+                {selectedIds.size > 0 && (
+                  <div className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 px-2.5 py-1.5 rounded-md text-xs font-bold whitespace-nowrap shadow-2xs">
+                    <CheckSquare className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>{selectedIds.size} selected</span>
+                    <button 
+                      onClick={handleClearSelection} 
+                      className="text-slate-400 hover:text-slate-700 ml-1 p-0.5" 
+                      title="Clear selection"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
                 <div className="relative w-full sm:w-64">
                   <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input type="search" placeholder="Search in ledger..." className="w-full h-9 pl-9 pr-3 rounded-md border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" value={q} onChange={e => { setQ(e.target.value); setPage(1); }} />
                 </div>
-                <button className="h-9 px-3 border border-slate-200 bg-white rounded-md text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 whitespace-nowrap"><Download className="w-3.5 h-3.5"/> CSV</button>
+                <button 
+                  onClick={() => exportToCSV(selectedIds.size > 0 ? selectedItemsList : sortedRows, selectedIds.size > 0 ? 'operations-ledger-selected.csv' : 'operations-ledger-all.csv')}
+                  className="h-9 px-3 border border-slate-200 bg-white rounded-md text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 whitespace-nowrap"
+                  title={selectedIds.size > 0 ? `Export ${selectedIds.size} selected items` : "Export all filtered items"}
+                >
+                  <Download className="w-3.5 h-3.5"/> {selectedIds.size > 0 ? `CSV (${selectedIds.size})` : 'CSV'}
+                </button>
               </div>
             </div>
 
@@ -1102,9 +1277,68 @@ export default function OperationsHub() {
             </div>
           )}
 
-          <div className="overflow-x-auto">
+          {/* Docked Selected Items Summary Ribbon (Never blocks rows) */}
+          {selectedTotals && (
+            <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white px-4 py-3 border-b border-indigo-900/60 flex flex-wrap items-center justify-between gap-3 animate-in fade-in duration-200 shadow-inner">
+              <div className="flex items-center gap-3">
+                <span className="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-bold px-2.5 py-1 rounded-md flex items-center gap-1.5">
+                  <CheckSquare className="w-3.5 h-3.5 text-indigo-400" /> {selectedTotals.count} Selected
+                </span>
+                <button onClick={handleSelectAllFiltered} className="text-xs text-indigo-300 hover:text-white underline font-semibold transition-colors">
+                  Select All ({sortedRows.length})
+                </button>
+                <span className="text-slate-600 text-xs">•</span>
+                <button onClick={handleClearSelection} className="text-xs text-slate-400 hover:text-slate-200 font-semibold transition-colors">
+                  Clear
+                </button>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 sm:gap-5 text-xs">
+                <div className="flex items-baseline gap-1.5 bg-white/5 px-2.5 py-1 rounded-md border border-white/10">
+                  <span className="text-slate-400 text-[10px] uppercase font-bold">LOA:</span>
+                  <strong className="text-white font-mono">{money(selectedTotals.totalLoaVal)}</strong>
+                  <span className="text-slate-400 text-[10px]">({inr(selectedTotals.totalLoaQty)})</span>
+                </div>
+                <div className="flex items-baseline gap-1.5 bg-white/5 px-2.5 py-1 rounded-md border border-white/10">
+                  <span className="text-slate-400 text-[10px] uppercase font-bold">PO:</span>
+                  <strong className="text-indigo-300 font-mono">{money(selectedTotals.totalPoVal)}</strong>
+                </div>
+                <div className="flex items-baseline gap-1.5 bg-white/5 px-2.5 py-1 rounded-md border border-white/10">
+                  <span className="text-slate-400 text-[10px] uppercase font-bold">Stock:</span>
+                  <strong className="text-emerald-400 font-mono">{inr(selectedTotals.totalStockQty)}</strong>
+                  <span className="text-emerald-400/80 text-[10px]">({money(selectedTotals.totalStockVal)})</span>
+                </div>
+                <div className="flex items-baseline gap-1.5 bg-white/5 px-2.5 py-1 rounded-md border border-white/10">
+                  <span className="text-slate-400 text-[10px] uppercase font-bold">Issued:</span>
+                  <strong className="text-purple-300 font-mono">{inr(selectedTotals.totalIssuedQty)}</strong>
+                </div>
+                <div className="flex items-baseline gap-1.5 bg-white/5 px-2.5 py-1 rounded-md border border-white/10">
+                  <span className="text-slate-400 text-[10px] uppercase font-bold">Billed:</span>
+                  <strong className="text-teal-300 font-mono">{money(selectedTotals.totalBilledVal)}</strong>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => exportToCSV(selectedItemsList, 'operations-ledger-selected.csv')} 
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 transition-colors shadow-xs"
+                >
+                  <Download className="w-3.5 h-3.5" /> Export Selected ({selectedTotals.count})
+                </button>
+                <button 
+                  onClick={handleClearSelection} 
+                  className="p-1 text-slate-400 hover:text-white rounded-md hover:bg-white/10 transition-colors" 
+                  title="Clear selection"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="overflow-x-auto relative">
             <table className="w-full text-left border-collapse text-sm whitespace-nowrap min-w-max">
-              <thead>
+              <thead className="sticky top-0 z-20 bg-slate-50 shadow-xs">
                 {/* Group Header */}
                 <tr>
                   <th colSpan={STATIC.filter(c => !hidden.has(c.id)).length} className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 border-b border-slate-200">
@@ -1127,31 +1361,57 @@ export default function OperationsHub() {
                   {curCols.map((c, i) => (
                     <th 
                       key={c.id} 
-                      className={`relative border-r border-slate-200/50 hover:bg-slate-100 transition-colors group ${c.cls} ${c.type === 'money' || c.type === 'qty' || c.type === 'stock' || c.type === 'pct' ? 'text-right' : ''}`}
+                      className={`relative border-r border-slate-200/50 bg-slate-50 hover:bg-slate-100 transition-colors group ${c.cls} ${c.isSticky ? 'z-30' : ''} ${c.type === 'money' || c.type === 'qty' || c.type === 'stock' || c.type === 'pct' ? 'text-right' : ''}`}
                       style={{ 
-                        width: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
-                        minWidth: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
-                        maxWidth: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
-                        padding: colWidths[c.id] !== undefined && colWidths[c.id] < 10 ? '0' : '12px 16px', // replace px-4 py-3
+                        width: c.type === 'checkbox' ? 44 : colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
+                        minWidth: c.type === 'checkbox' ? 44 : colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
+                        maxWidth: c.type === 'checkbox' ? 44 : colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
+                        padding: c.type === 'checkbox' ? '0' : (colWidths[c.id] !== undefined && colWidths[c.id] < 10 ? '0' : '12px 16px'),
                         left: getStickyLeft(c) !== undefined ? getStickyLeft(c) : undefined
                       }}
                     >
-                      <div className={`flex items-center gap-1 overflow-hidden ${c.type === 'money' || c.type === 'qty' || c.type === 'stock' || c.type === 'pct' ? 'justify-end' : ''}`}>
-                        <div className="flex-1 min-w-0 cursor-pointer truncate select-none" onClick={() => { setSort({ id: c.id, dir: sort.id === c.id ? -sort.dir : 1 }); setPage(1); }}>
-                          {c.label}
-                          {sort.id === c.id && (sort.dir === 1 ? ' ↑' : ' ↓')}
+                      {c.type === 'checkbox' ? (
+                        <div className="flex items-center justify-center w-full h-full">
+                          <input 
+                            type="checkbox"
+                            aria-label="Select all on this page"
+                            className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-600"
+                            checked={isAllPageSelected}
+                            ref={el => {
+                              if (el) el.indeterminate = isSomePageSelected && !isAllPageSelected;
+                            }}
+                            onChange={toggleSelectAllPage}
+                          />
                         </div>
-                      </div>
-                      <div 
-                        onMouseDown={(e) => handleMouseDown(e, c.id, e.currentTarget.parentElement!.getBoundingClientRect().width)}
-                        className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-indigo-500/50 active:bg-indigo-500 z-10 touch-none"
-                      />
+                      ) : (
+                        <div className={`flex items-center gap-1 overflow-hidden ${c.type === 'money' || c.type === 'qty' || c.type === 'stock' || c.type === 'pct' ? 'justify-end' : ''}`}>
+                          <div className="flex-1 min-w-0 cursor-pointer truncate select-none" onClick={() => { setSort({ id: c.id, dir: sort.id === c.id ? -sort.dir : 1 }); setPage(1); }}>
+                            {c.label}
+                            {sort.id === c.id && (sort.dir === 1 ? ' ↑' : ' ↓')}
+                          </div>
+                        </div>
+                      )}
+                      {c.type !== 'checkbox' && (
+                        <div 
+                          onMouseDown={(e) => handleMouseDown(e, c.id, e.currentTarget.parentElement!.getBoundingClientRect().width)}
+                          className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-indigo-500/50 active:bg-indigo-500 z-10 touch-none"
+                        />
+                      )}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {slice.length === 0 ? (
+                {itemsLoading ? (
+                  <tr>
+                    <td colSpan={curCols.length} className="px-6 py-20 text-center bg-white">
+                      <div className="flex flex-col items-center justify-center gap-3">
+                        <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Loading operations ledger...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : slice.length === 0 ? (
                   <tr><td colSpan={curCols.length} className="px-6 py-12 text-center text-slate-500 font-medium bg-white">No items match the current filters.</td></tr>
                 ) : (
                   viewType === 'item' ? (
@@ -1163,6 +1423,9 @@ export default function OperationsHub() {
                       const seqNo = (page - 1) * size + i + 1;
                       const actName = items[0]?.d?.activity || cat.replace(/^[0-9]+\s*-\s*/, '') || 'Uncategorized';
                       
+                      const isCatAllSelected = items.length > 0 && items.every(it => selectedIds.has(it.uid || it.code));
+                      const isCatSomeSelected = items.some(it => selectedIds.has(it.uid || it.code));
+
                       const aggCols = curCols.map(c => {
                         if (['qty', 'money', 'stock'].includes(c.type)) {
                           return items.reduce((a, it) => {
@@ -1175,6 +1438,9 @@ export default function OperationsHub() {
                       const firstAggIndex = aggCols.findIndex(v => v !== null);
                       const actualSpanCount = firstAggIndex === -1 ? curCols.length : firstAggIndex;
 
+                      const selW = colWidths['select'] !== undefined ? colWidths['select'] : 44;
+                      const srW = colWidths['sr'] !== undefined ? colWidths['sr'] : 64;
+
                       return (
                         <React.Fragment key={cat}>
                           <tr 
@@ -1182,13 +1448,47 @@ export default function OperationsHub() {
                             onClick={() => setExpandedActivities(prev => ({...prev, [cat]: !prev[cat]}))}
                           >
                             <td 
+                              className="border-t border-slate-200 border-r border-slate-100 text-center sticky z-10 bg-white group-hover:bg-slate-50"
+                              style={{
+                                width: selW,
+                                minWidth: selW,
+                                maxWidth: selW,
+                                left: 0
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="flex items-center justify-center">
+                                <input 
+                                  type="checkbox"
+                                  aria-label={`Select all in ${actName}`}
+                                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-600"
+                                  checked={isCatAllSelected}
+                                  ref={el => {
+                                    if (el) el.indeterminate = isCatSomeSelected && !isCatAllSelected;
+                                  }}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedIds(prev => {
+                                      const next = new Set(prev);
+                                      if (isCatAllSelected) {
+                                        items.forEach(it => next.delete(it.uid || it.code));
+                                      } else {
+                                        items.forEach(it => next.add(it.uid || it.code));
+                                      }
+                                      return next;
+                                    });
+                                  }}
+                                />
+                              </div>
+                            </td>
+                            <td 
                               className="border-t border-slate-200 border-r border-slate-100 text-center border-l-4 border-l-indigo-500 sticky z-10 bg-white group-hover:bg-slate-50"
                               style={{
-                                width: colWidths['sr'] !== undefined ? colWidths['sr'] : 64,
-                                minWidth: colWidths['sr'] !== undefined ? colWidths['sr'] : 64,
-                                maxWidth: colWidths['sr'] !== undefined ? colWidths['sr'] : 64,
-                                padding: colWidths['sr'] !== undefined && colWidths['sr'] < 10 ? '0' : '12px 8px', // approx px-2 py-3
-                                left: 0
+                                width: srW,
+                                minWidth: srW,
+                                maxWidth: srW,
+                                padding: srW < 10 ? '0' : '12px 8px',
+                                left: selW
                               }}
                             >
                               <div className="flex items-center justify-center w-full h-full overflow-hidden">
@@ -1198,9 +1498,9 @@ export default function OperationsHub() {
                               </div>
                             </td>
                             <td 
-                              colSpan={actualSpanCount > 1 ? actualSpanCount - 1 : 1} 
+                              colSpan={Math.max(1, actualSpanCount - 2)} 
                               className="px-4 py-3 border-t border-slate-200 sticky z-10 bg-white group-hover:bg-slate-50"
-                              style={{ left: colWidths['sr'] !== undefined ? colWidths['sr'] : 64 }}
+                              style={{ left: selW + srW }}
                             >
                               <div className="flex items-center gap-3">
                                 <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded border border-slate-200 shadow-sm">{seqNo}</span>
@@ -1310,6 +1610,31 @@ export default function OperationsHub() {
         </section>
 
       </div>
+
+      {/* Sleek Floating Quick Pill for Scroll Visibility */}
+      {selectedTotals && (
+        <div className="fixed bottom-5 right-6 z-30 bg-slate-900/95 text-white backdrop-blur-md rounded-2xl p-2.5 px-4 shadow-2xl border border-slate-700/80 flex items-center gap-3 animate-in slide-in-from-bottom-3 duration-200">
+          <span className="text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 px-2 py-0.5 rounded-full">
+            {selectedTotals.count} Selected
+          </span>
+          <span className="text-xs text-slate-300 hidden sm:inline">
+            Stock: <strong className="text-emerald-400">{inr(selectedTotals.totalStockQty)}</strong> • Val: <strong className="text-white">{money(selectedTotals.totalLoaVal)}</strong>
+          </span>
+          <button 
+            onClick={() => exportToCSV(selectedItemsList, 'operations-ledger-selected.csv')} 
+            className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg flex items-center gap-1 shadow-xs transition-colors"
+          >
+            <Download className="w-3 h-3" /> Export
+          </button>
+          <button 
+            onClick={handleClearSelection} 
+            className="p-1 text-slate-400 hover:text-white rounded hover:bg-white/10 transition-colors"
+            title="Clear"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Item 360 Detail Drawer */}
       <Item360Drawer 

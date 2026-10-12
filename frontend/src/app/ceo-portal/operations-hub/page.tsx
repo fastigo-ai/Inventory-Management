@@ -589,6 +589,8 @@ export default function OperationsHub() {
     let totalGrnQty = 0;
     let totalStockQty = 0;
     let totalStockVal = 0;
+    let totalInvQty = 0;
+    let totalInvVal = 0;
     let totalIssuedQty = 0;
     let totalBilledVal = 0;
 
@@ -597,6 +599,8 @@ export default function OperationsHub() {
       const loaQty = it.loa || 0;
       const poQty = it.d?.po?.qty ?? loaQty;
       const poVal = it.d?.po?.val ?? (poQty * rate);
+      const invQty = it.d?.pi?.qty || 0;
+      const invVal = it.d?.pi?.amt || (invQty * rate);
       const grnQty = it.d?.receipt?.qty || it.d?.inward?.qty || 0;
       const stock = it.stock || 0;
       const issued = it.d?.min?.qty || 0;
@@ -610,6 +614,8 @@ export default function OperationsHub() {
       totalLoaVal += loaQty * rate;
       totalPoQty += poQty;
       totalPoVal += poVal;
+      totalInvQty += invQty;
+      totalInvVal += invVal;
       totalGrnQty += grnQty;
       totalStockQty += stock;
       totalStockVal += stock * rate;
@@ -623,6 +629,8 @@ export default function OperationsHub() {
       totalLoaVal,
       totalPoQty,
       totalPoVal,
+      totalInvQty,
+      totalInvVal,
       totalGrnQty,
       totalStockQty,
       totalStockVal,
@@ -937,21 +945,72 @@ export default function OperationsHub() {
               </div>
             ))
           ) : [
-            { t: 'Total Purchase Invoices', v: apiKpis.piCount.toLocaleString(), sub: `₹${cr(apiKpis.val)} Cr`, tag: `${apiKpis.piCount} Invoices`, color: 'text-indigo-700 bg-indigo-50', ex: 'pi' },
-            { t: 'Available Stock', v: apiKpis.availableStock.toLocaleString(), sub: ``, tag: low ? `${low} Low stock` : 'Healthy', color: low ? 'text-red-700 bg-red-50' : 'text-emerald-700 bg-emerald-50', ex: 'item' },
-            { t: 'Active Work Orders', v: apiKpis.woCount.toLocaleString(), sub: `₹${cr(apiKpis.totalWoValue)} Cr target`, tag: `${avg}% avg progress`, color: 'text-blue-700 bg-blue-50', ex: 'wo' },
-            { t: 'Total RA Billing', v: `₹${cr(apiKpis.supplyBilled + apiKpis.erectionBilled)} Cr`, sub: `Client Billed Value`, tag: `Client Bills`, color: 'text-purple-700 bg-purple-50', ex: 'cbill' },
-            { t: 'Pending Approvals', v: apiKpis.poPending, sub: `${apiKpis.poCleared} cleared`, tag: apiKpis.poPending ? 'Urgent action' : 'All clear', color: apiKpis.poPending ? 'text-amber-700 bg-amber-50' : 'text-emerald-700 bg-emerald-50', ex: 'po' },
+            { 
+              t: 'Total Purchase Invoices', 
+              v: apiKpis.piCount.toLocaleString(), 
+              sub: 'Invoices', 
+              detailLabel: 'Total Invoiced Qty',
+              detailValue: `${inr(apiKpis.qty)} units`,
+              tag: `${inr(apiKpis.qty)} Qty`, 
+              color: 'text-indigo-700 bg-indigo-50', 
+              ex: 'pi' 
+            },
+            { 
+              t: 'Available Stock', 
+              v: inr(apiKpis.availableStock), 
+              sub: 'units in store', 
+              detailLabel: 'Total Inward',
+              detailValue: `${inr(apiKpis.totalInwardQty)} units`,
+              tag: low ? `${low} Low stock` : 'Healthy', 
+              color: low ? 'text-red-700 bg-red-50' : 'text-emerald-700 bg-emerald-50', 
+              ex: 'item' 
+            },
+            { 
+              t: 'Active Work Orders', 
+              v: apiKpis.woCount.toLocaleString(), 
+              sub: 'WOs active', 
+              detailLabel: 'Target Value',
+              detailValue: `₹${cr(apiKpis.totalWoValue)} Cr`,
+              tag: `${avg}% avg progress`, 
+              color: 'text-blue-700 bg-blue-50', 
+              ex: 'wo' 
+            },
+            { 
+              t: 'Total RA Billing', 
+              v: `₹${cr(apiKpis.supplyBilled + apiKpis.erectionBilled)} Cr`, 
+              sub: 'Billed Value', 
+              detailLabel: 'Supply + Erection',
+              detailValue: `₹${cr(apiKpis.supplyBilled)} + ₹${cr(apiKpis.erectionBilled)} Cr`,
+              tag: 'Client Bills', 
+              color: 'text-purple-700 bg-purple-50', 
+              ex: 'cbill' 
+            },
+            { 
+              t: 'Pending Approvals', 
+              v: apiKpis.poPending.toLocaleString(), 
+              sub: 'Pending actions', 
+              detailLabel: 'Cleared POs',
+              detailValue: `${apiKpis.poCleared.toLocaleString()} cleared`,
+              tag: apiKpis.poPending ? 'Urgent action' : 'All clear', 
+              color: apiKpis.poPending ? 'text-amber-700 bg-amber-50' : 'text-emerald-700 bg-emerald-50', 
+              ex: 'po' 
+            },
           ].map((k, i) => (
-            <div key={i} className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm flex flex-col justify-between">
+            <div key={i} className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm flex flex-col justify-between hover:border-slate-300 transition-all">
               <div>
                 <div className="text-[11px] font-bold tracking-widest text-slate-400 uppercase mb-2">{k.t}</div>
-                <div className="flex items-baseline gap-2 flex-wrap mb-4">
+                <div className="flex items-baseline gap-2 flex-wrap mb-2">
                   <span className="text-2xl font-extrabold text-slate-800 tabular-nums leading-none tracking-tight">{k.v}</span>
                   <span className="text-xs text-slate-500 font-medium">{k.sub}</span>
                 </div>
+                {k.detailLabel && (
+                  <div className="text-[11px] font-medium text-slate-500 flex items-center justify-between bg-slate-50 px-2 py-1 rounded border border-slate-100 mb-3">
+                    <span className="text-slate-400">{k.detailLabel}:</span>
+                    <strong className="text-indigo-900 font-bold">{k.detailValue}</strong>
+                  </div>
+                )}
               </div>
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+              <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between">
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${k.color}`}>{k.tag}</span>
                 <button onClick={() => { setMode('single'); setSel(new Set([k.ex])); setView(null); }} className="text-xs font-semibold text-slate-400 hover:text-slate-700 flex items-center gap-1">Explore <ArrowUpRight className="w-3 h-3"/></button>
               </div>
@@ -961,9 +1020,13 @@ export default function OperationsHub() {
 
         {/* Stock Breakdown */}
         <section className="bg-white border border-slate-200 rounded-xl p-4 md:p-5 shadow-sm mt-4 mb-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
             <div className="text-[11px] font-bold tracking-widest uppercase text-slate-500 flex items-center gap-2">
               <Info className="w-3.5 h-3.5" /> Physical Stock Math Breakdown
+            </div>
+            <div className="text-xs text-slate-500 flex items-center gap-2">
+              <span className="font-medium text-slate-400">Total Invoiced:</span>
+              <span className="font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">{inr(apiKpis.qty)} units</span>
             </div>
           </div>
           <div className="flex flex-col md:flex-row items-center gap-4 text-center md:text-left justify-between bg-slate-50 p-4 rounded-lg border border-slate-100">
@@ -1302,6 +1365,10 @@ export default function OperationsHub() {
                 <div className="flex items-baseline gap-1.5 bg-white/5 px-2.5 py-1 rounded-md border border-white/10">
                   <span className="text-slate-400 text-[10px] uppercase font-bold">PO:</span>
                   <strong className="text-indigo-300 font-mono">{money(selectedTotals.totalPoVal)}</strong>
+                </div>
+                <div className="flex items-baseline gap-1.5 bg-white/5 px-2.5 py-1 rounded-md border border-white/10">
+                  <span className="text-slate-400 text-[10px] uppercase font-bold">Invoiced:</span>
+                  <strong className="text-blue-300 font-mono">{inr(selectedTotals.totalInvQty)}</strong>
                 </div>
                 <div className="flex items-baseline gap-1.5 bg-white/5 px-2.5 py-1 rounded-md border border-white/10">
                   <span className="text-slate-400 text-[10px] uppercase font-bold">Stock:</span>

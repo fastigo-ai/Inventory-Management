@@ -152,24 +152,33 @@ export default function ContractorBillingDashboard() {
       {analytics && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
           <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
-            <h3 className="text-sm font-semibold text-slate-500">Contractor Bill (Total Billed)</h3>
+            <h3 className="text-sm font-semibold text-slate-500">Contractor Bill</h3>
             <p className="text-2xl font-bold text-slate-800 mt-1">
               ₹ {(
-                analytics.totalContractorBilled ?? 
-                (analytics.stageBreakdown?.reduce((sum: number, s: any) => sum + (s.totalAmount || 0), 0) || 0)
+                analytics.contractorBillAmount ?? 
+                bills.filter((b: any) => b.status !== 'Rejected' && (b.billingCategory === 'Contractor Bill' || String(b.invoiceNumber || '').includes('/CB/'))).reduce((sum: number, b: any) => sum + (b.grandTotal || 0), 0)
               ).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
             <p className="text-xs text-slate-400 mt-1">
-              {analytics.totalContractorCount ?? (analytics.stageBreakdown?.reduce((sum: number, s: any) => sum + (s.count || 0), 0) || 0)} Invoices
+              {(
+                analytics.contractorBillCount ?? 
+                bills.filter((b: any) => b.status !== 'Rejected' && (b.billingCategory === 'Contractor Bill' || String(b.invoiceNumber || '').includes('/CB/'))).length
+              )} Invoices
             </p>
           </div>
           <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
-            <h3 className="text-sm font-semibold text-slate-500">Erection (90%) Billed</h3>
+            <h3 className="text-sm font-semibold text-slate-500">Erection Bill</h3>
             <p className="text-2xl font-bold text-slate-800 mt-1">
-              ₹ {analytics.stageBreakdown?.find((s: any) => s._id === '90%')?.totalAmount?.toLocaleString('en-IN') || 0}
+              ₹ {(
+                analytics.erectionBillAmount ?? 
+                bills.filter((b: any) => b.status !== 'Rejected' && (b.billingCategory === 'Erection Bill' || String(b.invoiceNumber || '').includes('/ER/'))).reduce((sum: number, b: any) => sum + (b.grandTotal || 0), 0)
+              ).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
             <p className="text-xs text-slate-400 mt-1">
-              {analytics.stageBreakdown?.find((s: any) => s._id === '90%')?.count || 0} Invoices
+              {(
+                analytics.erectionBillCount ?? 
+                bills.filter((b: any) => b.status !== 'Rejected' && (b.billingCategory === 'Erection Bill' || String(b.invoiceNumber || '').includes('/ER/'))).length
+              )} Invoices
             </p>
           </div>
           <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200">

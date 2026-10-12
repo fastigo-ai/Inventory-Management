@@ -619,6 +619,10 @@ export const getBillingAnalyticsService = async (query: any, user: any) => {
   
   const stageBreakdownMap: Record<string, { totalAmount: number, count: number }> = {};
   const statusDistributionMap: Record<string, { totalAmount: number, count: number }> = {};
+  let contractorBillAmount = 0;
+  let contractorBillCount = 0;
+  let erectionBillAmount = 0;
+  let erectionBillCount = 0;
   let totalContractorBilled = 0;
   let totalContractorCount = 0;
   let oldSubmittedCount = 0;
@@ -633,15 +637,36 @@ export const getBillingAnalyticsService = async (query: any, user: any) => {
     statusDistributionMap[inv.status].count += 1;
     statusDistributionMap[inv.status].totalAmount += (inv.grandTotal || 0);
     
-    // 2. Stage Breakdown & Total Billed (Exclude Rejected)
+    // 2. Stage Breakdown & Category Totals (Exclude Rejected)
     if (inv.status !== 'Rejected') {
-      totalContractorBilled += (inv.grandTotal || 0);
+      const grandTotal = Number(inv.grandTotal || 0);
+      totalContractorBilled += grandTotal;
       totalContractorCount += 1;
+
+      const isContractorBill = inv.billingCategory === 'Contractor Bill' || (!inv.billingCategory && String(inv.invoiceNumber || '').includes('/CB/'));
+      const isErectionBill = inv.billingCategory === 'Erection Bill' || (!inv.billingCategory && String(inv.invoiceNumber || '').includes('/ER/'));
+
+      if (isContractorBill) {
+        contractorBillAmount += grandTotal;
+        contractorBillCount += 1;
+      } else if (isErectionBill) {
+        erectionBillAmount += grandTotal;
+        erectionBillCount += 1;
+      } else {
+        if (String(inv.invoiceNumber || '').includes('/CB/')) {
+          contractorBillAmount += grandTotal;
+          contractorBillCount += 1;
+        } else {
+          erectionBillAmount += grandTotal;
+          erectionBillCount += 1;
+        }
+      }
+
       if (!stageBreakdownMap[inv.stage]) {
         stageBreakdownMap[inv.stage] = { totalAmount: 0, count: 0 };
       }
       stageBreakdownMap[inv.stage].count += 1;
-      stageBreakdownMap[inv.stage].totalAmount += (inv.grandTotal || 0);
+      stageBreakdownMap[inv.stage].totalAmount += grandTotal;
     }
     
     // 3. Aging
@@ -665,6 +690,10 @@ export const getBillingAnalyticsService = async (query: any, user: any) => {
   }));
 
   return {
+    contractorBillAmount,
+    contractorBillCount,
+    erectionBillAmount,
+    erectionBillCount,
     totalContractorBilled,
     totalContractorCount,
     stageBreakdown,

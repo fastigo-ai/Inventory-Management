@@ -55,11 +55,33 @@ export const createInvoiceService = async (data: any, user: any) => {
     throw new ApiError(400, 'Erection bills must be linked to a JMC (only JMC and erection RA bill supported).');
   }
 
+  const CIRCLE_PACKAGE_MAP: Record<string, string> = {
+    'Rohru': 'Package 2(R/R)',
+    'Rampur': 'Package 2(R/R)',
+    'Solan': 'Package 1(S/N)',
+    'Nahan': 'Package 1(S/N)',
+  };
+
+  // Ensure legacy metadata has proper circle and mapped package to prevent ghosting
+  if (legacyMetadata) {
+    if (legacyMetadata.circle) {
+      const cleanCircle = legacyMetadata.circle.trim();
+      const matchedCircleKey = Object.keys(CIRCLE_PACKAGE_MAP).find(c => c.toLowerCase() === cleanCircle.toLowerCase());
+      if (matchedCircleKey) {
+        legacyMetadata.circle = matchedCircleKey;
+        if (!legacyMetadata.package) {
+          legacyMetadata.package = CIRCLE_PACKAGE_MAP[matchedCircleKey];
+        }
+      }
+    }
+  }
+
   let invoiceNumber = '';
-  if (data.isLegacyBulkUpload && legacyMetadata?.raBillNo) {
+  if ((data.isLegacyBulkUpload || !workOrderId) && (legacyMetadata?.raBillNo || supplyRaBillNo)) {
     const typeCode = billingCategory === 'Erection Bill' ? 'ER' : 'CB';
-    const circleStr = legacyMetadata.circle ? `-${legacyMetadata.circle.trim().toUpperCase().replace(/\s+/g, '_')}` : '';
-    invoiceNumber = `INV/${typeCode}/${legacyMetadata.raBillNo}${circleStr}`;
+    const raBill = (legacyMetadata?.raBillNo || supplyRaBillNo || '1').trim();
+    const circleStr = legacyMetadata?.circle ? `-${legacyMetadata.circle.trim().toUpperCase().replace(/\s+/g, '_')}` : '';
+    invoiceNumber = `INV/${typeCode}/${raBill}${circleStr}`;
   } else {
     invoiceNumber = await generateInvoiceNumber(billingCategory);
   }
@@ -81,8 +103,6 @@ export const createInvoiceService = async (data: any, user: any) => {
     dbMhrov = await Mhrov.findById(mhrovId).lean();
   }
 
-
-
   const processedItems = lineItems.map((item: any) => {
     let authoritativeQty = 0;
 
@@ -102,7 +122,8 @@ export const createInvoiceService = async (data: any, user: any) => {
       if (!dbItem) throw new ApiError(400, `Item ${item.itemId} not found in linked MHROV`);
       authoritativeQty = Number(dbItem.mhrovDoneQty || 0);
     } else {
-      authoritativeQty = percentage === 100 ? Number(item.jmcDoneQty || 0) : Number(item.erectedQty || 0);
+      // Direct bill or bulk upload: take whichever positive quantity was provided
+      authoritativeQty = Number(item.jmcDoneQty || item.erectedQty || item.qty || 0);
     }
 
     const itemRate = Number(item.rate || 0);
@@ -123,23 +144,64 @@ export const createInvoiceService = async (data: any, user: any) => {
     totalBaseAmount += baseAmount;
     totalGstAmount += gstAmount;
 
+    const loaSerialNo = String(item.loaSerialNo || item.loaSrNo || item.legacyData?.loaSerialNo || '').trim();
+    const tempCode = String(item.tempCode || item.tc || '').trim();
+
     return {
       itemId: item.itemId,
       contractorId: item.contractorId,
       activity: item.activity,
       description: item.description,
+      tempCode,
+      loaSrNo: loaSerialNo,
+      loaSerialNo,
       billingCategory: item.billingCategory,
-      jmcDoneQty: (jmcIds && jmcIds.length > 0 && stage !== 'Amount' && stage !== 'Advance' && percentage === 100) ? authoritativeQty : Number(item.jmcDoneQty || 0),
-      erectedQty: (jmcIds && jmcIds.length > 0 && percentage !== 100) ? authoritativeQty : (mhrovId ? authoritativeQty : Number(item.erectedQty || 0)),
+      jmcDoneQty: Number(item.jmcDoneQty || authoritativeQty || 0),
+      erectedQty: Number(item.erectedQty || authoritativeQty || 0),
       rate: itemRate,
       percentageApplied: percentage,
       baseAmount,
       gstRate: Number(item.gstRate || 0),
       gstAmount,
       totalAmount,
-      legacyData: item.legacyData
+      legacyData: {
+        ...(item.legacyData || {}),
+        loaSerialNo,
+        unit: item.unit || item.legacyData?.unit || ''
+      }
     };
   });
+
+  // Check if invoice already exists to handle re-uploads and multi-contractor collisions
+  const existingInvoice = await ContractorInvoice.findOne({ invoiceNumber });
+  if (existingInvoice) {
+    const isSameContractor = String(existingInvoice.contractorId) === String(contractorId);
+    const isEditable = ['Draft', 'Pending PM Approval', 'Rejected'].includes(existingInvoice.status);
+    const shouldUpdate = data.updateExisting === true || (data.updateExisting === undefined && isSameContractor && isEditable);
+
+    if (shouldUpdate && isSameContractor && isEditable) {
+      // Re-upload or explicit update for same contractor: update existing invoice seamlessly
+      existingInvoice.lineItems = processedItems;
+      existingInvoice.totalBaseAmount = totalBaseAmount;
+      existingInvoice.totalGstAmount = totalGstAmount;
+      existingInvoice.grandTotal = totalBaseAmount + totalGstAmount;
+      existingInvoice.stage = stage;
+      existingInvoice.drawingNumber = drawingNumber !== undefined ? drawingNumber : existingInvoice.drawingNumber;
+      existingInvoice.supplyRaBillNo = supplyRaBillNo || existingInvoice.supplyRaBillNo;
+      existingInvoice.billingCategory = billingCategory || existingInvoice.billingCategory;
+      existingInvoice.legacyMetadata = legacyMetadata || existingInvoice.legacyMetadata;
+      existingInvoice.date = new Date();
+      await existingInvoice.save();
+      return existingInvoice;
+    } else {
+      // Different contractor, already finalized, or user chose to create as a separate bill:
+      let suffix = 2;
+      while (await ContractorInvoice.findOne({ invoiceNumber: `${invoiceNumber}-${suffix}` })) {
+        suffix++;
+      }
+      invoiceNumber = `${invoiceNumber}-${suffix}`;
+    }
+  }
 
   const invoice = await ContractorInvoice.create({
     invoiceNumber,
@@ -256,11 +318,17 @@ export const updateInvoiceService = async (id: string, data: any, user: any) => 
     totalBaseAmount += baseAmount;
     totalGstAmount += gstAmount;
 
+    const loaSerialNo = String(item.loaSerialNo || item.loaSrNo || item.legacyData?.loaSerialNo || '').trim();
+    const tempCode = String(item.tempCode || item.tc || '').trim();
+
     return {
       itemId: item.itemId,
       contractorId: item.contractorId,
       activity: item.activity,
       description: item.description,
+      tempCode,
+      loaSrNo: loaSerialNo,
+      loaSerialNo,
       billingCategory: item.billingCategory,
       jmcDoneQty: (invoice.jmcIds && invoice.jmcIds.length > 0 && stage !== 'Amount' && stage !== 'Advance' && percentage === 100) ? authoritativeQty : Number(item.jmcDoneQty || 0),
       erectedQty: (invoice.jmcIds && invoice.jmcIds.length > 0 && percentage !== 100) ? authoritativeQty : (invoice.mhrovId ? authoritativeQty : Number(item.erectedQty || 0)),
@@ -269,7 +337,12 @@ export const updateInvoiceService = async (id: string, data: any, user: any) => 
       baseAmount,
       gstRate: Number(item.gstRate || 0),
       gstAmount,
-      totalAmount
+      totalAmount,
+      legacyData: {
+        ...(item.legacyData || {}),
+        loaSerialNo,
+        unit: item.unit || item.legacyData?.unit || ''
+      }
     };
   });
 
@@ -360,16 +433,21 @@ export const getInvoicesService = async (query: any, user: any) => {
       if (inv.workOrderId != null) return true;
       
       if (inv.legacyMetadata) {
-        if (targetCircle && inv.legacyMetadata.circle) {
-          const legacyCircleStr = inv.legacyMetadata.circle.toLowerCase();
-          if (!allowedCircles.includes(legacyCircleStr)) {
+        const invCircle = String(inv.legacyMetadata.circle || '').toLowerCase();
+        const invPkg = String(inv.legacyMetadata.package || '').toLowerCase();
+
+        if (targetCircle) {
+          if (!allowedCircles.includes(invCircle)) {
             return false;
           }
         }
-        if (targetPackage && inv.legacyMetadata.package) {
-          const packageEscaped = targetPackage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/[- ]/g, '[\\s\\-]*');
-          const packageRegex = new RegExp(`^${packageEscaped}$`, 'i');
-          if (!packageRegex.test(inv.legacyMetadata.package)) {
+        if (targetPackage) {
+          const cleanTarget = targetPackage.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const cleanInv = invPkg.replace(/[^a-z0-9]/g, '');
+          const circleToPkg = (invCircle.includes('rohru') || invCircle.includes('rampur')) ? 'package2' : (invCircle.includes('solan') || invCircle.includes('nahan') ? 'package1' : '');
+
+          const matchesPkg = cleanInv.includes(cleanTarget) || cleanTarget.includes(cleanInv) || (circleToPkg && cleanTarget.includes(circleToPkg));
+          if (!matchesPkg) {
             return false;
           }
         }
@@ -385,12 +463,12 @@ export const getInvoicesService = async (query: any, user: any) => {
 
 export const getInvoiceByIdService = async (id: string) => {
   const invoice = await ContractorInvoice.findById(id)
-    .populate('contractorId', 'name vendorName dynamicData')
+    .populate('contractorId', 'name vendorName dynamicData assignedLocations location')
     .populate('workOrderId', 'workOrderNumber items')
     .populate('mhrovId', 'mhrovNumber')
     .populate('jmcIds', 'jmcNumber')
     .populate('handoverCertificateId', 'certificateNumber')
-    .populate('lineItems.itemId', 'tempCode loaSrNo itemName description dynamicData');
+    .populate('lineItems.itemId', 'name itemName dynamicData');
 
   if (!invoice) throw new ApiError(404, 'Invoice not found');
   return invoice;

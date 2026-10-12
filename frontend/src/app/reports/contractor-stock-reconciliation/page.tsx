@@ -165,7 +165,7 @@ export default function ContractorStockReconciliation() {
       <div className="px-8 py-6 max-w-full mx-auto w-full">
         {/* KPI Cards */}
         {data?.summary && (
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
               <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Contractors</p>
               <p className="text-2xl font-bold text-slate-900 mt-1">{data.summary.totalContractors}</p>
@@ -177,6 +177,10 @@ export default function ContractorStockReconciliation() {
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
               <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">JMC Consumed</p>
               <p className="text-2xl font-bold text-indigo-600 mt-1">{fmt(data.summary.totalJmcConsumed)}</p>
+            </div>
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">WIP Consumed</p>
+              <p className="text-2xl font-bold text-purple-600 mt-1">{fmt(data.summary.totalWipConsumed)}</p>
             </div>
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
               <p className="text-xs font-medium text-slate-500 uppercase tracking-wide flex items-center gap-1">

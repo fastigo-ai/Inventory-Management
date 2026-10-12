@@ -16,7 +16,7 @@ export const ROUTE_PERMISSIONS_MAP: Record<string, string[]> = {
   '/pm-portal': ['Project Manager Portal'],
   '/pd-portal': ['Project Director Portal'],
   '/billing': ['Billing', 'HO Billing Portal'],
-  '/ceo-portal': ['CEO Portal']
+  '/ceo-portal': ['CEO Portal', 'Project Director Portal']
 };
 
 export const hasAccessToRoute = (pathname: string, user: User | null): boolean => {
@@ -58,7 +58,7 @@ export const hasAccessToRoute = (pathname: string, user: User | null): boolean =
   }
   
   if (user.role?.name === 'Project Director') {
-    return ['Project Director Portal', 'Reports', 'Items', 'Billing', 'Site Portal'].some(mod => requiredModules.includes(mod));
+    return ['Project Director Portal', 'Reports', 'Items', 'Billing', 'Site Portal', 'CEO Portal'].some(mod => requiredModules.includes(mod));
   }
 
   // Main role-based check against the required modules for this route

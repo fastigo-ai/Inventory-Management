@@ -5,6 +5,9 @@ export interface IContractorInvoiceItem {
   contractorId?: mongoose.Types.ObjectId;
   activity?: string;
   description?: string;
+  tempCode?: string;
+  loaSrNo?: string;
+  loaSerialNo?: string;
   billingCategory: 'Supply' | 'Erection' | 'JMC Done';
   jmcDoneQty: number;
   erectedQty: number;
@@ -55,6 +58,8 @@ export interface IContractorInvoice extends Document {
     employerName?: string;
     billedBy?: string;
     loaSerialNo?: string;
+    contractorAddress?: string;
+    contractorPhone?: string;
   };
 
   jmcDocUrl?: string;
@@ -74,6 +79,9 @@ const contractorInvoiceItemSchema = new Schema<IContractorInvoiceItem>({
   contractorId: { type: Schema.Types.ObjectId, ref: 'Contractor' },
   activity: { type: String },
   description: { type: String },
+  tempCode: { type: String },
+  loaSrNo: { type: String },
+  loaSerialNo: { type: String },
   billingCategory: { type: String, enum: ['Supply', 'Erection', 'JMC Done'], required: true },
   jmcDoneQty: { type: Number, required: true, default: 0 },
   erectedQty: { type: Number, required: true, default: 0 },
@@ -127,7 +135,9 @@ const contractorInvoiceSchema = new Schema<IContractorInvoice>({
     workName: { type: String },
     employerName: { type: String },
     billedBy: { type: String },
-    loaSerialNo: { type: String }
+    loaSerialNo: { type: String },
+    contractorAddress: { type: String },
+    contractorPhone: { type: String }
   },
 
   jmcDocUrl: { type: String },

@@ -437,6 +437,7 @@ async function computeStoreItemisedSummaryInner(params: {
       if (!groupMap.has(groupKey)) {
         groupMap.set(groupKey, {
           itemIds: new Set<string>(),
+          loaSet: new Set<string>(),
           tempCode: temp || '-',
           tempNum: hasValidTemp ? tempNum : 9999999,
           sku: sku || '-',
@@ -444,6 +445,7 @@ async function computeStoreItemisedSummaryInner(params: {
           unit,
           circle: circleVal,
           receiptQty: 0,
+          invoiceQty: 0,
           issuedQty: 0,
           returnedQty: 0,
           transferOutQty: 0,
@@ -455,25 +457,67 @@ async function computeStoreItemisedSummaryInner(params: {
       }
 
       groupMap.get(groupKey)!.itemIds.add(it._id.toString());
+      if (sku && sku !== '-') {
+        groupMap.get(groupKey)!.loaSet.add(sku);
+      }
     });
 
-    // 1. Inward Receipts
+    // 1. Inward Receipts / Invoices
     const inwardFilter: any = {};
     if (transLocRegex) {
       inwardFilter.$or = [{ circle: transLocRegex }, { subcircle: transLocRegex }, { billingFrom: transLocRegex }, { store: transLocRegex }];
     }
     const inwards = await StoreInwardEntry.find(inwardFilter).lean();
     inwards.forEach(doc => {
+      const docCircle = String(doc.circle || doc.store || doc.subcircle || '').trim();
+      if (transLocRegex && docCircle && !transLocRegex.test(docCircle)) {
+        return;
+      }
+
       const idStr = doc.itemId ? doc.itemId.toString() : null;
       const qty = Number(doc.totalQty || doc.invoiceQty || doc.acceptedQty || doc.receivedQty || 0);
       const temp = String(doc.tempCode || '').trim();
+      const docLoa = String(doc.loaSerialNo || doc.serialNumber || '').trim();
       const name = String(doc.itemName || doc.name || doc.description || '').trim().toLowerCase();
 
-      for (const grp of groupMap.values()) {
-        if ((idStr && grp.itemIds.has(idStr)) || (temp && temp !== '-' && grp.tempCode === temp) || (name && grp.name.toLowerCase() === name)) {
-          grp.receiptQty += qty;
-          break;
+      let matchedGrp = null;
+      if (docLoa) {
+        for (const grp of groupMap.values()) {
+          if (grp.loaSet && grp.loaSet.has(docLoa)) {
+            matchedGrp = grp;
+            break;
+          }
         }
+      } else {
+        if (idStr) {
+          for (const grp of groupMap.values()) {
+            if (grp.itemIds && grp.itemIds.has(idStr)) {
+              matchedGrp = grp;
+              break;
+            }
+          }
+        }
+        if (!matchedGrp && temp && temp !== '-') {
+          for (const grp of groupMap.values()) {
+            if (grp.tempCode === temp) {
+              matchedGrp = grp;
+              break;
+            }
+          }
+        }
+        if (!matchedGrp && name) {
+          for (const grp of groupMap.values()) {
+            if (grp.name.toLowerCase() === name) {
+              matchedGrp = grp;
+              break;
+            }
+          }
+        }
+      }
+
+      if (matchedGrp) {
+        matchedGrp.receiptQty += qty;
+        matchedGrp.invoiceQty += qty;
       }
     });
 
@@ -573,16 +617,55 @@ async function computeStoreItemisedSummaryInner(params: {
     const dis = await DI.find(diFilter).lean();
     dis.forEach(doc => {
       (doc.lineItems || []).forEach((li: any) => {
+        const liCircle = String(li.circle || doc.circle || '').trim();
+        // Crucial: Only count line items belonging to the respective circle
+        if (itemLocRegex && liCircle && !itemLocRegex.test(liCircle)) {
+          return;
+        }
+
         const idStr = li.itemId ? li.itemId.toString() : null;
         const qty = Number(li.quantity || 0);
         const temp = String(li.tempCode || '').trim();
+        const liLoa = String(li.loaSerialNo || '').trim();
         const name = String(li.itemName || '').trim().toLowerCase();
 
-        for (const grp of groupMap.values()) {
-          if ((idStr && grp.itemIds.has(idStr)) || (temp && temp !== '-' && grp.tempCode === temp) || (name && grp.name.toLowerCase() === name)) {
-            grp.diQty += qty;
-            break;
+        let matchedGrp = null;
+        if (liLoa) {
+          for (const grp of groupMap.values()) {
+            if (grp.loaSet && grp.loaSet.has(liLoa)) {
+              matchedGrp = grp;
+              break;
+            }
           }
+        } else {
+          if (idStr) {
+            for (const grp of groupMap.values()) {
+              if (grp.itemIds && grp.itemIds.has(idStr)) {
+                matchedGrp = grp;
+                break;
+              }
+            }
+          }
+          if (!matchedGrp && temp && temp !== '-') {
+            for (const grp of groupMap.values()) {
+              if (grp.tempCode === temp) {
+                matchedGrp = grp;
+                break;
+              }
+            }
+          }
+          if (!matchedGrp && name) {
+            for (const grp of groupMap.values()) {
+              if (grp.name.toLowerCase() === name) {
+                matchedGrp = grp;
+                break;
+              }
+            }
+          }
+        }
+
+        if (matchedGrp) {
+          matchedGrp.diQty += qty;
         }
       });
     });
@@ -608,7 +691,8 @@ async function computeStoreItemisedSummaryInner(params: {
     });
 
     let rows = Array.from(groupMap.values()).map(r => {
-      r.balAtStore = r.receiptQty - r.issuedQty + r.returnedQty - r.transferOutQty + r.transferInQty;
+      r.invoiceQty = r.invoiceQty || r.receiptQty || 0;
+      r.balAtStore = r.invoiceQty - r.issuedQty + r.returnedQty - r.transferOutQty + r.transferInQty;
       if (circle && circle !== 'all') {
         const cStr = circle.toString();
         r.circle = cStr.toUpperCase();
@@ -618,7 +702,7 @@ async function computeStoreItemisedSummaryInner(params: {
     });
 
     if (hideZeroBalance || transLocRegex || (pkg && pkg !== 'all')) {
-      rows = rows.filter(r => r.receiptQty > 0 || r.issuedQty > 0 || r.returnedQty > 0 || r.transferOutQty > 0 || r.transferInQty > 0 || r.balAtStore !== 0);
+      rows = rows.filter(r => r.receiptQty > 0 || r.invoiceQty > 0 || r.issuedQty > 0 || r.returnedQty > 0 || r.transferOutQty > 0 || r.transferInQty > 0 || r.balAtStore !== 0);
     }
 
     // Sort by tempNum asc, then name
@@ -629,6 +713,7 @@ async function computeStoreItemisedSummaryInner(params: {
 
     const totals = rows.reduce((acc, curr) => {
       acc.receiptQty += curr.receiptQty;
+      acc.invoiceQty += (curr.invoiceQty || curr.receiptQty || 0);
       acc.issuedQty += curr.issuedQty;
       acc.returnedQty += curr.returnedQty;
       acc.transferOutQty += curr.transferOutQty;
@@ -639,11 +724,14 @@ async function computeStoreItemisedSummaryInner(params: {
       return acc;
     }, {
       receiptQty: 0,
+      invoiceQty: 0,
       issuedQty: 0,
       returnedQty: 0,
       transferOutQty: 0,
       transferInQty: 0,
-      balAtStore: 0
+      balAtStore: 0,
+      diQty: 0,
+      mhrovQty: 0
     });
 
     const indexedRows = rows.map((r, index) => ({
@@ -675,11 +763,14 @@ async function computeStoreItemisedSummaryInner(params: {
         package: d.package || it.package || '',
         circle: d.circle || it.circle || circle || '',
         receiptQty: 0,
+        invoiceQty: 0,
         issuedQty: 0,
         returnedQty: 0,
         transferOutQty: 0,
         transferInQty: 0,
-        balAtStore: 0
+        balAtStore: 0,
+        diQty: 0,
+        mhrovQty: 0
       });
     });
 
@@ -691,8 +782,19 @@ async function computeStoreItemisedSummaryInner(params: {
     inwards.forEach(doc => {
       const idStr = doc.itemId ? doc.itemId.toString() : null;
       const qty = Number(doc.totalQty || doc.invoiceQty || doc.acceptedQty || doc.receivedQty || 0);
+      const docLoa = String(doc.loaSerialNo || doc.serialNumber || '').trim();
+
       if (idStr && itemMap.has(idStr)) {
         itemMap.get(idStr)!.receiptQty += qty;
+        itemMap.get(idStr)!.invoiceQty += qty;
+      } else if (docLoa) {
+        for (const row of itemMap.values()) {
+          if (row.sku === docLoa) {
+            row.receiptQty += qty;
+            row.invoiceQty += qty;
+            break;
+          }
+        }
       }
     });
 
@@ -756,13 +858,58 @@ async function computeStoreItemisedSummaryInner(params: {
       });
     });
 
+    // DI for LOA Detailed View
+    const diFilter: any = { status: { $ne: 'Cancelled' } };
+    if (itemLocRegex) {
+      diFilter.$or = [{ circle: itemLocRegex }, { 'lineItems.circle': itemLocRegex }];
+    }
+    const dis = await DI.find(diFilter).lean();
+    dis.forEach(doc => {
+      (doc.lineItems || []).forEach((li: any) => {
+        const liCircle = String(li.circle || doc.circle || '').trim();
+        if (itemLocRegex && liCircle && !itemLocRegex.test(liCircle)) return;
+
+        const idStr = li.itemId ? li.itemId.toString() : null;
+        const qty = Number(li.quantity || 0);
+        const liLoa = String(li.loaSerialNo || '').trim();
+
+        if (idStr && itemMap.has(idStr)) {
+          itemMap.get(idStr)!.diQty += qty;
+        } else if (liLoa) {
+          for (const row of itemMap.values()) {
+            if (row.sku === liLoa) {
+              row.diQty += qty;
+              break;
+            }
+          }
+        }
+      });
+    });
+
+    // MHROV for LOA Detailed View
+    const mhrovFilter: any = {};
+    if (itemLocRegex) {
+      mhrovFilter.circle = itemLocRegex;
+    }
+    const mhrovs = await Mhrov.find(mhrovFilter).lean();
+    mhrovs.forEach(doc => {
+      (doc.items || []).forEach((it: any) => {
+        const idStr = it.itemId ? it.itemId.toString() : null;
+        const qty = Number(it.mhrovDoneQty || 0);
+        if (idStr && itemMap.has(idStr)) {
+          itemMap.get(idStr)!.mhrovQty += qty;
+        }
+      });
+    });
+
     let rows = Array.from(itemMap.values()).map(row => {
-      row.balAtStore = row.receiptQty - row.issuedQty + row.returnedQty - row.transferOutQty + row.transferInQty;
+      row.invoiceQty = row.invoiceQty || row.receiptQty || 0;
+      row.balAtStore = row.invoiceQty - row.issuedQty + row.returnedQty - row.transferOutQty + row.transferInQty;
       return row;
     });
 
     if (hideZeroBalance || transLocRegex || (pkg && pkg !== 'all')) {
-      rows = rows.filter(r => r.receiptQty > 0 || r.issuedQty > 0 || r.returnedQty > 0 || r.transferOutQty > 0 || r.transferInQty > 0 || r.balAtStore !== 0);
+      rows = rows.filter(r => r.receiptQty > 0 || r.invoiceQty > 0 || r.issuedQty > 0 || r.returnedQty > 0 || r.transferOutQty > 0 || r.transferInQty > 0 || r.balAtStore !== 0);
     }
 
     rows.sort((a, b) => {
@@ -775,19 +922,25 @@ async function computeStoreItemisedSummaryInner(params: {
 
     const totals = rows.reduce((acc, curr) => {
       acc.receiptQty += curr.receiptQty;
+      acc.invoiceQty += (curr.invoiceQty || curr.receiptQty || 0);
       acc.issuedQty += curr.issuedQty;
       acc.returnedQty += curr.returnedQty;
       acc.transferOutQty += curr.transferOutQty;
       acc.transferInQty += curr.transferInQty;
       acc.balAtStore += curr.balAtStore;
+      acc.diQty += (curr.diQty || 0);
+      acc.mhrovQty += (curr.mhrovQty || 0);
       return acc;
     }, {
       receiptQty: 0,
+      invoiceQty: 0,
       issuedQty: 0,
       returnedQty: 0,
       transferOutQty: 0,
       transferInQty: 0,
-      balAtStore: 0
+      balAtStore: 0,
+      diQty: 0,
+      mhrovQty: 0
     });
 
     const indexedRows = rows.map((r, index) => ({
@@ -859,7 +1012,9 @@ export const exportStoreItemisedSummary = asyncHandler(async (req: Request, res:
     'Temp Code',
     'Item Name',
     'Unit',
-    'Total Receipt Qty',
+    'DI Qty',
+    'MRHOV Qty',
+    'Invoice Qty',
     'Total Issued to Contractor',
     'Total Returned by Contractor',
     'Total Transfer to Other Store',

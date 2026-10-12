@@ -57,10 +57,17 @@ function buildCircleFilter(filters: ReconciliationFilters): any {
       { location: { $regex: new RegExp(`^\\s*${filters.subcircle}\\s*$`, 'i') } }
     ];
   } else if (filters.circle) {
-    match.$or = [
-      { circle: { $regex: new RegExp(filters.circle, 'i') } },
-      { location: { $regex: new RegExp(filters.circle, 'i') } }
-    ];
+    if (filters.circle.toLowerCase() === 'solan') {
+      match.$or = [
+        { circle: { $regex: /solan|kumarhatti|nalagarh/i } },
+        { location: { $regex: /solan|kumarhatti|nalagarh/i } }
+      ];
+    } else {
+      match.$or = [
+        { circle: { $regex: new RegExp(filters.circle, 'i') } },
+        { location: { $regex: new RegExp(filters.circle, 'i') } }
+      ];
+    }
   }
 
   if (filters.contractorId) {
@@ -112,7 +119,14 @@ export async function getContractorStockPosition(filters: ReconciliationFilters)
       { subCircle: { $regex: new RegExp(filters.subcircle, 'i') } }
     ];
   } else if (filters.circle) {
-    jmcCircleFilter.circle = { $regex: new RegExp(filters.circle, 'i') };
+    if (filters.circle.toLowerCase() === 'solan') {
+      jmcCircleFilter.$or = [
+        { circle: { $regex: /solan|kumarhatti|nalagarh/i } },
+        { subCircle: { $regex: /solan|kumarhatti|nalagarh/i } }
+      ];
+    } else {
+      jmcCircleFilter.circle = { $regex: new RegExp(filters.circle, 'i') };
+    }
   }
   if (filters.contractorId) {
     jmcCircleFilter.contractorId = new mongoose.Types.ObjectId(filters.contractorId);
@@ -127,19 +141,46 @@ export async function getContractorStockPosition(filters: ReconciliationFilters)
     {
       $group: {
         _id: { contractorId: '$contractorId', tempCode: '$items.tempCode' },
-        consumedQty: { $sum: '$items.claimedQty' }
+        consumedQty: {
+          $sum: {
+            $cond: [
+              { $gt: [{ $ifNull: ['$items.approvedQty', 0] }, 0] },
+              '$items.approvedQty',
+              { $ifNull: ['$items.claimedQty', 0] }
+            ]
+          }
+        },
+        itemName: { $first: '$items.description' },
+        unit: { $first: '$items.unit' }
       }
-    }
+    },
+    {
+      $lookup: {
+        from: 'contractors',
+        localField: '_id.contractorId',
+        foreignField: '_id',
+        as: 'contractor'
+      }
+    },
+    { $unwind: { path: '$contractor', preserveNullAndEmptyArrays: true } }
   ];
 
   // --- 3. WIP Consumed: Aggregate by (contractorId, tempCode) ---
   const wipCircleFilter: any = {};
   if (filters.subcircle) {
     wipCircleFilter.$or = [
-      { circle: { $regex: new RegExp(filters.subcircle, 'i') } }
+      { circle: { $regex: new RegExp(filters.subcircle, 'i') } },
+      { subCircle: { $regex: new RegExp(filters.subcircle, 'i') } }
     ];
   } else if (filters.circle) {
-    wipCircleFilter.circle = { $regex: new RegExp(filters.circle, 'i') };
+    if (filters.circle.toLowerCase() === 'solan') {
+      wipCircleFilter.$or = [
+        { circle: { $regex: /solan|kumarhatti|nalagarh/i } },
+        { subCircle: { $regex: /solan|kumarhatti|nalagarh/i } }
+      ];
+    } else {
+      wipCircleFilter.circle = { $regex: new RegExp(filters.circle, 'i') };
+    }
   }
   if (filters.contractorId) {
     wipCircleFilter.contractorId = new mongoose.Types.ObjectId(filters.contractorId);
@@ -152,9 +193,28 @@ export async function getContractorStockPosition(filters: ReconciliationFilters)
     {
       $group: {
         _id: { contractorId: '$contractorId', tempCode: '$items.tempCode' },
-        consumedQty: { $sum: { $ifNull: ['$items.consumedQty', { $ifNull: ['$items.approvedQty', '$items.claimedQty'] }] } }
+        consumedQty: {
+          $sum: {
+            $cond: [
+              { $gt: [{ $ifNull: ['$items.approvedQty', 0] }, 0] },
+              '$items.approvedQty',
+              { $ifNull: ['$items.claimedQty', { $ifNull: ['$items.consumedQty', 0] }] }
+            ]
+          }
+        },
+        itemName: { $first: '$items.description' },
+        unit: { $first: '$items.unit' }
       }
-    }
+    },
+    {
+      $lookup: {
+        from: 'contractors',
+        localField: '_id.contractorId',
+        foreignField: '_id',
+        as: 'contractor'
+      }
+    },
+    { $unwind: { path: '$contractor', preserveNullAndEmptyArrays: true } }
   ];
 
   // --- 4. Contractor Returns: Aggregate by (contractorId, tempCode) ---
@@ -165,10 +225,17 @@ export async function getContractorStockPosition(filters: ReconciliationFilters)
       { location: { $regex: new RegExp(filters.subcircle, 'i') } }
     ];
   } else if (filters.circle) {
-    returnCircleFilter.$or = [
-      { circle: { $regex: new RegExp(filters.circle, 'i') } },
-      { location: { $regex: new RegExp(filters.circle, 'i') } }
-    ];
+    if (filters.circle.toLowerCase() === 'solan') {
+      returnCircleFilter.$or = [
+        { circle: { $regex: /solan|kumarhatti|nalagarh/i } },
+        { location: { $regex: /solan|kumarhatti|nalagarh/i } }
+      ];
+    } else {
+      returnCircleFilter.$or = [
+        { circle: { $regex: new RegExp(filters.circle, 'i') } },
+        { location: { $regex: new RegExp(filters.circle, 'i') } }
+      ];
+    }
   }
   if (filters.contractorId) {
     returnCircleFilter.contractorId = new mongoose.Types.ObjectId(filters.contractorId);
@@ -181,7 +248,7 @@ export async function getContractorStockPosition(filters: ReconciliationFilters)
     {
       $group: {
         _id: { contractorId: '$contractorId', tempCode: '$lineItems.tempCode' },
-        returnedQty: { $sum: '$lineItems.quantity' }
+        returnedQty: { $sum: { $ifNull: ['$lineItems.returnQty', '$lineItems.quantity'] } }
       }
     }
   ];
@@ -194,17 +261,29 @@ export async function getContractorStockPosition(filters: ReconciliationFilters)
     ContractorReturn.aggregate(returnPipeline)
   ]);
 
-  // Build lookup maps for JMC, WIP, Returns
-  const jmcMap: Record<string, number> = {};
+  // Build lookup maps for JMC, WIP, Returns with metadata
+  const jmcMap: Record<string, { qty: number; itemName?: string; unit?: string; contractorName?: string }> = {};
   for (const row of jmcResult) {
     const key = `${row._id.contractorId}__${row._id.tempCode}`;
-    jmcMap[key] = (jmcMap[key] || 0) + (row.consumedQty || 0);
+    const cName = row.contractor?.dynamicData?.displayName || row.contractor?.name || row.contractor?.farmName;
+    jmcMap[key] = {
+      qty: (jmcMap[key]?.qty || 0) + (row.consumedQty || 0),
+      itemName: row.itemName,
+      unit: row.unit,
+      contractorName: cName
+    };
   }
 
-  const wipMap: Record<string, number> = {};
+  const wipMap: Record<string, { qty: number; itemName?: string; unit?: string; contractorName?: string }> = {};
   for (const row of wipResult) {
     const key = `${row._id.contractorId}__${row._id.tempCode}`;
-    wipMap[key] = (wipMap[key] || 0) + (row.consumedQty || 0);
+    const cName = row.contractor?.dynamicData?.displayName || row.contractor?.name || row.contractor?.farmName;
+    wipMap[key] = {
+      qty: (wipMap[key]?.qty || 0) + (row.consumedQty || 0),
+      itemName: row.itemName,
+      unit: row.unit,
+      contractorName: cName
+    };
   }
 
   const returnMap: Record<string, number> = {};
@@ -218,28 +297,28 @@ export async function getContractorStockPosition(filters: ReconciliationFilters)
   const contractorSet = new Set<string>();
 
   for (const min of minsResult) {
-    const cid = min._id.contractorId.toString();
-    const tc = min._id.tempCode;
+    const cid = min._id.contractorId ? min._id.contractorId.toString() : '';
+    const tc = min._id.tempCode || '';
     const key = `${cid}__${tc}`;
 
     const contractorName = min.contractor?.dynamicData?.displayName || min.contractor?.name || min.contractor?.farmName || 'Unknown';
     const issuedQty = min.issuedQty || 0;
-    const jmcConsumedQty = jmcMap[key] || 0;
-    const wipConsumedQty = wipMap[key] || 0;
+    const jmcConsumedQty = jmcMap[key]?.qty || 0;
+    const wipConsumedQty = wipMap[key]?.qty || 0;
     const returnedQty = returnMap[key] || 0;
-    const balance = issuedQty - jmcConsumedQty - wipConsumedQty - returnedQty;
+    const balance = Math.round((issuedQty - jmcConsumedQty - wipConsumedQty - returnedQty) * 1000) / 1000;
 
     let status: 'balanced' | 'holding' | 'over-consumed' = 'holding';
     if (Math.abs(balance) < 0.01) status = 'balanced';
     else if (balance < 0) status = 'over-consumed';
 
-    contractorSet.add(cid);
+    if (cid) contractorSet.add(cid);
     rows.push({
       contractorId: cid,
       contractorName,
       tempCode: tc,
-      itemName: min.itemName || '',
-      unit: min.unit || 'Nos',
+      itemName: min.itemName || jmcMap[key]?.itemName || wipMap[key]?.itemName || '',
+      unit: min.unit || jmcMap[key]?.unit || wipMap[key]?.unit || 'Nos',
       issuedQty,
       jmcConsumedQty,
       wipConsumedQty,
@@ -248,30 +327,41 @@ export async function getContractorStockPosition(filters: ReconciliationFilters)
       status
     });
 
-    // Remove from maps so we can detect JMC-only items later
+    // Remove from maps so we can detect unassigned JMC/WIP items
     delete jmcMap[key];
     delete wipMap[key];
     delete returnMap[key];
   }
 
-  // Add JMC-only items (consumed but never issued via MIN — data gap)
-  for (const [key, qty] of Object.entries(jmcMap)) {
-    if (qty === 0) continue;
-    const [cid] = key.split('__');
-    const tc = key.split('__')[1];
-    contractorSet.add(cid);
+  // Add JMC-only and WIP-only items (consumed on site but not in MINs)
+  const remainingKeys = new Set([...Object.keys(jmcMap), ...Object.keys(wipMap)]);
+  for (const key of remainingKeys) {
+    const jmcData = jmcMap[key];
+    const wipData = wipMap[key];
+    const jmcQty = jmcData?.qty || 0;
+    const wipQty = wipData?.qty || 0;
+    const retQty = returnMap[key] || 0;
+    if (jmcQty === 0 && wipQty === 0 && retQty === 0) continue;
+
+    const [cid, tc] = key.split('__');
+    if (cid) contractorSet.add(cid);
+    const contractorName = jmcData?.contractorName || wipData?.contractorName || 'Unknown';
+    const itemName = jmcData?.itemName || wipData?.itemName || '';
+    const unit = jmcData?.unit || wipData?.unit || 'Nos';
+    const balance = Math.round((0 - jmcQty - wipQty - retQty) * 1000) / 1000;
+
     rows.push({
       contractorId: cid,
-      contractorName: 'Unknown',
-      tempCode: tc,
-      itemName: '',
-      unit: 'Nos',
+      contractorName,
+      tempCode: tc || '',
+      itemName,
+      unit,
       issuedQty: 0,
-      jmcConsumedQty: qty,
-      wipConsumedQty: wipMap[key] || 0,
-      returnedQty: returnMap[key] || 0,
-      balance: -(qty + (wipMap[key] || 0)),
-      status: 'over-consumed'
+      jmcConsumedQty: jmcQty,
+      wipConsumedQty: wipQty,
+      returnedQty: retQty,
+      balance,
+      status: balance === 0 ? 'balanced' : 'over-consumed'
     });
   }
 
@@ -301,11 +391,11 @@ export async function getContractorStockPosition(filters: ReconciliationFilters)
     summary: {
       totalContractors: contractorSet.size,
       totalItems: rows.length,
-      totalIssued,
-      totalJmcConsumed,
-      totalWipConsumed,
-      totalReturned,
-      totalBalance: totalIssued - totalJmcConsumed - totalWipConsumed - totalReturned,
+      totalIssued: Math.round(totalIssued * 1000) / 1000,
+      totalJmcConsumed: Math.round(totalJmcConsumed * 1000) / 1000,
+      totalWipConsumed: Math.round(totalWipConsumed * 1000) / 1000,
+      totalReturned: Math.round(totalReturned * 1000) / 1000,
+      totalBalance: Math.round((totalIssued - totalJmcConsumed - totalWipConsumed - totalReturned) * 1000) / 1000,
       balancedCount,
       holdingCount,
       overConsumedCount

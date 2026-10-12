@@ -63,6 +63,7 @@ export default function StoreSummaryPage() {
 
   const [data, setData] = useState<any[]>([]);
   const [totals, setTotals] = useState<any>({
+    invoiceQty: 0,
     receiptQty: 0,
     issuedQty: 0,
     returnedQty: 0,
@@ -224,7 +225,7 @@ export default function StoreSummaryPage() {
       'UNIT': row.unit || 'No',
       'TOTAL DI QTY': row.diQty || 0,
       'TOTAL MRHOV QTY': row.mhrovQty || 0,
-      'TOTAL RECEIPT QTY': row.receiptQty || 0,
+      'INVOICE QTY': row.invoiceQty ?? row.receiptQty ?? 0,
       'TOTAL ISSUED TO CONTRACTOR': row.issuedQty || 0,
       'TOTAL RETURNED BY CONTRACTOR': row.returnedQty || 0,
       'TOTAL TRANSFER TO OTHER STORE': row.transferOutQty || 0,
@@ -252,14 +253,14 @@ export default function StoreSummaryPage() {
     doc.setFontSize(8);
     autoTable(doc, {
       startY: 28,
-      head: [['SR', 'TEMP', 'ITEM NAME', 'DI QTY', 'MRHOV QTY', 'RECEIPT', 'ISSUED', 'RETURNED', 'T-OUT', 'T-IN', 'BALANCE']],
+      head: [['SR', 'TEMP', 'ITEM NAME', 'DI QTY', 'MRHOV QTY', 'INVOICE', 'ISSUED', 'RETURNED', 'T-OUT', 'T-IN', 'BALANCE']],
       body: exportData.map((row: any, i: number) => [
         i + 1,
         row.tempCode || '-',
         (row.name || row.itemName || '-').substring(0, 30),
         row.diQty?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0',
         row.mhrovQty?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0',
-        row.receiptQty?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0',
+        (row.invoiceQty ?? row.receiptQty)?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0',
         row.issuedQty?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0',
         row.returnedQty?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0',
         row.transferOutQty?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0',
@@ -393,26 +394,32 @@ export default function StoreSummaryPage() {
           {(() => {
             const selectedRows = data.filter((r, i) => selectedItems.has(r.itemId || r.tempCode || String(i)));
             const activeTotals = selectedRows.length > 0 ? selectedRows.reduce((acc, r) => ({
-              receiptQty: acc.receiptQty + (Math.round(r.receiptQty || 0)),
+              diQty: acc.diQty + (Math.round(r.diQty || 0)),
+              mhrovQty: acc.mhrovQty + (Math.round(r.mhrovQty || 0)),
+              invoiceQty: acc.invoiceQty + (Math.round(r.invoiceQty ?? r.receiptQty ?? 0)),
+              receiptQty: acc.receiptQty + (Math.round(r.invoiceQty ?? r.receiptQty ?? 0)),
               issuedQty: acc.issuedQty + (Math.round(r.issuedQty || 0)),
               returnedQty: acc.returnedQty + (Math.round(r.returnedQty || 0)),
               transferOutQty: acc.transferOutQty + (Math.round(r.transferOutQty || 0)),
               transferInQty: acc.transferInQty + (Math.round(r.transferInQty || 0)),
               balAtStore: acc.balAtStore + (Math.round(r.balAtStore || 0)),
-            }), { receiptQty: 0, issuedQty: 0, returnedQty: 0, transferOutQty: 0, transferInQty: 0, balAtStore: 0 }) : totals;
+            }), { diQty: 0, mhrovQty: 0, invoiceQty: 0, receiptQty: 0, issuedQty: 0, returnedQty: 0, transferOutQty: 0, transferInQty: 0, balAtStore: 0 }) : {
+              ...totals,
+              invoiceQty: totals.invoiceQty ?? totals.receiptQty ?? 0,
+            };
 
             return (
               <>
                 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col relative">
                   {selectedRows.length > 0 && <span className="absolute -top-2 -left-2 bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm z-10">Selected</span>}
                   <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
-                    <span>Total Receipts</span>
+                    <span>Invoice Qty</span>
                     <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
                   </div>
                   <div className="text-xl font-bold text-slate-900 mt-2">
-                    {Number(activeTotals.receiptQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                    {Number((activeTotals.invoiceQty ?? activeTotals.receiptQty) || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                   </div>
-                  <div className="text-[10px] text-emerald-600 font-medium mt-1">Inward Receipts</div>
+                  <div className="text-[10px] text-emerald-600 font-medium mt-1">Inward Invoices</div>
                 </div>
 
                 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col relative">
@@ -506,6 +513,33 @@ export default function StoreSummaryPage() {
               />
             </div>
 
+            {/* Package Select */}
+            <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
+              <Package className="w-3.5 h-3.5 text-slate-400" />
+              <span className="text-[11px] font-semibold text-slate-500 uppercase">Package:</span>
+              <select
+                value={pkg}
+                onChange={(e) => {
+                  const newPkg = e.target.value;
+                  setPkg(newPkg);
+                  if (newPkg === 'Package 1(S/N)' && (circle === 'Rampur' || circle === 'Rohru')) {
+                    setCircle('');
+                    setStore('');
+                  } else if (newPkg === 'Package 2(R/R)' && (circle === 'Solan' || circle === 'Nahan')) {
+                    setCircle('');
+                    setStore('');
+                  }
+                }}
+                disabled={isStoreManager}
+                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer pr-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="">All Packages</option>
+                {packages.map(p => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            </div>
+
             {/* Circle Select */}
             <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 relative">
               <MapPin className="w-3.5 h-3.5 text-slate-400" />
@@ -521,7 +555,7 @@ export default function StoreSummaryPage() {
                   {showCircleDropdown && (
                     <div className="absolute top-full mt-2 left-0 w-48 bg-white border border-slate-200 rounded-lg shadow-xl z-50 p-2 flex flex-col gap-1">
                       <div className="text-xs font-bold text-slate-500 mb-1 px-1">Select Circles</div>
-                      {['Solan', 'Nahan', 'Rampur', 'Rohru'].map(c => {
+                      {(pkg === 'Package 1(S/N)' ? ['Solan', 'Nahan'] : pkg === 'Package 2(R/R)' ? ['Rampur', 'Rohru'] : ['Solan', 'Nahan', 'Rampur', 'Rohru']).map(c => {
                         const isSelected = circle ? circle.split(',').includes(c) : false;
                         return (
                           <label key={c} className="flex items-center gap-2 px-2 py-1.5 hover:bg-slate-50 rounded cursor-pointer text-xs font-semibold text-slate-700">
@@ -557,7 +591,15 @@ export default function StoreSummaryPage() {
               ) : (
                 <select
                   value={circle}
-                  onChange={(e) => setCircle(e.target.value)}
+                  onChange={(e) => {
+                    const newCircle = e.target.value;
+                    setCircle(newCircle);
+                    if (newCircle === 'Solan' && !['Nalagarh', 'Kumarhatti', 'Solan'].includes(store)) {
+                      setStore('');
+                    } else if (newCircle && newCircle !== 'Solan' && store !== newCircle) {
+                      setStore('');
+                    }
+                  }}
                   disabled={isStoreManager}
                   className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer pr-1 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -590,29 +632,25 @@ export default function StoreSummaryPage() {
                   className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer pr-1 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="">All Stores</option>
-                  {stores.map(s => (
+                  {(circle === 'Solan' 
+                    ? ['Nalagarh', 'Kumarhatti', 'Solan'] 
+                    : circle === 'Nahan' 
+                    ? ['Nahan'] 
+                    : circle === 'Rampur' 
+                    ? ['Rampur'] 
+                    : circle === 'Rohru' 
+                    ? ['Rohru'] 
+                    : pkg === 'Package 1(S/N)'
+                    ? ['Solan', 'Nalagarh', 'Kumarhatti', 'Nahan']
+                    : pkg === 'Package 2(R/R)'
+                    ? ['Rampur', 'Rohru']
+                    : stores
+                  ).map(s => (
                     <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
               </div>
             )}
-
-            {/* Package Select */}
-            <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
-              <Package className="w-3.5 h-3.5 text-slate-400" />
-              <span className="text-[11px] font-semibold text-slate-500 uppercase">Package:</span>
-              <select
-                value={pkg}
-                onChange={(e) => setPkg(e.target.value)}
-                disabled={isStoreManager}
-                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer pr-1 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <option value="">All Packages</option>
-                {packages.map(p => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-            </div>
           </div>
 
           {/* Hide Zero Balance Toggle */}
@@ -657,7 +695,7 @@ export default function StoreSummaryPage() {
                   <th className="py-3.5 px-4 w-20 text-center border-r border-slate-200/60">Unit</th>
                   <th className="py-3.5 px-4 text-right bg-blue-50/50 text-blue-900 border-r border-slate-200/60 font-extrabold">DI Qty</th>
                   <th className="py-3.5 px-4 text-right bg-blue-50/50 text-blue-900 border-r border-slate-200/60 font-extrabold">MRHOV Qty</th>
-                  <th className="py-3.5 px-4 text-right bg-emerald-50/50 text-emerald-900 border-r border-slate-200/60 font-extrabold">Total Receipt Qty</th>
+                  <th className="py-3.5 px-4 text-right bg-emerald-50/50 text-emerald-900 border-r border-slate-200/60 font-extrabold">Invoice Qty</th>
                   <th className="py-3.5 px-4 text-right bg-amber-50/50 text-amber-900 border-r border-slate-200/60 font-extrabold">Total Issued to Contractor</th>
                   <th className="py-3.5 px-4 text-right bg-blue-50/50 text-blue-900 border-r border-slate-200/60 font-extrabold">Total Returned by Contractor</th>
                   <th className="py-3.5 px-4 text-right bg-orange-50/50 text-orange-900 border-r border-slate-200/60 font-extrabold">Total Transfer to Other Store</th>
@@ -751,7 +789,7 @@ export default function StoreSummaryPage() {
                           {item.mhrovQty ? Number(item.mhrovQty).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '-'}
                         </td>
                         <td className="py-3 px-4 text-right font-mono font-semibold text-slate-800 bg-emerald-50/20 border-r border-slate-100">
-                          {item.receiptQty ? Number(item.receiptQty).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '-'}
+                          {(item.invoiceQty ?? item.receiptQty) ? Number(item.invoiceQty ?? item.receiptQty).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '-'}
                         </td>
                         <td className="py-3 px-4 text-right font-mono font-semibold text-slate-800 bg-amber-50/20 border-r border-slate-100">
                           {item.issuedQty ? Number(item.issuedQty).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '-'}
@@ -783,21 +821,33 @@ export default function StoreSummaryPage() {
                   {(() => {
                     const selectedRows = data.filter((r, i) => selectedItems.has(r.itemId || r.tempCode || String(i)));
                     const activeTotals = selectedRows.length > 0 ? selectedRows.reduce((acc, r) => ({
-                      receiptQty: acc.receiptQty + (Math.round(r.receiptQty || 0)),
+                      diQty: acc.diQty + (Math.round(r.diQty || 0)),
+                      mhrovQty: acc.mhrovQty + (Math.round(r.mhrovQty || 0)),
+                      invoiceQty: acc.invoiceQty + (Math.round(r.invoiceQty ?? r.receiptQty ?? 0)),
+                      receiptQty: acc.receiptQty + (Math.round(r.invoiceQty ?? r.receiptQty ?? 0)),
                       issuedQty: acc.issuedQty + (Math.round(r.issuedQty || 0)),
                       returnedQty: acc.returnedQty + (Math.round(r.returnedQty || 0)),
                       transferOutQty: acc.transferOutQty + (Math.round(r.transferOutQty || 0)),
                       transferInQty: acc.transferInQty + (Math.round(r.transferInQty || 0)),
                       balAtStore: acc.balAtStore + (Math.round(r.balAtStore || 0)),
-                    }), { receiptQty: 0, issuedQty: 0, returnedQty: 0, transferOutQty: 0, transferInQty: 0, balAtStore: 0 }) : totals;
+                    }), { diQty: 0, mhrovQty: 0, invoiceQty: 0, receiptQty: 0, issuedQty: 0, returnedQty: 0, transferOutQty: 0, transferInQty: 0, balAtStore: 0 }) : {
+                      ...totals,
+                      invoiceQty: totals.invoiceQty ?? totals.receiptQty ?? 0,
+                    };
 
                     return (
                       <tr>
                         <td colSpan={7} className="py-3.5 px-5 text-right tracking-wider uppercase">
                           {selectedRows.length > 0 ? `Selected (${selectedRows.length} items):` : `Grand Totals (${totalItems.toLocaleString('en-IN', { maximumFractionDigits: 0 })} items):`}
                         </td>
+                        <td className="py-3.5 px-4 text-right font-mono text-blue-300">
+                          {Number(activeTotals.diQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-mono text-blue-300">
+                          {Number(activeTotals.mhrovQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                        </td>
                         <td className="py-3.5 px-4 text-right font-mono text-emerald-300">
-                          {Number(activeTotals.receiptQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                          {Number((activeTotals.invoiceQty ?? activeTotals.receiptQty) || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                         </td>
                         <td className="py-3.5 px-4 text-right font-mono text-amber-300">
                           {Number(activeTotals.issuedQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}

@@ -28,6 +28,9 @@ const getModuleFromPath = (path: string): string => {
   if (path.includes('/items')) return 'Item Master';
   if (path.includes('/contractors')) return 'Contractors';
   if (path.includes('/settings')) return 'Settings';
+  if (path.includes('/pd-portal/overall-summary') || path.includes('/ceo-portal/operations-hub')) return 'Overall Summary';
+  if (path.includes('/pd-portal')) return 'PD Portal Dashboard';
+  if (path.includes('/ceo-portal')) return 'CEO Portal';
   if (path === '/' || path === '') return 'Dashboard';
   return 'App';
 };

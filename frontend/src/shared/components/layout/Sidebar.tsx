@@ -159,6 +159,7 @@ const navItems: NavItem[] = [
     icon: <Shield className="w-5 h-5" />,
     children: [
       { title: 'Dashboard', href: '/pd-portal' },
+      { title: 'Overall Summary', href: '/pd-portal/overall-summary' },
       { title: 'Demand Notes (PD)', href: '/pd-portal/demand-notes' },
       { title: 'Billing Approvals', href: '/billing/approvals' },
     ]

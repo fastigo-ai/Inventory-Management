@@ -16,7 +16,7 @@ import CeoDashboardPage from '@/app/ceo-portal/dashboard/page';
 
 export default function Home() {
   const { user } = useAuthStore();
-  const isCeoOrAdmin = user?.role?.name === 'CEO' || user?.role?.name === 'Super Admin' || user?.role?.name === 'Admin';
+  const isCeoOrAdmin = user?.role?.name === 'CEO' || user?.role?.name === 'Super Admin' || user?.role?.name === 'Admin' || user?.role?.name === 'Project Director';
   const isStoreManager = user?.role?.name === 'Store Manager';
   const permissions = user?.role?.permissions || [];
   const isSitePortal = user?.role?.name === 'Site Portal' || permissions.includes('Site Portal');

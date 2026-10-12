@@ -66,28 +66,41 @@ export default function ContractorInvoiceViewPage({ params }: { params: Promise<
 
   const contractorName = invoice.contractorId?.dynamicData?.displayName || invoice.contractorId?.dynamicData?.companyName || 'Unknown Contractor';
   
-  const rawAddress = invoice.contractorId?.dynamicData?.contractorAddress || invoice.contractorId?.dynamicData?.registeredAddress;
-  let contractorAddress = 'Address not provided';
+  const rawAddress = invoice.contractorId?.dynamicData?.contractorAddress || 
+                     invoice.contractorId?.dynamicData?.registeredAddress ||
+                     invoice.contractorId?.dynamicData?.address ||
+                     invoice.legacyMetadata?.contractorAddress;
+  let contractorAddress = '';
   if (typeof rawAddress === 'string' && rawAddress.trim()) {
-    contractorAddress = rawAddress;
+    contractorAddress = rawAddress.trim();
   } else if (rawAddress?.billing) {
     const b = rawAddress.billing;
     contractorAddress = [b.street1, b.street2, b.city, b.state, b.zip, b.country].filter(Boolean).join(', ');
   } else if (typeof rawAddress === 'object' && rawAddress !== null) {
-    contractorAddress = Object.values(rawAddress).filter(v => typeof v === 'string' && v.trim()).join(', ') || 'Address not provided';
+    contractorAddress = Object.values(rawAddress).filter(v => typeof v === 'string' && v.trim()).join(', ');
+  }
+  if (!contractorAddress && Array.isArray(invoice.contractorId?.assignedLocations) && invoice.contractorId.assignedLocations.length > 0) {
+    contractorAddress = invoice.contractorId.assignedLocations.join(', ');
+  }
+  if (!contractorAddress && invoice.contractorId?.location) {
+    contractorAddress = invoice.contractorId.location;
+  }
+  if (!contractorAddress && invoice.legacyMetadata?.circle) {
+    contractorAddress = invoice.legacyMetadata.circle;
   }
 
-  let contractorContact = invoice.contractorId?.dynamicData?.emailAddress || invoice.contractorId?.dynamicData?.phone?.work;
-  if (!contractorContact) {
-    const pc = invoice.contractorId?.dynamicData?.primaryContact;
-    if (pc && (pc.firstName || pc.lastName)) {
-      contractorContact = `${pc.firstName || ''} ${pc.lastName || ''}`.trim();
-    } else if (Array.isArray(invoice.contractorId?.dynamicData?.contactPersons) && invoice.contractorId.dynamicData.contactPersons.length > 0) {
-      const p = invoice.contractorId.dynamicData.contactPersons[0];
-      if (p) contractorContact = `${p.firstName || ''} ${p.lastName || ''}`.trim() || p.email;
-    }
-  }
-  contractorContact = contractorContact || 'Contact not provided';
+  const phoneVal = invoice.contractorId?.dynamicData?.phone?.mobile || 
+                   invoice.contractorId?.dynamicData?.phone?.work || 
+                   invoice.contractorId?.dynamicData?.mobile || 
+                   invoice.contractorId?.dynamicData?.phone ||
+                   invoice.contractorId?.dynamicData?.primaryContact?.mobile || 
+                   invoice.contractorId?.dynamicData?.primaryContact?.phone ||
+                   invoice.legacyMetadata?.contractorPhone || 
+                   '';
+  const emailVal = invoice.contractorId?.dynamicData?.emailAddress || 
+                   invoice.contractorId?.dynamicData?.email || 
+                   '';
+  const contractorContact = [phoneVal, emailVal].filter(Boolean).join(' / ') || '';
   const issueDate = new Date(invoice.date);
   const dueDate = new Date(issueDate);
   dueDate.setDate(dueDate.getDate() + 15); // Standard 15 day payment terms
@@ -164,9 +177,9 @@ export default function ContractorInvoiceViewPage({ params }: { params: Promise<
                   <div className="font-semibold text-slate-700">Contractor</div>
                   <div className="border border-slate-300 px-2 py-0.5">{contractorName !== 'Unknown Contractor' ? contractorName : ''}</div>
                   <div className="font-semibold text-slate-700">Address</div>
-                  <div className="border border-slate-300 px-2 py-0.5">{contractorAddress !== 'Address not provided' ? contractorAddress : ''}</div>
+                  <div className="border border-slate-300 px-2 py-0.5">{contractorAddress}</div>
                   <div className="font-semibold text-slate-700">Phone/Email</div>
-                  <div className="border border-slate-300 px-2 py-0.5">{contractorContact !== 'Contact not provided' ? contractorContact : ''}</div>
+                  <div className="border border-slate-300 px-2 py-0.5">{contractorContact}</div>
                 </div>
               </div>
 
@@ -194,7 +207,13 @@ export default function ContractorInvoiceViewPage({ params }: { params: Promise<
                   <div className="font-semibold text-slate-700">Due Date</div>
                   <div className="border border-slate-300 px-2 py-0.5 bg-white text-right">{format(dueDate, 'yyyy-MM-dd')}</div>
                   <div className="font-semibold text-slate-700">Drawing No.</div>
-                  <div className="border border-slate-300 px-2 py-0.5 bg-white text-right">{invoice.drawingNumber || ''}</div>
+                  <div className="border border-slate-300 px-2 py-0.5 bg-white text-right">
+                    {(() => {
+                      const d = invoice.drawingNumber?.trim() || '';
+                      if (!d || /ra\s*supply|ra\s*bill|drawing\s*no|none|n\/?a|nil/i.test(d)) return '';
+                      return d;
+                    })()}
+                  </div>
                 </div>
               </div>
             </div>
@@ -243,8 +262,12 @@ export default function ContractorInvoiceViewPage({ params }: { params: Promise<
                         return (
                           <tr key={`${activity}-${idx}`} className="hover:bg-slate-50">
                             <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 max-w-[250px] truncate print:whitespace-normal print:max-w-none print:break-words" title={item.description}>{item.description}</td>
-                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-center text-slate-600 whitespace-nowrap">{matchedWoItem?.tempCode || item.itemId?.tempCode || item.itemId?.dynamicData?.tempCode || ''}</td>
-                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-center text-slate-600 whitespace-nowrap">{matchedWoItem?.loaSrNo || item.legacyData?.loaSerialNo || item.itemId?.loaSrNo || item.itemId?.dynamicData?.loaSrNo || item.itemId?.dynamicData?.loaSerialNo || ''}</td>
+                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-center text-slate-600 whitespace-nowrap">
+                              {item.tempCode || matchedWoItem?.tempCode || item.itemId?.tempCode || item.itemId?.dynamicData?.tempCode || ''}
+                            </td>
+                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-center text-slate-600 whitespace-nowrap">
+                              {item.loaSrNo || item.loaSerialNo || item.legacyData?.loaSerialNo || matchedWoItem?.loaSrNo || item.itemId?.loaSrNo || item.itemId?.dynamicData?.loaSrNo || item.itemId?.dynamicData?.loaSerialNo || item.itemId?.dynamicData?.sku || item.itemId?.sku || ''}
+                            </td>
                             <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-center text-slate-600 whitespace-nowrap">{item.billingCategory}</td>
                             <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-semibold">{qty}</td>
                             <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right">{item.rate?.toFixed(2)}</td>

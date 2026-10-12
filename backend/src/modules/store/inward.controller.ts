@@ -487,7 +487,20 @@ export const getAdminInwardEntries = asyncHandler(async (req: Request, res: Resp
   );
 });
 
+const stockSummaryCache = new Map<string, { data: any[]; timestamp: number }>();
+const CACHE_TTL_MS = 60 * 1000;
+
+export const clearStockSummaryCache = () => {
+  stockSummaryCache.clear();
+};
+
 export async function buildStockSummaryData(circleFilter?: string, packageFilter?: string, contractorId?: string) {
+  const cacheKey = `${circleFilter || 'all'}:${packageFilter || 'all'}:${contractorId || 'all'}`;
+  const cached = stockSummaryCache.get(cacheKey);
+  if (cached && (Date.now() - cached.timestamp < CACHE_TTL_MS)) {
+    return cached.data;
+  }
+
   let contractorFilter: any = null;
   if (contractorId) {
     const cIdStr = String(contractorId).trim();
@@ -501,7 +514,6 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
   if (packageFilter) inwardFilter.package = packageFilter;
 
   const assignmentFilter: any = { status: 'Sent' };
-  // if (contractorFilter) assignmentFilter.contractorId = contractorFilter; // Removed so we fetch ALL assignments to get true store balance
   if (circleFilter) {
     assignmentFilter.$or = [
       { circle: { $regex: new RegExp(`^${circleFilter}$`, 'i') } },
@@ -513,7 +525,6 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
   }
 
   const returnsFilter: any = { status: { $in: ['Submitted', 'Approved'] } };
-  // if (contractorFilter) returnsFilter.contractorId = contractorFilter; // Removed so we fetch ALL returns to get true store balance
   if (circleFilter) {
     returnsFilter.$or = [
       { circle: { $regex: new RegExp(`^${circleFilter}$`, 'i') } },
@@ -536,7 +547,6 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
     ];
   }
 
-
   const mhrovFilter: any = {};
   if (circleFilter) {
     mhrovFilter.$or = [
@@ -548,30 +558,75 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
     ];
   }
 
-  console.log("Fetching DB collections in parallel...");
-  // Fetch all collections in parallel to massively improve performance (fixes Axios timeouts)
+  // Fetch all collections in parallel using targeted projections and database aggregations
   const [
     items,
     verifiedInwards,
-    assignments,
-    contractorReturns,
+    assignmentAgg,
+    returnsAgg,
     transfers,
-    wipRecords,
-    jmcRecords,
-    mhrovs
+    wipAgg,
+    jmcAgg,
+    mhrovAgg
   ] = await Promise.all([
-    Item.find({ isDeleted: false }).lean(),
-    StoreInwardEntry.find(inwardFilter).lean(),
-    ContractorAssignment.find(assignmentFilter).lean(),
-    ContractorReturn.find(returnsFilter).lean(),
-    StoreTransfer.find({ status: 'RECEIVED' }).lean(),
-    WipRegister.find(wipJmcFilter).lean(),
-    JmcRegister.find(wipJmcFilter).lean(),
-    Mhrov.find(mhrovFilter).lean()
+    Item.find({ isDeleted: false }).select('dynamicData').lean(),
+    StoreInwardEntry.find(inwardFilter)
+      .select('tempCode invoiceQty rejectedQty packingList invoiceNumber invoiceDate poNumber poDate vendorName transportName truckNumber grNumber grDate biltyNumber receivedDate rate taxableAmount gst remarks')
+      .lean(),
+    ContractorAssignment.aggregate([
+      { $match: assignmentFilter },
+      { $unwind: '$lineItems' },
+      { $group: {
+          _id: { tempCode: '$lineItems.tempCode', contractorId: '$contractorId' },
+          totalQty: { $sum: { $ifNull: ['$lineItems.quantity', 0] } }
+      }}
+    ]),
+    ContractorReturn.aggregate([
+      { $match: returnsFilter },
+      { $unwind: '$lineItems' },
+      { $group: {
+          _id: { tempCode: '$lineItems.tempCode', contractorId: '$contractorId' },
+          totalQty: { $sum: { $ifNull: ['$lineItems.quantity', 0] } }
+      }}
+    ]),
+    StoreTransfer.find({ status: 'RECEIVED' })
+      .select('toStore fromStore items.tempCode items.receivedQty')
+      .lean(),
+    WipRegister.aggregate([
+      { $match: wipJmcFilter },
+      { $unwind: '$items' },
+      { $group: {
+          _id: '$items.tempCode',
+          totalQty: {
+            $sum: {
+              $ifNull: ['$items.approvedQty', { $ifNull: ['$items.claimedQty', { $ifNull: ['$items.quantity', 0] }] }]
+            }
+          }
+      }}
+    ]),
+    JmcRegister.aggregate([
+      { $match: wipJmcFilter },
+      { $unwind: '$items' },
+      { $group: {
+          _id: '$items.tempCode',
+          totalQty: {
+            $sum: {
+              $ifNull: ['$items.approvedQty', { $ifNull: ['$items.claimedQty', { $ifNull: ['$items.quantity', 0] }] }]
+            }
+          }
+      }}
+    ]),
+    Mhrov.aggregate([
+      ...(Object.keys(mhrovFilter).length > 0 ? [{ $match: mhrovFilter }] : []),
+      { $unwind: '$items' },
+      { $group: {
+          _id: '$items.tempCode',
+          totalQty: { $sum: { $ifNull: ['$items.mhrovDoneQty', 0] } }
+      }}
+    ])
   ]);
-  console.log("Fetched all DB collections successfully!");
 
-  // 5. Aggregate data per item
+  // Aggregate data per item
   const summaryMap: Record<string, any> = {};
 
   items.forEach(item => {
@@ -599,40 +654,40 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
         activityDetailsMap: {} as Record<string, { loaSrNo: string, description: string }>,
         challanQty: 0,
         receivedQty: 0,
-      rejectedQty: 0,
-      acceptedQty: 0,
-      mhrovQty: 0,
-      receivedFromOtherStore: 0,
-      totalInStockAfterReceive: 0,
-      transferToOtherStore: 0,
-      contractorsIssuedQty: 0,
-      contractorsReturnQty: 0,
-      contractorsActualIssued: 0,
-      allContractorsIssuedQty: 0,
-      allContractorsReturnQty: 0,
-      allContractorsActualIssued: 0,
-      wipConsumed: 0,
-      jmcDone: 0,
-      totalBalanceQty: 0,
-      remarks: '',
-      // Latest GRN details
-      invoiceNumber: '-',
-      invoiceDate: null,
-      poNumber: '-',
-      poDate: null,
-      vendorName: '-',
-      transportName: '-',
-      truckNumber: '-',
-      grNumber: '-',
-      grDate: null,
-      biltyNumber: '-',
-      receivedDate: null,
-      packType: '-',
-      packQty: 0,
-      rate: 0,
-      taxableAmount: 0,
-      gst: '-'
-    };
+        rejectedQty: 0,
+        acceptedQty: 0,
+        mhrovQty: 0,
+        receivedFromOtherStore: 0,
+        totalInStockAfterReceive: 0,
+        transferToOtherStore: 0,
+        contractorsIssuedQty: 0,
+        contractorsReturnQty: 0,
+        contractorsActualIssued: 0,
+        allContractorsIssuedQty: 0,
+        allContractorsReturnQty: 0,
+        allContractorsActualIssued: 0,
+        wipConsumed: 0,
+        jmcDone: 0,
+        totalBalanceQty: 0,
+        remarks: '',
+        // Latest GRN details
+        invoiceNumber: '-',
+        invoiceDate: null,
+        poNumber: '-',
+        poDate: null,
+        vendorName: '-',
+        transportName: '-',
+        truckNumber: '-',
+        grNumber: '-',
+        grDate: null,
+        biltyNumber: '-',
+        receivedDate: null,
+        packType: '-',
+        packQty: 0,
+        rate: 0,
+        taxableAmount: 0,
+        gst: '-'
+      };
     } else {
       summaryMap[tempCode].circleLoaQty += circleLoaQty;
     }
@@ -691,71 +746,54 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
   });
 
   // Calculate MRHOV Qty
-  mhrovs.forEach((mhrov: any) => {
-    (mhrov.items || []).forEach((it: any) => {
-      const tc = it.tempCode || '';
-      if (summaryMap[tc]) {
-        summaryMap[tc].mhrovQty += Number(it.mhrovDoneQty || 0);
-      }
-    });
+  mhrovAgg.forEach((m: any) => {
+    const tc = m._id || '';
+    if (summaryMap[tc]) {
+      summaryMap[tc].mhrovQty += Number(m.totalQty || 0);
+    }
   });
 
   // Calculate Contractor Assignments
-  assignments.forEach(assignment => {
-    const isThisContractor = contractorFilter ? (
-      assignment.contractorId?.toString() === String(contractorId).trim() || 
-      String(assignment.contractorId) === String(contractorId).trim()
-    ) : true;
-    
-    assignment.lineItems?.forEach((line: any) => {
-      const tc = line.tempCode || '';
-      if (summaryMap[tc]) {
-        const qty = line.quantity || 0;
-        summaryMap[tc].allContractorsIssuedQty += qty;
-        if (isThisContractor) {
-          summaryMap[tc].contractorsIssuedQty += qty;
-        }
+  const targetCId = contractorFilter ? String(contractorId).trim() : null;
+  assignmentAgg.forEach((a: any) => {
+    const tc = a._id?.tempCode || '';
+    if (summaryMap[tc]) {
+      const qty = a.totalQty || 0;
+      summaryMap[tc].allContractorsIssuedQty += qty;
+      const aCId = a._id?.contractorId ? String(a._id.contractorId).trim() : '';
+      if (!targetCId || aCId === targetCId) {
+        summaryMap[tc].contractorsIssuedQty += qty;
       }
-    });
+    }
   });
 
   // Calculate Contractor Returns
-  contractorReturns.forEach(ret => {
-    const isThisContractor = contractorFilter ? (
-      ret.contractorId?.toString() === String(contractorId).trim() || 
-      String(ret.contractorId) === String(contractorId).trim()
-    ) : true;
-
-    ret.lineItems?.forEach((line: any) => {
-      const tc = line.tempCode || '';
-      if (summaryMap[tc]) {
-        const qty = line.quantity || 0;
-        summaryMap[tc].allContractorsReturnQty += qty;
-        if (isThisContractor) {
-          summaryMap[tc].contractorsReturnQty += qty;
-        }
+  returnsAgg.forEach((r: any) => {
+    const tc = r._id?.tempCode || '';
+    if (summaryMap[tc]) {
+      const qty = r.totalQty || 0;
+      summaryMap[tc].allContractorsReturnQty += qty;
+      const rCId = r._id?.contractorId ? String(r._id.contractorId).trim() : '';
+      if (!targetCId || rCId === targetCId) {
+        summaryMap[tc].contractorsReturnQty += qty;
       }
-    });
+    }
   });
 
   // Calculate WIP Consumed
-  wipRecords.forEach((record: any) => {
-    record.items?.forEach((item: any) => {
-      const tc = item.tempCode || '';
-      if (summaryMap[tc]) {
-        summaryMap[tc].wipConsumed += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
-      }
-    });
+  wipAgg.forEach((w: any) => {
+    const tc = w._id || '';
+    if (summaryMap[tc]) {
+      summaryMap[tc].wipConsumed += Number(w.totalQty || 0);
+    }
   });
 
   // Calculate JMC Done
-  jmcRecords.forEach((record: any) => {
-    record.items?.forEach((item: any) => {
-      const tc = item.tempCode || '';
-      if (summaryMap[tc]) {
-        summaryMap[tc].jmcDone += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
-      }
-    });
+  jmcAgg.forEach((j: any) => {
+    const tc = j._id || '';
+    if (summaryMap[tc]) {
+      summaryMap[tc].jmcDone += Number(j.totalQty || 0);
+    }
   });
 
   // Derived fields for contractors
@@ -792,19 +830,11 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
     row.totalBalanceQty = row.totalInStockAfterReceive - row.transferToOtherStore - row.allContractorsActualIssued;
     row.allActivities = Array.from(row.allActivities || []);
     row.allLoaSrs = Array.from(row.allLoaSrs || []);
-    if (row.tempCode === '39' || String(row.tempCode) === '39' || row.tempCode === '36' || row.tempCode === '37') {
-      const fs = require('fs');
-      const data = {
-        totalInStockAfterReceive: row.totalInStockAfterReceive,
-        transferToOtherStore: row.transferToOtherStore,
-        allContractorsActualIssued: row.allContractorsActualIssued,
-        totalBalanceQty: row.totalBalanceQty
-      };
-      fs.appendFileSync('debug_stock.json', JSON.stringify({ tempCode: row.tempCode, ...data }) + '\n');
-    }
-    
     return row;
   });
+
+  stockSummaryCache.set(cacheKey, { data: result, timestamp: Date.now() });
+  return result;
 
   if (result.length === 0) {
     // Inject Mock Data

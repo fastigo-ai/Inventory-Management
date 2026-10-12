@@ -179,6 +179,7 @@ export class SummaryService {
       returnDocument: 'after',
       session
     });
+    itemSummaryCache.clear();
   }
 
   /**
@@ -633,6 +634,7 @@ export class SummaryService {
         item.markModified('dynamicData');
         await item.save();
       }
+      itemSummaryCache.clear();
 
     } catch (error) {
       console.error(`Error rebuilding ItemSummary for item ${itemIdStr}:`, error);
@@ -1103,8 +1105,12 @@ export class SummaryService {
       throw err;
     }
   }
+
+  static clearCache() {
+    itemSummaryCache.clear();
+  }
 }
 
 const itemSummaryCache = new Map<string, { timestamp: number; data: any; promise: Promise<any> | null }>();
-const ITEM_SUMMARY_CACHE_TTL = 30 * 1000;
+const ITEM_SUMMARY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 

@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Download, ChevronLeft, ChevronRight, Search, X, SlidersHorizontal, ArrowUpRight, CheckCircle2, AlertTriangle, XCircle, Info } from 'lucide-react';
 import { fetchCeoDashboardData } from '@/features/ceo-portal/api/dashboard.api';
 import { api } from '@/shared/api/axios';
+import Item360Drawer from './Item360Drawer';
 
 // --- UTILS & DATA GENERATOR ---
 const DAY = 864e5;
@@ -295,6 +296,7 @@ const ALERTS = [
 // --- COMPONENT ---
 export default function OperationsHub() {
   const [items, setItems] = useState<any[]>([]);
+  const [selectedItem, setSelectedItem] = useState<any | null>(null);
   
   const [mode, setMode] = useState<'single' | 'multi' | 'all'>('single');
   const [sel, setSel] = useState<Set<string>>(new Set(['item']));
@@ -654,9 +656,33 @@ export default function OperationsHub() {
             </div>
           );
           else if (c.type === 'date') content = <span className="text-slate-600 font-medium">{fdate(v)}</span>;
-          else if (c.type === 'tcode') content = <span className="px-1.5 py-0.5 rounded border border-indigo-100 bg-indigo-50 text-indigo-700 font-mono text-[11px] font-bold">{v}</span>;
+          else if (c.type === 'tcode') content = (
+            <span 
+              onClick={() => setSelectedItem(it)}
+              className="px-1.5 py-0.5 rounded border border-indigo-100 bg-indigo-50 hover:bg-indigo-100 hover:border-indigo-300 text-indigo-700 font-mono text-[11px] font-bold cursor-pointer transition-colors"
+              title="Click to view 360° Item Lifecycle"
+            >
+              {v}
+            </span>
+          );
           else if (c.type === 'code') content = <span className="font-mono text-xs text-slate-600 font-medium">{v}</span>;
           else if (c.type === 'status') content = <span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${getPill(v)}`}>{v}</span>;
+          else if (c.type === 'flags') {
+            const fList = flags(it);
+            content = fList.length > 0 ? (
+              <div className="flex items-center gap-1 flex-wrap">
+                {fList.map((fl: any, fi: number) => (
+                  <span key={fi} className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getFlagTone(fl.c)}`}>
+                    {fl.t}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <span className="text-[10px] font-semibold text-emerald-600 flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Optimal
+              </span>
+            );
+          }
           else if (c.type === 'sr') {
             const srVal = (isSub && it.d?.loaSerialNo) ? it.d.loaSerialNo : v;
             content = (
@@ -669,9 +695,20 @@ export default function OperationsHub() {
             );
           }
           else if (c.type === 'name') content = (
-            <div>
-              <div className="font-bold text-slate-800 hover:text-indigo-600 cursor-pointer truncate max-w-[280px] leading-tight mb-0.5">{v}</div>
-              <div className="text-[10px] font-medium text-slate-400">{it.cat}</div>
+            <div 
+              className="cursor-pointer group/name flex items-start justify-between gap-2" 
+              onClick={() => setSelectedItem(it)}
+              title="Click to view 360° Item Lifecycle"
+            >
+              <div className="min-w-0">
+                <div className="font-bold text-slate-800 group-hover/name:text-indigo-600 transition-colors truncate max-w-[240px] leading-tight mb-0.5">
+                  {v}
+                </div>
+                <div className="text-[10px] font-medium text-slate-400">{it.cat}</div>
+              </div>
+              <span className="opacity-0 group-hover/name:opacity-100 transition-opacity bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0">
+                360°
+              </span>
             </div>
           );
           else content = <span className="text-slate-600">{String(v)}</span>;
@@ -1273,6 +1310,20 @@ export default function OperationsHub() {
         </section>
 
       </div>
+
+      {/* Item 360 Detail Drawer */}
+      <Item360Drawer 
+        item={selectedItem} 
+        onClose={() => setSelectedItem(null)} 
+        onFilterByCode={(code) => {
+          setF(prev => ({ ...prev, code }));
+          setPage(1);
+        }}
+        onFilterByCircle={(circle) => {
+          setF(prev => ({ ...prev, circle, subCircle: 'All' }));
+          setPage(1);
+        }}
+      />
     </div>
   );
 }

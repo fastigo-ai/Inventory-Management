@@ -30,15 +30,29 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
     pkgRegex = new RegExp(`^\\s*${flexiblePkg}\\s*$`, 'i');
   }
 
-  const circleFilter = (circle && circle !== 'All Circles' && circle !== 'All' && circle !== 'all') ? String(circle) : undefined;
+  const circleFilter = (circle && circle !== 'All Circles' && circle !== 'All' && circle !== 'all') ? String(circle).trim() : undefined;
 
-  const circleRegex = circleFilter ? new RegExp(`^${circleFilter}$`, 'i') : undefined;
+  let circleMatch: any = undefined;
+  if (circleFilter) {
+    const rawVal = circleFilter;
+    const cVariants = [
+      rawVal,
+      rawVal.toUpperCase(),
+      rawVal.toLowerCase(),
+      rawVal.charAt(0).toUpperCase() + rawVal.slice(1).toLowerCase(),
+      `${rawVal} `,
+      `${rawVal.toUpperCase()} `
+    ];
+    circleMatch = { $in: Array.from(new Set(cVariants)) };
+  }
 
   // Pre-fetch all items to build a mapping of SKU -> Temp Code & Name
   const itemQuery: any = { isDeleted: { $ne: true } };
   if (pkgRegex) itemQuery.$or = [{ 'dynamicData.package': { $regex: pkgRegex } }, { 'dynamicData.package': { $in: ['', null] } }];
-  if (circleRegex) itemQuery['dynamicData.circle'] = { $regex: circleRegex };
-  const allItems = await Item.find(itemQuery).lean();
+  if (circleMatch) itemQuery['dynamicData.circle'] = circleMatch;
+  const allItems = await Item.find(itemQuery)
+    .select('_id name dynamicData.circle dynamicData.sku dynamicData.loaSerialNo dynamicData.loaSrNo dynamicData.tempCode dynamicData.name dynamicData.description dynamicData.activity')
+    .lean();
   
   const skuMap: Record<string, { tempCode: string, name: string }> = {};
   allItems.forEach(item => {
@@ -67,9 +81,11 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
   const woQuery: any = {};
   if (contractorFilter) woQuery.contractorId = contractorFilter;
   if (pkgRegex) woQuery.$or = [{ package: { $regex: pkgRegex } }, { package: { $in: ['', null] } }];
-  if (circleRegex) woQuery.circle = { $regex: circleRegex };
+  if (circleMatch) woQuery.circle = circleMatch;
 
-  const workOrders = await ContractorWorkOrder.find(woQuery).populate('items.itemId').lean();
+  const workOrders = await ContractorWorkOrder.find(woQuery)
+    .select('circle items.itemId items.loaSrNo items.tempCode items.activity items.description items.circleBomQty')
+    .lean();
 
   // Build the baseline report from Work Order Items
   const reportMap: Record<string, any> = {};
@@ -142,24 +158,34 @@ export const getSiteContractorSummary = asyncHandler(async (req: Request, res: R
   const regQuery: any = { status: { $ne: 'Rejected' } };
   if (contractorFilter) regQuery.contractorId = contractorFilter;
   if (pkgRegex) regQuery.$or = [{ package: { $regex: pkgRegex } }, { package: { $in: ['', null] } }];
-  if (circleRegex) regQuery.circle = { $regex: circleRegex };
+  if (circleMatch) regQuery.circle = circleMatch;
 
   const assignQuery: any = { status: { $ne: 'Cancelled' } };
   if (contractorFilter) assignQuery.contractorId = contractorFilter;
   if (pkgRegex) assignQuery.$or = [{ package: { $regex: pkgRegex } }, { package: { $in: ['', null] } }];
-  if (circleRegex) assignQuery.circle = { $regex: circleRegex };
+  if (circleMatch) assignQuery.circle = circleMatch;
 
   const returnQuery: any = { status: { $ne: 'Cancelled' } };
   if (contractorFilter) returnQuery.contractorId = contractorFilter;
   if (pkgRegex) returnQuery.$or = [{ package: { $regex: pkgRegex } }, { package: { $in: ['', null] } }];
-  if (circleRegex) returnQuery.circle = { $regex: circleRegex };
+  if (circleMatch) returnQuery.circle = circleMatch;
 
   const [jmcRecords, wipRecords, wipReqRecords, assignments, returns] = await Promise.all([
-    JmcRegister.find(regQuery).lean(),
-    WipRegister.find(regQuery).lean(),
-    WipRequiredRegister.find(regQuery).lean(),
-    ContractorAssignment.find(assignQuery).lean(),
-    ContractorReturn.find(returnQuery).lean()
+    JmcRegister.find(regQuery)
+      .select('circle items.itemId items.loaSerialNo items.loaSrNo items.tempCode items.activity items.description items.approvedQty items.claimedQty items.quantity')
+      .lean(),
+    WipRegister.find(regQuery)
+      .select('circle items.itemId items.loaSerialNo items.loaSrNo items.tempCode items.activity items.description items.approvedQty items.claimedQty items.quantity')
+      .lean(),
+    WipRequiredRegister.find(regQuery)
+      .select('circle items.itemId items.loaSerialNo items.loaSrNo items.tempCode items.activity items.description items.approvedQty items.claimedQty items.quantity')
+      .lean(),
+    ContractorAssignment.find(assignQuery)
+      .select('circle lineItems.itemId lineItems.loaSrNo lineItems.tempCode lineItems.activity lineItems.itemName lineItems.quantity')
+      .lean(),
+    ContractorReturn.find(returnQuery)
+      .select('circle lineItems.itemId lineItems.loaSrNo lineItems.tempCode lineItems.activity lineItems.itemName lineItems.quantity')
+      .lean()
   ]);
 
   // Aggregate JMC

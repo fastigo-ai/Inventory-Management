@@ -1,7 +1,11 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { Download, ChevronLeft, ChevronRight, Search, X, SlidersHorizontal, ArrowUpRight, CheckCircle2, AlertTriangle, XCircle, Info, CheckSquare } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { 
+  Download, ChevronLeft, ChevronRight, Search, X, SlidersHorizontal, ArrowUpRight, 
+  CheckCircle2, AlertTriangle, XCircle, Info, CheckSquare, Settings2, Columns, 
+  RotateCcw, Sigma, FileSpreadsheet
+} from 'lucide-react';
 import { fetchCeoDashboardData } from '@/features/ceo-portal/api/dashboard.api';
 import { api } from '@/shared/api/axios';
 import Item360Drawer from './Item360Drawer';
@@ -250,12 +254,12 @@ const SUBS = [
 ];
 
 const STATIC = [
-  { id: 'select', label: '', type: 'checkbox', isSticky: true, defaultW: 44, cls: 'text-center sticky z-10' },
-  { id: 'sr', label: 'Sr. No.', type: 'sr', isSticky: true, defaultW: 64, cls: 'text-center sticky z-10' },
-  { id: 'code', label: 'Temp code', type: 'tcode', isSticky: true, defaultW: 112, cls: 'sticky z-10' },
-  { id: 'name', label: 'Item name', type: 'name', isSticky: true, defaultW: 260, cls: 'sticky z-10' },
-  { id: 'loa', label: 'LOA qty', type: 'qty', isSticky: true, defaultW: 100, cls: 'sticky z-10' },
-  { id: 'bom', label: 'BOM qty', type: 'qty', isSticky: true, defaultW: 100, cls: 'sticky z-10 border-r border-slate-200' },
+  { id: 'select', label: '', type: 'checkbox', isSticky: true, defaultW: 38, cls: 'text-center sticky z-10' },
+  { id: 'sr', label: 'Sr. No.', type: 'sr', isSticky: true, defaultW: 52, cls: 'text-center sticky z-10' },
+  { id: 'code', label: 'Temp code', type: 'tcode', isSticky: true, defaultW: 100, cls: 'sticky z-10' },
+  { id: 'name', label: 'Item name', type: 'name', isSticky: true, defaultW: 240, cls: 'sticky z-10' },
+  { id: 'loa', label: 'LOA qty', type: 'qty', isSticky: true, defaultW: 90, cls: 'sticky z-10' },
+  { id: 'bom', label: 'BOM qty', type: 'qty', isSticky: true, defaultW: 90, cls: 'sticky z-10 border-r-2 border-slate-400' },
   { id: 'pkg', label: 'Package', type: 'text', cls: '' },
   { id: 'circle', label: 'Circle', type: 'text', cls: '' },
   { id: 'flags', label: 'Flags', type: 'flags', cls: '' }
@@ -405,6 +409,12 @@ export default function OperationsHub() {
   const [viewType, setViewType] = useState<'item' | 'activity'>('item');
   const [expandedActivities, setExpandedActivities] = useState<Record<string, boolean>>({});
 
+  // SAP ALV Grid Settings
+  const [density, setDensity] = useState<'compact' | 'standard'>('compact');
+  const [showTotalsRow, setShowTotalsRow] = useState<boolean>(true);
+  const [showColumnChooser, setShowColumnChooser] = useState<boolean>(false);
+  const [columnSearch, setColumnSearch] = useState<string>('');
+
   // Derived filters
   const circles = ['All', 'Solan', 'Nahan', 'Rampur', 'Rohru'];
   const subcircles = useMemo(() => ['All', ...Array.from(new Set(items.filter(i => i.circle === 'Solan' && i.subcircle).map(i => i.subcircle))).sort()], [items]);
@@ -449,12 +459,16 @@ export default function OperationsHub() {
   const selSubs = SUBS.filter(s => sel.has(s.id));
 
   const curCols = useMemo(() => {
-    const out: any[] = STATIC.filter(c => !hidden.has(c.id)).map(c => ({ ...c, sp: null, k: c.id, m: null }));
-    selSubs.forEach(s => s.cols.forEach(([k, label, type], i) => {
-      const id = s.id + '.' + k;
-      if (!hidden.has(id)) out.push({ id, label, type, sp: s.id, k, m: s.m, cls: i === 0 ? 'border-l border-slate-200' : '' });
-    }));
-    return out;
+    const out: any[] = STATIC.filter(c => c && !hidden.has(c.id)).map(c => ({ ...c, sp: null, k: c.id, m: null }));
+    selSubs.forEach(s => {
+      if (s && s.cols) {
+        s.cols.forEach(([k, label, type], i) => {
+          const id = s.id + '.' + k;
+          if (!hidden.has(id)) out.push({ id, label, type, sp: s.id, k, m: s.m, cls: i === 0 ? 'border-l border-slate-200' : '' });
+        });
+      }
+    });
+    return out.filter(c => c && c.id);
   }, [hidden, selSubs]);
 
   const raw = (c: any, it: any) => {
@@ -503,7 +517,7 @@ export default function OperationsHub() {
         return v !== null && v !== undefined && String(v).toLowerCase().includes(query);
       }));
     }
-    const sc = curCols.find(c => c.id === sort.id) || curCols[0];
+    const sc = curCols.find(c => c && c.id === sort?.id) || curCols[0];
     return rows.slice().sort((a, b) => {
       let x = raw(sc, a); let y = raw(sc, b);
       if (x === null || x === undefined) x = -Infinity;
@@ -639,6 +653,57 @@ export default function OperationsHub() {
     };
   }, [selectedItemsList]);
 
+  // SAP ALV Grand Totals calculation across all filtered items
+  const grandTotals = useMemo(() => {
+    const sums: Record<string, number> = {};
+    curCols.forEach(c => {
+      if (['qty', 'money', 'stock'].includes(c.type)) {
+        let sum = 0;
+        sortedRows.forEach(it => {
+          const v = raw(c, it);
+          if (typeof v === 'number' && !isNaN(v)) {
+            sum += v;
+          }
+        });
+        sums[c.id] = sum;
+      }
+    });
+    return sums;
+  }, [sortedRows, curCols, f.contractor]);
+
+  // SAP ALV Column Personalization List
+  const allPersonalizableColumns = useMemo(() => {
+    const list: { id: string; label: string; group: string }[] = [];
+    STATIC.forEach(c => {
+      if (c.id !== 'select') {
+        list.push({ id: c.id, label: c.label || c.id, group: 'Item Details' });
+      }
+    });
+    selSubs.forEach(s => {
+      s.cols.forEach(([k, label]) => {
+        list.push({ id: `${s.id}.${k}`, label: `${s.name}: ${label}`, group: s.name });
+      });
+    });
+    return list;
+  }, [selSubs]);
+
+  const toggleColumnVisibility = (colId: string) => {
+    setHidden(prev => {
+      const next = new Set(prev);
+      if (next.has(colId)) next.delete(colId);
+      else next.add(colId);
+      return next;
+    });
+  };
+
+  const showAllColumns = () => {
+    setHidden(new Set());
+  };
+
+  const resetColumnsToDefault = () => {
+    applyView(view || 'overview');
+  };
+
   const exportToCSV = (rowsToExport: any[], filename = 'operations-ledger.csv') => {
     if (!rowsToExport.length) return;
     const exportCols = curCols.filter(c => c.type !== 'checkbox');
@@ -671,11 +736,13 @@ export default function OperationsHub() {
   };
 
   const handleMouseMove = (e: MouseEvent) => {
-    if (!resizingRef.current) return;
-    const diff = e.pageX - resizingRef.current.startX;
+    const activeResize = resizingRef.current;
+    if (!activeResize) return;
+    const diff = e.pageX - activeResize.startX;
     // We allow collapsing down to 0 width (or very small)
-    const newW = Math.max(0, resizingRef.current.startW + diff);
-    setColWidths(prev => ({ ...prev, [resizingRef.current!.id]: newW }));
+    const newW = Math.max(0, activeResize.startW + diff);
+    const targetColId = activeResize.id;
+    setColWidths(prev => ({ ...prev, [targetColId]: newW }));
   };
 
   const handleMouseUp = () => {
@@ -757,32 +824,43 @@ export default function OperationsHub() {
   };
 
   const getPill = (v: string) => {
-    if (['Approved', 'Cleared', 'Paid'].includes(v)) return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    if (['Approved', 'Cleared', 'Paid', 'Done'].includes(v)) return 'bg-emerald-50 text-emerald-700 border-emerald-200';
     if (['Pending', 'Due'].includes(v)) return 'bg-amber-50 text-amber-700 border-amber-200';
     return 'bg-blue-50 text-blue-700 border-blue-200';
   };
 
+  const getStatusDot = (v: string) => {
+    if (['Approved', 'Cleared', 'Paid', 'Done'].includes(v)) return 'bg-emerald-500';
+    if (['Pending', 'Due'].includes(v)) return 'bg-amber-500';
+    return 'bg-blue-500';
+  };
+
   const getHealth = (h: string) => {
-    if (h === 'good') return 'text-emerald-600 font-semibold';
-    if (h === 'warn') return 'text-amber-600 font-semibold';
-    return 'text-red-600 font-semibold';
+    if (h === 'good') return 'text-emerald-700 font-semibold';
+    if (h === 'warn') return 'text-amber-700 font-semibold';
+    return 'text-rose-700 font-semibold';
   };
 
   const getFlagTone = (c: string) => {
     if (c === 'good') return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
     if (c === 'warn') return 'bg-amber-50 text-amber-700 border border-amber-200';
-    return 'bg-red-50 text-red-700 border border-red-200';
+    return 'bg-rose-50 text-rose-700 border border-rose-200';
   };
+
   const renderRow = (it: any, idx: number, isSub = false) => {
     const isSelected = selectedIds.has(it.uid || it.code);
+    const isEven = idx % 2 === 0;
+    const isCompact = density === 'compact';
+    
+    // SAP Classic Zebra striping
     const rowBg = isSelected 
-      ? 'bg-indigo-50/90' 
+      ? 'bg-[#e0edfd] font-medium' 
       : isSub 
-        ? 'bg-slate-50/70' 
-        : 'bg-white';
+        ? (isEven ? 'bg-slate-50' : 'bg-slate-100/70') 
+        : (isEven ? 'bg-white' : 'bg-[#f8fafc]');
     const hoverBg = isSelected 
-      ? 'group-hover:bg-indigo-100/90' 
-      : 'group-hover:bg-slate-50';
+      ? 'group-hover:bg-[#d0e4fc]' 
+      : 'group-hover:bg-[#eaf2fc]';
 
     return (
       <tr key={it.id || idx} className={`transition-colors group ${rowBg} ${hoverBg}`}>
@@ -791,7 +869,7 @@ export default function OperationsHub() {
           const isNull = v === null || v === undefined;
           const align = (c.type === 'money' || c.type === 'qty' || c.type === 'stock' || c.type === 'pct') ? 'text-right tabular-nums' : '';
           
-          let content: React.ReactNode = <span className="text-slate-300">—</span>;
+          let content: React.ReactNode = <span className="text-slate-300 font-mono">—</span>;
           
           if (c.type === 'checkbox') {
             content = (
@@ -799,7 +877,7 @@ export default function OperationsHub() {
                 <input 
                   type="checkbox"
                   aria-label={`Select item ${it.name}`}
-                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-600"
+                  className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
                   checked={isSelected}
                   onChange={(e) => {
                     e.stopPropagation();
@@ -809,33 +887,56 @@ export default function OperationsHub() {
               </div>
             );
           } else if (!isNull) {
-            if (c.type === 'money') content = <span className="font-medium text-slate-700">{money(v)}</span>;
-            else if (c.type === 'qty') content = <span className="font-medium text-slate-700">{inr(v)} {it.unit}</span>;
-            else if (c.type === 'stock') content = <span className={getHealth(health(it))}>{inr(v)} {it.unit}</span>;
-            else if (c.type === 'pct') content = (
-              <div className="flex items-center justify-end gap-2">
-                <div className="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden"><div className="h-full bg-emerald-500 rounded-full" style={{width: `${v}%`}}></div></div>
-                <span className="font-bold text-slate-700 w-8">{v}%</span>
-              </div>
-            );
-            else if (c.type === 'date') content = <span className="text-slate-600 font-medium">{fdate(v)}</span>;
-            else if (c.type === 'tcode') content = (
-              <span 
-                onClick={() => setSelectedItem(it)}
-                className="px-1.5 py-0.5 rounded border border-indigo-100 bg-indigo-50 hover:bg-indigo-100 hover:border-indigo-300 text-indigo-700 font-mono text-[11px] font-bold cursor-pointer transition-colors"
-                title="Click to view 360° Item Lifecycle"
-              >
-                {v}
-              </span>
-            );
-            else if (c.type === 'code') content = <span className="font-mono text-xs text-slate-600 font-medium">{v}</span>;
-            else if (c.type === 'status') content = <span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${getPill(v)}`}>{v}</span>;
-            else if (c.type === 'flags') {
+            if (c.type === 'money') {
+              content = <span className="font-mono tabular-nums font-semibold text-slate-900">{money(v)}</span>;
+            } else if (c.type === 'qty') {
+              content = (
+                <span className="font-mono tabular-nums text-slate-800 font-medium">
+                  {inr(v)} <span className="text-[10px] text-slate-400 font-normal">{it.unit}</span>
+                </span>
+              );
+            } else if (c.type === 'stock') {
+              content = (
+                <span className={`font-mono tabular-nums font-semibold ${getHealth(health(it))}`}>
+                  {inr(v)} <span className="text-[10px] opacity-75 font-normal">{it.unit}</span>
+                </span>
+              );
+            } else if (c.type === 'pct') {
+              content = (
+                <div className="flex items-center justify-end gap-1.5 font-mono">
+                  <div className="w-12 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                    <div className="h-full bg-emerald-500 rounded-full" style={{width: `${Math.min(100, Math.max(0, v))}%`}} />
+                  </div>
+                  <span className="font-bold text-slate-700 w-7 text-right text-[11px]">{v}%</span>
+                </div>
+              );
+            } else if (c.type === 'date') {
+              content = <span className="font-mono text-slate-600 text-[11px]">{fdate(v)}</span>;
+            } else if (c.type === 'tcode') {
+              content = (
+                <span 
+                  onClick={() => setSelectedItem(it)}
+                  className="px-1.5 py-0.5 rounded border border-slate-300 bg-slate-100 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 text-slate-800 font-mono text-[11px] font-semibold cursor-pointer transition-colors shadow-2xs"
+                  title="Click to view 360° Item Lifecycle"
+                >
+                  {v}
+                </span>
+              );
+            } else if (c.type === 'code') {
+              content = <span className="font-mono text-[11px] text-slate-700 font-medium bg-slate-50 px-1 py-0.5 rounded border border-slate-200/60">{v}</span>;
+            } else if (c.type === 'status') {
+              content = (
+                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border ${getPill(v)}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${getStatusDot(v)}`} />
+                  {v}
+                </span>
+              );
+            } else if (c.type === 'flags') {
               const fList = flags(it);
               content = fList.length > 0 ? (
                 <div className="flex items-center gap-1 flex-wrap">
                   {fList.map((fl: any, fi: number) => (
-                    <span key={fi} className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getFlagTone(fl.c)}`}>
+                    <span key={fi} className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${getFlagTone(fl.c)}`}>
                       {fl.t}
                     </span>
                   ))}
@@ -845,47 +946,54 @@ export default function OperationsHub() {
                   <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Optimal
                 </span>
               );
-            }
-            else if (c.type === 'sr') {
+            } else if (c.type === 'sr') {
               const srVal = (isSub && it.d?.loaSerialNo) ? it.d.loaSerialNo : v;
               content = (
-                <div className="flex items-center justify-center gap-2">
-                  {isSub && <div className="w-1.5 h-1.5 rounded-full bg-slate-300 flex-shrink-0"></div>}
-                  <span className={`min-w-[24px] h-6 rounded-md px-1.5 flex items-center justify-center text-xs font-bold ${isSub ? 'bg-slate-200/70 text-slate-500' : 'bg-slate-100 text-slate-600'}`}>
+                <div className="flex items-center justify-center gap-1.5">
+                  {isSub && <div className="w-1.5 h-1.5 rounded-full bg-slate-300 flex-shrink-0" />}
+                  <span className="font-mono text-xs text-slate-600 font-medium">
                     {srVal}
                   </span>
                 </div>
               );
-            }
-            else if (c.type === 'name') content = (
-              <div 
-                className="cursor-pointer group/name flex items-start justify-between gap-2" 
-                onClick={() => setSelectedItem(it)}
-                title="Click to view 360° Item Lifecycle"
-              >
-                <div className="min-w-0">
-                  <div className="font-bold text-slate-800 group-hover/name:text-indigo-600 transition-colors truncate max-w-[240px] leading-tight mb-0.5">
-                    {v}
+            } else if (c.type === 'name') {
+              content = (
+                <div 
+                  className="cursor-pointer group/name flex items-center justify-between gap-2" 
+                  onClick={() => setSelectedItem(it)}
+                  title="Click to view 360° Item Lifecycle"
+                >
+                  <div className="min-w-0">
+                    <div className="font-semibold text-slate-800 group-hover/name:text-blue-700 transition-colors truncate max-w-[240px] leading-tight">
+                      {v}
+                    </div>
+                    {!isCompact && <div className="text-[10px] font-medium text-slate-400 mt-0.5">{it.cat}</div>}
                   </div>
-                  <div className="text-[10px] font-medium text-slate-400">{it.cat}</div>
+                  <span className="opacity-0 group-hover/name:opacity-100 transition-opacity bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-[9px] font-bold px-1.5 py-0.2 rounded shrink-0">
+                    360°
+                  </span>
                 </div>
-                <span className="opacity-0 group-hover/name:opacity-100 transition-opacity bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0">
-                  360°
-                </span>
-              </div>
-            );
-            else content = <span className="text-slate-600">{String(v)}</span>;
+              );
+            } else {
+              content = <span className="text-slate-600">{String(v)}</span>;
+            }
           }
+
+          const stickyBg = isSelected 
+            ? 'bg-[#e0edfd]' 
+            : isSub 
+              ? (isEven ? 'bg-slate-50' : 'bg-slate-100/70') 
+              : (isEven ? 'bg-white' : 'bg-[#f8fafc]');
 
           return (
             <td 
               key={c.id} 
-              className={`border-b border-slate-100 ${align} ${c.cls} ${rowBg} ${hoverBg}`}
+              className={`border-r border-slate-200 border-b border-slate-200 ${c.id === 'bom' ? 'border-r-2 border-slate-400' : ''} ${align} ${c.cls} ${rowBg} ${hoverBg} ${c.isSticky ? `${stickyBg} group-hover:bg-[#eaf2fc]` : ''}`}
               style={{ 
-                width: c.type === 'checkbox' ? 44 : colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
-                minWidth: c.type === 'checkbox' ? 44 : colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
-                maxWidth: c.type === 'checkbox' ? 44 : colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
-                padding: c.type === 'checkbox' ? '0' : (colWidths[c.id] !== undefined && colWidths[c.id] < 10 ? '0' : '12px 16px'),
+                width: c.type === 'checkbox' ? (isCompact ? 38 : 44) : colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
+                minWidth: c.type === 'checkbox' ? (isCompact ? 38 : 44) : colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
+                maxWidth: c.type === 'checkbox' ? (isCompact ? 38 : 44) : colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
+                padding: c.type === 'checkbox' ? '0' : (colWidths[c.id] !== undefined && colWidths[c.id] < 10 ? '0' : (isCompact ? '4px 8px' : '8px 12px')),
                 left: getStickyLeft(c) !== undefined ? getStickyLeft(c) : undefined
               }}
             >
@@ -1230,39 +1338,17 @@ export default function OperationsHub() {
         <section className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
           <div className="p-4 md:p-5 border-b border-slate-100 flex flex-col space-y-4 bg-slate-50/50">
             
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <h3 className="text-lg font-bold text-slate-900 tracking-tight">{selSubs.length === 1 ? selSubs[0].name + ' Directory' : 'Combined Live Ledger'}</h3>
-                <p className="text-xs text-slate-500 font-medium mt-1">Showing identifiers + {selSubs.length} selected topics.</p>
+                <p className="text-xs text-slate-500 font-medium mt-1">High-density ERP telemetry ledger • Showing identifiers + {selSubs.length} selected topics.</p>
               </div>
-              <div className="flex bg-slate-200/60 p-1 rounded-lg">
-                <button onClick={() => setViewType('item')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${viewType === 'item' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>Item-wise</button>
-                <button onClick={() => setViewType('activity')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${viewType === 'activity' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>Activity-wise</button>
-              </div>
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                {selectedIds.size > 0 && (
-                  <div className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 px-2.5 py-1.5 rounded-md text-xs font-bold whitespace-nowrap shadow-2xs">
-                    <CheckSquare className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>{selectedIds.size} selected</span>
-                    <button 
-                      onClick={handleClearSelection} 
-                      className="text-slate-400 hover:text-slate-700 ml-1 p-0.5" 
-                      title="Clear selection"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                )}
-                <div className="relative w-full sm:w-64">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input type="search" placeholder="Search in ledger..." className="w-full h-9 pl-9 pr-3 rounded-md border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" value={q} onChange={e => { setQ(e.target.value); setPage(1); }} />
-                </div>
+              <div className="flex items-center gap-2">
                 <button 
-                  onClick={() => exportToCSV(selectedIds.size > 0 ? selectedItemsList : sortedRows, selectedIds.size > 0 ? 'operations-ledger-selected.csv' : 'operations-ledger-all.csv')}
-                  className="h-9 px-3 border border-slate-200 bg-white rounded-md text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 whitespace-nowrap"
-                  title={selectedIds.size > 0 ? `Export ${selectedIds.size} selected items` : "Export all filtered items"}
+                  onClick={() => { setF({ circle: 'All', subCircle: 'All', pkg: 'All', contractor: 'All', code: 'All', name: '', date: 'all', status: 'all' }); setQ(''); setPage(1); }}
+                  className="px-2.5 py-1 text-slate-600 hover:text-slate-900 border border-slate-200 rounded text-xs font-semibold bg-white flex items-center gap-1 shadow-2xs hover:bg-slate-50 transition-colors"
                 >
-                  <Download className="w-3.5 h-3.5"/> {selectedIds.size > 0 ? `CSV (${selectedIds.size})` : 'CSV'}
+                  <RotateCcw className="w-3 h-3" /> Reset Filters
                 </button>
               </div>
             </div>
@@ -1403,12 +1489,193 @@ export default function OperationsHub() {
             </div>
           )}
 
+          {/* SAP ALV Smart Table Action Toolbar */}
+          <div className="bg-[#f8fafc] border-t border-b border-slate-300 px-3.5 py-2 flex flex-wrap items-center justify-between gap-3 text-xs">
+            {/* Left: Table Title, Count & View Mode */}
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-slate-800 text-sm tracking-tight">Operations Ledger</span>
+                <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-700 border border-slate-300 shadow-2xs">
+                  {sortedRows.length.toLocaleString()} Items
+                </span>
+                {selectedIds.size > 0 && (
+                  <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800 border border-blue-300 flex items-center gap-1 shadow-2xs">
+                    <CheckSquare className="w-3 h-3 text-blue-600" /> {selectedIds.size} Selected
+                  </span>
+                )}
+              </div>
+
+              {/* Segmented View Mode (Item vs Activity) */}
+              <div className="flex bg-slate-200 p-0.5 rounded border border-slate-300 ml-1">
+                <button 
+                  onClick={() => setViewType('item')} 
+                  className={`px-2.5 py-1 text-xs font-semibold rounded transition-colors ${viewType === 'item' ? 'bg-white shadow-2xs text-slate-900 font-bold' : 'text-slate-600 hover:text-slate-900'}`}
+                >
+                  Item-wise
+                </button>
+                <button 
+                  onClick={() => setViewType('activity')} 
+                  className={`px-2.5 py-1 text-xs font-semibold rounded transition-colors ${viewType === 'activity' ? 'bg-white shadow-2xs text-slate-900 font-bold' : 'text-slate-600 hover:text-slate-900'}`}
+                >
+                  Activity-wise
+                </button>
+              </div>
+            </div>
+
+            {/* Right: Search, Density, Column Chooser, Totals Toggle, Export */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Quick Search */}
+              <div className="relative w-44 sm:w-56">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input 
+                  type="search" 
+                  placeholder="Filter ledger..." 
+                  className="w-full h-7 pl-8 pr-6 rounded border border-slate-300 bg-white text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" 
+                  value={q} 
+                  onChange={e => { setQ(e.target.value); setPage(1); }} 
+                />
+                {q && (
+                  <button onClick={() => setQ('')} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5">
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+
+              {/* SAP Density Switcher */}
+              <div className="flex items-center bg-white border border-slate-300 rounded overflow-hidden shadow-2xs">
+                <button 
+                  onClick={() => setDensity('compact')} 
+                  className={`px-2 py-1 text-[11px] font-semibold flex items-center gap-1 transition-colors ${density === 'compact' ? 'bg-slate-800 text-white font-bold' : 'text-slate-600 hover:bg-slate-100'}`}
+                  title="High Density (SAP ALV Compact Grid)"
+                >
+                  Compact
+                </button>
+                <button 
+                  onClick={() => setDensity('standard')} 
+                  className={`px-2 py-1 text-[11px] font-semibold flex items-center gap-1 transition-colors ${density === 'standard' ? 'bg-slate-800 text-white font-bold' : 'text-slate-600 hover:bg-slate-100'}`}
+                  title="Standard Density"
+                >
+                  Standard
+                </button>
+              </div>
+
+              {/* SAP Grand Totals Toggle */}
+              <button 
+                onClick={() => setShowTotalsRow(prev => !prev)} 
+                className={`h-7 px-2 border rounded text-xs font-semibold flex items-center gap-1 transition-colors shadow-2xs ${showTotalsRow ? 'bg-blue-50 border-blue-300 text-blue-700 font-bold' : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'}`}
+                title={showTotalsRow ? 'Hide Grand Totals (Σ Row)' : 'Show Grand Totals (Σ Row)'}
+              >
+                <Sigma className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Totals</span>
+              </button>
+
+              {/* SAP Column Chooser (Personalization) */}
+              <div className="relative">
+                <button 
+                  onClick={() => setShowColumnChooser(prev => !prev)} 
+                  className={`h-7 px-2 border rounded text-xs font-semibold flex items-center gap-1 transition-colors shadow-2xs ${showColumnChooser ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}
+                  title="Personalize Columns"
+                >
+                  <Columns className="w-3.5 h-3.5" /> 
+                  <span>Columns ({curCols.filter(c => c.type !== 'checkbox').length})</span>
+                </button>
+
+                {/* Popover */}
+                {showColumnChooser && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowColumnChooser(false)} />
+                    <div className="absolute right-0 top-8 z-50 w-72 bg-white rounded-lg shadow-xl border border-slate-300 p-3 flex flex-col gap-2.5 animate-in fade-in zoom-in-95 duration-150">
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                        <span className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                          <Columns className="w-3.5 h-3.5 text-blue-600" /> Personalize Columns
+                        </span>
+                        <button onClick={() => setShowColumnChooser(false)} className="text-slate-400 hover:text-slate-600">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      <div className="relative">
+                        <Search className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input 
+                          type="text" 
+                          placeholder="Find column..." 
+                          className="w-full h-7 pl-7 pr-2 rounded border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          value={columnSearch}
+                          onChange={e => setColumnSearch(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="max-h-60 overflow-y-auto divide-y divide-slate-100 pr-1">
+                        {allPersonalizableColumns
+                          .filter(col => !columnSearch || col.label.toLowerCase().includes(columnSearch.toLowerCase()) || col.group.toLowerCase().includes(columnSearch.toLowerCase()))
+                          .map(col => {
+                            const isVisible = !hidden.has(col.id);
+                            return (
+                              <label key={col.id} className="flex items-center justify-between py-1.5 px-1 hover:bg-slate-50 rounded cursor-pointer select-none">
+                                <div className="flex items-center gap-2 min-w-0 pr-2">
+                                  <input 
+                                    type="checkbox" 
+                                    checked={isVisible} 
+                                    onChange={() => toggleColumnVisibility(col.id)}
+                                    className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 accent-blue-600 cursor-pointer"
+                                  />
+                                  <span className={`text-xs truncate ${isVisible ? 'text-slate-800 font-medium' : 'text-slate-400'}`}>
+                                    {col.label}
+                                  </span>
+                                </div>
+                                <span className="text-[10px] text-slate-400 shrink-0 uppercase font-mono">{col.group}</span>
+                              </label>
+                            );
+                          })}
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs font-semibold">
+                        <button 
+                          onClick={showAllColumns} 
+                          className="text-blue-600 hover:text-blue-800 transition-colors"
+                        >
+                          Show All
+                        </button>
+                        <button 
+                          onClick={resetColumnsToDefault} 
+                          className="text-slate-500 hover:text-slate-700 transition-colors"
+                        >
+                          Reset Default
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Reset Column Widths */}
+              {Object.keys(colWidths).length > 0 && (
+                <button 
+                  onClick={() => setColWidths({})} 
+                  className="h-7 px-2 border border-slate-300 bg-white rounded text-xs text-slate-600 hover:bg-slate-100 flex items-center gap-1 shadow-2xs"
+                  title="Reset column widths to auto"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                </button>
+              )}
+
+              {/* Export to CSV/Excel */}
+              <button 
+                onClick={() => exportToCSV(selectedIds.size > 0 ? selectedItemsList : sortedRows, selectedIds.size > 0 ? 'operations-ledger-selected.csv' : 'operations-ledger-all.csv')}
+                className="h-7 px-2.5 border border-slate-300 bg-white rounded text-xs font-bold text-slate-800 hover:bg-slate-100 flex items-center gap-1.5 shadow-2xs transition-colors"
+                title={selectedIds.size > 0 ? `Export ${selectedIds.size} selected items` : "Export all filtered items"}
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" /> 
+                <span>{selectedIds.size > 0 ? `Export (${selectedIds.size})` : 'Export'}</span>
+              </button>
+            </div>
+          </div>
+
           <div className="overflow-x-auto relative">
-            <table className="w-full text-left border-collapse text-sm whitespace-nowrap min-w-max">
-              <thead className="sticky top-0 z-20 bg-slate-50 shadow-xs">
+            <table className="w-full text-left border-collapse border border-slate-300 text-xs whitespace-nowrap min-w-max select-text">
+              <thead className="sticky top-0 z-20 bg-slate-50 shadow-2xs">
                 {/* Group Header */}
                 <tr>
-                  <th colSpan={STATIC.filter(c => !hidden.has(c.id)).length} className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 border-b border-slate-200">
+                  <th colSpan={STATIC.filter(c => !hidden.has(c.id)).length} className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-700 bg-slate-200 border-r border-slate-300 border-b border-slate-300">
                     Item & Flags
                   </th>
                   {selSubs.map((s, i) => {
@@ -1417,23 +1684,23 @@ export default function OperationsHub() {
                     const m = [...MODS, ...MODS_MIS].find(mod => mod.id === s.m)!;
                     const theme = getColor(m.color);
                     return (
-                      <th key={s.id} colSpan={n} className={`px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider border-l border-slate-200 border-b ${theme.bg} ${theme.text}`}>
+                      <th key={s.id} colSpan={n} className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider border-r border-slate-300 border-b ${theme.bg} ${theme.text}`}>
                         {s.name}
                       </th>
                     );
                   })}
                 </tr>
                 {/* Column Headers */}
-                <tr className="bg-slate-50 text-slate-500 text-[11px] font-bold uppercase tracking-wider border-b border-slate-200">
+                <tr className="bg-[#f1f5f9] text-slate-700 text-[11px] font-bold uppercase tracking-wider border-b border-slate-300">
                   {curCols.map((c, i) => (
                     <th 
                       key={c.id} 
-                      className={`relative border-r border-slate-200/50 bg-slate-50 hover:bg-slate-100 transition-colors group ${c.cls} ${c.isSticky ? 'z-30' : ''} ${c.type === 'money' || c.type === 'qty' || c.type === 'stock' || c.type === 'pct' ? 'text-right' : ''}`}
+                      className={`relative border-r border-slate-300 border-b border-slate-300 bg-[#f1f5f9] hover:bg-[#e2e8f0] transition-colors group ${c.cls} ${c.isSticky ? 'z-30' : ''} ${c.id === 'bom' ? 'border-r-2 border-slate-400' : ''} ${c.type === 'money' || c.type === 'qty' || c.type === 'stock' || c.type === 'pct' ? 'text-right' : ''}`}
                       style={{ 
-                        width: c.type === 'checkbox' ? 44 : colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
-                        minWidth: c.type === 'checkbox' ? 44 : colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
-                        maxWidth: c.type === 'checkbox' ? 44 : colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
-                        padding: c.type === 'checkbox' ? '0' : (colWidths[c.id] !== undefined && colWidths[c.id] < 10 ? '0' : '12px 16px'),
+                        width: c.type === 'checkbox' ? (density === 'compact' ? 38 : 44) : colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
+                        minWidth: c.type === 'checkbox' ? (density === 'compact' ? 38 : 44) : colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
+                        maxWidth: c.type === 'checkbox' ? (density === 'compact' ? 38 : 44) : colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
+                        padding: c.type === 'checkbox' ? '0' : (colWidths[c.id] !== undefined && colWidths[c.id] < 10 ? '0' : (density === 'compact' ? '6px 8px' : '10px 12px')),
                         left: getStickyLeft(c) !== undefined ? getStickyLeft(c) : undefined
                       }}
                     >
@@ -1442,7 +1709,7 @@ export default function OperationsHub() {
                           <input 
                             type="checkbox"
                             aria-label="Select all on this page"
-                            className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-600"
+                            className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
                             checked={isAllPageSelected}
                             ref={el => {
                               if (el) el.indeterminate = isSomePageSelected && !isAllPageSelected;
@@ -1452,28 +1719,28 @@ export default function OperationsHub() {
                         </div>
                       ) : (
                         <div className={`flex items-center gap-1 overflow-hidden ${c.type === 'money' || c.type === 'qty' || c.type === 'stock' || c.type === 'pct' ? 'justify-end' : ''}`}>
-                          <div className="flex-1 min-w-0 cursor-pointer truncate select-none" onClick={() => { setSort({ id: c.id, dir: sort.id === c.id ? -sort.dir : 1 }); setPage(1); }}>
+                          <div className="flex-1 min-w-0 cursor-pointer truncate select-none" onClick={() => { setSort({ id: c.id, dir: sort?.id === c.id ? -sort.dir : 1 }); setPage(1); }}>
                             {c.label}
-                            {sort.id === c.id && (sort.dir === 1 ? ' ↑' : ' ↓')}
+                            {sort?.id === c.id && (sort.dir === 1 ? ' ↑' : ' ↓')}
                           </div>
                         </div>
                       )}
                       {c.type !== 'checkbox' && (
                         <div 
                           onMouseDown={(e) => handleMouseDown(e, c.id, e.currentTarget.parentElement!.getBoundingClientRect().width)}
-                          className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-indigo-500/50 active:bg-indigo-500 z-10 touch-none"
+                          className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-500/50 active:bg-blue-500 z-10 touch-none"
                         />
                       )}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-200">
                 {itemsLoading ? (
                   <tr>
                     <td colSpan={curCols.length} className="px-6 py-20 text-center bg-white">
                       <div className="flex flex-col items-center justify-center gap-3">
-                        <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                        <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
                         <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Loading operations ledger...</span>
                       </div>
                     </td>
@@ -1505,17 +1772,17 @@ export default function OperationsHub() {
                       const firstAggIndex = aggCols.findIndex(v => v !== null);
                       const actualSpanCount = firstAggIndex === -1 ? curCols.length : firstAggIndex;
 
-                      const selW = colWidths['select'] !== undefined ? colWidths['select'] : 44;
-                      const srW = colWidths['sr'] !== undefined ? colWidths['sr'] : 64;
+                      const selW = colWidths['select'] !== undefined ? colWidths['select'] : (density === 'compact' ? 38 : 44);
+                      const srW = colWidths['sr'] !== undefined ? colWidths['sr'] : (density === 'compact' ? 52 : 64);
 
                       return (
                         <React.Fragment key={cat}>
                           <tr 
-                            className="bg-white hover:bg-slate-50 cursor-pointer transition-colors group"
+                            className="bg-slate-100 hover:bg-slate-200/80 cursor-pointer transition-colors group font-semibold text-xs border-b border-slate-300"
                             onClick={() => setExpandedActivities(prev => ({...prev, [cat]: !prev[cat]}))}
                           >
                             <td 
-                              className="border-t border-slate-200 border-r border-slate-100 text-center sticky z-10 bg-white group-hover:bg-slate-50"
+                              className="border-r border-slate-300 text-center sticky z-10 bg-slate-100 group-hover:bg-slate-200/80"
                               style={{
                                 width: selW,
                                 minWidth: selW,
@@ -1528,7 +1795,7 @@ export default function OperationsHub() {
                                 <input 
                                   type="checkbox"
                                   aria-label={`Select all in ${actName}`}
-                                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-600"
+                                  className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
                                   checked={isCatAllSelected}
                                   ref={el => {
                                     if (el) el.indeterminate = isCatSomeSelected && !isCatAllSelected;
@@ -1549,30 +1816,30 @@ export default function OperationsHub() {
                               </div>
                             </td>
                             <td 
-                              className="border-t border-slate-200 border-r border-slate-100 text-center border-l-4 border-l-indigo-500 sticky z-10 bg-white group-hover:bg-slate-50"
+                              className="border-r border-slate-300 text-center border-l-4 border-l-blue-600 sticky z-10 bg-slate-100 group-hover:bg-slate-200/80"
                               style={{
                                 width: srW,
                                 minWidth: srW,
                                 maxWidth: srW,
-                                padding: srW < 10 ? '0' : '12px 8px',
+                                padding: srW < 10 ? '0' : (density === 'compact' ? '4px 6px' : '8px 10px'),
                                 left: selW
                               }}
                             >
                               <div className="flex items-center justify-center w-full h-full overflow-hidden">
-                                <span className={`transform transition-transform duration-200 text-slate-400 group-hover:text-indigo-500 ${isExpanded ? 'rotate-90' : ''}`}>
-                                  <ChevronRight className="w-4 h-4" />
+                                <span className={`transform transition-transform duration-200 text-slate-500 group-hover:text-blue-600 ${isExpanded ? 'rotate-90' : ''}`}>
+                                  <ChevronRight className="w-3.5 h-3.5" />
                                 </span>
                               </div>
                             </td>
                             <td 
                               colSpan={Math.max(1, actualSpanCount - 2)} 
-                              className="px-4 py-3 border-t border-slate-200 sticky z-10 bg-white group-hover:bg-slate-50"
+                              className="px-3 py-1.5 sticky z-10 bg-slate-100 group-hover:bg-slate-200/80 border-r border-slate-300"
                               style={{ left: selW + srW }}
                             >
-                              <div className="flex items-center gap-3">
-                                <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded border border-slate-200 shadow-sm">{seqNo}</span>
-                                <span className="text-sm font-bold text-slate-800">{actName}</span>
-                                <span className="text-[11px] font-medium text-slate-400 ml-1">({items.length} items)</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] font-mono font-bold text-slate-700 bg-white px-1.5 py-0.5 rounded border border-slate-300 shadow-2xs">{seqNo}</span>
+                                <span className="text-xs font-bold text-slate-900">{actName}</span>
+                                <span className="text-[11px] font-medium text-slate-500">({items.length} items)</span>
                               </div>
                             </td>
                             {actualSpanCount < curCols.length && curCols.slice(actualSpanCount).map((c, cIdx) => {
@@ -1586,12 +1853,12 @@ export default function OperationsHub() {
                                 return (
                                   <td 
                                     key={c.id} 
-                                    className={`border-t border-slate-200 ${c.isSticky ? 'sticky z-10 bg-white group-hover:bg-slate-50' : ''}`}
+                                    className={`border-r border-slate-300 bg-slate-100 group-hover:bg-slate-200/80 ${c.isSticky ? 'sticky z-10' : ''} ${c.id === 'bom' ? 'border-r-2 border-slate-400' : ''}`}
                                     style={{ 
                                       width: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
                                       minWidth: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
                                       maxWidth: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
-                                      padding: colWidths[c.id] !== undefined && colWidths[c.id] < 10 ? '0' : '12px 16px',
+                                      padding: colWidths[c.id] !== undefined && colWidths[c.id] < 10 ? '0' : (density === 'compact' ? '4px 8px' : '8px 12px'),
                                       left: getStickyLeft(c) !== undefined ? getStickyLeft(c) : undefined
                                     }}
                                   >
@@ -1604,12 +1871,12 @@ export default function OperationsHub() {
                               return (
                                 <td 
                                   key={c.id} 
-                                  className={`border-t border-slate-200 text-right tabular-nums text-xs font-bold ${colorCls} ${c.isSticky ? 'sticky z-10 bg-white group-hover:bg-slate-50' : ''}`}
+                                  className={`border-r border-slate-300 text-right tabular-nums text-xs font-mono font-bold ${colorCls} bg-slate-100 group-hover:bg-slate-200/80 ${c.isSticky ? 'sticky z-10' : ''} ${c.id === 'bom' ? 'border-r-2 border-slate-400' : ''}`}
                                   style={{ 
                                     width: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
                                     minWidth: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
                                     maxWidth: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
-                                    padding: colWidths[c.id] !== undefined && colWidths[c.id] < 10 ? '0' : '12px 16px', // replace px-4 py-3
+                                    padding: colWidths[c.id] !== undefined && colWidths[c.id] < 10 ? '0' : (density === 'compact' ? '4px 8px' : '8px 12px'),
                                     left: getStickyLeft(c) !== undefined ? getStickyLeft(c) : undefined
                                   }}
                                 >
@@ -1627,6 +1894,54 @@ export default function OperationsHub() {
                   )
                 )}
               </tbody>
+              {/* SAP ALV Grand Totals Summary Footer */}
+              {showTotalsRow && sortedRows.length > 0 && (
+                <tfoot className="sticky bottom-0 z-20 shadow-[0_-2px_4px_rgba(0,0,0,0.06)]">
+                  <tr className="bg-[#edf2f7] text-slate-900 font-bold border-t-2 border-slate-400 border-b-2 border-slate-400 text-xs">
+                    {curCols.map((c) => {
+                      const isSticky = c.isSticky;
+                      const stickyLeft = getStickyLeft(c);
+                      const isCompact = density === 'compact';
+                      const w = c.type === 'checkbox' ? (isCompact ? 38 : 44) : colWidths[c.id];
+                      const pad = c.type === 'checkbox' ? '0' : (isCompact ? '5px 8px' : '9px 12px');
+                      
+                      let cellContent: React.ReactNode = null;
+                      if (c.id === 'select') {
+                        cellContent = <span className="font-mono font-bold text-slate-600">Σ</span>;
+                      } else if (c.id === 'sr') {
+                        cellContent = null;
+                      } else if (c.id === 'code') {
+                        cellContent = <span className="font-mono uppercase tracking-wider text-[11px] text-slate-800">GRAND TOTAL</span>;
+                      } else if (c.id === 'name') {
+                        cellContent = <span className="text-[11px] text-slate-600 font-medium">({sortedRows.length.toLocaleString()} items)</span>;
+                      } else if (['qty', 'money', 'stock'].includes(c.type)) {
+                        const sum = grandTotals[c.id] || 0;
+                        cellContent = c.type === 'money' ? money(sum) : inr(sum);
+                      } else {
+                        cellContent = <span className="text-slate-400 font-mono">—</span>;
+                      }
+
+                      const align = ['qty', 'money', 'stock', 'pct'].includes(c.type) ? 'text-right' : c.id === 'select' || c.id === 'sr' ? 'text-center' : 'text-left';
+
+                      return (
+                        <td 
+                          key={`foot-${c.id}`}
+                          className={`border-r border-slate-300 ${c.id === 'bom' ? 'border-r-2 border-slate-400' : ''} ${pad} ${align} font-mono font-bold text-slate-900 bg-[#edf2f7] ${isSticky ? 'sticky z-30' : ''}`}
+                          style={{
+                            width: w !== undefined ? w : undefined,
+                            minWidth: w !== undefined ? w : undefined,
+                            maxWidth: w !== undefined ? w : undefined,
+                            padding: pad,
+                            left: stickyLeft !== undefined ? stickyLeft : undefined
+                          }}
+                        >
+                          <div className="w-full truncate">{cellContent}</div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
           

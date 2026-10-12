@@ -145,9 +145,17 @@ async function computeSiteContractorSummaryInner(params: SiteSummaryParams): Pro
           },
           qty: {
             $sum: {
-              $toDouble: {
-                $ifNull: ['$items.approvedQty', { $ifNull: ['$items.claimedQty', { $ifNull: ['$items.quantity', 0] }] }]
-              }
+              $cond: [
+                { $gt: [{ $toDouble: { $ifNull: ['$items.approvedQty', 0] } }, 0] },
+                { $toDouble: '$items.approvedQty' },
+                {
+                  $cond: [
+                    { $gt: [{ $toDouble: { $ifNull: ['$items.claimedQty', 0] } }, 0] },
+                    { $toDouble: '$items.claimedQty' },
+                    { $toDouble: { $ifNull: ['$items.quantity', 0] } }
+                  ]
+                }
+              ]
             }
           }
         }
@@ -169,9 +177,17 @@ async function computeSiteContractorSummaryInner(params: SiteSummaryParams): Pro
           },
           qty: {
             $sum: {
-              $toDouble: {
-                $ifNull: ['$items.approvedQty', { $ifNull: ['$items.claimedQty', { $ifNull: ['$items.quantity', 0] }] }]
-              }
+              $cond: [
+                { $gt: [{ $toDouble: { $ifNull: ['$items.approvedQty', 0] } }, 0] },
+                { $toDouble: '$items.approvedQty' },
+                {
+                  $cond: [
+                    { $gt: [{ $toDouble: { $ifNull: ['$items.claimedQty', 0] } }, 0] },
+                    { $toDouble: '$items.claimedQty' },
+                    { $toDouble: { $ifNull: ['$items.quantity', 0] } }
+                  ]
+                }
+              ]
             }
           }
         }
@@ -193,9 +209,17 @@ async function computeSiteContractorSummaryInner(params: SiteSummaryParams): Pro
           },
           qty: {
             $sum: {
-              $toDouble: {
-                $ifNull: ['$items.approvedQty', { $ifNull: ['$items.claimedQty', { $ifNull: ['$items.quantity', 0] }] }]
-              }
+              $cond: [
+                { $gt: [{ $toDouble: { $ifNull: ['$items.approvedQty', 0] } }, 0] },
+                { $toDouble: '$items.approvedQty' },
+                {
+                  $cond: [
+                    { $gt: [{ $toDouble: { $ifNull: ['$items.claimedQty', 0] } }, 0] },
+                    { $toDouble: '$items.claimedQty' },
+                    { $toDouble: { $ifNull: ['$items.quantity', 0] } }
+                  ]
+                }
+              ]
             }
           }
         }

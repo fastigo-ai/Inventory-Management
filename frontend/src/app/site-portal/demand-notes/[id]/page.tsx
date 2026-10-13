@@ -365,11 +365,16 @@ export default function DemandNoteDetailPage() {
                 if (jmcDone === 0 && item.jmcQty) {
                   jmcDone = Number(item.jmcQty) || 0;
                 }
+                if (tillIssued === 0 && item.alreadyIssuedQty) {
+                  tillIssued = Number(item.alreadyIssuedQty) || 0;
+                }
                 
                 const inStock = stockMatch ? stockMatch.totalBalanceQty : 0;
                 const circleLoaQty = stockMatch ? (stockMatch.circleLoaQty || 0) : 0;
                 const invoiceQty = stockMatch ? ((stockMatch.acceptedQty || 0) + (stockMatch.mhrovQty || 0)) : 0;
-                const contractorBalance = Number(tillIssued || 0) - Number(jmcDone || 0) - Number(consumption || 0);
+                const misc = Number(item.miscellaneousQty || 0);
+                const wipReq = Number(item.wipRequiredQty || 0);
+                const contractorBalance = Number(tillIssued || 0) - Number(jmcDone || 0) - Number(consumption || 0) - wipReq - misc;
 
                 tableData.push({
                   ...item,

@@ -334,17 +334,42 @@ export default function DemandNoteDetailPage() {
                         return String(s.loaSrNo) === String(item.loaSrNo) && String(s.activity) === String(item.activity) && (s.description === item.itemName || s.itemName === item.itemName);
                       });
                       
-                      const actKey = `${String(item.tempCode || item.materialCode || '').trim().toLowerCase()}_${String(item.activity || '').trim().toLowerCase()}_${String(item.loaSrNo || item.loaSerialNo || '').trim().toLowerCase()}`;
-                      const actStats = activitySummary[actKey] || { tillIssued: 0, wipConsumed: 0, jmcDone: 0 };
+                      const clean = (s: any) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+                      const cleanTemp = clean(item.tempCode || item.materialCode);
+                      const cleanAct = clean(item.activity);
+                      const cleanLoa = clean(item.loaSrNo || item.loaSerialNo);
+                      const suffix = `_${cleanTemp}_${cleanAct}_${cleanLoa}`;
+                      let tillIssued = 0;
+                      let consumption = 0;
+                      let jmcDone = 0;
+                      
+                      if (activitySummary) {
+                        Object.entries(activitySummary).forEach(([key, val]: [string, any]) => {
+                          const cleanKey = clean(key);
+                          if (cleanKey.endsWith(suffix) || (cleanAct && cleanLoa && cleanKey === `${cleanAct}_${cleanLoa}`) || (cleanAct && cleanTemp && cleanKey === `${cleanAct}_${cleanTemp}`)) {
+                            tillIssued += Number(val.tillIssued) || 0;
+                            consumption += Number(val.wipConsumed) || 0;
+                            jmcDone += Number(val.jmcDone) || 0;
+                          }
+                        });
+                      }
+
+                      if (consumption === 0 && item.wipQty) {
+                        consumption = Number(item.wipQty) || 0;
+                      }
+                      if (jmcDone === 0 && item.jmcQty) {
+                        jmcDone = Number(item.jmcQty) || 0;
+                      }
+                      if (tillIssued === 0 && item.alreadyIssuedQty) {
+                        tillIssued = Number(item.alreadyIssuedQty) || 0;
+                      }
                       
                       const inStock = stockMatch ? stockMatch.totalBalanceQty : 0;
-                      const tillIssued = actStats.tillIssued || 0;
-                      const consumption = actStats.wipConsumed || 0;
-                      const jmcDone = actStats.jmcDone || 0;
-                      
                       const circleLoaQty = stockMatch ? (stockMatch.circleLoaQty || 0) : 0;
                       const invoiceQty = stockMatch ? ((stockMatch.acceptedQty || 0) + (stockMatch.mhrovQty || 0)) : 0;
-                      const contractorBalance = Number(tillIssued || 0) - Number(jmcDone || 0) - Number(consumption || 0);
+                      const misc = Number(item.miscellaneousQty || 0);
+                      const wipReq = Number(item.wipRequiredQty || 0);
+                      const contractorBalance = Number(tillIssued || 0) - Number(jmcDone || 0) - Number(consumption || 0) - wipReq - misc;
                       
                       return (
                         <tr key={idx} className="hover:bg-slate-50 transition-colors">
@@ -353,17 +378,17 @@ export default function DemandNoteDetailPage() {
                           <td className="px-6 py-4 text-sm text-slate-700 max-w-xs truncate dn-sticky-name dn-sticky-bg-white" title={item.itemName}>{item.itemName}</td>
                           <td className="px-6 py-4 text-sm text-slate-500 max-w-xs truncate dn-sticky-act dn-sticky-bg-white" title={item.activity}>{item.activity || '-'}</td>
                           <td className="px-6 py-4 text-sm text-slate-600 dn-sticky-loa dn-sticky-bg-white">{item.loaSrNo || '-'}</td>
-                          <td className="px-6 py-4 text-center text-sm font-medium text-slate-700">{(circleLoaQty || circleLoaQty === 0) ? Math.round(Number(circleLoaQty)) : '-'}</td>
-                          <td className="px-6 py-4 text-center text-sm font-medium text-slate-700">{(invoiceQty || invoiceQty === 0) ? Math.round(Number(invoiceQty)) : '-'}</td>
+                          <td className="px-6 py-4 text-center text-sm font-medium text-slate-700">{(circleLoaQty || circleLoaQty === 0) ? Number(Number(circleLoaQty).toFixed(3)) : '-'}</td>
+                          <td className="px-6 py-4 text-center text-sm font-medium text-slate-700">{(invoiceQty || invoiceQty === 0) ? Number(Number(invoiceQty).toFixed(3)) : '-'}</td>
                           <td className="px-6 py-4 text-sm text-slate-600">{item.unit || 'Nos'}</td>
                           <td className={`px-6 py-4 text-center font-bold ${inStock > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                            {Math.round(Number(inStock || 0))}
+                            {Number(Number(inStock || 0).toFixed(3))}
                           </td>
-                          <td className="px-6 py-4 text-center font-medium text-blue-600">{Math.round(Number(tillIssued || 0))}</td>
-                          <td className="px-6 py-4 text-center font-medium text-orange-600">{Math.round(Number(consumption || 0))}</td>
-                          <td className="px-6 py-4 text-center font-medium text-purple-600">{Math.round(Number(jmcDone || 0))}</td>
-                          <td className="px-6 py-4 text-center font-bold text-teal-600">{Math.round(contractorBalance)}</td>
-                          <td className="px-6 py-4 font-bold text-indigo-600 bg-indigo-50/30">{Number(item.demandQty || 0)}</td>
+                          <td className="px-6 py-4 text-center font-medium text-blue-600">{Number(Number(tillIssued || 0).toFixed(3))}</td>
+                          <td className="px-6 py-4 text-center font-medium text-orange-600">{Number(Number(consumption || 0).toFixed(3))}</td>
+                          <td className="px-6 py-4 text-center font-medium text-purple-600">{Number(Number(jmcDone || 0).toFixed(3))}</td>
+                          <td className="px-6 py-4 text-center font-bold text-teal-600">{Number(Number(contractorBalance).toFixed(3))}</td>
+                          <td className="px-6 py-4 font-bold text-indigo-600 bg-indigo-50/30">{Number(Number(item.demandQty || 0).toFixed(3))}</td>
                         </tr>
                       );
                     })}

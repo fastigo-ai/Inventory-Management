@@ -20,6 +20,8 @@ const getVariants = (val: string): string[] => {
   return Array.from(new Set([t, t.toUpperCase(), t.toLowerCase(), t.charAt(0).toUpperCase() + t.slice(1).toLowerCase(), `${t} `]));
 };
 
+const round3 = (val: number) => Math.round((Number(val || 0) + Number.EPSILON) * 1000) / 1000;
+
 const getCirclePackage = (circ?: string, fallbackPkg?: string): string => {
   const c = (circ || '').toLowerCase();
   if (c.includes('nahan') || c.includes('solan')) {
@@ -351,7 +353,14 @@ async function computeStoreItemisedSummaryInner(params: {
     });
 
     let rows = Array.from(groupMap.values()).map(r => {
-      r.balAtStore = r.receiptQty - r.issuedQty + r.returnedQty - r.transferOutQty + r.transferInQty;
+      r.receiptQty = round3(r.receiptQty);
+      r.issuedQty = round3(r.issuedQty);
+      r.returnedQty = round3(r.returnedQty);
+      r.transferOutQty = round3(r.transferOutQty);
+      r.transferInQty = round3(r.transferInQty);
+      r.diQty = round3(r.diQty);
+      r.mhrovQty = round3(r.mhrovQty);
+      r.balAtStore = round3(r.receiptQty - r.issuedQty + r.returnedQty - r.transferOutQty + r.transferInQty);
       if (circle && circle !== 'all') {
         const cStr = circle.toString();
         r.circle = cStr.toUpperCase();
@@ -371,14 +380,14 @@ async function computeStoreItemisedSummaryInner(params: {
     });
 
     const totals = rows.reduce((acc, curr) => {
-      acc.receiptQty += curr.receiptQty;
-      acc.issuedQty += curr.issuedQty;
-      acc.returnedQty += curr.returnedQty;
-      acc.transferOutQty += curr.transferOutQty;
-      acc.transferInQty += curr.transferInQty;
-      acc.balAtStore += curr.balAtStore;
-      acc.diQty += curr.diQty;
-      acc.mhrovQty += curr.mhrovQty;
+      acc.receiptQty = round3(acc.receiptQty + curr.receiptQty);
+      acc.issuedQty = round3(acc.issuedQty + curr.issuedQty);
+      acc.returnedQty = round3(acc.returnedQty + curr.returnedQty);
+      acc.transferOutQty = round3(acc.transferOutQty + curr.transferOutQty);
+      acc.transferInQty = round3(acc.transferInQty + curr.transferInQty);
+      acc.balAtStore = round3(acc.balAtStore + curr.balAtStore);
+      acc.diQty = round3(acc.diQty + curr.diQty);
+      acc.mhrovQty = round3(acc.mhrovQty + curr.mhrovQty);
       return acc;
     }, {
       receiptQty: 0,
@@ -511,7 +520,12 @@ async function computeStoreItemisedSummaryInner(params: {
     });
 
     let rows = Array.from(itemMap.values()).map(row => {
-      row.balAtStore = row.receiptQty - row.issuedQty + row.returnedQty - row.transferOutQty + row.transferInQty;
+      row.receiptQty = round3(row.receiptQty);
+      row.issuedQty = round3(row.issuedQty);
+      row.returnedQty = round3(row.returnedQty);
+      row.transferOutQty = round3(row.transferOutQty);
+      row.transferInQty = round3(row.transferInQty);
+      row.balAtStore = round3(row.receiptQty - row.issuedQty + row.returnedQty - row.transferOutQty + row.transferInQty);
       return row;
     });
 
@@ -528,12 +542,12 @@ async function computeStoreItemisedSummaryInner(params: {
     });
 
     const totals = rows.reduce((acc, curr) => {
-      acc.receiptQty += curr.receiptQty;
-      acc.issuedQty += curr.issuedQty;
-      acc.returnedQty += curr.returnedQty;
-      acc.transferOutQty += curr.transferOutQty;
-      acc.transferInQty += curr.transferInQty;
-      acc.balAtStore += curr.balAtStore;
+      acc.receiptQty = round3(acc.receiptQty + curr.receiptQty);
+      acc.issuedQty = round3(acc.issuedQty + curr.issuedQty);
+      acc.returnedQty = round3(acc.returnedQty + curr.returnedQty);
+      acc.transferOutQty = round3(acc.transferOutQty + curr.transferOutQty);
+      acc.transferInQty = round3(acc.transferInQty + curr.transferInQty);
+      acc.balAtStore = round3(acc.balAtStore + curr.balAtStore);
       return acc;
     }, {
       receiptQty: 0,

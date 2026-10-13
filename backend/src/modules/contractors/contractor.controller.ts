@@ -1607,7 +1607,6 @@ export const getContractorActivitySummary = asyncHandler(async (req: Request, re
     );
   } catch (error: any) {
     console.error("Error in getContractorActivitySummary:", error);
-    require('fs').writeFileSync('activity_summary_error.txt', error.stack || error.toString());
     res.status(500).json({ success: false, message: error.message, stack: error.stack });
   }
 });

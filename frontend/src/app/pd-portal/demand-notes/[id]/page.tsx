@@ -432,36 +432,53 @@ export default function DemandNoteDetailPage() {
                   return String(s.loaSrNo) === String(item.loaSrNo) && String(s.activity) === String(item.activity) && (s.description === item.itemName || s.itemName === item.itemName);
                 });
                 
-                const suffix = `_${String(item.tempCode || item.materialCode || '').trim().toLowerCase()}_${String(item.activity || '').trim().toLowerCase()}_${String(item.loaSrNo || item.loaSerialNo || '').trim().toLowerCase()}`;
+                const clean = (s: any) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+                const cleanTemp = clean(item.tempCode || item.materialCode);
+                const cleanAct = clean(item.activity);
+                const cleanLoa = clean(item.loaSrNo || item.loaSerialNo);
+                const suffix = `_${cleanTemp}_${cleanAct}_${cleanLoa}`;
                 let tillIssued = 0;
                 let consumption = 0;
                 let jmcDone = 0;
                 
                 if (activitySummary) {
                   Object.entries(activitySummary).forEach(([key, val]: [string, any]) => {
-                    if (key.endsWith(suffix)) {
+                    const cleanKey = clean(key);
+                    if (cleanKey.endsWith(suffix) || (cleanAct && cleanLoa && cleanKey === `${cleanAct}_${cleanLoa}`) || (cleanAct && cleanTemp && cleanKey === `${cleanAct}_${cleanTemp}`)) {
                       tillIssued += Number(val.tillIssued) || 0;
                       consumption += Number(val.wipConsumed) || 0;
                       jmcDone += Number(val.jmcDone) || 0;
                     }
                   });
                 }
+
+                if (consumption === 0 && item.wipQty) {
+                  consumption = Number(item.wipQty) || 0;
+                }
+                if (jmcDone === 0 && item.jmcQty) {
+                  jmcDone = Number(item.jmcQty) || 0;
+                }
+                if (tillIssued === 0 && item.alreadyIssuedQty) {
+                  tillIssued = Number(item.alreadyIssuedQty) || 0;
+                }
                 
                 const inStock = stockMatch ? stockMatch.totalBalanceQty : 0;
                 const circleLoaQty = stockMatch ? (stockMatch.circleLoaQty || 0) : 0;
                 const invoiceQty = stockMatch ? ((stockMatch.acceptedQty || 0) + (stockMatch.mhrovQty || 0)) : 0;
-                const contractorBalance = Number(tillIssued || 0) - Number(jmcDone || 0) - Number(consumption || 0);
+                const misc = Number(item.miscellaneousQty || 0);
+                const wipReq = Number(item.wipRequiredQty || 0);
+                const contractorBalance = Number(tillIssued || 0) - Number(jmcDone || 0) - Number(consumption || 0) - wipReq - misc;
 
                 tableData.push({
                   ...item,
                   isGroupRow: false,
-                  inStock,
-                  circleLoaQty,
-                  invoiceQty,
-                  tillIssued,
-                  consumption,
-                  jmcDone,
-                  contractorBalance
+                  inStock: Number(Number(inStock).toFixed(3)),
+                  circleLoaQty: Number(Number(circleLoaQty).toFixed(3)),
+                  invoiceQty: Number(Number(invoiceQty).toFixed(3)),
+                  tillIssued: Number(Number(tillIssued).toFixed(3)),
+                  consumption: Number(Number(consumption).toFixed(3)),
+                  jmcDone: Number(Number(jmcDone).toFixed(3)),
+                  contractorBalance: Number(Number(contractorBalance).toFixed(3))
                 });
               });
             });

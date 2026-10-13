@@ -105,9 +105,17 @@ function DemandNoteForm() {
 
           const mappedItems = wo.items.map((i: any) => {
             const act = String(i.activity || '').trim().toLowerCase();
+            const actNorm = act.replace(/\s+/g, '');
             const loaSr = String(i.loaSrNo || '').trim().toLowerCase();
-            const key = `${act}_${loaSr}`;
-            const agg = aggData[key] || { jmcQty: 0, wipQty: 0, wipRequiredQty: 0 };
+            const temp = String(i.tempCode || '').trim().toLowerCase();
+
+            const agg = aggData[`${act}_${loaSr}`] ||
+                        aggData[`${actNorm}_${loaSr}`] ||
+                        aggData[`${act}_${temp}`] ||
+                        aggData[`${actNorm}_${temp}`] ||
+                        aggData[loaSr] ||
+                        aggData[temp] ||
+                        { jmcQty: 0, wipQty: 0, wipRequiredQty: 0 };
 
             return {
               itemId: i.itemId,
@@ -284,7 +292,8 @@ function DemandNoteForm() {
     const wipC = Number(item.wipQty) || 0;
     const wipR = Number(item.wipRequiredQty) || 0;
     const misc = Number(item.miscellaneousQty) || 0;
-    return issued - jmc - wipC - wipR - misc;
+    const bal = issued - jmc - wipC - wipR - misc;
+    return Number(bal.toFixed(3));
   };
 
   const handleSubmit = async () => {
@@ -328,7 +337,7 @@ function DemandNoteForm() {
 
       await createDemandNote(data);
       toast.success('Demand Note submitted for approval!');
-      router.push('/site-portal/demand-notes');
+      router.push('/pd-portal/demand-notes');
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to submit Demand Note');
     } finally {
@@ -349,7 +358,7 @@ function DemandNoteForm() {
     <div className="p-8 max-w-[1600px] mx-auto space-y-6">
       <div className="flex justify-between items-center bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
         <div className="flex items-center gap-4">
-          <Link href="/site-portal/demand-notes" className="text-slate-400 hover:text-slate-600 transition-colors">
+          <Link href="/pd-portal/demand-notes" className="text-slate-400 hover:text-slate-600 transition-colors">
             <ArrowLeft className="w-6 h-6" />
           </Link>
           <div>
@@ -490,16 +499,16 @@ function DemandNoteForm() {
                       
                       {/* New JMC and WIP inputs */}
                       <td className="px-4 py-3 bg-indigo-50">
-                        <Input type="number" className="w-20 h-9" value={item.jmcQty !== undefined ? item.jmcQty : ''} onChange={(e) => handleItemChange(idx, 'jmcQty', e.target.value)} />
+                        <Input type="number" step="any" className="w-20 h-9" value={item.jmcQty !== undefined ? item.jmcQty : ''} onChange={(e) => handleItemChange(idx, 'jmcQty', e.target.value)} />
                       </td>
                       <td className="px-4 py-3 bg-blue-50">
-                        <Input type="number" className="w-20 h-9" value={item.wipQty !== undefined ? item.wipQty : ''} onChange={(e) => handleItemChange(idx, 'wipQty', e.target.value)} />
+                        <Input type="number" step="any" className="w-20 h-9" value={item.wipQty !== undefined ? item.wipQty : ''} onChange={(e) => handleItemChange(idx, 'wipQty', e.target.value)} />
                       </td>
                       <td className="px-4 py-3 bg-blue-50">
-                        <Input type="number" className="w-20 h-9" value={item.wipRequiredQty !== undefined ? item.wipRequiredQty : ''} onChange={(e) => handleItemChange(idx, 'wipRequiredQty', e.target.value)} />
+                        <Input type="number" step="any" className="w-20 h-9" value={item.wipRequiredQty !== undefined ? item.wipRequiredQty : ''} onChange={(e) => handleItemChange(idx, 'wipRequiredQty', e.target.value)} />
                       </td>
                       <td className="px-4 py-3 bg-orange-50">
-                        <Input type="number" className="w-20 h-9" value={item.miscellaneousQty !== undefined ? item.miscellaneousQty : ''} onChange={(e) => handleItemChange(idx, 'miscellaneousQty', e.target.value)} />
+                        <Input type="number" step="any" className="w-20 h-9" value={item.miscellaneousQty !== undefined ? item.miscellaneousQty : ''} onChange={(e) => handleItemChange(idx, 'miscellaneousQty', e.target.value)} />
                       </td>
                       
                       {/* Balance Calculation */}
@@ -511,12 +520,12 @@ function DemandNoteForm() {
                         <Input
                           type="number"
                           className="w-20 h-9"
-                          step="1" value={item.demandQty !== undefined ? item.demandQty : ''}
+                          step="any" value={item.demandQty !== undefined ? item.demandQty : ''}
                           onChange={(e) => handleItemChange(idx, 'demandQty', e.target.value)}
                           placeholder="0"
                         />
                       </td>
-                      <td className="px-4 py-3 font-semibold text-indigo-600">{item.balBomQty}</td>
+                      <td className="px-4 py-3 font-semibold text-indigo-600">{Number(Number(item.balBomQty || 0).toFixed(3))}</td>
                       <td className="px-4 py-3 text-center">
                         <button onClick={() => removeItemRow(idx)} className="text-red-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded transition-colors" disabled={items.length === 1}>
                           <Trash2 className="w-4 h-4" />

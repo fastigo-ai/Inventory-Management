@@ -350,34 +350,43 @@ export function ContractorBillBulkUploadModal({ open, onOpenChange, onSuccess }:
 
       // 2. Locate Table Header Row Dynamically
       let headerRowIdx = -1;
-      let colLoa = 0;
-      let colDesc = 1;
-      let colUnit = 2;
-      let colTemp = 3;
-      let colQty = 4;
-      let colRate = 5;
-      let colGst = 6;
+      let colLoa = -1;
+      let colDesc = -1;
+      let colUnit = -1;
+      let colTemp = -1;
+      let colQty = -1;
+      let colRate = -1;
+      let colGst = -1;
+      let colAmount = -1;
 
       for (let r = 0; r < Math.min(rawData.length, 30); r++) {
         const row = (rawData[r] || []).map((c: any) => String(c || '').trim().toLowerCase());
-        const hasLoa = row.some(h => h.includes('loa') || h.includes('serial') || h === 'sl no');
+        const hasLoa = row.some(h => h.includes('loa') || h.includes('serial') || h === 'sl no' || h === 'sl.no');
         const hasDesc = row.some(h => h.includes('desc') || h.includes('item') || h.includes('particular'));
-        const hasQty = row.some(h => h.includes('qty') || h.includes('quantity') || h.includes('jmc'));
+        const hasQty = row.some(h => h.includes('qty') || h.includes('quantity') || h.includes('jmc') || h.includes('erected'));
 
         if ((hasLoa && hasDesc) || (hasLoa && hasQty) || (hasDesc && hasQty)) {
           headerRowIdx = r;
           row.forEach((h: string, colIdx: number) => {
             if (h.includes('loa') || h.includes('serial') || h === 'sl no' || h === 'sl.no') colLoa = colIdx;
-            if (h.includes('temp') || h === 'tc') colTemp = colIdx;
-            if (h.includes('desc') || h.includes('particular') || h.includes('item name')) colDesc = colIdx;
-            if (h.includes('unit') || h === 'uom') colUnit = colIdx;
-            if (h.includes('jmc') || h.includes('qty') || h.includes('quantity') || h.includes('billed')) colQty = colIdx;
-            if (h.includes('rate') || h.includes('price')) colRate = colIdx;
-            if (h.includes('gst') || h.includes('tax')) colGst = colIdx;
+            else if (h.includes('temp') || h === 'tc') colTemp = colIdx;
+            else if (h.includes('desc') || h.includes('particular') || h.includes('item name')) colDesc = colIdx;
+            else if (h.includes('unit') || h === 'uom') colUnit = colIdx;
+            else if (h.includes('jmc') || h.includes('qty') || h.includes('quantity') || h.includes('billed') || h.includes('erected')) colQty = colIdx;
+            else if (h.includes('rate') || h.includes('price')) colRate = colIdx;
+            else if (h.includes('amount') || h.includes('total') || h.includes('final') || h.includes('bill')) colAmount = colIdx;
+            else if (h.includes('gst') || h.includes('tax')) colGst = colIdx;
           });
           break;
         }
       }
+
+      // Default column positions if header detection didn't find specific columns
+      if (colLoa === -1) colLoa = 0;
+      if (colDesc === -1) colDesc = 1;
+      if (colUnit === -1) colUnit = 2;
+      if (colTemp === -1) colTemp = 3;
+      if (colQty === -1) colQty = 4;
 
       const startRow = headerRowIdx !== -1 ? headerRowIdx + 1 : 9;
 
@@ -390,16 +399,21 @@ export function ContractorBillBulkUploadModal({ open, onOpenChange, onSuccess }:
         const row = rawData[i];
         if (!row || row.length === 0) continue;
 
-        const loaSrNo = row[colLoa] ? String(row[colLoa]).trim() : '';
-        const tempCode = row[colTemp] ? String(row[colTemp]).trim() : '';
-        const desc = row[colDesc] ? String(row[colDesc]).trim() : '';
+        const loaSrNo = colLoa !== -1 && row[colLoa] ? String(row[colLoa]).trim() : '';
+        const tempCode = colTemp !== -1 && row[colTemp] ? String(row[colTemp]).trim() : '';
+        const desc = colDesc !== -1 && row[colDesc] ? String(row[colDesc]).trim() : '';
 
         // End of table check
         if (!loaSrNo && !desc && !tempCode) continue;
 
-        const jmcQty = Number(row[colQty] || 0);
-        let rate = Number(row[colRate] || 0);
-        const gstRate = Number(row[colGst] || 18);
+        const jmcQty = colQty !== -1 && row[colQty] !== undefined ? Number(row[colQty]) || 0 : 0;
+
+        // 1. Fetch Rate and Amount directly from parsed data (Excel row)
+        let parsedRate = colRate !== -1 && row[colRate] !== undefined && row[colRate] !== '' ? Number(row[colRate]) : 0;
+        let parsedAmount = colAmount !== -1 && row[colAmount] !== undefined && row[colAmount] !== '' ? Number(row[colAmount]) : 0;
+
+        if (isNaN(parsedRate)) parsedRate = 0;
+        if (isNaN(parsedAmount)) parsedAmount = 0;
 
         // Section header / non-billable row check
         if (isNaN(jmcQty) || jmcQty <= 0) {
@@ -468,13 +482,39 @@ export function ContractorBillBulkUploadModal({ open, onOpenChange, onSuccess }:
         const finalLoa = loaSrNo || d.loaSerialNo || d.loaSrNo || d.sku || matchedItem.sku || '';
         const finalTempCode = tempCode || d.tempCode || matchedItem.tempCode || '';
 
-        // Resolve rate from master item if blank
-        if (!rate || rate <= 0) {
+        // If rate is provided but amount is missing in parsed data
+        if (parsedRate > 0 && parsedAmount <= 0 && jmcQty > 0) {
+          parsedAmount = Number((parsedRate * jmcQty).toFixed(2));
+        }
+
+        // If amount is provided but rate is missing in parsed data
+        if (parsedAmount > 0 && parsedRate <= 0 && jmcQty > 0) {
+          parsedRate = Number((parsedAmount / jmcQty).toFixed(2));
+        }
+
+        let rate = parsedRate;
+        let baseAmount = parsedAmount;
+
+        // ONLY resolve rate from master item IF NEITHER rate NOR amount was present in the parsed row
+        if (rate <= 0 && baseAmount <= 0) {
           if (detectedCategory === 'Erection Bill') {
             rate = Number(d.erectionRateWithGst || d.erectionRate || d.contractorErectionRate || d.supplyRate || d.boqRate || matchedItem.boqRate || 0);
           } else {
             rate = Number(d.supplyRateWithGst || d.supplyRate || d.boqRate || matchedItem.boqRate || 0);
           }
+          baseAmount = rate > 0 ? Number((rate * jmcQty).toFixed(2)) : 0;
+        }
+
+        // GST calculation with safeguard against raw GST amounts in Excel
+        let rawGst = colGst !== -1 && row[colGst] !== undefined && row[colGst] !== '' ? Number(row[colGst]) : 18;
+        let gstRate = 18;
+        let gstAmount = 0;
+        if (rawGst > 28) {
+          gstAmount = rawGst;
+          gstRate = baseAmount > 0 ? Number(((gstAmount / baseAmount) * 100).toFixed(2)) : 18;
+        } else {
+          gstRate = isNaN(rawGst) ? 18 : rawGst;
+          gstAmount = Number((baseAmount * (gstRate / 100)).toFixed(2));
         }
 
         valid.push({
@@ -486,13 +526,17 @@ export function ContractorBillBulkUploadModal({ open, onOpenChange, onSuccess }:
           loaSerialNo: finalLoa,
           loaQty: Number(d.loaQuantity || 0),
           rate: rate || 0,
+          baseAmount: baseAmount || 0,
+          gstRate: gstRate || 0,
+          gstAmount: gstAmount || 0,
+          totalAmount: Number((baseAmount + gstAmount).toFixed(2)),
           jmcDoneQty: jmcQty,
           erectedQty: detectedCategory === 'Erection Bill' ? jmcQty : 0,
-          gstRate,
           billingCategory: detectedCategory === 'Erection Bill' ? 'Erection' : 'JMC Done',
           legacyData: {
             loaSerialNo: finalLoa,
-            unit: String(row[colUnit] || d.unit || '').trim()
+            unit: String(row[colUnit] || d.unit || '').trim(),
+            finalBillAmount: baseAmount || 0
           }
         });
       }

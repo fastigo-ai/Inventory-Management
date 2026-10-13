@@ -115,13 +115,31 @@ export default function LegacyBulkUpload() {
         }
 
         const headers = data[headerRowIndex].map(h => String(h || '').trim().toLowerCase());
-        const loaIdx = headers.findIndex(h => h === 'loa serial no');
-        const qtyIdx = headers.findIndex(h => h === 'erected qty');
-        const gstIdx = headers.findIndex(h => h.includes('gst'));
-        const nameIdx = headers.findIndex(h => h === 'item name');
+        const loaIdx = headers.findIndex(h => h === 'loa serial no' || h.includes('loa') || h.includes('serial'));
+        const qtyIdx = headers.findIndex(h => h === 'erected qty' || h.includes('qty') || h.includes('quantity') || h.includes('jmc'));
+        const rateIdx = headers.findIndex(h => 
+          h === 'rate' || 
+          h === 'unit rate' || 
+          h === 'erection rate' || 
+          h === 'contractor rate' || 
+          h === 'boq rate' || 
+          h.includes('rate') || 
+          h.includes('price')
+        );
+        const amountIdx = headers.findIndex(h => 
+          h === 'final bill amount' || 
+          h === 'amount' || 
+          h === 'base amount' || 
+          h === 'bill amount' || 
+          h === 'total amount' || 
+          h.includes('final bill') || 
+          h.includes('amount')
+        );
+        const gstIdx = headers.findIndex(h => h.includes('gst') || h.includes('tax'));
+        const nameIdx = headers.findIndex(h => h === 'item name' || h.includes('desc') || h.includes('particular'));
         const raBillNoIdx = headers.findIndex(h => h === 'ra bill no' || h === 'ra bill');
-        const unitIdx = headers.findIndex(h => h === 'unit');
-        const finalAmountIdx = headers.findIndex(h => h.includes('final bill amount') || h.includes('final'));
+        const unitIdx = headers.findIndex(h => h === 'unit' || h === 'uom');
+        const finalAmountIdx = headers.findIndex(h => h.includes('final bill amount') || h.includes('final amount'));
 
         if (loaIdx === -1 || qtyIdx === -1) {
           toast.error("Required columns ('Loa serial no' and 'Erected qty') missing.");
@@ -159,25 +177,58 @@ export default function LegacyBulkUpload() {
             continue;
           }
 
-          // Extract Erection Rate
-          const dynamicData = masterItem.dynamicData || {};
-          let grossRate = 0;
-          if (uploadType === 'Erection Bill') {
-            grossRate = (Number(dynamicData.erectionRateWithGst) || Number(dynamicData.erectionRate) || Number(dynamicData.contractorErectionRate) || 0);
-          } else {
-            grossRate = (Number(dynamicData.supplyRateWithGst) || Number(dynamicData.supplyRate) || Number(dynamicData.boqRate) || Number(masterItem.boqRate) || 0);
+          // 1. Fetch Rate and Amount directly from parsed data (Excel row)
+          let parsedRate = rateIdx !== -1 && row[rateIdx] !== undefined && row[rateIdx] !== '' ? Number(row[rateIdx]) : 0;
+          let parsedAmount = amountIdx !== -1 && row[amountIdx] !== undefined && row[amountIdx] !== '' ? Number(row[amountIdx]) : 0;
+          if (finalAmountIdx !== -1 && (!parsedAmount || isNaN(parsedAmount)) && row[finalAmountIdx] !== undefined && row[finalAmountIdx] !== '') {
+            parsedAmount = Number(row[finalAmountIdx]);
           }
-          
-          const baseRate = Number((grossRate > 0 && grossRate !== 1 ? grossRate / 1.18 : grossRate).toFixed(2));
-          const gstRate = Number(row[gstIdx]) || 18;
-          
-          const baseAmount = baseRate * erectedQty;
-          const gstAmount = baseAmount * (gstRate / 100);
+
+          if (isNaN(parsedRate)) parsedRate = 0;
+          if (isNaN(parsedAmount)) parsedAmount = 0;
+
+          // If rate is provided but amount is missing
+          if (parsedRate > 0 && parsedAmount <= 0 && erectedQty > 0) {
+            parsedAmount = Number((parsedRate * erectedQty).toFixed(2));
+          }
+
+          // If amount is provided but rate is missing
+          if (parsedAmount > 0 && parsedRate <= 0 && erectedQty > 0) {
+            parsedRate = Number((parsedAmount / erectedQty).toFixed(2));
+          }
+
+          let baseRate = parsedRate;
+          let baseAmount = parsedAmount;
+
+          // ONLY fallback to master item list IF NEITHER rate NOR amount was present in the parsed data
+          if (baseRate <= 0 && baseAmount <= 0) {
+            const dynamicData = masterItem.dynamicData || {};
+            let grossRate = 0;
+            if (uploadType === 'Erection Bill') {
+              grossRate = (Number(dynamicData.erectionRateWithGst) || Number(dynamicData.erectionRate) || Number(dynamicData.contractorErectionRate) || 0);
+            } else {
+              grossRate = (Number(dynamicData.supplyRateWithGst) || Number(dynamicData.supplyRate) || Number(dynamicData.boqRate) || Number(masterItem.boqRate) || 0);
+            }
+            baseRate = Number((grossRate > 0 && grossRate !== 1 ? grossRate / 1.18 : grossRate).toFixed(2));
+            baseAmount = Number((baseRate * erectedQty).toFixed(2));
+          }
+
+          // GST calculation with safeguard against raw GST amounts in Excel
+          const rawGst = gstIdx !== -1 && row[gstIdx] !== undefined && row[gstIdx] !== '' ? Number(row[gstIdx]) : 18;
+          let gstRate = 18;
+          let gstAmount = 0;
+          if (rawGst > 28) {
+            gstAmount = rawGst;
+            gstRate = baseAmount > 0 ? Number(((gstAmount / baseAmount) * 100).toFixed(2)) : 18;
+          } else {
+            gstRate = isNaN(rawGst) ? 18 : rawGst;
+            gstAmount = Number((baseAmount * (gstRate / 100)).toFixed(2));
+          }
 
           items.push({
             itemId: masterItem._id,
             activity: masterItem.dynamicData?.activity || masterItem.activity || 'Legacy Activity',
-            description: row[nameIdx] || masterItem.dynamicData?.itemName || masterItem.dynamicData?.description || masterItem.itemName || 'Unknown Item',
+            description: (nameIdx !== -1 && row[nameIdx]) ? String(row[nameIdx]).trim() : (masterItem.dynamicData?.itemName || masterItem.dynamicData?.description || masterItem.itemName || 'Unknown Item'),
             billingCategory: uploadType === 'Erection Bill' ? 'Erection' : 'Supply',
             jmcDoneQty: erectedQty,
             erectedQty: erectedQty,
@@ -185,10 +236,10 @@ export default function LegacyBulkUpload() {
             gstRate,
             baseAmount,
             gstAmount,
-            totalAmount: baseAmount + gstAmount,
+            totalAmount: Number((baseAmount + gstAmount).toFixed(2)),
             legacyData: {
               unit: unitIdx !== -1 ? String(row[unitIdx] || '') : undefined,
-              finalBillAmount: finalAmountIdx !== -1 ? Number(row[finalAmountIdx]) || 0 : undefined,
+              finalBillAmount: baseAmount,
               raBillNo: raBillNoIdx !== -1 ? String(row[raBillNoIdx] || '') : undefined,
               loaSerialNo: loaNo
             },
@@ -220,9 +271,9 @@ export default function LegacyBulkUpload() {
       ['Name of work', ''],
       ['Name of employer', ''],
       ['Billed by', ''],
-      ['Loa serial no', 'Item name', 'RA BILL NO', 'Unit', 'Erected qty', 'Gst%', 'Final Bill amount'],
-      ['LOA-12345', 'Sample Item 1', '1', 'NOS', 10, 18, 0],
-      ['LOA-67890', 'Sample Item 2', '1', 'MTR', 50, 18, 0]
+      ['Loa serial no', 'Item name', 'RA BILL NO', 'Unit', 'Erected qty', 'Rate', 'Final Bill amount', 'Gst%'],
+      ['LOA-12345', 'Sample Item 1', '1', 'NOS', 10, 100, 1000, 18],
+      ['LOA-67890', 'Sample Item 2', '1', 'MTR', 50, 50, 2500, 18]
     ];
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
     const wb = XLSX.utils.book_new();

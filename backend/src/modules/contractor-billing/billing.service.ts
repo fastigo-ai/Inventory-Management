@@ -132,6 +132,8 @@ export const createInvoiceService = async (data: any, user: any) => {
 
     if (stage === 'Amount' || stage === 'Advance') {
       baseAmount = Number(item.baseAmount || 0);
+    } else if (item.baseAmount !== undefined && Number(item.baseAmount) > 0 && (data.isLegacyBulkUpload || !workOrderId)) {
+      baseAmount = Number(item.baseAmount);
     } else if (percentage === 100) {
       baseAmount = authoritativeQty * itemRate;
     } else {
@@ -313,6 +315,8 @@ export const updateInvoiceService = async (id: string, data: any, user: any) => 
 
     if (stage === 'Amount' || stage === 'Advance') {
       baseAmount = Number(item.baseAmount || 0);
+    } else if (item.baseAmount !== undefined && Number(item.baseAmount) > 0 && (!invoice.workOrderId)) {
+      baseAmount = Number(item.baseAmount);
     } else if (percentage === 100) {
       baseAmount = authoritativeQty * itemRate;
     } else {

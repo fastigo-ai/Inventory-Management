@@ -1522,38 +1522,68 @@ export const getContractorAggregatedQuantities = asyncHandler(async (req: Reques
   const { id } = req.params;
 
   const [jmcRecords, wipRecords, wipReqRecords] = await Promise.all([
-    JmcRegister.find({ contractorId: id, status: 'Approved' }).lean(),
-    WipRegister.find({ contractorId: id, status: 'Approved' }).lean(),
-    WipRequiredRegister.find({ contractorId: id, status: 'Approved' }).lean()
+    JmcRegister.find({ contractorId: id, status: { $ne: 'Rejected' } }).lean(),
+    WipRegister.find({ contractorId: id, status: { $ne: 'Rejected' } }).lean(),
+    WipRequiredRegister.find({ contractorId: id, status: { $ne: 'Rejected' } }).lean()
   ]);
 
   const map: Record<string, { jmcQty: number; wipQty: number; wipRequiredQty: number }> = {};
 
-  const getKey = (drawingNumber: any, activity: string, loaSrNo: string) => {
-    return `${String(drawingNumber || '').trim().toLowerCase()}_${(activity || '').trim().toLowerCase()}_${(loaSrNo || '').trim().toLowerCase()}`;
+  const clean = (s: any) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const norm = (s: any) => String(s || '').replace(/\s+/g, '').toLowerCase();
+
+  const addQty = (drawingNumber: any, activity: string, loaSrNo: string, tempCode: string, type: 'jmcQty' | 'wipQty' | 'wipRequiredQty', qty: number) => {
+    if (!qty) return;
+    const d = clean(drawingNumber);
+    const a = clean(activity);
+    const aNorm = norm(activity);
+    const l = clean(loaSrNo);
+    const t = clean(tempCode);
+
+    const keys = new Set<string>();
+    if (a && l) {
+      keys.add(`${a}_${l}`);
+      keys.add(`${aNorm}_${l}`);
+    }
+    if (d && a && l) {
+      keys.add(`${d}_${a}_${l}`);
+      keys.add(`${d}_${aNorm}_${l}`);
+    }
+    if (a && t) {
+      keys.add(`${a}_${t}`);
+      keys.add(`${aNorm}_${t}`);
+    }
+    if (d && a && t) {
+      keys.add(`${d}_${a}_${t}`);
+      keys.add(`${d}_${aNorm}_${t}`);
+    }
+    if (l) keys.add(l);
+    if (t) keys.add(t);
+
+    keys.forEach(k => {
+      if (!map[k]) map[k] = { jmcQty: 0, wipQty: 0, wipRequiredQty: 0 };
+      map[k][type] = Number((map[k][type] + qty).toFixed(3));
+    });
   };
 
   jmcRecords.forEach(record => {
     record.items?.forEach((item: any) => {
-      const key = getKey(record.drawingNumber, item.activity, item.loaSerialNo || item.loaSrNo);
-      if (!map[key]) map[key] = { jmcQty: 0, wipQty: 0, wipRequiredQty: 0 };
-      map[key].jmcQty += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
+      const qty = Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0;
+      addQty(record.drawingNumber, item.activity, item.loaSerialNo || item.loaSrNo, item.tempCode, 'jmcQty', qty);
     });
   });
 
   wipRecords.forEach(record => {
     record.items?.forEach((item: any) => {
-      const key = getKey(record.drawingNumber, item.activity, item.loaSerialNo || item.loaSrNo);
-      if (!map[key]) map[key] = { jmcQty: 0, wipQty: 0, wipRequiredQty: 0 };
-      map[key].wipQty += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
+      const qty = Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0;
+      addQty(record.drawingNumber, item.activity, item.loaSerialNo || item.loaSrNo, item.tempCode, 'wipQty', qty);
     });
   });
 
   wipReqRecords.forEach(record => {
     record.items?.forEach((item: any) => {
-      const key = getKey(record.drawingNumber, item.activity, item.loaSerialNo || item.loaSrNo);
-      if (!map[key]) map[key] = { jmcQty: 0, wipQty: 0, wipRequiredQty: 0 };
-      map[key].wipRequiredQty += (Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0);
+      const qty = Number(item.approvedQty) || Number(item.claimedQty) || Number(item.quantity) || 0;
+      addQty(record.drawingNumber, item.activity, item.loaSerialNo || item.loaSrNo, item.tempCode, 'wipRequiredQty', qty);
     });
   });
 

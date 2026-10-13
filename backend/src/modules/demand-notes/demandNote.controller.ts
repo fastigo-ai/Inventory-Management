@@ -273,18 +273,35 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
   let wipRequiredQty = 0;
 
   if (contractorFilter) {
-    const regQuery: any = { contractorId: contractorFilter, status: 'Approved' };
+    const regQuery: any = { contractorId: contractorFilter, status: { $ne: 'Rejected' } };
     if (pkgRegex) regQuery.package = { $regex: pkgRegex };
     if (circleFilter) regQuery.circle = { $regex: new RegExp(`^${circleFilter}$`, 'i') };
+
+    const normAct = (s: any) => String(s || '').replace(/\s+/g, '').toLowerCase();
+    const cleanStr = (s: any) => String(s || '').trim().toLowerCase();
+    const reqItemId = item?._id ? String(item._id) : (itemId ? String(itemId) : '');
+    const reqTemp = cleanStr(tempCode || item?.dynamicData?.tempCode);
+    const reqLoa = cleanStr(loaSrNo || item?.dynamicData?.sku || item?.dynamicData?.loaSerialNo || item?.dynamicData?.loaSrNo);
+    const reqAct = normAct(activity || item?.dynamicData?.activity);
+
+    const matchChild = (child: any) => {
+      const cItemId = child.itemId ? String(child.itemId) : '';
+      const cTemp = cleanStr(child.tempCode);
+      const cLoa = cleanStr(child.loaSerialNo || child.loaSrNo);
+      const cAct = normAct(child.activity);
+
+      const itemMatches = (reqItemId && cItemId && reqItemId === cItemId) ||
+                          (reqTemp && cTemp && reqTemp === cTemp) ||
+                          (reqLoa && cLoa && reqLoa === cLoa);
+
+      const actMatches = !reqAct || !cAct || reqAct === cAct;
+      return itemMatches && actMatches;
+    };
 
     const jmcRegisters = await mongoose.model('JmcRegister').find(regQuery).lean() as any[];
     jmcRegisters.forEach((jmc: any) => {
       jmc.items?.forEach((jmcItem: any) => {
-        const isMatch = (item?._id && jmcItem.itemId && String(jmcItem.itemId) === String(item._id)) ||
-                        (!item?._id && tempCode && jmcItem.tempCode && String(jmcItem.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase()) ||
-                        (!item?._id && !tempCode && loaSrNo && (jmcItem.loaSerialNo || jmcItem.loaSrNo) && String(jmcItem.loaSerialNo || jmcItem.loaSrNo).trim().toLowerCase() === String(loaSrNo).trim().toLowerCase());
-
-        if (isMatch) {
+        if (matchChild(jmcItem)) {
           const qty = Number(jmcItem.approvedQty) || Number(jmcItem.claimedQty) || Number(jmcItem.quantity) || 0;
           jmcQty += qty;
         }
@@ -294,11 +311,7 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
     const wipRegisters = await mongoose.model('WipRegister').find(regQuery).lean() as any[];
     wipRegisters.forEach((wip: any) => {
       wip.items?.forEach((wipItem: any) => {
-        const isMatch = (item?._id && wipItem.itemId && String(wipItem.itemId) === String(item._id)) ||
-                        (!item?._id && tempCode && wipItem.tempCode && String(wipItem.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase()) ||
-                        (!item?._id && !tempCode && loaSrNo && (wipItem.loaSerialNo || wipItem.loaSrNo) && String(wipItem.loaSerialNo || wipItem.loaSrNo).trim().toLowerCase() === String(loaSrNo).trim().toLowerCase());
-
-        if (isMatch) {
+        if (matchChild(wipItem)) {
           const qty = Number(wipItem.approvedQty) || Number(wipItem.claimedQty) || Number(wipItem.quantity) || 0;
           wipQty += qty;
         }
@@ -308,11 +321,7 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
     const wipRequiredRegisters = await mongoose.model('WipRequiredRegister').find(regQuery).lean() as any[];
     wipRequiredRegisters.forEach((wipReq: any) => {
       wipReq.items?.forEach((wipReqItem: any) => {
-        const isMatch = (item?._id && wipReqItem.itemId && String(wipReqItem.itemId) === String(item._id)) ||
-                        (!item?._id && tempCode && wipReqItem.tempCode && String(wipReqItem.tempCode).trim().toLowerCase() === String(tempCode).trim().toLowerCase()) ||
-                        (!item?._id && !tempCode && loaSrNo && (wipReqItem.loaSerialNo || wipReqItem.loaSrNo) && String(wipReqItem.loaSerialNo || wipReqItem.loaSrNo).trim().toLowerCase() === String(loaSrNo).trim().toLowerCase());
-
-        if (isMatch) {
+        if (matchChild(wipReqItem)) {
           const qty = Number(wipReqItem.approvedQty) || Number(wipReqItem.claimedQty) || Number(wipReqItem.quantity) || 0;
           wipRequiredQty += qty;
         }
@@ -354,13 +363,13 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
     gstType,
     gstAmount,
     totalAmount,
-    stockBal,
-    alreadyIssuedQty,
-    transferFromOther,
-    transferToOther,
-    jmcQty,
-    wipQty,
-    wipRequiredQty
+    stockBal: Number(stockBal.toFixed(3)),
+    alreadyIssuedQty: Number(alreadyIssuedQty.toFixed(3)),
+    transferFromOther: Number(transferFromOther.toFixed(3)),
+    transferToOther: Number(transferToOther.toFixed(3)),
+    jmcQty: Number(jmcQty.toFixed(3)),
+    wipQty: Number(wipQty.toFixed(3)),
+    wipRequiredQty: Number(wipRequiredQty.toFixed(3))
   }, 'Context data fetched'));
 });
 
@@ -441,13 +450,16 @@ export const getContextDataBatch = asyncHandler(async (req: AuthRequest, res: Re
   let wipRegisters: any[] = [];
   let wipRequiredRegisters: any[] = [];
   if (contractorFilter) {
-    const regQuery: any = { contractorId: contractorFilter, status: 'Approved' };
+    const regQuery: any = { contractorId: contractorFilter, status: { $ne: 'Rejected' } };
     if (pkgRegex) regQuery.package = { $regex: pkgRegex };
     if (circleFilter) regQuery.circle = { $regex: new RegExp(`^${circleFilter}$`, 'i') };
     jmcRegisters = await mongoose.model('JmcRegister').find(regQuery).lean();
     wipRegisters = await mongoose.model('WipRegister').find(regQuery).lean();
     wipRequiredRegisters = await mongoose.model('WipRequiredRegister').find(regQuery).lean();
   }
+
+  const normAct = (s: any) => String(s || '').replace(/\s+/g, '').toLowerCase();
+  const cleanStr = (s: any) => String(s || '').trim().toLowerCase();
 
   // 3. Process each requested item
   const results = requestedItems.map(reqItem => {
@@ -460,10 +472,23 @@ export const getContextDataBatch = asyncHandler(async (req: AuthRequest, res: Re
        item = itemsDocs.find(i => i.dynamicData?.sku === l || i.dynamicData?.loaSerialNo === l || i.dynamicData?.loaSerialNumber === l);
      }
 
+     const reqItemId = item?._id ? String(item._id) : (reqItem.itemId ? String(reqItem.itemId) : '');
+     const reqTemp = cleanStr(reqItem.tempCode || item?.dynamicData?.tempCode);
+     const reqLoa = cleanStr(reqItem.loaSrNo || item?.dynamicData?.sku || item?.dynamicData?.loaSerialNo || item?.dynamicData?.loaSrNo);
+     const reqAct = normAct(reqItem.activity || item?.dynamicData?.activity);
+
      const matchLogic = (child: any) => {
-         return (item?._id && child.itemId && String(child.itemId) === String(item._id)) ||
-                (!item?._id && reqItem.tempCode && child.tempCode && String(child.tempCode).trim().toLowerCase() === String(reqItem.tempCode).trim().toLowerCase()) ||
-                (!item?._id && !reqItem.tempCode && reqItem.loaSrNo && (child.loaSrNo || child.loaSerialNo) && String(child.loaSrNo || child.loaSerialNo).trim().toLowerCase() === String(reqItem.loaSrNo).trim().toLowerCase());
+       const cItemId = child.itemId ? String(child.itemId) : '';
+       const cTemp = cleanStr(child.tempCode);
+       const cLoa = cleanStr(child.loaSerialNo || child.loaSrNo);
+       const cAct = normAct(child.activity);
+
+       const itemMatches = (reqItemId && cItemId && reqItemId === cItemId) ||
+                           (reqTemp && cTemp && reqTemp === cTemp) ||
+                           (reqLoa && cLoa && reqLoa === cLoa);
+
+       const actMatches = !reqAct || !cAct || reqAct === cAct;
+       return itemMatches && actMatches;
      };
 
      let summary = item?._id ? summaries.find(s => String(s.itemId) === String(item._id)) : null;
@@ -564,13 +589,13 @@ export const getContextDataBatch = asyncHandler(async (req: AuthRequest, res: Re
         gstType,
         gstAmount,
         totalAmount,
-        stockBal,
-        alreadyIssuedQty,
-        transferFromOther,
-        transferToOther,
-        jmcQty,
-        wipQty,
-        wipRequiredQty
+        stockBal: Number(stockBal.toFixed(3)),
+        alreadyIssuedQty: Number(alreadyIssuedQty.toFixed(3)),
+        transferFromOther: Number(transferFromOther.toFixed(3)),
+        transferToOther: Number(transferToOther.toFixed(3)),
+        jmcQty: Number(jmcQty.toFixed(3)),
+        wipQty: Number(wipQty.toFixed(3)),
+        wipRequiredQty: Number(wipRequiredQty.toFixed(3))
      };
   });
 

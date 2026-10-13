@@ -554,9 +554,13 @@ function DemandNoteForm() {
             if (ctx.stockBal !== undefined && ctx.stockBal > 0) curr.stockBal = ctx.stockBal;
             curr.transferFromOther = ctx.transferFromOther || 0;
             curr.transferToOther = ctx.transferToOther || 0;
-            if (ctx.jmcQty !== undefined && ctx.jmcQty > 0) curr.jmcQty = ctx.jmcQty;
-            if (ctx.wipQty !== undefined && ctx.wipQty > 0) curr.wipQty = ctx.wipQty;
-            if (ctx.wipRequiredQty !== undefined && ctx.wipRequiredQty > 0) curr.wipRequiredQty = ctx.wipRequiredQty;
+            if (ctx.jmcQty !== undefined && ctx.jmcQty >= 0) curr.jmcQty = ctx.jmcQty;
+            if (ctx.wipQty !== undefined && ctx.wipQty >= 0) {
+              curr.wipQty = (ctx.wipQty === 0 && wipConsumedParam && curr.wipQty > 0) ? curr.wipQty : ctx.wipQty;
+            }
+            if (ctx.wipRequiredQty !== undefined && ctx.wipRequiredQty >= 0) {
+              curr.wipRequiredQty = (ctx.wipRequiredQty === 0 && wipRequiredParam && curr.wipRequiredQty > 0) ? curr.wipRequiredQty : ctx.wipRequiredQty;
+            }
             curr.balBomQty = curr.bomQty - curr.alreadyIssuedQty - (curr.demandQty || 0);
             curr.isLoadingContext = false;
           });
@@ -601,7 +605,7 @@ function DemandNoteForm() {
     const wipR = Number(item.wipRequiredQty) || 0;
     const misc = Number(item.miscellaneousQty) || 0;
     const balance = issued - jmc - wipC - wipR - misc;
-    return Number(balance.toFixed(2));
+    return Number(balance.toFixed(3));
   };
 
   const handleSubmit = async () => {
@@ -948,24 +952,24 @@ function DemandNoteForm() {
                       <td className="px-4 py-3 font-medium text-slate-700">₹{item.gstAmount}</td>
                       <td className="px-4 py-3 font-bold text-slate-800">₹{item.totalAmount}</td>
                       <td className="px-4 py-3 font-medium text-blue-600">
-                        {typeof item.stockBal === 'number' ? parseFloat(item.stockBal.toFixed(2)) : item.stockBal}
+                        {typeof item.stockBal === 'number' ? parseFloat(item.stockBal.toFixed(3)) : item.stockBal}
                       </td>
                       <td className="px-4 py-3 font-medium text-amber-600 bg-amber-50">
-                        {typeof item.alreadyIssuedQty === 'number' ? parseFloat(item.alreadyIssuedQty.toFixed(2)) : item.alreadyIssuedQty}
+                        {typeof item.alreadyIssuedQty === 'number' ? parseFloat(item.alreadyIssuedQty.toFixed(3)) : item.alreadyIssuedQty}
                       </td>
                       
                       {/* New JMC and WIP inputs */}
                       <td className="px-4 py-3 bg-indigo-50">
-                        <Input type="number" className="w-20 h-9" value={item.jmcQty !== undefined ? item.jmcQty : ''} onChange={(e) => handleItemChange(idx, 'jmcQty', e.target.value)} />
+                        <Input type="number" step="any" className="w-20 h-9" value={item.jmcQty !== undefined ? item.jmcQty : ''} onChange={(e) => handleItemChange(idx, 'jmcQty', e.target.value)} />
                       </td>
                       <td className="px-4 py-3 bg-blue-50">
-                        <Input type="number" className="w-20 h-9" value={item.wipQty !== undefined ? item.wipQty : ''} onChange={(e) => handleItemChange(idx, 'wipQty', e.target.value)} />
+                        <Input type="number" step="any" className="w-20 h-9" value={item.wipQty !== undefined ? item.wipQty : ''} onChange={(e) => handleItemChange(idx, 'wipQty', e.target.value)} />
                       </td>
                       <td className="px-4 py-3 bg-blue-50">
-                        <Input type="number" className="w-20 h-9" value={item.wipRequiredQty !== undefined ? item.wipRequiredQty : ''} onChange={(e) => handleItemChange(idx, 'wipRequiredQty', e.target.value)} />
+                        <Input type="number" step="any" className="w-20 h-9" value={item.wipRequiredQty !== undefined ? item.wipRequiredQty : ''} onChange={(e) => handleItemChange(idx, 'wipRequiredQty', e.target.value)} />
                       </td>
                       <td className="px-4 py-3 bg-orange-50">
-                        <Input type="number" className="w-20 h-9" value={item.miscellaneousQty !== undefined ? item.miscellaneousQty : ''} onChange={(e) => handleItemChange(idx, 'miscellaneousQty', e.target.value)} />
+                        <Input type="number" step="any" className="w-20 h-9" value={item.miscellaneousQty !== undefined ? item.miscellaneousQty : ''} onChange={(e) => handleItemChange(idx, 'miscellaneousQty', e.target.value)} />
                       </td>
                       
                       {/* Balance Calculation */}

@@ -17,9 +17,9 @@ const PORT = process.env.PORT || 5000;
 
 let server: any;
 
-process.on('uncaughtException', (err) => {
+process.on('uncaughtException', (err: any) => {
   console.error('UNCAUGHT EXCEPTION! Shutting down...');
-  console.error(err.name, err.message, err.stack);
+  console.error(err?.name, err?.message, err?.stack || err);
   process.exit(1);
 });
 
@@ -51,7 +51,7 @@ connectDB()
         });
         console.log('Auto-seeded default admin@admin.com account');
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Failed to auto-seed admin', e);
     }
 
@@ -61,17 +61,20 @@ connectDB()
     // Set server timeout to 10 minutes (600,000 ms) to allow for large JMC sheet uploads
     server.setTimeout(600000);
   })
-  .catch((err) => {
+  .catch((err: any) => {
     console.error('MongoDB connection failed!', err);
   });
 
 process.on('unhandledRejection', (err: any) => {
   console.error('UNHANDLED REJECTION! 💥 Shutting down gracefully...');
-  console.error(err.name, err.message, err.stack);
+  console.error(err?.name, err?.message, err?.stack || err);
   if (server) {
     server.close(() => {
       process.exit(1);
     });
+    setTimeout(() => {
+      process.exit(1);
+    }, 3000).unref();
   } else {
     process.exit(1);
   }
@@ -86,5 +89,4 @@ process.on('SIGTERM', () => {
   }
 });
 
-
-// AUTO-RELOAD: 2026-08-06T11:46:00
+// AUTO-RELOAD: 2026-10-13T13:40:00

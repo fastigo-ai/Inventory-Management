@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Download, ChevronLeft, ChevronRight, Search, X, SlidersHorizontal, ArrowUpRight, 
   CheckCircle2, AlertTriangle, XCircle, Info, CheckSquare, Settings2, Columns, 
-  RotateCcw, Sigma, FileSpreadsheet
+  RotateCcw, Sigma, FileSpreadsheet, FileText
 } from 'lucide-react';
 import { fetchCeoDashboardData } from '@/features/ceo-portal/api/dashboard.api';
 import { api } from '@/shared/api/axios';
@@ -321,7 +321,11 @@ export default function OperationsHub() {
     totalInwardQty: 0, totalTransferInQty: 0, totalTransferOutQty: 0, materialIssued: 0,
     transitDetails: [] as any[],
     woCount: 0, totalWoValue: 0,
-    supplyBilled: 0, erectionBilled: 0,
+    supplyBilled: 0, erectionBilled: 0, retentionBilled: 0,
+    supplyCount: 0, erectionCount: 0, retentionCount: 0, totalBillingCount: 0,
+    supplyBaseAmount: 0, supplyGstAmount: 0,
+    erectionBaseAmount: 0, erectionGstAmount: 0,
+    billingCircles: [] as any[],
     poPending: 0, poCleared: 0,
     workflow: {} as any
   });
@@ -381,9 +385,19 @@ export default function OperationsHub() {
         transitDetails: res?.kpis?.transitDetails || [],
         materialIssued: res?.kpis?.materialIssued || 0,
         woCount: res?.kpis?.woCount || 0,
-        totalWoValue: res?.kpis?.totalWoValue || 0,
-        supplyBilled: res?.kpis?.supplyBilled || 0,
-        erectionBilled: res?.kpis?.erectionBilled || 0,
+        totalWoValue: res?.kpis?.totalWoValueRaw !== undefined ? res?.kpis?.totalWoValueRaw : ((res?.kpis?.totalWoValue || 0) * 1e7),
+        supplyBilled: res?.kpis?.supplyBilledRaw !== undefined ? res?.kpis?.supplyBilledRaw : ((res?.kpis?.supplyBilled || 0) * 1e7),
+        erectionBilled: res?.kpis?.erectionBilledRaw !== undefined ? res?.kpis?.erectionBilledRaw : ((res?.kpis?.erectionBilled || 0) * 1e7),
+        retentionBilled: res?.kpis?.retentionBilledRaw !== undefined ? res?.kpis?.retentionBilledRaw : ((res?.kpis?.retentionBilled || 0) * 1e7),
+        supplyCount: res?.kpis?.supplyCount || 0,
+        erectionCount: res?.kpis?.erectionCount || 0,
+        retentionCount: res?.kpis?.retentionCount || 0,
+        totalBillingCount: res?.kpis?.totalBillingCount || (res?.kpis?.supplyCount || 0) + (res?.kpis?.erectionCount || 0),
+        supplyBaseAmount: res?.kpis?.supplyBaseAmount || 0,
+        supplyGstAmount: res?.kpis?.supplyGstAmount || 0,
+        erectionBaseAmount: res?.kpis?.erectionBaseAmount || 0,
+        erectionGstAmount: res?.kpis?.erectionGstAmount || 0,
+        billingCircles: res?.kpis?.billingCircles || [],
         poPending: res?.kpis?.poPending || 0,
         poCleared: res?.kpis?.poCleared || 0,
         workflow: res?.workflow || {}
@@ -1085,11 +1099,11 @@ export default function OperationsHub() {
             },
             { 
               t: 'Total RA Billing', 
-              v: `₹${cr(apiKpis.supplyBilled + apiKpis.erectionBilled)} Cr`, 
+              v: `₹${cr(apiKpis.supplyBilled + apiKpis.erectionBilled + apiKpis.retentionBilled)} Cr`, 
               sub: 'Billed Value', 
               detailLabel: 'Supply + Erection',
               detailValue: `₹${cr(apiKpis.supplyBilled)} + ₹${cr(apiKpis.erectionBilled)} Cr`,
-              tag: 'Client Bills', 
+              tag: `${apiKpis.totalBillingCount || (apiKpis.supplyCount + apiKpis.erectionCount)} Bills`, 
               color: 'text-purple-700 bg-purple-50', 
               ex: 'cbill' 
             },
@@ -1181,6 +1195,132 @@ export default function OperationsHub() {
                   ))}
                 </div>
               )}
+            </div>
+          )}
+        </section>
+
+        {/* RA Billing Breakdown (SAP / Enterprise Grade) */}
+        <section className="bg-white border border-slate-200 rounded-xl p-4 md:p-5 shadow-sm mt-4 mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <div className="text-[11px] font-bold tracking-widest uppercase text-slate-500 flex items-center gap-2">
+              <FileText className="w-3.5 h-3.5 text-purple-600" /> RA Billing Math & Audit Breakdown
+            </div>
+            <div className="text-xs text-slate-500 flex items-center gap-2">
+              <span className="font-medium text-slate-400">Total Billed Portfolio:</span>
+              <span className="font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-100">
+                ₹{cr(apiKpis.supplyBilled + apiKpis.erectionBilled + apiKpis.retentionBilled)} Cr ({apiKpis.totalBillingCount || (apiKpis.supplyCount + apiKpis.erectionCount)} Bills)
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center gap-4 text-center md:text-left justify-between bg-slate-50 p-4 rounded-lg border border-slate-100">
+            <div className="flex-1">
+              <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Supply Billed (60%)</div>
+              {kpiLoading ? (
+                <div className="h-6 w-20 bg-slate-200 animate-pulse rounded mx-auto md:mx-0"></div>
+              ) : (
+                <>
+                  <div className="text-lg font-extrabold text-slate-800">₹{cr(apiKpis.supplyBilled)} Cr</div>
+                  <div className="text-[10px] text-slate-500 font-medium mt-0.5">
+                    {apiKpis.supplyCount} Client Bills
+                    {apiKpis.supplyBaseAmount > 0 && <span className="text-slate-400 ml-1">(Base: ₹{cr(apiKpis.supplyBaseAmount)} + GST: ₹{cr(apiKpis.supplyGstAmount)})</span>}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="text-slate-300 font-bold text-xl">+</div>
+
+            <div className="flex-1">
+              <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Erection Billed (90%)</div>
+              {kpiLoading ? (
+                <div className="h-6 w-20 bg-slate-200 animate-pulse rounded mx-auto md:mx-0"></div>
+              ) : (
+                <>
+                  <div className="text-lg font-extrabold text-slate-800">₹{cr(apiKpis.erectionBilled)} Cr</div>
+                  <div className="text-[10px] text-slate-500 font-medium mt-0.5">
+                    {apiKpis.erectionCount} Contractor Bills
+                    {apiKpis.erectionBaseAmount > 0 && <span className="text-slate-400 ml-1">(Base: ₹{cr(apiKpis.erectionBaseAmount)} + GST: ₹{cr(apiKpis.erectionGstAmount)})</span>}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="text-slate-300 font-bold text-xl">+</div>
+
+            <div className="flex-1">
+              <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Retention / Handover (10%)</div>
+              {kpiLoading ? (
+                <div className="h-6 w-20 bg-slate-200 animate-pulse rounded mx-auto md:mx-0"></div>
+              ) : (
+                <>
+                  <div className="text-lg font-extrabold text-slate-800">₹{cr(apiKpis.retentionBilled)} Cr</div>
+                  <div className="text-[10px] text-slate-400 font-medium mt-0.5">Milestone Pending</div>
+                </>
+              )}
+            </div>
+
+            <div className="text-slate-300 font-bold text-xl">=</div>
+
+            <div className="flex-1 bg-purple-50 rounded p-3 border border-purple-100 shadow-sm">
+              <div className="text-[10px] uppercase font-bold text-purple-600 mb-1">Total RA Billed</div>
+              {kpiLoading ? (
+                <div className="h-7 w-24 bg-purple-200/60 animate-pulse rounded mx-auto md:mx-0"></div>
+              ) : (
+                <>
+                  <div className="text-xl font-extrabold text-purple-700">
+                    ₹{cr(apiKpis.supplyBilled + apiKpis.erectionBilled + apiKpis.retentionBilled)} Cr
+                  </div>
+                  <div className="text-[10px] text-purple-500 font-semibold mt-0.5">
+                    {apiKpis.totalBillingCount || (apiKpis.supplyCount + apiKpis.erectionCount)} Total Certified / Booked
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Circle-wise Reconciliation Cards */}
+          {apiKpis.billingCircles && apiKpis.billingCircles.length > 0 && (
+            <div className="mt-3 bg-purple-50/40 p-3 rounded-lg border border-purple-100/60 w-full text-left">
+              <p className="text-[11px] text-slate-600 font-medium flex items-center justify-between mb-2">
+                <span className="flex items-center gap-1.5 font-bold text-purple-900">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-purple-600" />
+                  Circle-Wise RA Billing Reconciliation Ledger
+                </span>
+                <span className="text-[10px] text-slate-500 font-normal">
+                  All circles verified against Client Bills (60%) & Contractor Invoices (90%)
+                </span>
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                {apiKpis.billingCircles.map((c: any, idx: number) => {
+                  const grandTotalAll = apiKpis.supplyBilled + apiKpis.erectionBilled + apiKpis.retentionBilled;
+                  const pct = grandTotalAll > 0 ? ((c.totalAmount / grandTotalAll) * 100).toFixed(1) : '0.0';
+                  return (
+                    <div key={idx} className="bg-white border border-purple-100 rounded-lg p-2.5 shadow-sm flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5 pb-1 border-b border-slate-100">
+                          <span className="font-bold text-xs text-slate-800">{c.circle} Circle</span>
+                          <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-purple-100 text-purple-800">{pct}%</span>
+                        </div>
+                        <div className="space-y-1 text-[11px]">
+                          <div className="flex justify-between items-center text-slate-500">
+                            <span>Supply (60%):</span>
+                            <span className="font-semibold text-slate-700">₹{cr(c.supplyAmount)} Cr <span className="text-[9px] text-slate-400">({c.supplyCount})</span></span>
+                          </div>
+                          <div className="flex justify-between items-center text-slate-500">
+                            <span>Erection (90%):</span>
+                            <span className="font-semibold text-slate-700">₹{cr(c.erectionAmount)} Cr <span className="text-[9px] text-slate-400">({c.erectionCount})</span></span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-2 pt-1.5 border-t border-purple-50 flex items-center justify-between">
+                        <span className="text-[10px] uppercase font-bold text-purple-700">Total Billed:</span>
+                        <span className="text-xs font-extrabold text-purple-900">₹{cr(c.totalAmount)} Cr</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </section>

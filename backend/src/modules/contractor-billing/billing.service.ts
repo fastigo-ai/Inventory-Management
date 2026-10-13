@@ -138,7 +138,14 @@ export const createInvoiceService = async (data: any, user: any) => {
       baseAmount = authoritativeQty * itemRate * (percentage / 100);
     }
 
-    const gstAmount = baseAmount * (Number(item.gstRate || 0) / 100);
+    let rawGstRate = Number(item.gstRate || 0);
+    let gstAmount = 0;
+    if (rawGstRate > 28) {
+      gstAmount = rawGstRate;
+      rawGstRate = baseAmount > 0 ? (gstAmount / baseAmount) * 100 : 18;
+    } else {
+      gstAmount = baseAmount * (rawGstRate / 100);
+    }
     const totalAmount = baseAmount + gstAmount;
 
     totalBaseAmount += baseAmount;
@@ -312,7 +319,14 @@ export const updateInvoiceService = async (id: string, data: any, user: any) => 
       baseAmount = authoritativeQty * itemRate * (percentage / 100);
     }
 
-    const gstAmount = baseAmount * (Number(item.gstRate || 0) / 100);
+    let rawGstRate = Number(item.gstRate || 0);
+    let gstAmount = 0;
+    if (rawGstRate > 28) {
+      gstAmount = rawGstRate;
+      rawGstRate = baseAmount > 0 ? (gstAmount / baseAmount) * 100 : 18;
+    } else {
+      gstAmount = baseAmount * (rawGstRate / 100);
+    }
     const totalAmount = baseAmount + gstAmount;
 
     totalBaseAmount += baseAmount;

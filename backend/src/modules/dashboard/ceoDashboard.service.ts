@@ -108,6 +108,66 @@ export const buildCeoDashboardSummary = async (filters: any) => {
     }
     if (Object.keys(dateQuery).length > 0) piLineItemQuery.createdAt = dateQuery;
 
+    const clientBillMatch: any = { status: { $ne: 'Rejected' } };
+    const contractorInvoiceMatch: any = { status: { $nin: ['Rejected', 'Cancelled'] } };
+
+    if (circle && circle !== 'All') {
+      const circleClean = circle.trim();
+      const circleRegex = new RegExp(`^${circleClean}$`, 'i');
+      clientBillMatch.circle = circleRegex;
+      contractorInvoiceMatch.$or = [
+        { circle: circleRegex },
+        { "legacyMetadata.circle": circleRegex }
+      ];
+    } else if (circleFilters && circleFilters.length > 0) {
+      clientBillMatch.circle = { $in: circleFilters };
+      contractorInvoiceMatch.$or = [
+        { circle: { $in: circleFilters } },
+        { "legacyMetadata.circle": { $in: circleFilters } }
+      ];
+    }
+
+    if (pkg && pkg !== 'All') {
+      const pkgNum = pkg.includes('1') ? '1' : pkg.includes('2') ? '2' : '';
+      if (pkgNum) {
+        const pkgRegex = new RegExp(`Package[\\s-]*${pkgNum}`, 'i');
+        clientBillMatch.package = pkgRegex;
+        const pkgCond = [
+          { package: pkgRegex },
+          { "legacyMetadata.package": pkgRegex }
+        ];
+        if (contractorInvoiceMatch.$or) {
+          contractorInvoiceMatch.$and = [
+            { $or: contractorInvoiceMatch.$or },
+            { $or: pkgCond }
+          ];
+          delete contractorInvoiceMatch.$or;
+        } else {
+          contractorInvoiceMatch.$or = pkgCond;
+        }
+      }
+    } else if (pkgFilters && pkgFilters.length > 0) {
+      clientBillMatch.package = { $in: pkgFilters };
+      const pkgCond = [
+        { package: { $in: pkgFilters } },
+        { "legacyMetadata.package": { $in: pkgFilters } }
+      ];
+      if (contractorInvoiceMatch.$or) {
+        contractorInvoiceMatch.$and = [
+          { $or: contractorInvoiceMatch.$or },
+          { $or: pkgCond }
+        ];
+        delete contractorInvoiceMatch.$or;
+      } else {
+        contractorInvoiceMatch.$or = pkgCond;
+      }
+    }
+
+    if (Object.keys(dateQuery).length > 0) {
+      clientBillMatch.createdAt = dateQuery;
+      contractorInvoiceMatch.createdAt = dateQuery;
+    }
+
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
@@ -214,14 +274,57 @@ export const buildCeoDashboardSummary = async (filters: any) => {
       ]),
 
       ContractorInvoice.aggregate([
-        { $match: baseQuery },
-        { $group: { _id: "$status", totalValue: { $sum: "$grandTotal" } } }
+        { $match: contractorInvoiceMatch },
+        {
+          $group: {
+            _id: {
+              circle: { $ifNull: ["$circle", "$legacyMetadata.circle"] },
+              package: { $ifNull: ["$package", "$legacyMetadata.package"] },
+              billingCategory: "$billingCategory",
+              stage: "$stage",
+              status: "$status"
+            },
+            totalValue: { $sum: "$grandTotal" },
+            baseValue: { $sum: "$totalBaseAmount" },
+            gstValue: { $sum: "$totalGstAmount" },
+            count: { $sum: 1 }
+          }
+        }
       ]),
 
       ClientBill.aggregate([
-        { $match: baseQuery },
+        { $match: clientBillMatch },
         { $unwind: "$items" },
-        { $group: { _id: { status: "$status", type: "$billType" }, totalValue: { $sum: "$items.totalAmount" } } }
+        {
+          $group: {
+            _id: {
+              circle: "$circle",
+              package: "$package",
+              stage: "$stage",
+              billType: "$billType",
+              status: "$status",
+              billId: "$_id"
+            },
+            billTotal: { $sum: { $add: ["$items.totalAmount", { $ifNull: ["$items.gstAmount", 0] }] } },
+            billBase: { $sum: "$items.totalAmount" },
+            billGst: { $sum: { $ifNull: ["$items.gstAmount", 0] } }
+          }
+        },
+        {
+          $group: {
+            _id: {
+              circle: "$_id.circle",
+              package: "$_id.package",
+              stage: "$_id.stage",
+              billType: "$_id.billType",
+              status: "$_id.status"
+            },
+            totalValue: { $sum: "$billTotal" },
+            baseValue: { $sum: "$billBase" },
+            gstValue: { $sum: "$billGst" },
+            count: { $sum: 1 }
+          }
+        }
       ]),
 
       ContractorWorkOrder.aggregate([
@@ -321,7 +424,7 @@ export const buildCeoDashboardSummary = async (filters: any) => {
       ]),
 
       ContractorInvoice.aggregate([
-        { $match: baseQuery },
+        { $match: contractorInvoiceMatch },
         {
           $lookup: {
             from: 'contractorworkorders',
@@ -331,12 +434,26 @@ export const buildCeoDashboardSummary = async (filters: any) => {
           }
         },
         { $unwind: { path: '$wo', preserveNullAndEmptyArrays: true } },
-        { $group: { _id: { pkg: "$wo.package", status: "$status" }, totalValue: { $sum: "$grandTotal" } } }
+        {
+          $group: {
+            _id: {
+              pkg: { $ifNull: ["$package", { $ifNull: ["$legacyMetadata.package", "$wo.package"] }] },
+              status: "$status"
+            },
+            totalValue: { $sum: "$grandTotal" }
+          }
+        }
       ]),
 
       ClientBill.aggregate([
-        { $match: baseQuery },
-        { $group: { _id: { pkg: "$package", status: "$status" }, totalValue: { $sum: "$grandTotal" } } }
+        { $match: clientBillMatch },
+        { $unwind: "$items" },
+        {
+          $group: {
+            _id: { pkg: "$package", status: "$status" },
+            totalValue: { $sum: { $add: ["$items.totalAmount", { $ifNull: ["$items.gstAmount", 0] }] } }
+          }
+        }
       ]),
 
       Mhrov.find({ status: { $ne: 'Done' }, createdAt: { $lte: sevenDaysAgo } }).select('circle').lean(),
@@ -366,28 +483,92 @@ export const buildCeoDashboardSummary = async (filters: any) => {
     const totalPIValue = piAgg[0]?.totalValue || 0;
     const totalPIQty = piAgg[0]?.totalQty || 0;
 
-    // Contractor Billing
+    // Contractor & Client Billing (Supply + Erection Reconciliation)
     let contractorBilled = 0;
     let contractorPending = 0;
-    contractorBillAgg.forEach(b => {
-      if (b._id === 'Approved') contractorBilled += b.totalValue;
-      else contractorPending += b.totalValue;
+    let erectionBilled = 0;
+    let erectionBase = 0;
+    let erectionGst = 0;
+    let erectionCount = 0;
+
+    let supplyBilled = 0;
+    let supplyBase = 0;
+    let supplyGst = 0;
+    let supplyPending = 0;
+    let supplyCount = 0;
+
+    const normalizeCircle = (c: any) => {
+      if (!c) return 'Unknown';
+      const s = String(c).trim();
+      const u = s.toUpperCase();
+      if (u === 'ROHRU') return 'Rohru';
+      if (u === 'SOLAN' || u === 'KUMARHATTI' || u === 'NALAGARH') return 'Solan';
+      if (u === 'RAMPUR') return 'Rampur';
+      if (u === 'NAHAN') return 'Nahan';
+      return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+    };
+
+    const circleBillingMap: Record<string, any> = {};
+    const getCircleBilling = (cName: string) => {
+      const key = normalizeCircle(cName);
+      if (!circleBillingMap[key]) {
+        circleBillingMap[key] = {
+          circle: key,
+          supplyAmount: 0,
+          supplyBase: 0,
+          supplyGst: 0,
+          supplyCount: 0,
+          erectionAmount: 0,
+          erectionBase: 0,
+          erectionGst: 0,
+          erectionCount: 0,
+          totalAmount: 0,
+          totalCount: 0
+        };
+      }
+      return circleBillingMap[key];
+    };
+
+    // Process Client Bills (Supply 60%)
+    clientBillAgg.forEach(b => {
+      supplyBilled += b.totalValue;
+      supplyBase += b.baseValue;
+      supplyGst += b.gstValue;
+      supplyCount += b.count;
+      if (b._id.status !== 'Approved') {
+        supplyPending += b.totalValue;
+      }
+
+      const bucket = getCircleBilling(b._id.circle);
+      bucket.supplyAmount += b.totalValue;
+      bucket.supplyBase += b.baseValue;
+      bucket.supplyGst += b.gstValue;
+      bucket.supplyCount += b.count;
+      bucket.totalAmount += b.totalValue;
+      bucket.totalCount += b.count;
     });
 
-    // Client Billing
-    let supplyBilled = 0;
-    let erectionBilled = 0;
-    let supplyPending = 0;
-    let erectionPending = 0;
-    clientBillAgg.forEach(b => {
-      if (b._id.status === 'Approved') {
-        if (b._id.type === 'Supply') supplyBilled += b.totalValue;
-        else if (b._id.type === 'Erection') erectionBilled += b.totalValue;
-      } else {
-        if (b._id.type === 'Supply') supplyPending += b.totalValue;
-        else if (b._id.type === 'Erection') erectionPending += b.totalValue;
+    // Process Contractor Invoices (Erection 90%)
+    contractorBillAgg.forEach(b => {
+      contractorBilled += b.totalValue;
+      erectionBilled += b.totalValue;
+      erectionBase += b.baseValue;
+      erectionGst += b.gstValue;
+      erectionCount += b.count;
+      if (b._id.status !== 'Approved' && b._id.status !== 'Payment Processed') {
+        contractorPending += b.totalValue;
       }
+
+      const bucket = getCircleBilling(b._id.circle);
+      bucket.erectionAmount += b.totalValue;
+      bucket.erectionBase += b.baseValue;
+      bucket.erectionGst += b.gstValue;
+      bucket.erectionCount += b.count;
+      bucket.totalAmount += b.totalValue;
+      bucket.totalCount += b.count;
     });
+
+    const billingCircles = Object.values(circleBillingMap).sort((a, b) => b.totalAmount - a.totalAmount);
 
     const totalWoValue = woAgg[0]?.totalValue || 0;
     const woCount = woAgg[0]?.count || 0;
@@ -534,8 +715,7 @@ export const buildCeoDashboardSummary = async (filters: any) => {
     
     packageContractorBilled.forEach(p => {
       const pName = initPackage(p._id.pkg);
-      if (p._id.status === 'Approved') packagesMap[pName].billedValue += p.totalValue;
-      else packagesMap[pName].pendingValue += p.totalValue;
+      packagesMap[pName].billedValue += p.totalValue;
     });
     
     packageClientBilled.forEach(p => {
@@ -599,14 +779,29 @@ export const buildCeoDashboardSummary = async (filters: any) => {
         jmcConsumed: totalJmcQty,
         wip: totalWipQty,
         totalBillingValue: (supplyBilled + erectionBilled) / 10000000,
-        pendingBilling: (supplyPending + erectionPending) / 10000000,
+        totalBillingValueRaw: supplyBilled + erectionBilled,
+        pendingBilling: (supplyPending + contractorPending) / 10000000,
         supplyBilled: supplyBilled / 10000000,
+        supplyBilledRaw: supplyBilled,
+        supplyBaseAmount: supplyBase,
+        supplyGstAmount: supplyGst,
+        supplyCount,
         erectionBilled: erectionBilled / 10000000,
+        erectionBilledRaw: erectionBilled,
+        erectionBaseAmount: erectionBase,
+        erectionGstAmount: erectionGst,
+        erectionCount,
+        retentionBilled: 0,
+        retentionBilledRaw: 0,
+        retentionCount: 0,
+        totalBillingCount: supplyCount + erectionCount,
+        billingCircles,
         piValue: totalPIValue,
         piCount: piTotal,
         piQty: totalPIQty,
         woCount,
         totalWoValue: totalWoValue / 10000000,
+        totalWoValueRaw: totalWoValue,
         poPending,
         poCleared
       },

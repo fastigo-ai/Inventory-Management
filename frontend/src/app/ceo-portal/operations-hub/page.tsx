@@ -17,8 +17,16 @@ const FY = Date.UTC(2026, 3, 1);
 const CODE: Record<string, string> = { Jaipur: 'JPR', Lucknow: 'LKO', Pune: 'PNQ', Indore: 'IDR' };
 const DEPOT: Record<string, string> = { Jaipur: 'Jaipur Central', Lucknow: 'Lucknow North', Pune: 'Pune West', Indore: 'Indore Main' };
 
-const inr = (n: number) => Math.round(n).toLocaleString('en-IN');
-const money = (n: number) => '₹' + inr(n);
+const inr = (n: number) => {
+  if (n === null || n === undefined || isNaN(n)) return '0';
+  if (Number.isInteger(n)) return n.toLocaleString('en-IN');
+  return Number(n.toFixed(3)).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+};
+const money = (n: number) => {
+  if (n === null || n === undefined || isNaN(n)) return '₹0';
+  if (Number.isInteger(n)) return '₹' + n.toLocaleString('en-IN');
+  return '₹' + Number(n.toFixed(2)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
 const cr = (n: number) => (n / 1e7).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fdate = (ms: any) => {
   if (!ms) return '—';
@@ -141,59 +149,59 @@ function build(b: any, i: number) {
     depot: db.depotName || DEPOT[it.circle] || (it.circle ? `${it.circle} Central` : 'Central Depot'), 
     reorder: db.reorderLevel ?? Math.round(loaQty * 0.15) 
   };
-  d.receipt = (receivedQty > 0 || db.grnNo) ? { 
+  d.receipt = { 
     no: db.grnNo || '—', 
     qty: receivedQty 
-  } : null;
-  d.inward = (invQty > 0 || db.inwardDate) ? { 
+  };
+  d.inward = { 
     qty: invQty, 
     date: parseDate(db.inwardDate) 
-  } : null;
+  };
   
-  d.min = (issuedQty > 0 || db.minNo) ? { 
+  d.min = { 
     no: db.minNo || '—', 
     qty: issuedQty 
-  } : null;
-  d.cret = returnedQty > 0 ? { qty: returnedQty } : null;
-  d.outward = (db.transferOutQty || 0) > 0 ? { qty: db.transferOutQty } : null;
-  d.inter = ((db.transferInQty || 0) + (db.transferOutQty || 0)) > 0 ? { 
+  };
+  d.cret = { qty: returnedQty };
+  d.outward = { qty: db.transferOutQty || 0 };
+  d.inter = { 
     qty: (db.transferInQty || 0) + (db.transferOutQty || 0), 
     route: db.transferRoute || '—' 
-  } : null;
+  };
   
-  d.wo = (loaQty > 0 || db.woNo) ? { 
+  d.wo = { 
     no: db.woNo || '—', 
     val: db.woVal || poVal, 
     qty: db.woQty || 0 
-  } : null;
-  d.dn = (demandQty > 0 || db.dnNo || issuedQty > 0) ? { 
+  };
+  d.dn = { 
     no: db.dnNo || '—', 
-    qty: demandQty > 0 ? demandQty : issuedQty 
-  } : null;
-  d.mrhov = (mhrovQty > 0 || db.mrhovStatus || db.mrhovNo) ? { 
+    qty: demandQty > 0 ? demandQty : (db.dnQty || issuedQty) 
+  };
+  d.mrhov = { 
     qty: mhrovQty, 
     status: db.mrhovStatus || (mhrovQty > 0 ? 'Done' : 'Pending') 
-  } : null;
+  };
   
-  d.cbill = (billedQty > 0 || db.raNo) ? { 
-    amt: billedQty * it.rate, 
+  d.cbill = { 
+    amt: db.ra60Amt || (billedQty * it.rate), 
     ra: db.raNo || '—' 
-  } : null;
-  d.kbill = (billedQty > 0 || db.contractorInvoiceNo) ? { 
-    amt: db.contractorPayable || (billedQty * it.rate), 
+  };
+  d.kbill = { 
+    amt: db.cBillAmt || db.contractorPayable || (billedQty * it.rate), 
     status: db.contractorPaymentStatus || 'Processed' 
-  } : null;
+  };
   
   const rawContractors = Array.isArray(db.contractors) ? db.contractors.flat() : (db.contractorName ? [db.contractorName] : []);
   const contractorList = Array.from(new Set(rawContractors.map((c: any) => typeof c === 'string' ? c.trim() : '').filter(Boolean)));
   it.contractors = contractorList;
   it.contractorBreakdown = db.contractorBreakdown || {};
-  const contractorStr = contractorList.length > 0 ? contractorList.join(', ') : '—';
+  const contractorStr = contractorList.length > 0 ? contractorList.join(', ') : (db.contractorName || '—');
 
   d.mis_s = { di: diQty, mrhov: mhrovQty, issued: issuedQty, balStore: it.stock };
   d.mis_c = { 
     contractors: contractorStr, 
-    dn: demandQty > 0 ? demandQty : issuedQty, 
+    dn: demandQty > 0 ? demandQty : (db.dnQty || issuedQty), 
     jmc: db.jmcQty || 0, 
     wipC: db.wipQty || 0, 
     wipR: Math.max(0, Math.round((loaQty - (db.wipQty || 0))*1000)/1000), 
@@ -204,9 +212,30 @@ function build(b: any, i: number) {
   const vendorStr = Array.isArray(db.vendors) && db.vendors.length > 0 ? db.vendors.join(', ') : 'N/A';
   d.mis_v = { vendors: vendorStr, poQty: poQty, diQty: diQty, invQty: invQty, mrhovQty: mhrovQty };
   
-  d.mis_b_c_s = { diQty: diQty, mrhovQty: mhrovQty, ra60Qty: db.ra60Qty || 0, ra30Qty: db.ra30Qty || 0, ra10Qty: db.ra10Qty || 0 };
-  d.mis_b_c_e = { diQty: diQty, mrhovQty: mhrovQty, er90Qty: db.er90Qty || 0, er10Qty: db.er10Qty || 0 };
-  d.mis_b_cont = { issuedQty: issuedQty, jmcQty: db.jmcQty || 0, cBillQty: db.cBillQty || 0 };
+  d.mis_b_c_s = { 
+    diQty: diQty, 
+    mrhovQty: mhrovQty, 
+    ra60Qty: db.ra60Qty || 0, 
+    ra60Amt: db.ra60Amt || ((db.ra60Qty || 0) * it.rate), 
+    ra30Qty: db.ra30Qty || 0, 
+    ra30Amt: db.ra30Amt || ((db.ra30Qty || 0) * it.rate), 
+    ra10Qty: db.ra10Qty || 0, 
+    ra10Amt: db.ra10Amt || ((db.ra10Qty || 0) * it.rate) 
+  };
+  d.mis_b_c_e = { 
+    diQty: diQty, 
+    mrhovQty: mhrovQty, 
+    er90Qty: db.er90Qty || 0, 
+    er90Amt: db.er90Amt || ((db.er90Qty || 0) * it.rate), 
+    er10Qty: db.er10Qty || 0, 
+    er10Amt: db.er10Amt || ((db.er10Qty || 0) * it.rate) 
+  };
+  d.mis_b_cont = { 
+    issuedQty: issuedQty, 
+    jmcQty: db.jmcQty || 0, 
+    cBillQty: db.cBillQty || 0, 
+    cBillAmt: db.cBillAmt || ((db.cBillQty || 0) * it.rate) 
+  };
 
   it.d = d; 
   return it;
@@ -248,9 +277,30 @@ const SUBS = [
   { id: 'mis_s', m: 'm5', name: 'Store MIS', cols: [['di', 'DI qty', 'qty'], ['mrhov', 'MRHOV qty', 'qty'], ['issued', 'Issued qty', 'qty'], ['balStore', 'Balance at store', 'qty']] },
   { id: 'mis_c', m: 'm6', name: 'Contractor MIS', cols: [['contractors', 'Contractor(s)', 'text'], ['dn', 'Demand Notes', 'qty'], ['jmc', 'JMC qty', 'qty'], ['wipC', 'WIP Consumed', 'qty'], ['wipR', 'WIP Required', 'qty'], ['issued', 'Store Issued', 'qty'], ['balCont', 'Balance at contractor', 'qty']] },
   { id: 'mis_v', m: 'm7', name: 'Vendor MIS', cols: [['vendors', 'Vendor(s)', 'text'], ['poQty', 'PO qty', 'qty'], ['diQty', 'DI qty', 'qty'], ['invQty', 'Invoice qty', 'qty'], ['mrhovQty', 'MRHOV qty', 'qty']] },
-  { id: 'mis_b_c_s', m: 'm8', name: 'Client Billing - Supply', cols: [['diQty', 'DI Qty', 'qty'], ['mrhovQty', 'MRHOV Qty', 'qty'], ['ra60Qty', 'RA Bill - 60%', 'qty'], ['ra30Qty', 'RA Bill - 30%', 'qty'], ['ra10Qty', 'RA Bill - 10%', 'qty']] },
-  { id: 'mis_b_c_e', m: 'm9', name: 'Client Billing - Erection', cols: [['diQty', 'DI Qty', 'qty'], ['mrhovQty', 'MRHOV Qty', 'qty'], ['er90Qty', 'Erected Qty - 90%', 'qty'], ['er10Qty', 'Erected Qty - 10%', 'qty']] },
-  { id: 'mis_b_cont', m: 'm10', name: 'Contractor Billing MIS', cols: [['issuedQty', 'Issued Qty', 'qty'], ['jmcQty', 'JMC Qty', 'qty'], ['cBillQty', 'Contractor billing Qty', 'qty']] }
+  { id: 'mis_b_c_s', m: 'm8', name: 'Client Billing - Supply', cols: [
+    ['diQty', 'DI Qty', 'qty'], 
+    ['mrhovQty', 'MRHOV Qty', 'qty'], 
+    ['ra60Qty', 'RA Bill - 60% Qty', 'qty'], 
+    ['ra60Amt', 'RA Bill - 60% Amount', 'money'], 
+    ['ra30Qty', 'RA Bill - 30% Qty', 'qty'], 
+    ['ra30Amt', 'RA Bill - 30% Amount', 'money'], 
+    ['ra10Qty', 'RA Bill - 10% Qty', 'qty'], 
+    ['ra10Amt', 'RA Bill - 10% Amount', 'money']
+  ] },
+  { id: 'mis_b_c_e', m: 'm9', name: 'Client Billing - Erection', cols: [
+    ['diQty', 'DI Qty', 'qty'], 
+    ['mrhovQty', 'MRHOV Qty', 'qty'], 
+    ['er90Qty', 'Erected Qty - 90%', 'qty'], 
+    ['er90Amt', 'Erected Amount - 90%', 'money'], 
+    ['er10Qty', 'Erected Qty - 10%', 'qty'], 
+    ['er10Amt', 'Erected Amount - 10%', 'money']
+  ] },
+  { id: 'mis_b_cont', m: 'm10', name: 'Contractor Billing MIS', cols: [
+    ['issuedQty', 'Issued Qty', 'qty'], 
+    ['jmcQty', 'JMC Qty', 'qty'], 
+    ['cBillQty', 'Contractor billing Qty', 'qty'], 
+    ['cBillAmt', 'Contractor billing Amount', 'money']
+  ] }
 ];
 
 const STATIC = [

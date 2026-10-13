@@ -23,13 +23,19 @@ interface UpdateSummaryParams {
     poQty?: number;
     mhrovQty?: number;
     ra60Qty?: number;
+    ra60Amt?: number;
     ra30Qty?: number;
+    ra30Amt?: number;
     ra10Qty?: number;
+    ra10Amt?: number;
     er90Qty?: number;
+    er90Amt?: number;
     er10Qty?: number;
+    er10Amt?: number;
     jmcQty?: number;
     wipQty?: number;
     cBillQty?: number;
+    cBillAmt?: number;
     woQty?: number;
     demandQty?: number;
     receivedQty?: number;
@@ -538,10 +544,11 @@ export class SummaryService {
         for (const line of inv.lineItems) {
           if (line.itemId?.toString() === itemIdStr) {
             const qty = Number(line.erectedQty || line.jmcDoneQty || 0);
-            if (qty > 0) {
+            const amt = Number(line.totalAmount || line.baseAmount || 0);
+            if (qty > 0 || amt > 0) {
               await SummaryService.updateSummary({
                 itemId, circle: inv.legacyMetadata?.circle || '', package: inv.legacyMetadata?.package || '',
-                increments: { cBillQty: qty },
+                increments: { cBillQty: qty, cBillAmt: amt },
                 companyId: item.companyId?.toString()
               });
             }
@@ -556,15 +563,16 @@ export class SummaryService {
         for (const line of cb.items) {
           if (line.itemId?.toString() === itemIdStr) {
             const qty = Number(line.raBillQty || line.sourceDoneQty || 0);
-            if (qty > 0) {
+            const amt = Number(line.totalAmount || (qty * (line.boqRate || 0)) || 0);
+            if (qty > 0 || amt > 0) {
               const increments: any = {};
               if (cb.billType === 'Supply') {
-                if (cb.stage === '60%') increments.ra60Qty = qty;
-                else if (cb.stage === '30%') increments.ra30Qty = qty;
-                else if (cb.stage === '10%') increments.ra10Qty = qty;
+                if (cb.stage === '60%') { increments.ra60Qty = qty; increments.ra60Amt = amt; }
+                else if (cb.stage === '30%') { increments.ra30Qty = qty; increments.ra30Amt = amt; }
+                else if (cb.stage === '10%') { increments.ra10Qty = qty; increments.ra10Amt = amt; }
               } else if (cb.billType === 'Erection') {
-                if (cb.stage === '90%') increments.er90Qty = qty;
-                else if (cb.stage === '10%') increments.er10Qty = qty;
+                if (cb.stage === '90%') { increments.er90Qty = qty; increments.er90Amt = amt; }
+                else if (cb.stage === '10%') { increments.er10Qty = qty; increments.er10Amt = amt; }
               }
               await SummaryService.updateSummary({
                 itemId, circle: cb.circle || '', package: cb.package || '',
@@ -707,7 +715,25 @@ export class SummaryService {
             actQty: { $sum: "$actQty" },
             srtQty: { $sum: "$srtQty" },
             billedQty: { $sum: "$billedQty" },
-            woQty: { $sum: "$woQty" }
+            woQty: { $sum: "$woQty" },
+            ra60Qty: { $sum: "$ra60Qty" },
+            ra60Amt: { $sum: "$ra60Amt" },
+            ra30Qty: { $sum: "$ra30Qty" },
+            ra30Amt: { $sum: "$ra30Amt" },
+            ra10Qty: { $sum: "$ra10Qty" },
+            ra10Amt: { $sum: "$ra10Amt" },
+            er90Qty: { $sum: "$er90Qty" },
+            er90Amt: { $sum: "$er90Amt" },
+            er10Qty: { $sum: "$er10Qty" },
+            er10Amt: { $sum: "$er10Amt" },
+            cBillQty: { $sum: "$cBillQty" },
+            cBillAmt: { $sum: "$cBillAmt" },
+            mhrovQty: { $sum: "$mhrovQty" },
+            returnedQty: { $sum: "$returnedQty" },
+            transferInQty: { $sum: "$transferInQty" },
+            transferOutQty: { $sum: "$transferOutQty" },
+            demandQty: { $sum: "$demandQty" },
+            receivedQty: { $sum: "$receivedQty" }
           } 
         },
         { $group: { 
@@ -720,7 +746,25 @@ export class SummaryService {
             totalActQty: { $sum: "$actQty" },
             totalSrtQty: { $sum: "$srtQty" },
             totalBilledQty: { $sum: "$billedQty" },
-            totalWoQty: { $sum: "$woQty" }
+            totalWoQty: { $sum: "$woQty" },
+            totalRa60Qty: { $sum: "$ra60Qty" },
+            totalRa60Amt: { $sum: "$ra60Amt" },
+            totalRa30Qty: { $sum: "$ra30Qty" },
+            totalRa30Amt: { $sum: "$ra30Amt" },
+            totalRa10Qty: { $sum: "$ra10Qty" },
+            totalRa10Amt: { $sum: "$ra10Amt" },
+            totalEr90Qty: { $sum: "$er90Qty" },
+            totalEr90Amt: { $sum: "$er90Amt" },
+            totalEr10Qty: { $sum: "$er10Qty" },
+            totalEr10Amt: { $sum: "$er10Amt" },
+            totalCBillQty: { $sum: "$cBillQty" },
+            totalCBillAmt: { $sum: "$cBillAmt" },
+            totalMhrovQty: { $sum: "$mhrovQty" },
+            totalReturnedQty: { $sum: "$returnedQty" },
+            totalTransferInQty: { $sum: "$transferInQty" },
+            totalTransferOutQty: { $sum: "$transferOutQty" },
+            totalDemandQty: { $sum: "$demandQty" },
+            totalReceivedQty: { $sum: "$receivedQty" }
           } 
         }
       ]);
@@ -735,6 +779,24 @@ export class SummaryService {
         srtQty: totalAggregation[0].totalSrtQty,
         billedQty: totalAggregation[0].totalBilledQty,
         woQty: totalAggregation[0].totalWoQty,
+        ra60Qty: totalAggregation[0].totalRa60Qty,
+        ra60Amt: totalAggregation[0].totalRa60Amt,
+        ra30Qty: totalAggregation[0].totalRa30Qty,
+        ra30Amt: totalAggregation[0].totalRa30Amt,
+        ra10Qty: totalAggregation[0].totalRa10Qty,
+        ra10Amt: totalAggregation[0].totalRa10Amt,
+        er90Qty: totalAggregation[0].totalEr90Qty,
+        er90Amt: totalAggregation[0].totalEr90Amt,
+        er10Qty: totalAggregation[0].totalEr10Qty,
+        er10Amt: totalAggregation[0].totalEr10Amt,
+        cBillQty: totalAggregation[0].totalCBillQty,
+        cBillAmt: totalAggregation[0].totalCBillAmt,
+        mhrovQty: totalAggregation[0].totalMhrovQty,
+        returnedQty: totalAggregation[0].totalReturnedQty,
+        transferInQty: totalAggregation[0].totalTransferInQty,
+        transferOutQty: totalAggregation[0].totalTransferOutQty,
+        demandQty: totalAggregation[0].totalDemandQty,
+        receivedQty: totalAggregation[0].totalReceivedQty,
         balLoaBilled: totalAggregation[0].totalLoaQty - totalAggregation[0].totalBilledQty,
         balBomBilled: totalAggregation[0].totalBomQty - totalAggregation[0].totalBilledQty,
         goodDispatch: totalAggregation[0].totalActQty,
@@ -764,13 +826,19 @@ export class SummaryService {
             poQty: { $sum: "$poQty" },
             mhrovQty: { $sum: "$mhrovQty" },
             ra60Qty: { $sum: "$ra60Qty" },
+            ra60Amt: { $sum: "$ra60Amt" },
             ra30Qty: { $sum: "$ra30Qty" },
+            ra30Amt: { $sum: "$ra30Amt" },
             ra10Qty: { $sum: "$ra10Qty" },
+            ra10Amt: { $sum: "$ra10Amt" },
             er90Qty: { $sum: "$er90Qty" },
+            er90Amt: { $sum: "$er90Amt" },
             er10Qty: { $sum: "$er10Qty" },
+            er10Amt: { $sum: "$er10Amt" },
             jmcQty: { $sum: "$jmcQty" },
             wipQty: { $sum: "$wipQty" },
             cBillQty: { $sum: "$cBillQty" },
+            cBillAmt: { $sum: "$cBillAmt" },
             woQty: { $sum: "$woQty" },
             demandQty: { $sum: "$demandQty" },
             receivedQty: { $sum: "$receivedQty" },
@@ -790,98 +858,11 @@ export class SummaryService {
             as: 'masterItem'
           }
         },
-        { $unwind: { path: '$masterItem', preserveNullAndEmptyArrays: true } }
+        { $unwind: { path: '$masterItem', preserveNullAndEmptyArrays: true } },
+        { $sort: sortObj },
+        { $skip: skip },
+        { $limit: limitNum }
       ];
-
-      // If paginated (limit <= 100), apply sort/skip/limit FIRST, then perform doc lookups on the small slice
-      if (limitNum <= 100) {
-        basePipeline.push(
-          { $sort: sortObj },
-          { $skip: skip },
-          { $limit: limitNum },
-          { $lookup: {
-              from: 'dis',
-              localField: 'itemId',
-              foreignField: 'lineItems.itemId',
-              pipeline: [{ $sort: { createdAt: -1 } }, { $limit: 1 }],
-              as: 'latestDI'
-            }
-          },
-          { $unwind: { path: '$latestDI', preserveNullAndEmptyArrays: true } },
-          { $lookup: {
-              from: 'purchaseinvoices',
-              localField: 'itemId',
-              foreignField: 'lineItems.itemId',
-              pipeline: [{ $sort: { createdAt: -1 } }, { $limit: 1 }],
-              as: 'latestPI'
-            }
-          },
-          { $unwind: { path: '$latestPI', preserveNullAndEmptyArrays: true } },
-          { $lookup: {
-              from: 'purchaseorders',
-              localField: 'itemId',
-              foreignField: 'lineItems.itemId',
-              pipeline: [{ $sort: { createdAt: -1 } }, { $limit: 1 }],
-              as: 'latestPO'
-            }
-          },
-          { $unwind: { path: '$latestPO', preserveNullAndEmptyArrays: true } },
-          { $lookup: {
-              from: 'storeinwardentries',
-              localField: 'itemId',
-              foreignField: 'itemId',
-              pipeline: [{ $sort: { createdAt: -1 } }, { $limit: 1 }],
-              as: 'latestInward'
-            }
-          },
-          { $unwind: { path: '$latestInward', preserveNullAndEmptyArrays: true } },
-          { $lookup: {
-              from: 'contractorassignments',
-              localField: 'itemId',
-              foreignField: 'lineItems.itemId',
-              pipeline: [{ $sort: { createdAt: -1 } }, { $limit: 1 }],
-              as: 'latestMIN'
-            }
-          },
-          { $unwind: { path: '$latestMIN', preserveNullAndEmptyArrays: true } },
-          { $lookup: {
-              from: 'contractorworkorders',
-              localField: 'itemId',
-              foreignField: 'items.itemId',
-              pipeline: [{ $sort: { createdAt: -1 } }, { $limit: 1 }],
-              as: 'latestWO'
-            }
-          },
-          { $unwind: { path: '$latestWO', preserveNullAndEmptyArrays: true } },
-          { $lookup: {
-              from: 'demandnotes',
-              localField: 'itemId',
-              foreignField: 'items.itemId',
-              pipeline: [{ $sort: { createdAt: -1 } }, { $limit: 1 }],
-              as: 'latestDN'
-            }
-          },
-          { $unwind: { path: '$latestDN', preserveNullAndEmptyArrays: true } },
-          { $lookup: {
-              from: 'mhrovs',
-              localField: 'itemId',
-              foreignField: 'items.itemId',
-              pipeline: [{ $sort: { createdAt: -1 } }, { $limit: 1 }],
-              as: 'latestMHROV'
-            }
-          },
-          { $unwind: { path: '$latestMHROV', preserveNullAndEmptyArrays: true } },
-          { $lookup: {
-              from: 'clientbills',
-              localField: 'itemId',
-              foreignField: 'items.itemId',
-              pipeline: [{ $sort: { createdAt: -1 } }, { $limit: 1 }],
-              as: 'latestClientBill'
-            }
-          },
-          { $unwind: { path: '$latestClientBill', preserveNullAndEmptyArrays: true } }
-        );
-      }
 
       // Projection stage
       basePipeline.push({
@@ -923,46 +904,29 @@ export class SummaryService {
           poQty: 1,
           mhrovQty: 1,
           ra60Qty: 1,
+          ra60Amt: 1,
           ra30Qty: 1,
+          ra30Amt: 1,
           ra10Qty: 1,
+          ra10Amt: 1,
           er90Qty: 1,
+          er90Amt: 1,
           er10Qty: 1,
+          er10Amt: 1,
           jmcQty: 1,
           wipQty: 1,
           cBillQty: 1,
+          cBillAmt: 1,
           vendors: 1,
           contractors: 1,
           contractorBreakdown: 1,
-          contractorName: { $ifNull: ["$latestMIN.contractorFarmName", { $ifNull: ["$latestDN.contractorName", ""] }] },
           transferInQty: 1,
           transferOutQty: 1,
           issuedQty: 1,
           returnedQty: 1,
           woQty: 1,
           demandQty: 1,
-          receivedQty: { $ifNull: ["$latestInward.totalQty", { $ifNull: ["$receivedQty", "$invQty"] }] },
-          diNo: "$latestDI.diNumber",
-          diDate: { $ifNull: ["$latestDI.diDate", "$latestDI.date"] },
-          diStatus: "$latestDI.status",
-          piNo: "$latestPI.invoiceNumber",
-          piDate: { $ifNull: ["$latestPI.invoiceDate", "$latestPI.date"] },
-          piStatus: { $ifNull: ["$latestPI.paymentStatus", "$latestPI.status"] },
-          poNo: "$latestPO.poNumber",
-          poDate: "$latestPO.poDate",
-          poStatus: "$latestPO.status",
-          grnNo: { $ifNull: ["$latestInward.grNumber", "$latestInward.inwardId"] },
-          inwardDate: { $ifNull: ["$latestInward.receivedDate", "$latestInward.invoiceDate"] },
-          minNo: { $ifNull: ["$latestMIN.minNo", "$latestMIN.assignmentNumber"] },
-          minDate: { $ifNull: ["$latestMIN.minDate", "$latestMIN.date"] },
-          woNo: "$latestWO.workOrderNumber",
-          woDate: "$latestWO.createdAt",
-          dnNo: "$latestDN.demandNoteNumber",
-          dnDate: "$latestDN.createdAt",
-          dnQty: "$demandQty",
-          mrhovNo: "$latestMHROV.mhrovNumber",
-          mrhovStatus: "$latestMHROV.status",
-          raNo: "$latestClientBill.billNumber",
-          raDate: "$latestClientBill.billDate",
+          receivedQty: 1,
           loaQty: {
             $let: {
               vars: { c: { $toLower: "$_id.circle" } },
@@ -1037,50 +1001,479 @@ export class SummaryService {
         }
       });
 
-      // If bulk mode (limit > 100), sort, skip, and limit at the end of the fast pipeline
-      if (limitNum > 100) {
-        basePipeline.push(
-          { $sort: sortObj },
-          { $skip: skip },
-          { $limit: limitNum }
-        );
-      }
-
       const summaries = await ItemSummary.aggregate(basePipeline);
 
-      const enrichedSummaries = summaries.map(doc => {
-        const balLoaBilled = (doc.loaQty || 0) - (doc.billedQty || 0);
-        const balBomBilled = (doc.bomQty || 0) - (doc.billedQty || 0);
-        const goodDispatch = doc.actQty || 0;
-        const balDispatchVsDi = (doc.diQty || 0) - (doc.actQty || 0);
-        const diBalAsPerLoa = (doc.loaQty || 0) - (doc.actQty || 0);
-        const diBalAsPerBom = (doc.bomQty || 0) - (doc.actQty || 0);
-        const balDiIssuedAsPerLoa = (doc.loaQty || 0) - (doc.diQty || 0);
-        const balDiIssuedAsPerBom = (doc.bomQty || 0) - (doc.diQty || 0);
+      // Perform fast batch lookups to enrich all items with latest document details & live aggregates
+      const db = mongoose.connection.db;
+      let enrichedSummaries = summaries;
 
-        const remainingLoa = balLoaBilled;
-        const remainingBom = (doc.bomQty || 0) - (doc.actQty || 0);
-        const completionPercent = doc.loaQty ? ((doc.actQty || 0) / doc.loaQty) * 100 : 0;
-        const variance = balDispatchVsDi;
-        const pendingInvoice = (doc.actQty || 0) - (doc.billedQty || 0);
+      if (db && summaries.length > 0) {
+        const itemIds = summaries.map(s => s.itemId).filter(Boolean);
+        const isSmallBatch = itemIds.length > 0 && itemIds.length <= 100;
+        const idMatch = isSmallBatch ? { itemId: { $in: itemIds } } : null;
+        const lineItemMatch = isSmallBatch ? { 'lineItems.itemId': { $in: itemIds } } : null;
+        const itemsMatch = isSmallBatch ? { 'items.itemId': { $in: itemIds } } : null;
 
-        return {
-          ...doc,
-          balLoaBilled,
-          balBomBilled,
-          goodDispatch,
-          balDispatchVsDi,
-          diBalAsPerLoa,
-          diBalAsPerBom,
-          balDiIssuedAsPerLoa,
-          balDiIssuedAsPerBom,
-          remainingLoa,
-          remainingBom,
-          completionPercent: parseFloat(completionPercent.toFixed(2)),
-          variance,
-          pendingInvoice
+        const [
+          latestInwards,
+          latestDIs,
+          latestPIs,
+          latestPOs,
+          latestMINs,
+          latestDNs,
+          latestMHROVs,
+          latestCBs,
+          latestWOs,
+          cbAgg,
+          ciAgg,
+          mhrovAgg,
+          retAgg,
+          stAgg
+        ] = await Promise.all([
+          // 1. Inward entries - sorted by latest inward date (receivedDate or invoiceDate)
+          db.collection('storeinwardentries').aggregate([
+            ...(idMatch ? [{ $match: idMatch }] : []),
+            { $sort: { receivedDate: -1, invoiceDate: -1, createdAt: -1 } },
+            { $group: {
+                _id: "$itemId",
+                grnNo: { $first: { $ifNull: ["$grNumber", "$inwardId"] } },
+                inwardDate: { $first: { $ifNull: ["$receivedDate", "$invoiceDate"] } },
+                receivedQty: { $first: "$totalQty" }
+              }
+            }
+          ]).toArray(),
+
+          // 2. DIs - sorted by latest diDate
+          db.collection('dis').aggregate([
+            ...(lineItemMatch ? [{ $match: lineItemMatch }] : []),
+            { $sort: { diDate: -1, date: -1, createdAt: -1 } },
+            { $unwind: "$lineItems" },
+            ...(lineItemMatch ? [{ $match: lineItemMatch }] : []),
+            { $group: {
+                _id: "$lineItems.itemId",
+                diNo: { $first: "$diNumber" },
+                diDate: { $first: { $ifNull: ["$diDate", "$date"] } },
+                diStatus: { $first: "$status" }
+              }
+            }
+          ]).toArray(),
+
+          // 3. Purchase Invoices - sorted by latest invoiceDate
+          db.collection('purchaseinvoices').aggregate([
+            ...(lineItemMatch ? [{ $match: lineItemMatch }] : []),
+            { $sort: { invoiceDate: -1, date: -1, createdAt: -1 } },
+            { $unwind: "$lineItems" },
+            ...(lineItemMatch ? [{ $match: lineItemMatch }] : []),
+            { $group: {
+                _id: "$lineItems.itemId",
+                piNo: { $first: "$invoiceNumber" },
+                piDate: { $first: { $ifNull: ["$invoiceDate", "$date"] } },
+                piStatus: { $first: { $ifNull: ["$paymentStatus", "$status"] } }
+              }
+            }
+          ]).toArray(),
+
+          // 4. Purchase Orders - sorted by latest poDate
+          db.collection('purchaseorders').aggregate([
+            ...(lineItemMatch ? [{ $match: lineItemMatch }] : []),
+            { $sort: { poDate: -1, date: -1, createdAt: -1 } },
+            { $unwind: "$lineItems" },
+            ...(lineItemMatch ? [{ $match: lineItemMatch }] : []),
+            { $group: {
+                _id: "$lineItems.itemId",
+                poNo: { $first: { $ifNull: ["$purchaseOrderNumber", "$poNumber"] } },
+                poDate: { $first: { $ifNull: ["$poDate", "$date"] } },
+                poStatus: { $first: "$status" }
+              }
+            }
+          ]).toArray(),
+
+          // 5. MINs (contractorassignments) - sorted by latest minDate
+          db.collection('contractorassignments').aggregate([
+            ...(lineItemMatch ? [{ $match: lineItemMatch }] : []),
+            { $sort: { minDate: -1, date: -1, createdAt: -1 } },
+            { $unwind: "$lineItems" },
+            ...(lineItemMatch ? [{ $match: lineItemMatch }] : []),
+            { $group: {
+                _id: "$lineItems.itemId",
+                minNo: { $first: { $ifNull: ["$minNo", "$assignmentNumber"] } },
+                minDate: { $first: { $ifNull: ["$minDate", "$date"] } },
+                contractorName: { $first: "$contractorFarmName" }
+              }
+            }
+          ]).toArray(),
+
+          // 6. Demand Notes - sorted by latest createdAt
+          db.collection('demandnotes').aggregate([
+            ...(itemsMatch ? [{ $match: itemsMatch }] : []),
+            { $sort: { createdAt: -1 } },
+            { $unwind: "$items" },
+            ...(itemsMatch ? [{ $match: itemsMatch }] : []),
+            { $group: {
+                _id: "$items.itemId",
+                dnNo: { $first: "$demandNoteNumber" },
+                dnDate: { $first: "$createdAt" },
+                contractorName: { $first: "$contractorName" }
+              }
+            }
+          ]).toArray(),
+
+          // 7. MHROVs - sorted by latest createdAt
+          db.collection('mhrovs').aggregate([
+            ...(itemsMatch ? [{ $match: itemsMatch }] : []),
+            { $sort: { createdAt: -1 } },
+            { $unwind: "$items" },
+            ...(itemsMatch ? [{ $match: itemsMatch }] : []),
+            { $group: {
+                _id: "$items.itemId",
+                mrhovNo: { $first: "$mhrovNumber" },
+                mrhovStatus: { $first: "$status" }
+              }
+            }
+          ]).toArray(),
+
+          // 8. Client Bills - sorted by latest raBillDate
+          db.collection('clientbills').aggregate([
+            ...(itemsMatch ? [{ $match: itemsMatch }] : []),
+            { $sort: { raBillDate: -1, createdAt: -1 } },
+            { $unwind: "$items" },
+            ...(itemsMatch ? [{ $match: itemsMatch }] : []),
+            { $group: {
+                _id: "$items.itemId",
+                raNo: { $first: "$raBillNo" },
+                raDate: { $first: "$raBillDate" }
+              }
+            }
+          ]).toArray(),
+
+          // 9. Work Orders - sorted by latest createdAt
+          db.collection('contractorworkorders').aggregate([
+            ...(itemsMatch ? [{ $match: itemsMatch }] : []),
+            { $sort: { createdAt: -1 } },
+            { $unwind: "$items" },
+            ...(itemsMatch ? [{ $match: itemsMatch }] : []),
+            { $group: {
+                _id: "$items.itemId",
+                woNo: { $first: "$workOrderNumber" },
+                woDate: { $first: "$createdAt" }
+              }
+            }
+          ]).toArray(),
+
+          // 10. ClientBills Live Aggregates
+          db.collection('clientbills').aggregate([
+            { $match: { status: { $ne: 'Rejected' }, ...(itemsMatch || {}) } },
+            { $unwind: "$items" },
+            ...(itemsMatch ? [{ $match: itemsMatch }] : []),
+            { $group: {
+                _id: "$items.itemId",
+                ra60Qty: {
+                  $sum: {
+                    $cond: [
+                      { $and: [{ $eq: ["$billType", "Supply"] }, { $eq: ["$stage", "60%"] }] },
+                      { $ifNull: ["$items.raBillQty", "$items.sourceDoneQty"] },
+                      0
+                    ]
+                  }
+                },
+                ra60Amt: {
+                  $sum: {
+                    $cond: [
+                      { $and: [{ $eq: ["$billType", "Supply"] }, { $eq: ["$stage", "60%"] }] },
+                      { $ifNull: ["$items.totalAmount", 0] },
+                      0
+                    ]
+                  }
+                },
+                ra30Qty: {
+                  $sum: {
+                    $cond: [
+                      { $and: [{ $eq: ["$billType", "Supply"] }, { $eq: ["$stage", "30%"] }] },
+                      { $ifNull: ["$items.raBillQty", "$items.sourceDoneQty"] },
+                      0
+                    ]
+                  }
+                },
+                ra30Amt: {
+                  $sum: {
+                    $cond: [
+                      { $and: [{ $eq: ["$billType", "Supply"] }, { $eq: ["$stage", "30%"] }] },
+                      { $ifNull: ["$items.totalAmount", 0] },
+                      0
+                    ]
+                  }
+                },
+                ra10Qty: {
+                  $sum: {
+                    $cond: [
+                      { $and: [{ $eq: ["$billType", "Supply"] }, { $eq: ["$stage", "10%"] }] },
+                      { $ifNull: ["$items.raBillQty", "$items.sourceDoneQty"] },
+                      0
+                    ]
+                  }
+                },
+                ra10Amt: {
+                  $sum: {
+                    $cond: [
+                      { $and: [{ $eq: ["$billType", "Supply"] }, { $eq: ["$stage", "10%"] }] },
+                      { $ifNull: ["$items.totalAmount", 0] },
+                      0
+                    ]
+                  }
+                },
+                er90Qty: {
+                  $sum: {
+                    $cond: [
+                      { $and: [{ $eq: ["$billType", "Erection"] }, { $eq: ["$stage", "90%"] }] },
+                      { $ifNull: ["$items.raBillQty", "$items.sourceDoneQty"] },
+                      0
+                    ]
+                  }
+                },
+                er90Amt: {
+                  $sum: {
+                    $cond: [
+                      { $and: [{ $eq: ["$billType", "Erection"] }, { $eq: ["$stage", "90%"] }] },
+                      { $ifNull: ["$items.totalAmount", 0] },
+                      0
+                    ]
+                  }
+                },
+                er10Qty: {
+                  $sum: {
+                    $cond: [
+                      { $and: [{ $eq: ["$billType", "Erection"] }, { $eq: ["$stage", "10%"] }] },
+                      { $ifNull: ["$items.raBillQty", "$items.sourceDoneQty"] },
+                      0
+                    ]
+                  }
+                },
+                er10Amt: {
+                  $sum: {
+                    $cond: [
+                      { $and: [{ $eq: ["$billType", "Erection"] }, { $eq: ["$stage", "10%"] }] },
+                      { $ifNull: ["$items.totalAmount", 0] },
+                      0
+                    ]
+                  }
+                }
+              }
+            }
+          ]).toArray(),
+
+          // 11. ContractorInvoices Live Aggregates
+          db.collection('contractorinvoices').aggregate([
+            { $match: { status: { $ne: 'Rejected' }, ...(lineItemMatch || {}) } },
+            { $unwind: "$lineItems" },
+            ...(lineItemMatch ? [{ $match: lineItemMatch }] : []),
+            { $group: {
+                _id: "$lineItems.itemId",
+                cBillQty: { $sum: { $ifNull: ["$lineItems.erectedQty", "$lineItems.jmcDoneQty"] } },
+                cBillAmt: { $sum: { $ifNull: ["$lineItems.totalAmount", "$lineItems.baseAmount"] } }
+              }
+            }
+          ]).toArray(),
+
+          // 12. MHROVs Live Aggregates
+          db.collection('mhrovs').aggregate([
+            { $match: { status: { $ne: 'Cancelled' }, ...(itemsMatch || {}) } },
+            { $unwind: "$items" },
+            ...(itemsMatch ? [{ $match: itemsMatch }] : []),
+            { $group: {
+                _id: "$items.itemId",
+                mhrovQty: { $sum: "$items.mhrovDoneQty" }
+              }
+            }
+          ]).toArray(),
+
+          // 13. ContractorReturns Live Aggregates
+          db.collection('contractorreturns').aggregate([
+            { $match: { status: { $ne: 'Cancelled' }, ...(lineItemMatch || {}) } },
+            { $unwind: "$lineItems" },
+            ...(lineItemMatch ? [{ $match: lineItemMatch }] : []),
+            { $group: {
+                _id: "$lineItems.itemId",
+                returnedQty: { $sum: { $ifNull: ["$lineItems.returnQty", { $ifNull: ["$lineItems.quantity", "$lineItems.acceptedQuantity"] }] } }
+              }
+            }
+          ]).toArray(),
+
+          // 14. StoreTransfers Live Aggregates
+          db.collection('storetransfers').aggregate([
+            { $match: { status: { $ne: 'Cancelled' }, ...(itemsMatch || {}) } },
+            { $unwind: "$items" },
+            ...(itemsMatch ? [{ $match: itemsMatch }] : []),
+            { $group: {
+                _id: "$items.itemId",
+                transferOutQty: { $sum: { $ifNull: ["$items.dispatchedQty", { $ifNull: ["$items.transferQty", "$items.receivedQty"] }] } },
+                transferInQty: { $sum: { $ifNull: ["$items.receivedQty", 0] } }
+              }
+            }
+          ]).toArray()
+        ]);
+
+        const toMap = (arr: any[]) => {
+          const m = new Map<string, any>();
+          for (const item of arr) {
+            if (item && item._id) m.set(item._id.toString(), item);
+          }
+          return m;
         };
-      });
+
+        const inwardMap = toMap(latestInwards);
+        const diMap = toMap(latestDIs);
+        const piMap = toMap(latestPIs);
+        const poMap = toMap(latestPOs);
+        const minMap = toMap(latestMINs);
+        const dnMap = toMap(latestDNs);
+        const mhrovMap = toMap(latestMHROVs);
+        const cbMap = toMap(latestCBs);
+        const woMap = toMap(latestWOs);
+        const cbAggMap = toMap(cbAgg);
+        const ciAggMap = toMap(ciAgg);
+        const mhrovAggMap = toMap(mhrovAgg);
+        const retAggMap = toMap(retAgg);
+        const stAggMap = toMap(stAgg);
+
+        enrichedSummaries = summaries.map(doc => {
+          const itemIdStr = doc.itemId ? doc.itemId.toString() : '';
+          const inw = inwardMap.get(itemIdStr);
+          const di = diMap.get(itemIdStr);
+          const pi = piMap.get(itemIdStr);
+          const po = poMap.get(itemIdStr);
+          const min = minMap.get(itemIdStr);
+          const dn = dnMap.get(itemIdStr);
+          const mh = mhrovMap.get(itemIdStr);
+          const cb = cbMap.get(itemIdStr);
+          const wo = woMap.get(itemIdStr);
+          const cba = cbAggMap.get(itemIdStr);
+          const cia = ciAggMap.get(itemIdStr);
+          const mha = mhrovAggMap.get(itemIdStr);
+          const reta = retAggMap.get(itemIdStr);
+          const sta = stAggMap.get(itemIdStr);
+
+          const grnNo = inw?.grnNo || doc.grnNo || null;
+          const inwardDate = inw?.inwardDate || doc.inwardDate || null;
+          const receivedQty = inw?.receivedQty ?? doc.receivedQty ?? doc.invQty ?? 0;
+
+          const diNo = di?.diNo || doc.diNo || null;
+          const diDate = di?.diDate || doc.diDate || null;
+          const diStatus = di?.diStatus || doc.diStatus || null;
+
+          const piNo = pi?.piNo || doc.piNo || null;
+          const piDate = pi?.piDate || doc.piDate || null;
+          const piStatus = pi?.piStatus || doc.piStatus || null;
+
+          const poNo = po?.poNo || doc.poNo || null;
+          const poDate = po?.poDate || doc.poDate || null;
+          const poStatus = po?.poStatus || doc.poStatus || null;
+
+          const minNo = min?.minNo || doc.minNo || null;
+          const minDate = min?.minDate || doc.minDate || null;
+          const contractorName = doc.contractorName || min?.contractorName || dn?.contractorName || '';
+
+          const dnNo = dn?.dnNo || doc.dnNo || null;
+          const dnDate = dn?.dnDate || doc.dnDate || null;
+          const mrhovNo = mh?.mrhovNo || doc.mrhovNo || null;
+          const mrhovStatus = mh?.mrhovStatus || doc.mrhovStatus || null;
+          const woNo = wo?.woNo || doc.woNo || null;
+          const woDate = wo?.woDate || doc.woDate || null;
+          const raNo = cb?.raNo || doc.raNo || null;
+          const raDate = cb?.raDate || doc.raDate || null;
+
+          const ra60Qty = cba?.ra60Qty ?? doc.ra60Qty ?? 0;
+          const ra60Amt = cba?.ra60Amt ?? doc.ra60Amt ?? 0;
+          const ra30Qty = cba?.ra30Qty ?? doc.ra30Qty ?? 0;
+          const ra30Amt = cba?.ra30Amt ?? doc.ra30Amt ?? 0;
+          const ra10Qty = cba?.ra10Qty ?? doc.ra10Qty ?? 0;
+          const ra10Amt = cba?.ra10Amt ?? doc.ra10Amt ?? 0;
+
+          const er90Qty = cba?.er90Qty ?? doc.er90Qty ?? 0;
+          const er90Amt = cba?.er90Amt ?? doc.er90Amt ?? 0;
+          const er10Qty = cba?.er10Qty ?? doc.er10Qty ?? 0;
+          const er10Amt = cba?.er10Amt ?? doc.er10Amt ?? 0;
+
+          const cBillQty = cia?.cBillQty ?? doc.cBillQty ?? 0;
+          const cBillAmt = cia?.cBillAmt ?? doc.cBillAmt ?? 0;
+
+          const mhrovQty = mha?.mhrovQty ?? doc.mhrovQty ?? 0;
+          const returnedQty = reta?.returnedQty ?? doc.returnedQty ?? 0;
+          const transferInQty = sta?.transferInQty ?? doc.transferInQty ?? 0;
+          const transferOutQty = sta?.transferOutQty ?? doc.transferOutQty ?? 0;
+
+          const balLoaBilled = (doc.loaQty || 0) - (doc.billedQty || 0);
+          const balBomBilled = (doc.bomQty || 0) - (doc.billedQty || 0);
+          const goodDispatch = doc.actQty || 0;
+          const balDispatchVsDi = (doc.diQty || 0) - (doc.actQty || 0);
+          const diBalAsPerLoa = (doc.loaQty || 0) - (doc.actQty || 0);
+          const diBalAsPerBom = (doc.bomQty || 0) - (doc.actQty || 0);
+          const balDiIssuedAsPerLoa = (doc.loaQty || 0) - (doc.diQty || 0);
+          const balDiIssuedAsPerBom = (doc.bomQty || 0) - (doc.diQty || 0);
+
+          const remainingLoa = balLoaBilled;
+          const remainingBom = (doc.bomQty || 0) - (doc.actQty || 0);
+          const completionPercent = doc.loaQty ? ((doc.actQty || 0) / doc.loaQty) * 100 : 0;
+          const variance = balDispatchVsDi;
+          const pendingInvoice = (doc.actQty || 0) - (doc.billedQty || 0);
+
+          return {
+            ...doc,
+            grnNo,
+            inwardDate,
+            receivedQty,
+            diNo,
+            diDate,
+            diStatus,
+            piNo,
+            piDate,
+            piStatus,
+            poNo,
+            poDate,
+            poStatus,
+            minNo,
+            minDate,
+            contractorName,
+            dnNo,
+            dnDate,
+            dnQty: doc.demandQty,
+            mrhovNo,
+            mrhovStatus,
+            woNo,
+            woDate,
+            raNo,
+            raDate,
+            ra60Qty,
+            ra60Amt,
+            ra30Qty,
+            ra30Amt,
+            ra10Qty,
+            ra10Amt,
+            er90Qty,
+            er90Amt,
+            er10Qty,
+            er10Amt,
+            cBillQty,
+            cBillAmt,
+            mhrovQty,
+            returnedQty,
+            transferInQty,
+            transferOutQty,
+            balLoaBilled,
+            balBomBilled,
+            goodDispatch,
+            balDispatchVsDi,
+            diBalAsPerLoa,
+            diBalAsPerBom,
+            balDiIssuedAsPerLoa,
+            balDiIssuedAsPerBom,
+            remainingLoa,
+            remainingBom,
+            completionPercent: parseFloat(completionPercent.toFixed(2)),
+            variance,
+            pendingInvoice
+          };
+        });
+      }
 
       const responsePayload = {
         items: enrichedSummaries,
@@ -1108,6 +1501,263 @@ export class SummaryService {
 
   static clearCache() {
     itemSummaryCache.clear();
+  }
+
+  /**
+   * Performs an optimized, batch-wide synchronization across all collections,
+   * updating ItemSummary records in MongoDB with exact live billing & movement values.
+   */
+  static async syncAllSummaries() {
+    try {
+      const db = mongoose.connection.db;
+      if (!db) return;
+
+      const [
+        cbAgg,
+        ciAgg,
+        mhrovAgg,
+        retAgg,
+        stAgg,
+        dnAgg,
+        inwardAgg
+      ] = await Promise.all([
+        db.collection('clientbills').aggregate([
+          { $match: { status: { $ne: 'Rejected' } } },
+          { $unwind: "$items" },
+          { $group: {
+              _id: "$items.itemId",
+              ra60Qty: {
+                $sum: {
+                  $cond: [
+                    { $and: [{ $eq: ["$billType", "Supply"] }, { $eq: ["$stage", "60%"] }] },
+                    { $ifNull: ["$items.raBillQty", "$items.sourceDoneQty"] },
+                    0
+                  ]
+                }
+              },
+              ra60Amt: {
+                $sum: {
+                  $cond: [
+                    { $and: [{ $eq: ["$billType", "Supply"] }, { $eq: ["$stage", "60%"] }] },
+                    { $ifNull: ["$items.totalAmount", 0] },
+                    0
+                  ]
+                }
+              },
+              ra30Qty: {
+                $sum: {
+                  $cond: [
+                    { $and: [{ $eq: ["$billType", "Supply"] }, { $eq: ["$stage", "30%"] }] },
+                    { $ifNull: ["$items.raBillQty", "$items.sourceDoneQty"] },
+                    0
+                  ]
+                }
+              },
+              ra30Amt: {
+                $sum: {
+                  $cond: [
+                    { $and: [{ $eq: ["$billType", "Supply"] }, { $eq: ["$stage", "30%"] }] },
+                    { $ifNull: ["$items.totalAmount", 0] },
+                    0
+                  ]
+                }
+              },
+              ra10Qty: {
+                $sum: {
+                  $cond: [
+                    { $and: [{ $eq: ["$billType", "Supply"] }, { $eq: ["$stage", "10%"] }] },
+                    { $ifNull: ["$items.raBillQty", "$items.sourceDoneQty"] },
+                    0
+                  ]
+                }
+              },
+              ra10Amt: {
+                $sum: {
+                  $cond: [
+                    { $and: [{ $eq: ["$billType", "Supply"] }, { $eq: ["$stage", "10%"] }] },
+                    { $ifNull: ["$items.totalAmount", 0] },
+                    0
+                  ]
+                }
+              },
+              er90Qty: {
+                $sum: {
+                  $cond: [
+                    { $and: [{ $eq: ["$billType", "Erection"] }, { $eq: ["$stage", "90%"] }] },
+                    { $ifNull: ["$items.raBillQty", "$items.sourceDoneQty"] },
+                    0
+                  ]
+                }
+              },
+              er90Amt: {
+                $sum: {
+                  $cond: [
+                    { $and: [{ $eq: ["$billType", "Erection"] }, { $eq: ["$stage", "90%"] }] },
+                    { $ifNull: ["$items.totalAmount", 0] },
+                    0
+                  ]
+                }
+              },
+              er10Qty: {
+                $sum: {
+                  $cond: [
+                    { $and: [{ $eq: ["$billType", "Erection"] }, { $eq: ["$stage", "10%"] }] },
+                    { $ifNull: ["$items.raBillQty", "$items.sourceDoneQty"] },
+                    0
+                  ]
+                }
+              },
+              er10Amt: {
+                $sum: {
+                  $cond: [
+                    { $and: [{ $eq: ["$billType", "Erection"] }, { $eq: ["$stage", "10%"] }] },
+                    { $ifNull: ["$items.totalAmount", 0] },
+                    0
+                  ]
+                }
+              }
+            }
+          }
+        ]).toArray(),
+
+        db.collection('contractorinvoices').aggregate([
+          { $match: { status: { $ne: 'Rejected' } } },
+          { $unwind: "$lineItems" },
+          { $group: {
+              _id: "$lineItems.itemId",
+              cBillQty: { $sum: { $ifNull: ["$lineItems.erectedQty", "$lineItems.jmcDoneQty"] } },
+              cBillAmt: { $sum: { $ifNull: ["$lineItems.totalAmount", "$lineItems.baseAmount"] } }
+            }
+          }
+        ]).toArray(),
+
+        db.collection('mhrovs').aggregate([
+          { $match: { status: { $ne: 'Cancelled' } } },
+          { $unwind: "$items" },
+          { $group: {
+              _id: "$items.itemId",
+              mhrovQty: { $sum: "$items.mhrovDoneQty" }
+            }
+          }
+        ]).toArray(),
+
+        db.collection('contractorreturns').aggregate([
+          { $match: { status: { $ne: 'Cancelled' } } },
+          { $unwind: "$lineItems" },
+          { $group: {
+              _id: "$lineItems.itemId",
+              returnedQty: { $sum: { $ifNull: ["$lineItems.returnQty", { $ifNull: ["$lineItems.quantity", "$lineItems.acceptedQuantity"] }] } }
+            }
+          }
+        ]).toArray(),
+
+        db.collection('storetransfers').aggregate([
+          { $match: { status: { $ne: 'Cancelled' } } },
+          { $unwind: "$items" },
+          { $group: {
+              _id: "$items.itemId",
+              transferOutQty: { $sum: { $ifNull: ["$items.dispatchedQty", { $ifNull: ["$items.transferQty", "$items.receivedQty"] }] } },
+              transferInQty: { $sum: { $ifNull: ["$items.receivedQty", 0] } }
+            }
+          }
+        ]).toArray(),
+
+        db.collection('demandnotes').aggregate([
+          { $match: { status: { $ne: 'Rejected' } } },
+          { $unwind: "$items" },
+          { $group: {
+              _id: "$items.itemId",
+              demandQty: { $sum: "$items.demandQty" }
+            }
+          }
+        ]).toArray(),
+
+        db.collection('storeinwardentries').aggregate([
+          { $group: {
+              _id: "$itemId",
+              receivedQty: { $sum: { $ifNull: ["$totalQty", "$invoiceQty"] } }
+            }
+          }
+        ]).toArray()
+      ]);
+
+      const itemUpdates = new Map<string, any>();
+      const getOrCreate = (id: any) => {
+        const s = id.toString();
+        if (!itemUpdates.has(s)) itemUpdates.set(s, {});
+        return itemUpdates.get(s);
+      };
+
+      cbAgg.forEach((r: any) => {
+        if (!r._id) return;
+        const u = getOrCreate(r._id);
+        u.ra60Qty = r.ra60Qty || 0;
+        u.ra60Amt = r.ra60Amt || 0;
+        u.ra30Qty = r.ra30Qty || 0;
+        u.ra30Amt = r.ra30Amt || 0;
+        u.ra10Qty = r.ra10Qty || 0;
+        u.ra10Amt = r.ra10Amt || 0;
+        u.er90Qty = r.er90Qty || 0;
+        u.er90Amt = r.er90Amt || 0;
+        u.er10Qty = r.er10Qty || 0;
+        u.er10Amt = r.er10Amt || 0;
+      });
+
+      ciAgg.forEach((r: any) => {
+        if (!r._id) return;
+        const u = getOrCreate(r._id);
+        u.cBillQty = r.cBillQty || 0;
+        u.cBillAmt = r.cBillAmt || 0;
+      });
+
+      mhrovAgg.forEach((r: any) => {
+        if (!r._id) return;
+        const u = getOrCreate(r._id);
+        u.mhrovQty = r.mhrovQty || 0;
+      });
+
+      retAgg.forEach((r: any) => {
+        if (!r._id) return;
+        const u = getOrCreate(r._id);
+        u.returnedQty = r.returnedQty || 0;
+      });
+
+      stAgg.forEach((r: any) => {
+        if (!r._id) return;
+        const u = getOrCreate(r._id);
+        u.transferOutQty = r.transferOutQty || 0;
+        u.transferInQty = r.transferInQty || 0;
+      });
+
+      dnAgg.forEach((r: any) => {
+        if (!r._id) return;
+        const u = getOrCreate(r._id);
+        u.demandQty = r.demandQty || 0;
+      });
+
+      inwardAgg.forEach((r: any) => {
+        if (!r._id) return;
+        const u = getOrCreate(r._id);
+        u.receivedQty = r.receivedQty || 0;
+      });
+
+      const bulkOps: any[] = [];
+      for (const [idStr, fields] of itemUpdates.entries()) {
+        bulkOps.push({
+          updateMany: {
+            filter: { itemId: new mongoose.Types.ObjectId(idStr) },
+            update: { $set: fields }
+          }
+        });
+      }
+
+      if (bulkOps.length > 0) {
+        await db.collection('itemsummaries').bulkWrite(bulkOps);
+      }
+      SummaryService.clearCache();
+    } catch (err) {
+      console.error('Error syncing all ItemSummaries:', err);
+    }
   }
 }
 

@@ -322,7 +322,7 @@ export const updateJmc = asyncHandler(async (req: Request, res: Response) => {
   const updatedJmc = await JmcRegister.findByIdAndUpdate(
     id,
     payload,
-    { new: true, runValidators: true }
+    { returnDocument: 'after', runValidators: true }
   );
 
   res.status(200).json(

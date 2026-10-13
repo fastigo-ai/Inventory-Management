@@ -17,6 +17,13 @@ const PORT = process.env.PORT || 5000;
 
 let server: any;
 
+process.on('warning', (warning: any) => {
+  if (warning.name === 'MongooseWarning' || warning.message?.includes('mongoose:') || warning.message?.includes('[MONGOOSE]')) {
+    return; // Suppress Mongoose deprecation warnings in production console
+  }
+  console.warn(warning.name, warning.message);
+});
+
 process.on('uncaughtException', (err: any) => {
   console.error('UNCAUGHT EXCEPTION! Shutting down...');
   console.error(err?.name, err?.message, err?.stack || err);

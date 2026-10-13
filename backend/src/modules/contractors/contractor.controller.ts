@@ -374,7 +374,7 @@ export const updateAssignment = asyncHandler(async (req: Request, res: Response)
   const updatedAssignment = await ContractorAssignment.findByIdAndUpdate(
     id,
     updateData,
-    { new: true, runValidators: true }
+    { returnDocument: 'after', runValidators: true }
   );
 
   if (updatedAssignment && updatedAssignment.lineItems) {
@@ -434,7 +434,7 @@ export const assignContractor = asyncHandler(async (req: Request, res: Response)
   const contractor = await Contractor.findByIdAndUpdate(
     id,
     { assignedLocations: locations },
-    { new: true, runValidators: true }
+    { returnDocument: 'after', runValidators: true }
   );
 
   if (!contractor) {
@@ -463,7 +463,7 @@ export const updateContractor = asyncHandler(async (req: Request, res: Response)
   const contractor = await Contractor.findByIdAndUpdate(
     id,
     updatePayload,
-    { new: true, runValidators: true }
+    { returnDocument: 'after', runValidators: true }
   );
 
   if (!contractor) {
@@ -479,7 +479,7 @@ export const deleteContractor = asyncHandler(async (req: Request, res: Response)
   const contractor = await Contractor.findByIdAndUpdate(
     id,
     { isActive: false },
-    { new: true }
+    { returnDocument: 'after' }
   );
 
   if (!contractor) {
@@ -802,7 +802,7 @@ export const getContractorReturnById = asyncHandler(async (req: Request, res: Re
 export const updateContractorReturn = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const data = req.body;
-  const returnObj = await ContractorReturn.findByIdAndUpdate(id, data, { new: true });
+  const returnObj = await ContractorReturn.findByIdAndUpdate(id, data, { returnDocument: 'after' });
   if (!returnObj) throw new ApiError(404, 'Contractor return not found');
 
   if (returnObj && returnObj.lineItems) {

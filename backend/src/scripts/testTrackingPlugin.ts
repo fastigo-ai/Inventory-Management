@@ -43,7 +43,7 @@ async function runTest() {
         const updatedPo = await PurchaseOrder.findOneAndUpdate(
           { _id: savedPo._id },
           { vendorName: 'Updated Vendor' },
-          { new: true }
+          { returnDocument: 'after' }
         );
         
         console.log('Updated PO ID:', updatedPo?._id);

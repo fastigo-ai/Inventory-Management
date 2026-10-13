@@ -28,7 +28,7 @@ export const updateRole = asyncHandler(async (req: Request, res: Response) => {
   const role = await Role.findByIdAndUpdate(
     id,
     { name, description, permissions },
-    { new: true, runValidators: true }
+    { returnDocument: 'after', runValidators: true }
   );
 
   if (!role) {

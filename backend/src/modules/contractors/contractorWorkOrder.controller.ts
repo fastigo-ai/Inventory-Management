@@ -340,7 +340,7 @@ export const updateWorkOrderStatus = asyncHandler(async (req: AuthRequest, res: 
   const workOrder = await ContractorWorkOrder.findByIdAndUpdate(
     id,
     { status },
-    { new: true }
+    { returnDocument: 'after' }
   );
 
   if (!workOrder) {
@@ -360,7 +360,7 @@ export const updateWorkOrder = asyncHandler(async (req: AuthRequest, res: Respon
   const workOrder = await ContractorWorkOrder.findByIdAndUpdate(
     id,
     req.body,
-    { new: true }
+    { returnDocument: 'after' }
   );
 
   if (!workOrder) {

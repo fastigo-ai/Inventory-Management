@@ -740,7 +740,7 @@ export const updateDemandNote = asyncHandler(async (req: AuthRequest, res: Respo
       }
     }
 
-    const demandNote = await DemandNote.findByIdAndUpdate(req.params.id, updateData, { new: true, session });
+    const demandNote = await DemandNote.findByIdAndUpdate(req.params.id, updateData, { returnDocument: 'after', session });
     
     await session.commitTransaction();
     session.endSession();

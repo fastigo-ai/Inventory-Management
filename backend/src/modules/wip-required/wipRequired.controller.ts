@@ -198,7 +198,7 @@ export const updateWipRequired = asyncHandler(async (req: Request, res: Response
   const updatedWipRequired = await WipRequiredRegister.findByIdAndUpdate(
     id,
     payload,
-    { new: true, runValidators: true }
+    { returnDocument: 'after', runValidators: true }
   );
 
   res.status(200).json(

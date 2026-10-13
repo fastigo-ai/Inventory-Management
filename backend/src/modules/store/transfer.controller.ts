@@ -547,7 +547,7 @@ export const updateStoreTransferStatus = asyncHandler(async (req: Request, res: 
   const { id } = req.params;
   const { status } = req.body;
 
-  const transfer = await StoreTransfer.findByIdAndUpdate(id, { status }, { new: true });
+  const transfer = await StoreTransfer.findByIdAndUpdate(id, { status }, { returnDocument: 'after' });
   if (!transfer) {
     throw new ApiError(404, 'Transfer not found');
   }
@@ -561,7 +561,7 @@ export const dispatchStoreTransfer = asyncHandler(async (req: Request, res: Resp
 
   dispatchData.status = 'IN_TRANSIT';
 
-  const transfer = await StoreTransfer.findByIdAndUpdate(id, dispatchData, { new: true });
+  const transfer = await StoreTransfer.findByIdAndUpdate(id, dispatchData, { returnDocument: 'after' });
   if (!transfer) {
     throw new ApiError(404, 'Transfer not found');
   }
@@ -576,7 +576,7 @@ export const receiveStoreTransfer = asyncHandler(async (req: Request, res: Respo
   // Expected updateData includes `items` (with receivedQty)
   updateData.status = 'RECEIVED';
 
-  const transfer = await StoreTransfer.findByIdAndUpdate(id, updateData, { new: true });
+  const transfer = await StoreTransfer.findByIdAndUpdate(id, updateData, { returnDocument: 'after' });
   if (!transfer) {
     throw new ApiError(404, 'Transfer not found');
   }

@@ -268,7 +268,7 @@ export const updateAuditSettings = asyncHandler(async (req: AuthRequest, res: Re
   const updated = await AuditSettings.findOneAndUpdate(
     { entityName },
     { isActive, trackAllFields, trackedFields, ignoredFields },
-    { new: true, upsert: true } // Create if doesn't exist
+    { returnDocument: 'after', upsert: true } // Create if doesn't exist
   );
 
   // Refresh the in-memory cache so the plugin picks it up immediately

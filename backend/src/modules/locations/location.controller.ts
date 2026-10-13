@@ -42,7 +42,7 @@ export const updateLocation = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const data = req.body;
-    const updatedLocation = await Location.findByIdAndUpdate(id, data, { new: true });
+    const updatedLocation = await Location.findByIdAndUpdate(id, data, { returnDocument: 'after' });
     
     if (!updatedLocation) {
       return res.status(404).json({

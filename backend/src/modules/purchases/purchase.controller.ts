@@ -393,7 +393,7 @@ export const updatePurchaseOrder = async (req: Request, res: Response) => {
     }
     
     try {
-      const updatedOrder = await PurchaseOrder.findByIdAndUpdate(id, updatedData, { new: true });
+      const updatedOrder = await PurchaseOrder.findByIdAndUpdate(id, updatedData, { returnDocument: 'after' });
       
       const oldItemIds = existingOrder.lineItems?.map((li: any) => li.itemId?.toString()).filter(Boolean) || [];
       const newItemIds = updatedOrder?.lineItems?.map((li: any) => li.itemId?.toString()).filter(Boolean) || [];
@@ -446,7 +446,7 @@ export const deletePurchaseOrder = async (req: Request, res: Response) => {
       });
     }
 
-    const deletedOrder = await PurchaseOrder.findByIdAndUpdate(id, { isDeleted: true }, { new: true });
+    const deletedOrder = await PurchaseOrder.findByIdAndUpdate(id, { isDeleted: true }, { returnDocument: 'after' });
     
     if (!deletedOrder) {
       return res.status(404).json({ success: false, message: 'Purchase Order not found' });

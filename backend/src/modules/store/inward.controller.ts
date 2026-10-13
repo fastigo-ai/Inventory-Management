@@ -254,7 +254,7 @@ export const createInwardEntry = asyncHandler(async (req: Request, res: Response
     if (entry.status === 'Draft') {
       data.pendingMhrovQty = Number(data.totalQty || data.invoiceQty || data.challanQty || 0);
     }
-    entry = await StoreInwardEntry.findByIdAndUpdate(entry._id, data, { new: true });
+    entry = await StoreInwardEntry.findByIdAndUpdate(entry._id, data, { returnDocument: 'after' });
   } else {
     data.mhrovDoneQty = 0;
     data.pendingMhrovQty = Number(data.totalQty || data.invoiceQty || data.challanQty || 0);
@@ -1536,7 +1536,7 @@ export const updateInwardEntry = asyncHandler(async (req: Request, res: Response
     // For non-approved/verified states, check if it's a verification update
     if (entry.status !== 'Draft' && entry.status !== 'Pending Receipt' && entry.status !== 'Submitted') {
       if (payload.status === 'Verified' || payload.status === 'Needs Correction') {
-        const updated = await StoreInwardEntry.findByIdAndUpdate(id, { status: payload.status }, { new: true });
+        const updated = await StoreInwardEntry.findByIdAndUpdate(id, { status: payload.status }, { returnDocument: 'after' });
         if (payload.status === 'Verified' && updated && updated.purchaseInvoiceId) {
           await processInwardStockUpdate(updated._id.toString());
         }

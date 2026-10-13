@@ -413,7 +413,7 @@ export const updateDIStatus = asyncHandler(async (req: Request, res: Response) =
   const di = await DI.findByIdAndUpdate(
     id,
     { status },
-    { new: true, runValidators: true }
+    { returnDocument: 'after', runValidators: true }
   );
 
   if (!di) {

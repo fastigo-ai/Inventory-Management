@@ -746,7 +746,7 @@ export const bulkImportClientBills = asyncHandler(async (req: any, res: Response
             createdBy: user._id
           }
         },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
       );
       results.success++;
 

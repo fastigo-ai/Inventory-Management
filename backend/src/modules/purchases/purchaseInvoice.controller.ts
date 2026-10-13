@@ -569,7 +569,7 @@ export const updatePurchaseInvoice = async (req: Request, res: Response): Promis
       }
     }
 
-    const updatedPr: any = await PurchaseInvoice.findByIdAndUpdate(id, updateData, { new: true }).lean();
+    const updatedPr: any = await PurchaseInvoice.findByIdAndUpdate(id, updateData, { returnDocument: 'after' }).lean();
     
     if (!updatedPr) {
       res.status(404).json({

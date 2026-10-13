@@ -54,7 +54,7 @@ export const updateUserRole = asyncHandler(async (req: Request, res: Response) =
   const user = await User.findByIdAndUpdate(
     id,
     { role: role._id },
-    { new: true }
+    { returnDocument: 'after' }
   ).populate('role').select('-password');
 
   if (!user) {

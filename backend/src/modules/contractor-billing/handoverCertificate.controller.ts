@@ -54,7 +54,7 @@ export const updateHandoverCertificate = asyncHandler(async (req: Request, res: 
   const updatedCertificate = await HandoverCertificate.findByIdAndUpdate(
     id,
     data,
-    { new: true, runValidators: true }
+    { returnDocument: 'after', runValidators: true }
   );
 
   res.status(200).json(new ApiResponse(200, updatedCertificate, 'Handover Certificate updated successfully'));

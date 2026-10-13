@@ -183,6 +183,17 @@ export default function StoreSummaryPage() {
     }
   }, [circle]);
 
+  // Auto-set Circle based on Package when circle is not yet selected
+  useEffect(() => {
+    if (!circle) {
+      if (pkg === 'Package 1(S/N)') {
+        setCircle('Solan,Nahan');
+      } else if (pkg === 'Package 2(R/R)') {
+        setCircle('Rampur,Rohru');
+      }
+    }
+  }, [pkg]);
+
   // Helper function to fetch all data for exports if no rows are selected
   const fetchAllForExport = async () => {
     if (selectedItems.size > 0) {
@@ -220,8 +231,8 @@ export default function StoreSummaryPage() {
       'SR NO': index + 1,
       'TEMP CODE': row.tempCode || '-',
       'ITEM NAME': row.name || row.itemName || '-',
-      'CIRCLE': row.circle || circle || 'All Circles',
-      'PACKAGE': row.package || pkg || 'All Packages',
+      'CIRCLE': row.circle || (circle ? circle : 'All Circles'),
+      'PACKAGE': row.package || (pkg ? pkg : 'All Packages'),
       'UNIT': row.unit || 'No',
       'TOTAL DI QTY': row.diQty || 0,
       'TOTAL MRHOV QTY': row.mhrovQty || 0,
@@ -522,10 +533,13 @@ export default function StoreSummaryPage() {
                 onChange={(e) => {
                   const newPkg = e.target.value;
                   setPkg(newPkg);
-                  if (newPkg === 'Package 1(S/N)' && (circle === 'Rampur' || circle === 'Rohru')) {
-                    setCircle('');
+                  if (newPkg === 'Package 1(S/N)') {
+                    setCircle('Solan,Nahan');
                     setStore('');
-                  } else if (newPkg === 'Package 2(R/R)' && (circle === 'Solan' || circle === 'Nahan')) {
+                  } else if (newPkg === 'Package 2(R/R)') {
+                    setCircle('Rampur,Rohru');
+                    setStore('');
+                  } else {
                     setCircle('');
                     setStore('');
                   }
@@ -550,25 +564,37 @@ export default function StoreSummaryPage() {
                     onClick={() => setShowCircleDropdown(!showCircleDropdown)}
                     className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer pr-1 min-w-[80px]"
                   >
-                    {circle ? (circle.split(',').length > 1 ? 'Multiple' : circle) : 'All Circles'}
+                    {(() => {
+                      if (!circle) {
+                        if (pkg === 'Package 1(S/N)') return 'Solan, Nahan';
+                        if (pkg === 'Package 2(R/R)') return 'Rampur, Rohru';
+                        return 'All Circles';
+                      }
+                      const parts = circle.split(',').map(s => s.trim()).filter(Boolean);
+                      return parts.length > 1 ? parts.join(', ') : circle;
+                    })()}
                   </div>
                   {showCircleDropdown && (
                     <div className="absolute top-full mt-2 left-0 w-48 bg-white border border-slate-200 rounded-lg shadow-xl z-50 p-2 flex flex-col gap-1">
                       <div className="text-xs font-bold text-slate-500 mb-1 px-1">Select Circles</div>
                       {(pkg === 'Package 1(S/N)' ? ['Solan', 'Nahan'] : pkg === 'Package 2(R/R)' ? ['Rampur', 'Rohru'] : ['Solan', 'Nahan', 'Rampur', 'Rohru']).map(c => {
-                        const isSelected = circle ? circle.split(',').includes(c) : false;
+                        const currentCircles = circle
+                          ? circle.split(',').map(x => x.trim()).filter(Boolean)
+                          : (pkg === 'Package 1(S/N)' ? ['Solan', 'Nahan'] : pkg === 'Package 2(R/R)' ? ['Rampur', 'Rohru'] : ['Solan', 'Nahan', 'Rampur', 'Rohru']);
+                        const isSelected = currentCircles.includes(c);
                         return (
                           <label key={c} className="flex items-center gap-2 px-2 py-1.5 hover:bg-slate-50 rounded cursor-pointer text-xs font-semibold text-slate-700">
                             <input 
                               type="checkbox" 
                               checked={isSelected}
                               onChange={(e) => {
-                                const currentCircles = circle ? circle.split(',').filter(Boolean) : [];
+                                let updated: string[];
                                 if (e.target.checked) {
-                                  setCircle([...currentCircles, c].join(','));
+                                  updated = Array.from(new Set([...currentCircles, c]));
                                 } else {
-                                  setCircle(currentCircles.filter(x => x !== c).join(','));
+                                  updated = currentCircles.filter(x => x !== c);
                                 }
+                                setCircle(updated.join(','));
                               }}
                               className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                             />
@@ -727,10 +753,10 @@ export default function StoreSummaryPage() {
                   data.map((item, idx) => {
                     const isPositive = (item.balAtStore || 0) > 0;
                     const isNegative = (item.balAtStore || 0) < 0;
-                    const itemCircle = item.circle || circle || 'All Circles';
-                    const itemPkg = item.package || pkg || 'All Packages';
+                    const itemCircle = item.circle || (circle ? circle : 'All Circles');
+                    const itemPkg = item.package || (pkg ? pkg : 'All Packages');
                     
-                    const rowKey = item.itemId || item.tempCode || String(idx);
+                    const rowKey = `${item.itemId || item.tempCode || String(idx)}_${itemCircle}`;
                     const isSelected = selectedItems.has(rowKey);
 
                     return (
@@ -767,6 +793,7 @@ export default function StoreSummaryPage() {
                         </td>
                         <td className="py-3 px-4 text-center border-r border-slate-100">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase ${
+                            itemCircle.toLowerCase() === 'all circles' || itemCircle.toLowerCase() === 'all' ? 'bg-slate-100 text-slate-700 border border-slate-300' :
                             itemCircle.toLowerCase().includes('solan') ? 'bg-amber-100 text-amber-900 border border-amber-300' :
                             itemCircle.toLowerCase().includes('nahan') ? 'bg-blue-100 text-blue-900 border border-blue-300' :
                             itemCircle.toLowerCase().includes('rampur') ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' :

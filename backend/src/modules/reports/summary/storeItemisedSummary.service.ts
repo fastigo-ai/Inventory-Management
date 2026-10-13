@@ -264,7 +264,7 @@ async function computeStoreItemisedSummaryInner(params: {
         .lean(),
 
       DI.find(diFilter)
-        .select('lineItems.itemId lineItems.quantity lineItems.tempCode lineItems.itemName')
+        .select('lineItems.itemId lineItems.quantity lineItems.tempCode lineItems.itemName lineItems.circle circle')
         .lean(),
 
       Mhrov.find(mhrovFilter)
@@ -279,7 +279,10 @@ async function computeStoreItemisedSummaryInner(params: {
       const temp = String(doc.tempCode || '').trim();
       const name = String(doc.itemName || (doc as any).name || (doc as any).description || '').trim().toLowerCase();
 
-      const grp = (idStr && itemIdToGroup.get(idStr)) || (temp && temp !== '-' && tempCodeToGroup.get(temp)) || (name && nameToGroup.get(name));
+      let grp = idStr ? itemIdToGroup.get(idStr) : null;
+      if (!grp && !idStr) {
+        grp = (temp && temp !== '-' && tempCodeToGroup.get(temp)) || (name && nameToGroup.get(name));
+      }
       if (grp) grp.receiptQty += qty;
     });
 
@@ -290,7 +293,10 @@ async function computeStoreItemisedSummaryInner(params: {
         const temp = String(li.tempCode || '').trim();
         const name = String(li.itemName || li.name || li.description || '').trim().toLowerCase();
 
-        const grp = (idStr && itemIdToGroup.get(idStr)) || (temp && temp !== '-' && tempCodeToGroup.get(temp)) || (name && nameToGroup.get(name));
+        let grp = idStr ? itemIdToGroup.get(idStr) : null;
+        if (!grp && !idStr) {
+          grp = (temp && temp !== '-' && tempCodeToGroup.get(temp)) || (name && nameToGroup.get(name));
+        }
         if (grp) grp.issuedQty += qty;
       });
     });
@@ -302,7 +308,10 @@ async function computeStoreItemisedSummaryInner(params: {
         const temp = String(li.tempCode || '').trim();
         const name = String(li.itemName || li.name || li.description || '').trim().toLowerCase();
 
-        const grp = (idStr && itemIdToGroup.get(idStr)) || (temp && temp !== '-' && tempCodeToGroup.get(temp)) || (name && nameToGroup.get(name));
+        let grp = idStr ? itemIdToGroup.get(idStr) : null;
+        if (!grp && !idStr) {
+          grp = (temp && temp !== '-' && tempCodeToGroup.get(temp)) || (name && nameToGroup.get(name));
+        }
         if (grp) grp.returnedQty += qty;
       });
     });
@@ -314,7 +323,10 @@ async function computeStoreItemisedSummaryInner(params: {
         const temp = String(it.tempCode || '').trim();
         const name = String(it.itemName || it.name || it.description || '').trim().toLowerCase();
 
-        const grp = (idStr && itemIdToGroup.get(idStr)) || (temp && tempCodeToGroup.get(temp)) || (name && nameToGroup.get(name));
+        let grp = idStr ? itemIdToGroup.get(idStr) : null;
+        if (!grp && !idStr) {
+          grp = (temp && tempCodeToGroup.get(temp)) || (name && nameToGroup.get(name));
+        }
         if (grp) grp.transferOutQty += qty;
       });
     });
@@ -326,7 +338,10 @@ async function computeStoreItemisedSummaryInner(params: {
         const temp = String(it.tempCode || '').trim();
         const name = String(it.itemName || it.name || it.description || '').trim().toLowerCase();
 
-        const grp = (idStr && itemIdToGroup.get(idStr)) || (temp && tempCodeToGroup.get(temp)) || (name && nameToGroup.get(name));
+        let grp = idStr ? itemIdToGroup.get(idStr) : null;
+        if (!grp && !idStr) {
+          grp = (temp && tempCodeToGroup.get(temp)) || (name && nameToGroup.get(name));
+        }
         if (grp) grp.transferInQty += qty;
       });
     });
@@ -338,7 +353,14 @@ async function computeStoreItemisedSummaryInner(params: {
         const temp = String(li.tempCode || '').trim();
         const name = String(li.itemName || '').trim().toLowerCase();
 
-        const grp = (idStr && itemIdToGroup.get(idStr)) || (temp && temp !== '-' && tempCodeToGroup.get(temp)) || (name && nameToGroup.get(name));
+        let grp = idStr ? itemIdToGroup.get(idStr) : null;
+        if (!grp && !idStr) {
+          const liCircle = (li.circle || doc.circle || '').trim();
+          const circleMatches = itemLocVariants.length === 0 || (liCircle && itemLocVariants.some(v => v.toLowerCase() === liCircle.toLowerCase()));
+          if (circleMatches) {
+            grp = (temp && temp !== '-' && tempCodeToGroup.get(temp)) || (name && nameToGroup.get(name));
+          }
+        }
         if (grp) grp.diQty += qty;
       });
     });
@@ -433,7 +455,9 @@ async function computeStoreItemisedSummaryInner(params: {
         returnedQty: 0,
         transferOutQty: 0,
         transferInQty: 0,
-        balAtStore: 0
+        balAtStore: 0,
+        diQty: 0,
+        mhrovQty: 0
       });
     });
 
@@ -442,6 +466,8 @@ async function computeStoreItemisedSummaryInner(params: {
     const returnFilter: any = {};
     const transferOutFilter: any = { status: { $nin: ['Cancelled', 'REJECTED', 'CANCELLED'] } };
     const transferInFilter: any = { status: { $nin: ['Cancelled', 'REJECTED', 'CANCELLED'] } };
+    const diFilter: any = { status: { $ne: 'Cancelled' } };
+    const mhrovFilter: any = {};
 
     if (transLocVariants.length > 0) {
       inwardFilter.$or = [
@@ -463,12 +489,22 @@ async function computeStoreItemisedSummaryInner(params: {
       transferInFilter.toStore = { $in: transLocVariants };
     }
 
-    const [inwards, assignments, returns, transfersOut, transfersIn] = await Promise.all([
+    if (itemLocVariants.length > 0) {
+      diFilter.$or = [
+        { circle: { $in: itemLocVariants } },
+        { 'lineItems.circle': { $in: itemLocVariants } }
+      ];
+      mhrovFilter.circle = { $in: itemLocVariants };
+    }
+
+    const [inwards, assignments, returns, transfersOut, transfersIn, dis, mhrovs] = await Promise.all([
       StoreInwardEntry.find(inwardFilter).select('itemId totalQty invoiceQty acceptedQty receivedQty').lean(),
       ContractorAssignment.find(assignFilter).select('lineItems.itemId lineItems.quantity lineItems.acceptedQuantity lineItems.issuedQty').lean(),
       ContractorReturn.find(returnFilter).select('lineItems items').lean(),
       StoreTransfer.find(transferOutFilter).select('items.itemId items.dispatchedQty items.quantity items.requestedQty items.receivedQty').lean(),
-      StoreTransfer.find(transferInFilter).select('items.itemId items.receivedQty items.dispatchedQty items.quantity items.requestedQty').lean()
+      StoreTransfer.find(transferInFilter).select('items.itemId items.receivedQty items.dispatchedQty items.quantity items.requestedQty').lean(),
+      DI.find(diFilter).select('lineItems.itemId lineItems.quantity lineItems.circle circle').lean(),
+      Mhrov.find(mhrovFilter).select('items.itemId items.mhrovDoneQty').lean()
     ]);
 
     inwards.forEach(doc => {
@@ -519,12 +555,34 @@ async function computeStoreItemisedSummaryInner(params: {
       });
     });
 
+    dis.forEach(doc => {
+      (doc.lineItems || []).forEach((li: any) => {
+        const idStr = li.itemId ? li.itemId.toString() : null;
+        const qty = Number(li.quantity || 0);
+        if (idStr && itemMap.has(idStr)) {
+          itemMap.get(idStr)!.diQty += qty;
+        }
+      });
+    });
+
+    mhrovs.forEach(doc => {
+      (doc.items || []).forEach((it: any) => {
+        const idStr = it.itemId ? it.itemId.toString() : null;
+        const qty = Number(it.mhrovDoneQty || 0);
+        if (idStr && itemMap.has(idStr)) {
+          itemMap.get(idStr)!.mhrovQty += qty;
+        }
+      });
+    });
+
     let rows = Array.from(itemMap.values()).map(row => {
       row.receiptQty = round3(row.receiptQty);
       row.issuedQty = round3(row.issuedQty);
       row.returnedQty = round3(row.returnedQty);
       row.transferOutQty = round3(row.transferOutQty);
       row.transferInQty = round3(row.transferInQty);
+      row.diQty = round3(row.diQty || 0);
+      row.mhrovQty = round3(row.mhrovQty || 0);
       row.balAtStore = round3(row.receiptQty - row.issuedQty + row.returnedQty - row.transferOutQty + row.transferInQty);
       return row;
     });
@@ -548,6 +606,8 @@ async function computeStoreItemisedSummaryInner(params: {
       acc.transferOutQty = round3(acc.transferOutQty + curr.transferOutQty);
       acc.transferInQty = round3(acc.transferInQty + curr.transferInQty);
       acc.balAtStore = round3(acc.balAtStore + curr.balAtStore);
+      acc.diQty = round3(acc.diQty + curr.diQty);
+      acc.mhrovQty = round3(acc.mhrovQty + curr.mhrovQty);
       return acc;
     }, {
       receiptQty: 0,
@@ -555,7 +615,9 @@ async function computeStoreItemisedSummaryInner(params: {
       returnedQty: 0,
       transferOutQty: 0,
       transferInQty: 0,
-      balAtStore: 0
+      balAtStore: 0,
+      diQty: 0,
+      mhrovQty: 0
     });
 
     const indexedRows = rows.map((r, index) => ({

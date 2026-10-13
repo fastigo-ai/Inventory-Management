@@ -783,32 +783,32 @@ export default function StoreSummaryPage() {
                           {item.unit || 'Nos'}
                         </td>
                         <td className="py-3 px-4 text-right font-mono font-semibold text-blue-800 bg-blue-50/20 border-r border-slate-100">
-                          {item.diQty ? Number(item.diQty).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '-'}
+                          {item.diQty ? Number(item.diQty).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : '-'}
                         </td>
                         <td className="py-3 px-4 text-right font-mono font-semibold text-blue-800 bg-blue-50/20 border-r border-slate-100">
-                          {item.mhrovQty ? Number(item.mhrovQty).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '-'}
+                          {item.mhrovQty ? Number(item.mhrovQty).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : '-'}
                         </td>
                         <td className="py-3 px-4 text-right font-mono font-semibold text-slate-800 bg-emerald-50/20 border-r border-slate-100">
-                          {(item.invoiceQty ?? item.receiptQty) ? Number(item.invoiceQty ?? item.receiptQty).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '-'}
+                          {(item.invoiceQty ?? item.receiptQty) ? Number(item.invoiceQty ?? item.receiptQty).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : '-'}
                         </td>
                         <td className="py-3 px-4 text-right font-mono font-semibold text-slate-800 bg-amber-50/20 border-r border-slate-100">
-                          {item.issuedQty ? Number(item.issuedQty).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '-'}
+                          {item.issuedQty ? Number(item.issuedQty).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : '-'}
                         </td>
                         <td className="py-3 px-4 text-right font-mono font-semibold text-slate-800 bg-blue-50/20 border-r border-slate-100">
-                          {item.returnedQty ? Number(item.returnedQty).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '-'}
+                          {item.returnedQty ? Number(item.returnedQty).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : '-'}
                         </td>
                         <td className="py-3 px-4 text-right font-mono font-semibold text-slate-800 bg-orange-50/20 border-r border-slate-100">
-                          {item.transferOutQty ? Number(item.transferOutQty).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '-'}
+                          {item.transferOutQty ? Number(item.transferOutQty).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : '-'}
                         </td>
                         <td className="py-3 px-4 text-right font-mono font-semibold text-slate-800 bg-indigo-50/20 border-r border-slate-100">
-                          {item.transferInQty ? Number(item.transferInQty).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '-'}
+                          {item.transferInQty ? Number(item.transferInQty).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : '-'}
                         </td>
                         <td className={`py-3 px-4 text-right font-mono font-bold ${
                           isPositive ? 'text-emerald-700 bg-emerald-50/60 font-extrabold' : 
                           isNegative ? 'text-rose-700 bg-rose-50/60 font-extrabold' : 
                           'text-slate-400 bg-slate-50/40'
                         }`}>
-                          {Number(item.balAtStore || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                          {Number(item.balAtStore || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 3 })}
                         </td>
                       </tr>
                     );
@@ -821,15 +821,15 @@ export default function StoreSummaryPage() {
                   {(() => {
                     const selectedRows = data.filter((r, i) => selectedItems.has(r.itemId || r.tempCode || String(i)));
                     const activeTotals = selectedRows.length > 0 ? selectedRows.reduce((acc, r) => ({
-                      diQty: acc.diQty + (Math.round(r.diQty || 0)),
-                      mhrovQty: acc.mhrovQty + (Math.round(r.mhrovQty || 0)),
-                      invoiceQty: acc.invoiceQty + (Math.round(r.invoiceQty ?? r.receiptQty ?? 0)),
-                      receiptQty: acc.receiptQty + (Math.round(r.invoiceQty ?? r.receiptQty ?? 0)),
-                      issuedQty: acc.issuedQty + (Math.round(r.issuedQty || 0)),
-                      returnedQty: acc.returnedQty + (Math.round(r.returnedQty || 0)),
-                      transferOutQty: acc.transferOutQty + (Math.round(r.transferOutQty || 0)),
-                      transferInQty: acc.transferInQty + (Math.round(r.transferInQty || 0)),
-                      balAtStore: acc.balAtStore + (Math.round(r.balAtStore || 0)),
+                      diQty: Math.round((acc.diQty + Number(r.diQty || 0)) * 1000) / 1000,
+                      mhrovQty: Math.round((acc.mhrovQty + Number(r.mhrovQty || 0)) * 1000) / 1000,
+                      invoiceQty: Math.round((acc.invoiceQty + Number(r.invoiceQty ?? r.receiptQty ?? 0)) * 1000) / 1000,
+                      receiptQty: Math.round((acc.receiptQty + Number(r.invoiceQty ?? r.receiptQty ?? 0)) * 1000) / 1000,
+                      issuedQty: Math.round((acc.issuedQty + Number(r.issuedQty || 0)) * 1000) / 1000,
+                      returnedQty: Math.round((acc.returnedQty + Number(r.returnedQty || 0)) * 1000) / 1000,
+                      transferOutQty: Math.round((acc.transferOutQty + Number(r.transferOutQty || 0)) * 1000) / 1000,
+                      transferInQty: Math.round((acc.transferInQty + Number(r.transferInQty || 0)) * 1000) / 1000,
+                      balAtStore: Math.round((acc.balAtStore + Number(r.balAtStore || 0)) * 1000) / 1000,
                     }), { diQty: 0, mhrovQty: 0, invoiceQty: 0, receiptQty: 0, issuedQty: 0, returnedQty: 0, transferOutQty: 0, transferInQty: 0, balAtStore: 0 }) : {
                       ...totals,
                       invoiceQty: totals.invoiceQty ?? totals.receiptQty ?? 0,
@@ -841,28 +841,28 @@ export default function StoreSummaryPage() {
                           {selectedRows.length > 0 ? `Selected (${selectedRows.length} items):` : `Grand Totals (${totalItems.toLocaleString('en-IN', { maximumFractionDigits: 0 })} items):`}
                         </td>
                         <td className="py-3.5 px-4 text-right font-mono text-blue-300">
-                          {Number(activeTotals.diQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                          {Number(activeTotals.diQty || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 3 })}
                         </td>
                         <td className="py-3.5 px-4 text-right font-mono text-blue-300">
-                          {Number(activeTotals.mhrovQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                          {Number(activeTotals.mhrovQty || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 3 })}
                         </td>
                         <td className="py-3.5 px-4 text-right font-mono text-emerald-300">
-                          {Number((activeTotals.invoiceQty ?? activeTotals.receiptQty) || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                          {Number((activeTotals.invoiceQty ?? activeTotals.receiptQty) || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 3 })}
                         </td>
                         <td className="py-3.5 px-4 text-right font-mono text-amber-300">
-                          {Number(activeTotals.issuedQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                          {Number(activeTotals.issuedQty || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 3 })}
                         </td>
                         <td className="py-3.5 px-4 text-right font-mono text-blue-300">
-                          {Number(activeTotals.returnedQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                          {Number(activeTotals.returnedQty || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 3 })}
                         </td>
                         <td className="py-3.5 px-4 text-right font-mono text-orange-300">
-                          {Number(activeTotals.transferOutQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                          {Number(activeTotals.transferOutQty || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 3 })}
                         </td>
                         <td className="py-3.5 px-4 text-right font-mono text-indigo-300">
-                          {Number(activeTotals.transferInQty || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                          {Number(activeTotals.transferInQty || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 3 })}
                         </td>
                         <td className="py-3.5 px-4 text-right font-mono text-white bg-blue-600 font-extrabold">
-                          {Number(activeTotals.balAtStore || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                          {Number(activeTotals.balAtStore || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 3 })}
                         </td>
                       </tr>
                     );

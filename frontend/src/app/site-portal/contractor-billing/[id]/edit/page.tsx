@@ -100,7 +100,8 @@ export default function EditContractorBill({ params }: { params: Promise<{ id: s
             if (invCircle) itemFilters.circle = invCircle;
             if (invPackage) itemFilters.package = invPackage;
             const itemsRes = await getItems({ filters: itemFilters, limit: 50000 });
-            fetchedItems = itemsRes?.items || itemsRes?.data?.items || (Array.isArray(itemsRes) ? itemsRes : itemsRes?.data) || [];
+            const rawItems = itemsRes?.items || itemsRes?.data?.items || itemsRes?.data?.data || itemsRes?.data || itemsRes || [];
+            fetchedItems = Array.isArray(rawItems) ? rawItems : (Array.isArray(rawItems?.items) ? rawItems.items : []);
             setAvailableItems(fetchedItems);
           } catch (e) {
             console.error('Failed to pre-fetch available items for invoice context', e);
@@ -110,14 +111,16 @@ export default function EditContractorBill({ params }: { params: Promise<{ id: s
           const itemsBySku = new Map<string, any>();
           const itemsByTempCode = new Map<string, any>();
           const itemsById = new Map<string, any>();
-          fetchedItems.forEach(ai => {
-            const idKey = String(ai._id || ai.id).trim();
-            const skuKey = String(ai.dynamicData?.sku || ai.dynamicData?.loaSerialNo || ai.loaSerialNo || '').trim();
-            const tcKey = String(ai.dynamicData?.tempCode || ai.tempCode || '').trim();
-            if (idKey) itemsById.set(idKey, ai);
-            if (skuKey) itemsBySku.set(skuKey, ai);
-            if (tcKey && !itemsByTempCode.has(tcKey)) itemsByTempCode.set(tcKey, ai);
-          });
+          if (Array.isArray(fetchedItems)) {
+            fetchedItems.forEach(ai => {
+              const idKey = String(ai._id || ai.id).trim();
+              const skuKey = String(ai.dynamicData?.sku || ai.dynamicData?.loaSerialNo || ai.loaSerialNo || '').trim();
+              const tcKey = String(ai.dynamicData?.tempCode || ai.tempCode || '').trim();
+              if (idKey) itemsById.set(idKey, ai);
+              if (skuKey) itemsBySku.set(skuKey, ai);
+              if (tcKey && !itemsByTempCode.has(tcKey)) itemsByTempCode.set(tcKey, ai);
+            });
+          }
 
           // Pre-populate and enrich line items
           const mappedItems = (inv.lineItems || []).map((item: any) => {
@@ -257,30 +260,43 @@ export default function EditContractorBill({ params }: { params: Promise<{ id: s
   // 4. Fetch Approved JMC Limits
   useEffect(() => {
     if (contractorId) {
-      api.get(`/jmc?contractorId=${contractorId}`).then(res => {
-        const jmcs = res.data?.data || res.data || [];
+      api.get(`/jmc?contractorId=${contractorId}&limit=all`).then(res => {
+        const payload = res.data?.data;
+        const jmcs: any[] = Array.isArray(payload?.data)
+          ? payload.data
+          : Array.isArray(payload?.jmcs)
+          ? payload.jmcs
+          : Array.isArray(payload)
+          ? payload
+          : Array.isArray(res.data?.data)
+          ? res.data.data
+          : Array.isArray(res.data)
+          ? res.data
+          : [];
         const map: Record<string, number> = {};
-        jmcs.forEach((jmc: any) => {
-          if (jmc.status === 'Approved' && jmc.items) {
-            let jmcWOId = jmc.workOrderId;
-            if (jmcWOId && typeof jmcWOId === 'object') {
-              jmcWOId = jmcWOId._id || jmcWOId.id || jmcWOId;
-            }
-            if (workOrderId && String(jmcWOId) !== String(workOrderId)) return;
-            
-            jmc.items.forEach((item: any) => {
-              if (item.itemId) {
-                const tc = String(item.tempCode || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.tempCode || '') : '')).trim();
-                const loaNo = String(item.loaSerialNo || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.sku || item.itemId.loaSerialNo || '') : '')).trim();
-                const key = `${tc}_${loaNo}`;
-                if (key !== '_') {
-                  if (!map[key]) map[key] = 0;
-                  map[key] += (Number(item.approvedQty) || Number(item.claimedQty) || 0);
-                }
+        if (Array.isArray(jmcs)) {
+          jmcs.forEach((jmc: any) => {
+            if (jmc.status === 'Approved' && Array.isArray(jmc.items)) {
+              let jmcWOId = jmc.workOrderId;
+              if (jmcWOId && typeof jmcWOId === 'object') {
+                jmcWOId = jmcWOId._id || jmcWOId.id || jmcWOId;
               }
-            });
-          }
-        });
+              if (workOrderId && String(jmcWOId) !== String(workOrderId)) return;
+              
+              jmc.items.forEach((item: any) => {
+                if (item.itemId) {
+                  const tc = String(item.tempCode || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.tempCode || '') : '')).trim();
+                  const loaNo = String(item.loaSerialNo || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.sku || item.itemId.loaSerialNo || '') : '')).trim();
+                  const key = `${tc}_${loaNo}`;
+                  if (key !== '_') {
+                    if (!map[key]) map[key] = 0;
+                    map[key] += (Number(item.approvedQty) || Number(item.claimedQty) || 0);
+                  }
+                }
+              });
+            }
+          });
+        }
         setJmcItemMap(map);
       }).catch(console.error);
     } else {
@@ -296,23 +312,34 @@ export default function EditContractorBill({ params }: { params: Promise<{ id: s
         query += `&workOrderId=${workOrderId}`;
       }
       api.get(query).then(res => {
-        const invoices = res.data?.data || res.data || [];
+        const payload = res.data?.data;
+        const invoices: any[] = Array.isArray(payload?.data)
+          ? payload.data
+          : Array.isArray(payload)
+          ? payload
+          : Array.isArray(res.data?.data)
+          ? res.data.data
+          : Array.isArray(res.data)
+          ? res.data
+          : [];
         const map: Record<string, number> = {};
         
-        invoices.forEach((inv: any) => {
-          // Exclude current invoice from previous totals so user can re-save!
-          if (String(inv._id) !== String(id) && inv.status !== 'Rejected' && inv.lineItems) {
-            inv.lineItems.forEach((item: any) => {
-              if (item.itemId && (inv.stage === '90%' || inv.stage === '100%')) {
-                const tc = String(item.tempCode || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.tempCode || '') : '')).trim();
-                const loaNo = String(item.loaSerialNo || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.sku || item.itemId.loaSerialNo || '') : '')).trim();
-                const key = `${tc}_${loaNo}`;
-                if (!map[key]) map[key] = 0;
-                map[key] += (item.jmcDoneQty || 0);
-              }
-            });
-          }
-        });
+        if (Array.isArray(invoices)) {
+          invoices.forEach((inv: any) => {
+            // Exclude current invoice from previous totals so user can re-save!
+            if (String(inv._id) !== String(id) && inv.status !== 'Rejected' && Array.isArray(inv.lineItems)) {
+              inv.lineItems.forEach((item: any) => {
+                if (item.itemId && (inv.stage === '90%' || inv.stage === '100%')) {
+                  const tc = String(item.tempCode || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.tempCode || '') : '')).trim();
+                  const loaNo = String(item.loaSerialNo || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.sku || item.itemId.loaSerialNo || '') : '')).trim();
+                  const key = `${tc}_${loaNo}`;
+                  if (!map[key]) map[key] = 0;
+                  map[key] += (item.jmcDoneQty || 0);
+                }
+              });
+            }
+          });
+        }
         setPrevBilledJmcMap(map);
       }).catch(console.error);
     } else {
@@ -323,14 +350,18 @@ export default function EditContractorBill({ params }: { params: Promise<{ id: s
   // Unique activities for dropdown
   const uniqueActivities = useMemo(() => {
     const activities = new Set<string>();
-    availableItems.forEach(ai => {
-      const act = ai.dynamicData?.activity || ai.activity;
-      if (act) activities.add(act);
-    });
+    if (Array.isArray(availableItems)) {
+      availableItems.forEach(ai => {
+        const act = ai.dynamicData?.activity || ai.activity;
+        if (act) activities.add(act);
+      });
+    }
     // Also include any activity already on current line items
-    lineItems.forEach(li => {
-      if (li.activity) activities.add(li.activity);
-    });
+    if (Array.isArray(lineItems)) {
+      lineItems.forEach(li => {
+        if (li.activity) activities.add(li.activity);
+      });
+    }
     return Array.from(activities).sort();
   }, [availableItems, lineItems]);
 

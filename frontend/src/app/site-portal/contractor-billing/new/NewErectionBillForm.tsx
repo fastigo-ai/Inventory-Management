@@ -69,14 +69,27 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
   useEffect(() => {
     if (targetCircle) {
       api.get(`/jmc?limit=5000`).then(res => {
-        const jmcs = res.data?.data?.data || res.data?.data || [];
+        const payload = res.data?.data;
+        const jmcs: any[] = Array.isArray(payload?.data)
+          ? payload.data
+          : Array.isArray(payload?.jmcs)
+          ? payload.jmcs
+          : Array.isArray(payload)
+          ? payload
+          : Array.isArray(res.data?.data)
+          ? res.data.data
+          : Array.isArray(res.data)
+          ? res.data
+          : [];
         const divs = new Set<string>();
-        jmcs.forEach((j: any) => {
-          const jmcCircle = j.circle?.toLowerCase() || '';
-          if (jmcCircle === targetCircle.toLowerCase() && j.division) {
-            divs.add(j.division);
-          }
-        });
+        if (Array.isArray(jmcs)) {
+          jmcs.forEach((j: any) => {
+            const jmcCircle = j.circle?.toLowerCase() || '';
+            if (jmcCircle === targetCircle.toLowerCase() && j.division) {
+              divs.add(j.division);
+            }
+          });
+        }
         setDivisions(Array.from(divs));
       }).catch(console.error);
     } else {
@@ -88,16 +101,27 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
   useEffect(() => {
     if (selectedDivision && targetCircle) {
       api.get(`/jmc?limit=5000`).then(async res => {
-        const jmcs = res.data?.data?.data || res.data?.data || [];
+        const payload = res.data?.data;
+        const jmcs: any[] = Array.isArray(payload?.data)
+          ? payload.data
+          : Array.isArray(payload?.jmcs)
+          ? payload.jmcs
+          : Array.isArray(payload)
+          ? payload
+          : Array.isArray(res.data?.data)
+          ? res.data.data
+          : Array.isArray(res.data)
+          ? res.data
+          : [];
         
-        const validJmcs = jmcs.filter((j: any) => {
+        const validJmcs = Array.isArray(jmcs) ? jmcs.filter((j: any) => {
           const jmcCircle = j.circle?.trim().toLowerCase() || '';
           const jmcDiv = j.division?.trim().toLowerCase() || '';
           return jmcCircle === targetCircle.trim().toLowerCase() && 
                  jmcDiv === selectedDivision.trim().toLowerCase() && 
                  j.status === 'Approved' && 
                  j.contractorId;
-        });
+        }) : [];
         
         setAvailableJmcs(validJmcs);
         

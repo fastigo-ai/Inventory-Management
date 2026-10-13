@@ -93,17 +93,45 @@ export default function EditClientBillPage() {
       } else if (formData.stage === '10%') {
         // Final settlement uses JMC + Handover Certificates
         const [jmcRes, hcRes] = await Promise.all([
-          api.get('/jmc?status=Approved'),
+          api.get('/jmc?status=Approved&limit=all'),
           api.get('/contractor-billing/handover-certificates?status=Issued')
         ]);
         let combined: any[] = [];
-        if (jmcRes.data?.success) combined = [...combined, ...jmcRes.data.data];
-        if (hcRes.data?.success) combined = [...combined, ...hcRes.data.data];
+        if (jmcRes.data?.success) {
+          const payload = jmcRes.data?.data;
+          const jmcs = Array.isArray(payload?.data)
+            ? payload.data
+            : Array.isArray(payload?.jmcs)
+            ? payload.jmcs
+            : Array.isArray(payload)
+            ? payload
+            : [];
+          combined = [...combined, ...jmcs];
+        }
+        if (hcRes.data?.success) {
+          const payload = hcRes.data?.data;
+          const hcs = Array.isArray(payload?.data)
+            ? payload.data
+            : Array.isArray(payload)
+            ? payload
+            : [];
+          combined = [...combined, ...hcs];
+        }
         setReferenceList(combined);
       } else {
         // Supply 30% and other erection stages use approved JMCs
-        const jmcRes = await api.get('/jmc?status=Approved');
-        if (jmcRes.data?.success) setReferenceList(jmcRes.data.data);
+        const jmcRes = await api.get('/jmc?status=Approved&limit=all');
+        if (jmcRes.data?.success) {
+          const payload = jmcRes.data?.data;
+          const jmcs = Array.isArray(payload?.data)
+            ? payload.data
+            : Array.isArray(payload?.jmcs)
+            ? payload.jmcs
+            : Array.isArray(payload)
+            ? payload
+            : [];
+          setReferenceList(jmcs);
+        }
       }
     } catch (err) {
       console.error(err);

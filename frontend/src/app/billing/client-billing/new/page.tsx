@@ -70,11 +70,23 @@ export default function NewClientBillPage() {
         ]);
         let combined: any[] = [];
         if (jmcRes.data?.success) {
-          const jmcs = Array.isArray(jmcRes.data.data) ? jmcRes.data.data : jmcRes.data.data.data || [];
+          const payload = jmcRes.data?.data;
+          const jmcs = Array.isArray(payload?.data)
+            ? payload.data
+            : Array.isArray(payload?.jmcs)
+            ? payload.jmcs
+            : Array.isArray(payload)
+            ? payload
+            : [];
           combined = [...combined, ...jmcs];
         }
         if (hcRes.data?.success) {
-          const hcs = Array.isArray(hcRes.data.data) ? hcRes.data.data : hcRes.data.data.data || [];
+          const payload = hcRes.data?.data;
+          const hcs = Array.isArray(payload?.data)
+            ? payload.data
+            : Array.isArray(payload)
+            ? payload
+            : [];
           combined = [...combined, ...hcs];
         }
         setReferenceList(combined);
@@ -82,7 +94,14 @@ export default function NewClientBillPage() {
         // Catch-all for any other stage
         const jmcRes = await api.get('/jmc?status=Approved&limit=all');
         if (jmcRes.data?.success) {
-          const jmcs = Array.isArray(jmcRes.data.data) ? jmcRes.data.data : jmcRes.data.data.data || [];
+          const payload = jmcRes.data?.data;
+          const jmcs = Array.isArray(payload?.data)
+            ? payload.data
+            : Array.isArray(payload?.jmcs)
+            ? payload.jmcs
+            : Array.isArray(payload)
+            ? payload
+            : [];
           setReferenceList(jmcs);
         }
       }

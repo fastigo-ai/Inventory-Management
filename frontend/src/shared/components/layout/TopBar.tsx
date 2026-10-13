@@ -23,6 +23,7 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/shared/api/axios';
 import { useUIStore } from '@/shared/store/ui.store';
 import { useAuthStore } from '@/shared/store/auth.store';
+import { getUnregularizedExtraIssues } from '@/features/contractors/api/contractors.api';
 
 export function TopBar() {
   const router = useRouter();
@@ -31,11 +32,25 @@ export function TopBar() {
   
   // State for dropdowns
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [unregularizedExtras, setUnregularizedExtras] = useState<any[]>([]);
   
   const { toggleMobileSidebar, toggleDesktopSidebar } = useUIStore();
   const { user, logout } = useAuthStore();
   
   const topBarRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (user) {
+      getUnregularizedExtraIssues()
+        .then(res => {
+          if (res && res.success && res.data) {
+            const list = Array.isArray(res.data) ? res.data : (res.data?.unregularizedIssues || []);
+            setUnregularizedExtras(list);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [user]);
 
   // Focus search on '/'
   useEffect(() => {
@@ -142,18 +157,66 @@ export function TopBar() {
             <button 
               onClick={() => toggleDropdown('notifications')}
               className="w-9 h-9 flex items-center justify-center hover:bg-white/10 rounded-md transition-colors relative"
+              title="Notifications"
             >
               <Bell className="w-5 h-5" />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-[#2b3040]"></span>
+              {unregularizedExtras.length > 0 ? (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-amber-500 text-white rounded-full text-[10px] font-bold flex items-center justify-center px-1 border border-slate-900 shadow-sm animate-pulse">
+                  {unregularizedExtras.length}
+                </span>
+              ) : (
+                <span className="absolute top-2 right-2 w-2 h-2 bg-slate-500/50 rounded-full"></span>
+              )}
             </button>
             {activeDropdown === 'notifications' && (
-              <div className="absolute top-10 right-0 w-72 bg-white rounded-md shadow-lg border border-slate-200 py-2 text-slate-700 z-50">
+              <div className="absolute top-10 right-0 w-80 bg-white rounded-xl shadow-xl border border-slate-200 py-2 text-slate-700 z-50 overflow-hidden">
                 <div className="px-4 py-2 border-b border-slate-100 flex items-center justify-between">
-                  <span className="font-semibold text-slate-800">Notifications</span>
-                  <button className="text-xs text-blue-500 hover:underline">Mark all as read</button>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold text-slate-800 text-sm">Notifications</span>
+                    {unregularizedExtras.length > 0 && (
+                      <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full">
+                        {unregularizedExtras.length} new
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="p-4 text-center text-sm text-slate-500">
-                  No new notifications
+                <div className="max-h-72 overflow-y-auto divide-y divide-slate-100">
+                  {unregularizedExtras.length > 0 ? (
+                    unregularizedExtras.map((item: any) => {
+                      const minNumber = item.minNo || item.assignmentNumber;
+                      const contractor = item.contractorId?.name || item.contractorId?.dynamicData?.displayName || item.contractorFarmName || 'Contractor';
+                      const extraCount = (item.lineItems || []).filter((li: any) => li.isExtra || Number(li.quantity) > Number(li.demandQty || 0)).length;
+
+                      return (
+                        <Link 
+                          key={item._id}
+                          href={`/site-portal/demand-notes?openExtraModal=${item._id}`}
+                          onClick={() => setActiveDropdown(null)}
+                          className="p-3 hover:bg-amber-50/60 flex flex-col gap-1 transition-colors block text-left"
+                        >
+                          <div className="flex items-center justify-between text-xs font-bold text-amber-950">
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                              Over-Issue: {minNumber}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-normal">
+                              {new Date(item.minDate || item.date).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-600 line-clamp-1">
+                            {contractor} &bull; {extraCount} extra material(s) issued
+                          </p>
+                          <span className="text-[11px] font-semibold text-amber-700 hover:text-amber-800 flex items-center gap-1 mt-0.5">
+                            Demand Extra Qty & Regularize &rarr;
+                          </span>
+                        </Link>
+                      );
+                    })
+                  ) : (
+                    <div className="p-5 text-center text-xs text-slate-500">
+                      No new notifications
+                    </div>
+                  )}
                 </div>
               </div>
             )}

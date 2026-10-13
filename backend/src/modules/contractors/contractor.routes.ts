@@ -26,7 +26,9 @@ import {
   getContractorTransactions,
   getAssignmentSummary,
   getContractorAggregatedQuantities,
-  getContractorActivitySummary
+  getContractorActivitySummary,
+  getUnregularizedExtraIssues,
+  regularizeExtraDemand
 } from './contractor.controller';
 
 const router = Router();
@@ -47,6 +49,8 @@ router.route('/assignments')
 
 router.get('/assignments/summary', getAssignmentSummary);
 router.get('/assignments/export', exportContractorAssignments);
+router.get('/assignments/unregularized-extras', getUnregularizedExtraIssues);
+router.post('/assignments/:id/regularize-extra-demand', regularizeExtraDemand);
 
 router.route('/assignments/:id')
   .get(getAssignmentById)

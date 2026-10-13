@@ -148,3 +148,14 @@ export const getContractorActivitySummary = async (id: string) => {
   const response = await api.get(`/contractors/${id}/activity-summary`);
   return response.data;
 };
+
+// Extra Issued Materials & Site Portal Demand Regularization
+export const getUnregularizedExtraIssues = async (params?: Record<string, any>) => {
+  const response = await api.get('/contractors/assignments/unregularized-extras', { params });
+  return response.data;
+};
+
+export const regularizeExtraDemand = async (assignmentId: string, payload: { remarks?: string }) => {
+  const response = await api.post(`/contractors/assignments/${assignmentId}/regularize-extra-demand`, payload);
+  return response.data;
+};

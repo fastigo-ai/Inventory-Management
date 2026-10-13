@@ -13,6 +13,11 @@ export interface IAssignmentLineItem {
   amount: number;
   activity?: string;
   loaSrNo?: string;
+  isExtra?: boolean;
+  extraQty?: number;
+  demandRegularizedQty?: number;
+  regularizedDemandNoteNumber?: string;
+  regularizedDemandNoteId?: mongoose.Types.ObjectId;
 }
 
 export interface IContractorAssignment extends Document {
@@ -41,6 +46,14 @@ export interface IContractorAssignment extends Document {
   minDate?: Date;
   issuedTfsSrNo?: string;
   remarks?: string;
+
+  // Extra Issue & Regularization Tracking Fields
+  hasExtraItems?: boolean;
+  extraRegularizationStatus?: 'Pending Regularization' | 'Partially Regularized' | 'Regularized' | 'None';
+  extraRegularizedAt?: Date;
+  extraRegularizedBy?: mongoose.Types.ObjectId;
+  extraRegularizationRemarks?: string;
+  linkedDemandNotes?: string[];
 
   terms?: string;
   dueDate?: Date;
@@ -73,6 +86,11 @@ const assignmentLineItemSchema = new Schema<IAssignmentLineItem>({
   amount: { type: Number, required: true, default: 0 },
   activity: { type: String },
   loaSrNo: { type: String },
+  isExtra: { type: Boolean, default: false },
+  extraQty: { type: Number, default: 0 },
+  demandRegularizedQty: { type: Number, default: 0 },
+  regularizedDemandNoteNumber: { type: String },
+  regularizedDemandNoteId: { type: Schema.Types.ObjectId, ref: 'DemandNote' },
 });
 
 const contractorAssignmentSchema = new Schema<IContractorAssignment>(
@@ -103,6 +121,19 @@ const contractorAssignmentSchema = new Schema<IContractorAssignment>(
     minDate: { type: Date },
     issuedTfsSrNo: { type: String },
     remarks: { type: String },
+
+    // Extra Issue & Regularization Tracking Fields
+    hasExtraItems: { type: Boolean, default: false, index: true },
+    extraRegularizationStatus: { 
+      type: String, 
+      enum: ['Pending Regularization', 'Partially Regularized', 'Regularized', 'None'], 
+      default: 'None', 
+      index: true 
+    },
+    extraRegularizedAt: { type: Date },
+    extraRegularizedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    extraRegularizationRemarks: { type: String },
+    linkedDemandNotes: [{ type: String }],
 
     terms: { type: String },
     dueDate: { type: Date },

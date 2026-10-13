@@ -155,6 +155,8 @@ export default function StoreContractorIssueEditPage() {
               hsnCode: item.hsnCode || (stockMatch ? stockMatch.hsnCode : ""),
               demandQty: item.demandQty || 0,
               quantity: item.quantity || 0,
+              isExtra: Boolean(item.isExtra),
+              extraQty: item.extraQty || 0,
               availableQty: stockMatch ? stockMatch.totalBalanceQty + item.quantity : item.quantity // Add back issued qty for editing
             };
           });
@@ -397,17 +399,25 @@ export default function StoreContractorIssueEditPage() {
         issuedTfsSrNo,
         remarks,
 
-        lineItems: validLineItems.map(item => ({
-          itemId: item.itemId,
-          itemName: item.itemName,
-          tempCode: item.tempCode,
-          loaSrNo: item.loaSrNo,
-          activity: item.activity,
-          unit: item.unit,
-          hsnCode: item.hsnCode,
-          demandQty: Number(item.demandQty),
-          quantity: Number(item.quantity)
-        }))
+        lineItems: validLineItems.map(item => {
+          const dQty = Number(item.demandQty || 0);
+          const iQty = Number(item.quantity || 0);
+          const isExtraItem = Boolean(item.isExtra || iQty > dQty);
+          const extraAmount = Math.max(0, iQty - dQty);
+          return {
+            itemId: item.itemId,
+            itemName: item.itemName,
+            tempCode: item.tempCode,
+            loaSrNo: item.loaSrNo,
+            activity: item.activity,
+            unit: item.unit,
+            hsnCode: item.hsnCode,
+            demandQty: dQty,
+            quantity: iQty,
+            isExtra: isExtraItem,
+            extraQty: extraAmount
+          };
+        })
       };
 
       await updateAssignment(id as string, payload);

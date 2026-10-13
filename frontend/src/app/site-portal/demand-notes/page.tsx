@@ -2,13 +2,18 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, FileText, ChevronRight, ChevronLeft, Upload, Download, Search, Calendar, User } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Plus, FileText, ChevronRight, ChevronLeft, Upload, Download, Search, Calendar, User, AlertTriangle, PackagePlus, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { getDemandNotes } from '@/features/site-portal/api/demand-notes.api';
+import { getUnregularizedExtraIssues } from '@/features/contractors/api/contractors.api';
+import RegularizeExtraDemandModal from '@/features/site-portal/components/RegularizeExtraDemandModal';
 import { toast } from 'sonner';
 import ImportDNModal from './ImportDNModal';
 import { useAuditTracker } from '@/shared/hooks/useAuditTracker';
 
 export default function DemandNotesList() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [isExporting, setIsExporting] = useState(false);
   const [demandNotes, setDemandNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -18,12 +23,18 @@ export default function DemandNotesList() {
   const [statusFilter, setStatusFilter] = useState('All Statuses');
   const { trackClick, trackExport, trackAction } = useAuditTracker();
 
+  // Over-issue / Extra items state
+  const [unregularizedExtras, setUnregularizedExtras] = useState<any[]>([]);
+  const [isExtraModalOpen, setIsExtraModalOpen] = useState(false);
+  const [selectedAssignmentForRegularize, setSelectedAssignmentForRegularize] = useState<any>(null);
+
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
   useEffect(() => {
     fetchDemandNotes();
+    fetchUnregularizedExtras();
   }, []);
 
   const fetchDemandNotes = async () => {
@@ -36,6 +47,26 @@ export default function DemandNotesList() {
       toast.error('Failed to fetch Demand Notes');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUnregularizedExtras = async () => {
+    try {
+      const res = await getUnregularizedExtraIssues();
+      if (res && res.success && res.data) {
+        const list = Array.isArray(res.data) ? res.data : (res.data?.unregularizedIssues || []);
+        setUnregularizedExtras(list);
+        const targetId = searchParams.get('openExtraModal');
+        if (targetId) {
+          const match = list.find((a: any) => a._id === targetId);
+          if (match) {
+            setSelectedAssignmentForRegularize(match);
+            setIsExtraModalOpen(true);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch unregularized extras', err);
     }
   };
 
@@ -232,6 +263,101 @@ export default function DemandNotesList() {
         </div>
       </div>
 
+      {/* Over-Issue Alert Banner for Site Portal */}
+      {unregularizedExtras.length > 0 && (
+        <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-amber-50 border-2 border-amber-300/80 rounded-2xl p-6 shadow-sm space-y-4 animate-in fade-in duration-300">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-amber-200/60 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-sm shadow-amber-300/50">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-amber-950 flex items-center gap-2">
+                  Store Over-Issue Notifications
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-500 text-white shadow-xs">
+                    {unregularizedExtras.length} Pending
+                  </span>
+                </h2>
+                <p className="text-xs text-amber-800">
+                  Store has issued extra quantities or un-demanded items. Click below to demand those extra materials and regularize the MIN.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            {unregularizedExtras.map((assignment: any) => {
+              const extraItems = (assignment.lineItems || []).filter((item: any) => 
+                item.isExtra || (Number(item.quantity) > Number(item.demandQty || 0))
+              );
+              const contractor = assignment.contractorId?.name || assignment.contractorId?.dynamicData?.displayName || assignment.contractorFarmName || 'Contractor';
+              const minNumber = assignment.minNo || assignment.assignmentNumber;
+
+              return (
+                <div 
+                  key={assignment._id}
+                  className="bg-white/90 backdrop-blur-sm border border-amber-200 rounded-xl p-4 shadow-xs hover:border-amber-400 transition-all flex flex-col justify-between gap-3"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                        <PackagePlus className="w-4 h-4 text-amber-600" />
+                        {minNumber}
+                      </span>
+                      <span className="text-[11px] font-semibold text-slate-500">
+                        {new Date(assignment.minDate || assignment.date).toLocaleDateString()}
+                      </span>
+                    </div>
+
+                    <div className="text-xs text-slate-600">
+                      <span className="font-semibold text-slate-700">Contractor: </span>
+                      {contractor}
+                    </div>
+
+                    <div className="space-y-1 bg-amber-50/60 p-2.5 rounded-lg border border-amber-100/70 text-xs">
+                      <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider block">
+                        Over-Issued Items:
+                      </span>
+                      <ul className="space-y-1 text-slate-700">
+                        {extraItems.map((item: any, i: number) => {
+                          const extraQty = item.extraQty !== undefined 
+                            ? Number(item.extraQty) 
+                            : Math.max(0, Number(item.quantity) - Number(item.demandQty || 0));
+                          return (
+                            <li key={i} className="flex items-center justify-between text-xs">
+                              <span className="truncate pr-2 font-medium">
+                                • {item.itemName} {item.loaSrNo ? `(LOA: ${item.loaSrNo})` : ''}
+                              </span>
+                              <span className="font-bold text-amber-700 whitespace-nowrap">
+                                +{extraQty} {item.unit || 'Nos'}
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedAssignmentForRegularize(assignment);
+                        setIsExtraModalOpen(true);
+                      }}
+                      className="inline-flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow"
+                    >
+                      <span>Demand Extra Qty & Merge</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Search and Filter Card */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <div className="flex-1 flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm max-w-md w-full focus-within:ring-2 focus-within:ring-indigo-100 focus-within:border-indigo-400 transition-all">
@@ -378,6 +504,19 @@ export default function DemandNotesList() {
         onSuccess={() => {
           setIsImportModalOpen(false);
           fetchDemandNotes();
+        }}
+      />
+
+      <RegularizeExtraDemandModal
+        isOpen={isExtraModalOpen}
+        onClose={() => {
+          setIsExtraModalOpen(false);
+          setSelectedAssignmentForRegularize(null);
+        }}
+        assignment={selectedAssignmentForRegularize}
+        onSuccess={() => {
+          fetchDemandNotes();
+          fetchUnregularizedExtras();
         }}
       />
     </div>

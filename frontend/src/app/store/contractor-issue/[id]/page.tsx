@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Loader2, FileText, CheckCircle, Printer, Edit } from 'lucide-react';
+import { ArrowLeft, Loader2, FileText, CheckCircle, Printer, Edit, AlertTriangle } from 'lucide-react';
 import { getAssignmentById } from '@/features/contractors/api/contractors.api';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/shared/store/auth.store';
@@ -78,6 +78,18 @@ export default function ContractorIssueDetailPage() {
               }`}>
                 {issue.status === 'Sent' && <CheckCircle className="w-3 h-3"/>} {issue.status}
               </span>
+              {issue.extraRegularizationStatus === 'Pending Regularization' && (
+                <span className="px-2.5 py-1 text-xs font-semibold rounded-full border bg-amber-100 text-amber-800 border-amber-300 flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                  Extra Issued (Pending Site Regularization)
+                </span>
+              )}
+              {issue.extraRegularizationStatus === 'Regularized' && (
+                <span className="px-2.5 py-1 text-xs font-semibold rounded-full border bg-emerald-100 text-emerald-800 border-emerald-300 flex items-center gap-1.5">
+                  <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                  Extra Regularized
+                </span>
+              )}
             </div>
             <p className="text-sm text-slate-500 mt-1 flex items-center gap-2">
               Issued on <span className="font-medium text-slate-700">{new Date(issue.minDate || issue.date).toLocaleDateString()}</span>
@@ -102,6 +114,27 @@ export default function ContractorIssueDetailPage() {
       </div>
 
       <div className="space-y-6 p-1 bg-slate-50 print:bg-white">
+        {issue.extraRegularizationStatus === 'Pending Regularization' && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-4 print:hidden">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+              <div>
+                <p className="text-sm font-bold text-amber-900">Over-Issued Materials Pending Site Regularization</p>
+                <p className="text-xs text-amber-700 mt-0.5">This MIN contains extra items or quantities issued beyond the original demand note. A notification is active in the Site Portal for the site team to review and demand these materials.</p>
+              </div>
+            </div>
+          </div>
+        )}
+        {issue.extraRegularizationStatus === 'Regularized' && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-3 print:hidden">
+            <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
+            <div>
+              <p className="text-sm font-bold text-emerald-900">Extra Quantities Regularized</p>
+              <p className="text-xs text-emerald-700 mt-0.5">The extra materials issued under this MIN were demanded and successfully merged with regularizing Demand Note(s).</p>
+            </div>
+          </div>
+        )}
+
         {/* Basic Details */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
@@ -168,12 +201,13 @@ export default function ContractorIssueDetailPage() {
                 <th className="px-6 py-4 print:px-2 print:py-2">Unit</th>
                 <th className="px-6 py-4 text-right print:px-2 print:py-2">Demand Qty</th>
                 <th className="px-6 py-4 text-right print:px-2 print:py-2">Issued Qty</th>
+                <th className="px-6 py-4 text-right print:px-2 print:py-2">Extra Qty</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {(!issue.lineItems || issue.lineItems.length === 0) ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan={8} className="px-6 py-8 text-center text-slate-500">
                     No items found in this issue note.
                   </td>
                 </tr>
@@ -189,7 +223,7 @@ export default function ContractorIssueDetailPage() {
                   <React.Fragment key={activity}>
                     {/* Activity Group Header */}
                     <tr className="bg-slate-50">
-                      <td colSpan={7} className="px-6 py-2 text-xs font-semibold text-slate-800 border-y border-slate-200">
+                      <td colSpan={8} className="px-6 py-2 text-xs font-semibold text-slate-800 border-y border-slate-200">
                         {activity}
                       </td>
                     </tr>
@@ -212,10 +246,26 @@ export default function ContractorIssueDetailPage() {
                           {item.unit || '-'}
                         </td>
                         <td className="px-6 py-4 print:px-2 print:py-2 text-right font-medium text-slate-600">
-                          {item.demandQty || '-'}
+                          {item.demandQty !== undefined ? item.demandQty : '-'}
                         </td>
                         <td className="px-6 py-4 print:px-2 print:py-2 text-right font-bold text-[#0076f2] print:text-black">
                           {item.quantity}
+                        </td>
+                        <td className="px-6 py-4 print:px-2 print:py-2 text-right">
+                          {item.isExtra || item.extraQty > 0 || Number(item.quantity) > Number(item.demandQty || 0) ? (
+                            <div className="flex flex-col items-end">
+                              <span className="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+                                +{item.extraQty || Math.max(0, Number(item.quantity) - Number(item.demandQty || 0))}
+                              </span>
+                              {item.demandRegularizedQty > 0 && (
+                                <span className="text-[10px] text-emerald-600 font-semibold mt-0.5">
+                                  ✓ Regularized ({item.demandRegularizedQty})
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 text-xs">-</span>
+                          )}
                         </td>
                       </tr>
                     ))}

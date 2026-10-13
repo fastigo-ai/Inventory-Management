@@ -17,6 +17,11 @@ import { WipRequiredRegister } from "../wip-required/wipRequired.schema";
 import { calculateContractorLiability } from "./contractor.helper";
 import DemandNote from '../demand-notes/demandNote.schema';
 import { SummaryService } from '../reports/summary/summary.service';
+import { 
+  processAssignmentExtraItems, 
+  getUnregularizedExtraIssuesService, 
+  regularizeExtraDemandService 
+} from './contractorIssueExtra.service';
 
 
 export const getContractors = asyncHandler(async (req: Request, res: Response) => {
@@ -327,6 +332,9 @@ export const createAssignment = asyncHandler(async (req: Request, res: Response)
     throw new ApiError(400, `Assignment with number ${assignmentData.assignmentNumber} already exists in this subcircle`);
   }
 
+  // Process extra items & quantities for site portal demand regularization tracking
+  processAssignmentExtraItems(assignmentData);
+
   const newAssignment = await ContractorAssignment.create(assignmentData);
 
   // Fulfill the associated Demand Note if one exists
@@ -360,6 +368,9 @@ export const updateAssignment = asyncHandler(async (req: Request, res: Response)
     throw new ApiError(400, 'Cannot edit a cancelled assignment');
   }
 
+  // Process extra items & quantities for site portal demand regularization tracking
+  processAssignmentExtraItems(updateData);
+
   const updatedAssignment = await ContractorAssignment.findByIdAndUpdate(
     id,
     updateData,
@@ -373,6 +384,19 @@ export const updateAssignment = asyncHandler(async (req: Request, res: Response)
   }
 
   res.status(200).json(new ApiResponse(200, updatedAssignment, 'Contractor Assignment updated successfully'));
+});
+
+export const getUnregularizedExtraIssues = asyncHandler(async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  const result = await getUnregularizedExtraIssuesService(req.query, user);
+  res.status(200).json(new ApiResponse(200, result.unregularizedIssues, 'Unregularized extra issues fetched successfully'));
+});
+
+export const regularizeExtraDemand = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const user = (req as any).user;
+  const result = await regularizeExtraDemandService(id as string, req.body, user);
+  res.status(200).json(new ApiResponse(200, result, 'Extra issued materials regularized and merged with Demand Note successfully'));
 });
 
 export const cancelAssignment = asyncHandler(async (req: Request, res: Response) => {

@@ -305,12 +305,24 @@ export default function StoreContractorIssuePage() {
                         <td className="px-6 py-4 text-slate-600">{new Date(a.minDate || a.date).toLocaleDateString()}</td>
                         <td className="px-6 py-4 font-medium text-slate-900">{a.contractorId?.name || a.contractorId?.dynamicData?.displayName || 'Unknown'}</td>
                         <td className="px-6 py-4">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                            a.status === 'Cancelled' ? 'bg-red-100 text-red-700' :
-                            a.status === 'Sent' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'
-                          }`}>
-                            {a.status}
-                          </span>
+                          <div className="flex flex-col gap-1 items-start">
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                              a.status === 'Cancelled' ? 'bg-red-100 text-red-700' :
+                              a.status === 'Sent' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'
+                            }`}>
+                              {a.status}
+                            </span>
+                            {a.extraRegularizationStatus === 'Pending Regularization' && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 whitespace-nowrap">
+                                ⚠️ Extra Issued
+                              </span>
+                            )}
+                            {a.extraRegularizationStatus === 'Regularized' && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 whitespace-nowrap">
+                                ✓ Regularized
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-right font-medium text-slate-700">{totalItems.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
                         <td className="px-6 py-4 flex items-center justify-center gap-2">

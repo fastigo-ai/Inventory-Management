@@ -1003,15 +1003,83 @@ export const importMhrovs = asyncHandler(async (req: Request, res: Response) => 
       globalBulkEntries = await DI.find({ diNumber: { $in: allUniqueDiNos.map(d => new RegExp(`^${d}$`, 'i')) } }).lean();
   }
 
+  // Ensure lineItems have ground-truth baseline alreadyDoneQty from existing MHROVs in DB
+  const allDiIds = globalBulkEntries.map(d => d._id);
+  if (allDiIds.length > 0) {
+    const existingMhrovAgg = await Mhrov.aggregate([
+      { $match: { "items.diId": { $in: allDiIds } } },
+      { $unwind: "$items" },
+      { $match: { "items.diId": { $in: allDiIds } } },
+      {
+        $group: {
+          _id: { diId: "$items.diId", itemId: "$items.itemId" },
+          totalDone: { $sum: "$items.mhrovDoneQty" }
+        }
+      }
+    ]);
+
+    const dbMhrovMap = new Map<string, number>();
+    existingMhrovAgg.forEach((agg: any) => {
+      if (agg._id?.diId && agg._id?.itemId) {
+        dbMhrovMap.set(`${agg._id.diId.toString()}_${agg._id.itemId.toString()}`, agg.totalDone);
+      }
+    });
+
+    for (const di of globalBulkEntries) {
+      const diIdStr = di._id.toString();
+      const itemsMap = new Map<string, any[]>();
+      for (const li of (di.lineItems || [])) {
+        if (!li.itemId) continue;
+        const iId = li.itemId.toString();
+        if (!itemsMap.has(iId)) itemsMap.set(iId, []);
+        itemsMap.get(iId)!.push(li);
+      }
+      for (const [iId, liList] of itemsMap.entries()) {
+        const key = `${diIdStr}_${iId}`;
+        const totalDbQty = dbMhrovMap.get(key);
+        if (totalDbQty !== undefined) {
+          let remaining = totalDbQty;
+          for (let i = 0; i < liList.length; i++) {
+            const li = liList[i];
+            const isLast = i === liList.length - 1;
+            const applied = isLast ? remaining : Math.min(Number(li.quantity || 0), remaining);
+            li.mhrovDoneQty = applied;
+            remaining = Math.max(0, remaining - applied);
+          }
+        }
+      }
+    }
+  }
+
   const allMhrovNumbers = Object.keys(mhrovMap);
   const globalExistingMhrovs = await Mhrov.find({ mhrovNumber: { $in: allMhrovNumbers } }).lean();
+
+  // If updating existing MHROVs, deduct their old quantities ONCE from globalBulkEntries baseline
+  for (const mhrovNumber of allMhrovNumbers) {
+    const mhrovData = mhrovMap[mhrovNumber];
+    const existingMhrov = globalExistingMhrovs.find(m => m.mhrovNumber === mhrovNumber && m.circle === mhrovData.circle);
+    if (existingMhrov && Array.isArray(existingMhrov.items)) {
+      for (const oldIt of existingMhrov.items) {
+        if (!oldIt.diId || !oldIt.itemId) continue;
+        const diEntry = globalBulkEntries.find(d => d._id.toString() === oldIt.diId?.toString());
+        if (diEntry && Array.isArray(diEntry.lineItems)) {
+          const matching = diEntry.lineItems.filter((li: any) => li.itemId?.toString() === oldIt.itemId?.toString());
+          let toDeduct = Number(oldIt.mhrovDoneQty || 0);
+          for (let i = matching.length - 1; i >= 0 && toDeduct > 0; i--) {
+            const current = Number(matching[i].mhrovDoneQty || 0);
+            const deduct = Math.min(current, toDeduct);
+            matching[i].mhrovDoneQty = current - deduct;
+            toDeduct -= deduct;
+          }
+        }
+      }
+    }
+  }
   // -------------------------------------------------------------
 
   for (const mhrovNumber of allMhrovNumbers) {
     const mhrovData = mhrovMap[mhrovNumber];
     const finalItems = [];
-
-    const existingMhrov = globalExistingMhrovs.find(m => m.mhrovNumber === mhrovNumber && m.circle === mhrovData.circle);
 
     const uniqueDiNos = [...new Set(mhrovData.items.flatMap((i: any) => {
         if (!i.diNo) return [];
@@ -1102,28 +1170,20 @@ export const importMhrovs = asyncHandler(async (req: Request, res: Response) => 
          }
          errors.push(`Row ${item.rowNumber}: Could not find DI "${item.diNo}" with Item "${item.itemName}", Serial "${item.loaSerialNo}", TempCode "${item.tempCode}"${debugStr}`);
       } else {
-         // Validate Quantity
-         const totalDiQty = matchedLineItem.quantity || 0;
-         let alreadyDoneQty = matchedLineItem.mhrovDoneQty || 0;
-         
-         // If updating an existing MHROV, subtract its old quantity from alreadyDoneQty so we don't double count
-         if (existingMhrov && existingMhrov.items) {
-             const oldItem = existingMhrov.items.find((i: any) => 
-                 i.itemId?.toString() === matchedLineItem.itemId?.toString() &&
-                 i.diId?.toString() === matchedDI._id?.toString()
-             );
-             if (oldItem) {
-                 alreadyDoneQty = Math.max(0, alreadyDoneQty - (oldItem.mhrovDoneQty || 0));
-             }
-         }
+         // Validate Quantity using real-time accumulated in-memory quantity
+         const totalDiQty = Number(matchedLineItem.quantity || 0);
+         const alreadyDoneQty = Number(matchedLineItem.mhrovDoneQty || 0);
+         const remainingQty = Math.round(Math.max(0, totalDiQty - alreadyDoneQty) * 10000) / 10000;
 
-         const remainingQty = Math.max(0, totalDiQty - alreadyDoneQty);
-
-         if (item.mhrovDoneQty > remainingQty) {
+         // Check if item quantity exceeds remaining DI capacity (allowing 0.0001 precision tolerance)
+         if (item.mhrovDoneQty > remainingQty + 0.0001) {
              const dbCircle = matchedLineItem.circle || matchedDI.circle || 'N/A';
              const dbLoa = matchedLineItem.loaSerialNo || 'N/A';
              errors.push(`Row ${item.rowNumber}: MHROV Qty (${item.mhrovDoneQty}) cannot exceed remaining DI Qty (${remainingQty}) for Item "${item.itemName}" (DI: ${matchedDI.diNumber}, LOA: ${dbLoa}, Circle: ${dbCircle}). Total DI Qty: ${totalDiQty}, Already Done: ${alreadyDoneQty}`);
          } else {
+             // Immediately accumulate in memory so subsequent rows in this batch reflect this allocation
+             matchedLineItem.mhrovDoneQty = (matchedLineItem.mhrovDoneQty || 0) + item.mhrovDoneQty;
+
              finalItems.push({ 
                  diId: matchedDI._id,
                  itemId: matchedLineItem.itemId, 

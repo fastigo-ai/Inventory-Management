@@ -258,7 +258,7 @@ const MODS_MIS = [
 ];
 
 const SUBS = [
-  { id: 'item', m: 'm1', name: 'Item Master', cols: [['unit', 'Unit', 'text'], ['rate', 'Unit rate (₹)', 'money'], ['stock', 'Available stock', 'stock']] },
+  { id: 'item', m: 'm1', name: 'Item Master', cols: [['unit', 'Unit', 'text'], ['rate', 'LOA Supply Rate with GST (₹)', 'money'], ['stock', 'Available stock', 'stock']] },
   { id: 'po', m: 'm1', name: 'Purchase Order (PO)', cols: [['no', 'PO no.', 'code'], ['date', 'PO date', 'date'], ['qty', 'PO qty', 'qty'], ['val', 'PO value (₹)', 'money'], ['status', 'PO status', 'status']] },
   { id: 'di', m: 'm1', name: 'Dispatch Instruction (DI)', cols: [['no', 'DI no.', 'code'], ['qty', 'Dispatched qty', 'qty'], ['date', 'DI date', 'date']] },
   { id: 'pi', m: 'm1', name: 'Purchase Invoice (PI)', cols: [['no', 'Invoice no.', 'code'], ['qty', 'Invoice qty', 'qty'], ['amt', 'Invoice amount (₹)', 'money'], ['status', 'Payment', 'status']] },

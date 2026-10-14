@@ -14,8 +14,20 @@ interface Item360DrawerProps {
   onFilterByCircle?: (circle: string) => void;
 }
 
-const inr = (n: number) => Math.round(n || 0).toLocaleString('en-IN');
-const money = (n: number) => '₹' + inr(n);
+const inr = (n: number) => {
+  if (n === null || n === undefined || isNaN(n)) return '0';
+  if (Number.isInteger(n)) return n.toLocaleString('en-IN');
+  return Number(n.toFixed(3)).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+};
+const money = (n: number) => {
+  if (n === null || n === undefined || isNaN(n)) return '₹0';
+  if (Number.isInteger(n)) return '₹' + n.toLocaleString('en-IN');
+  return '₹' + Number(n.toFixed(2)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+const formatRate = (n: number) => {
+  if (n === null || n === undefined || isNaN(n)) return '₹0.00';
+  return '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
 const cr = (n: number) => ((n || 0) / 1e7).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fdate = (ms: any) => {
   if (!ms) return '—';
@@ -83,7 +95,7 @@ export default function Item360Drawer({ item, onClose, onFilterByCode, onFilterB
   };
 
   const handleCopySummary = () => {
-    const summaryText = `[Item 360] ${item.code}: ${item.name} | Circle: ${item.circle} | Unit: ${item.unit} | Rate: ₹${inr(rate)} | LOA: ${inr(loaQty)} | Stock: ${inr(stockQty)} | Issued: ${inr(issuedQty)} | Billed: ${inr(billedQty)}`;
+    const summaryText = `[Item 360] ${item.code}: ${item.name} | Circle: ${item.circle} | Unit: ${item.unit} | LOA Supply Rate with GST: ${formatRate(rate)} | LOA: ${inr(loaQty)} | Stock: ${inr(stockQty)} | Issued: ${inr(issuedQty)} | Billed: ${inr(billedQty)}`;
     navigator.clipboard.writeText(summaryText);
     setCopiedSummary(true);
     setTimeout(() => setCopiedSummary(false), 2000);
@@ -139,7 +151,7 @@ export default function Item360Drawer({ item, onClose, onFilterByCode, onFilterB
                 <span>•</span>
                 <span>Unit: <strong className="text-slate-200">{item.unit || 'Nos'}</strong></span>
                 <span>•</span>
-                <span>Contract Rate: <strong className="text-emerald-400">₹{inr(rate)}</strong></span>
+                <span>LOA Supply Rate with GST: <strong className="text-emerald-400">{formatRate(rate)}</strong></span>
               </div>
             </div>
 
@@ -293,7 +305,10 @@ export default function Item360Drawer({ item, onClose, onFilterByCode, onFilterB
                   <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
                     <span className="text-[11px] font-bold uppercase text-slate-400">Total Contract Value (LOA)</span>
                     <div className="text-xl font-black text-slate-800 mt-1">{money(loaQty * rate)}</div>
-                    <div className="text-xs text-slate-500 mt-1">₹{cr(loaQty * rate)} Cr • {inr(loaQty)} {item.unit}</div>
+                    <div className="text-xs text-slate-500 mt-1 flex items-center justify-between">
+                      <span>₹{cr(loaQty * rate)} Cr • {inr(loaQty)} {item.unit}</span>
+                      <span className="text-[10px] text-slate-400 font-medium">Rate: {formatRate(rate)}</span>
+                    </div>
                   </div>
 
                   <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">

@@ -945,18 +945,21 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
 
     const orConditions: any[] = [];
     if (tempCodes.size > 0) orConditions.push({ 'dynamicData.tempCode': { $in: Array.from(tempCodes) } });
-    if (itemNames.size > 0) {
-      const nameRegexes = Array.from(itemNames).map(n => new RegExp(`^${n}$`, 'i'));
-      orConditions.push({ 'dynamicData.name': { $in: nameRegexes } });
-    }
     if (loaSerialNos.size > 0) {
       const loaArr = Array.from(loaSerialNos);
       orConditions.push({ 'dynamicData.loaSerialNo': { $in: loaArr } });
       orConditions.push({ 'dynamicData.sku': { $in: loaArr } });
       orConditions.push({ 'dynamicData.loaSrNo': { $in: loaArr } });
     }
+    // Fallback to name regexes only if no tempCodes or loaSerialNos were present
+    if (orConditions.length === 0 && itemNames.size > 0) {
+      const nameRegexes = Array.from(itemNames).map(n => new RegExp(`^${n}$`, 'i'));
+      orConditions.push({ 'dynamicData.name': { $in: nameRegexes } });
+    }
 
-    const existingItems = orConditions.length > 0 ? await Item.find({ $or: orConditions }) : [];
+    const existingItems = orConditions.length > 0 
+      ? await Item.find({ $or: orConditions }).select('_id dynamicData').lean() 
+      : [];
 
     const findItemInMemory = (tCode?: string, name?: string, pkg?: string, circ?: string, loaSrNo?: string, unit?: string) => {
       const isMatch = (a?: string, b?: string) => {
@@ -1149,8 +1152,49 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
     });
     const diNumbers = Array.from(diNumbersSet);
 
+    // Helper to compare invoice numbers normalizing leading zeros for numeric strings and checking vendor compatibility
+    const isInvoiceNumberMatch = (invA?: string, invB?: string, vendorA?: string, vendorB?: string): boolean => {
+      if (!invA || !invB) return false;
+      const a = String(invA).trim().toLowerCase();
+      const b = String(invB).trim().toLowerCase();
+      
+      let isNumMatch = false;
+      if (a === b) {
+        isNumMatch = true;
+      } else if (/^\d+$/.test(a) && /^\d+$/.test(b)) {
+        isNumMatch = a.replace(/^0+/, '') === b.replace(/^0+/, '');
+      }
+
+      if (!isNumMatch) return false;
+
+      // If both have vendor names, ensure they don't belong to completely different vendors
+      if (vendorA && vendorB) {
+        const vA = String(vendorA).trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+        const vB = String(vendorB).trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (vA && vB && !vA.includes(vB) && !vB.includes(vA)) {
+          return false;
+        }
+      }
+      return true;
+    };
+
+    const invRegexConditions: any[] = [];
+    const directInvNumbers: string[] = [];
+
+    for (const prNumber of prNumbers) {
+      directInvNumbers.push(prNumber);
+      if (/^\d+$/.test(prNumber)) {
+        const stripped = prNumber.replace(/^0+/, '') || '0';
+        invRegexConditions.push(new RegExp(`^0*${stripped}$`, 'i'));
+      }
+    }
+
+    const piQuery: any = invRegexConditions.length > 0 
+      ? { $or: [{ invoiceNumber: { $in: directInvNumbers } }, { invoiceNumber: { $in: invRegexConditions } }] }
+      : { invoiceNumber: { $in: directInvNumbers } };
+
     const [existingPRs, existingPOs, existingDIs] = await Promise.all([
-      PurchaseInvoice.find({ invoiceNumber: { $in: prNumbers } }),
+      PurchaseInvoice.find(piQuery),
       poNumbers.length > 0 ? PurchaseOrder.find({ purchaseOrderNumber: { $in: poNumbers }, isDeleted: { $ne: true } }) : [],
       diNumbers.length > 0 ? DI.find({ diNumber: { $in: diNumbers } }) : []
     ]);
@@ -1227,7 +1271,10 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
     const globalExcludePiIds = [];
     for (const prNumber of prNumbers) {
       const prData = prMap[prNumber];
-      const existing = existingPRs.find(p => p.invoiceNumber === prData.invoiceNumber);
+      let existing = existingPRs.find((p: any) => p.invoiceNumber === prData.invoiceNumber && isInvoiceNumberMatch(p.invoiceNumber, prData.invoiceNumber, p.vendorName, prData.vendorName));
+      if (!existing) {
+        existing = existingPRs.find((p: any) => isInvoiceNumberMatch(p.invoiceNumber, prData.invoiceNumber, p.vendorName, prData.vendorName));
+      }
       if (existing) {
         prData._existingId = existing._id;
         globalExcludePiIds.push(existing._id.toString());
@@ -1237,6 +1284,45 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
     }
 
     const batchConsumptionMap = new Map<string, number>();
+
+    // ── PRE-CALCULATE DI ALLOCATIONS (1 single query instead of hundreds in loop) ──
+    const diAllocationMap = new Map<string, Map<string, number>>();
+    const allUniqueDiIds = Array.from(new Set(
+      prNumbers.flatMap(n => prMap[n].lineItems.map((li: any) => li.diId?.toString()).filter(Boolean))
+    ));
+
+    if (allUniqueDiIds.length > 0) {
+      const piQuery: any = { 'lineItems.diId': { $in: allUniqueDiIds.map(id => new mongoose.Types.ObjectId(id)) } };
+      if (globalExcludePiIds.length > 0) {
+        piQuery._id = { $nin: globalExcludePiIds.map(id => new mongoose.Types.ObjectId(id)) };
+      }
+      const pis = await PurchaseInvoice.find(piQuery)
+        .select('lineItems.diId lineItems.diLineId lineItems.quantity lineItems.invoiceQuantity')
+        .lean();
+
+      const consumedMap = new Map<string, number>();
+      for (const pi of (pis as any[])) {
+        for (const line of (pi.lineItems || [])) {
+          if (line.diLineId) {
+            const lineIdStr = line.diLineId.toString();
+            const qty = Number(line.quantity) || Number(line.invoiceQuantity) || 0;
+            consumedMap.set(lineIdStr, (consumedMap.get(lineIdStr) || 0) + qty);
+          }
+        }
+      }
+
+      for (const di of existingDIs) {
+        const diIdStr = di._id.toString();
+        const lineRemainingMap = new Map<string, number>();
+        for (const item of (di.lineItems || [])) {
+          const lineIdStr = item._id.toString();
+          const origQty = Number(item.quantity) || 0;
+          const consumedQty = consumedMap.get(lineIdStr) || 0;
+          lineRemainingMap.set(lineIdStr, Math.max(0, origQty - consumedQty));
+        }
+        diAllocationMap.set(diIdStr, lineRemainingMap);
+      }
+    }
 
     // ── PASS 1: Validate DI allocations before writing ─────────────────────
     for (const prNumber of prNumbers) {
@@ -1281,7 +1367,13 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
         
         for (const [diIdForConsumption, lines] of diIdMap.entries()) {
           try {
-            await ValidationService.validateConsumption(diIdForConsumption, lines, globalExcludePiIds, batchConsumptionMap);
+            await ValidationService.validateConsumption(
+              diIdForConsumption, 
+              lines, 
+              globalExcludePiIds, 
+              batchConsumptionMap,
+              diAllocationMap.get(diIdForConsumption)
+            );
             prData._diIdForConsumption = diIdForConsumption;
           } catch (err: any) {
             const splitErrors = err.message.split('\n');
@@ -1316,8 +1408,73 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
 
         // Upsert: update existing or create new
         const { _existingId, _diIdForConsumption, rowNumbers, ...prPayload } = prData;
+
+        // Check if invoice already exists
+        let existingDoc = _existingId 
+          ? (existingPRs.find((p: any) => p._id.toString() === _existingId.toString()) || 
+             existingPRs.find((p: any) => isInvoiceNumberMatch(p.invoiceNumber, prData.invoiceNumber, p.vendorName, prData.vendorName)))
+          : null;
+        if (!existingDoc) {
+          existingDoc = existingPRs.find((p: any) => isInvoiceNumberMatch(p.invoiceNumber, prData.invoiceNumber, p.vendorName, prData.vendorName)) || null;
+        }
+        const incomingLines = prData.lineItems || [];
+        const incomingCircles = new Set(
+          incomingLines.map((l: any) => (l.circle || '').trim().toLowerCase()).filter(Boolean)
+        );
+
+        let finalLineItems = incomingLines;
+
+        if (existingDoc && existingDoc.lineItems && existingDoc.lineItems.length > 0) {
+          const getLineKey = (l: any) => {
+            const circ = (l.circle || '').trim().toLowerCase();
+            const loa = String(l.loaSerialNo || '').trim().toLowerCase();
+            const temp = (l.tempCode || '').trim().toLowerCase();
+            const item = (l.itemId?.toString() || l.itemName || '').trim().toLowerCase();
+            return `${circ}__${loa}__${temp}__${item}`;
+          };
+
+          const incomingKeys = new Set(incomingLines.map(getLineKey));
+
+          // Retain existing lines that are NOT being overwritten by incoming lines
+          // (e.g. lines belonging to other circles like Rampur, or items not in this CSV)
+          const preservedExistingLines = existingDoc.lineItems
+            .map((li: any) => (li.toObject ? li.toObject() : li))
+            .filter((li: any) => !incomingKeys.has(getLineKey(li)));
+
+          finalLineItems = [...preservedExistingLines, ...incomingLines];
+
+          // Recalculate totals across all merged lines
+          const subTotal = finalLineItems.reduce((sum: number, li: any) => sum + (Number(li.amount) || 0), 0);
+          const taxAmount = finalLineItems.reduce((sum: number, li: any) => {
+            const lineTax = (Number(li.totalAmount) || Number(li.amount) || 0) - (Number(li.amount) || 0);
+            return sum + (lineTax > 0 ? lineTax : 0);
+          }, 0);
+          const total = subTotal + taxAmount;
+          const amountPaid = Number(existingDoc.amountPaid) || 0;
+          const balanceDue = total - amountPaid;
+
+          prPayload.lineItems = finalLineItems;
+          prPayload.subTotal = subTotal;
+          prPayload.taxAmount = taxAmount;
+          prPayload.total = total;
+          prPayload.balanceDue = balanceDue;
+
+          // Merge DI Number reference if different
+          if (existingDoc.diNumber && prData.diNumber && !existingDoc.diNumber.includes(prData.diNumber)) {
+            prPayload.diNumber = `${existingDoc.diNumber}, ${prData.diNumber}`;
+          } else {
+            prPayload.diNumber = prData.diNumber || existingDoc.diNumber;
+          }
+        }
+
+        const targetInvoiceNumber = existingDoc ? existingDoc.invoiceNumber : prData.invoiceNumber;
+        if (existingDoc) {
+          prPayload.invoiceNumber = existingDoc.invoiceNumber;
+        }
+
+        const filter = _existingId ? { _id: _existingId } : { invoiceNumber: targetInvoiceNumber };
         const savedPr = await PurchaseInvoice.findOneAndUpdate(
-          { invoiceNumber: prData.invoiceNumber },
+          filter,
           { $set: prPayload },
           { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true, session: session || undefined }
         );
@@ -1331,12 +1488,23 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
           await RelationsService.linkDocuments(savedPr.purchaseOrderId.toString(), 'PurchaseOrder', savedPr._id.toString(), 'PurchaseInvoice', 'CONSUMES', session);
         }
 
-        // Recreate Store Receipts (delete old ones first on update)
+        // Recreate Store Receipts for the imported lines/circle
+        // If updating an existing invoice that has lines from other circles, only remove store receipts for the incoming circle(s)
         if (_existingId) {
-          await StoreInwardEntry.deleteMany({ purchaseInvoiceId: savedPr._id }, { session: session || undefined });
+          if (incomingCircles.size > 0) {
+            const circleRegexes = Array.from(incomingCircles).map(c => new RegExp(`^${c}$`, 'i'));
+            await StoreInwardEntry.deleteMany(
+              { purchaseInvoiceId: savedPr._id, circle: { $in: circleRegexes } },
+              { session: session || undefined }
+            );
+          } else {
+            await StoreInwardEntry.deleteMany({ purchaseInvoiceId: savedPr._id }, { session: session || undefined });
+          }
         }
-        if (savedPr.lineItems && savedPr.lineItems.length > 0) {
-          const inwardEntries = savedPr.lineItems.map((item: any) => ({
+
+        // Generate Store Receipts only for the incoming lines
+        if (incomingLines.length > 0) {
+          const inwardEntries = incomingLines.map((item: any) => ({
             purchaseInvoiceId: savedPr._id,
             purchaseOrderId: savedPr.purchaseOrderId,
             poNumber: savedPr.purchaseOrderNumber,
@@ -1345,7 +1513,7 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
             vendorName: savedPr.vendorName,
             invoiceNumber: savedPr.invoiceNumber,
             invoiceDate: savedPr.date,
-            diRefNo: savedPr.diNumber || (savedPr as any).diNo,
+            diRefNo: item.diNumber || savedPr.diNumber || (savedPr as any).diNo,
             diId: item.diId || (savedPr as any).diId,
             circle: item.circle,
             subcircle: item.subcircle,
@@ -1372,8 +1540,8 @@ export const importPurchaseInvoices = async (req: Request, res: Response): Promi
         }
 
         // Queue rebuild summary for imported items
-        if (savedPr.lineItems && savedPr.lineItems.length > 0) {
-          for (const item of savedPr.lineItems) {
+        if (incomingLines.length > 0) {
+          for (const item of incomingLines) {
             if (item.itemId) globalAffectedItemIds.add(item.itemId.toString());
           }
         }

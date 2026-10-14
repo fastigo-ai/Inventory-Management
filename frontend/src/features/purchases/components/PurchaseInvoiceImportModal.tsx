@@ -91,11 +91,17 @@ export function PurchaseInvoiceImportModal({ isOpen, onClose, onSuccess }: Purch
       setIsUploading(false);
       setProgress(0);
       const responseData = err.response?.data;
-      if (responseData?.data?.errors) {
+      if (responseData?.data?.errors && Array.isArray(responseData.data.errors) && responseData.data.errors.length > 0) {
         setResult({ successCount: 0, errors: responseData.data.errors });
-        setError(responseData.message || "Import failed due to validation errors.");
+        setError(responseData.message || "Import failed due to validation errors. Please check the list below.");
+      } else if (responseData?.message) {
+        setError(responseData.message);
+      } else if (err.response?.status === 500 || (err.message && err.message.includes('500'))) {
+        setError("The server took too long to respond or encountered an internal error. Please try uploading again or verify the CSV contents.");
+      } else if (err.code === 'ECONNABORTED' || (err.message && err.message.includes('timeout'))) {
+        setError("The upload timed out while processing. Please try again.");
       } else {
-        setError(responseData?.message || err.message || "Failed to upload file");
+        setError(err.message || "Failed to upload file. Please try again.");
       }
     }
   };

@@ -210,7 +210,7 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
     });
   }
 
-  // Also check past demand notes
+  // Also check past demand notes for THIS contractor
   let pastDemandQty = 0;
   const dnQuery: any = { status: { $in: ['Draft', 'Pending PM Approval', 'Pending PD Approval', 'Approved', 'Fulfilled'] } };
   if (excludeDemandNoteId) {
@@ -218,6 +218,20 @@ export const getContextData = asyncHandler(async (req: AuthRequest, res: Respons
   }
   if (pkgRegex) dnQuery.package = { $regex: pkgRegex };
   if (circleFilter) dnQuery.circle = circleFilter;
+
+  const contractorConds: any[] = [];
+  if (contractorFilter) contractorConds.push({ contractorId: contractorFilter });
+  if (contractorName) {
+    contractorConds.push({ contractorName: new RegExp(`^${String(contractorName).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') });
+  }
+
+  if (contractorConds.length > 0) {
+    dnQuery.$or = contractorConds;
+  } else {
+    // If no contractor is specified, do not sum up arbitrary other contractors
+    dnQuery._id = { $in: [] };
+  }
+
   const pastDemandNotes = await DemandNote.find(dnQuery).lean();
 
   for (const dn of pastDemandNotes) {
@@ -444,6 +458,19 @@ export const getContextDataBatch = asyncHandler(async (req: AuthRequest, res: Re
   if (excludeDemandNoteId) dnQuery._id = { $ne: excludeDemandNoteId };
   if (pkgRegex) dnQuery.package = { $regex: pkgRegex };
   if (circleFilter) dnQuery.circle = circleFilter;
+
+  const batchContractorConds: any[] = [];
+  if (contractorFilter) batchContractorConds.push({ contractorId: contractorFilter });
+  if (contractorName) {
+    batchContractorConds.push({ contractorName: new RegExp(`^${String(contractorName).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') });
+  }
+
+  if (batchContractorConds.length > 0) {
+    dnQuery.$or = batchContractorConds;
+  } else {
+    dnQuery._id = { $in: [] };
+  }
+
   const pastDemandNotes = await DemandNote.find(dnQuery).lean();
 
   let jmcRegisters: any[] = [];

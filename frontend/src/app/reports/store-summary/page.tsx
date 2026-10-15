@@ -732,7 +732,7 @@ export default function StoreSummaryPage() {
               <tbody className="divide-y divide-slate-100 text-slate-800 font-medium">
                 {loading ? (
                   <tr>
-                    <td colSpan={13} className="py-16 text-center text-slate-400">
+                    <td colSpan={15} className="py-16 text-center text-slate-400">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <RefreshCw className="w-6 h-6 animate-spin text-blue-600" />
                         <span className="text-xs font-semibold text-slate-600">Calculating store summary in real-time...</span>
@@ -741,7 +741,7 @@ export default function StoreSummaryPage() {
                   </tr>
                 ) : data.length === 0 ? (
                   <tr>
-                    <td colSpan={13} className="py-16 text-center text-slate-400">
+                    <td colSpan={15} className="py-16 text-center text-slate-400">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <Boxes className="w-8 h-8 text-slate-300" />
                         <span className="text-sm font-semibold text-slate-600">No items found matching the selected filters.</span>

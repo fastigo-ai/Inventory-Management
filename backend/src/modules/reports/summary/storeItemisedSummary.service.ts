@@ -17,7 +17,42 @@ export const clearStoreItemisedCache = () => {
 const getVariants = (val: string): string[] => {
   if (!val) return [];
   const t = val.trim();
-  return Array.from(new Set([t, t.toUpperCase(), t.toLowerCase(), t.charAt(0).toUpperCase() + t.slice(1).toLowerCase(), `${t} `]));
+  const variants = [t, t.toUpperCase(), t.toLowerCase(), t.charAt(0).toUpperCase() + t.slice(1).toLowerCase(), `${t} `];
+  variants.push(`${t} Store`, `${t.toUpperCase()} STORE`, `${t.toLowerCase()} store`);
+  if (/kumar\s*hat/i.test(t)) {
+    variants.push('KUMAR HATI STORE', 'Kumar Hati Store', 'KUMAR HATI', 'Kumar Hati', 'Kumarhatti Store', 'Kumarhatti', 'Solan - Kumarhatti');
+  }
+  if (/solan/i.test(t)) {
+    variants.push('Solan Store', 'SOLAN STORE', 'Solan - Kumarhatti');
+  }
+  if (/rampur/i.test(t)) {
+    variants.push('RAMPUR STORE', 'Rampur Store');
+  }
+  if (/nahan/i.test(t)) {
+    variants.push('NAHAN STORE', 'Nahan Store');
+  }
+  if (/rohru/i.test(t)) {
+    variants.push('Rohru Store', 'Rohru store', 'ROHRU STORE');
+  }
+  return Array.from(new Set(variants));
+};
+
+const buildStoreRegex = (names: string[]): RegExp | null => {
+  if (!names || names.length === 0) return null;
+  const parts: string[] = [];
+  names.forEach(n => {
+    const clean = n.trim().replace(/store|circle/gi, '').trim();
+    if (!clean) return;
+    if (/kumar\s*hat/i.test(clean)) {
+      parts.push('kumar\\s*hat[ti]*(\\s+(store|circle))?');
+    } else if (/solan/i.test(clean)) {
+      parts.push('solan(\\s*-\\s*kumarhatti)?(\\s+(store|circle))?');
+    } else {
+      parts.push(`${clean.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s+(store|circle))?`);
+    }
+  });
+  if (parts.length === 0) return null;
+  return new RegExp(`^(${parts.join('|')})$`, 'i');
 };
 
 const round3 = (val: number) => Math.round((Number(val || 0) + Number.EPSILON) * 1000) / 1000;
@@ -25,7 +60,7 @@ const round3 = (val: number) => Math.round((Number(val || 0) + Number.EPSILON) *
 const normalizeCircle = (circ?: string): string => {
   if (!circ) return '';
   const c = circ.trim().toLowerCase();
-  if (/solan|kumarhatti|nalagarh/.test(c)) return 'Solan';
+  if (/solan|kumar\s*hat[ti]+|nalagarh/.test(c)) return 'Solan';
   if (/nahan/.test(c)) return 'Nahan';
   if (/rampur/.test(c)) return 'Rampur';
   if (/rohru/.test(c)) return 'Rohru';
@@ -118,7 +153,10 @@ async function computeStoreItemisedSummaryInner(params: {
   let itemLocVariants: string[] = [];
   if (circle && circle !== 'all' && circle !== 'All Circles') {
     const circleArr = circle.includes(',') ? circle.split(',').map(c => c.trim()).filter(Boolean) : [circle];
-    circleArr.forEach(c => itemLocVariants.push(...getVariants(c)));
+    circleArr.forEach(c => {
+      const exp = expandCircle(c) || [c];
+      exp.forEach(e => itemLocVariants.push(...getVariants(e)));
+    });
   } else if (pkg && pkg !== 'all' && pkg !== 'All Packages') {
     if (pkg.includes('Package 1')) {
       itemLocVariants = [...getVariants('Solan'), ...getVariants('Nahan'), ...getVariants('Kumarhatti'), ...getVariants('Nalagarh')];
@@ -143,22 +181,27 @@ async function computeStoreItemisedSummaryInner(params: {
     }
   }
 
-  // 2. Determine Transaction Filter Variants (Indexed)
-  let transLocVariants: string[] = [];
+  // 2. Determine Transaction Filter Variants & Regex
+  let transLocTargets: string[] = [];
   const transTarget = store && store !== 'all' ? store : (circle && circle !== 'all' && circle !== 'All Circles' ? circle : null);
   if (transTarget) {
     const targets = transTarget.includes(',') ? transTarget.split(',').map(c => c.trim()).filter(Boolean) : [transTarget];
     targets.forEach(tgt => {
       const expanded = expandCircle(tgt) || [tgt];
-      expanded.forEach(c => transLocVariants.push(...getVariants(c)));
+      transLocTargets.push(...expanded);
     });
   } else if (pkg && pkg !== 'all' && pkg !== 'All Packages') {
     if (pkg.includes('Package 1')) {
-      ['Solan', 'Kumarhatti', 'Nalagarh', 'Nahan'].forEach(c => transLocVariants.push(...getVariants(c)));
+      transLocTargets.push('Solan', 'Kumarhatti', 'Nalagarh', 'Nahan');
     } else if (pkg.includes('Package 2')) {
-      ['Rampur', 'Rohru'].forEach(c => transLocVariants.push(...getVariants(c)));
+      transLocTargets.push('Rampur', 'Rohru');
     }
   }
+  transLocTargets = Array.from(new Set(transLocTargets));
+  const transLocRegex = buildStoreRegex(transLocTargets);
+
+  let transLocVariants: string[] = [];
+  transLocTargets.forEach(t => transLocVariants.push(...getVariants(t)));
   transLocVariants = Array.from(new Set(transLocVariants));
 
   const items = await Item.find(itemFilter)
@@ -214,41 +257,48 @@ async function computeStoreItemisedSummaryInner(params: {
       grp.itemIds.add(idStr);
 
       itemIdToGroup.set(idStr, grp);
-      if (temp && temp !== '-') tempCodeAndCircleToGroup.set(`${temp}_${circleNorm.toUpperCase()}`, grp);
+      if (temp && temp !== '-') {
+        tempCodeAndCircleToGroup.set(`${temp}_${circleNorm.toUpperCase()}`, grp);
+        if (hasValidTemp) {
+          tempCodeAndCircleToGroup.set(`${tempNum}_${circleNorm.toUpperCase()}`, grp);
+        }
+      }
       if (name) nameAndCircleToGroup.set(`${name.toLowerCase()}_${circleNorm.toUpperCase()}`, grp);
     });
 
     // Match conditions for transactions
     const inwardFilter: any = {};
     const assignFilter: any = { status: { $ne: 'Cancelled' } };
-    const returnFilter: any = {};
-    const transferOutFilter: any = { registerType: 'OUTWARD', status: { $nin: ['Cancelled', 'REJECTED', 'CANCELLED'] } };
-    const transferInFilter: any = { status: { $in: ['RECEIVED', 'IN_TRANSIT'] } };
+    const returnFilter: any = { status: { $nin: ['Cancelled', 'CANCELLED'] } };
+    const transferOutFilter: any = { status: { $nin: ['Cancelled', 'REJECTED', 'CANCELLED'] } };
+    const transferInFilter: any = { status: { $nin: ['Cancelled', 'REJECTED', 'CANCELLED'] } };
     const diFilter: any = { status: { $ne: 'Cancelled' } };
     const mhrovFilter: any = {};
 
-    if (transLocVariants.length > 0) {
+    if (transLocRegex) {
       inwardFilter.$or = [
-        { circle: { $in: transLocVariants } },
-        { subcircle: { $in: transLocVariants } },
-        { billingFrom: { $in: transLocVariants } },
-        { store: { $in: transLocVariants } }
+        { circle: transLocRegex },
+        { subcircle: transLocRegex },
+        { billingFrom: transLocRegex },
+        { store: transLocRegex }
       ];
       assignFilter.$or = [
-        { location: { $in: transLocVariants } },
-        { circle: { $in: transLocVariants } },
-        { subcircle: { $in: transLocVariants } },
-        { division: { $in: transLocVariants } },
-        { 'lineItems.circle': { $in: transLocVariants } }
+        { location: transLocRegex },
+        { circle: transLocRegex },
+        { subcircle: transLocRegex },
+        { division: transLocRegex },
+        { 'lineItems.circle': transLocRegex }
       ];
       returnFilter.$or = [
-        { store: { $in: transLocVariants } },
-        { circle: { $in: transLocVariants } },
-        { subcircle: { $in: transLocVariants } },
-        { division: { $in: transLocVariants } }
+        { store: transLocRegex },
+        { circle: transLocRegex },
+        { location: transLocRegex },
+        { subcircle: transLocRegex },
+        { division: transLocRegex },
+        { 'lineItems.circle': transLocRegex }
       ];
-      transferOutFilter.fromStore = { $in: transLocVariants };
-      transferInFilter.toStore = { $in: transLocVariants };
+      transferOutFilter.fromStore = transLocRegex;
+      transferInFilter.toStore = transLocRegex;
     }
 
     if (itemLocVariants.length > 0) {
@@ -259,26 +309,26 @@ async function computeStoreItemisedSummaryInner(params: {
       mhrovFilter.circle = { $in: itemLocVariants };
     }
 
-    // Parallel fetch of all 7 collections with projections
+    // Parallel fetch of all 7 collections with full projections
     const [inwards, assignments, returns, transfersOut, transfersIn, dis, mhrovs] = await Promise.all([
       StoreInwardEntry.find(inwardFilter)
         .select('itemId totalQty invoiceQty acceptedQty receivedQty tempCode itemName name description circle store subcircle')
         .lean(),
 
       ContractorAssignment.find(assignFilter)
-        .select('lineItems.itemId lineItems.quantity lineItems.acceptedQuantity lineItems.issuedQty lineItems.tempCode lineItems.itemName lineItems.circle circle location subcircle')
+        .select('lineItems.itemId lineItems.quantity lineItems.acceptedQuantity lineItems.issuedQty lineItems.tempCode lineItems.itemName lineItems.circle circle location subcircle division')
         .lean(),
 
       ContractorReturn.find(returnFilter)
-        .select('lineItems items circle store subcircle')
+        .select('lineItems items circle store location subcircle division')
         .lean(),
 
       StoreTransfer.find(transferOutFilter)
-        .select('items.itemId items.dispatchedQty items.quantity items.requestedQty items.receivedQty items.tempCode items.itemName fromStore')
+        .select('items.itemId items.dispatchedQty items.quantity items.requestedQty items.receivedQty items.tempCode items.description items.itemName items.name items.loaSerialNo fromStore toStore registerType')
         .lean(),
 
       StoreTransfer.find(transferInFilter)
-        .select('items.itemId items.receivedQty items.dispatchedQty items.quantity items.requestedQty items.tempCode items.itemName toStore')
+        .select('items.itemId items.receivedQty items.dispatchedQty items.quantity items.requestedQty items.tempCode items.description items.itemName items.name items.loaSerialNo fromStore toStore registerType')
         .lean(),
 
       DI.find(diFilter)
@@ -291,16 +341,38 @@ async function computeStoreItemisedSummaryInner(params: {
     ]);
 
     const findGroup = (idStr: string | null, temp?: string, name?: string, docCircle?: string) => {
-      if (idStr && itemIdToGroup.has(idStr)) return itemIdToGroup.get(idStr);
       const circNorm = normalizeCircle(docCircle || '');
+      const cleanTemp = temp && temp !== '-' ? String(temp).trim() : '';
+      const tempNum = Number(cleanTemp);
+      const cleanName = name ? String(name).trim().toLowerCase() : '';
+
       if (circNorm) {
-        if (temp && temp !== '-' && tempCodeAndCircleToGroup.has(`${temp}_${circNorm.toUpperCase()}`)) {
-          return tempCodeAndCircleToGroup.get(`${temp}_${circNorm.toUpperCase()}`);
+        if (cleanTemp && tempCodeAndCircleToGroup.has(`${cleanTemp}_${circNorm.toUpperCase()}`)) {
+          return tempCodeAndCircleToGroup.get(`${cleanTemp}_${circNorm.toUpperCase()}`);
         }
-        if (name && nameAndCircleToGroup.has(`${name.toLowerCase()}_${circNorm.toUpperCase()}`)) {
-          return nameAndCircleToGroup.get(`${name.toLowerCase()}_${circNorm.toUpperCase()}`);
+        if (!isNaN(tempNum) && tempNum > 0 && tempCodeAndCircleToGroup.has(`${tempNum}_${circNorm.toUpperCase()}`)) {
+          return tempCodeAndCircleToGroup.get(`${tempNum}_${circNorm.toUpperCase()}`);
+        }
+        if (cleanName && nameAndCircleToGroup.has(`${cleanName}_${circNorm.toUpperCase()}`)) {
+          return nameAndCircleToGroup.get(`${cleanName}_${circNorm.toUpperCase()}`);
         }
       }
+
+      if (idStr && itemIdToGroup.has(idStr)) {
+        const grp = itemIdToGroup.get(idStr);
+        if (!circNorm || grp.circle.toUpperCase() === circNorm.toUpperCase()) {
+          return grp;
+        }
+      }
+
+      if (idStr && itemIdToGroup.has(idStr)) return itemIdToGroup.get(idStr);
+
+      if (cleanTemp) {
+        for (const [key, grp] of tempCodeAndCircleToGroup.entries()) {
+          if (key.startsWith(`${cleanTemp}_`)) return grp;
+        }
+      }
+
       return null;
     };
 
@@ -322,7 +394,7 @@ async function computeStoreItemisedSummaryInner(params: {
         const qty = Number(li.quantity || li.acceptedQuantity || li.issuedQty || 0);
         const temp = String(li.tempCode || '').trim();
         const name = String(li.itemName || li.name || li.description || '').trim().toLowerCase();
-        const docCircle = li.circle || doc.circle || (doc as any).location || (doc as any).subcircle;
+        const docCircle = li.circle || doc.circle || (doc as any).location || (doc as any).subcircle || (doc as any).division;
 
         const grp = findGroup(idStr, temp, name, docCircle);
         if (grp) grp.issuedQty += qty;
@@ -332,10 +404,10 @@ async function computeStoreItemisedSummaryInner(params: {
     returns.forEach(doc => {
       (doc.lineItems || (doc as any).items || []).forEach((li: any) => {
         const idStr = li.itemId ? li.itemId.toString() : null;
-        const qty = Number(li.quantity || li.acceptedQuantity || (li as any).returnedQty || 0);
+        const qty = Number(li.quantity || li.acceptedQuantity || (li as any).returnedQty || (li as any).returnQty || 0);
         const temp = String(li.tempCode || '').trim();
         const name = String(li.itemName || li.name || li.description || '').trim().toLowerCase();
-        const docCircle = li.circle || doc.circle || (doc as any).store;
+        const docCircle = li.circle || doc.circle || (doc as any).location || (doc as any).subcircle || (doc as any).division || (doc as any).store;
 
         const grp = findGroup(idStr, temp, name, docCircle);
         if (grp) grp.returnedQty += qty;
@@ -347,7 +419,7 @@ async function computeStoreItemisedSummaryInner(params: {
         const idStr = it.itemId ? it.itemId.toString() : null;
         const qty = Number(it.dispatchedQty || it.quantity || it.requestedQty || it.receivedQty || 0);
         const temp = String(it.tempCode || '').trim();
-        const name = String(it.itemName || it.name || it.description || '').trim().toLowerCase();
+        const name = String(it.description || it.itemName || it.name || '').trim().toLowerCase();
         const docCircle = (doc as any).fromStore;
 
         const grp = findGroup(idStr, temp, name, docCircle);
@@ -360,7 +432,7 @@ async function computeStoreItemisedSummaryInner(params: {
         const idStr = it.itemId ? it.itemId.toString() : null;
         const qty = Number(it.receivedQty || it.dispatchedQty || it.quantity || it.requestedQty || 0);
         const temp = String(it.tempCode || '').trim();
-        const name = String(it.itemName || it.name || it.description || '').trim().toLowerCase();
+        const name = String(it.description || it.itemName || it.name || '').trim().toLowerCase();
         const docCircle = (doc as any).toStore;
 
         const grp = findGroup(idStr, temp, name, docCircle);
@@ -402,7 +474,7 @@ async function computeStoreItemisedSummaryInner(params: {
       return r;
     });
 
-    if (hideZeroBalance || transLocVariants.length > 0 || (pkg && pkg !== 'all')) {
+    if (hideZeroBalance || transLocTargets.length > 0 || (pkg && pkg !== 'all')) {
       rows = rows.filter(r => r.receiptQty > 0 || r.issuedQty > 0 || r.returnedQty > 0 || r.transferOutQty > 0 || r.transferInQty > 0 || r.balAtStore !== 0);
     }
 
@@ -446,22 +518,27 @@ async function computeStoreItemisedSummaryInner(params: {
     // B. LOA BOM DETAILED VIEW (Row by Row per Item ID)
     // ----------------------------------------------------
     const itemMap = new Map<string, any>();
+    const tempCodeCircleMap = new Map<string, any>();
+    const skuCircleMap = new Map<string, any>();
+    const tempCodeMap = new Map<string, any>();
+    const skuMap = new Map<string, any>();
+
     items.forEach(it => {
       const d = it.dynamicData || {};
       const temp = String(d.tempCode || (it as any).tempCode || '').trim();
       const tempNum = Number(temp);
       const hasValidTemp = !isNaN(tempNum) && tempNum > 0;
       const name = String(d.name || (d as any).itemName || (d as any).description || (it as any).name || (it as any).itemName || (it as any).description || 'Unnamed Item').trim();
-
       const rawCircle = String(d.circle || (it as any).circle || circle || '').trim();
       const circleNorm = normalizeCircle(rawCircle) || 'Unknown';
       const pkgName = getCirclePackage(circleNorm, d.package || (it as any).package || pkg);
+      const sku = String(d.sku || (d as any).loaSerialNo || (it as any).sku || '').trim();
 
-      itemMap.set(it._id.toString(), {
+      const row = {
         itemId: it._id,
         tempCode: temp,
         tempNum: hasValidTemp ? tempNum : 9999999,
-        sku: String(d.sku || (d as any).loaSerialNo || (it as any).sku || '').trim(),
+        sku,
         name,
         unit: d.unit || (it as any).unit || 'Nos',
         package: pkgName,
@@ -474,35 +551,83 @@ async function computeStoreItemisedSummaryInner(params: {
         balAtStore: 0,
         diQty: 0,
         mhrovQty: 0
-      });
+      };
+
+      const idStr = it._id.toString();
+      itemMap.set(idStr, row);
+
+      if (temp && temp !== '-') {
+        tempCodeCircleMap.set(`${temp}_${circleNorm.toUpperCase()}`, row);
+        tempCodeMap.set(temp, row);
+        if (hasValidTemp) {
+          tempCodeCircleMap.set(`${tempNum}_${circleNorm.toUpperCase()}`, row);
+          tempCodeMap.set(String(tempNum), row);
+        }
+      }
+      if (sku && sku !== '-') {
+        skuCircleMap.set(`${sku}_${circleNorm.toUpperCase()}`, row);
+        skuMap.set(sku, row);
+      }
     });
+
+    const findLoaItem = (idStr: string | null, temp?: string, sku?: string, docCircle?: string) => {
+      if (idStr && itemMap.has(idStr)) return itemMap.get(idStr);
+      const circNorm = normalizeCircle(docCircle || '');
+      const cleanTemp = temp && temp !== '-' ? String(temp).trim() : '';
+      const tempNum = Number(cleanTemp);
+      const cleanSku = sku && sku !== '-' ? String(sku).trim() : '';
+
+      if (circNorm) {
+        if (cleanSku && skuCircleMap.has(`${cleanSku}_${circNorm.toUpperCase()}`)) {
+          return skuCircleMap.get(`${cleanSku}_${circNorm.toUpperCase()}`);
+        }
+        if (cleanTemp && tempCodeCircleMap.has(`${cleanTemp}_${circNorm.toUpperCase()}`)) {
+          return tempCodeCircleMap.get(`${cleanTemp}_${circNorm.toUpperCase()}`);
+        }
+        if (!isNaN(tempNum) && tempNum > 0 && tempCodeCircleMap.has(`${tempNum}_${circNorm.toUpperCase()}`)) {
+          return tempCodeCircleMap.get(`${tempNum}_${circNorm.toUpperCase()}`);
+        }
+      }
+
+      if (cleanSku && skuMap.has(cleanSku)) return skuMap.get(cleanSku);
+      if (cleanTemp && tempCodeMap.has(cleanTemp)) return tempCodeMap.get(cleanTemp);
+      if (!isNaN(tempNum) && tempNum > 0 && tempCodeMap.has(String(tempNum))) return tempCodeMap.get(String(tempNum));
+
+      return null;
+    };
 
     const inwardFilter: any = {};
     const assignFilter: any = { status: { $ne: 'Cancelled' } };
-    const returnFilter: any = {};
+    const returnFilter: any = { status: { $nin: ['Cancelled', 'CANCELLED'] } };
     const transferOutFilter: any = { status: { $nin: ['Cancelled', 'REJECTED', 'CANCELLED'] } };
     const transferInFilter: any = { status: { $nin: ['Cancelled', 'REJECTED', 'CANCELLED'] } };
     const diFilter: any = { status: { $ne: 'Cancelled' } };
     const mhrovFilter: any = {};
 
-    if (transLocVariants.length > 0) {
+    if (transLocRegex) {
       inwardFilter.$or = [
-        { circle: { $in: transLocVariants } },
-        { subcircle: { $in: transLocVariants } },
-        { billingFrom: { $in: transLocVariants } },
-        { store: { $in: transLocVariants } }
+        { circle: transLocRegex },
+        { subcircle: transLocRegex },
+        { billingFrom: transLocRegex },
+        { store: transLocRegex }
       ];
       assignFilter.$or = [
-        { location: { $in: transLocVariants } },
-        { division: { $in: transLocVariants } },
-        { 'lineItems.circle': { $in: transLocVariants } }
+        { location: transLocRegex },
+        { circle: transLocRegex },
+        { subcircle: transLocRegex },
+        { division: transLocRegex },
+        { 'lineItems.circle': transLocRegex }
       ];
       returnFilter.$or = [
-        { store: { $in: transLocVariants } },
-        { circle: { $in: transLocVariants } }
+        { store: transLocRegex },
+        { circle: transLocRegex },
+        { location: transLocRegex },
+        { subcircle: transLocRegex },
+        { division: transLocRegex },
+        { 'lineItems.circle': transLocRegex }
       ];
-      transferOutFilter.fromStore = { $in: transLocVariants };
-      transferInFilter.toStore = { $in: transLocVariants };
+      transferOutFilter.fromStore = transLocRegex;
+      transferInFilter.toStore = transLocRegex;
     }
 
     if (itemLocVariants.length > 0) {
@@ -514,20 +639,42 @@ async function computeStoreItemisedSummaryInner(params: {
     }
 
     const [inwards, assignments, returns, transfersOut, transfersIn, dis, mhrovs] = await Promise.all([
-      StoreInwardEntry.find(inwardFilter).select('itemId totalQty invoiceQty acceptedQty receivedQty').lean(),
-      ContractorAssignment.find(assignFilter).select('lineItems.itemId lineItems.quantity lineItems.acceptedQuantity lineItems.issuedQty').lean(),
-      ContractorReturn.find(returnFilter).select('lineItems items').lean(),
-      StoreTransfer.find(transferOutFilter).select('items.itemId items.dispatchedQty items.quantity items.requestedQty items.receivedQty').lean(),
-      StoreTransfer.find(transferInFilter).select('items.itemId items.receivedQty items.dispatchedQty items.quantity items.requestedQty').lean(),
-      DI.find(diFilter).select('lineItems.itemId lineItems.quantity lineItems.circle circle').lean(),
-      Mhrov.find(mhrovFilter).select('items.itemId items.mhrovDoneQty').lean()
+      StoreInwardEntry.find(inwardFilter)
+        .select('itemId totalQty invoiceQty acceptedQty receivedQty tempCode itemName name description circle store subcircle loaSerialNo')
+        .lean(),
+
+      ContractorAssignment.find(assignFilter)
+        .select('lineItems.itemId lineItems.quantity lineItems.acceptedQuantity lineItems.issuedQty lineItems.tempCode lineItems.itemName lineItems.circle lineItems.loaSerialNo lineItems.loaSrNo circle location subcircle division')
+        .lean(),
+
+      ContractorReturn.find(returnFilter)
+        .select('lineItems items circle store location subcircle division')
+        .lean(),
+
+      StoreTransfer.find(transferOutFilter)
+        .select('items.itemId items.dispatchedQty items.quantity items.requestedQty items.receivedQty items.tempCode items.description items.itemName items.name items.loaSerialNo fromStore toStore registerType')
+        .lean(),
+
+      StoreTransfer.find(transferInFilter)
+        .select('items.itemId items.receivedQty items.dispatchedQty items.quantity items.requestedQty items.tempCode items.description items.itemName items.name items.loaSerialNo fromStore toStore registerType')
+        .lean(),
+
+      DI.find(diFilter)
+        .select('lineItems.itemId lineItems.quantity lineItems.tempCode lineItems.itemName lineItems.circle circle')
+        .lean(),
+
+      Mhrov.find(mhrovFilter)
+        .select('items.itemId items.mhrovDoneQty circle')
+        .lean()
     ]);
 
     inwards.forEach(doc => {
       const idStr = doc.itemId ? doc.itemId.toString() : null;
       const qty = Number(doc.totalQty || (doc as any).invoiceQty || (doc as any).acceptedQty || (doc as any).receivedQty || 0);
-      if (idStr && itemMap.has(idStr)) {
-        itemMap.get(idStr)!.receiptQty += qty;
+      const docCircle = (doc as any).circle || (doc as any).store || (doc as any).subcircle;
+      const row = findLoaItem(idStr, doc.tempCode, (doc as any).loaSerialNo, docCircle);
+      if (row) {
+        row.receiptQty += qty;
       }
     });
 
@@ -535,8 +682,10 @@ async function computeStoreItemisedSummaryInner(params: {
       (doc.lineItems || []).forEach((li: any) => {
         const idStr = li.itemId ? li.itemId.toString() : null;
         const qty = Number(li.quantity || li.acceptedQuantity || li.issuedQty || 0);
-        if (idStr && itemMap.has(idStr)) {
-          itemMap.get(idStr)!.issuedQty += qty;
+        const docCircle = li.circle || doc.circle || (doc as any).location || (doc as any).subcircle || (doc as any).division;
+        const row = findLoaItem(idStr, li.tempCode, li.loaSrNo || li.loaSerialNo, docCircle);
+        if (row) {
+          row.issuedQty += qty;
         }
       });
     });
@@ -544,9 +693,11 @@ async function computeStoreItemisedSummaryInner(params: {
     returns.forEach(doc => {
       (doc.lineItems || (doc as any).items || []).forEach((li: any) => {
         const idStr = li.itemId ? li.itemId.toString() : null;
-        const qty = Number(li.quantity || li.acceptedQuantity || (li as any).returnedQty || 0);
-        if (idStr && itemMap.has(idStr)) {
-          itemMap.get(idStr)!.returnedQty += qty;
+        const qty = Number(li.quantity || li.acceptedQuantity || (li as any).returnedQty || (li as any).returnQty || 0);
+        const docCircle = li.circle || doc.circle || (doc as any).location || (doc as any).subcircle || (doc as any).division || (doc as any).store;
+        const row = findLoaItem(idStr, li.tempCode, li.loaSrNo || li.loaSerialNo, docCircle);
+        if (row) {
+          row.returnedQty += qty;
         }
       });
     });
@@ -555,8 +706,9 @@ async function computeStoreItemisedSummaryInner(params: {
       (doc.items || []).forEach((it: any) => {
         const idStr = it.itemId ? it.itemId.toString() : null;
         const qty = Number(it.dispatchedQty || it.quantity || it.requestedQty || it.receivedQty || 0);
-        if (idStr && itemMap.has(idStr)) {
-          itemMap.get(idStr)!.transferOutQty += qty;
+        const row = findLoaItem(idStr, it.tempCode, it.loaSerialNo, doc.fromStore);
+        if (row) {
+          row.transferOutQty += qty;
         }
       });
     });
@@ -565,8 +717,9 @@ async function computeStoreItemisedSummaryInner(params: {
       (doc.items || []).forEach((it: any) => {
         const idStr = it.itemId ? it.itemId.toString() : null;
         const qty = Number(it.receivedQty || it.dispatchedQty || it.quantity || it.requestedQty || 0);
-        if (idStr && itemMap.has(idStr)) {
-          itemMap.get(idStr)!.transferInQty += qty;
+        const row = findLoaItem(idStr, it.tempCode, it.loaSerialNo, doc.toStore);
+        if (row) {
+          row.transferInQty += qty;
         }
       });
     });
@@ -575,8 +728,9 @@ async function computeStoreItemisedSummaryInner(params: {
       (doc.lineItems || []).forEach((li: any) => {
         const idStr = li.itemId ? li.itemId.toString() : null;
         const qty = Number(li.quantity || 0);
-        if (idStr && itemMap.has(idStr)) {
-          itemMap.get(idStr)!.diQty += qty;
+        const row = findLoaItem(idStr, li.tempCode, undefined, li.circle || doc.circle);
+        if (row) {
+          row.diQty += qty;
         }
       });
     });
@@ -585,8 +739,9 @@ async function computeStoreItemisedSummaryInner(params: {
       (doc.items || []).forEach((it: any) => {
         const idStr = it.itemId ? it.itemId.toString() : null;
         const qty = Number(it.mhrovDoneQty || 0);
-        if (idStr && itemMap.has(idStr)) {
-          itemMap.get(idStr)!.mhrovQty += qty;
+        const row = findLoaItem(idStr, undefined, undefined, (doc as any).circle);
+        if (row) {
+          row.mhrovQty += qty;
         }
       });
     });
@@ -603,7 +758,7 @@ async function computeStoreItemisedSummaryInner(params: {
       return row;
     });
 
-    if (hideZeroBalance || transLocVariants.length > 0 || (pkg && pkg !== 'all')) {
+    if (hideZeroBalance || transLocTargets.length > 0 || (pkg && pkg !== 'all')) {
       rows = rows.filter(r => r.receiptQty > 0 || r.issuedQty > 0 || r.returnedQty > 0 || r.transferOutQty > 0 || r.transferInQty > 0 || r.balAtStore !== 0);
     }
 

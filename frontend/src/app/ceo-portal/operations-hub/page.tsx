@@ -557,6 +557,13 @@ export default function OperationsHub() {
     return (c.k === 'sr' ? it.sr : c.k === 'flags' ? flags(it).length : it[c.k]);
   };
 
+  const getColWidth = (c: any, isCompactDensity: boolean) => {
+    if (colWidths[c.id] !== undefined) return colWidths[c.id];
+    if (c.type === 'checkbox') return isCompactDensity ? 38 : 44;
+    if (c.isSticky && c.defaultW) return c.defaultW;
+    return undefined;
+  };
+
   const getStickyLeft = (c: any) => {
     if (!c.isSticky) return undefined;
     const colIndex = STATIC.findIndex(x => x.id === c.id);
@@ -566,7 +573,13 @@ export default function OperationsHub() {
     for (let i = 0; i < colIndex; i++) {
       const col = STATIC[i];
       if (!hidden.has(col.id)) {
-        offset += colWidths[col.id] !== undefined ? colWidths[col.id] : col.defaultW!;
+        if (colWidths[col.id] !== undefined) {
+          offset += colWidths[col.id];
+        } else if (col.type === 'checkbox') {
+          offset += density === 'compact' ? 38 : 44;
+        } else {
+          offset += col.defaultW || 90;
+        }
       }
     }
     return offset;
@@ -931,6 +944,7 @@ export default function OperationsHub() {
         {curCols.map(c => {
           const v = raw(c, it);
           const isNull = v === null || v === undefined;
+          const isCompact = density === 'compact';
           const align = (c.type === 'money' || c.type === 'qty' || c.type === 'stock' || c.type === 'pct') ? 'text-right tabular-nums' : '';
           
           let content: React.ReactNode = <span className="text-slate-300 font-mono">—</span>;
@@ -1043,10 +1057,13 @@ export default function OperationsHub() {
             }
           }
 
+          const colW = getColWidth(c, isCompact);
+          const stickyLeft = getStickyLeft(c);
+
           const stickyBg = isSelected 
             ? 'bg-[#e0edfd]' 
             : isSub 
-              ? (isEven ? 'bg-slate-50' : 'bg-slate-100/70') 
+              ? (isEven ? 'bg-slate-50' : 'bg-slate-100') 
               : (isEven ? 'bg-white' : 'bg-[#f8fafc]');
 
           return (
@@ -1054,11 +1071,11 @@ export default function OperationsHub() {
               key={c.id} 
               className={`border-r border-slate-200 border-b border-slate-200 ${c.id === 'bom' ? 'border-r-2 border-slate-400' : ''} ${align} ${c.cls} ${rowBg} ${hoverBg} ${c.isSticky ? `${stickyBg} group-hover:bg-[#eaf2fc]` : ''}`}
               style={{ 
-                width: c.type === 'checkbox' ? (isCompact ? 38 : 44) : colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
-                minWidth: c.type === 'checkbox' ? (isCompact ? 38 : 44) : colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
-                maxWidth: c.type === 'checkbox' ? (isCompact ? 38 : 44) : colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
+                width: colW,
+                minWidth: colW,
+                maxWidth: colW,
                 padding: c.type === 'checkbox' ? '0' : (colWidths[c.id] !== undefined && colWidths[c.id] < 10 ? '0' : (isCompact ? '4px 8px' : '8px 12px')),
-                left: getStickyLeft(c) !== undefined ? getStickyLeft(c) : undefined
+                left: stickyLeft !== undefined ? stickyLeft : undefined
               }}
             >
               <div className={`w-full overflow-hidden truncate ${c.type === 'money' || c.type === 'qty' || c.type === 'stock' || c.type === 'pct' ? 'text-right' : ''}`}>
@@ -1865,9 +1882,22 @@ export default function OperationsHub() {
               <thead className="sticky top-0 z-20 bg-slate-50 shadow-2xs">
                 {/* Group Header */}
                 <tr>
-                  <th colSpan={STATIC.filter(c => !hidden.has(c.id)).length} className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-700 bg-slate-200 border-r border-slate-300 border-b border-slate-300">
-                    Item & Flags
-                  </th>
+                  {curCols.filter(c => c.isSticky).length > 0 && (
+                    <th 
+                      colSpan={curCols.filter(c => c.isSticky).length} 
+                      className="sticky left-0 z-30 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-800 bg-slate-200 border-r-2 border-slate-400 border-b border-slate-300 shadow-xs"
+                    >
+                      Item Master & Target
+                    </th>
+                  )}
+                  {curCols.filter(c => !c.isSticky && c.sp === null).length > 0 && (
+                    <th 
+                      colSpan={curCols.filter(c => !c.isSticky && c.sp === null).length} 
+                      className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-700 bg-slate-100 border-r border-slate-300 border-b border-slate-300"
+                    >
+                      General Info
+                    </th>
+                  )}
                   {selSubs.map((s, i) => {
                     const n = curCols.filter(c => c.sp === s.id).length;
                     if (!n) return null;
@@ -1882,16 +1912,20 @@ export default function OperationsHub() {
                 </tr>
                 {/* Column Headers */}
                 <tr className="bg-[#f1f5f9] text-slate-700 text-[11px] font-bold uppercase tracking-wider border-b border-slate-300">
-                  {curCols.map((c, i) => (
+                  {curCols.map((c, i) => {
+                    const isCompact = density === 'compact';
+                    const colW = getColWidth(c, isCompact);
+                    const stickyLeft = getStickyLeft(c);
+                    return (
                     <th 
                       key={c.id} 
-                      className={`relative border-r border-slate-300 border-b border-slate-300 bg-[#f1f5f9] hover:bg-[#e2e8f0] transition-colors group ${c.cls} ${c.isSticky ? 'z-30' : ''} ${c.id === 'bom' ? 'border-r-2 border-slate-400' : ''} ${c.type === 'money' || c.type === 'qty' || c.type === 'stock' || c.type === 'pct' ? 'text-right' : ''}`}
+                      className={`relative border-r border-slate-300 border-b border-slate-300 bg-[#f1f5f9] hover:bg-[#e2e8f0] transition-colors group ${c.cls} ${c.isSticky ? 'z-40 bg-[#f1f5f9]' : ''} ${c.id === 'bom' ? 'border-r-2 border-slate-400' : ''} ${c.type === 'money' || c.type === 'qty' || c.type === 'stock' || c.type === 'pct' ? 'text-right' : ''}`}
                       style={{ 
-                        width: c.type === 'checkbox' ? (density === 'compact' ? 38 : 44) : colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
-                        minWidth: c.type === 'checkbox' ? (density === 'compact' ? 38 : 44) : colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
-                        maxWidth: c.type === 'checkbox' ? (density === 'compact' ? 38 : 44) : colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
-                        padding: c.type === 'checkbox' ? '0' : (colWidths[c.id] !== undefined && colWidths[c.id] < 10 ? '0' : (density === 'compact' ? '6px 8px' : '10px 12px')),
-                        left: getStickyLeft(c) !== undefined ? getStickyLeft(c) : undefined
+                        width: colW,
+                        minWidth: colW,
+                        maxWidth: colW,
+                        padding: c.type === 'checkbox' ? '0' : (colWidths[c.id] !== undefined && colWidths[c.id] < 10 ? '0' : (isCompact ? '6px 8px' : '10px 12px')),
+                        left: stickyLeft !== undefined ? stickyLeft : undefined
                       }}
                     >
                       {c.type === 'checkbox' ? (
@@ -1922,7 +1956,8 @@ export default function OperationsHub() {
                         />
                       )}
                     </th>
-                  ))}
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -2034,6 +2069,10 @@ export default function OperationsHub() {
                             </td>
                             {actualSpanCount < curCols.length && curCols.slice(actualSpanCount).map((c, cIdx) => {
                               const sum = aggCols[actualSpanCount + cIdx];
+                              const isCompact = density === 'compact';
+                              const colW = getColWidth(c, isCompact);
+                              const stickyLeft = getStickyLeft(c);
+
                               if (sum === null) {
                                 let content = null;
                                 if (c.type === 'text') {
@@ -2045,11 +2084,11 @@ export default function OperationsHub() {
                                     key={c.id} 
                                     className={`border-r border-slate-300 bg-slate-100 group-hover:bg-slate-200/80 ${c.isSticky ? 'sticky z-10' : ''} ${c.id === 'bom' ? 'border-r-2 border-slate-400' : ''}`}
                                     style={{ 
-                                      width: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
-                                      minWidth: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
-                                      maxWidth: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
-                                      padding: colWidths[c.id] !== undefined && colWidths[c.id] < 10 ? '0' : (density === 'compact' ? '4px 8px' : '8px 12px'),
-                                      left: getStickyLeft(c) !== undefined ? getStickyLeft(c) : undefined
+                                      width: colW,
+                                      minWidth: colW,
+                                      maxWidth: colW,
+                                      padding: colWidths[c.id] !== undefined && colWidths[c.id] < 10 ? '0' : (isCompact ? '4px 8px' : '8px 12px'),
+                                      left: stickyLeft !== undefined ? stickyLeft : undefined
                                     }}
                                   >
                                     <div className="w-full overflow-hidden truncate">{content}</div>
@@ -2063,11 +2102,11 @@ export default function OperationsHub() {
                                   key={c.id} 
                                   className={`border-r border-slate-300 text-right tabular-nums text-xs font-mono font-bold ${colorCls} bg-slate-100 group-hover:bg-slate-200/80 ${c.isSticky ? 'sticky z-10' : ''} ${c.id === 'bom' ? 'border-r-2 border-slate-400' : ''}`}
                                   style={{ 
-                                    width: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
-                                    minWidth: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
-                                    maxWidth: colWidths[c.id] !== undefined ? colWidths[c.id] : undefined,
-                                    padding: colWidths[c.id] !== undefined && colWidths[c.id] < 10 ? '0' : (density === 'compact' ? '4px 8px' : '8px 12px'),
-                                    left: getStickyLeft(c) !== undefined ? getStickyLeft(c) : undefined
+                                    width: colW,
+                                    minWidth: colW,
+                                    maxWidth: colW,
+                                    padding: colWidths[c.id] !== undefined && colWidths[c.id] < 10 ? '0' : (isCompact ? '4px 8px' : '8px 12px'),
+                                    left: stickyLeft !== undefined ? stickyLeft : undefined
                                   }}
                                 >
                                   <div className="w-full overflow-hidden truncate">
@@ -2092,7 +2131,7 @@ export default function OperationsHub() {
                       const isSticky = c.isSticky;
                       const stickyLeft = getStickyLeft(c);
                       const isCompact = density === 'compact';
-                      const w = c.type === 'checkbox' ? (isCompact ? 38 : 44) : colWidths[c.id];
+                      const colW = getColWidth(c, isCompact);
                       const pad = c.type === 'checkbox' ? '0' : (isCompact ? '5px 8px' : '9px 12px');
                       
                       let cellContent: React.ReactNode = null;
@@ -2118,9 +2157,9 @@ export default function OperationsHub() {
                           key={`foot-${c.id}`}
                           className={`border-r border-slate-300 ${c.id === 'bom' ? 'border-r-2 border-slate-400' : ''} ${pad} ${align} font-mono font-bold text-slate-900 bg-[#edf2f7] ${isSticky ? 'sticky z-30' : ''}`}
                           style={{
-                            width: w !== undefined ? w : undefined,
-                            minWidth: w !== undefined ? w : undefined,
-                            maxWidth: w !== undefined ? w : undefined,
+                            width: colW,
+                            minWidth: colW,
+                            maxWidth: colW,
                             padding: pad,
                             left: stickyLeft !== undefined ? stickyLeft : undefined
                           }}

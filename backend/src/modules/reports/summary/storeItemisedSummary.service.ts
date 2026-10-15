@@ -522,6 +522,7 @@ async function computeStoreItemisedSummaryInner(params: {
     const skuCircleMap = new Map<string, any>();
     const tempCodeMap = new Map<string, any>();
     const skuMap = new Map<string, any>();
+    const tempCodeCircleListMap = new Map<string, any[]>();
 
     items.forEach(it => {
       const d = it.dynamicData || {};
@@ -563,6 +564,12 @@ async function computeStoreItemisedSummaryInner(params: {
           tempCodeCircleMap.set(`${tempNum}_${circleNorm.toUpperCase()}`, row);
           tempCodeMap.set(String(tempNum), row);
         }
+
+        const listKey = `${temp}_${circleNorm.toUpperCase()}`;
+        if (!tempCodeCircleListMap.has(listKey)) {
+          tempCodeCircleListMap.set(listKey, []);
+        }
+        tempCodeCircleListMap.get(listKey)!.push(row);
       }
       if (sku && sku !== '-') {
         skuCircleMap.set(`${sku}_${circleNorm.toUpperCase()}`, row);
@@ -702,24 +709,73 @@ async function computeStoreItemisedSummaryInner(params: {
       });
     });
 
-    transfersOut.forEach(doc => {
+    // 1. Process Received Transfers (Inward)
+    // When no specific LOA serial no is given, equally divide the received quantity across all LOA serial numbers of that item in the receiving store
+    transfersIn.forEach(doc => {
+      const circNorm = normalizeCircle(doc.toStore || '');
       (doc.items || []).forEach((it: any) => {
         const idStr = it.itemId ? it.itemId.toString() : null;
-        const qty = Number(it.dispatchedQty || it.quantity || it.requestedQty || it.receivedQty || 0);
-        const row = findLoaItem(idStr, it.tempCode, it.loaSerialNo, doc.fromStore);
-        if (row) {
-          row.transferOutQty += qty;
+        const qty = Number(it.receivedQty || it.dispatchedQty || it.quantity || it.requestedQty || 0);
+        if (qty <= 0) return;
+
+        const cleanLoa = it.loaSerialNo && it.loaSerialNo !== '-' ? String(it.loaSerialNo).trim() : '';
+        if (cleanLoa) {
+          const row = findLoaItem(idStr, it.tempCode, cleanLoa, circNorm);
+          if (row) row.transferInQty += qty;
+        } else {
+          const listKey = `${String(it.tempCode || '').trim()}_${circNorm.toUpperCase()}`;
+          const matchingRows = tempCodeCircleListMap.get(listKey);
+          if (matchingRows && matchingRows.length > 0) {
+            const splitQty = round3(qty / matchingRows.length);
+            matchingRows.forEach(r => {
+              r.transferInQty += splitQty;
+            });
+          } else {
+            const fallbackRow = findLoaItem(idStr, it.tempCode, undefined, circNorm);
+            if (fallbackRow) fallbackRow.transferInQty += qty;
+          }
         }
       });
     });
 
-    transfersIn.forEach(doc => {
+    // 2. Process Outward Transfers
+    // When no specific LOA serial no is given, deduct from the LOA serial numbers that currently have positive available stock in that store
+    transfersOut.forEach(doc => {
+      const circNorm = normalizeCircle(doc.fromStore || '');
       (doc.items || []).forEach((it: any) => {
         const idStr = it.itemId ? it.itemId.toString() : null;
-        const qty = Number(it.receivedQty || it.dispatchedQty || it.quantity || it.requestedQty || 0);
-        const row = findLoaItem(idStr, it.tempCode, it.loaSerialNo, doc.toStore);
-        if (row) {
-          row.transferInQty += qty;
+        let qtyToDeduct = Number(it.dispatchedQty || it.quantity || it.requestedQty || it.receivedQty || 0);
+        if (qtyToDeduct <= 0) return;
+
+        const cleanLoa = it.loaSerialNo && it.loaSerialNo !== '-' ? String(it.loaSerialNo).trim() : '';
+        if (cleanLoa) {
+          const row = findLoaItem(idStr, it.tempCode, cleanLoa, circNorm);
+          if (row) row.transferOutQty += qtyToDeduct;
+        } else {
+          const listKey = `${String(it.tempCode || '').trim()}_${circNorm.toUpperCase()}`;
+          const matchingRows = tempCodeCircleListMap.get(listKey);
+          if (matchingRows && matchingRows.length > 0) {
+            // Find rows with positive stock before transfer out
+            const positiveRows = matchingRows.filter(r => (r.receiptQty - r.issuedQty + r.returnedQty + r.transferInQty - r.transferOutQty) > 0);
+            const targetRows = positiveRows.length > 0 ? positiveRows : matchingRows;
+
+            // Deduct from rows with positive balance first
+            for (const r of targetRows) {
+              if (qtyToDeduct <= 0) break;
+              const currentBal = Math.max(0, r.receiptQty - r.issuedQty + r.returnedQty + r.transferInQty - r.transferOutQty);
+              const deduct = positiveRows.length > 0 ? Math.min(qtyToDeduct, currentBal) : qtyToDeduct;
+              r.transferOutQty += deduct;
+              qtyToDeduct -= deduct;
+            }
+
+            // If any remainder, attribute to the first matching row
+            if (qtyToDeduct > 0 && targetRows.length > 0) {
+              targetRows[0].transferOutQty += qtyToDeduct;
+            }
+          } else {
+            const fallbackRow = findLoaItem(idStr, it.tempCode, undefined, circNorm);
+            if (fallbackRow) fallbackRow.transferOutQty += qtyToDeduct;
+          }
         }
       });
     });

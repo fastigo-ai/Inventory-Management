@@ -16,7 +16,7 @@ import { Mhrov } from './mhrov.schema';
 import { WipRegister } from '../wip/wip.schema';
 import { JmcRegister } from '../jmc/jmc.schema';
 import { SummaryService } from '../reports/summary/summary.service';
-import { expandCircle } from '../../utils/hierarchy';
+import { expandCircle, normalizeStore } from '../../utils/hierarchy';
 
 export const getPendingDIs = asyncHandler(async (req: Request, res: Response) => {
   const user = (req as any).user;
@@ -589,8 +589,8 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
           totalQty: { $sum: { $ifNull: ['$lineItems.quantity', 0] } }
       }}
     ]),
-    StoreTransfer.find({ status: 'RECEIVED' })
-      .select('toStore fromStore items.tempCode items.receivedQty')
+    StoreTransfer.find({ status: { $in: ['RECEIVED', 'IN_TRANSIT'] } })
+      .select('toStore fromStore status items.tempCode items.receivedQty items.dispatchedQty')
       .lean(),
     WipRegister.aggregate([
       { $match: wipJmcFilter },
@@ -804,21 +804,26 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
 
   // Calculate Transfers
   transfers.forEach(transfer => {
+    const toNorm = normalizeStore(transfer.toStore);
+    const fromNorm = normalizeStore(transfer.fromStore);
+    const filterNorm = circleFilter ? normalizeStore(circleFilter) : '';
+
     transfer.items?.forEach(item => {
       const tc = item.tempCode || '';
       if (summaryMap[tc]) {
-        const rcvQty = item.receivedQty || 0;
-        const cFilterLower = circleFilter ? circleFilter.toLowerCase() : '';
-        const toStoreLower = transfer.toStore ? transfer.toStore.toLowerCase() : '';
-        const fromStoreLower = transfer.fromStore ? transfer.fromStore.toLowerCase() : '';
-        
-        if (circleFilter && toStoreLower === cFilterLower) {
+        const rcvQty = Number(item.receivedQty || 0);
+        const dispQty = Number(item.dispatchedQty || 0);
+
+        // Inward receipt from other store (counted once received)
+        if (filterNorm && toNorm === filterNorm && transfer.status === 'RECEIVED') {
           summaryMap[tc].receivedFromOtherStore += rcvQty;
           summaryMap[tc].totalInStockAfterReceive = summaryMap[tc].acceptedQty + summaryMap[tc].receivedFromOtherStore;
         }
 
-        if (circleFilter && fromStoreLower === cFilterLower) {
-          summaryMap[tc].transferToOtherStore += rcvQty;
+        // Outward transfer to other store (deducted once dispatched / in transit or received)
+        if (filterNorm && fromNorm === filterNorm) {
+          const outQty = transfer.status === 'RECEIVED' ? (rcvQty || dispQty) : dispQty;
+          summaryMap[tc].transferToOtherStore += outQty;
         }
       }
     });

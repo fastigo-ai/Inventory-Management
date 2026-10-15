@@ -20,3 +20,13 @@ export const expandCircle = (circle: string | undefined | null): string[] | null
   
   return [normalized];
 };
+
+export const normalizeStore = (name?: string | null): string => {
+  if (!name) return '';
+  const clean = name.trim().toLowerCase().replace(/\bstore\b/g, '').replace(/[\s\-_]+/g, ' ').trim();
+  if (/solan|kumar\s*hat[ti]+|nalagarh/.test(clean)) return 'Solan';
+  if (/nahan/.test(clean)) return 'Nahan';
+  if (/rampur/.test(clean)) return 'Rampur';
+  if (/rohru/.test(clean)) return 'Rohru';
+  return clean ? clean.charAt(0).toUpperCase() + clean.slice(1) : '';
+};

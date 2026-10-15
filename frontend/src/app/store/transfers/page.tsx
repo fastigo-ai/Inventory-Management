@@ -17,12 +17,16 @@ export default function StoreTransfersPage() {
   const [activeTab, setActiveTab] = useState<'incoming' | 'outgoing'>('incoming');
   const [transfers, setTransfers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showStats, setShowStats] = useState(false);
+  const [showStats, setShowStats] = useState(true);
 
   useEffect(() => {
     const tab = searchParams.get('tab');
     if (tab === 'outgoing') setActiveTab('outgoing');
     else if (tab === 'incoming') setActiveTab('incoming');
+
+    const dash = searchParams.get('dashboard');
+    if (dash === 'false') setShowStats(false);
+    else if (dash === 'true') setShowStats(true);
   }, [searchParams]);
 
   const { user } = useAuthStore();
@@ -82,13 +86,17 @@ export default function StoreTransfersPage() {
     <div className="flex-1 bg-white min-h-screen p-3 sm:p-6">
       <div className="max-w-[1200px] mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-slate-800">Inter-Store Transfers (Incoming)</h1>
+          <h1 className="text-2xl font-bold text-slate-800">
+            Inter-Store Transfers ({activeTab === 'incoming' ? 'Incoming' : 'Outgoing'})
+          </h1>
         </div>
 
         <div className="flex space-x-1 border-b border-slate-200 mb-6">
           <button
             onClick={() => setActiveTab('incoming')}
-            className={`flex items-center space-x-2 py-3 px-4 font-medium text-sm border-b-2 transition-colors border-blue-600 text-blue-600`}
+            className={`flex items-center space-x-2 py-3 px-4 font-medium text-sm border-b-2 transition-colors ${
+              activeTab === 'incoming' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
           >
             <Download className="w-4 h-4" />
             <span>Incoming Transfers (Action Required)</span>
@@ -119,10 +127,18 @@ export default function StoreTransfersPage() {
         </div>
 
         {/* Dashboard Section */}
-        {showStats && !loading && transfers.length > 0 && (
-          <div className="mb-6 animate-in slide-in-from-top-4 fade-in duration-300">
-            <TransferStatistics transfers={transfers} type={activeTab} />
-          </div>
+        {showStats && (
+          loading ? (
+            <div className="mb-6 grid grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-24 bg-slate-100/80 rounded-xl border border-slate-200"></div>
+              ))}
+            </div>
+          ) : transfers.length > 0 ? (
+            <div className="mb-6 animate-in slide-in-from-top-4 fade-in duration-300">
+              <TransferStatistics transfers={transfers} type={activeTab} />
+            </div>
+          ) : null
         )}
 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">

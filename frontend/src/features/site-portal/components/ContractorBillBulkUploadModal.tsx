@@ -373,9 +373,9 @@ export function ContractorBillBulkUploadModal({ open, onOpenChange, onSuccess }:
             else if (h.includes('desc') || h.includes('particular') || h.includes('item name')) colDesc = colIdx;
             else if (h.includes('unit') || h === 'uom') colUnit = colIdx;
             else if (h.includes('jmc') || h.includes('qty') || h.includes('quantity') || h.includes('billed') || h.includes('erected')) colQty = colIdx;
-            else if (h.includes('rate') || h.includes('price')) colRate = colIdx;
-            else if (h.includes('amount') || h.includes('total') || h.includes('final') || h.includes('bill')) colAmount = colIdx;
             else if (h.includes('gst') || h.includes('tax')) colGst = colIdx;
+            else if (h === 'rate' || h === 'unit rate' || h === 'contractor rate' || h === 'boq rate' || h === 'item rate' || h.includes('price') || (h.includes('rate') && !h.includes('gst') && !h.includes('tax'))) colRate = colIdx;
+            else if (h === 'amount' || h === 'final bill amount' || h === 'base amount' || h === 'bill amount' || h === 'total amount' || (h.includes('amount') && !h.includes('gst') && !h.includes('tax') && !h.includes('ra bill') && !h.includes('bill no'))) colAmount = colIdx;
           });
           break;
         }
@@ -495,26 +495,52 @@ export function ContractorBillBulkUploadModal({ open, onOpenChange, onSuccess }:
         let rate = parsedRate;
         let baseAmount = parsedAmount;
 
-        // ONLY resolve rate from master item IF NEITHER rate NOR amount was present in the parsed row
+        // Check if this is a Contractor Bill or Erection Bill
+        const isContractorBill = detectedCategory === 'Contractor Bill' || (!detectedCategory && selectedCategory === 'Contractor Bill');
+
+        // Edge case: For Contractor Bill, NEVER fetch rate from master item erection rate!
+        // Rate is fetched ONLY from the Work Order if selected; otherwise 0 so site user inputs it
         if (rate <= 0 && baseAmount <= 0) {
-          if (detectedCategory === 'Erection Bill') {
-            rate = Number(d.erectionRateWithGst || d.erectionRate || d.contractorErectionRate || d.supplyRate || d.boqRate || matchedItem.boqRate || 0);
+          if (isContractorBill) {
+            const selectedWo = selectedWorkOrderId ? workOrders.find((w: any) => String(w._id) === String(selectedWorkOrderId)) : null;
+            const woItem = selectedWo?.items?.find((wi: any) => 
+              String(wi.itemId?._id || wi.itemId) === String(matchedItem._id) ||
+              (wi.tempCode && String(wi.tempCode).trim() === finalTempCode) ||
+              (wi.loaSrNo && String(wi.loaSrNo).trim().toLowerCase() === finalLoa.toLowerCase())
+            );
+            rate = Number(woItem?.contractorErectionRate || woItem?.rate || 0);
+            baseAmount = rate > 0 ? Number((rate * jmcQty).toFixed(2)) : 0;
           } else {
-            rate = Number(d.supplyRateWithGst || d.supplyRate || d.boqRate || matchedItem.boqRate || 0);
+            // Erection Bill
+            rate = Number(d.erectionRateWithGst || d.erectionRate || d.contractorErectionRate || 0);
+            baseAmount = rate > 0 ? Number((rate * jmcQty).toFixed(2)) : 0;
           }
-          baseAmount = rate > 0 ? Number((rate * jmcQty).toFixed(2)) : 0;
         }
 
-        // GST calculation with safeguard against raw GST amounts in Excel
+        // Full 100% work/material base value
+        const fullBaseAmt = (rate > 0 && jmcQty > 0) ? Number((rate * jmcQty).toFixed(2)) : baseAmount;
+
+        let stagePercentage = 100;
+        if (detectedStage && !detectedStage.includes('Advance') && !detectedStage.includes('Amount') && !detectedStage.includes('Adhoc')) {
+          const num = parseInt(detectedStage.replace('%', ''));
+          if (!isNaN(num) && num > 0) stagePercentage = num;
+        }
+
+        // Payable base amount at stage percentage
+        if (stagePercentage < 100 && fullBaseAmt > 0 && (baseAmount <= 0 || baseAmount === fullBaseAmt)) {
+          baseAmount = Number((fullBaseAmt * (stagePercentage / 100)).toFixed(2));
+        }
+
+        // Rule: GST is always 100% of the total amount, NOT reduced by stage percentage (e.g. 90%)
         let rawGst = colGst !== -1 && row[colGst] !== undefined && row[colGst] !== '' ? Number(row[colGst]) : 18;
         let gstRate = 18;
         let gstAmount = 0;
         if (rawGst > 28) {
           gstAmount = rawGst;
-          gstRate = baseAmount > 0 ? Number(((gstAmount / baseAmount) * 100).toFixed(2)) : 18;
+          gstRate = fullBaseAmt > 0 ? Number(((gstAmount / fullBaseAmt) * 100).toFixed(2)) : 18;
         } else {
           gstRate = isNaN(rawGst) ? 18 : rawGst;
-          gstAmount = Number((baseAmount * (gstRate / 100)).toFixed(2));
+          gstAmount = Number((fullBaseAmt * (gstRate / 100)).toFixed(2));
         }
 
         valid.push({
@@ -531,8 +557,8 @@ export function ContractorBillBulkUploadModal({ open, onOpenChange, onSuccess }:
           gstAmount: gstAmount || 0,
           totalAmount: Number((baseAmount + gstAmount).toFixed(2)),
           jmcDoneQty: jmcQty,
-          erectedQty: detectedCategory === 'Erection Bill' ? jmcQty : 0,
-          billingCategory: detectedCategory === 'Erection Bill' ? 'Erection' : 'JMC Done',
+          erectedQty: isContractorBill ? 0 : jmcQty,
+          billingCategory: isContractorBill ? 'JMC Done' : 'Erection',
           legacyData: {
             loaSerialNo: finalLoa,
             unit: String(row[colUnit] || d.unit || '').trim(),

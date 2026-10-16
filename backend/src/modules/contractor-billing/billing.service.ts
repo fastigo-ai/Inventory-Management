@@ -90,7 +90,7 @@ export const createInvoiceService = async (data: any, user: any) => {
   let totalGstAmount = 0;
 
   let percentage = 100;
-  if (stage !== 'Amount' && stage !== 'Advance') {
+  if (stage !== 'Amount' && stage !== 'Advance' && stage !== 'Adhoc') {
     percentage = parseInt(stage.replace('%', '')) || 100;
   }
 
@@ -128,25 +128,35 @@ export const createInvoiceService = async (data: any, user: any) => {
 
     const itemRate = Number(item.rate || 0);
 
-    let baseAmount = 0;
-
-    if (stage === 'Amount' || stage === 'Advance') {
-      baseAmount = Number(item.baseAmount || 0);
-    } else if (item.baseAmount !== undefined && Number(item.baseAmount) > 0 && (data.isLegacyBulkUpload || !workOrderId)) {
-      baseAmount = Number(item.baseAmount);
-    } else if (percentage === 100) {
-      baseAmount = authoritativeQty * itemRate;
-    } else {
-      baseAmount = authoritativeQty * itemRate * (percentage / 100);
+    // Full 100% work/material base value
+    let fullBaseAmount = 0;
+    if (stage === 'Amount' || stage === 'Advance' || stage === 'Adhoc') {
+      fullBaseAmount = Number(item.baseAmount !== undefined && Number(item.baseAmount) > 0 ? item.baseAmount : (authoritativeQty * itemRate));
+    } else if (authoritativeQty > 0 && itemRate > 0) {
+      fullBaseAmount = authoritativeQty * itemRate;
+    } else if (item.baseAmount !== undefined && Number(item.baseAmount) > 0) {
+      // If baseAmount was directly provided (e.g. from Excel upload)
+      fullBaseAmount = percentage > 0 && percentage < 100
+        ? Number(item.baseAmount) / (percentage / 100)
+        : Number(item.baseAmount);
     }
 
-    let rawGstRate = Number(item.gstRate || 0);
+    // Payable base amount at stage percentage
+    let baseAmount = 0;
+    if (stage === 'Amount' || stage === 'Advance' || stage === 'Adhoc' || percentage === 100) {
+      baseAmount = fullBaseAmount;
+    } else {
+      baseAmount = fullBaseAmount * (percentage / 100);
+    }
+
+    let rawGstRate = Number(item.gstRate !== undefined ? item.gstRate : 18);
     let gstAmount = 0;
     if (rawGstRate > 28) {
       gstAmount = rawGstRate;
-      rawGstRate = baseAmount > 0 ? (gstAmount / baseAmount) * 100 : 18;
+      rawGstRate = fullBaseAmount > 0 ? (gstAmount / fullBaseAmount) * 100 : 18;
     } else {
-      gstAmount = baseAmount * (rawGstRate / 100);
+      // Critical Rule: GST is always on 100% of the total amount, NOT reduced by stage percentage (e.g. 90%)
+      gstAmount = fullBaseAmount * (rawGstRate / 100);
     }
     const totalAmount = baseAmount + gstAmount;
 
@@ -273,7 +283,7 @@ export const updateInvoiceService = async (id: string, data: any, user: any) => 
   let totalGstAmount = 0;
 
   let percentage = 100;
-  if (stage !== 'Amount' && stage !== 'Advance') {
+  if (stage !== 'Amount' && stage !== 'Advance' && stage !== 'Adhoc') {
     percentage = parseInt(stage.replace('%', '')) || 100;
   }
 
@@ -285,8 +295,6 @@ export const updateInvoiceService = async (id: string, data: any, user: any) => 
   if (invoice.mhrovId) {
     dbMhrov = await Mhrov.findById(invoice.mhrovId).lean();
   }
-
-
 
   const processedItems = lineItems.map((item: any) => {
     let authoritativeQty = 0;
@@ -311,25 +319,35 @@ export const updateInvoiceService = async (id: string, data: any, user: any) => 
 
     const itemRate = Number(item.rate || 0);
 
-    let baseAmount = 0;
-
-    if (stage === 'Amount' || stage === 'Advance') {
-      baseAmount = Number(item.baseAmount || 0);
-    } else if (item.baseAmount !== undefined && Number(item.baseAmount) > 0 && (!invoice.workOrderId)) {
-      baseAmount = Number(item.baseAmount);
-    } else if (percentage === 100) {
-      baseAmount = authoritativeQty * itemRate;
-    } else {
-      baseAmount = authoritativeQty * itemRate * (percentage / 100);
+    // Full 100% work/material base value
+    let fullBaseAmount = 0;
+    if (stage === 'Amount' || stage === 'Advance' || stage === 'Adhoc') {
+      fullBaseAmount = Number(item.baseAmount !== undefined && Number(item.baseAmount) > 0 ? item.baseAmount : (authoritativeQty * itemRate));
+    } else if (authoritativeQty > 0 && itemRate > 0) {
+      fullBaseAmount = authoritativeQty * itemRate;
+    } else if (item.baseAmount !== undefined && Number(item.baseAmount) > 0) {
+      // If baseAmount was directly provided
+      fullBaseAmount = percentage > 0 && percentage < 100
+        ? Number(item.baseAmount) / (percentage / 100)
+        : Number(item.baseAmount);
     }
 
-    let rawGstRate = Number(item.gstRate || 0);
+    // Payable base amount at stage percentage
+    let baseAmount = 0;
+    if (stage === 'Amount' || stage === 'Advance' || stage === 'Adhoc' || percentage === 100) {
+      baseAmount = fullBaseAmount;
+    } else {
+      baseAmount = fullBaseAmount * (percentage / 100);
+    }
+
+    let rawGstRate = Number(item.gstRate !== undefined ? item.gstRate : 18);
     let gstAmount = 0;
     if (rawGstRate > 28) {
       gstAmount = rawGstRate;
-      rawGstRate = baseAmount > 0 ? (gstAmount / baseAmount) * 100 : 18;
+      rawGstRate = fullBaseAmount > 0 ? (gstAmount / fullBaseAmount) * 100 : 18;
     } else {
-      gstAmount = baseAmount * (rawGstRate / 100);
+      // Critical Rule: GST is always on 100% of the total amount, NOT reduced by stage percentage (e.g. 90%)
+      gstAmount = fullBaseAmount * (rawGstRate / 100);
     }
     const totalAmount = baseAmount + gstAmount;
 
@@ -348,7 +366,7 @@ export const updateInvoiceService = async (id: string, data: any, user: any) => 
       loaSrNo: loaSerialNo,
       loaSerialNo,
       billingCategory: item.billingCategory,
-      jmcDoneQty: (invoice.jmcIds && invoice.jmcIds.length > 0 && stage !== 'Amount' && stage !== 'Advance' && percentage === 100) ? authoritativeQty : Number(item.jmcDoneQty || (item.billingCategory === 'JMC Done' ? authoritativeQty : 0)),
+      jmcDoneQty: (invoice.jmcIds && invoice.jmcIds.length > 0 && stage !== 'Amount' && stage !== 'Advance' && stage !== 'Adhoc' && percentage === 100) ? authoritativeQty : Number(item.jmcDoneQty || (item.billingCategory === 'JMC Done' ? authoritativeQty : 0)),
       erectedQty: (invoice.jmcIds && invoice.jmcIds.length > 0 && percentage !== 100) ? authoritativeQty : (invoice.mhrovId ? authoritativeQty : Number(item.erectedQty || (item.billingCategory === 'Erection' ? authoritativeQty : 0))),
       rate: itemRate,
       percentageApplied: percentage,

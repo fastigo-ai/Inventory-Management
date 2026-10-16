@@ -15,7 +15,7 @@ import { getItems } from '@/features/items/api/items.api';
 import { useAuthStore } from '@/shared/store/auth.store';
 import Select from 'react-select';
 
-const STAGES = ['10%', '20%', '25%', '30%', '50%', '70%', '75%', '90%', '100%', 'Advance', 'Amount'];
+const STAGES = ['10%', '20%', '25%', '30%', '50%', '60%', '70%', '75%', '90%', '100%', 'Advance', 'Amount', 'Adhoc'];
 import NewErectionBillForm from './NewErectionBillForm';
 
 export default function NewContractorBill() {
@@ -280,8 +280,7 @@ export default function NewContractorBill() {
           const unit = item.unit || (typeof item.itemId === 'object' ? item.itemId.dynamicData?.unit : '');
           
           const woRate = woItemMap[key]?.rate;
-          const fallbackRate = item.rate || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.boqRate || item.itemId.boqRate || item.itemId.dynamicData?.rate) : 0);
-          const finalRate = typeof woRate === 'number' && woRate > 0 ? woRate : fallbackRate;
+          const finalRate = typeof woRate === 'number' && woRate > 0 ? woRate : (item.rate || 0);
           
           return {
             itemId: typeof item.itemId === 'object' ? item.itemId._id : item.itemId,
@@ -358,7 +357,7 @@ export default function NewContractorBill() {
 
           newItems[index].itemId = first._id;
           newItems[index].description = first.dynamicData?.itemName || first.dynamicData?.description || first.itemName || '';
-          newItems[index].rate = woItemMap[firstKey]?.rate > 0 ? woItemMap[firstKey].rate : (first.dynamicData?.boqRate || first.boqRate || 0);
+          newItems[index].rate = woItemMap[firstKey]?.rate > 0 ? woItemMap[firstKey].rate : 0;
           newItems[index].tempCode = first.dynamicData?.tempCode || '';
           newItems[index].loaSerialNo = first.dynamicData?.loaSrNo || first.dynamicData?.loaSerialNo || '';
           newItems[index].loaQty = first.dynamicData?.[circleKey] || first.dynamicData?.loaQuantity || 0;
@@ -371,7 +370,7 @@ export default function NewContractorBill() {
               itemId: ai._id,
               activity: value,
               description: ai.dynamicData?.itemName || ai.dynamicData?.description || ai.itemName || '',
-              rate: woItemMap[key]?.rate > 0 ? woItemMap[key].rate : (ai.dynamicData?.boqRate || ai.boqRate || 0),
+              rate: woItemMap[key]?.rate > 0 ? woItemMap[key].rate : 0,
               jmcDoneQty: Math.round(Math.max(0, (jmcItemMap[key] || 0) - (prevBilledJmcMap[key] || 0))),
               erectedQty: Math.round(Math.max(0, (jmcItemMap[key] || 0) - (prevBilledJmcMap[key] || 0))),
               gstRate: newItems[index].gstRate || 18,
@@ -379,7 +378,7 @@ export default function NewContractorBill() {
               loaSerialNo: ai.dynamicData?.loaSrNo || ai.dynamicData?.loaSerialNo || ai.dynamicData?.sku || '',
               loaQty: ai.dynamicData?.[circleKey] || ai.dynamicData?.loaQuantity || 0,
               woQty: woItemMap[key]?.woQty || 0,
-              woAmount: (woItemMap[key]?.woQty || 0) * (woItemMap[key]?.rate > 0 ? woItemMap[key].rate : (ai.dynamicData?.boqRate || ai.boqRate || 0))
+              woAmount: (woItemMap[key]?.woQty || 0) * (woItemMap[key]?.rate > 0 ? woItemMap[key].rate : 0)
             };
           });
           
@@ -410,7 +409,7 @@ export default function NewContractorBill() {
         const key = `${tc}_${loaNo}`;
 
         newItems[index].description = selectedItem.dynamicData?.itemName || selectedItem.dynamicData?.description || selectedItem.itemName || '';
-        newItems[index].rate = woItemMap[key]?.rate > 0 ? woItemMap[key].rate : (selectedItem.dynamicData?.boqRate || selectedItem.boqRate || 0);
+        newItems[index].rate = woItemMap[key]?.rate > 0 ? woItemMap[key].rate : 0;
         newItems[index].activity = selectedItem.dynamicData?.activity || selectedItem.activity || '';
         newItems[index].tempCode = selectedItem.dynamicData?.tempCode || '';
         newItems[index].loaSerialNo = selectedItem.dynamicData?.loaSrNo || selectedItem.dynamicData?.loaSerialNo || '';
@@ -804,12 +803,15 @@ export default function NewContractorBill() {
                     </td>
                     <td className="p-2 font-bold text-slate-800 whitespace-nowrap">
                       {(() => {
-                        const percentage = parseInt(stage) || 0;
+                        const isNonPercent = stage === 'Amount' || stage === 'Advance' || stage === 'Adhoc';
+                        const percentage = isNonPercent ? 100 : (parseInt(stage) || 0);
                         const qty = globalCategory === 'JMC Done' ? (item.jmcDoneQty || 0) : (item.erectedQty || 0);
-                        const baseAmt = qty * (item.rate || 0) * (percentage / 100);
+                        const fullBaseAmt = (qty > 0 && item.rate > 0) ? (qty * item.rate) : Number(item.baseAmount || 0);
+                        const baseAmt = isNonPercent || percentage === 100 ? fullBaseAmt : fullBaseAmt * (percentage / 100);
                         
-                        // Apply GST only to the staggered base value 
-                        const gstAmt = baseAmt * ((item.gstRate || 0) / 100);
+                        // Rule: GST is always 100% of the total amount, NOT reduced by stage percentage (e.g. 90%)
+                        const gstRate = item.gstRate !== undefined ? item.gstRate : 18;
+                        const gstAmt = fullBaseAmt * (gstRate / 100);
                         const totalAmt = baseAmt + gstAmt;
                         
                         return `₹${totalAmt.toFixed(2)}`;
@@ -834,14 +836,17 @@ export default function NewContractorBill() {
                 {lineItems.length > 0 && (
                   <tr className="bg-indigo-50/50 font-bold border-t-2 border-indigo-100">
                     <td colSpan={8} className="p-4 text-right text-indigo-900 uppercase tracking-wider text-xs">
-                      Grand Total (at {parseInt(stage) || 0}% Stage)
+                      Grand Total (at {stage || '100%'} Stage)
                     </td>
                     <td className="p-4 text-indigo-700 whitespace-nowrap text-lg">
                       ₹{lineItems.reduce((acc, item) => {
-                        const percentage = parseInt(stage) || 0;
+                        const isNonPercent = stage === 'Amount' || stage === 'Advance' || stage === 'Adhoc';
+                        const percentage = isNonPercent ? 100 : (parseInt(stage) || 0);
                         const qty = globalCategory === 'JMC Done' ? (item.jmcDoneQty || 0) : (item.erectedQty || 0);
-                        const baseAmt = qty * (item.rate || 0) * (percentage / 100);
-                        const gstAmt = baseAmt * ((item.gstRate || 0) / 100);
+                        const fullBaseAmt = (qty > 0 && item.rate > 0) ? (qty * item.rate) : Number(item.baseAmount || 0);
+                        const baseAmt = isNonPercent || percentage === 100 ? fullBaseAmt : fullBaseAmt * (percentage / 100);
+                        const gstRate = item.gstRate !== undefined ? item.gstRate : 18;
+                        const gstAmt = fullBaseAmt * (gstRate / 100);
                         return acc + baseAmt + gstAmt;
                       }, 0).toFixed(2)}
                     </td>

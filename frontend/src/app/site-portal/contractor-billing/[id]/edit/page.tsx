@@ -30,7 +30,7 @@ import { getItems } from '@/features/items/api/items.api';
 import { uploadDocument } from '@/features/documents/api/documents.api';
 import { useAuthStore } from '@/shared/store/auth.store';
 
-const STAGES = ['10%', '20%', '25%', '30%', '50%', '70%', '75%', '90%', '100%'];
+const STAGES = ['10%', '20%', '25%', '30%', '50%', '60%', '70%', '75%', '90%', '100%', 'Advance', 'Amount', 'Adhoc'];
 
 export default function EditContractorBill({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -190,7 +190,11 @@ export default function EditContractorBill({ params }: { params: Promise<{ id: s
             }
 
             // 4. Resolve Rate & Quantities
-            const resolvedRate = Number(item.rate || matchedWoItem?.contractorErectionRate || dData.boqRate || aiData.boqRate || 0);
+            // Edge case: For Contractor Bill, NEVER fetch rate from master item erection rate or boqRate!
+            const isContractorBill = inv.billingCategory === 'Contractor Bill';
+            const resolvedRate = isContractorBill
+              ? Number(item.rate || matchedWoItem?.contractorErectionRate || 0)
+              : Number(item.rate || matchedWoItem?.contractorErectionRate || dData.boqRate || aiData.boqRate || 0);
             const resolvedJmcDoneQty = Number(item.jmcDoneQty !== undefined ? item.jmcDoneQty : (item.erectedQty || 0));
             const resolvedErectedQty = Number(item.erectedQty !== undefined ? item.erectedQty : (item.jmcDoneQty || 0));
             const resolvedGstRate = Number(item.gstRate !== undefined ? item.gstRate : 18);
@@ -433,7 +437,7 @@ export default function EditContractorBill({ params }: { params: Promise<{ id: s
           const dData = first.dynamicData || {};
           newItems[index].itemId = first._id;
           newItems[index].description = dData.itemName || dData.name || dData.description || first.itemName || '-';
-          newItems[index].rate = Number(dData.boqRate || first.boqRate || dData.rate || 0);
+          newItems[index].rate = invoiceData?.billingCategory === 'Contractor Bill' ? 0 : Number(dData.boqRate || first.boqRate || dData.rate || 0);
           newItems[index].tempCode = dData.tempCode || dData.temp_code || '-';
           newItems[index].loaSerialNo = dData.sku || dData.loaSerialNo || '-';
           newItems[index].loaSrNo = dData.sku || dData.loaSerialNo || '-';
@@ -452,7 +456,7 @@ export default function EditContractorBill({ params }: { params: Promise<{ id: s
       if (selectedItem) {
         const dData = selectedItem.dynamicData || {};
         newItems[index].description = dData.itemName || dData.name || dData.description || selectedItem.itemName || '-';
-        newItems[index].rate = Number(dData.boqRate || selectedItem.boqRate || dData.rate || 0);
+        newItems[index].rate = invoiceData?.billingCategory === 'Contractor Bill' ? 0 : Number(dData.boqRate || selectedItem.boqRate || dData.rate || 0);
         newItems[index].activity = dData.activity || selectedItem.activity || newItems[index].activity;
         newItems[index].tempCode = dData.tempCode || dData.temp_code || '-';
         newItems[index].loaSerialNo = dData.sku || dData.loaSerialNo || '-';
@@ -473,7 +477,9 @@ export default function EditContractorBill({ params }: { params: Promise<{ id: s
   };
 
   // Grand Totals Computation
-  const percentage = parseInt(stage) || 0;
+  const isNonPercent = stage === 'Amount' || stage === 'Advance' || stage === 'Adhoc';
+  const percentage = isNonPercent ? 100 : (parseInt(stage) || 0);
+
   const billCalculations = useMemo(() => {
     let subtotalTaxable = 0;
     let totalGst = 0;
@@ -483,17 +489,21 @@ export default function EditContractorBill({ params }: { params: Promise<{ id: s
       const rate = Number(item.rate || 0);
       const gstRate = Number(item.gstRate !== undefined ? item.gstRate : 18);
 
-      const baseAmt = stage === '100%' 
-        ? (qty * rate) 
-        : (qty * rate * (percentage / 100));
+      const fullBaseAmt = (qty > 0 && rate > 0) ? (qty * rate) : Number(item.baseAmount || 0);
 
-      const gstAmt = baseAmt * (gstRate / 100);
+      const baseAmt = (isNonPercent || percentage === 100)
+        ? fullBaseAmt 
+        : (fullBaseAmt * (percentage / 100));
+
+      // Rule: GST is always 100% of the total amount, NOT reduced by stage percentage (e.g. 90%)
+      const gstAmt = fullBaseAmt * (gstRate / 100);
       const totalAmt = baseAmt + gstAmt;
 
       subtotalTaxable += baseAmt;
       totalGst += gstAmt;
 
       return {
+        fullBaseAmt,
         baseAmt,
         gstAmt,
         totalAmt
@@ -506,7 +516,7 @@ export default function EditContractorBill({ params }: { params: Promise<{ id: s
       totalGst,
       grandTotal: subtotalTaxable + totalGst
     };
-  }, [lineItems, stage, globalCategory, percentage]);
+  }, [lineItems, stage, globalCategory, percentage, isNonPercent]);
 
   // Submit Updated Bill
   const handleSubmit = async () => {

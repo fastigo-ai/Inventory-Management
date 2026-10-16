@@ -33,7 +33,7 @@ export interface IContractorInvoice extends Document {
   workOrderId?: mongoose.Types.ObjectId;
   
   // The type of billing stage based on flowchart
-  stage: '10%' | '20%' | '25%' | '30%' | '50%' | '60%' | '70%' | '75%' | '90%' | '100%' | 'Advance' | 'Amount';
+  stage: '10%' | '20%' | '25%' | '30%' | '50%' | '60%' | '70%' | '75%' | '90%' | '100%' | 'Advance' | 'Amount' | 'Adhoc';
   
   // References to the source documents that trigger the billing
   mhrovId?: mongoose.Types.ObjectId; // For Supply
@@ -85,12 +85,12 @@ const contractorInvoiceItemSchema = new Schema<IContractorInvoiceItem>({
   billingCategory: { type: String, enum: ['Supply', 'Erection', 'JMC Done'], required: true },
   jmcDoneQty: { type: Number, required: true, default: 0 },
   erectedQty: { type: Number, required: true, default: 0 },
-  rate: { type: Number, required: true },
-  percentageApplied: { type: Number, required: true },
-  baseAmount: { type: Number, required: true },
+  rate: { type: Number, required: true, default: 0 },
+  percentageApplied: { type: Number, required: true, default: 100 },
+  baseAmount: { type: Number, required: true, default: 0 },
   gstRate: { type: Number, required: true, default: 0 },
   gstAmount: { type: Number, required: true, default: 0 },
-  totalAmount: { type: Number, required: true },
+  totalAmount: { type: Number, required: true, default: 0 },
   legacyData: {
     unit: { type: String },
     finalBillAmount: { type: Number },
@@ -108,7 +108,7 @@ const contractorInvoiceSchema = new Schema<IContractorInvoice>({
   
   stage: { 
     type: String, 
-    enum: ['10%', '20%', '25%', '30%', '50%', '60%', '70%', '75%', '90%', '100%', 'Advance', 'Amount'],
+    enum: ['10%', '20%', '25%', '30%', '50%', '60%', '70%', '75%', '90%', '100%', 'Advance', 'Amount', 'Adhoc'],
     required: true
   },
   

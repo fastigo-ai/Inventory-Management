@@ -128,9 +128,16 @@ export default function DispatchTransferPage() {
               </div>
               <div>
                 <span className="block text-xs text-purple-600 font-semibold uppercase">Status</span>
-                <span className="text-sm font-medium text-slate-800">{transfer.status}</span>
+                <span className="text-sm font-semibold text-slate-800">{transfer.status}</span>
               </div>
             </div>
+
+            {transfer.status === 'Pending PD Approval' && (
+              <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-lg text-sm flex items-center gap-3">
+                <span className="font-bold text-amber-900">Awaiting PD Approval:</span>
+                This transfer request is currently pending Project Director (PD) approval. You cannot dispatch stock until the PD approves this transfer.
+              </div>
+            )}
 
             <div className="pt-2 border-t">
               <h2 className="text-lg font-semibold text-slate-800 mb-4 pb-2 border-b">Vendor (Original Supplier)</h2>
@@ -240,7 +247,11 @@ export default function DispatchTransferPage() {
           
           <div className="p-4 bg-slate-50 border-t flex justify-end gap-3">
             <Button variant="outline" onClick={() => router.back()}>Cancel</Button>
-            <Button onClick={handleSubmit} disabled={submitting} className="bg-purple-600 hover:bg-purple-700">
+            <Button 
+              onClick={handleSubmit} 
+              disabled={submitting || transfer.status === 'Pending PD Approval'} 
+              className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               {submitting ? "Saving..." : (
                 <>
                   <Send className="w-4 h-4 mr-2" />

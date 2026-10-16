@@ -137,6 +137,16 @@ export const updateStoreTransferStatus = async (id: string, status: string) => {
   return response.data;
 };
 
+export const approveStoreTransferByPD = async (id: string, remarks?: string) => {
+  const response = await api.put(`/store/transfers/${id}/pd-approve`, { remarks });
+  return response.data;
+};
+
+export const rejectStoreTransferByPD = async (id: string, reason: string) => {
+  const response = await api.put(`/store/transfers/${id}/pd-reject`, { reason });
+  return response.data;
+};
+
 export const receiveStoreTransfer = async (id: string, data: any) => {
   const response = await api.put(`/store/transfers/${id}/receive`, data);
   return response.data;

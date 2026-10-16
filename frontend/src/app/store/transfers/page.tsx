@@ -61,6 +61,7 @@ export default function StoreTransfersPage() {
 
   const getStatusBadge = (status: string) => {
     const map: any = {
+      'Pending PD Approval': 'bg-amber-100 text-amber-800 border border-amber-200',
       'PENDING': 'bg-yellow-100 text-yellow-800',
       'Approved': 'bg-blue-100 text-blue-800',
       'IN_TRANSIT': 'bg-purple-100 text-purple-800',
@@ -187,7 +188,11 @@ export default function StoreTransfersPage() {
                           <td className="px-6 py-4 text-slate-600">{t.items?.length || 0} items</td>
                           <td className="px-6 py-4">{getStatusBadge(t.status)}</td>
                           <td className="px-6 py-4 text-center">
-                            {activeTab === 'incoming' && t.status === 'PENDING' ? (
+                            {t.status === 'Pending PD Approval' ? (
+                              <span className="text-amber-600 font-medium text-xs flex items-center justify-center gap-1 w-full italic">
+                                Awaiting PD Approval
+                              </span>
+                            ) : activeTab === 'incoming' && t.status === 'PENDING' ? (
                               <button
                                 onClick={async () => {
                                   try {
@@ -199,7 +204,7 @@ export default function StoreTransfersPage() {
                               >
                                 Approve
                               </button>
-                            ) : activeTab === 'incoming' && t.status === 'Approved' ? (
+                            ) : t.status === 'Approved' ? (
                               <button
                                 onClick={() => router.push(`/store/transfers/dispatch/${t._id}`)}
                                 className="text-purple-600 hover:text-purple-800 font-medium text-sm flex items-center justify-center gap-1 w-full"

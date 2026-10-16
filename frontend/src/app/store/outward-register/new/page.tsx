@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { X, Trash2, PlusCircle } from "lucide-react";
+import { X, Trash2, PlusCircle, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { createStoreTransfer, getStockSummary } from "@/features/store/api/store.api";
 import { useAuthStore } from "@/shared/store/auth.store";
@@ -186,7 +186,7 @@ export default function NewOutwardTransferPage() {
       const payload = {
         registerType: "OUTWARD",
         requestDate,
-        status: 'IN_TRANSIT', // Bypassing PENDING, sending directly to transit
+        status: 'Pending PD Approval', // Requires PD Approval before dispatch
         fromStore,
         toStore: finalToStore,
         vendorName,
@@ -212,12 +212,13 @@ export default function NewOutwardTransferPage() {
           description: item.itemName, // Maps to schema's description field
           unit: item.unit,
           requestedQty: Number(item.quantity),
-          dispatchedQty: Number(item.quantity), // Dispatched right away
+          dispatchedQty: Number(item.quantity),
           receivedQty: 0
         }))
       };
 
       await createStoreTransfer(payload);
+      alert("Transfer request submitted successfully. It has been sent to the Project Director (PD) for approval.");
       router.push('/store/outward-register');
     } catch (error) {
       console.error(error);
@@ -261,6 +262,17 @@ export default function NewOutwardTransferPage() {
               <X className="w-5 h-5" />
             </Link>
             <h1 className="text-xl font-semibold text-slate-800">New Outward Transfer</h1>
+          </div>
+        </div>
+
+        {/* PD Approval Notice */}
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <h4 className="text-sm font-semibold text-amber-900">Project Director (PD) Approval Required</h4>
+            <p className="text-xs text-amber-700 mt-0.5">
+              When transferring stock to another store, this request must be authorized by the Project Director (PD). Once the PD approves, the stock transfer will be authorized for physical dispatch.
+            </p>
           </div>
         </div>
 
@@ -479,7 +491,7 @@ export default function NewOutwardTransferPage() {
             onClick={handleSave}
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Dispatching...' : 'Dispatch Transfer'}
+            {isSubmitting ? 'Submitting for Approval...' : 'Submit for PD Approval'}
           </Button>
         </div>
       </div>

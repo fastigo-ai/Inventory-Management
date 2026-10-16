@@ -18,7 +18,7 @@ export interface ITransferItem {
 export interface IStoreTransfer extends Document {
   requestDate: Date;
   registerType?: 'INWARD' | 'OUTWARD';
-  status: 'PENDING' | 'Approved' | 'IN_TRANSIT' | 'RECEIVED' | 'REJECTED';
+  status: 'PENDING' | 'Pending PD Approval' | 'Approved' | 'IN_TRANSIT' | 'RECEIVED' | 'REJECTED';
   fromStore: string; // Source Circle/Package
   toStore: string; // Destination Circle/Package
   requestedBy: mongoose.Types.ObjectId;
@@ -42,6 +42,23 @@ export interface IStoreTransfer extends Document {
   driverMobile?: string;
 
   remarks?: string;
+
+  // Geographic / Package routing fields for PD Approval
+  originCircle?: string; // Solan, Nahan, Rohru, Rampur
+  originSubcircle?: string; // Kumarhatti, Nalagarh
+  originPackage?: string; // 'Package 1 (S/N)' or 'Package 2 (R/R)'
+  destinationCircle?: string;
+  destinationSubcircle?: string;
+  destinationPackage?: string;
+
+  // PD Approval fields
+  pdApprovedBy?: mongoose.Types.ObjectId;
+  pdApprovedAt?: Date;
+  pdApprovalRemarks?: string;
+  rejectedBy?: mongoose.Types.ObjectId;
+  rejectedAt?: Date;
+  rejectionReason?: string;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -63,8 +80,8 @@ const storeTransferSchema = new Schema<IStoreTransfer>({
   registerType: { type: String, enum: ['INWARD', 'OUTWARD'], default: 'INWARD' },
   status: { 
     type: String, 
-    enum: ['PENDING', 'Approved', 'IN_TRANSIT', 'RECEIVED', 'REJECTED'], 
-    default: 'PENDING',
+    enum: ['PENDING', 'Pending PD Approval', 'Approved', 'IN_TRANSIT', 'RECEIVED', 'REJECTED'], 
+    default: 'Pending PD Approval',
     required: true,
     index: true
   },
@@ -88,7 +105,22 @@ const storeTransferSchema = new Schema<IStoreTransfer>({
   driverName: { type: String },
   driverMobile: { type: String },
 
-  remarks: { type: String }
+  remarks: { type: String },
+
+  // Geographic / Package routing fields for PD Approval
+  originCircle: { type: String, index: true },
+  originSubcircle: { type: String },
+  originPackage: { type: String, index: true },
+  destinationCircle: { type: String },
+  destinationSubcircle: { type: String },
+  destinationPackage: { type: String },
+
+  pdApprovedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+  pdApprovedAt: { type: Date },
+  pdApprovalRemarks: { type: String },
+  rejectedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+  rejectedAt: { type: Date },
+  rejectionReason: { type: String }
 }, {
   timestamps: true
 });

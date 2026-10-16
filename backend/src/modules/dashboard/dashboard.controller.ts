@@ -11,6 +11,7 @@ import { JmcRegister } from '../jmc/jmc.schema';
 import { WipRegister } from '../wip/wip.schema';
 import { Mhrov } from '../store/mhrov.schema';
 import { Contractor } from '../contractors/contractor.schema';
+import { StoreTransferService } from '../store/storeTransfer.service';
 export const getDashboardSummary = asyncHandler(async (req: Request, res: Response) => {
   // 1. Fetch real-time stock summary (this is heavy but accurate)
   const stockSummary = await buildStockSummaryData();
@@ -497,6 +498,7 @@ export const getPDPortalDashboardSummary = asyncHandler(async (req: any, res: Re
   const ClientBill = mongoose.model('ClientBill');
   const WipRegister = mongoose.model('WipRegister');
   const Mhrov = mongoose.model('Mhrov');
+  const StoreTransfer = mongoose.model('StoreTransfer');
   
   // 1. Pending Approvals
   const pendingDemandNotesCount = await DemandNote.countDocuments({
@@ -513,6 +515,21 @@ export const getPDPortalDashboardSummary = asyncHandler(async (req: any, res: Re
     ...baseQuery,
     status: 'Pending PD Approval'
   });
+
+  const scope = StoreTransferService.getPDScope(user);
+  const transferQuery: any = { status: 'Pending PD Approval' };
+  if (!scope.isSuper && scope.package) {
+    transferQuery.$or = [
+      { originPackage: scope.package },
+      { fromStore: scope.storeRegex }
+    ];
+  } else if (baseQuery.circle) {
+    transferQuery.$or = [
+      { fromStore: baseQuery.circle },
+      { toStore: baseQuery.circle }
+    ];
+  }
+  const pendingTransfersCount = await StoreTransfer.countDocuments(transferQuery);
   
   // 2. Contractor Progress (JMC Approved Amounts)
   const jmcAgg = await JmcRegister.aggregate([
@@ -594,7 +611,8 @@ export const getPDPortalDashboardSummary = asyncHandler(async (req: any, res: Re
     pendingApprovals: {
       demandNotes: pendingDemandNotesCount,
       jmcs: pendingJmcsCount,
-      invoices: pendingInvoicesCount
+      invoices: pendingInvoicesCount,
+      transfers: pendingTransfersCount
     },
     contractorProgress: Object.values(contractorStats).sort((a, b) => b.totalJmcAmount - a.totalJmcAmount),
     materialConsumption: {

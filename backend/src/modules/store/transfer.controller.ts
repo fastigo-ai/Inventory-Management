@@ -10,6 +10,7 @@ import Item from '../items/item.model';
 import { ContractorAssignment } from '../contractors/contractorAssignment.schema';
 import { ContractorReturn } from '../contractors/contractorReturn.schema';
 import { StoreTransfer } from './storeTransfer.schema';
+import { StoreTransferService } from './storeTransfer.service';
 import { Mhrov } from './mhrov.schema';
 import { WipRegister } from '../wip/wip.schema';
 import { JmcRegister } from '../jmc/jmc.schema';
@@ -385,11 +386,9 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
 }
 
 export const createStoreTransfer = asyncHandler(async (req: Request, res: Response) => {
-  const transferData = req.body;
-  transferData.requestedBy = (req as any).user?._id;
-  
-  const transfer = await StoreTransfer.create(transferData);
-  res.status(201).json(new ApiResponse(201, transfer, 'Transfer request created successfully'));
+  const user = (req as any).user;
+  const transfer = await StoreTransferService.createTransfer(req.body, user);
+  res.status(201).json(new ApiResponse(201, transfer, 'Transfer request created successfully and submitted for PD Approval'));
 });
 
 export const getStoreTransfers = asyncHandler(async (req: Request, res: Response) => {
@@ -398,16 +397,55 @@ export const getStoreTransfers = asyncHandler(async (req: Request, res: Response
   
   let filter: any = {};
 
-  const storeNameRaw = circle || (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*') ? user.assignedCircle : '');
+  const roleName = user?.role?.name?.trim();
+  const isSuper = roleName === 'Admin' || roleName === 'Super Admin' || user?.role?.permissions?.includes('*') || roleName === 'CEO';
+
+  // For non-admins and non-PDs (e.g. Store Managers), restrict to assigned circle
+  let storeNameRaw = circle || '';
+  if (!storeNameRaw && !isSuper && roleName !== 'Project Director') {
+    storeNameRaw = user?.assignedCircle || '';
+  }
+
   const cleanStoreName = storeNameRaw ? String(storeNameRaw).replace(/store/i, '').trim() : '';
   const expandedStoreNames = expandCircle(cleanStoreName) || [cleanStoreName];
-  if (cleanStoreName) {
+  const storeRegex = cleanStoreName ? new RegExp(`^(${expandedStoreNames.join('|')})(\\s+(store|circle))?$`, 'i') : null;
 
-    // Allow optional trailing " store" or " circle" (case-insensitive) to handle variations from bulk imports
-    const storeRegex = new RegExp(`^(${expandedStoreNames.join('|')})(\\s+(store|circle))?$`, 'i');
-
-    
-
+  if (roleName === 'Project Director') {
+    const scope = StoreTransferService.getPDScope(user);
+    if (!scope.isSuper && scope.package) {
+      if (cleanStoreName && storeRegex) {
+        filter.$and = filter.$and || [];
+        filter.$and.push({
+          $or: [{ fromStore: storeRegex }, { toStore: storeRegex }]
+        });
+      } else {
+        // PD view:
+        // - Transfers pending approval MUST originate from this PD's assigned stores/package
+        // - Already approved / in transit / received transfers can be seen if either origin or destination is in this PD's scope
+        filter.$and = filter.$and || [];
+        filter.$and.push({
+          $or: [
+            {
+              status: 'Pending PD Approval',
+              $or: [
+                { originPackage: scope.package },
+                { fromStore: scope.storeRegex }
+              ]
+            },
+            {
+              status: { $ne: 'Pending PD Approval' },
+              $or: [
+                { originPackage: scope.package },
+                { destinationPackage: scope.package },
+                { fromStore: scope.storeRegex },
+                { toStore: scope.storeRegex }
+              ]
+            }
+          ]
+        });
+      }
+    }
+  } else if (cleanStoreName && storeRegex) {
     if (registerType === 'OUTWARD') {
       filter.fromStore = storeRegex;
       filter.registerType = 'OUTWARD';
@@ -417,10 +455,10 @@ export const getStoreTransfers = asyncHandler(async (req: Request, res: Response
     } else {
       filter.$or = [{ fromStore: storeRegex }, { toStore: storeRegex }];
     }
-  } else {
-    if (registerType) {
-      filter.registerType = registerType;
-    }
+  }
+
+  if (registerType) {
+    filter.registerType = registerType;
   }
 
   const transfers = await StoreTransfer.find(filter)
@@ -550,9 +588,36 @@ export const deleteStoreTransfer = asyncHandler(async (req: Request, res: Respon
   }
 });
 
+export const approveTransferPD = asyncHandler(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const { remarks } = req.body;
+  const user = (req as any).user;
+  const transfer = await StoreTransferService.approveByPD(id, user, remarks);
+  res.status(200).json(new ApiResponse(200, transfer, 'Store transfer approved by Project Director successfully'));
+});
+
+export const rejectTransferPD = asyncHandler(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const { reason } = req.body;
+  const user = (req as any).user;
+  const transfer = await StoreTransferService.rejectByPD(id, user, reason);
+  res.status(200).json(new ApiResponse(200, transfer, 'Store transfer rejected successfully'));
+});
+
 export const updateStoreTransferStatus = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { status } = req.body;
+  const id = req.params.id as string;
+  const { status, remarks, reason } = req.body;
+  const user = (req as any).user;
+
+  if (status === 'Approved') {
+    const transfer = await StoreTransferService.approveByPD(id, user, remarks);
+    return res.status(200).json(new ApiResponse(200, transfer, 'Transfer approved successfully'));
+  }
+
+  if (status === 'REJECTED') {
+    const transfer = await StoreTransferService.rejectByPD(id, user, reason);
+    return res.status(200).json(new ApiResponse(200, transfer, 'Transfer rejected successfully'));
+  }
 
   const transfer = await StoreTransfer.findByIdAndUpdate(id, { status }, { returnDocument: 'after' });
   if (!transfer) {
@@ -563,31 +628,16 @@ export const updateStoreTransferStatus = asyncHandler(async (req: Request, res: 
 });
 
 export const dispatchStoreTransfer = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const dispatchData = req.body;
-
-  dispatchData.status = 'IN_TRANSIT';
-
-  const transfer = await StoreTransfer.findByIdAndUpdate(id, dispatchData, { returnDocument: 'after' });
-  if (!transfer) {
-    throw new ApiError(404, 'Transfer not found');
-  }
-
+  const id = req.params.id as string;
+  const user = (req as any).user;
+  const transfer = await StoreTransferService.dispatchTransfer(id, req.body, user);
   res.status(200).json(new ApiResponse(200, transfer, 'Transfer dispatched successfully'));
 });
 
 export const receiveStoreTransfer = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const updateData = req.body;
-
-  // Expected updateData includes `items` (with receivedQty)
-  updateData.status = 'RECEIVED';
-
-  const transfer = await StoreTransfer.findByIdAndUpdate(id, updateData, { returnDocument: 'after' });
-  if (!transfer) {
-    throw new ApiError(404, 'Transfer not found');
-  }
-
+  const id = req.params.id as string;
+  const user = (req as any).user;
+  const transfer = await StoreTransferService.receiveTransfer(id, req.body, user);
   res.status(200).json(new ApiResponse(200, transfer, 'Transfer received successfully'));
 });
 // Get all inward entries for a given purchaseInvoiceId — scoped by circle + package for Store Managers

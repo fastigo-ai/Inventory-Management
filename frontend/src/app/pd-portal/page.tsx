@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import CeoDashboardPage from '@/app/ceo-portal/dashboard/page';
 import { api } from '@/shared/api/axios';
-import { FileText, CheckCircle, Clock } from 'lucide-react';
+import { FileText, CheckCircle, Clock, ArrowRightLeft } from 'lucide-react';
 import Link from 'next/link';
 
 export default function PDPortalDashboard() {
@@ -11,6 +11,7 @@ export default function PDPortalDashboard() {
     demandNotes: number;
     jmcs: number;
     invoices: number;
+    transfers?: number;
   } | null>(null);
 
   useEffect(() => {
@@ -30,7 +31,8 @@ export default function PDPortalDashboard() {
   const hasPending = pendingApprovals && (
     (pendingApprovals.demandNotes || 0) > 0 ||
     (pendingApprovals.jmcs || 0) > 0 ||
-    (pendingApprovals.invoices || 0) > 0
+    (pendingApprovals.invoices || 0) > 0 ||
+    (pendingApprovals.transfers || 0) > 0
   );
 
   return (
@@ -49,6 +51,18 @@ export default function PDPortalDashboard() {
               </span>
             </div>
             <div className="flex items-center gap-2.5 flex-wrap">
+              {(pendingApprovals?.transfers || 0) > 0 && (
+                <Link
+                  href="/pd-portal/transfers?tab=pending"
+                  className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-xs px-3 py-1.5 rounded-lg border border-slate-700 transition-colors"
+                >
+                  <ArrowRightLeft className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="text-slate-300">Store Transfers:</span>
+                  <span className="font-bold text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded text-[11px]">
+                    {pendingApprovals?.transfers}
+                  </span>
+                </Link>
+              )}
               {(pendingApprovals?.demandNotes || 0) > 0 && (
                 <Link
                   href="/pd-portal/demand-notes?tab=pending"

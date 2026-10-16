@@ -43,12 +43,13 @@ export default function CreateTransferRequestPage() {
         requestDate,
         fromStore,
         toStore,
-        status: 'PENDING',
+        status: 'Pending PD Approval',
         remarks,
         items
       };
       
       await createStoreTransfer(payload);
+      alert("Transfer request created successfully and submitted to the Project Director (PD) for approval.");
       router.push('/store/transfers');
     } catch (error) {
       console.error("Failed to create transfer request", error);

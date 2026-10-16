@@ -161,6 +161,7 @@ const navItems: NavItem[] = [
       { title: 'Dashboard', href: '/pd-portal' },
       { title: 'Overall Summary', href: '/pd-portal/overall-summary' },
       { title: 'Demand Notes (PD)', href: '/pd-portal/demand-notes' },
+      { title: 'Store Transfers', href: '/pd-portal/transfers' },
       { title: 'Billing Approvals', href: '/billing/approvals' },
     ]
   },

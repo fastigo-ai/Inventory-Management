@@ -55,7 +55,10 @@ export function TransferDetailModal({
                 <span className="block text-xs font-semibold text-slate-500 uppercase">Status</span>
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-1 ${
                   transfer.status === 'RECEIVED' ? 'bg-green-100 text-green-800' :
-                  transfer.status === 'IN_TRANSIT' ? 'bg-blue-100 text-blue-800' :
+                  transfer.status === 'IN_TRANSIT' ? 'bg-purple-100 text-purple-800' :
+                  transfer.status === 'Approved' ? 'bg-blue-100 text-blue-800' :
+                  transfer.status === 'Pending PD Approval' ? 'bg-amber-100 text-amber-800' :
+                  transfer.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
                   'bg-yellow-100 text-yellow-800'
                 }`}>
                   {transfer.status}
@@ -140,6 +143,24 @@ export function TransferDetailModal({
                 </div>
               </div>
             </div>
+
+            {transfer.pdApprovedAt && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-900">
+                <span className="font-bold block text-blue-800">Approved by Project Director (PD)</span>
+                <span>Date: {new Date(transfer.pdApprovedAt).toLocaleString()}</span>
+                {transfer.pdApprovalRemarks && (
+                  <span className="block mt-1 italic">Remarks: "{transfer.pdApprovalRemarks}"</span>
+                )}
+              </div>
+            )}
+
+            {transfer.rejectedAt && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-900">
+                <span className="font-bold block text-red-800">Rejected by Project Director (PD)</span>
+                <span>Date: {new Date(transfer.rejectedAt).toLocaleString()}</span>
+                <span className="block mt-1">Reason: "{transfer.rejectionReason || 'No reason specified'}"</span>
+              </div>
+            )}
 
             <div>
               <h4 className="font-semibold text-slate-800 mb-3">Line Items</h4>

@@ -44,6 +44,8 @@ import {
   updateStoreTransfer,
   deleteStoreTransfer,
   updateStoreTransferStatus,
+  approveTransferPD,
+  rejectTransferPD,
   dispatchStoreTransfer,
   receiveStoreTransfer,
   importStoreTransfers,
@@ -95,6 +97,12 @@ router.route('/transfers/:id')
 
 router.route('/transfers/:id/status')
   .put(updateStoreTransferStatus);
+
+router.route('/transfers/:id/pd-approve')
+  .put(approveTransferPD);
+
+router.route('/transfers/:id/pd-reject')
+  .put(rejectTransferPD);
 
 router.route('/transfers/:id/dispatch')
   .put(dispatchStoreTransfer);

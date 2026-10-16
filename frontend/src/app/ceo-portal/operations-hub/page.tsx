@@ -234,7 +234,7 @@ function build(b: any, i: number) {
     issuedQty: issuedQty, 
     jmcQty: db.jmcQty || 0, 
     cBillQty: db.cBillQty || 0, 
-    cBillAmt: db.cBillAmt || ((db.cBillQty || 0) * it.rate) 
+    cBillAmt: (db.cBillAmt !== undefined && db.cBillAmt !== null) ? db.cBillAmt : ((db.cBillQty || 0) * it.rate) 
   };
 
   it.d = d; 
@@ -1994,8 +1994,8 @@ export default function OperationsHub() {
                         }
                         return null;
                       });
-                      const firstAggIndex = aggCols.findIndex(v => v !== null);
-                      const actualSpanCount = firstAggIndex === -1 ? curCols.length : firstAggIndex;
+                      const nameColIdx = curCols.findIndex(c => c.id === 'name');
+                      const actualSpanCount = nameColIdx !== -1 ? nameColIdx + 1 : Math.min(4, curCols.length);
 
                       const selW = colWidths['select'] !== undefined ? colWidths['select'] : (density === 'compact' ? 38 : 44);
                       const srW = colWidths['sr'] !== undefined ? colWidths['sr'] : (density === 'compact' ? 52 : 64);

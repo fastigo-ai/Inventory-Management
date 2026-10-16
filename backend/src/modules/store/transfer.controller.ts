@@ -31,7 +31,13 @@ export async function buildStockSummaryData(circleFilter?: string, packageFilter
 
   // Build filters for Inward, Assignments, Returns
   const inwardFilter: any = { status: { $in: ['Verified', 'Approved'] } };
-  if (circleFilter) inwardFilter.circle = { $regex: new RegExp(`^${circleFilter}$`, 'i') };
+  if (circleFilter) {
+    inwardFilter.$or = [
+      { circle: { $regex: new RegExp(`^${circleFilter}$`, 'i') } },
+      { subcircle: { $regex: new RegExp(`^${circleFilter}$`, 'i') } },
+      { division: { $regex: new RegExp(`^${circleFilter}$`, 'i') } }
+    ];
+  }
   if (packageFilter) inwardFilter.package = packageFilter;
 
   const assignmentFilter: any = { status: 'Sent' };

@@ -623,7 +623,11 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                           {items.map((item, idx) => {
-                            const amount = item.erectedQty * item.rate;
+                            const fullBase = item.erectedQty * item.rate;
+                            const pct = stage ? (parseInt(stage) || 100) : 100;
+                            const baseAmt = fullBase * (pct / 100);
+                            const gstAmt = fullBase * ((item.gstRate || 18) / 100);
+                            const amount = baseAmt + gstAmt;
                             return (
                               <tr key={idx} className="bg-white hover:bg-slate-50/50 transition-colors">
                                 <td className="px-4 py-3 text-slate-600 font-medium">{item.activity}</td>

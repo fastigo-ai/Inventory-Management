@@ -887,15 +887,19 @@ export default function EditContractorBill({ params }: { params: Promise<{ id: s
                       <span className="block text-[9px] font-normal text-orange-600 lowercase">adhoc release</span>
                     </th>
                   )}
+                  <th className="py-3 px-3 text-right min-w-[125px] border-r border-slate-200 bg-slate-50 text-slate-800 font-bold">
+                    Base Price (₹)
+                    <span className="block text-[9px] font-normal text-slate-500 lowercase">qty × rate (100%)</span>
+                  </th>
                   <th className="py-3 px-3 text-center min-w-[75px] border-r border-slate-200">GST %</th>
                   <th className="py-3 px-3 text-right min-w-[130px] border-r border-slate-200 bg-slate-50">
-                    Taxable (₹)
+                    Taxable ({stage}) (₹)
                   </th>
-                  <th className="py-3 px-3 text-right min-w-[110px] border-r border-slate-200 bg-slate-50">
-                    GST (₹)
+                  <th className="py-3 px-3 text-right min-w-[120px] border-r border-slate-200 bg-emerald-50/50 text-emerald-900 font-bold">
+                    GST (100%) (₹)
                   </th>
-                  <th className="py-3 px-3 text-right min-w-[145px] border-r border-slate-200 bg-indigo-50/40 text-indigo-900">
-                    Amount (₹)
+                  <th className="py-3 px-3 text-right min-w-[145px] border-r border-slate-200 bg-indigo-50/40 text-indigo-900 font-bold">
+                    Total Amount (₹)
                   </th>
                   <th className="py-3 px-2 text-center w-12"></th>
                 </tr>
@@ -1030,6 +1034,11 @@ export default function EditContractorBill({ params }: { params: Promise<{ id: s
                         </td>
                       )}
 
+                      {/* Base Price (100% = Qty * Rate) */}
+                      <td className="py-2.5 px-3 text-right font-mono font-medium text-slate-800 border-r border-slate-200 bg-slate-50/40">
+                        ₹{calc.fullBaseAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+
                       {/* GST % */}
                       <td className="py-2 px-3 border-r border-slate-200 text-center">
                         <Input
@@ -1040,17 +1049,17 @@ export default function EditContractorBill({ params }: { params: Promise<{ id: s
                         />
                       </td>
 
-                      {/* Taxable Base Amount */}
+                      {/* Taxable Base Amount (Stage %) */}
                       <td className="py-2.5 px-3 text-right font-mono font-medium text-slate-700 border-r border-slate-200 bg-slate-50/50">
                         ₹{calc.baseAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
 
-                      {/* GST Amount */}
-                      <td className="py-2.5 px-3 text-right font-mono text-xs text-slate-500 border-r border-slate-200 bg-slate-50/50">
+                      {/* GST Amount (100% of Base Price * GST%) */}
+                      <td className="py-2.5 px-3 text-right font-mono text-xs font-semibold text-emerald-700 border-r border-slate-200 bg-emerald-50/30">
                         ₹{calc.gstAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
 
-                      {/* Total Amount */}
+                      {/* Total Amount (Taxable + GST) */}
                       <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 border-r border-slate-200 bg-indigo-50/30">
                         ₹{calc.totalAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>

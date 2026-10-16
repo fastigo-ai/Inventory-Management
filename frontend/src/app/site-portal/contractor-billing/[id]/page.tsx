@@ -231,15 +231,17 @@ export default function ContractorInvoiceViewPage({ params }: { params: Promise<
                   <th className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-center font-bold text-slate-800">Category</th>
                   <th className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-bold text-slate-800">Qty</th>
                   <th className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-bold text-slate-800">Rate</th>
+                  <th className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-bold text-slate-800">Base Price (₹)</th>
                   <th className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-bold text-slate-800">GST %</th>
                   <th className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-bold text-slate-800">Stage %</th>
-                  <th className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-bold text-slate-800">Base Amt</th>
-                  <th className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-bold text-slate-800">GST Amt</th>
-                  <th className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-bold text-slate-800">Total</th>
+                  <th className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-bold text-slate-800">Taxable Base (₹)</th>
+                  <th className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-bold text-slate-800">GST (100%) (₹)</th>
+                  <th className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-bold text-slate-800">Total (₹)</th>
                 </tr>
               </thead>
               <tbody>
                 {(() => {
+                  let totalFullBase = 0;
                   const groupedItems = invoice.lineItems.reduce((acc: any, item: any) => {
                     const activity = item.activity || 'Legacy Activity';
                     if (!acc[activity]) acc[activity] = [];
@@ -250,7 +252,7 @@ export default function ContractorInvoiceViewPage({ params }: { params: Promise<
                   return Object.entries(groupedItems).map(([activity, items]: [string, any]) => (
                     <React.Fragment key={activity}>
                       <tr className="bg-indigo-50 border-b border-indigo-100">
-                        <td colSpan={11} className="px-3 py-2 font-bold text-indigo-800 border border-slate-400">
+                        <td colSpan={12} className="px-3 py-2 font-bold text-indigo-800 border border-slate-400">
                           {activity}
                         </td>
                       </tr>
@@ -259,6 +261,13 @@ export default function ContractorInvoiceViewPage({ params }: { params: Promise<
                         const matchedWoItem = invoice.workOrderId?.items?.find((woItem: any) => 
                           (woItem.itemId?._id || woItem.itemId)?.toString() === (item.itemId?._id || item.itemId)?.toString()
                         );
+                        const fullBasePrice = (qty > 0 && item.rate > 0)
+                          ? (qty * item.rate)
+                          : (item.percentageApplied > 0 && item.percentageApplied < 100
+                            ? (item.baseAmount / (item.percentageApplied / 100))
+                            : (item.baseAmount || 0));
+                        totalFullBase += fullBasePrice;
+
                         return (
                           <tr key={`${activity}-${idx}`} className="hover:bg-slate-50">
                             <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 max-w-[250px] truncate print:whitespace-normal print:max-w-none print:break-words" title={item.description}>{item.description}</td>
@@ -271,11 +280,12 @@ export default function ContractorInvoiceViewPage({ params }: { params: Promise<
                             <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-center text-slate-600 whitespace-nowrap">{item.billingCategory}</td>
                             <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-semibold">{qty}</td>
                             <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right">{item.rate?.toFixed(2)}</td>
+                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-medium">{fullBasePrice.toFixed(2)}</td>
                             <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right whitespace-nowrap">{item.gstRate}%</td>
                             <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right whitespace-nowrap">{item.percentageApplied}%</td>
                             <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right">{item.baseAmount?.toFixed(2)}</td>
-                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right">{item.gstAmount?.toFixed(2)}</td>
-                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-medium">{item.totalAmount?.toFixed(2)}</td>
+                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-medium text-emerald-800">{item.gstAmount?.toFixed(2)}</td>
+                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-bold">{item.totalAmount?.toFixed(2)}</td>
                           </tr>
                         )
                       })}
@@ -288,16 +298,13 @@ export default function ContractorInvoiceViewPage({ params }: { params: Promise<
 
           {/* Totals */}
           <div className="flex justify-end mb-16">
-            <div className="w-[300px]">
-              <div className="grid grid-cols-[120px_1fr] gap-y-1 text-sm font-medium">
-                <div className="text-slate-800">Subtotal</div>
+            <div className="w-[320px]">
+              <div className="grid grid-cols-[140px_1fr] gap-y-1 text-sm font-medium">
+                <div className="text-slate-800">Taxable Base ({invoice.stage || '100%'})</div>
                 <div className="border border-slate-400 px-3 py-1 text-right">{invoice.totalBaseAmount?.toFixed(2)}</div>
                 
-                <div className="text-slate-800">Discount</div>
-                <div className="border border-slate-400 px-3 py-1 text-right">0.00</div>
-                
-                <div className="text-slate-800">Tax Amount</div>
-                <div className="border border-slate-400 px-3 py-1 text-right">{invoice.totalGstAmount?.toFixed(2)}</div>
+                <div className="text-slate-800">GST (100% of Base)</div>
+                <div className="border border-slate-400 px-3 py-1 text-right font-medium text-emerald-800">{invoice.totalGstAmount?.toFixed(2)}</div>
                 
                 <div className="text-slate-900 font-bold mt-1">Total Due</div>
                 <div className="border border-slate-400 px-3 py-1 text-right font-bold bg-slate-100 mt-1">

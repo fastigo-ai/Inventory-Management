@@ -286,6 +286,9 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
   const allItems = await Item.find({}).lean();
   const itemsByLoa = new Map<string, any[]>();
   const itemsByTempCode = new Map<string, any[]>();
+  const itemsByCircle = new Map<string, any[]>();
+  const itemsByDescription = new Map<string, any[]>();
+
   for (const item of allItems) {
     const sku = String(item.dynamicData?.sku || item.dynamicData?.loaSrNo || '').toLowerCase().trim();
     if (sku) {
@@ -296,6 +299,16 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
     if (tempCode) {
       if (!itemsByTempCode.has(tempCode)) itemsByTempCode.set(tempCode, []);
       itemsByTempCode.get(tempCode)?.push(item);
+    }
+    const circle = String(item.dynamicData?.circle || '').toLowerCase().trim();
+    if (circle) {
+      if (!itemsByCircle.has(circle)) itemsByCircle.set(circle, []);
+      itemsByCircle.get(circle)?.push(item);
+    }
+    const desc = String(item.dynamicData?.description || item.dynamicData?.name || '').toLowerCase().trim();
+    if (desc) {
+      if (!itemsByDescription.has(desc)) itemsByDescription.set(desc, []);
+      itemsByDescription.get(desc)?.push(item);
     }
   }
 
@@ -536,49 +549,122 @@ export const uploadWipExcel = asyncHandler(async (req: Request, res: Response) =
     return sheets;
   };
 
-  const resolveItem = (sr: any, uploadedCircle: string) => {
+  const resolveItem = (sr: any, uploadedCircle: string): { error?: string; itemId?: any; activity?: string; loaSerialNo?: string; loaSrNo?: string; tempCode?: string; totalLoaQty?: number; unit?: string } | null => {
+    const uc = uploadedCircle ? uploadedCircle.toLowerCase().trim() : '';
+    let matchedItemObj: any = null;
+
     const formatMatch = (itemObj: any) => ({
       itemId: itemObj._id,
-      loaSerialNo: itemObj.dynamicData?.sku || itemObj.dynamicData?.loaSrNo || '',
-      loaSrNo: itemObj.dynamicData?.sku || itemObj.dynamicData?.loaSrNo || '',
-      tempCode: itemObj.dynamicData?.tempCode || itemObj.rawItem?.tempCode || '',
+      loaSerialNo: itemObj.dynamicData?.sku || itemObj.dynamicData?.loaSrNo || sr.loa || '',
+      loaSrNo: itemObj.dynamicData?.sku || itemObj.dynamicData?.loaSrNo || sr.loa || '',
+      tempCode: itemObj.dynamicData?.tempCode || itemObj.rawItem?.tempCode || sr.tempCode || '',
       totalLoaQty: Number(itemObj.dynamicData?.loaQty || itemObj.dynamicData?.loaQuantity || itemObj.dynamicData?.totalLoaQuantity || itemObj.dynamicData?.qty || itemObj.dynamicData?.quantity || 0),
       activity: itemObj.dynamicData?.activity || sr.activity || '',
       unit: itemObj.dynamicData?.uom || itemObj.dynamicData?.unit || itemObj.uom || itemObj.unit || sr.unit || ''
     });
 
+    const fuzzy = (str: any) => String(str || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+
     const sheetSku = String(sr.loa || '').toLowerCase().trim();
     const sheetTempCode = String(sr.tempCode || '').toLowerCase().trim();
-    const sheetCircle = (uploadedCircle || '').toLowerCase().trim();
+    const sheetDescFuzzy = fuzzy(sr.description || sr.activity || '');
+
     let candidateItems: any[] = [];
     
-    if (sheetSku) {
-      const matches = itemsByLoa.get(sheetSku);
-      if (matches && matches.length > 0) candidateItems = matches;
+    if (sheetSku && itemsByLoa.has(sheetSku)) {
+      candidateItems = candidateItems.concat(itemsByLoa.get(sheetSku) || []);
+    }
+    if (sheetTempCode && itemsByTempCode.has(sheetTempCode)) {
+      candidateItems = candidateItems.concat(itemsByTempCode.get(sheetTempCode) || []);
+    }
+    if (sr.description) {
+      const descMatches = itemsByDescription.get(String(sr.description).trim().toLowerCase()) || [];
+      candidateItems = candidateItems.concat(descMatches);
     }
 
-    if (candidateItems.length === 0 && sheetTempCode) {
-      const matches = itemsByTempCode.get(sheetTempCode);
-      if (matches && matches.length > 0) candidateItems = matches;
+    if (candidateItems.length === 0 && itemsByCircle.has(uc)) {
+      candidateItems = itemsByCircle.get(uc) || [];
     }
 
     if (candidateItems.length === 0) return null;
 
-    let matchedItemObj = candidateItems.find((item: any) => {
-      const itemCircle = (item.dynamicData?.circle || '').toLowerCase().trim();
-      return itemCircle === sheetCircle || itemCircle.includes(sheetCircle) || sheetCircle.includes(itemCircle);
-    });
+    // Filter candidates by circle if circle is specified
+    let circleFiltered = candidateItems;
+    if (uc) {
+      circleFiltered = candidateItems.filter(i => {
+        const itemCircle = String(i.dynamicData?.circle || '').toLowerCase().trim();
+        return itemCircle === uc || itemCircle.includes(uc) || uc.includes(itemCircle);
+      });
+    }
+
+    // Work on circleFiltered first; if none match circle, check if any matches exist at all
+    const searchPool = circleFiltered.length > 0 ? circleFiltered : candidateItems;
+
+    // 1. Strict Match: TempCode AND LOA
+    if (!matchedItemObj && sheetTempCode && sheetSku) {
+      matchedItemObj = searchPool.find(i => {
+        const iTemp = String(i.dynamicData?.tempCode || i.rawItem?.tempCode || '').trim().toLowerCase();
+        const iLoa = String(i.dynamicData?.sku || i.dynamicData?.loaSrNo || '').trim().toLowerCase();
+        return iTemp === sheetTempCode && iLoa === sheetSku;
+      });
+    }
+
+    // 2. TempCode AND Fuzzy Description
+    if (!matchedItemObj && sheetTempCode && sheetDescFuzzy) {
+      matchedItemObj = searchPool.find(i => {
+        const iTemp = String(i.dynamicData?.tempCode || i.rawItem?.tempCode || '').trim().toLowerCase();
+        const iDescFuzzy = fuzzy(i.dynamicData?.description || i.dynamicData?.name);
+        return iTemp === sheetTempCode && iDescFuzzy === sheetDescFuzzy;
+      });
+    }
+
+    // 3. LOA AND Fuzzy Description
+    if (!matchedItemObj && sheetSku && sheetDescFuzzy) {
+      matchedItemObj = searchPool.find(i => {
+        const iLoa = String(i.dynamicData?.sku || i.dynamicData?.loaSrNo || '').trim().toLowerCase();
+        const iDescFuzzy = fuzzy(i.dynamicData?.description || i.dynamicData?.name);
+        return iLoa === sheetSku && iDescFuzzy === sheetDescFuzzy;
+      });
+    }
+
+    // 4. Fuzzy Description ONLY (if description matches and circle matches)
+    if (!matchedItemObj && sheetDescFuzzy) {
+      matchedItemObj = searchPool.find(i => {
+        const iDescFuzzy = fuzzy(i.dynamicData?.description || i.dynamicData?.name);
+        return iDescFuzzy === sheetDescFuzzy;
+      });
+    }
+
+    // 5. LOA ONLY
+    if (!matchedItemObj && sheetSku) {
+      matchedItemObj = searchPool.find(i => {
+        const iLoa = String(i.dynamicData?.sku || i.dynamicData?.loaSrNo || '').trim().toLowerCase();
+        return iLoa === sheetSku;
+      });
+    }
+
+    // 6. TempCode ONLY
+    if (!matchedItemObj && sheetTempCode) {
+      matchedItemObj = searchPool.find(i => {
+        const iTemp = String(i.dynamicData?.tempCode || i.rawItem?.tempCode || '').trim().toLowerCase();
+        return iTemp === sheetTempCode;
+      });
+    }
 
     if (!matchedItemObj) {
-      return { error: `Item matches LOA/TempCode but belongs to a different circle. Expected circle: ${sheetCircle}` } as any;
+      return null;
     }
 
-    if (matchedItemObj) {
-      // We no longer throw an error on Activity mismatch.
-      // formatMatch will automatically auto-populate the correct activity from the Master item.
-      return formatMatch(matchedItemObj);
+    // Check circle match
+    if (uc) {
+      const itemCircle = String(matchedItemObj.dynamicData?.circle || '').toLowerCase().trim();
+      const circleMatches = itemCircle === uc || itemCircle.includes(uc) || uc.includes(itemCircle);
+      if (!circleMatches) {
+        return { error: `Item matches LOA/TempCode but belongs to a different circle (${matchedItemObj.dynamicData?.circle || 'Unknown'}). Expected circle: ${uploadedCircle}` } as any;
+      }
     }
-    return null;
+
+    return formatMatch(matchedItemObj);
   };
 
   const yieldLoop = () => new Promise(resolve => setImmediate(resolve));

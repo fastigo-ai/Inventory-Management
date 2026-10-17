@@ -531,17 +531,9 @@ export function ContractorBillBulkUploadModal({ open, onOpenChange, onSuccess }:
           baseAmount = Number((fullBaseAmt * (stagePercentage / 100)).toFixed(2));
         }
 
-        // Rule: GST is always 100% of the total amount, NOT reduced by stage percentage (e.g. 90%)
-        let rawGst = colGst !== -1 && row[colGst] !== undefined && row[colGst] !== '' ? Number(row[colGst]) : 18;
-        let gstRate = 18;
-        let gstAmount = 0;
-        if (rawGst > 28) {
-          gstAmount = rawGst;
-          gstRate = fullBaseAmt > 0 ? Number(((gstAmount / fullBaseAmt) * 100).toFixed(2)) : 18;
-        } else {
-          gstRate = isNaN(rawGst) ? 18 : rawGst;
-          gstAmount = Number((fullBaseAmt * (gstRate / 100)).toFixed(2));
-        }
+        // Rule: GST is strictly 18% calculated on 100% of the Base Price (NOT reduced by stage percentage)
+        const gstRate = 18;
+        const gstAmount = Number((fullBaseAmt * 0.18).toFixed(2));
 
         valid.push({
           itemId: matchedItem._id,

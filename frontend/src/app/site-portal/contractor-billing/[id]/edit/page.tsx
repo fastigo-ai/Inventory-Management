@@ -197,7 +197,7 @@ export default function EditContractorBill({ params }: { params: Promise<{ id: s
               : Number(item.rate || matchedWoItem?.contractorErectionRate || dData.boqRate || aiData.boqRate || 0);
             const resolvedJmcDoneQty = Number(item.jmcDoneQty !== undefined ? item.jmcDoneQty : (item.erectedQty || 0));
             const resolvedErectedQty = Number(item.erectedQty !== undefined ? item.erectedQty : (item.jmcDoneQty || 0));
-            const resolvedGstRate = Number(item.gstRate !== undefined ? item.gstRate : 18);
+            const resolvedGstRate = Number(item.gstRate !== undefined && item.gstRate <= 28 && item.gstRate > 0 ? item.gstRate : 18);
 
             return {
               ...item,
@@ -487,7 +487,7 @@ export default function EditContractorBill({ params }: { params: Promise<{ id: s
     const rowDetails = lineItems.map((item) => {
       const qty = globalCategory === 'JMC Done' ? Number(item.jmcDoneQty || 0) : Number(item.erectedQty || 0);
       const rate = Number(item.rate || 0);
-      const gstRate = Number(item.gstRate !== undefined ? item.gstRate : 18);
+      const gstRate = Number(item.gstRate !== undefined && item.gstRate <= 28 && item.gstRate > 0 ? item.gstRate : 18);
 
       const fullBaseAmt = (qty > 0 && rate > 0) ? (qty * rate) : Number(item.baseAmount || 0);
 
@@ -1043,8 +1043,8 @@ export default function EditContractorBill({ params }: { params: Promise<{ id: s
                       <td className="py-2 px-3 border-r border-slate-200 text-center">
                         <Input
                           type="number"
-                          value={item.gstRate !== undefined ? item.gstRate : 18}
-                          onChange={(e) => handleItemChange(originalIndex, 'gstRate', parseFloat(e.target.value) || 0)}
+                          value={item.gstRate !== undefined && item.gstRate <= 28 && item.gstRate > 0 ? item.gstRate : 18}
+                          onChange={(e) => handleItemChange(originalIndex, 'gstRate', parseFloat(e.target.value) || 18)}
                           className="h-8 w-16 text-center text-xs font-mono mx-auto"
                         />
                       </td>

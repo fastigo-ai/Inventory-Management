@@ -149,16 +149,10 @@ export const createInvoiceService = async (data: any, user: any) => {
       baseAmount = fullBaseAmount * (percentage / 100);
     }
 
-    let rawGstRate = Number(item.gstRate !== undefined ? item.gstRate : 18);
-    let gstAmount = 0;
-    if (rawGstRate > 28) {
-      gstAmount = rawGstRate;
-      rawGstRate = fullBaseAmount > 0 ? (gstAmount / fullBaseAmount) * 100 : 18;
-    } else {
-      // Critical Rule: GST is always on 100% of the total amount, NOT reduced by stage percentage (e.g. 90%)
-      gstAmount = fullBaseAmount * (rawGstRate / 100);
-    }
-    const totalAmount = baseAmount + gstAmount;
+    // Critical Rule: GST rate is strictly 18% for contractor and erection bills, calculated on 100% of Base Price
+    const gstRate = 18;
+    const gstAmount = Number((fullBaseAmount * (gstRate / 100)).toFixed(2));
+    const totalAmount = Number((baseAmount + gstAmount).toFixed(2));
 
     totalBaseAmount += baseAmount;
     totalGstAmount += gstAmount;
@@ -180,7 +174,7 @@ export const createInvoiceService = async (data: any, user: any) => {
       rate: itemRate,
       percentageApplied: percentage,
       baseAmount,
-      gstRate: Number(item.gstRate || 0),
+      gstRate,
       gstAmount,
       totalAmount,
       legacyData: {
@@ -340,16 +334,10 @@ export const updateInvoiceService = async (id: string, data: any, user: any) => 
       baseAmount = fullBaseAmount * (percentage / 100);
     }
 
-    let rawGstRate = Number(item.gstRate !== undefined ? item.gstRate : 18);
-    let gstAmount = 0;
-    if (rawGstRate > 28) {
-      gstAmount = rawGstRate;
-      rawGstRate = fullBaseAmount > 0 ? (gstAmount / fullBaseAmount) * 100 : 18;
-    } else {
-      // Critical Rule: GST is always on 100% of the total amount, NOT reduced by stage percentage (e.g. 90%)
-      gstAmount = fullBaseAmount * (rawGstRate / 100);
-    }
-    const totalAmount = baseAmount + gstAmount;
+    // Critical Rule: GST rate is strictly 18% for contractor and erection bills, calculated on 100% of Base Price
+    const gstRate = 18;
+    const gstAmount = Number((fullBaseAmount * (gstRate / 100)).toFixed(2));
+    const totalAmount = Number((baseAmount + gstAmount).toFixed(2));
 
     totalBaseAmount += baseAmount;
     totalGstAmount += gstAmount;
@@ -371,7 +359,7 @@ export const updateInvoiceService = async (id: string, data: any, user: any) => 
       rate: itemRate,
       percentageApplied: percentage,
       baseAmount,
-      gstRate: Number(item.gstRate || 0),
+      gstRate,
       gstAmount,
       totalAmount,
       legacyData: {

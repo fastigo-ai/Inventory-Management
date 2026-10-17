@@ -511,7 +511,7 @@ export default function EditClientBillPage() {
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">{(billType === 'Supply' && formData.stage === '60%') ? 'MHROV Qty' : 'JMC Qty'}</th>
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">RA Bill Qty</th>
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">BOQ Rate</th>
-                    <th className="px-4 py-3 font-semibold whitespace-nowrap">GST (₹)</th>
+                    <th className="px-4 py-3 font-semibold whitespace-nowrap">GST 18% (₹)</th>
                     <th className="px-4 py-3 font-semibold text-right">Amount</th>
                   </tr>
                 </thead>

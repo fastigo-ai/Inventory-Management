@@ -269,7 +269,19 @@ export default function NewClientBillPage() {
     }
     
     const percentage = parseInt(formData.stage) || 100;
-    updatedItems[index].totalAmount = Number((updatedItems[index].raBillQty * updatedItems[index].boqRate * (percentage / 100)).toFixed(2));
+    const fullBaseAmount = updatedItems[index].raBillQty * updatedItems[index].boqRate;
+    updatedItems[index].totalAmount = Number((fullBaseAmount * (percentage / 100)).toFixed(2));
+    
+    if (billType === 'Supply' && formData.stage === '60%') {
+      updatedItems[index].gstAmount = Number((fullBaseAmount * 0.18).toFixed(2));
+    } else if (billType === 'Supply' && (formData.stage === '30%' || formData.stage === '10%')) {
+      updatedItems[index].gstAmount = 0;
+    } else if (billType === 'Erection' && formData.stage === '90%') {
+      updatedItems[index].gstAmount = Number((fullBaseAmount * 0.18).toFixed(2));
+    } else {
+      updatedItems[index].gstAmount = 0;
+    }
+    
     setItems(updatedItems);
   };
 
@@ -522,19 +534,23 @@ export default function NewClientBillPage() {
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">{(billType === 'Supply' && formData.stage === '60%') ? 'MHROV Qty' : 'JMC Qty'}</th>
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">RA Bill Qty</th>
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">BOQ Rate</th>
-                    <th className="px-4 py-3 font-semibold whitespace-nowrap">GST (₹)</th>
-                    <th className="px-4 py-3 font-semibold text-right">Amount</th>
+                    <th className="px-4 py-3 font-semibold whitespace-nowrap text-right">Base Price (₹)</th>
+                    <th className="px-4 py-3 font-semibold whitespace-nowrap text-right">Taxable ({formData.stage})</th>
+                    <th className="px-4 py-3 font-semibold whitespace-nowrap text-right text-emerald-700">GST 18% (100% of Base)</th>
+                    <th className="px-4 py-3 font-semibold text-right">Total (₹)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {items.map((item, idx) => {
                     const isNewGroup = idx === 0 || item.refNumber !== items[idx - 1].refNumber;
-                    
+                    const fullBasePrice = (Number(item.raBillQty) || 0) * (Number(item.boqRate) || 0);
+                    const lineTotal = (item.totalAmount || 0) + (item.gstAmount || 0);
+
                     return (
                       <React.Fragment key={idx}>
                         {isNewGroup && (
                           <tr className="bg-slate-100/80 border-y border-slate-200 shadow-sm">
-                            <td colSpan={billType === 'Supply' ? 14 : 11} className="px-4 py-2 font-semibold text-indigo-700">
+                            <td colSpan={billType === 'Supply' ? 16 : 13} className="px-4 py-2 font-semibold text-indigo-700">
                               Source: {item.refNumber}
                             </td>
                           </tr>
@@ -571,9 +587,17 @@ export default function NewClientBillPage() {
                               onChange={(e) => handleItemChange(idx, 'boqRate', e.target.value)}
                             />
                           </td>
-                          <td className="px-4 py-3 text-slate-500 text-center">18%</td>
+                          <td className="px-4 py-3 text-right font-medium text-slate-700 whitespace-nowrap">
+                            ₹{fullBasePrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
                           <td className="px-4 py-3 text-right font-semibold text-slate-800 whitespace-nowrap">
-                            ₹{(item.totalAmount || 0).toLocaleString('en-IN')}
+                            ₹{(item.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                          <td className="px-4 py-3 text-right font-semibold text-emerald-700 whitespace-nowrap">
+                            ₹{(item.gstAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                          <td className="px-4 py-3 text-right font-bold text-slate-900 whitespace-nowrap">
+                            ₹{lineTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                         </tr>
                       </React.Fragment>
@@ -582,15 +606,15 @@ export default function NewClientBillPage() {
                 </tbody>
                 <tfoot className="bg-slate-50 border-t-2 border-slate-200">
                   <tr>
-                    <td colSpan={billType === 'Supply' ? 13 : 10} className="px-4 py-3 text-right font-semibold text-slate-700">Subtotal (Base Amount)</td>
+                    <td colSpan={billType === 'Supply' ? 15 : 12} className="px-4 py-3 text-right font-semibold text-slate-700">Subtotal (Taxable Base)</td>
                     <td className="px-4 py-3 text-right font-bold text-slate-900">₹{totalBaseAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   </tr>
                   <tr>
-                    <td colSpan={billType === 'Supply' ? 13 : 10} className="px-4 py-2 text-right font-medium text-slate-500">GST (18%)</td>
-                    <td className="px-4 py-2 text-right font-semibold text-slate-600">₹{totalGstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td colSpan={billType === 'Supply' ? 15 : 12} className="px-4 py-2 text-right font-medium text-slate-500">GST (100% of Base)</td>
+                    <td className="px-4 py-2 text-right font-semibold text-emerald-700">₹{totalGstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   </tr>
                   <tr className="bg-indigo-50/50">
-                    <td colSpan={billType === 'Supply' ? 13 : 10} className="px-4 py-3 text-right font-bold text-indigo-900 text-base">Grand Total</td>
+                    <td colSpan={billType === 'Supply' ? 15 : 12} className="px-4 py-3 text-right font-bold text-indigo-900 text-base">Grand Total</td>
                     <td className="px-4 py-3 text-right font-bold text-indigo-700 text-lg">₹{grandTotalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   </tr>
                 </tfoot>

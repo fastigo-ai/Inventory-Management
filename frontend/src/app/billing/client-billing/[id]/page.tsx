@@ -107,8 +107,9 @@ export default function ClientBillDetailsPage({ params }: { params: Promise<{ id
 
   if (!bill) return null;
 
+  const totalFullBase = bill.items?.reduce((sum: number, item: any) => sum + ((item.raBillQty || 0) * (item.boqRate || 0)), 0) || 0;
   const totalBase = bill.items?.reduce((sum: number, item: any) => sum + (item.totalAmount || 0), 0) || 0;
-  const gstAmount = totalBase * 0.18;
+  const gstAmount = bill.items?.reduce((sum: number, item: any) => sum + (item.gstAmount || 0), 0) || 0;
   const grandTotal = totalBase + gstAmount;
 
   return (
@@ -174,7 +175,7 @@ export default function ClientBillDetailsPage({ params }: { params: Promise<{ id
       </div>
 
       {/* Status & Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-center items-start">
           <p className="text-sm font-medium text-slate-500 mb-2">Current Status</p>
           {getStatusBadge(bill.status)}
@@ -186,8 +187,15 @@ export default function ClientBillDetailsPage({ params }: { params: Promise<{ id
         </div>
         
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-          <p className="text-sm font-medium text-slate-500 mb-1">Total Base Amount</p>
-          <p className="text-3xl font-semibold text-slate-800">
+          <p className="text-sm font-medium text-slate-500 mb-1">Base Price (100%)</p>
+          <p className="text-2xl font-semibold text-slate-800">
+            ₹{totalFullBase.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+          </p>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <p className="text-sm font-medium text-slate-500 mb-1">Taxable Base ({bill.stage})</p>
+          <p className="text-2xl font-semibold text-slate-800">
             ₹{totalBase.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
           </p>
         </div>
@@ -196,9 +204,12 @@ export default function ClientBillDetailsPage({ params }: { params: Promise<{ id
           <div className="absolute top-0 right-0 p-4 opacity-10">
             <FileText className="w-24 h-24" />
           </div>
-          <p className="text-sm font-medium text-indigo-600 mb-1 relative z-10">Grand Total (with 18% GST)</p>
-          <p className="text-3xl font-bold text-indigo-900 relative z-10">
+          <p className="text-sm font-medium text-indigo-600 mb-1 relative z-10">Grand Total (with GST)</p>
+          <p className="text-2xl font-bold text-indigo-900 relative z-10">
             ₹{grandTotal.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+          </p>
+          <p className="text-[11px] text-emerald-700 font-medium relative z-10 mt-1">
+            GST (100% of Base): ₹{gstAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
           </p>
         </div>
       </div>
@@ -228,33 +239,50 @@ export default function ClientBillDetailsPage({ params }: { params: Promise<{ id
                 <th className="px-4 py-3 font-semibold">{bill.billType === 'Supply' ? 'MHROV Qty' : 'JMC Qty'}</th>
                 <th className="px-4 py-3 font-semibold">RA Bill Qty</th>
                 <th className="px-4 py-3 font-semibold">BOQ Rate</th>
-                <th className="px-4 py-3 font-semibold">GST %</th>
-                <th className="px-4 py-3 font-semibold text-right">Amount</th>
+                <th className="px-4 py-3 font-semibold text-right">Base Price (₹)</th>
+                <th className="px-4 py-3 font-semibold text-right">Taxable ({bill.stage})</th>
+                <th className="px-4 py-3 font-semibold text-right text-emerald-700">GST 18% (100% of Base)</th>
+                <th className="px-4 py-3 font-semibold text-right">Total (₹)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {bill.items?.map((item: any, idx: number) => (
-                <tr key={idx} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 text-slate-500">{bill.raBillNo || '-'}</td>
-                  <td className="px-4 py-3 text-slate-500">{new Date(bill.raBillDate).toLocaleDateString('en-GB') || '-'}</td>
-                  <td className="px-4 py-3 font-medium text-slate-700">{item.refNumber || '-'}</td>
-                  <td className="px-4 py-3">{item.loaSrNo || '-'}</td>
-                  <td className="px-4 py-3 font-medium text-slate-700">{item.tempCode || '-'}</td>
-                  <td className="px-4 py-3 text-slate-600 truncate max-w-xs" title={item.itemName}>{item.itemName}</td>
-                  {bill.billType === 'Supply' && (
-                    <>
-                      <td className="px-4 py-3 text-slate-500">{item.diNo || '-'}</td>
-                      <td className="px-4 py-3 text-slate-500">{item.diDate ? new Date(item.diDate).toLocaleDateString('en-GB') : '-'}</td>
-                      <td className="px-4 py-3 text-slate-500 text-center">{item.diQty || 0}</td>
-                    </>
-                  )}
-                  <td className="px-4 py-3 text-slate-500 text-center">{item.sourceDoneQty || 0}</td>
-                  <td className="px-4 py-3 text-center font-medium">{item.raBillQty || 0}</td>
-                  <td className="px-4 py-3 text-slate-600">₹{item.boqRate?.toLocaleString('en-IN', { maximumFractionDigits: 2 }) || '0'}</td>
-                  <td className="px-4 py-3 text-slate-500 text-center">18%</td>
-                  <td className="px-4 py-3 text-right font-semibold text-slate-800">₹{item.totalAmount?.toLocaleString('en-IN', { maximumFractionDigits: 2 }) || '0'}</td>
-                </tr>
-              ))}
+              {bill.items?.map((item: any, idx: number) => {
+                const fullBasePrice = (Number(item.raBillQty) || 0) * (Number(item.boqRate) || 0);
+                const lineTotal = (item.totalAmount || 0) + (item.gstAmount || 0);
+
+                return (
+                  <tr key={idx} className="hover:bg-slate-50">
+                    <td className="px-4 py-3 text-slate-500">{bill.raBillNo || '-'}</td>
+                    <td className="px-4 py-3 text-slate-500">{new Date(bill.raBillDate).toLocaleDateString('en-GB') || '-'}</td>
+                    <td className="px-4 py-3 font-medium text-slate-700">{item.refNumber || '-'}</td>
+                    <td className="px-4 py-3">{item.loaSrNo || '-'}</td>
+                    <td className="px-4 py-3 font-medium text-slate-700">{item.tempCode || '-'}</td>
+                    <td className="px-4 py-3 text-slate-600 truncate max-w-xs" title={item.itemName}>{item.itemName}</td>
+                    {bill.billType === 'Supply' && (
+                      <>
+                        <td className="px-4 py-3 text-slate-500">{item.diNo || '-'}</td>
+                        <td className="px-4 py-3 text-slate-500">{item.diDate ? new Date(item.diDate).toLocaleDateString('en-GB') : '-'}</td>
+                        <td className="px-4 py-3 text-slate-500 text-center">{item.diQty || 0}</td>
+                      </>
+                    )}
+                    <td className="px-4 py-3 text-slate-500 text-center">{item.sourceDoneQty || 0}</td>
+                    <td className="px-4 py-3 text-center font-medium">{item.raBillQty || 0}</td>
+                    <td className="px-4 py-3 text-slate-600">₹{item.boqRate?.toLocaleString('en-IN', { maximumFractionDigits: 2 }) || '0'}</td>
+                    <td className="px-4 py-3 text-right font-medium text-slate-700 whitespace-nowrap">
+                      ₹{fullBasePrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-4 py-3 text-right font-semibold text-slate-800 whitespace-nowrap">
+                      ₹{(item.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-4 py-3 text-right font-semibold text-emerald-700 whitespace-nowrap">
+                      ₹{(item.gstAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-4 py-3 text-right font-bold text-slate-900 whitespace-nowrap">
+                      ₹{lineTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

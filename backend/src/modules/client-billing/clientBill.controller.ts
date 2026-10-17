@@ -88,6 +88,19 @@ export const createClientBill = asyncHandler(async (req: any, res: Response) => 
   let parsedReferenceIds = [];
   try { parsedReferenceIds = typeof referenceIds === 'string' ? JSON.parse(referenceIds) : referenceIds; } catch (e) {}
 
+  // Ensure strict 18% GST calculation on 100% of Base Price
+  parsedItems = (parsedItems || []).map((item: any) => {
+    const qty = Number(item.raBillQty || 0);
+    const rate = Number(item.boqRate || 0);
+    const fullBase = qty * rate;
+    const hasGst = (billType === 'Supply' && stage === '60%') || (billType === 'Erection' && stage === '90%');
+    const gstAmount = hasGst ? Number((fullBase * 0.18).toFixed(2)) : 0;
+    return {
+      ...item,
+      gstAmount
+    };
+  });
+
   if (!isLegacyBulkUpload) {
     const validation = await validateClientLedgerLimits(req.user.assignedCircle, req.user.assignedPackage, parsedItems, billType, stage);
     if (!validation.valid) {
@@ -135,6 +148,24 @@ export const updateClientBill = asyncHandler(async (req: any, res: Response) => 
   try { parsedItems = typeof items === 'string' ? JSON.parse(items) : items; } catch (e) {}
   let parsedReferenceIds = [];
   try { parsedReferenceIds = typeof referenceIds === 'string' ? JSON.parse(referenceIds) : referenceIds; } catch (e) {}
+
+  const effectiveBillType = billType || bill.billType;
+  const effectiveStage = stage || bill.stage;
+
+  // Ensure strict 18% GST calculation on 100% of Base Price
+  if (parsedItems && parsedItems.length > 0) {
+    parsedItems = parsedItems.map((item: any) => {
+      const qty = Number(item.raBillQty || 0);
+      const rate = Number(item.boqRate || 0);
+      const fullBase = qty * rate;
+      const hasGst = (effectiveBillType === 'Supply' && effectiveStage === '60%') || (effectiveBillType === 'Erection' && effectiveStage === '90%');
+      const gstAmount = hasGst ? Number((fullBase * 0.18).toFixed(2)) : 0;
+      return {
+        ...item,
+        gstAmount
+      };
+    });
+  }
 
   if (!isLegacyBulkUpload) {
     const validation = await validateClientLedgerLimits(bill.circle, bill.package, parsedItems, billType || bill.billType, stage || bill.stage, id);

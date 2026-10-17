@@ -232,17 +232,9 @@ export default function LegacyBulkUpload() {
             baseAmount = Number((fullBaseAmt * (stagePercentage / 100)).toFixed(2));
           }
 
-          // GST calculation: Always 100% of the total full amount value, NOT reduced by stage percentage (e.g. 90%)
-          const rawGst = gstIdx !== -1 && row[gstIdx] !== undefined && row[gstIdx] !== '' ? Number(row[gstIdx]) : 18;
-          let gstRate = 18;
-          let gstAmount = 0;
-          if (rawGst > 28) {
-            gstAmount = rawGst;
-            gstRate = fullBaseAmt > 0 ? Number(((gstAmount / fullBaseAmt) * 100).toFixed(2)) : 18;
-          } else {
-            gstRate = isNaN(rawGst) ? 18 : rawGst;
-            gstAmount = Number((fullBaseAmt * (gstRate / 100)).toFixed(2));
-          }
+          // GST calculation: Strictly 18% calculated on 100% of Base Price (NOT reduced by stage percentage)
+          const gstRate = 18;
+          const gstAmount = Number((fullBaseAmt * 0.18).toFixed(2));
 
           items.push({
             itemId: masterItem._id,

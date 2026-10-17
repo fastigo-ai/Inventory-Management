@@ -797,8 +797,9 @@ export default function NewContractorBill() {
                     <td className="p-2">
                       <Input
                         type="number"
-                        value={item.gstRate}
-                        onChange={e => handleItemChange(idx, 'gstRate', Number(e.target.value))}
+                        value={18}
+                        disabled
+                        className="bg-slate-100 text-slate-600 text-center cursor-not-allowed font-medium"
                       />
                     </td>
                     <td className="p-2 font-bold text-slate-800 whitespace-nowrap">
@@ -809,8 +810,8 @@ export default function NewContractorBill() {
                         const fullBaseAmt = (qty > 0 && item.rate > 0) ? (qty * item.rate) : Number(item.baseAmount || 0);
                         const baseAmt = isNonPercent || percentage === 100 ? fullBaseAmt : fullBaseAmt * (percentage / 100);
                         
-                        // Rule: GST is always 100% of the total amount, NOT reduced by stage percentage (e.g. 90%)
-                        const gstRate = item.gstRate !== undefined ? item.gstRate : 18;
+                        // Rule: GST is strictly 18% of the total 100% Base Price
+                        const gstRate = 18;
                         const gstAmt = fullBaseAmt * (gstRate / 100);
                         const totalAmt = baseAmt + gstAmt;
                         

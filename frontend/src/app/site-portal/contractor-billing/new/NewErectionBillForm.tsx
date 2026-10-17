@@ -647,7 +647,7 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
                                     className="w-20 text-right ml-auto h-8 text-xs font-bold text-indigo-700 bg-white"
                                   />
                                 </td>
-                                <td className="px-4 py-3 text-center text-slate-600">{item.gstRate}%</td>
+                                <td className="px-4 py-3 text-center text-slate-600">{(item.gstRate && item.gstRate <= 28 && item.gstRate > 0) ? item.gstRate : 18}%</td>
                                 <td className="px-4 py-3 text-right font-bold text-slate-800">₹{amount.toLocaleString('en-IN')}</td>
                               </tr>
                             );

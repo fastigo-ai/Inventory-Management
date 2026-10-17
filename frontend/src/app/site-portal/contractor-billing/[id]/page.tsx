@@ -281,7 +281,7 @@ export default function ContractorInvoiceViewPage({ params }: { params: Promise<
                             <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-semibold">{qty}</td>
                             <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right">{item.rate?.toFixed(2)}</td>
                             <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-medium">{fullBasePrice.toFixed(2)}</td>
-                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right whitespace-nowrap">{item.gstRate}%</td>
+                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right whitespace-nowrap">{(item.gstRate && item.gstRate <= 28 && item.gstRate > 0) ? item.gstRate : 18}%</td>
                             <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right whitespace-nowrap">{item.percentageApplied}%</td>
                             <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right">{item.baseAmount?.toFixed(2)}</td>
                             <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-medium text-emerald-800">{item.gstAmount?.toFixed(2)}</td>

@@ -639,7 +639,7 @@ async function computeItemMatrixSummaryInner(pkgArray: string[], circArray: stri
       { circle: 1, 'lineItems.quantity': 1, 'lineItems.itemId': 1, 'lineItems.tempCode': 1, 'lineItems.loaSerialNo': 1, 'lineItems.loaSrNo': 1, 'lineItems.circle': 1 }
     ).lean(),
     StoreInwardEntry.find(
-      {},
+      { status: { $ne: 'Voided' } },
       { circle: 1, subcircle: 1, billingFrom: 1, invoiceQty: 1, acceptedQty: 1, totalQty: 1, itemId: 1, tempCode: 1, loaSerialNo: 1, loaSrNo: 1, serialNumber: 1, package: 1 }
     ).lean(),
     Mhrov.find(

@@ -335,7 +335,7 @@ export class SummaryService {
 
       // 5. Rebuild from StoreInwardEntry (MRHOV / Store Receipts)
       const { StoreInwardEntry } = await import('../../store/storeInwardEntry.schema');
-      const storeInwards = await StoreInwardEntry.find({ itemId });
+      const storeInwards = await StoreInwardEntry.find({ itemId, status: { $ne: 'Voided' } });
       for (const inward of storeInwards) {
         let cName = inward.circle || inward.subcircle || inward.billingFrom || item.dynamicData?.circle || '';
         let pName = inward.package || item.dynamicData?.package || '';
@@ -1673,6 +1673,7 @@ export class SummaryService {
         ]).toArray(),
 
         db.collection('storeinwardentries').aggregate([
+          { $match: { status: { $ne: 'Voided' } } },
           { $group: {
               _id: "$itemId",
               receivedQty: { $sum: { $ifNull: ["$totalQty", "$invoiceQty"] } }

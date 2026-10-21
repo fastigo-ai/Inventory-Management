@@ -240,6 +240,23 @@ export const createInwardEntry = asyncHandler(async (req: Request, res: Response
     if (data.tempCode) draftFilter.tempCode = data.tempCode;
   }
   let entry = await StoreInwardEntry.findOne(draftFilter);
+
+  // If not a draft, prevent duplicate non-voided inward creation for the same invoice line item
+  if (!entry && data.invoiceNumber && data.circle) {
+    const duplicateQuery: any = {
+      status: { $nin: ['Voided', 'Draft'] },
+      invoiceNumber: data.invoiceNumber,
+      circle: data.circle
+    };
+    if (data.itemId) duplicateQuery.itemId = data.itemId;
+    else if (data.tempCode) duplicateQuery.tempCode = data.tempCode;
+    else if (data.serialNumber) duplicateQuery.serialNumber = data.serialNumber;
+
+    const existingNonDraft = await StoreInwardEntry.findOne(duplicateQuery);
+    if (existingNonDraft) {
+      throw new ApiError(400, `An inward entry for Invoice ${data.invoiceNumber} and item ${data.itemName || data.tempCode || ''} already exists in ${data.circle} circle (Inward ID: ${existingNonDraft.inwardId || existingNonDraft._id}). Duplicate inward is not permitted.`);
+    }
+  }
   
   data.createdBy = (req as any).user?._id;
   
@@ -1198,6 +1215,24 @@ export const importInwardRegistrations = asyncHandler(async (req: Request, res: 
            serialNumber: payload.serialNumber
          };
          entry = await StoreInwardEntry.findOne(draftFilter);
+
+         // Prevent creating duplicate entries if an identical non-voided entry already exists
+         if (!entry) {
+           const duplicateCheck: any = {
+             status: { $ne: 'Voided' },
+             invoiceNumber: payload.invoiceNumber,
+             circle: payload.circle
+           };
+           if (payload.itemId) duplicateCheck.itemId = payload.itemId;
+           else if (payload.serialNumber) duplicateCheck.serialNumber = payload.serialNumber;
+           else if (payload.tempCode) duplicateCheck.tempCode = payload.tempCode;
+
+           const existingDuplicate = await StoreInwardEntry.findOne(duplicateCheck);
+           if (existingDuplicate) {
+             // Entry already exists for this invoice line item in this circle - update rather than duplicate
+             entry = existingDuplicate;
+           }
+         }
       }
       
       if (entry) {

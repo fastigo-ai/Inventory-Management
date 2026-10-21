@@ -3,7 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import { toast } from 'sonner';
-import { Save, Plus, Trash2, Loader2, ArrowLeft } from 'lucide-react';
+import { Save, Plus, Trash2, Loader2, ArrowLeft, Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -77,8 +77,39 @@ function DemandNoteEditForm() {
 
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [items, setItems] = useState<any[]>([]);
+  const [searchFilters, setSearchFilters] = useState({
+    name: '',
+    activity: '',
+    tempCode: '',
+    loaSrNo: ''
+  });
   const [dnNumber, setDnNumber] = useState('');
   const hasAutoPopulated = React.useRef(false);
+
+  // Filter items in the table across 4 fields: LOA Sr No, Item Name, Temp Code, Activity
+  const groupedItems = React.useMemo(() => {
+    const nameQ = searchFilters.name.trim().toLowerCase();
+    const actQ = searchFilters.activity.trim().toLowerCase();
+    const tempQ = searchFilters.tempCode.trim().toLowerCase();
+    const loaQ = searchFilters.loaSrNo.trim().toLowerCase();
+
+    const filtered = items
+      .map((item, idx) => ({ item, idx }))
+      .filter(({ item }) => {
+        if (nameQ && !(item.itemName || '').toLowerCase().includes(nameQ)) return false;
+        if (actQ && !(item.activity || '').toLowerCase().includes(actQ)) return false;
+        if (tempQ && !(item.tempCode || '').toLowerCase().includes(tempQ)) return false;
+        if (loaQ && !(item.loaSrNo || '').toLowerCase().includes(loaQ)) return false;
+        return true;
+      });
+
+    return filtered.reduce((acc, entry) => {
+      const act = entry.item.activity || 'Unassigned Activity';
+      if (!acc[act]) acc[act] = [];
+      acc[act].push(entry);
+      return acc;
+    }, {} as Record<string, { item: any; idx: number }[]>);
+  }, [items, searchFilters]);
 
   useEffect(() => {
     if (id) {
@@ -791,6 +822,101 @@ function DemandNoteEditForm() {
             <Plus className="w-4 h-4" /> Add Item
           </Button>
         </div>
+
+        {/* 4 Search Filters Bar: LOA Sr No, Item Name, Temp Code, Activity */}
+        {items.length > 0 && (
+          <div className="px-6 py-3 bg-slate-50/70 border-b border-slate-200 flex flex-wrap items-center gap-3">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Filters:</span>
+            
+            {/* 1. LOA Sr No Search */}
+            <div className="relative w-44">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+              <input
+                type="text"
+                value={searchFilters.loaSrNo}
+                onChange={(e) => setSearchFilters(prev => ({ ...prev, loaSrNo: e.target.value }))}
+                placeholder="LOA Sr No..."
+                className="w-full h-8 pl-8 pr-7 bg-white border border-slate-200 rounded-md text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+              {searchFilters.loaSrNo && (
+                <button
+                  onClick={() => setSearchFilters(prev => ({ ...prev, loaSrNo: '' }))}
+                  className="absolute right-2 top-2 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* 2. Item Name Search */}
+            <div className="relative w-56">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+              <input
+                type="text"
+                value={searchFilters.name}
+                onChange={(e) => setSearchFilters(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Item Name..."
+                className="w-full h-8 pl-8 pr-7 bg-white border border-slate-200 rounded-md text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+              {searchFilters.name && (
+                <button
+                  onClick={() => setSearchFilters(prev => ({ ...prev, name: '' }))}
+                  className="absolute right-2 top-2 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* 3. Temp Code Search */}
+            <div className="relative w-44">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+              <input
+                type="text"
+                value={searchFilters.tempCode}
+                onChange={(e) => setSearchFilters(prev => ({ ...prev, tempCode: e.target.value }))}
+                placeholder="Temp Code..."
+                className="w-full h-8 pl-8 pr-7 bg-white border border-slate-200 rounded-md text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+              {searchFilters.tempCode && (
+                <button
+                  onClick={() => setSearchFilters(prev => ({ ...prev, tempCode: '' }))}
+                  className="absolute right-2 top-2 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* 4. Activity Filter Dropdown (Present in Demand Note) */}
+            <div className="relative min-w-[200px] max-w-[280px]">
+              <select
+                value={searchFilters.activity}
+                onChange={(e) => setSearchFilters(prev => ({ ...prev, activity: e.target.value }))}
+                className="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-md text-xs font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 truncate"
+              >
+                <option value="">All Activities ({Array.from(new Set(items.map(i => i.activity).filter(Boolean))).length})</option>
+                {Array.from(new Set(items.map(i => i.activity).filter(Boolean)))
+                  .sort((a, b) => String(a).localeCompare(String(b)))
+                  .map((act: any, idx: number) => (
+                    <option key={idx} value={act}>
+                      {act}
+                    </option>
+                  ))
+                }
+              </select>
+            </div>
+
+            {(searchFilters.loaSrNo || searchFilters.name || searchFilters.tempCode || searchFilters.activity) && (
+              <button
+                onClick={() => setSearchFilters({ name: '', activity: '', tempCode: '', loaSrNo: '' })}
+                className="text-xs font-medium text-indigo-600 hover:text-indigo-800 underline ml-1 cursor-pointer"
+              >
+                Clear all filters
+              </button>
+            )}
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left whitespace-nowrap border-separate border-spacing-0">
             <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase">
@@ -822,12 +948,14 @@ function DemandNoteEditForm() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {Object.entries(items.reduce((acc, item, idx) => {
-                const act = item.activity || 'Unassigned Activity';
-                if (!acc[act]) acc[act] = [];
-                acc[act].push({ item, idx });
-                return acc;
-              }, {} as Record<string, {item: any, idx: number}[]>)).map(([activity, group]: any) => (
+              {Object.keys(groupedItems).length === 0 && items.length > 0 && (
+                <tr>
+                  <td colSpan={24} className="px-4 py-8 text-center text-slate-400 text-sm">
+                    No items found matching the selected filters.
+                  </td>
+                </tr>
+              )}
+              {Object.entries(groupedItems).map(([activity, group]: any) => (
                 <React.Fragment key={activity}>
                   <tr className="bg-slate-100/80 border-y border-slate-200">
                     <td colSpan={24} className="px-4 py-2 text-[13px] font-bold text-slate-700 sticky left-0 z-10 bg-slate-100/90 backdrop-blur-sm shadow-[1px_0_3px_rgba(0,0,0,0.05)]">

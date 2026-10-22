@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, use } from 'react';
+import React, { useEffect, useState, use, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { getContractorInvoiceById, deleteContractorInvoice } from '@/features/contractor-billing/api/contractor-billing.api';
 import { getBillingCompanies } from '@/features/settings/api/billingCompanies.api';
@@ -17,6 +17,35 @@ export default function ContractorInvoiceViewPage({ params }: { params: Promise<
   const [invoice, setInvoice] = useState<any>(null);
   const [billingCompany, setBillingCompany] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  const calculatedTotals = useMemo(() => {
+    if (!invoice?.lineItems) return { totalFullBase: 0, totalTaxableBase: 0, totalGst100: 0, totalFinalDue: 0 };
+    let totalFullBase = 0;
+    let totalTaxableBase = 0;
+    let totalGst100 = 0;
+    let totalFinalDue = 0;
+
+    invoice.lineItems.forEach((item: any) => {
+      const qty = item.billingCategory === 'JMC Done' ? Number(item.jmcDoneQty || 0) : Number(item.erectedQty || 0);
+      const fullBasePrice = (qty > 0 && item.rate > 0)
+        ? (qty * item.rate)
+        : (item.baseAmount > 0 && item.percentageApplied > 0 && item.percentageApplied < 100
+          ? (item.baseAmount / (item.percentageApplied / 100))
+          : (item.baseAmount || 0));
+      const gstRate = (item.gstRate && item.gstRate <= 28 && item.gstRate > 0) ? item.gstRate : 18;
+      const gst100Amount = Number((fullBasePrice * (gstRate / 100)).toFixed(2));
+      const taxableBase = Number((fullBasePrice + gst100Amount).toFixed(2));
+      const stagePct = item.percentageApplied > 0 ? item.percentageApplied : (parseInt(invoice.stage) || 90);
+      const lineTotal = Number((taxableBase * (stagePct / 100)).toFixed(2));
+
+      totalFullBase += fullBasePrice;
+      totalTaxableBase += taxableBase;
+      totalGst100 += gst100Amount;
+      totalFinalDue += lineTotal;
+    });
+
+    return { totalFullBase, totalTaxableBase, totalGst100, totalFinalDue };
+  }, [invoice]);
 
   useEffect(() => {
     const fetchInvoice = async () => {
@@ -241,7 +270,6 @@ export default function ContractorInvoiceViewPage({ params }: { params: Promise<
               </thead>
               <tbody>
                 {(() => {
-                  let totalFullBase = 0;
                   const groupedItems = invoice.lineItems.reduce((acc: any, item: any) => {
                     const activity = item.activity || 'Legacy Activity';
                     if (!acc[activity]) acc[activity] = [];
@@ -263,10 +291,17 @@ export default function ContractorInvoiceViewPage({ params }: { params: Promise<
                         );
                         const fullBasePrice = (qty > 0 && item.rate > 0)
                           ? (qty * item.rate)
-                          : (item.percentageApplied > 0 && item.percentageApplied < 100
+                          : (item.baseAmount > 0 && item.percentageApplied > 0 && item.percentageApplied < 100
                             ? (item.baseAmount / (item.percentageApplied / 100))
                             : (item.baseAmount || 0));
-                        totalFullBase += fullBasePrice;
+
+                        const gstRate = (item.gstRate && item.gstRate <= 28 && item.gstRate > 0) ? item.gstRate : 18;
+                        const gst100Amount = Number((fullBasePrice * (gstRate / 100)).toFixed(2));
+                        // Taxable Base = Base Price + GST (100%)
+                        const taxableBase = Number((fullBasePrice + gst100Amount).toFixed(2));
+                        const stagePct = item.percentageApplied > 0 ? item.percentageApplied : (parseInt(invoice.stage) || 90);
+                        // Total = Stage % (e.g. 90%) of Taxable Base
+                        const lineTotal = Number((taxableBase * (stagePct / 100)).toFixed(2));
 
                         return (
                           <tr key={`${activity}-${idx}`} className="hover:bg-slate-50">
@@ -281,13 +316,13 @@ export default function ContractorInvoiceViewPage({ params }: { params: Promise<
                             <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-semibold">{qty}</td>
                             <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right">{item.rate?.toFixed(2)}</td>
                             <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-medium">{fullBasePrice.toFixed(2)}</td>
-                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right whitespace-nowrap">{(item.gstRate && item.gstRate <= 28 && item.gstRate > 0) ? item.gstRate : 18}%</td>
-                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right whitespace-nowrap">{item.percentageApplied}%</td>
-                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right">{item.baseAmount?.toFixed(2)}</td>
-                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-medium text-emerald-800">{item.gstAmount?.toFixed(2)}</td>
-                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-bold">{item.totalAmount?.toFixed(2)}</td>
+                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right whitespace-nowrap">{gstRate}%</td>
+                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right whitespace-nowrap">{stagePct}%</td>
+                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-medium">{taxableBase.toFixed(2)}</td>
+                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-medium text-emerald-800">{gst100Amount.toFixed(2)}</td>
+                            <td className="border border-slate-400 px-1 py-1 md:px-3 md:py-2 text-right font-bold">{lineTotal.toFixed(2)}</td>
                           </tr>
-                        )
+                        );
                       })}
                     </React.Fragment>
                   ));
@@ -298,17 +333,20 @@ export default function ContractorInvoiceViewPage({ params }: { params: Promise<
 
           {/* Totals */}
           <div className="flex justify-end mb-16">
-            <div className="w-[320px]">
-              <div className="grid grid-cols-[140px_1fr] gap-y-1 text-sm font-medium">
-                <div className="text-slate-800">Taxable Base ({invoice.stage || '100%'})</div>
-                <div className="border border-slate-400 px-3 py-1 text-right">{invoice.totalBaseAmount?.toFixed(2)}</div>
+            <div className="w-[340px]">
+              <div className="grid grid-cols-[160px_1fr] gap-y-1 text-sm font-medium">
+                <div className="text-slate-800">Base Price (100%)</div>
+                <div className="border border-slate-400 px-3 py-1 text-right">{calculatedTotals.totalFullBase.toFixed(2)}</div>
                 
                 <div className="text-slate-800">GST (100% of Base)</div>
-                <div className="border border-slate-400 px-3 py-1 text-right font-medium text-emerald-800">{invoice.totalGstAmount?.toFixed(2)}</div>
+                <div className="border border-slate-400 px-3 py-1 text-right font-medium text-emerald-800">{calculatedTotals.totalGst100.toFixed(2)}</div>
+
+                <div className="text-slate-900 font-semibold">Taxable Base (Base + GST)</div>
+                <div className="border border-slate-400 px-3 py-1 text-right font-semibold">{calculatedTotals.totalTaxableBase.toFixed(2)}</div>
                 
-                <div className="text-slate-900 font-bold mt-1">Total Due</div>
+                <div className="text-slate-900 font-bold mt-1">Total Due ({invoice.stage || '90%'})</div>
                 <div className="border border-slate-400 px-3 py-1 text-right font-bold bg-slate-100 mt-1">
-                  {invoice.grandTotal?.toFixed(2)}
+                  {calculatedTotals.totalFinalDue.toFixed(2)}
                 </div>
               </div>
             </div>

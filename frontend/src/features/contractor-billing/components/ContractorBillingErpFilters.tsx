@@ -240,7 +240,7 @@ export const ContractorBillingErpFilters: React.FC<ContractorBillingErpFiltersPr
               : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
           }`}
         >
-          <span>Contractor Bill (Supply)</span>
+          <span>Contractor Bill</span>
           <span className={`px-1.5 py-0.2 rounded-full text-[11px] font-bold ${
             filters.presetView === 'CONTRACTOR_BILL'
               ? 'bg-white/20 text-white'
@@ -435,7 +435,7 @@ export const ContractorBillingErpFilters: React.FC<ContractorBillingErpFiltersPr
                   className="w-full h-9 px-3 bg-white border border-slate-200 rounded-lg text-xs font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 >
                   <option value="ALL">All Categories</option>
-                  <option value="Contractor Bill">Contractor Bill (Supply)</option>
+                  <option value="Contractor Bill">Contractor Bill</option>
                   <option value="Erection Bill">Erection Bill</option>
                 </select>
               </div>

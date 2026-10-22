@@ -232,9 +232,14 @@ export default function LegacyBulkUpload() {
             baseAmount = Number((fullBaseAmt * (stagePercentage / 100)).toFixed(2));
           }
 
-          // GST calculation: Strictly 18% calculated on 100% of Base Price (NOT reduced by stage percentage)
+          // GST calculation: Strictly 18% calculated on 100% of Base Price
           const gstRate = 18;
           const gstAmount = Number((fullBaseAmt * 0.18).toFixed(2));
+          // Rule: Taxable Base = Base Price + GST (100%)
+          const taxableBase = Number((fullBaseAmt + gstAmount).toFixed(2));
+          // Total Amount = Stage % of Taxable Base
+          const stageMultiplier = stagePercentage === 100 ? 1 : (stagePercentage / 100);
+          const totalAmount = Number((taxableBase * stageMultiplier).toFixed(2));
 
           items.push({
             itemId: masterItem._id,
@@ -245,12 +250,12 @@ export default function LegacyBulkUpload() {
             erectedQty: erectedQty,
             rate: baseRate,
             gstRate,
-            baseAmount,
+            baseAmount: taxableBase,
             gstAmount,
-            totalAmount: Number((baseAmount + gstAmount).toFixed(2)),
+            totalAmount,
             legacyData: {
               unit: unitIdx !== -1 ? String(row[unitIdx] || '') : undefined,
-              finalBillAmount: baseAmount,
+              finalBillAmount: taxableBase,
               raBillNo: raBillNoIdx !== -1 ? String(row[raBillNoIdx] || '') : undefined,
               loaSerialNo: loaNo
             },

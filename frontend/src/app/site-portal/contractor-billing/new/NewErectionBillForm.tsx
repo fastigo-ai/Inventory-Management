@@ -625,9 +625,9 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
                           {items.map((item, idx) => {
                             const fullBase = item.erectedQty * item.rate;
                             const pct = stage ? (parseInt(stage) || 100) : 100;
-                            const baseAmt = fullBase * (pct / 100);
                             const gstAmt = fullBase * ((item.gstRate || 18) / 100);
-                            const amount = baseAmt + gstAmt;
+                            const taxableBase = fullBase + gstAmt;
+                            const amount = taxableBase * (pct / 100);
                             return (
                               <tr key={idx} className="bg-white hover:bg-slate-50/50 transition-colors">
                                 <td className="px-4 py-3 text-slate-600 font-medium">{item.activity}</td>

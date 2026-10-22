@@ -10,9 +10,9 @@ async function recalculateHistoricalBills() {
 
   const col = mongoose.connection.db!.collection('contractorinvoices');
 
-  // Find all Erection Bills (and any Contractor Bills that have rates)
-  const invoices = await col.find({ billingCategory: 'Erection Bill' }).toArray();
-  console.log(`Found ${invoices.length} Erection Bill(s) to recalculate.`);
+  // Find all Contractor and Erection Bills that have line items
+  const invoices = await col.find({}).toArray();
+  console.log(`Found ${invoices.length} bill(s) to recalculate.`);
 
   let updatedCount = 0;
 
@@ -25,6 +25,7 @@ async function recalculateHistoricalBills() {
 
     let totalBaseAmount = 0;
     let totalGstAmount = 0;
+    let totalGrandAmount = 0;
 
     const updatedLineItems = (inv.lineItems || []).map((item: any) => {
       const qty = Number(item.erectedQty > 0 ? item.erectedQty : (item.jmcDoneQty || 0));
@@ -35,13 +36,8 @@ async function recalculateHistoricalBills() {
       
       // Fallback if rate or qty wasn't set but baseAmount exists
       if (fullBasePrice <= 0 && Number(item.baseAmount) > 0) {
-        fullBasePrice = Number((Number(item.baseAmount) / (stagePct / 100)).toFixed(2));
+        fullBasePrice = Number(item.baseAmount);
       }
-
-      // Taxable Base = Base Price * Stage %
-      const baseAmount = stagePct === 100 
-        ? fullBasePrice 
-        : Number((fullBasePrice * (stagePct / 100)).toFixed(2));
 
       // Resolve GST Rate % (handle historical decimal like 0.18 -> 18)
       let rawGst = Number(item.gstRate !== undefined ? item.gstRate : 18);
@@ -55,11 +51,15 @@ async function recalculateHistoricalBills() {
       // GST Amount = 100% of Base Price * (GST % / 100)
       const gstAmount = Number((fullBasePrice * (gstRate / 100)).toFixed(2));
       
-      // Total Amount = Taxable Base + GST Amount
-      const totalAmount = Number((baseAmount + gstAmount).toFixed(2));
+      // Rule: Taxable Base = Base Price + GST (100%)
+      const baseAmount = Number((fullBasePrice + gstAmount).toFixed(2));
+
+      // Rule: Total Amount = Stage % of Taxable Base
+      const totalAmount = Number((baseAmount * (stagePct / 100)).toFixed(2));
 
       totalBaseAmount += baseAmount;
       totalGstAmount += gstAmount;
+      totalGrandAmount += totalAmount;
 
       return {
         ...item,
@@ -74,7 +74,7 @@ async function recalculateHistoricalBills() {
 
     totalBaseAmount = Number(totalBaseAmount.toFixed(2));
     totalGstAmount = Number(totalGstAmount.toFixed(2));
-    const grandTotal = Number((totalBaseAmount + totalGstAmount).toFixed(2));
+    const grandTotal = Number(totalGrandAmount.toFixed(2));
 
     await col.updateOne(
       { _id: inv._id },

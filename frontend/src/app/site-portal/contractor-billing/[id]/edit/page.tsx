@@ -483,6 +483,7 @@ export default function EditContractorBill({ params }: { params: Promise<{ id: s
   const billCalculations = useMemo(() => {
     let subtotalTaxable = 0;
     let totalGst = 0;
+    let grandTotal = 0;
 
     const rowDetails = lineItems.map((item) => {
       const qty = globalCategory === 'JMC Done' ? Number(item.jmcDoneQty || 0) : Number(item.erectedQty || 0);
@@ -491,20 +492,22 @@ export default function EditContractorBill({ params }: { params: Promise<{ id: s
 
       const fullBaseAmt = (qty > 0 && rate > 0) ? (qty * rate) : Number(item.baseAmount || 0);
 
-      const baseAmt = (isNonPercent || percentage === 100)
-        ? fullBaseAmt 
-        : (fullBaseAmt * (percentage / 100));
+      // Rule: GST is 100% of Base Price * GST%
+      const gstAmt = Number((fullBaseAmt * (gstRate / 100)).toFixed(2));
+      // Rule: Taxable Base = Base Price + GST (100%)
+      const taxableBase = Number((fullBaseAmt + gstAmt).toFixed(2));
 
-      // Rule: GST is always 100% of the total amount, NOT reduced by stage percentage (e.g. 90%)
-      const gstAmt = fullBaseAmt * (gstRate / 100);
-      const totalAmt = baseAmt + gstAmt;
+      // Rule: Total Amount = Stage % of Taxable Base (e.g. 90% of Taxable Base)
+      const stageMultiplier = (isNonPercent || percentage === 100) ? 1 : (percentage / 100);
+      const totalAmt = Number((taxableBase * stageMultiplier).toFixed(2));
 
-      subtotalTaxable += baseAmt;
+      subtotalTaxable += taxableBase;
       totalGst += gstAmt;
+      grandTotal += totalAmt;
 
       return {
         fullBaseAmt,
-        baseAmt,
+        baseAmt: taxableBase,
         gstAmt,
         totalAmt
       };
@@ -514,7 +517,7 @@ export default function EditContractorBill({ params }: { params: Promise<{ id: s
       rowDetails,
       subtotalTaxable,
       totalGst,
-      grandTotal: subtotalTaxable + totalGst
+      grandTotal
     };
   }, [lineItems, stage, globalCategory, percentage, isNonPercent]);
 
@@ -1107,8 +1110,8 @@ export default function EditContractorBill({ params }: { params: Promise<{ id: s
                 <FileCheck className="w-4 h-4 text-emerald-600" />
                 Calculation Rules & Verification
               </h4>
-              <p>• Taxable Base Amount is calculated at <strong>{stage}</strong> release of (Billed Qty × Unit Rate).</p>
-              <p>• GST is charged at the specified item rate (standard 18%) on the taxable base value.</p>
+              <p>• Taxable Base Amount is calculated as (Base Price + 100% GST).</p>
+              <p>• Grand Total Due is calculated at <strong>{stage}</strong> release of the Taxable Base.</p>
               <p>• Changes made here update the official RA bill ledger, contractor ledgers, and site audit logs.</p>
             </div>
 

@@ -388,7 +388,7 @@ export default function ContractorBillingDashboard() {
       {analytics && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
           <div className="bg-white p-4.5 rounded-xl shadow-xs border border-slate-200 hover:border-slate-300 transition-all">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Contractor Bill (Supply)</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Contractor Bill</h3>
             <p className="text-2xl font-bold text-slate-900 mt-1.5 tracking-tight">
               ₹ {(
                 analytics.contractorBillAmount ?? 
@@ -597,7 +597,7 @@ export default function ContractorBillingDashboard() {
                                     ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' 
                                     : 'bg-blue-50 text-blue-700 border border-blue-200'
                                 }`}>
-                                  {isErection ? 'Erection' : 'Supply'}
+                                  {isErection ? 'Erection' : 'Contractor'}
                                 </span>
                               </div>
                             </td>

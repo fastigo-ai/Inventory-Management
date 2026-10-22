@@ -88,6 +88,7 @@ export const createInvoiceService = async (data: any, user: any) => {
 
   let totalBaseAmount = 0;
   let totalGstAmount = 0;
+  let totalGrandAmount = 0;
 
   let percentage = 100;
   if (stage !== 'Amount' && stage !== 'Advance' && stage !== 'Adhoc') {
@@ -128,34 +129,32 @@ export const createInvoiceService = async (data: any, user: any) => {
 
     const itemRate = Number(item.rate || 0);
 
-    // Full 100% work/material base value
+    // Full 100% work/material base value (Base Price)
     let fullBaseAmount = 0;
     if (stage === 'Amount' || stage === 'Advance' || stage === 'Adhoc') {
       fullBaseAmount = Number(item.baseAmount !== undefined && Number(item.baseAmount) > 0 ? item.baseAmount : (authoritativeQty * itemRate));
     } else if (authoritativeQty > 0 && itemRate > 0) {
       fullBaseAmount = authoritativeQty * itemRate;
     } else if (item.baseAmount !== undefined && Number(item.baseAmount) > 0) {
-      // If baseAmount was directly provided (e.g. from Excel upload)
-      fullBaseAmount = percentage > 0 && percentage < 100
-        ? Number(item.baseAmount) / (percentage / 100)
-        : Number(item.baseAmount);
-    }
-
-    // Payable base amount at stage percentage
-    let baseAmount = 0;
-    if (stage === 'Amount' || stage === 'Advance' || stage === 'Adhoc' || percentage === 100) {
-      baseAmount = fullBaseAmount;
-    } else {
-      baseAmount = fullBaseAmount * (percentage / 100);
+      fullBaseAmount = Number(item.baseAmount);
     }
 
     // Critical Rule: GST rate is strictly 18% for contractor and erection bills, calculated on 100% of Base Price
     const gstRate = 18;
     const gstAmount = Number((fullBaseAmount * (gstRate / 100)).toFixed(2));
-    const totalAmount = Number((baseAmount + gstAmount).toFixed(2));
+    
+    // Rule: Taxable Base = Base Price + GST (100%)
+    const taxableBase = Number((fullBaseAmount + gstAmount).toFixed(2));
 
-    totalBaseAmount += baseAmount;
+    // Rule: Total Amount = Stage % of Taxable Base (e.g. 90% of Taxable Base)
+    const stageMultiplier = (stage === 'Amount' || stage === 'Advance' || stage === 'Adhoc' || percentage === 100)
+      ? 1
+      : (percentage / 100);
+    const totalAmount = Number((taxableBase * stageMultiplier).toFixed(2));
+
+    totalBaseAmount += taxableBase;
     totalGstAmount += gstAmount;
+    totalGrandAmount += totalAmount;
 
     const loaSerialNo = String(item.loaSerialNo || item.loaSrNo || item.legacyData?.loaSerialNo || '').trim();
     const tempCode = String(item.tempCode || item.tc || '').trim();
@@ -173,7 +172,7 @@ export const createInvoiceService = async (data: any, user: any) => {
       erectedQty: Number(item.erectedQty || authoritativeQty || 0),
       rate: itemRate,
       percentageApplied: percentage,
-      baseAmount,
+      baseAmount: taxableBase,
       gstRate,
       gstAmount,
       totalAmount,
@@ -195,9 +194,9 @@ export const createInvoiceService = async (data: any, user: any) => {
     if (shouldUpdate && isSameContractor && isEditable) {
       // Re-upload or explicit update for same contractor: update existing invoice seamlessly
       existingInvoice.lineItems = processedItems;
-      existingInvoice.totalBaseAmount = totalBaseAmount;
-      existingInvoice.totalGstAmount = totalGstAmount;
-      existingInvoice.grandTotal = totalBaseAmount + totalGstAmount;
+      existingInvoice.totalBaseAmount = Number(totalBaseAmount.toFixed(2));
+      existingInvoice.totalGstAmount = Number(totalGstAmount.toFixed(2));
+      existingInvoice.grandTotal = Number(totalGrandAmount.toFixed(2));
       existingInvoice.stage = stage;
       existingInvoice.drawingNumber = drawingNumber !== undefined ? drawingNumber : existingInvoice.drawingNumber;
       existingInvoice.supplyRaBillNo = supplyRaBillNo || existingInvoice.supplyRaBillNo;
@@ -227,9 +226,9 @@ export const createInvoiceService = async (data: any, user: any) => {
     handoverCertificateId,
     supplyBasis,
     lineItems: processedItems,
-    totalBaseAmount,
-    totalGstAmount,
-    grandTotal: totalBaseAmount + totalGstAmount,
+    totalBaseAmount: Number(totalBaseAmount.toFixed(2)),
+    totalGstAmount: Number(totalGstAmount.toFixed(2)),
+    grandTotal: Number(totalGrandAmount.toFixed(2)),
     jmcDocUrl,
     signedBillDocUrl,
     drawingNumber,
@@ -275,6 +274,7 @@ export const updateInvoiceService = async (id: string, data: any, user: any) => 
 
   let totalBaseAmount = 0;
   let totalGstAmount = 0;
+  let totalGrandAmount = 0;
 
   let percentage = 100;
   if (stage !== 'Amount' && stage !== 'Advance' && stage !== 'Adhoc') {
@@ -313,34 +313,32 @@ export const updateInvoiceService = async (id: string, data: any, user: any) => 
 
     const itemRate = Number(item.rate || 0);
 
-    // Full 100% work/material base value
+    // Full 100% work/material base value (Base Price)
     let fullBaseAmount = 0;
     if (stage === 'Amount' || stage === 'Advance' || stage === 'Adhoc') {
       fullBaseAmount = Number(item.baseAmount !== undefined && Number(item.baseAmount) > 0 ? item.baseAmount : (authoritativeQty * itemRate));
     } else if (authoritativeQty > 0 && itemRate > 0) {
       fullBaseAmount = authoritativeQty * itemRate;
     } else if (item.baseAmount !== undefined && Number(item.baseAmount) > 0) {
-      // If baseAmount was directly provided
-      fullBaseAmount = percentage > 0 && percentage < 100
-        ? Number(item.baseAmount) / (percentage / 100)
-        : Number(item.baseAmount);
-    }
-
-    // Payable base amount at stage percentage
-    let baseAmount = 0;
-    if (stage === 'Amount' || stage === 'Advance' || stage === 'Adhoc' || percentage === 100) {
-      baseAmount = fullBaseAmount;
-    } else {
-      baseAmount = fullBaseAmount * (percentage / 100);
+      fullBaseAmount = Number(item.baseAmount);
     }
 
     // Critical Rule: GST rate is strictly 18% for contractor and erection bills, calculated on 100% of Base Price
     const gstRate = 18;
     const gstAmount = Number((fullBaseAmount * (gstRate / 100)).toFixed(2));
-    const totalAmount = Number((baseAmount + gstAmount).toFixed(2));
+    
+    // Rule: Taxable Base = Base Price + GST (100%)
+    const taxableBase = Number((fullBaseAmount + gstAmount).toFixed(2));
 
-    totalBaseAmount += baseAmount;
+    // Rule: Total Amount = Stage % of Taxable Base (e.g. 90% of Taxable Base)
+    const stageMultiplier = (stage === 'Amount' || stage === 'Advance' || stage === 'Adhoc' || percentage === 100)
+      ? 1
+      : (percentage / 100);
+    const totalAmount = Number((taxableBase * stageMultiplier).toFixed(2));
+
+    totalBaseAmount += taxableBase;
     totalGstAmount += gstAmount;
+    totalGrandAmount += totalAmount;
 
     const loaSerialNo = String(item.loaSerialNo || item.loaSrNo || item.legacyData?.loaSerialNo || '').trim();
     const tempCode = String(item.tempCode || item.tc || '').trim();
@@ -358,7 +356,7 @@ export const updateInvoiceService = async (id: string, data: any, user: any) => 
       erectedQty: (invoice.jmcIds && invoice.jmcIds.length > 0 && percentage !== 100) ? authoritativeQty : (invoice.mhrovId ? authoritativeQty : Number(item.erectedQty || (item.billingCategory === 'Erection' ? authoritativeQty : 0))),
       rate: itemRate,
       percentageApplied: percentage,
-      baseAmount,
+      baseAmount: taxableBase,
       gstRate,
       gstAmount,
       totalAmount,
@@ -373,9 +371,9 @@ export const updateInvoiceService = async (id: string, data: any, user: any) => 
   invoice.stage = stage;
   if (supplyBasis) invoice.supplyBasis = supplyBasis;
   invoice.lineItems = processedItems;
-  invoice.totalBaseAmount = totalBaseAmount;
-  invoice.totalGstAmount = totalGstAmount;
-  invoice.grandTotal = totalBaseAmount + totalGstAmount;
+  invoice.totalBaseAmount = Number(totalBaseAmount.toFixed(2));
+  invoice.totalGstAmount = Number(totalGstAmount.toFixed(2));
+  invoice.grandTotal = Number(totalGrandAmount.toFixed(2));
   if (jmcDocUrl !== undefined) invoice.jmcDocUrl = jmcDocUrl;
   if (signedBillDocUrl !== undefined) invoice.signedBillDocUrl = signedBillDocUrl;
   if (drawingNumber !== undefined) invoice.drawingNumber = drawingNumber;

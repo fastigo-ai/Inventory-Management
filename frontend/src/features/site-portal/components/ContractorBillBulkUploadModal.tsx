@@ -776,7 +776,7 @@ export function ContractorBillBulkUploadModal({ open, onOpenChange, onSuccess }:
                 onChange={(e) => setSelectedCategory(e.target.value as any)}
                 disabled={loading}
               >
-                <option value="Contractor Bill">Contractor Bill (Supply)</option>
+                <option value="Contractor Bill">Contractor Bill</option>
                 <option value="Erection Bill">Erection Bill (Services)</option>
               </select>
             </div>

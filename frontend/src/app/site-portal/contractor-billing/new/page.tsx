@@ -808,12 +808,14 @@ export default function NewContractorBill() {
                         const percentage = isNonPercent ? 100 : (parseInt(stage) || 0);
                         const qty = globalCategory === 'JMC Done' ? (item.jmcDoneQty || 0) : (item.erectedQty || 0);
                         const fullBaseAmt = (qty > 0 && item.rate > 0) ? (qty * item.rate) : Number(item.baseAmount || 0);
-                        const baseAmt = isNonPercent || percentage === 100 ? fullBaseAmt : fullBaseAmt * (percentage / 100);
                         
                         // Rule: GST is strictly 18% of the total 100% Base Price
                         const gstRate = 18;
                         const gstAmt = fullBaseAmt * (gstRate / 100);
-                        const totalAmt = baseAmt + gstAmt;
+                        // Rule: Taxable Base = Base Price + GST (100%), Total = Stage % of Taxable Base
+                        const taxableBase = fullBaseAmt + gstAmt;
+                        const stageMultiplier = isNonPercent || percentage === 100 ? 1 : (percentage / 100);
+                        const totalAmt = taxableBase * stageMultiplier;
                         
                         return `₹${totalAmt.toFixed(2)}`;
                       })()}
@@ -845,10 +847,11 @@ export default function NewContractorBill() {
                         const percentage = isNonPercent ? 100 : (parseInt(stage) || 0);
                         const qty = globalCategory === 'JMC Done' ? (item.jmcDoneQty || 0) : (item.erectedQty || 0);
                         const fullBaseAmt = (qty > 0 && item.rate > 0) ? (qty * item.rate) : Number(item.baseAmount || 0);
-                        const baseAmt = isNonPercent || percentage === 100 ? fullBaseAmt : fullBaseAmt * (percentage / 100);
                         const gstRate = item.gstRate !== undefined ? item.gstRate : 18;
                         const gstAmt = fullBaseAmt * (gstRate / 100);
-                        return acc + baseAmt + gstAmt;
+                        const taxableBase = fullBaseAmt + gstAmt;
+                        const stageMultiplier = isNonPercent || percentage === 100 ? 1 : (percentage / 100);
+                        return acc + (taxableBase * stageMultiplier);
                       }, 0).toFixed(2)}
                     </td>
                     <td></td>

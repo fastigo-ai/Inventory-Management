@@ -259,18 +259,18 @@ const MODS_MIS = [
 
 const SUBS = [
   { id: 'item', m: 'm1', name: 'Item Master', cols: [['unit', 'Unit', 'text'], ['rate', 'LOA Supply Rate with GST (₹)', 'money'], ['stock', 'Available stock', 'stock']] },
-  { id: 'po', m: 'm1', name: 'Purchase Order (PO)', cols: [['no', 'PO no.', 'code'], ['date', 'PO date', 'date'], ['qty', 'PO qty', 'qty'], ['val', 'PO value (₹)', 'money'], ['status', 'PO status', 'status']] },
-  { id: 'di', m: 'm1', name: 'Dispatch Instruction (DI)', cols: [['no', 'DI no.', 'code'], ['qty', 'Dispatched qty', 'qty'], ['date', 'DI date', 'date']] },
-  { id: 'pi', m: 'm1', name: 'Purchase Invoice (PI)', cols: [['no', 'Invoice no.', 'code'], ['qty', 'Invoice qty', 'qty'], ['amt', 'Invoice amount (₹)', 'money'], ['status', 'Payment', 'status']] },
+  { id: 'po', m: 'm1', name: 'Purchase Order (PO)', cols: [['no', 'PO no.', 'code'], ['date', 'PO date', 'date'], ['qty', 'PO qty', 'qty'], ['val', 'PO value (₹)', 'money']] },
+  { id: 'di', m: 'm1', name: 'Dispatch Instruction (DI)', cols: [['qty', 'Dispatched qty', 'qty']] },
+  { id: 'pi', m: 'm1', name: 'Purchase Invoice (PI)', cols: [['qty', 'Invoice qty', 'qty'], ['amt', 'Invoice amount (₹)', 'money'], ['status', 'Payment', 'status']] },
   { id: 'store', m: 'm2', name: 'Store Master', cols: [['depot', 'Depot', 'text'], ['reorder', 'Reorder level', 'qty']] },
   { id: 'receipt', m: 'm2', name: 'Store Receipt', cols: [['no', 'GRN no.', 'code'], ['qty', 'Received qty', 'qty']] },
-  { id: 'inward', m: 'm2', name: 'Store Inward', cols: [['qty', 'Inward qty', 'qty'], ['date', 'Inward date', 'date']] },
+  { id: 'inward', m: 'm2', name: 'Store Inward', cols: [['qty', 'Inward qty', 'qty']] },
   { id: 'min', m: 'm2', name: 'Material Issue Note', cols: [['no', 'MIN no.', 'code'], ['qty', 'Issued qty', 'qty']] },
   { id: 'cret', m: 'm2', name: 'Contractor Return', cols: [['qty', 'Returned qty', 'qty']] },
   { id: 'outward', m: 'm2', name: 'Outward Register', cols: [['qty', 'Outward qty', 'qty']] },
   { id: 'inter', m: 'm2', name: 'Inter Transfer', cols: [['qty', 'Transfer qty', 'qty'], ['route', 'Route', 'text']] },
   { id: 'wo', m: 'm3', name: 'Work Order (WO) Creation', cols: [['no', 'WO no.', 'code'], ['val', 'WO value (₹)', 'money'], ['qty', 'WO qty', 'qty']] },
-  { id: 'dn', m: 'm3', name: 'Demand Note', cols: [['no', 'DN no.', 'code'], ['qty', 'Demand qty', 'qty']] },
+  { id: 'dn', m: 'm3', name: 'Demand Note', cols: [['qty', 'Demand qty', 'qty']] },
   { id: 'mrhov', m: 'm3', name: 'MRHOV', cols: [['qty', 'MRHOV qty', 'qty'], ['status', 'MRHOV status', 'status']] },
   { id: 'cbill', m: 'm4', name: 'Client Billing', cols: [['ra', 'RA bill', 'code'], ['amt', 'RA amount (₹)', 'money']] },
   { id: 'kbill', m: 'm4', name: 'Contractor Billing', cols: [['amt', 'Payable (₹)', 'money'], ['status', 'Payment', 'status']] },
@@ -311,13 +311,12 @@ const STATIC = [
   { id: 'loa', label: 'LOA qty', type: 'qty', isSticky: true, defaultW: 90, cls: 'sticky z-10' },
   { id: 'bom', label: 'BOM qty', type: 'qty', isSticky: true, defaultW: 90, cls: 'sticky z-10 border-r-2 border-slate-400' },
   { id: 'pkg', label: 'Package', type: 'text', cls: '' },
-  { id: 'circle', label: 'Circle', type: 'text', cls: '' },
-  { id: 'flags', label: 'Flags', type: 'flags', cls: '' }
+  { id: 'circle', label: 'Circle', type: 'text', cls: '' }
 ];
 
 const VIEWS = [
-  { id: 'overview', name: 'CEO overview', sel: ['item', 'po', 'wo', 'cbill'], keep: ['item.stock', 'po.val', 'po.status', 'wo.qty', 'cbill.amt'] },
-  { id: 'money', name: 'Money: orders & billing', sel: ['po', 'pi', 'cbill', 'kbill'], keep: ['po.val', 'po.status', 'pi.amt', 'pi.status', 'cbill.amt', 'kbill.amt', 'kbill.status'] },
+  { id: 'overview', name: 'CEO overview', sel: ['item', 'po', 'wo', 'cbill'], keep: ['item.stock', 'po.val', 'wo.qty', 'cbill.amt'] },
+  { id: 'money', name: 'Money: orders & billing', sel: ['po', 'pi', 'cbill', 'kbill'], keep: ['po.val', 'pi.amt', 'pi.status', 'cbill.amt', 'kbill.amt', 'kbill.status'] },
   { id: 'stock', name: 'Stock position', sel: ['item', 'receipt', 'min', 'outward'], keep: ['item.unit', 'item.stock', 'receipt.qty', 'min.qty', 'outward.qty'] },
   { id: 'site', name: 'Site progress', sel: ['wo', 'dn', 'mrhov'], keep: null },
   { id: 'all', name: 'Everything', sel: SUBS.map(s => s.id), keep: null }

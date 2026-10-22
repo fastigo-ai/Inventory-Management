@@ -150,8 +150,30 @@ async function computeStoreItemisedSummaryInner(params: {
   }
 
   // 1. Determine Item Filter Variants (Indexed)
+  // When store is a subcircle (e.g. Kumarhatti), resolve its parent circle so items tagged
+  // with the parent circle are correctly included in the results.
   let itemLocVariants: string[] = [];
-  if (circle && circle !== 'all' && circle !== 'All Circles') {
+  const resolveItemCircles = (target: string): string[] => {
+    const norm = normalizeCircle(target);
+    const exp = expandCircle(norm || target) || [target];
+    const results: string[] = [];
+    exp.forEach(e => results.push(...getVariants(e)));
+    // Also include the subcircle itself in variants
+    results.push(...getVariants(target));
+    return results;
+  };
+
+  if (store && store !== 'all' && store !== '') {
+    // Store filter specified — include parent circle variants to catch items tagged with parent
+    itemLocVariants = resolveItemCircles(store);
+    if (circle && circle !== 'all' && circle !== 'All Circles') {
+      const circleArr = circle.includes(',') ? circle.split(',').map(c => c.trim()).filter(Boolean) : [circle];
+      circleArr.forEach(c => {
+        const exp = expandCircle(c) || [c];
+        exp.forEach(e => itemLocVariants.push(...getVariants(e)));
+      });
+    }
+  } else if (circle && circle !== 'all' && circle !== 'All Circles') {
     const circleArr = circle.includes(',') ? circle.split(',').map(c => c.trim()).filter(Boolean) : [circle];
     circleArr.forEach(c => {
       const exp = expandCircle(c) || [c];
@@ -267,7 +289,7 @@ async function computeStoreItemisedSummaryInner(params: {
     });
 
     // Match conditions for transactions
-    const inwardFilter: any = {};
+    const inwardFilter: any = { status: { $ne: 'Voided' } };
     const assignFilter: any = { status: { $ne: 'Cancelled' } };
     const returnFilter: any = { status: { $nin: ['Cancelled', 'CANCELLED'] } };
     const transferOutFilter: any = { status: { $nin: ['Cancelled', 'REJECTED', 'CANCELLED'] } };
@@ -276,18 +298,22 @@ async function computeStoreItemisedSummaryInner(params: {
     const mhrovFilter: any = {};
 
     if (transLocRegex) {
+      // Use both regex and $in for robustness (trailing spaces, casing edge cases)
       inwardFilter.$or = [
         { circle: transLocRegex },
         { subcircle: transLocRegex },
         { billingFrom: transLocRegex },
-        { store: transLocRegex }
+        { circle: { $in: transLocVariants } },
+        { subcircle: { $in: transLocVariants } }
       ];
       assignFilter.$or = [
         { location: transLocRegex },
         { circle: transLocRegex },
         { subcircle: transLocRegex },
         { division: transLocRegex },
-        { 'lineItems.circle': transLocRegex }
+        { 'lineItems.circle': transLocRegex },
+        { circle: { $in: transLocVariants } },
+        { subcircle: { $in: transLocVariants } }
       ];
       returnFilter.$or = [
         { store: transLocRegex },
@@ -295,10 +321,18 @@ async function computeStoreItemisedSummaryInner(params: {
         { location: transLocRegex },
         { subcircle: transLocRegex },
         { division: transLocRegex },
-        { 'lineItems.circle': transLocRegex }
+        { 'lineItems.circle': transLocRegex },
+        { circle: { $in: transLocVariants } },
+        { subcircle: { $in: transLocVariants } }
       ];
-      transferOutFilter.fromStore = transLocRegex;
-      transferInFilter.toStore = transLocRegex;
+      transferOutFilter.$or = [
+        { fromStore: transLocRegex },
+        { fromStore: { $in: transLocVariants } }
+      ];
+      transferInFilter.$or = [
+        { toStore: transLocRegex },
+        { toStore: { $in: transLocVariants } }
+      ];
     }
 
     if (itemLocVariants.length > 0) {
@@ -382,7 +416,8 @@ async function computeStoreItemisedSummaryInner(params: {
       const qty = Number(doc.totalQty || (doc as any).invoiceQty || (doc as any).acceptedQty || (doc as any).receivedQty || 0);
       const temp = String(doc.tempCode || '').trim();
       const name = String(doc.itemName || (doc as any).name || (doc as any).description || '').trim().toLowerCase();
-      const docCircle = (doc as any).circle || (doc as any).store || (doc as any).subcircle;
+      // Prefer subcircle for more specific location resolution (e.g. Kumarhatti over Solan)
+      const docCircle = (doc as any).subcircle || (doc as any).circle || (doc as any).store;
 
       const grp = findGroup(idStr, temp, name, docCircle);
       if (grp) grp.receiptQty += qty;
@@ -603,7 +638,7 @@ async function computeStoreItemisedSummaryInner(params: {
       return null;
     };
 
-    const inwardFilter: any = {};
+    const inwardFilter: any = { status: { $ne: 'Voided' } };
     const assignFilter: any = { status: { $ne: 'Cancelled' } };
     const returnFilter: any = { status: { $nin: ['Cancelled', 'CANCELLED'] } };
     const transferOutFilter: any = { status: { $nin: ['Cancelled', 'REJECTED', 'CANCELLED'] } };
@@ -612,18 +647,22 @@ async function computeStoreItemisedSummaryInner(params: {
     const mhrovFilter: any = {};
 
     if (transLocRegex) {
+      // Use both regex and $in for robustness (trailing spaces, casing edge cases)
       inwardFilter.$or = [
         { circle: transLocRegex },
         { subcircle: transLocRegex },
         { billingFrom: transLocRegex },
-        { store: transLocRegex }
+        { circle: { $in: transLocVariants } },
+        { subcircle: { $in: transLocVariants } }
       ];
       assignFilter.$or = [
         { location: transLocRegex },
         { circle: transLocRegex },
         { subcircle: transLocRegex },
         { division: transLocRegex },
-        { 'lineItems.circle': transLocRegex }
+        { 'lineItems.circle': transLocRegex },
+        { circle: { $in: transLocVariants } },
+        { subcircle: { $in: transLocVariants } }
       ];
       returnFilter.$or = [
         { store: transLocRegex },
@@ -631,10 +670,18 @@ async function computeStoreItemisedSummaryInner(params: {
         { location: transLocRegex },
         { subcircle: transLocRegex },
         { division: transLocRegex },
-        { 'lineItems.circle': transLocRegex }
+        { 'lineItems.circle': transLocRegex },
+        { circle: { $in: transLocVariants } },
+        { subcircle: { $in: transLocVariants } }
       ];
-      transferOutFilter.fromStore = transLocRegex;
-      transferInFilter.toStore = transLocRegex;
+      transferOutFilter.$or = [
+        { fromStore: transLocRegex },
+        { fromStore: { $in: transLocVariants } }
+      ];
+      transferInFilter.$or = [
+        { toStore: transLocRegex },
+        { toStore: { $in: transLocVariants } }
+      ];
     }
 
     if (itemLocVariants.length > 0) {
@@ -678,7 +725,8 @@ async function computeStoreItemisedSummaryInner(params: {
     inwards.forEach(doc => {
       const idStr = doc.itemId ? doc.itemId.toString() : null;
       const qty = Number(doc.totalQty || (doc as any).invoiceQty || (doc as any).acceptedQty || (doc as any).receivedQty || 0);
-      const docCircle = (doc as any).circle || (doc as any).store || (doc as any).subcircle;
+      // Prefer subcircle for more specific location resolution (e.g. Kumarhatti over Solan)
+      const docCircle = (doc as any).subcircle || (doc as any).circle || (doc as any).store;
       const row = findLoaItem(idStr, doc.tempCode, (doc as any).loaSerialNo, docCircle);
       if (row) {
         row.receiptQty += qty;

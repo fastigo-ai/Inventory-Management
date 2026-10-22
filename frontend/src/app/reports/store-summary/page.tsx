@@ -50,13 +50,15 @@ export default function StoreSummaryPage() {
   };
 
   let initialCircle = isStoreManager ? (user?.assignedCircle || '') : '';
-  let initialStore = isStoreManager ? (user?.assignedSubcircle || '') : '';
+  // Default store to empty so Circle Store summary shows the complete circle inventory receipts
+  let initialStore = '';
 
-  if (isStoreManager && !initialCircle && initialStore) {
-    if (['Nalagarh', 'Kumarhatti', 'Solan'].includes(initialStore)) initialCircle = 'Solan';
-    else if (initialStore === 'Nahan') initialCircle = 'Nahan';
-    else if (initialStore === 'Rohru') initialCircle = 'Rohru';
-    else if (initialStore === 'Rampur') initialCircle = 'Rampur';
+  if (isStoreManager && !initialCircle && (user?.assignedSubcircle || '')) {
+    const assignedSub = user?.assignedSubcircle || '';
+    if (['Nalagarh', 'Kumarhatti', 'Solan'].includes(assignedSub)) initialCircle = 'Solan';
+    else if (assignedSub === 'Nahan') initialCircle = 'Nahan';
+    else if (assignedSub === 'Rohru') initialCircle = 'Rohru';
+    else if (assignedSub === 'Rampur') initialCircle = 'Rampur';
   }
 
   const initialPkg = isStoreManager && initialCircle ? getDefaultPackage(initialCircle) : '';
@@ -654,8 +656,7 @@ export default function StoreSummaryPage() {
                 <select
                   value={store}
                   onChange={(e) => setStore(e.target.value)}
-                  disabled={isStoreManager}
-                  className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer pr-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer pr-1"
                 >
                   <option value="">All Stores</option>
                   {(circle === 'Solan' 

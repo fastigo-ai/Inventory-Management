@@ -23,6 +23,7 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useUrlFilters } from '@/shared/hooks/useUrlFilters';
+import { useSearchParams } from 'next/navigation';
 
 // Custom debounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -49,19 +50,38 @@ export default function StoreSummaryPage() {
     return '';
   };
 
-  let initialCircle = isStoreManager ? (user?.assignedCircle || '') : '';
-  // Default store to empty so Circle Store summary shows the complete circle inventory receipts
+  const searchParams = useSearchParams();
+  const urlCircle = searchParams?.get('circle') || '';
+  const urlStore = searchParams?.get('store') || '';
+
+  let initialCircle = '';
   let initialStore = '';
 
-  if (isStoreManager && !initialCircle && (user?.assignedSubcircle || '')) {
-    const assignedSub = user?.assignedSubcircle || '';
-    if (['Nalagarh', 'Kumarhatti', 'Solan'].includes(assignedSub)) initialCircle = 'Solan';
-    else if (assignedSub === 'Nahan') initialCircle = 'Nahan';
-    else if (assignedSub === 'Rohru') initialCircle = 'Rohru';
-    else if (assignedSub === 'Rampur') initialCircle = 'Rampur';
+  if (isStoreManager) {
+    const rawCircle = user?.assignedCircle || '';
+    const rawSub = (user as any)?.assignedSubcircle || '';
+    
+    if (['Nalagarh', 'Kumarhatti'].includes(rawSub) || ['Nalagarh', 'Kumarhatti'].includes(rawCircle)) {
+      initialCircle = 'Solan';
+      initialStore = rawSub || rawCircle;
+    } else if (rawCircle.toLowerCase() === 'solan') {
+      initialCircle = 'Solan';
+      initialStore = rawSub || '';
+    } else if (rawCircle || rawSub) {
+      initialCircle = rawCircle || rawSub;
+      initialStore = rawSub || '';
+    }
+  } else {
+    if (['Nalagarh', 'Kumarhatti'].includes(urlCircle)) {
+      initialCircle = 'Solan';
+      initialStore = urlCircle;
+    } else {
+      initialCircle = urlCircle;
+      initialStore = urlStore;
+    }
   }
 
-  const initialPkg = isStoreManager && initialCircle ? getDefaultPackage(initialCircle) : '';
+  const initialPkg = initialCircle ? getDefaultPackage(initialCircle) : '';
 
   const [data, setData] = useState<any[]>([]);
   const [totals, setTotals] = useState<any>({
@@ -172,6 +192,14 @@ export default function StoreSummaryPage() {
       setCircle('Rohru');
     }
   }, [store]);
+
+  // If circle was mistakenly set to a subcircle, normalize circle to Solan and store to the subcircle
+  useEffect(() => {
+    if (circle === 'Nalagarh' || circle === 'Kumarhatti') {
+      setStore(circle);
+      setCircle('Solan');
+    }
+  }, [circle]);
 
   // Auto-set Package based on Circle
   useEffect(() => {

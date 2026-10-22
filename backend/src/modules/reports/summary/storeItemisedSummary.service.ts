@@ -176,8 +176,13 @@ async function computeStoreItemisedSummaryInner(params: {
   } else if (circle && circle !== 'all' && circle !== 'All Circles') {
     const circleArr = circle.includes(',') ? circle.split(',').map(c => c.trim()).filter(Boolean) : [circle];
     circleArr.forEach(c => {
-      const exp = expandCircle(c) || [c];
+      // Normalize subcircle to parent circle first (e.g. 'Nalagarh' → 'Solan')
+      // so items tagged with the parent circle are correctly included
+      const parentCircle = normalizeCircle(c);
+      const exp = expandCircle(parentCircle || c) || [c];
       exp.forEach(e => itemLocVariants.push(...getVariants(e)));
+      // Also include the original subcircle variants in case items are tagged directly
+      itemLocVariants.push(...getVariants(c));
     });
   } else if (pkg && pkg !== 'all' && pkg !== 'All Packages') {
     if (pkg.includes('Package 1')) {

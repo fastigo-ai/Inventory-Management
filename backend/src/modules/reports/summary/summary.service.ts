@@ -48,16 +48,29 @@ interface UpdateSummaryParams {
   session?: ClientSession;
 }
 
+export const getCirclePackage = (circ?: string, fallbackPkg?: string): string => {
+  const c = (circ || '').toLowerCase();
+  if (c.includes('nahan') || c.includes('solan') || c.includes('kumarhatti') || c.includes('nalagarh')) {
+    return 'Package 1(S/N)';
+  }
+  if (c.includes('rampur') || c.includes('rohru')) {
+    return 'Package 2(R/R)';
+  }
+  return fallbackPkg || '';
+};
+
 /**
- * Normalizes package names to a canonical form to prevent duplicates due to spacing.
- * e.g. "Package 1 (S/N)" -> "Package 1(S/N)", "package 2 (r/r)" -> "Package 2(R/R)"
+ * Normalizes package names to a canonical form to prevent duplicates due to spacing or hyphenation.
+ * e.g. "Package 1 (S/N)" -> "Package 1(S/N)", "Package-1(S/N)" -> "Package 1(S/N)", "package 2 (r/r)" -> "Package 2(R/R)"
  */
-const normalizePkg = (pkg: string): string => {
+const normalizePkg = (pkg: string, circ?: string): string => {
+  if (circ) {
+    const canonical = getCirclePackage(circ, '');
+    if (canonical) return canonical;
+  }
   if (!pkg) return '';
-  // Remove spaces before opening parenthesis, trim, normalize case
   let normalized = pkg.trim().replace(/\s+\(/g, '(').replace(/\(\s+/g, '(').replace(/\s+\)/g, ')');
-  // Capitalize "Package N(X/Y)" pattern
-  normalized = normalized.replace(/^package\s+(\d+)\((.+)\)$/i, (_, n, inner) =>
+  normalized = normalized.replace(/^package\s*[-_]?\s*(\d+)\s*\((.+)\)$/i, (_, n, inner) =>
     `Package ${n}(${inner.toUpperCase()})`
   );
   return normalized;
@@ -84,8 +97,8 @@ export class SummaryService {
     const { itemId, circle, increments, session, companyId, warehouseId } = params;
     
     // In JS/TS 'package' is a reserved keyword, so we alias it carefully
-    let pkg = normalizePkg(params.package || '');
     let circ = normalizeCircle(circle || '');
+    let pkg = normalizePkg(params.package || '', circ);
 
     // Remove undefined increments
     const incObj: any = {};
@@ -123,6 +136,10 @@ export class SummaryService {
       if (item.dynamicData.sku) loaSerialNo = item.dynamicData.sku;
       if (item.dynamicData.tempCode) tempCode = item.dynamicData.tempCode;
 
+      if (!circ) {
+        circ = normalizeCircle(item.dynamicData.circle || '');
+      }
+
       // Force to master item dimensions to prevent transactions from creating phantom circles
       // Only do this if we are not explicitly migrating multi-circle LOA/BOM inside rebuildForItem
       // To keep it simple, we just check if the passed circle matches any valid circle on the item.
@@ -138,14 +155,11 @@ export class SummaryService {
 
       // If the transaction's circle isn't valid for this item, force it to the item's primary master circle
       if (circ && !validCircles.includes(circ.toLowerCase())) {
-        circ = item.dynamicData.circle || circ;
-        if (circ.toLowerCase().includes('package')) {
-          pkg = circ;
-          circ = '';
-        } else {
-          pkg = item.dynamicData.package || pkg;
-        }
+        circ = normalizeCircle(item.dynamicData.circle || circ);
       }
+
+      // Always guarantee canonical package for the circle so duplicate records with empty package are never created
+      pkg = getCirclePackage(circ, normalizePkg(pkg, circ) || normalizePkg(item.dynamicData.package, circ));
     }
 
     const filter: Record<string, any> = {
@@ -707,7 +721,7 @@ export class SummaryService {
       const totalAggregation = await ItemSummary.aggregate([
         { $match: filter },
         { $group: { 
-            _id: { itemName: "$itemName", circle: "$circle", package: "$package" },
+            _id: { itemId: "$itemId", circle: "$circle" },
             loaQty: { $sum: "$loaQty" },
             bomQty: { $sum: "$bomQty" },
             diQty: { $sum: "$diQty" },
@@ -811,7 +825,8 @@ export class SummaryService {
       const basePipeline: any[] = [
         { $match: filter },
         { $group: {
-            _id: { itemId: "$itemId", circle: "$circle", package: "$package" },
+            _id: { itemId: "$itemId", circle: "$circle" },
+            package: { $first: "$package" },
             itemName: { $first: "$itemName" },
             itemId: { $first: "$itemId" },
             loaSerialNo: { $first: "$loaSerialNo" },
@@ -873,7 +888,7 @@ export class SummaryService {
           circle: "$_id.circle",
           package: {
             $let: {
-              vars: { c: { $toLower: { $ifNull: ["$_id.circle", ""] } }, p: { $ifNull: ["$_id.package", ""] } },
+              vars: { c: { $toLower: { $ifNull: ["$_id.circle", ""] } }, p: { $ifNull: ["$package", ""] } },
               in: {
                 $cond: [
                   { $and: [{ $ne: ["$$p", ""] }, { $ne: ["$$p", "-"] }, { $ne: ["$$p", "Unknown"] }] },

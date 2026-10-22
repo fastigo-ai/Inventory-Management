@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Download, ChevronLeft, ChevronRight, Search, X, SlidersHorizontal, ArrowUpRight, 
   CheckCircle2, AlertTriangle, XCircle, Info, CheckSquare, Settings2, Columns, 
-  RotateCcw, Sigma, FileSpreadsheet, FileText
+  RotateCcw, Sigma, FileSpreadsheet, FileText, RefreshCw
 } from 'lucide-react';
 import { fetchCeoDashboardData } from '@/features/ceo-portal/api/dashboard.api';
 import { api } from '@/shared/api/axios';
@@ -261,7 +261,7 @@ const SUBS = [
   { id: 'item', m: 'm1', name: 'Item Master', cols: [['unit', 'Unit', 'text'], ['rate', 'LOA Supply Rate with GST (₹)', 'money'], ['stock', 'Available stock', 'stock']] },
   { id: 'po', m: 'm1', name: 'Purchase Order (PO)', cols: [['no', 'PO no.', 'code'], ['date', 'PO date', 'date'], ['qty', 'PO qty', 'qty'], ['val', 'PO value (₹)', 'money']] },
   { id: 'di', m: 'm1', name: 'Dispatch Instruction (DI)', cols: [['qty', 'Dispatched qty', 'qty']] },
-  { id: 'pi', m: 'm1', name: 'Purchase Invoice (PI)', cols: [['qty', 'Invoice qty', 'qty'], ['amt', 'Invoice amount (₹)', 'money'], ['status', 'Payment', 'status']] },
+  { id: 'pi', m: 'm1', name: 'Purchase Invoice (PI)', cols: [['qty', 'Invoice qty', 'qty'], ['amt', 'Invoice amount (₹)', 'money']] },
   { id: 'store', m: 'm2', name: 'Store Master', cols: [['depot', 'Depot', 'text'], ['reorder', 'Reorder level', 'qty']] },
   { id: 'receipt', m: 'm2', name: 'Store Receipt', cols: [['no', 'GRN no.', 'code'], ['qty', 'Received qty', 'qty']] },
   { id: 'inward', m: 'm2', name: 'Store Inward', cols: [['qty', 'Inward qty', 'qty']] },
@@ -271,9 +271,9 @@ const SUBS = [
   { id: 'inter', m: 'm2', name: 'Inter Transfer', cols: [['qty', 'Transfer qty', 'qty'], ['route', 'Route', 'text']] },
   { id: 'wo', m: 'm3', name: 'Work Order (WO) Creation', cols: [['no', 'WO no.', 'code'], ['val', 'WO value (₹)', 'money'], ['qty', 'WO qty', 'qty']] },
   { id: 'dn', m: 'm3', name: 'Demand Note', cols: [['qty', 'Demand qty', 'qty']] },
-  { id: 'mrhov', m: 'm3', name: 'MRHOV', cols: [['qty', 'MRHOV qty', 'qty'], ['status', 'MRHOV status', 'status']] },
+  { id: 'mrhov', m: 'm3', name: 'MRHOV', cols: [['qty', 'MRHOV qty', 'qty']] },
   { id: 'cbill', m: 'm4', name: 'Client Billing', cols: [['ra', 'RA bill', 'code'], ['amt', 'RA amount (₹)', 'money']] },
-  { id: 'kbill', m: 'm4', name: 'Contractor Billing', cols: [['amt', 'Payable (₹)', 'money'], ['status', 'Payment', 'status']] },
+  { id: 'kbill', m: 'm4', name: 'Contractor Billing', cols: [['amt', 'Payable (₹)', 'money']] },
   { id: 'mis_s', m: 'm5', name: 'Store MIS', cols: [['di', 'DI qty', 'qty'], ['mrhov', 'MRHOV qty', 'qty'], ['issued', 'Issued qty', 'qty'], ['balStore', 'Balance at store', 'qty']] },
   { id: 'mis_c', m: 'm6', name: 'Contractor MIS', cols: [['contractors', 'Contractor(s)', 'text'], ['dn', 'Demand Notes', 'qty'], ['jmc', 'JMC qty', 'qty'], ['wipC', 'WIP Consumed', 'qty'], ['wipR', 'WIP Required', 'qty'], ['issued', 'Store Issued', 'qty'], ['balCont', 'Balance at contractor', 'qty']] },
   { id: 'mis_v', m: 'm7', name: 'Vendor MIS', cols: [['vendors', 'Vendor(s)', 'text'], ['poQty', 'PO qty', 'qty'], ['diQty', 'DI qty', 'qty'], ['invQty', 'Invoice qty', 'qty'], ['mrhovQty', 'MRHOV qty', 'qty']] },
@@ -316,7 +316,7 @@ const STATIC = [
 
 const VIEWS = [
   { id: 'overview', name: 'CEO overview', sel: ['item', 'po', 'wo', 'cbill'], keep: ['item.stock', 'po.val', 'wo.qty', 'cbill.amt'] },
-  { id: 'money', name: 'Money: orders & billing', sel: ['po', 'pi', 'cbill', 'kbill'], keep: ['po.val', 'pi.amt', 'pi.status', 'cbill.amt', 'kbill.amt', 'kbill.status'] },
+  { id: 'money', name: 'Money: orders & billing', sel: ['po', 'pi', 'cbill', 'kbill'], keep: ['po.val', 'pi.amt', 'cbill.amt', 'kbill.amt'] },
   { id: 'stock', name: 'Stock position', sel: ['item', 'receipt', 'min', 'outward'], keep: ['item.unit', 'item.stock', 'receipt.qty', 'min.qty', 'outward.qty'] },
   { id: 'site', name: 'Site progress', sel: ['wo', 'dn', 'mrhov'], keep: null },
   { id: 'all', name: 'Everything', sel: SUBS.map(s => s.id), keep: null }
@@ -379,39 +379,88 @@ export default function OperationsHub() {
     workflow: {} as any
   });
 
-  useEffect(() => {
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const loadItems = async (refresh = false) => {
     setItemsLoading(true);
-    api.get('/reports/item-summary', { params: { limit: 50000 } })
-      .then(res => {
-        if (res.data?.data?.items) {
-          const dbItems = res.data.data.items.map((d: any) => {
-            const activityLabel = d.activity ? String(d.activity).trim() : 'Uncategorized';
-            return [
-              d.itemName || 'Unknown', 
-              activityLabel, 
-              d.package || 'Unknown', 
-              d.circle || 'Unknown', 
-              d.unit || 'Nos', 
-              d.rate || 0, 
-              0, // loa is calculated in build()
-              0, // bom is calculated in build()
-              d.tempCode || '',
-              d
-            ];
-          });
-          setItems(dbItems.map(build));
-        } else {
-          setItems(BASE.map(build));
-        }
-      })
-      .catch((err) => {
-        console.error('API FETCH ERROR:', err);
+    try {
+      const res = await api.get('/reports/item-summary', { params: { limit: 50000, ...(refresh ? { refresh: 'true' } : {}) } });
+      if (res.data?.data?.items) {
+        const dbItems = res.data.data.items.map((d: any) => {
+          const activityLabel = d.activity ? String(d.activity).trim() : 'Uncategorized';
+          return [
+            d.itemName || 'Unknown', 
+            activityLabel, 
+            d.package || 'Unknown', 
+            d.circle || 'Unknown', 
+            d.unit || 'Nos', 
+            d.rate || 0, 
+            0, // loa is calculated in build()
+            0, // bom is calculated in build()
+            d.tempCode || '',
+            d
+          ];
+        });
+        setItems(dbItems.map(build));
+      } else {
         setItems(BASE.map(build));
-      })
-      .finally(() => {
-        setItemsLoading(false);
-      });
+      }
+    } catch (err) {
+      console.error('API FETCH ERROR:', err);
+      setItems(BASE.map(build));
+    } finally {
+      setItemsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadItems(false);
   }, []);
+
+  const handleRefreshLive = async () => {
+    setIsRefreshing(true);
+    try {
+      await loadItems(true);
+      const filters: any = {};
+      if (f.circle !== 'All') filters.circle = f.circle;
+      if (f.circle === 'Solan' && f.subCircle !== 'All') filters.subCircle = f.subCircle;
+      if (f.pkg !== 'All') filters.package = f.pkg;
+      
+      const res: any = await fetchCeoDashboardData(filters);
+      setApiKpis({
+        piCount: res?.kpis?.piCount || 0,
+        val: res?.kpis?.piValue || 0,
+        qty: res?.kpis?.piQty || 0,
+        availableStock: res?.kpis?.physicalStock || 0,
+        totalInwardQty: res?.kpis?.totalInwardQty || 0,
+        totalTransferInQty: res?.kpis?.totalTransferInQty || 0,
+        totalTransferOutQty: res?.kpis?.totalTransferOutQty || 0,
+        transitDetails: res?.kpis?.transitDetails || [],
+        materialIssued: res?.kpis?.materialIssued || 0,
+        woCount: res?.kpis?.woCount || 0,
+        totalWoValue: res?.kpis?.totalWoValueRaw !== undefined ? res?.kpis?.totalWoValueRaw : ((res?.kpis?.totalWoValue || 0) * 1e7),
+        supplyBilled: res?.kpis?.supplyBilledRaw !== undefined ? res?.kpis?.supplyBilledRaw : ((res?.kpis?.supplyBilled || 0) * 1e7),
+        erectionBilled: res?.kpis?.erectionBilledRaw !== undefined ? res?.kpis?.erectionBilledRaw : ((res?.kpis?.erectionBilled || 0) * 1e7),
+        retentionBilled: res?.kpis?.retentionBilledRaw !== undefined ? res?.kpis?.retentionBilledRaw : ((res?.kpis?.retentionBilled || 0) * 1e7),
+        supplyCount: res?.kpis?.supplyCount || 0,
+        erectionCount: res?.kpis?.erectionCount || 0,
+        retentionCount: res?.kpis?.retentionCount || 0,
+        totalBillingCount: res?.kpis?.totalBillingCount || (res?.kpis?.supplyCount || 0) + (res?.kpis?.erectionCount || 0),
+        supplyBaseAmount: res?.kpis?.supplyBaseAmount || 0,
+        supplyGstAmount: res?.kpis?.supplyGstAmount || 0,
+        erectionBaseAmount: res?.kpis?.erectionBaseAmount || 0,
+        erectionGstAmount: res?.kpis?.erectionGstAmount || 0,
+        billingCircles: res?.kpis?.billingCircles || [],
+        poPending: res?.kpis?.poPending || 0,
+        poCleared: res?.kpis?.poCleared || 0,
+        workflow: res?.workflow || {}
+      });
+    } catch (e) {
+      console.error('Error refreshing live data:', e);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -584,9 +633,227 @@ export default function OperationsHub() {
     return offset;
   };
 
+  // Aggregate filtered items Temp Code wise
+  const aggregatedItems = useMemo(() => {
+    const map = new Map<string, any>();
+
+    for (const it of filteredItems) {
+      const tc = String(it.code || '').trim();
+      if (!tc) continue;
+
+      const key = tc;
+
+      if (!map.has(key)) {
+        map.set(key, {
+          ...it,
+          uid: `tc-${tc}`,
+          code: tc,
+          name: it.name,
+          cat: it.cat || 'Other',
+          pkg: it.pkg,
+          circle: it.circle,
+          subcircle: it.subcircle || '',
+          unit: it.unit || 'Nos',
+          rate: it.rate || 0,
+          loa: 0,
+          bom: 0,
+          stock: 0,
+          circlesSet: new Set<string>([it.circle].filter(Boolean)),
+          pkgsSet: new Set<string>([it.pkg].filter(Boolean)),
+          allContractors: new Set<string>(Array.isArray(it.contractors) ? it.contractors : []),
+          allVendors: new Set<string>(),
+          contractorBreakdown: {} as Record<string, number>,
+          _poQty: 0, _poVal: 0,
+          _diQty: 0,
+          _invQty: 0, _piAmt: 0,
+          _receivedQty: 0,
+          _issuedQty: 0,
+          _returnedQty: 0,
+          _outwardQty: 0,
+          _interQty: 0,
+          _woQty: 0, _woVal: 0,
+          _demandQty: 0,
+          _mhrovQty: 0,
+          _cbillAmt: 0,
+          _kbillAmt: 0,
+          _jmcQty: 0,
+          _wipCQty: 0,
+          _wipRQty: 0,
+          _ra60Qty: 0, _ra60Amt: 0,
+          _ra30Qty: 0, _ra30Amt: 0,
+          _ra10Qty: 0, _ra10Amt: 0,
+          _er90Qty: 0, _er90Amt: 0,
+          _er10Qty: 0, _er10Amt: 0,
+          _cBillQty: 0, _cBillAmt: 0,
+          _itemCount: 0
+        });
+      }
+
+      const grp = map.get(key)!;
+      grp._itemCount++;
+      if (it.circle) grp.circlesSet.add(it.circle);
+      if (it.pkg) grp.pkgsSet.add(it.pkg);
+      if (Array.isArray(it.contractors)) {
+        it.contractors.forEach((c: string) => { if (c) grp.allContractors.add(c); });
+      }
+      if (it.d?.mis_v?.vendors && it.d.mis_v.vendors !== 'N/A') {
+        it.d.mis_v.vendors.split(',').forEach((v: string) => { if (v.trim()) grp.allVendors.add(v.trim()); });
+      }
+
+      if (it.contractorBreakdown) {
+        for (const [cName, cQty] of Object.entries(it.contractorBreakdown)) {
+          grp.contractorBreakdown[cName] = (grp.contractorBreakdown[cName] || 0) + Number(cQty || 0);
+        }
+      }
+
+      if ((it.rate || 0) > grp.rate) grp.rate = it.rate;
+
+      grp.loa += Number(it.loa || 0);
+      grp.bom += Number(it.bom || 0);
+
+      const d = it.d || {};
+      grp._poQty += Number(d.po?.qty || 0);
+      grp._poVal += Number(d.po?.val || 0);
+      grp._diQty += Number(d.di?.qty || 0);
+      grp._invQty += Number(d.pi?.qty || d.inward?.qty || 0);
+      grp._piAmt += Number(d.pi?.amt || 0);
+      grp._receivedQty += Number(d.receipt?.qty || 0);
+      grp._issuedQty += Number(d.min?.qty || d.mis_s?.issued || 0);
+      grp._returnedQty += Number(d.cret?.qty || 0);
+      grp._outwardQty += Number(d.outward?.qty || 0);
+      grp._interQty += Number(d.inter?.qty || 0);
+      grp._woQty += Number(d.wo?.qty || 0);
+      grp._woVal += Number(d.wo?.val || 0);
+      grp._demandQty += Number(d.dn?.qty || d.mis_c?.dn || 0);
+      grp._mhrovQty += Number(d.mrhov?.qty || d.mis_s?.mrhov || 0);
+      grp._cbillAmt += Number(d.cbill?.amt || 0);
+      grp._kbillAmt += Number(d.kbill?.amt || 0);
+      grp._jmcQty += Number(d.mis_c?.jmc || 0);
+      grp._wipCQty += Number(d.mis_c?.wipC || 0);
+      grp._wipRQty += Number(d.mis_c?.wipR || 0);
+
+      grp._ra60Qty += Number(d.mis_b_c_s?.ra60Qty || 0);
+      grp._ra60Amt += Number(d.mis_b_c_s?.ra60Amt || 0);
+      grp._ra30Qty += Number(d.mis_b_c_s?.ra30Qty || 0);
+      grp._ra30Amt += Number(d.mis_b_c_s?.ra30Amt || 0);
+      grp._ra10Qty += Number(d.mis_b_c_s?.ra10Qty || 0);
+      grp._ra10Amt += Number(d.mis_b_c_s?.ra10Amt || 0);
+
+      grp._er90Qty += Number(d.mis_b_c_e?.er90Qty || 0);
+      grp._er90Amt += Number(d.mis_b_c_e?.er90Amt || 0);
+      grp._er10Qty += Number(d.mis_b_c_e?.er10Qty || 0);
+      grp._er10Amt += Number(d.mis_b_c_e?.er10Amt || 0);
+
+      grp._cBillQty += Number(d.mis_b_cont?.cBillQty || 0);
+      grp._cBillAmt += Number(d.mis_b_cont?.cBillAmt || 0);
+    }
+
+    const aggregatedList = Array.from(map.values()).map(grp => {
+      const stock = Math.max(0, grp._invQty - grp._issuedQty + grp._returnedQty);
+      grp.stock = stock;
+
+      const circlesArr = Array.from(grp.circlesSet as Set<string>);
+      if (f.circle !== 'All') {
+        grp.circle = f.circle;
+      } else {
+        grp.circle = circlesArr.length === 1 ? circlesArr[0] : (circlesArr.length > 0 ? circlesArr.join(', ') : 'All Circles');
+      }
+
+      const pkgsArr = Array.from(grp.pkgsSet as Set<string>);
+      grp.pkg = pkgsArr.length === 1 ? pkgsArr[0] : (pkgsArr.length > 0 ? pkgsArr.join(', ') : 'All Packages');
+
+      const contractorList = Array.from(grp.allContractors as Set<string>);
+      grp.contractors = contractorList;
+      const contractorStr = contractorList.length > 0 ? contractorList.join(', ') : '—';
+
+      const vendorList = Array.from(grp.allVendors as Set<string>);
+      const vendorStr = vendorList.length > 0 ? vendorList.join(', ') : 'N/A';
+
+      const poVal = grp._poVal || (grp._poQty * grp.rate);
+      const woVal = grp._woVal || (grp._woQty * grp.rate);
+
+      grp.d = {
+        item: { unit: grp.unit, rate: grp.rate, loa: grp.loa, stock },
+        po: grp._poQty > 0 ? { no: '—', date: grp.date, qty: grp._poQty, val: poVal, status: 'Active' } : null,
+        di: grp._diQty > 0 ? { no: '—', qty: grp._diQty, date: grp.date } : null,
+        pi: grp._invQty > 0 ? { no: '—', qty: grp._invQty, amt: grp._piAmt || (grp._invQty * grp.rate), status: 'Posted' } : null,
+        store: { depot: grp.circle ? `${grp.circle} Central` : 'Central Depot', reorder: Math.round(grp.loa * 0.15) },
+        receipt: { no: '—', qty: grp._receivedQty || grp._invQty },
+        inward: { qty: grp._invQty, date: grp.date },
+        min: { no: '—', qty: grp._issuedQty },
+        cret: { qty: grp._returnedQty },
+        outward: { qty: grp._outwardQty },
+        inter: { qty: grp._interQty, route: '—' },
+        wo: { no: '—', val: woVal, qty: grp._woQty },
+        dn: { no: '—', qty: grp._demandQty > 0 ? grp._demandQty : grp._issuedQty },
+        mrhov: { qty: grp._mhrovQty, status: grp._mhrovQty > 0 ? 'Done' : 'Pending' },
+        cbill: { amt: grp._cbillAmt || ((grp._ra60Qty + grp._ra30Qty + grp._ra10Qty) * grp.rate), ra: '—' },
+        kbill: { amt: grp._kbillAmt || grp._cBillAmt, status: 'Processed' },
+        mis_s: { di: grp._diQty, mrhov: grp._mhrovQty, issued: grp._issuedQty, balStore: stock },
+        mis_c: {
+          contractors: contractorStr,
+          dn: grp._demandQty > 0 ? grp._demandQty : grp._issuedQty,
+          jmc: grp._jmcQty,
+          wipC: grp._wipCQty,
+          wipR: Math.max(0, Math.round((grp.loa - grp._wipCQty) * 1000) / 1000),
+          issued: grp._issuedQty,
+          balCont: Math.max(0, Math.round((grp._issuedQty - grp._wipCQty - grp._returnedQty) * 1000) / 1000)
+        },
+        mis_v: {
+          vendors: vendorStr,
+          poQty: grp._poQty,
+          diQty: grp._diQty,
+          invQty: grp._invQty,
+          mrhovQty: grp._mhrovQty
+        },
+        mis_b_c_s: {
+          diQty: grp._diQty,
+          mrhovQty: grp._mhrovQty,
+          ra60Qty: grp._ra60Qty,
+          ra60Amt: grp._ra60Amt || (grp._ra60Qty * grp.rate),
+          ra30Qty: grp._ra30Qty,
+          ra30Amt: grp._ra30Amt || (grp._ra30Qty * grp.rate),
+          ra10Qty: grp._ra10Qty,
+          ra10Amt: grp._ra10Amt || (grp._ra10Qty * grp.rate)
+        },
+        mis_b_c_e: {
+          diQty: grp._diQty,
+          mrhovQty: grp._mhrovQty,
+          er90Qty: grp._er90Qty,
+          er90Amt: grp._er90Amt || (grp._er90Qty * grp.rate),
+          er10Qty: grp._er10Qty,
+          er10Amt: grp._er10Amt || (grp._er10Qty * grp.rate)
+        },
+        mis_b_cont: {
+          issuedQty: grp._issuedQty,
+          jmcQty: grp._jmcQty,
+          cBillQty: grp._cBillQty,
+          cBillAmt: grp._cBillAmt || (grp._cBillQty * grp.rate)
+        }
+      };
+
+      return grp;
+    });
+
+    // Sort numerically by temp code
+    aggregatedList.sort((a, b) => {
+      const numA = parseInt(String(a.code || '').replace(/\D/g, ''), 10) || 0;
+      const numB = parseInt(String(b.code || '').replace(/\D/g, ''), 10) || 0;
+      if (numA !== numB) return numA - numB;
+      return String(a.code || '').localeCompare(String(b.code || ''));
+    });
+
+    // Assign sequential Sr. No.
+    aggregatedList.forEach((it, idx) => {
+      it.sr = idx + 1;
+    });
+
+    return aggregatedList;
+  }, [filteredItems, f.circle]);
+
   const sortedRows = useMemo(() => {
     const query = q.trim().toLowerCase();
-    let rows = filteredItems;
+    let rows = aggregatedItems;
     if (query) {
       rows = rows.filter(it => curCols.some(c => {
         const v = raw(c, it);
@@ -598,12 +865,20 @@ export default function OperationsHub() {
       let x = raw(sc, a); let y = raw(sc, b);
       if (x === null || x === undefined) x = -Infinity;
       if (y === null || y === undefined) y = -Infinity;
+      if (sc.id === 'sr' || sc.id === 'code') {
+        const numA = parseInt(String(x).replace(/\D/g, ''), 10) || 0;
+        const numB = parseInt(String(y).replace(/\D/g, ''), 10) || 0;
+        if (numA !== numB) return (numA - numB) * sort.dir;
+      }
+      if (typeof x === 'number' && typeof y === 'number') {
+        return (x - y) * sort.dir;
+      }
       if (x !== -Infinity && y !== -Infinity) {
         return String(x).localeCompare(String(y), undefined, { numeric: true }) * sort.dir;
       }
       return (x < y ? -1 : x > y ? 1 : 0) * sort.dir;
     });
-  }, [filteredItems, curCols, q, sort]);
+  }, [aggregatedItems, curCols, q, sort]);
 
   const groupedRows = useMemo(() => {
     if (viewType === 'item') return null;
@@ -666,8 +941,8 @@ export default function OperationsHub() {
 
   const selectedItemsList = useMemo(() => {
     if (selectedIds.size === 0) return [];
-    return items.filter(it => selectedIds.has(it.uid || it.code));
-  }, [items, selectedIds]);
+    return aggregatedItems.filter(it => selectedIds.has(it.uid || it.code));
+  }, [aggregatedItems, selectedIds]);
 
   const selectedTotals = useMemo(() => {
     if (selectedItemsList.length === 0) return null;
@@ -1110,6 +1385,17 @@ export default function OperationsHub() {
               <p className="text-sm text-slate-500 mt-1">High-level telemetry and stock breakdown across all locations.</p>
             </div>
           </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleRefreshLive}
+              disabled={isRefreshing || itemsLoading}
+              className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all disabled:opacity-60 cursor-pointer active:scale-95"
+              title="Bypass server cache and fetch live real-time data"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {isRefreshing ? 'Syncing Live...' : 'Sync Live Data'}
+            </button>
+          </div>
         </div>
 
         {showSummary && (
@@ -1135,20 +1421,20 @@ export default function OperationsHub() {
           ) : [
             { 
               t: 'Total Purchase Invoices', 
-              v: apiKpis.piCount.toLocaleString(), 
+              v: (f.circle !== 'All' && grandTotals['pi.qty'] !== undefined ? sortedRows.filter(r => (r.d?.pi?.qty || 0) > 0).length : apiKpis.piCount).toLocaleString(), 
               sub: 'Invoices', 
               detailLabel: 'Total Invoiced Qty',
-              detailValue: `${inr(apiKpis.qty)} units`,
-              tag: `${inr(apiKpis.qty)} Qty`, 
+              detailValue: `${inr(f.circle !== 'All' && grandTotals['pi.qty'] !== undefined ? grandTotals['pi.qty'] : apiKpis.qty)} units`,
+              tag: `${inr(f.circle !== 'All' && grandTotals['pi.qty'] !== undefined ? grandTotals['pi.qty'] : apiKpis.qty)} Qty`, 
               color: 'text-indigo-700 bg-indigo-50', 
               ex: 'pi' 
             },
             { 
               t: 'Available Stock', 
-              v: inr(apiKpis.availableStock), 
+              v: inr(f.circle !== 'All' && grandTotals['item.stock'] !== undefined ? grandTotals['item.stock'] : apiKpis.availableStock), 
               sub: 'units in store', 
               detailLabel: 'Total Inward',
-              detailValue: `${inr(apiKpis.totalInwardQty)} units`,
+              detailValue: `${inr(f.circle !== 'All' && grandTotals['inward.qty'] !== undefined ? grandTotals['inward.qty'] : apiKpis.totalInwardQty)} units`,
               tag: low ? `${low} Low stock` : 'Healthy', 
               color: low ? 'text-red-700 bg-red-50' : 'text-emerald-700 bg-emerald-50', 
               ex: 'item' 
@@ -1158,14 +1444,14 @@ export default function OperationsHub() {
               v: apiKpis.woCount.toLocaleString(), 
               sub: 'WOs active', 
               detailLabel: 'Target Value',
-              detailValue: `₹${cr(apiKpis.totalWoValue)} Cr`,
+              detailValue: (f.circle !== 'All' && grandTotals['wo.val']) ? `₹${cr(grandTotals['wo.val'])} Cr` : `₹${cr(apiKpis.totalWoValue)} Cr`,
               tag: `${avg}% avg progress`, 
               color: 'text-blue-700 bg-blue-50', 
               ex: 'wo' 
             },
             { 
               t: 'Total RA Billing', 
-              v: `₹${cr(apiKpis.supplyBilled + apiKpis.erectionBilled + apiKpis.retentionBilled)} Cr`, 
+              v: (f.circle !== 'All' && grandTotals['cbill.amt']) ? `₹${cr(grandTotals['cbill.amt'])} Cr` : `₹${cr(apiKpis.supplyBilled + apiKpis.erectionBilled + apiKpis.retentionBilled)} Cr`, 
               sub: 'Billed Value', 
               detailLabel: 'Supply + Erection',
               detailValue: `₹${cr(apiKpis.supplyBilled)} + ₹${cr(apiKpis.erectionBilled)} Cr`,
@@ -1220,7 +1506,7 @@ export default function OperationsHub() {
           <div className="flex flex-col md:flex-row items-center gap-4 text-center md:text-left justify-between bg-slate-50 p-4 rounded-lg border border-slate-100">
             <div className="flex-1">
               <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Total Inward</div>
-              {kpiLoading ? <div className="h-6 w-16 bg-slate-200 animate-pulse rounded mx-auto md:mx-0"></div> : <div className="text-lg font-extrabold text-slate-800">{inr(apiKpis.totalInwardQty)}</div>}
+              {kpiLoading ? <div className="h-6 w-16 bg-slate-200 animate-pulse rounded mx-auto md:mx-0"></div> : <div className="text-lg font-extrabold text-slate-800">{inr(f.circle !== 'All' && grandTotals['inward.qty'] !== undefined ? grandTotals['inward.qty'] : apiKpis.totalInwardQty)}</div>}
             </div>
             <div className="text-slate-300 font-bold text-xl">+</div>
             <div className="flex-1">
@@ -1235,12 +1521,12 @@ export default function OperationsHub() {
             <div className="text-slate-300 font-bold text-xl">-</div>
             <div className="flex-1">
               <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">MIN (Issued)</div>
-              {kpiLoading ? <div className="h-6 w-16 bg-slate-200 animate-pulse rounded mx-auto md:mx-0"></div> : <div className="text-lg font-extrabold text-slate-800">{inr(apiKpis.materialIssued)}</div>}
+              {kpiLoading ? <div className="h-6 w-16 bg-slate-200 animate-pulse rounded mx-auto md:mx-0"></div> : <div className="text-lg font-extrabold text-slate-800">{inr(f.circle !== 'All' && grandTotals['min.qty'] !== undefined ? grandTotals['min.qty'] : apiKpis.materialIssued)}</div>}
             </div>
             <div className="text-slate-300 font-bold text-xl">=</div>
             <div className="flex-1 bg-emerald-50 rounded p-3 border border-emerald-100 shadow-sm">
               <div className="text-[10px] uppercase font-bold text-emerald-600 mb-1">Physical Stock</div>
-              {kpiLoading ? <div className="h-7 w-20 bg-emerald-200/60 animate-pulse rounded mx-auto md:mx-0"></div> : <div className="text-xl font-extrabold text-emerald-700">{inr(apiKpis.availableStock)}</div>}
+              {kpiLoading ? <div className="h-7 w-20 bg-emerald-200/60 animate-pulse rounded mx-auto md:mx-0"></div> : <div className="text-xl font-extrabold text-emerald-700">{inr(f.circle !== 'All' && grandTotals['item.stock'] !== undefined ? grandTotals['item.stock'] : apiKpis.availableStock)}</div>}
             </div>
           </div>
           {apiKpis.totalTransferOutQty - apiKpis.totalTransferInQty > 0 && (
@@ -1550,6 +1836,15 @@ export default function OperationsHub() {
                 <p className="text-xs text-slate-500 font-medium mt-1">High-density ERP telemetry ledger • Showing identifiers + {selSubs.length} selected topics.</p>
               </div>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={handleRefreshLive}
+                  disabled={isRefreshing || itemsLoading}
+                  className="px-2.5 py-1 text-indigo-700 hover:text-indigo-900 border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100 rounded text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-colors disabled:opacity-60 cursor-pointer active:scale-95"
+                  title="Purge cache and refresh live telemetry"
+                >
+                  <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  {isRefreshing ? 'Refreshing...' : 'Live Sync'}
+                </button>
                 <button 
                   onClick={() => { setF({ circle: 'All', subCircle: 'All', pkg: 'All', contractor: 'All', code: 'All', name: '', date: 'all', status: 'all' }); setQ(''); setPage(1); }}
                   className="px-2.5 py-1 text-slate-600 hover:text-slate-900 border border-slate-200 rounded text-xs font-semibold bg-white flex items-center gap-1 shadow-2xs hover:bg-slate-50 transition-colors"

@@ -32,8 +32,16 @@ const getCirclePackage = (circ?: string, fallbackPkg?: string): string => {
 };
 
 export const getSummaries = asyncHandler(async (req: Request, res: Response) => {
+  if (req.query.refresh === 'true' || req.query.refresh === '1') {
+    SummaryService.clearCache();
+  }
   const result = await SummaryService.fetchItemSummaries(req.query);
   res.status(200).json(new ApiResponse(200, result, 'Summaries fetched successfully'));
+});
+
+export const clearSummaryCache = asyncHandler(async (req: Request, res: Response) => {
+  SummaryService.clearCache();
+  res.status(200).json(new ApiResponse(200, null, 'Summary cache cleared successfully'));
 });
 
 

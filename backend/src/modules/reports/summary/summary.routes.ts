@@ -11,11 +11,14 @@ import {
   exportStoreItemisedSummary,
   getVendorDetails, 
   getContractorDetails, 
-  getItemDetails 
+  getItemDetails,
+  clearSummaryCache 
 } from './summary.controller';
 
 const router = Router();
 
+router.get('/clear-cache', clearSummaryCache);
+router.post('/clear-cache', clearSummaryCache);
 router.get('/item-summary', getSummaries);
 router.get('/item-matrix-summary', getItemMatrixSummary);
 router.get('/vendor-summary', getVendorSummary);

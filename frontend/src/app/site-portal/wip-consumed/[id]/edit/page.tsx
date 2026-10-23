@@ -213,12 +213,12 @@ export default function WipRegisterFormPage() {
           <div className="flex space-x-3">
             
             <Button 
-              onClick={() => handleSubmit('Approved')}
+              onClick={() => handleSubmit('Submitted')}
               disabled={submitting}
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               <Send className="w-4 h-4 mr-2" />
-              Approve WIP
+              Submit WIP
             </Button>
           </div>
         </div>

@@ -404,7 +404,7 @@ const MATRIX_CACHE_TTL = 45 * 1000; // 45 seconds
 /**
  * Shared Multi-Circle Matrix Engine matching Excel LOA/BOM summary layout
  */
-async function computeItemMatrixSummary(params: {
+export async function computeItemMatrixSummary(params: {
   package?: string | string[];
   circle?: string | string[];
   targetCircle?: string | string[];

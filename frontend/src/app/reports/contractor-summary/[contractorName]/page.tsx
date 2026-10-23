@@ -1,15 +1,19 @@
 "use client";
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, use } from 'react';
 import { api } from '@/shared/api/axios';
 import { Users, ArrowLeft, Truck, FileCheck } from 'lucide-react';
 import Link from 'next/link';
 
-export default function ContractorDetail({ params }: { params: { contractorName: string } }) {
+export default function ContractorDetail({ params }: { params: Promise<{ contractorName: string }> | { contractorName: string } }) {
+  const resolvedParams = params && typeof (params as any).then === 'function' ? use(params as Promise<{ contractorName: string }>) : (params as { contractorName: string });
+  const rawContractorName = resolvedParams?.contractorName || '';
+  const contractorName = rawContractorName ? decodeURIComponent(rawContractorName) : '';
+
   const [data, setData] = useState<{ mins: any[], invoices: any[] }>({ mins: [], invoices: [] });
   const [loading, setLoading] = useState(true);
-  const contractorName = decodeURIComponent(params.contractorName);
 
   useEffect(() => {
+    if (!contractorName) return;
     const fetchData = async () => {
       try {
         const res = await api.get(`/reports/contractor-summary/${encodeURIComponent(contractorName)}`);

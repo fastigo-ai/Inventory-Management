@@ -1,15 +1,19 @@
 "use client";
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, use } from 'react';
 import { api } from '@/shared/api/axios';
 import { Building2, ArrowLeft, FileText, Receipt } from 'lucide-react';
 import Link from 'next/link';
 
-export default function VendorDetail({ params }: { params: { vendorName: string } }) {
+export default function VendorDetail({ params }: { params: Promise<{ vendorName: string }> | { vendorName: string } }) {
+  const resolvedParams = params && typeof (params as any).then === 'function' ? use(params as Promise<{ vendorName: string }>) : (params as { vendorName: string });
+  const rawVendorName = resolvedParams?.vendorName || '';
+  const vendorName = rawVendorName ? decodeURIComponent(rawVendorName) : '';
+
   const [data, setData] = useState<{ pos: any[], invoices: any[] }>({ pos: [], invoices: [] });
   const [loading, setLoading] = useState(true);
-  const vendorName = decodeURIComponent(params.vendorName);
 
   useEffect(() => {
+    if (!vendorName) return;
     const fetchData = async () => {
       try {
         const res = await api.get(`/reports/vendor-summary/${encodeURIComponent(vendorName)}`);

@@ -687,6 +687,8 @@ function DemandNoteForm() {
     try {
 
       const data = new FormData();
+      if (formData.contractorId) data.append('contractorId', formData.contractorId);
+      if (currentWorkOrder?._id) data.append('workOrderId', currentWorkOrder._id);
       data.append('contractorName', formData.contractorName);
       data.append('division', formData.division || '');
       data.append('subDivision', formData.subDivision || '');

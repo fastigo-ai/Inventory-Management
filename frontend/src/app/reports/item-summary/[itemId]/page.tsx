@@ -1,15 +1,18 @@
 "use client";
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, use } from 'react';
 import { api } from '@/shared/api/axios';
 import { PackageOpen, ArrowLeft, FileText, Receipt, Truck } from 'lucide-react';
 import Link from 'next/link';
 
-export default function ItemDetail({ params }: { params: { itemId: string } }) {
+export default function ItemDetail({ params }: { params: Promise<{ itemId: string }> | { itemId: string } }) {
+  const resolvedParams = params && typeof (params as any).then === 'function' ? use(params as Promise<{ itemId: string }>) : (params as { itemId: string });
+  const itemId = resolvedParams?.itemId || '';
+
   const [data, setData] = useState<{ pos: any[], dis: any[], invoices: any[], mins: any[] }>({ pos: [], dis: [], invoices: [], mins: [] });
   const [loading, setLoading] = useState(true);
-  const itemId = params.itemId;
 
   useEffect(() => {
+    if (!itemId) return;
     const fetchData = async () => {
       try {
         const res = await api.get(`/reports/item-summary/${itemId}`);

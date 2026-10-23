@@ -650,6 +650,8 @@ function DemandNoteEditForm() {
     try {
 
       const submitData = new FormData();
+      if ((formData as any).contractorId) submitData.append('contractorId', (formData as any).contractorId);
+      if ((formData as any).workOrderId) submitData.append('workOrderId', (formData as any).workOrderId);
       submitData.append('contractorName', formData.contractorName);
       submitData.append('division', formData.division);
       submitData.append('subDivision', formData.subDivision);

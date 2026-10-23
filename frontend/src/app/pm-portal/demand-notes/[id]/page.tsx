@@ -437,20 +437,38 @@ export default function DemandNoteDetails() {
                 const cleanTemp = clean(item.tempCode || item.materialCode);
                 const cleanAct = clean(item.activity);
                 const cleanLoa = clean(item.loaSrNo || item.loaSerialNo);
-                const suffix = `_${cleanTemp}_${cleanAct}_${cleanLoa}`;
+                const exactKey = `${cleanTemp}_${cleanAct}_${cleanLoa}`;
                 let tillIssued = 0;
                 let consumption = 0;
                 let jmcDone = 0;
                 
                 if (activitySummary) {
-                  Object.entries(activitySummary).forEach(([key, val]: [string, any]) => {
+                  // Find the exact single matching key from activitySummary (or drawing-prefixed key) to avoid duplicate addition
+                  let targetEntry = null;
+                  for (const [key, val] of Object.entries(activitySummary)) {
                     const cleanKey = clean(key);
-                    if (cleanKey.endsWith(suffix) || (cleanAct && cleanLoa && cleanKey === `${cleanAct}_${cleanLoa}`) || (cleanAct && cleanTemp && cleanKey === `${cleanAct}_${cleanTemp}`)) {
-                      tillIssued += Number(val.tillIssued) || 0;
-                      consumption += Number(val.wipConsumed) || 0;
-                      jmcDone += Number(val.jmcDone) || 0;
+                    if (cleanKey === exactKey || cleanKey === `_${exactKey}` || cleanKey.endsWith(`_${exactKey}`)) {
+                      targetEntry = val;
+                      break;
                     }
-                  });
+                  }
+
+                  if (!targetEntry && cleanAct && cleanLoa) {
+                    const fallbackKey = `${cleanAct}_${cleanLoa}`;
+                    for (const [key, val] of Object.entries(activitySummary)) {
+                      const cleanKey = clean(key);
+                      if (cleanKey === fallbackKey) {
+                        targetEntry = val;
+                        break;
+                      }
+                    }
+                  }
+
+                  if (targetEntry) {
+                    tillIssued = Number((targetEntry as any).tillIssued) || 0;
+                    consumption = Number((targetEntry as any).wipConsumed) || 0;
+                    jmcDone = Number((targetEntry as any).jmcDone) || 0;
+                  }
                 }
 
                 if (consumption === 0 && item.wipQty) {

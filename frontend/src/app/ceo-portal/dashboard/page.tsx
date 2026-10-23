@@ -26,6 +26,10 @@ export default function CeoDashboardPage() {
   const [data, setData] = useState<any>(null);
 
   // Filters state
+  const currentYear = new Date().getFullYear();
+  const fyStartYear = new Date().getMonth() >= 3 ? currentYear : currentYear - 1;
+  const fyLabel = `FY ${fyStartYear}-${(fyStartYear + 1).toString().slice(-2)}`;
+
   const [filters, setFilters] = useState<{
     package: string[];
     circle: string[];
@@ -35,7 +39,7 @@ export default function CeoDashboardPage() {
     package: [],
     circle: [],
     subCircle: [],
-    dateRange: '01 Apr 2025 - 12 Sep 2025'
+    dateRange: 'All Time'
   });
 
   const getAvailableCircles = () => {
@@ -57,7 +61,7 @@ export default function CeoDashboardPage() {
     package: ['All Packages', 'Package 1 (S/N)', 'Package 2 (R/R)'],
     circle: getAvailableCircles(),
     subCircle: getAvailableSubCircles(),
-    dateRange: ['01 Apr 2025 - 12 Sep 2025', 'This Month', 'Last Month', 'This Year']
+    dateRange: ['All Time', fyLabel, `This Year (${currentYear})`, 'This Month', 'Last Month']
   };
 
   useEffect(() => {
@@ -80,11 +84,15 @@ export default function CeoDashboardPage() {
         const d = new Date();
         apiFilters.startDate = new Date(d.getFullYear(), d.getMonth() - 1, 1).toISOString();
         apiFilters.endDate = new Date(d.getFullYear(), d.getMonth(), 0, 23, 59, 59).toISOString();
-      } else if (filters.dateRange === 'This Year') {
+      } else if (filters.dateRange === `This Year (${currentYear})` || filters.dateRange === 'This Year') {
         const d = new Date();
         apiFilters.startDate = new Date(d.getFullYear(), 0, 1).toISOString();
         apiFilters.endDate = new Date(d.getFullYear(), 11, 31, 23, 59, 59).toISOString();
+      } else if (filters.dateRange === fyLabel) {
+        apiFilters.startDate = new Date(fyStartYear, 3, 1).toISOString(); // Apr 1
+        apiFilters.endDate = new Date(fyStartYear + 1, 2, 31, 23, 59, 59).toISOString(); // Mar 31
       }
+      // 'All Time' passes no startDate / endDate, querying cumulative project numbers
 
       const res = await fetchCeoDashboardData(apiFilters);
       setData(res);

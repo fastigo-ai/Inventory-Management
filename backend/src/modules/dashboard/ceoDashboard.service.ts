@@ -696,9 +696,21 @@ export const buildCeoDashboardSummary = async (filters: any) => {
     // Package-wise Physical & Financial
     const packagesMap: any = {};
     const initPackage = (pkgName: string) => {
-      let normPkgName = pkgName ? pkgName.trim().replace(/Package (\d)\(/i, 'Package $1 (') : 'Unknown Package';
-      if (normPkgName === 'Package 2(R/R)') normPkgName = 'Package 2 (R/R)';
-      if (normPkgName === 'Package 1(S/N)') normPkgName = 'Package 1 (S/N)';
+      let raw = (pkgName || '').trim();
+      let normPkgName = 'Package 1 (S/N)';
+      
+      // Robust normalization matching Package 1 / Package 2 regardless of hyphen, space, case
+      if (/package[\s-_]*2/i.test(raw)) {
+        normPkgName = 'Package 2 (R/R)';
+      } else if (/package[\s-_]*1/i.test(raw)) {
+        normPkgName = 'Package 1 (S/N)';
+      } else if (raw.toLowerCase().includes('rampur') || raw.toLowerCase().includes('rohru')) {
+        normPkgName = 'Package 2 (R/R)';
+      } else if (raw.toLowerCase().includes('solan') || raw.toLowerCase().includes('nahan')) {
+        normPkgName = 'Package 1 (S/N)';
+      } else {
+        normPkgName = raw || 'Package 1 (S/N)';
+      }
       
       if (!packagesMap[normPkgName]) {
         let circles: string[] = [];
@@ -724,14 +736,22 @@ export const buildCeoDashboardSummary = async (filters: any) => {
       else packagesMap[pName].pendingValue += p.totalValue;
     });
 
-    const packageStats = Object.values(packagesMap).map((p: any) => ({
-      name: p.name,
-      circles: p.circles,
-      physical: p._totalQty > 0 ? Math.round((p._jmcQty / p._totalQty) * 100) : 0,
-      financial: p._poValue > 0 ? Math.round((p.billedValue / p._poValue) * 100) : 0,
-      billedValue: Math.round((p.billedValue / 10000000) * 100) / 100,
-      pendingValue: Math.round((p.pendingValue / 10000000) * 100) / 100
-    }));
+    const packageStats = Object.values(packagesMap).map((p: any) => {
+      let finPercent = 0;
+      if (p._poValue > 0) {
+        finPercent = Math.min(100, Math.round((p.billedValue / p._poValue) * 100));
+      } else if (p.billedValue > 0) {
+        finPercent = 100;
+      }
+      return {
+        name: p.name,
+        circles: p.circles,
+        physical: p._totalQty > 0 ? Math.min(100, Math.round((p._jmcQty / p._totalQty) * 100)) : 0,
+        financial: finPercent,
+        billedValue: Math.round((p.billedValue / 10000000) * 100) / 100,
+        pendingValue: Math.round((p.pendingValue / 10000000) * 100) / 100
+      };
+    });
 
     const alerts: any[] = [];
     alerts.push({

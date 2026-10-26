@@ -624,14 +624,21 @@ export const bulkImportClientBills = asyncHandler(async (req: any, res: Response
          }
 
          // 2. Validate Item
-         let itemIdObj = allItems.find(i => 
-           (i.dynamicData?.tempCode && String(i.dynamicData.tempCode).trim().toLowerCase() === tempCode.toLowerCase()) || 
-           (i.dynamicData?.sku && String(i.dynamicData.sku).trim().toLowerCase() === loaSrNo.toLowerCase())
-         );
+         const searchTemp = tempCode.toLowerCase();
+         const searchLoa = loaSrNo.toLowerCase();
+         let itemIdObj = allItems.find(i => {
+           const d = i.dynamicData || {};
+           const iTemp = String(d.tempCode || d.itemCode || i.tempCode || '').trim().toLowerCase();
+           const iLoa = String(d.loaSerialNo || d.loaSrNo || d.sku || i.sku || '').trim().toLowerCase();
+           const iId = String(i._id).toLowerCase();
+           return (searchTemp && iTemp === searchTemp) || 
+                  (searchLoa && iLoa === searchLoa) ||
+                  (searchTemp && iId === searchTemp);
+         });
          
          if (!itemIdObj) {
             results.failed++;
-            results.errors.push({ raBillNo, reason: `Item not found in master data for LOA Sr No: ${loaSrNo}, TempCode: ${tempCode}` });
+            results.errors.push({ raBillNo, reason: `Item not found in master data for LOA Sr No: '${loaSrNo}' / TempCode: '${tempCode}'` });
             billValid = false;
             break;
          }
@@ -751,6 +758,31 @@ export const bulkImportClientBills = asyncHandler(async (req: any, res: Response
       const assignedCircle = user.assignedCircle || 'Unknown';
       const assignedPackage = user.assignedPackage || 'Unknown';
 
+      // Enforce Option 1: Explicit Linked Supply 60% Bill resolution
+      const linkedSupplyBillNo = String(firstRow.linkedsupplybillno || firstRow.linkedsupplyrabillno || firstRow.supplyrabillno || firstRow.linkedsupplybill || '').trim();
+      let linkedSupplyBillId: any = undefined;
+      
+      if (billType === 'Erection') {
+        if (!linkedSupplyBillNo) {
+          results.failed++;
+          results.errors.push({ raBillNo, reason: `Missing 'Linked Supply RA Bill No'. Erection bills must be explicitly linked to an approved Supply 60% bill to auto-trigger Supply 30%.` });
+          continue;
+        }
+
+        const foundSupply = await ClientBill.findOne({
+          raBillNo: linkedSupplyBillNo,
+          billType: 'Supply',
+          stage: '60%'
+        }).select('_id status').lean();
+
+        if (!foundSupply) {
+          results.failed++;
+          results.errors.push({ raBillNo, reason: `Supply 60% Bill '${linkedSupplyBillNo}' not found in database.` });
+          continue;
+        }
+        linkedSupplyBillId = foundSupply._id;
+      }
+
       // Validate ledger limits
       const validation = await validateClientLedgerLimits(assignedCircle, assignedPackage, items, billType, stage);
       if (!validation.valid) {
@@ -759,19 +791,24 @@ export const bulkImportClientBills = asyncHandler(async (req: any, res: Response
          continue;
       }
 
+      const updatePayload: any = {
+        billType,
+        stage,
+        referenceType,
+        referenceIds,
+        items,
+        circle: assignedCircle,
+        package: assignedPackage,
+        status: 'Pending PM Approval' // Reset status on update
+      };
+      if (linkedSupplyBillId) {
+        updatePayload.linkedSupplyBillId = linkedSupplyBillId;
+      }
+
       await ClientBill.findOneAndUpdate(
         { raBillNo, circle: assignedCircle },
         {
-          $set: {
-            billType,
-            stage,
-            referenceType,
-            referenceIds,
-            items,
-            circle: assignedCircle,
-            package: assignedPackage,
-            status: 'Pending PM Approval' // Reset status on update
-          },
+          $set: updatePayload,
           $setOnInsert: {
             raBillDate: new Date(),
             createdBy: user._id

@@ -162,18 +162,29 @@ export default function NewOutwardTransferPage() {
       return;
     }
 
+    const negativeStockWarnings: string[] = [];
     for (let i = 0; i < lineItems.length; i++) {
       const item = lineItems[i];
       if (!item.itemId) {
         alert(`Please select an item for row ${i + 1}`);
         return;
       }
-      if (item.quantity < 0) {
-        alert(`Transfer Qty cannot be negative for ${item.itemName}`);
+      if (item.quantity <= 0) {
+        alert(`Transfer Qty must be greater than 0 for ${item.itemName}`);
         return;
       }
       if (item.quantity > item.availableQty) {
-        alert(`Cannot transfer ${item.quantity} of ${item.itemName}. Only ${item.availableQty} available in stock.`);
+        negativeStockWarnings.push(`- ${item.itemName} (Transfer: ${item.quantity}, In Stock: ${item.availableQty})`);
+      }
+    }
+
+    if (negativeStockWarnings.length > 0) {
+      const proceed = window.confirm(
+        `Warning: The following item(s) have insufficient / negative recorded stock in ${fromStore || "store"}:\n\n` +
+        negativeStockWarnings.join('\n') +
+        `\n\nDo you want to proceed and submit this transfer request for Project Director (PD) Approval anyway?`
+      );
+      if (!proceed) {
         return;
       }
     }

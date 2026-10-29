@@ -61,9 +61,9 @@ export default function SiteContractorSummaryPage() {
         if (!pkg && user.assignedPackage) {
           const norm = user.assignedPackage.toLowerCase().replace(/\s+/g, '');
           if (norm.includes('package1') || norm.includes('s/n')) {
-            pkg = 'Package 1 (S/N)';
+            pkg = 'Package 1(S/N)';
           } else if (norm.includes('package2') || norm.includes('r/r')) {
-            pkg = 'Package 2 (R/R)';
+            pkg = 'Package 2(R/R)';
           } else {
             pkg = user.assignedPackage;
           }
@@ -398,8 +398,6 @@ export default function SiteContractorSummaryPage() {
                   className="w-full h-10 pl-3 pr-8 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-2xs cursor-pointer"
                 >
                   <option value="">All Packages</option>
-                  <option value="Package 1 (S/N)">Package 1 (S/N)</option>
-                  <option value="Package 2 (R/R)">Package 2 (R/R)</option>
                   <option value="Package 1(S/N)">Package 1(S/N)</option>
                   <option value="Package 2(R/R)">Package 2(R/R)</option>
                 </select>

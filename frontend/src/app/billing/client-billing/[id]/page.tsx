@@ -4,7 +4,7 @@ import React, { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { getClientBillById, updateClientBillStatus, deleteClientBill } from '@/features/billing/api/client-billing.api';
-import { FileText, Edit, Printer, ArrowLeft, Download, Clock, CheckCircle, XCircle, Trash2 } from 'lucide-react';
+import { FileText, Edit, Printer, ArrowLeft, Download, Clock, CheckCircle, XCircle, Trash2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
@@ -34,15 +34,15 @@ export default function ClientBillDetailsPage({ params }: { params: Promise<{ id
     }
   };
 
-  const handleAction = async (action: 'ApprovePM' | 'ApprovePD' | 'Reject') => {
-    const statusMap = {
-      'ApprovePM': 'Pending PD Approval',
-      'ApprovePD': 'Approved',
-      'Reject': 'Rejected'
-    };
-    const newStatus = statusMap[action];
+  const handleAction = async (action: 'Submit' | 'ApprovePM' | 'ApprovePD' | 'ApproveDirect' | 'Reject' | string) => {
+    let newStatus = '';
+    if (action === 'Submit') newStatus = 'Pending PM Approval';
+    else if (action === 'ApprovePM') newStatus = 'Pending PD Approval';
+    else if (action === 'ApprovePD' || action === 'ApproveDirect') newStatus = 'Approved';
+    else if (action === 'Reject') newStatus = 'Rejected';
+    else newStatus = action;
     
-    if (action === 'Reject') {
+    if (action === 'Reject' || newStatus === 'Rejected') {
       const remarks = window.prompt("Please enter rejection remarks:");
       if (!remarks) return;
       try {
@@ -135,6 +135,16 @@ export default function ClientBillDetailsPage({ params }: { params: Promise<{ id
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
+          {bill.status === 'Draft' && (
+            <>
+              <Button onClick={() => handleAction('ApproveDirect')} className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs">
+                <CheckCircle className="w-4 h-4 mr-2" /> Approve Bill
+              </Button>
+              <Button onClick={() => handleAction('Submit')} className="bg-blue-600 hover:bg-blue-700 text-white shadow-xs">
+                <Send className="w-4 h-4 mr-2" /> Submit for Approval
+              </Button>
+            </>
+          )}
           {bill.status === 'Pending PM Approval' && (
             <>
               <Button onClick={() => handleAction('ApprovePM')} className="bg-emerald-600 hover:bg-emerald-700">
@@ -179,6 +189,22 @@ export default function ClientBillDetailsPage({ params }: { params: Promise<{ id
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-center items-start">
           <p className="text-sm font-medium text-slate-500 mb-2">Current Status</p>
           {getStatusBadge(bill.status)}
+          
+          <div className="mt-4 pt-3 border-t border-slate-100 w-full">
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Quick Change Status</label>
+            <select
+              value={bill.status}
+              onChange={(e) => handleAction(e.target.value)}
+              className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+            >
+              <option value="Draft">Draft</option>
+              <option value="Pending PM Approval">Pending PM Approval</option>
+              <option value="Pending PD Approval">Pending PD Approval</option>
+              <option value="Approved">Approved</option>
+              <option value="Rejected">Rejected</option>
+            </select>
+          </div>
+
           {bill.rejectionRemarks && (
             <p className="text-xs text-rose-600 mt-3 font-medium bg-rose-50 p-2 rounded-lg border border-rose-100">
               Rejection Reason: {bill.rejectionRemarks}

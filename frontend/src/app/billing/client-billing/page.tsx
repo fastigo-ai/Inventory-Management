@@ -7,7 +7,7 @@ import { Plus, Search, FileText, CheckCircle, Clock, XCircle, FileClock, Layers,
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { getClientBills, getClientBillingAnalytics } from '@/features/billing/api/client-billing.api';
+import { getClientBills, getClientBillingAnalytics, updateClientBillStatus } from '@/features/billing/api/client-billing.api';
 import { ClientBillBulkUploadModal } from '@/features/billing/components/ClientBillBulkUploadModal';
 
 export default function ClientBillingPage() {
@@ -49,6 +49,22 @@ export default function ClientBillingPage() {
       toast.error('Failed to fetch client bills');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleQuickStatusChange = async (id: string, raBillNo: string, targetStatus: string) => {
+    if (!window.confirm(`Are you sure you want to change RA Bill "${raBillNo}" status to "${targetStatus}"?`)) return;
+    try {
+      const res = await updateClientBillStatus(id, { status: targetStatus });
+      if (res.success) {
+        toast.success(`RA Bill "${raBillNo}" updated to ${targetStatus}`);
+        fetchBills();
+        fetchAnalytics();
+      } else {
+        toast.error(res.message || 'Failed to update status');
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to update status');
     }
   };
 
@@ -379,11 +395,43 @@ export default function ClientBillingPage() {
                         {getStatusBadge(bill.status)}
                       </td>
                       <td className="px-6 py-3.5 text-right">
-                        <Link href={`/billing/client-billing/${bill._id}`}>
-                          <Button variant="ghost" size="sm" className="h-7 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50">
-                            View
-                          </Button>
-                        </Link>
+                        <div className="flex items-center justify-end gap-1.5">
+                          {bill.status === 'Draft' && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleQuickStatusChange(bill._id, bill.raBillNo, 'Approved')}
+                              className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-2.5 shadow-xs"
+                            >
+                              <CheckCircle className="w-3.5 h-3.5 mr-1" />
+                              Approve
+                            </Button>
+                          )}
+                          {bill.status === 'Pending PM Approval' && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleQuickStatusChange(bill._id, bill.raBillNo, 'Pending PD Approval')}
+                              className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white font-semibold px-2.5 shadow-xs"
+                            >
+                              <CheckCircle className="w-3.5 h-3.5 mr-1" />
+                              Approve PM
+                            </Button>
+                          )}
+                          {bill.status === 'Pending PD Approval' && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleQuickStatusChange(bill._id, bill.raBillNo, 'Approved')}
+                              className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-2.5 shadow-xs"
+                            >
+                              <CheckCircle className="w-3.5 h-3.5 mr-1" />
+                              Approve PD
+                            </Button>
+                          )}
+                          <Link href={`/billing/client-billing/${bill._id}`}>
+                            <Button variant="ghost" size="sm" className="h-7 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50">
+                              View
+                            </Button>
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   );

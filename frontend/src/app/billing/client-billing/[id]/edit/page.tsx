@@ -25,6 +25,7 @@ export default function EditClientBillPage() {
   const [additionalDocs, setAdditionalDocs] = useState<File[]>([]);
   const [items, setItems] = useState<any[]>([]);
   const [existingDocs, setExistingDocs] = useState<any>({});
+  const [existingStatus, setExistingStatus] = useState<string>('Pending PM Approval');
   
   const [formData, setFormData] = useState({
     raBillNo: '',
@@ -63,6 +64,7 @@ export default function EditClientBillPage() {
           stage: bill.stage,
           referenceIds: bill.referenceIds || []
         });
+        setExistingStatus(bill.status || 'Pending PM Approval');
         setExistingDocs({
           invoiceDocUrl: bill.invoiceDocUrl,
           diDocUrl: bill.diDocUrl,
@@ -295,9 +297,11 @@ export default function EditClientBillPage() {
     if (!formData.raBillNo) return toast.error('RA Bill No is required');
     if (formData.referenceIds.length === 0) return toast.error('Source reference is required');
     
-    if (!invoiceDoc && !existingDocs?.invoiceDocUrl) return toast.error('Invoice document is mandatory');
-    if (!diDoc && !existingDocs?.diDocUrl) return toast.error('DI document is mandatory');
-    if (!mhrovDoc && !existingDocs?.mhrovDocUrl) return toast.error('MHROV document is mandatory');
+    if (billType === 'Supply' && formData.stage === '60%') {
+      if (!invoiceDoc && !existingDocs?.invoiceDocUrl) return toast.error('Invoice document is mandatory');
+      if (!diDoc && !existingDocs?.diDocUrl) return toast.error('DI document is mandatory');
+      if (!mhrovDoc && !existingDocs?.mhrovDocUrl) return toast.error('MHROV document is mandatory');
+    }
     
     setIsSubmitting(true);
     try {
@@ -326,7 +330,7 @@ export default function EditClientBillPage() {
       
       payload.append('referenceIds', JSON.stringify(formData.referenceIds));
       payload.append('items', JSON.stringify(items));
-      payload.append('status', 'Pending PM Approval');
+      payload.append('status', existingStatus || 'Pending PM Approval');
 
       if (invoiceDoc) payload.append('invoiceDoc', invoiceDoc);
       if (diDoc) payload.append('diDoc', diDoc);

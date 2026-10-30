@@ -13,6 +13,7 @@ import { ContractorWorkOrder } from '../contractors/contractorWorkOrder.schema';
 import DemandNote from '../demand-notes/demandNote.schema';
 import { ClientBill } from '../client-billing/clientBill.schema';
 import { JmcRegister } from '../jmc/jmc.schema';
+import { HandoverCertificate } from '../contractor-billing/handoverCertificate.schema';
 
 const ceoDashboardCache = new Map<string, { timestamp: number; data: any; promise: Promise<any> | null }>();
 const CEO_DASHBOARD_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
@@ -168,6 +169,17 @@ export const buildCeoDashboardSummary = async (filters: any) => {
       contractorInvoiceMatch.createdAt = dateQuery;
     }
 
+    const handoverMatch: any = { status: { $ne: 'Cancelled' } };
+    if (circleFilters && circleFilters.length > 0) {
+      handoverMatch['locationDetails.circle'] = { $in: circleFilters };
+    }
+    if (pkgFilters && pkgFilters.length > 0) {
+      handoverMatch['locationDetails.package'] = { $in: pkgFilters };
+    }
+    if (Object.keys(dateQuery).length > 0) {
+      handoverMatch.createdAt = dateQuery;
+    }
+
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
@@ -197,6 +209,7 @@ export const buildCeoDashboardSummary = async (filters: any) => {
       minStatusCounts,
       jmcStatusCounts,
       billingStatusCounts,
+      handoverStatusCounts,
       circleInwards,
       circleIssued,
       packageInwards,
@@ -352,7 +365,7 @@ export const buildCeoDashboardSummary = async (filters: any) => {
       ]),
 
       PurchaseInvoice.aggregate([
-        { $match: { status: 'Cleared' } },
+        { $match: { status: { $in: ['Posted', 'Cleared', 'Paid', 'Approved'] } } },
         { $unwind: "$lineItems" },
         { $match: piLineItemQuery },
         { $group: { _id: "$_id" } },
@@ -389,8 +402,13 @@ export const buildCeoDashboardSummary = async (filters: any) => {
         { $group: { _id: "$status", count: { $sum: 1 } } }
       ]),
 
-      ContractorInvoice.aggregate([
-        { $match: baseQuery },
+      ClientBill.aggregate([
+        { $match: clientBillMatch },
+        { $group: { _id: "$status", count: { $sum: 1 } } }
+      ]),
+
+      HandoverCertificate.aggregate([
+        { $match: handoverMatch },
         { $group: { _id: "$status", count: { $sum: 1 } } }
       ]),
 
@@ -603,7 +621,12 @@ export const buildCeoDashboardSummary = async (filters: any) => {
 
     const mhrovCounts = buildCountMap(mhrovStatusCounts);
     const mhrovTotal = mhrovCounts.total;
-    const mhrovCompleted = mhrovCounts.map.get('Approved') || 0;
+    let mhrovCompleted = 0;
+    mhrovCounts.map.forEach((count, status) => {
+      if (['done', 'approved', 'verified', 'completed'].includes((status || '').toLowerCase())) {
+        mhrovCompleted += count;
+      }
+    });
 
     const woCounts = buildCountMap(woStatusCounts);
     const woTotal = woCounts.total;
@@ -623,7 +646,21 @@ export const buildCeoDashboardSummary = async (filters: any) => {
 
     const billingCounts = buildCountMap(billingStatusCounts);
     const billingTotal = billingCounts.total;
-    const billingCompleted = (billingCounts.map.get('Approved') || 0) + (billingCounts.map.get('Payment Processed') || 0);
+    let billingCompleted = 0;
+    billingCounts.map.forEach((count, status) => {
+      if (['approved', 'payment processed', 'cleared', 'billed'].includes((status || '').toLowerCase())) {
+        billingCompleted += count;
+      }
+    });
+
+    const handoverCounts = buildCountMap(handoverStatusCounts);
+    const handoverTotal = handoverCounts.total;
+    let handoverCompleted = 0;
+    handoverCounts.map.forEach((count, status) => {
+      if (['issued', 'approved', 'completed'].includes((status || '').toLowerCase())) {
+        handoverCompleted += count;
+      }
+    });
 
     // Circle-wise Performance
     const circlesMap: any = {};
@@ -860,7 +897,7 @@ export const buildCeoDashboardSummary = async (filters: any) => {
         min: { completed: minCompleted, total: minTotal },
         jmc: { completed: jmcCompleted, total: jmcTotal },
         billing: { completed: billingCompleted, total: billingTotal },
-        handover: { completed: 0, total: billingTotal > 0 ? billingTotal : 0 }
+        handover: { completed: handoverCompleted, total: handoverTotal }
       }
     };
 

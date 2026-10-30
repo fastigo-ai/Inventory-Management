@@ -198,6 +198,7 @@ export default function StoreContractorReturnPage() {
                             <td className="px-6 py-4">
                               <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
                                 a.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                                a.status === 'Submitted' ? 'bg-blue-100 text-blue-800' :
                                 a.status === 'Draft' ? 'bg-slate-100 text-slate-800' :
                                 a.status === 'Cancelled' ? 'bg-red-100 text-red-800' :
                                 'bg-slate-100 text-slate-800'

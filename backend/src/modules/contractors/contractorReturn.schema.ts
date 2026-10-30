@@ -30,7 +30,7 @@ export interface IContractorReturn extends Document {
   issuedTfsSrNo?: string;
 
   lineItems: IReturnLineItem[];
-  status: 'Draft' | 'Cancelled' | 'Approved';
+  status: 'Draft' | 'Cancelled' | 'Approved' | 'Submitted';
   createdBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -67,7 +67,7 @@ const contractorReturnSchema = new Schema<IContractorReturn>(
     issuedTfsSrNo: { type: String },
 
     lineItems: [returnLineItemSchema],
-    status: { type: String, enum: ['Draft', 'Cancelled', 'Approved'], default: 'Approved', index: true },
+    status: { type: String, enum: ['Draft', 'Cancelled', 'Approved', 'Submitted'], default: 'Approved', index: true },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', index: true }
   },
   { timestamps: true }

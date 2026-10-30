@@ -507,8 +507,9 @@ export const updateInvoiceStatusService = async (id: string, status: string, rem
     }
 
     if (status === 'Payment Processed' && invoice.status !== 'Payment Processed') {
-      const workOrder = await ContractorWorkOrder.findById(invoice.workOrderId).session(session);
-      if (!workOrder) throw new ApiError(400, 'Work Order not found for this invoice');
+      if (invoice.workOrderId) {
+        const workOrder = await ContractorWorkOrder.findById(invoice.workOrderId).session(session);
+        if (!workOrder) throw new ApiError(400, 'Work Order not found for this invoice');
 
       let ledger = await ContractorBillingLedger.findOne({ workOrderId: invoice.workOrderId }).session(session);
       if (!ledger) {
@@ -565,27 +566,63 @@ export const updateInvoiceStatusService = async (id: string, status: string, rem
         ledgerItem.lastBilledAt = new Date();
       }
       await ledger.save({ session });
+      }
     }
 
     if (status === 'Payment Processed' && invoice.status !== 'Payment Processed') {
-      if (invoice.billingCategory === 'Erection Bill' && invoice.stage === '90%' && invoice.linkedSupplyBillId) {
-        const supplySource = await ClientBill.findById(invoice.linkedSupplyBillId).session(session);
+      const isErectionBill = invoice.billingCategory === 'Erection Bill' || (!invoice.billingCategory && String(invoice.invoiceNumber || '').includes('/ER/'));
+      if (isErectionBill && invoice.stage === '90%') {
+        let supplySource: any = null;
+        if (invoice.linkedSupplyBillId) {
+          supplySource = await ClientBill.findById(invoice.linkedSupplyBillId).session(session);
+        } else {
+          // Auto-detect corresponding 60% Client Supply bill by Circle and RA Bill Number for legacy bulk uploads
+          const circle = invoice.legacyMetadata?.circle || '';
+          const rawRaNo = (invoice.legacyMetadata as any)?.raBillNo || invoice.supplyRaBillNo || '';
+          let cleanRaNo = String(rawRaNo).replace(/^RA-?/i, '').trim();
+
+          if (!cleanRaNo && invoice.invoiceNumber) {
+            const match = invoice.invoiceNumber.match(/INV\/ER\/([0-9A-Za-z]+)/i);
+            if (match && match[1]) {
+              cleanRaNo = match[1].replace(/^RA-?/i, '').trim();
+            }
+          }
+
+          if (cleanRaNo || circle) {
+            const candidates = await ClientBill.find({
+              billType: 'Supply',
+              stage: '60%',
+              status: { $ne: 'Rejected' },
+              ...(circle ? { circle: new RegExp(`^${circle}$`, 'i') } : {})
+            }).session(session);
+
+            supplySource = candidates.find(cb => {
+              const cbClean = cb.raBillNo.replace(/^RA-?/i, '').trim();
+              return cbClean.toLowerCase() === cleanRaNo.toLowerCase();
+            }) || (candidates.length === 1 ? candidates[0] : null);
+          }
+        }
+
         if (supplySource) {
           const existingDraft = await ClientBill.findOne({ parentBillId: invoice._id, stage: '30%' }).session(session);
           if (!existingDraft) {
             const thirtyPctItems = invoice.lineItems.map((item: any) => {
-              const srcItem = supplySource.items.find((si: any) => si.itemId?.toString() === item.itemId?.toString());
+              const srcItem = supplySource.items?.find((si: any) => 
+                (si.itemId && item.itemId && si.itemId.toString() === item.itemId.toString()) ||
+                (si.loaSrNo && item.loaSrNo && String(si.loaSrNo).trim().toLowerCase() === String(item.loaSrNo).trim().toLowerCase()) ||
+                (si.tempCode && item.tempCode && String(si.tempCode).trim().toLowerCase() === String(item.tempCode).trim().toLowerCase())
+              );
               
               const base = srcItem ? (Number(srcItem.boqRate) || 0) : (Number(item.rate) || 0);
               const qty = Number(item.jmcDoneQty) || Number(item.erectedQty) || 0;
               const billedBase = Number((qty * base * 0.3).toFixed(2));
               
               return {
-                loaSrNo: srcItem ? srcItem.loaSrNo : (item.loaSrNo || ''),
-                itemId: item.itemId,
-                tempCode: srcItem ? srcItem.tempCode : '',
+                loaSrNo: srcItem ? srcItem.loaSrNo : (item.loaSrNo || item.loaSerialNo || ''),
+                itemId: item.itemId || srcItem?.itemId,
+                tempCode: srcItem ? srcItem.tempCode : (item.tempCode || ''),
                 refNumber: invoice.invoiceNumber,
-                itemName: item.description || (srcItem ? srcItem.itemName : ''),
+                itemName: item.description || (srcItem ? srcItem.itemName : '') || 'Item',
                 diNo: srcItem ? srcItem.diNo : '',
                 diDate: srcItem ? srcItem.diDate : undefined,
                 diQty: srcItem ? srcItem.diQty : 0,
@@ -602,8 +639,8 @@ export const updateInvoiceStatusService = async (id: string, status: string, rem
               raBillDate: new Date(),
               billType: 'Supply',
               stage: '30%',
-              referenceType: supplySource.referenceType,
-              referenceIds: supplySource.referenceIds,
+              referenceType: supplySource.referenceType || 'MHROV',
+              referenceIds: supplySource.referenceIds || [],
               items: thirtyPctItems,
               circle: supplySource.circle,
               package: supplySource.package,

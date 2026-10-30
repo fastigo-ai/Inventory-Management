@@ -367,7 +367,7 @@ export default function OperationsHub() {
   const [apiKpis, setApiKpis] = useState({ 
     piCount: 0, val: 0, qty: 0, 
     availableStock: 0,
-    totalInwardQty: 0, totalTransferInQty: 0, totalTransferOutQty: 0, materialIssued: 0,
+    totalInwardQty: 0, totalTransferInQty: 0, totalTransferOutQty: 0, inTransitQty: 0, materialIssued: 0,
     transitDetails: [] as any[],
     woCount: 0, totalWoValue: 0,
     supplyBilled: 0, erectionBilled: 0, retentionBilled: 0,
@@ -435,6 +435,7 @@ export default function OperationsHub() {
         totalInwardQty: res?.kpis?.totalInwardQty || 0,
         totalTransferInQty: res?.kpis?.totalTransferInQty || 0,
         totalTransferOutQty: res?.kpis?.totalTransferOutQty || 0,
+        inTransitQty: res?.kpis?.inTransitQty !== undefined ? res.kpis.inTransitQty : ((res?.kpis?.totalTransferOutQty || 0) - (res?.kpis?.totalTransferInQty || 0)),
         transitDetails: res?.kpis?.transitDetails || [],
         materialIssued: res?.kpis?.materialIssued || 0,
         woCount: res?.kpis?.woCount || 0,
@@ -480,6 +481,7 @@ export default function OperationsHub() {
         totalInwardQty: res?.kpis?.totalInwardQty || 0,
         totalTransferInQty: res?.kpis?.totalTransferInQty || 0,
         totalTransferOutQty: res?.kpis?.totalTransferOutQty || 0,
+        inTransitQty: res?.kpis?.inTransitQty !== undefined ? res.kpis.inTransitQty : ((res?.kpis?.totalTransferOutQty || 0) - (res?.kpis?.totalTransferInQty || 0)),
         transitDetails: res?.kpis?.transitDetails || [],
         materialIssued: res?.kpis?.materialIssued || 0,
         woCount: res?.kpis?.woCount || 0,
@@ -1529,11 +1531,11 @@ export default function OperationsHub() {
               {kpiLoading ? <div className="h-7 w-20 bg-emerald-200/60 animate-pulse rounded mx-auto md:mx-0"></div> : <div className="text-xl font-extrabold text-emerald-700">{inr(f.circle !== 'All' && grandTotals['item.stock'] !== undefined ? grandTotals['item.stock'] : apiKpis.availableStock)}</div>}
             </div>
           </div>
-          {apiKpis.totalTransferOutQty - apiKpis.totalTransferInQty > 0 && (
+          {((apiKpis.inTransitQty !== undefined ? apiKpis.inTransitQty : (apiKpis.totalTransferOutQty - apiKpis.totalTransferInQty)) > 0) && (
             <div className="mt-3 bg-amber-50/50 p-3 rounded-lg border border-amber-100/50 w-full text-left">
               <p className="text-[11px] text-slate-500 font-medium flex items-center gap-1.5">
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                <span className="text-amber-700 font-bold">{inr(apiKpis.totalTransferOutQty - apiKpis.totalTransferInQty)} units</span> are currently "In Transit" between stores and are not counted in the physical warehouse stock.
+                <span className="text-amber-700 font-bold">{inr(apiKpis.inTransitQty !== undefined ? apiKpis.inTransitQty : (apiKpis.totalTransferOutQty - apiKpis.totalTransferInQty))} units</span> are currently "In Transit" between stores and are not counted in the physical warehouse stock.
               </p>
               {apiKpis.transitDetails && apiKpis.transitDetails.length > 0 && (
                 <div className="mt-2.5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">

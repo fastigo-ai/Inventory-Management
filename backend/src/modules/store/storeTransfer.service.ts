@@ -257,6 +257,15 @@ export class StoreTransferService {
     updateData.status = 'RECEIVED';
     Object.assign(transfer, updateData);
 
+    // Ensure all items have receivedQty populated upon receipt if not explicitly provided
+    if (transfer.items && transfer.items.length > 0) {
+      transfer.items.forEach(it => {
+        if (!it.receivedQty || it.receivedQty === 0) {
+          it.receivedQty = it.dispatchedQty || 0;
+        }
+      });
+    }
+
     await transfer.save();
 
     // Trigger SummaryService rebuild for affected items to keep ledgers live and accurate

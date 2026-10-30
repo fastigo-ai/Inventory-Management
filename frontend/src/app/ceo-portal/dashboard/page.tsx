@@ -106,7 +106,9 @@ export default function CeoDashboardPage() {
   };
 
   const inr = (v: number) => Math.round(v || 0).toLocaleString('en-IN');
-  const inTransitCount = (data?.kpis?.totalTransferOutQty || 0) - (data?.kpis?.totalTransferInQty || 0);
+  const inTransitCount = data?.kpis?.inTransitQty !== undefined 
+    ? data.kpis.inTransitQty 
+    : Math.max(0, (data?.kpis?.totalTransferOutQty || 0) - (data?.kpis?.totalTransferInQty || 0));
 
   if (!data && loading) {
     return (

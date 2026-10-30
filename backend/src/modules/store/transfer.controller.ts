@@ -1061,6 +1061,10 @@ export const importStoreTransfers = asyncHandler(async (req: Request, res: Respo
   for (const docKey of Object.keys(transfersByDoc)) {
     try {
       const payload = transfersByDoc[docKey];
+      const isFullyReceived = (payload.items || []).every((it: any) => (it.receivedQty || 0) >= (it.dispatchedQty || 0) && (it.dispatchedQty || 0) > 0);
+      if (isFullyReceived) {
+        payload.status = 'RECEIVED';
+      }
       await StoreTransfer.create([payload]);
       successCount++;
     } catch (err: any) {

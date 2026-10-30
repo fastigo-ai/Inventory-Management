@@ -240,7 +240,25 @@ export const buildCeoDashboardSummary = async (filters: any) => {
       StoreTransfer.aggregate([
         { $match: transitDetailsMatch },
         { $unwind: '$items' },
-        { $group: { _id: { from: '$fromStore', to: '$toStore' }, qty: { $sum: '$items.dispatchedQty' } } },
+        {
+          $project: {
+            fromStore: 1,
+            toStore: 1,
+            remainingQty: {
+              $max: [
+                {
+                  $subtract: [
+                    { $ifNull: ['$items.dispatchedQty', 0] },
+                    { $ifNull: ['$items.receivedQty', 0] }
+                  ]
+                },
+                0
+              ]
+            }
+          }
+        },
+        { $match: { remainingQty: { $gt: 0 } } },
+        { $group: { _id: { from: '$fromStore', to: '$toStore' }, qty: { $sum: '$remainingQty' } } },
         { $sort: { qty: -1 } }
       ]),
 
@@ -488,6 +506,7 @@ export const buildCeoDashboardSummary = async (filters: any) => {
       to: t._id.to || 'Unknown',
       qty: t.qty
     }));
+    const inTransitUnits = transitDetails.reduce((acc, t) => acc + (t.qty || 0), 0);
 
     const totalIssuedQty = minAgg[0]?.totalIssuedQty || 0;
     const totalMhrovQty = mhrovAgg[0]?.totalMhrovQty || 0;
@@ -831,6 +850,7 @@ export const buildCeoDashboardSummary = async (filters: any) => {
         totalInwardQty: totalInwardQty,
         totalTransferInQty: totalTransferInQty,
         totalTransferOutQty: totalTransferOutQty,
+        inTransitQty: inTransitUnits,
         transitDetails: transitDetails,
         materialIssued: totalIssuedQty,
         jmcConsumed: totalJmcQty,

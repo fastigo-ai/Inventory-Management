@@ -162,7 +162,7 @@ export default function NewPurchaseInvoicePage() {
       const vName = vendorName.trim().toLowerCase();
       const vendorPOs = purchaseOrders.filter(po => (po.vendorName || '').trim().toLowerCase() === vName);
       const currentPoBelongsToVendor = vendorPOs.some(po => po.purchaseOrderNumber === purchaseOrderInput);
-      if (!currentPoBelongsToVendor) {
+      if (!selectedDI && !currentPoBelongsToVendor) {
         if (vendorPOs.length > 0) {
           setPurchaseOrderInput(vendorPOs[0].purchaseOrderNumber);
         } else {
@@ -217,9 +217,14 @@ export default function NewPurchaseInvoicePage() {
         let allocationMap = new Map();
         try {
           const allocations = await getDocumentAllocation(selectedDI._id, 'DI');
-          allocations.forEach((alloc: any) => {
-            allocationMap.set(alloc.lineId, alloc.remainingQuantity);
-          });
+          if (Array.isArray(allocations)) {
+            allocations.forEach((alloc: any) => {
+              if (alloc.lineId) {
+                allocationMap.set(String(alloc.lineId), alloc.remainingQuantity);
+                allocationMap.set(alloc.lineId, alloc.remainingQuantity);
+              }
+            });
+          }
         } catch (error) {
           console.error("Failed to fetch DI allocations", error);
         }
@@ -228,13 +233,11 @@ export default function NewPurchaseInvoicePage() {
         const matchingPo = purchaseOrders.find(p => p.purchaseOrderNumber === poNumToUse);
 
         if (selectedDI.lineItems && selectedDI.lineItems.length > 0) {
-          const itemsWithBalance = selectedDI.lineItems.filter((item: any) => {
-             const remaining = allocationMap.get(item._id);
-             return remaining === undefined || remaining > 0;
-          });
-
-          setLineItems(itemsWithBalance.map((item: any) => {
-            const remaining = allocationMap.get(item._id) !== undefined ? allocationMap.get(item._id) : (item.quantity || 0);
+          setLineItems(selectedDI.lineItems.map((item: any) => {
+            const lineIdStr = String(item._id);
+            const remaining = allocationMap.has(lineIdStr) 
+              ? allocationMap.get(lineIdStr) 
+              : (allocationMap.has(item._id) ? allocationMap.get(item._id) : (item.quantity || 0));
             
             let poQty = 0;
             let poDate = '';
@@ -869,8 +872,17 @@ export default function NewPurchaseInvoicePage() {
               <div className="col-span-1">
                 <label className="block text-[13px] font-medium text-slate-700 mb-2">DI No</label>
                 <Select
-                  options={filteredDIs.map(di => ({ label: di.diNumber, value: di.diNumber }))}
-                  value={diNo ? { label: diNo, value: diNo } : null}
+                  options={filteredDIs.map(di => {
+                    const isFullyInvoiced = di.progressPercent >= 100;
+                    return {
+                      label: isFullyInvoiced ? `${di.diNumber} (Fully Invoiced)` : di.diNumber,
+                      value: di.diNumber
+                    };
+                  })}
+                  value={diNo ? { 
+                    label: selectedDI && selectedDI.progressPercent >= 100 ? `${diNo} (Fully Invoiced)` : diNo, 
+                    value: diNo 
+                  } : null}
                   onChange={(selected: any) => setDiNo(selected ? selected.value : '')}
                   placeholder={vendorName ? "Select DI No" : "Select Vendor first"}
                   styles={customSelectStyles}
@@ -913,6 +925,22 @@ export default function NewPurchaseInvoicePage() {
 
             {/* Item Table */}
             <div className="mb-8">
+              {selectedDI && lineItems.length > 0 && lineItems.every(i => (Number(i.diQuantity) || 0) <= 0) && (
+                <div className="mb-4 p-3.5 bg-amber-50 border border-amber-300 rounded-lg text-[13px] text-amber-900 shadow-sm flex items-start gap-2.5">
+                  <span className="text-base leading-none mt-0.5">⚠️</span>
+                  <div>
+                    <p className="font-semibold text-amber-950">
+                      DI {selectedDI.diNumber} is already fully invoiced (0 remaining balance).
+                    </p>
+                    <p className="text-amber-800 text-[12px] mt-0.5">
+                      All items from this DI have already been billed
+                      {selectedDI.childInvoices && selectedDI.childInvoices.length > 0 ? (
+                        <> in invoice(s): <span className="font-semibold">{selectedDI.childInvoices.map((inv: any) => inv.invoiceNumber).join(', ')}</span>.</>
+                      ) : '.'}
+                    </p>
+                  </div>
+                </div>
+              )}
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-2">
                   <TableIcon className="w-5 h-5 text-blue-500" />
@@ -1298,8 +1326,8 @@ export default function NewPurchaseInvoicePage() {
                               </div>
                             </td>
                             <td className="px-2 py-2">
-                              <div className="h-8 flex items-center justify-end px-2 text-[12px] font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded shadow-sm">
-                                {item.diQuantity || 0}
+                              <div className={`h-8 flex items-center justify-end px-2 text-[12px] font-bold border rounded shadow-sm ${Number(item.diQuantity) <= 0 ? 'text-amber-700 bg-amber-50 border-amber-300' : 'text-slate-800 bg-slate-50 border-slate-200'}`}>
+                                {Number(item.diQuantity) <= 0 ? '0 (Fully Billed)' : (item.diQuantity || 0)}
                               </div>
                             </td>
                             <td className="px-2 py-2">

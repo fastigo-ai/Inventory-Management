@@ -159,7 +159,8 @@ export default function NewPurchaseInvoicePage() {
         setReceiveDate(new Date().toISOString().split('T')[0]);
       }
       
-      const vendorPOs = purchaseOrders.filter(po => po.vendorName === vendorName);
+      const vName = vendorName.trim().toLowerCase();
+      const vendorPOs = purchaseOrders.filter(po => (po.vendorName || '').trim().toLowerCase() === vName);
       const currentPoBelongsToVendor = vendorPOs.some(po => po.purchaseOrderNumber === purchaseOrderInput);
       if (!currentPoBelongsToVendor) {
         if (vendorPOs.length > 0) {
@@ -172,7 +173,7 @@ export default function NewPurchaseInvoicePage() {
       // Reset selected DI if it does not belong to the selected vendor
       if (diNo) {
         const curDI = dis.find(d => d.diNumber === diNo);
-        if (curDI && (curDI.vendorName || '').trim().toLowerCase() !== vendorName.trim().toLowerCase()) {
+        if (curDI && (curDI.vendorName || '').trim().toLowerCase() !== vName) {
           setDiNo('');
           setDiDate('');
         }
@@ -180,11 +181,22 @@ export default function NewPurchaseInvoicePage() {
     }
   }, [vendorName, purchaseOrders, dis, diNo]);
 
+  const filteredPOs = useMemo(() => {
+    if (!vendorName) return purchaseOrders;
+    const vName = vendorName.trim().toLowerCase();
+    return purchaseOrders.filter(po => (po.vendorName || '').trim().toLowerCase() === vName);
+  }, [purchaseOrders, vendorName]);
+
   const filteredDIs = useMemo(() => {
     if (!vendorName) return dis;
     const vName = vendorName.trim().toLowerCase();
-    return dis.filter(d => (d.vendorName || '').trim().toLowerCase() === vName);
-  }, [dis, vendorName]);
+    let result = dis.filter(d => (d.vendorName || '').trim().toLowerCase() === vName);
+    if (purchaseOrderInput) {
+      const poDIs = result.filter(d => (d.poNumber || '').trim() === purchaseOrderInput.trim());
+      if (poDIs.length > 0) return poDIs;
+    }
+    return result;
+  }, [dis, vendorName, purchaseOrderInput]);
 
   const selectedDI = dis.find(d => d.diNumber === diNo);
 
@@ -776,13 +788,11 @@ export default function NewPurchaseInvoicePage() {
             <div className="col-span-1">
               <label className="block text-[13px] font-medium text-slate-700 mb-2">Purchase Order#</label>
               <Select
-                options={purchaseOrders
-                  .filter(po => !vendorName || po.vendorName === vendorName)
-                  .map(po => ({ label: po.purchaseOrderNumber, value: po.purchaseOrderNumber }))}
+                options={filteredPOs.map(po => ({ label: po.purchaseOrderNumber, value: po.purchaseOrderNumber }))}
                 value={purchaseOrderInput ? { label: purchaseOrderInput, value: purchaseOrderInput } : null}
                 onChange={(selected: any) => setPurchaseOrderInput(selected ? selected.value : '')}
                 isDisabled={!vendorName}
-                placeholder="Select a Purchase Order"
+                placeholder={vendorName ? "Select a Purchase Order" : "Select Vendor first"}
                 styles={customSelectStyles}
                 isClearable
                 menuPortalTarget={typeof document !== 'undefined' ? document.body : null}

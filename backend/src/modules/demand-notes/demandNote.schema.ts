@@ -43,7 +43,7 @@ export interface IDemandNote extends Document {
   location?: string;
   subcircle?: string;
   drawingNumber: string;
-  status: 'Draft' | 'Pending PM Approval' | 'Pending PD Approval' | 'Approved' | 'Rejected' | 'Fulfilled';
+  status: 'Draft' | 'Pending PM Approval' | 'Pending PD Approval' | 'Approved' | 'Rejected' | 'Fulfilled' | 'Revision Required' | 'Cancelled';
   authorizedByEngineer?: string;
   remarks?: string;
   locationDrawingUrl?: string;
@@ -55,6 +55,12 @@ export interface IDemandNote extends Document {
   rejectedBy?: mongoose.Types.ObjectId;
   rejectedAt?: Date;
   rejectionRemarks?: string;
+  revokedBy?: mongoose.Types.ObjectId;
+  revokedAt?: Date;
+  revocationRemarks?: string;
+  cancelledBy?: mongoose.Types.ObjectId;
+  cancelledAt?: Date;
+  cancellationRemarks?: string;
   items: IDemandNoteItem[];
   createdAt: Date;
   updatedAt: Date;
@@ -106,7 +112,7 @@ const demandNoteSchema = new Schema<IDemandNote>(
     drawingNumber: { type: String, required: true },
     status: {
       type: String,
-      enum: ['Draft', 'Pending PM Approval', 'Pending PD Approval', 'Approved', 'Rejected', 'Fulfilled'],
+      enum: ['Draft', 'Pending PM Approval', 'Pending PD Approval', 'Approved', 'Rejected', 'Fulfilled', 'Revision Required', 'Cancelled'],
       default: 'Draft',
       index: true
     },
@@ -121,14 +127,17 @@ const demandNoteSchema = new Schema<IDemandNote>(
     rejectedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     rejectedAt: { type: Date },
     rejectionRemarks: { type: String },
+    revokedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    revokedAt: { type: Date },
+    revocationRemarks: { type: String },
+    cancelledBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    cancelledAt: { type: Date },
+    cancellationRemarks: { type: String },
     items: [demandNoteItemSchema],
   },
   { timestamps: true }
 );
 
 demandNoteSchema.index({ createdAt: -1 });
-
-import { auditPlugin } from '../../core/plugins/audit.plugin';
-// Removed manual plugin attachment; it is now global
 
 export default mongoose.model<IDemandNote>('DemandNote', demandNoteSchema);

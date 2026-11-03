@@ -600,7 +600,7 @@ export class SummaryService {
 
       // 13. Rebuild from DemandNotes
       const { default: DemandNote } = await import('../../demand-notes/demandNote.schema');
-      const demandNotes = await DemandNote.find({ 'items.itemId': itemId, status: { $ne: 'Rejected' } });
+      const demandNotes = await DemandNote.find({ 'items.itemId': itemId, status: { $nin: ['Rejected', 'Cancelled'] } });
       for (const dn of demandNotes) {
         for (const line of dn.items) {
           if (line.itemId?.toString() === itemIdStr) {

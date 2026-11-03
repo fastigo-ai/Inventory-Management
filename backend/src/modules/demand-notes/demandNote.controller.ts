@@ -11,6 +11,7 @@ import { stringify } from 'csv-stringify/sync';
 import { parseAndSanitizeCsv } from '../../utils/csv.util';
 import mongoose from 'mongoose';
 import { applyDemandQtyToWorkOrder } from './demandNote.helper';
+import { DemandNoteService } from './demandNote.service';
 
 const uploadToCloudinary = (buffer: Buffer, folder: string): Promise<any> => {
   return new Promise((resolve, reject) => {
@@ -696,7 +697,10 @@ export const getDemandNoteById = asyncHandler(async (req: AuthRequest, res: Resp
   const demandNote = await DemandNote.findById(req.params.id)
     .populate('createdBy', 'firstName lastName email')
     .populate('pmApprovedBy', 'firstName lastName email')
-    .populate('pdApprovedBy', 'firstName lastName email');
+    .populate('pdApprovedBy', 'firstName lastName email')
+    .populate('rejectedBy', 'firstName lastName email')
+    .populate('revokedBy', 'firstName lastName email')
+    .populate('cancelledBy', 'firstName lastName email');
     
   if (!demandNote) {
     throw new ApiError(404, 'Demand Note not found');
@@ -711,7 +715,7 @@ export const updateDemandNote = asyncHandler(async (req: AuthRequest, res: Respo
   const existing = await DemandNote.findById(req.params.id);
   if (!existing) throw new ApiError(404, 'Demand Note not found');
   
-  if (user.role?.name === 'Site Manager' && !['Draft', 'Pending Approval', 'Pending PM Approval'].includes(existing.status)) {
+  if (user.role?.name === 'Site Manager' && !['Draft', 'Pending Approval', 'Pending PM Approval', 'Revision Required'].includes(existing.status)) {
     throw new ApiError(403, 'Cannot edit an approved or pending PD demand note.');
   }
 
@@ -721,6 +725,17 @@ export const updateDemandNote = asyncHandler(async (req: AuthRequest, res: Respo
   delete updateData.circle;
   delete updateData.demandNoteNumber;
   delete updateData.createdBy;
+
+  if (existing.status === 'Revision Required') {
+    if (updateData.status !== 'Draft') {
+      updateData.status = 'Pending PM Approval';
+    }
+    updateData.pmApprovedBy = undefined;
+    updateData.pmApprovedAt = undefined;
+    updateData.pmApprovalRemarks = undefined;
+    updateData.pdApprovedBy = undefined;
+    updateData.pdApprovedAt = undefined;
+  }
 
   if (typeof updateData.items === 'string') {
     try {
@@ -746,7 +761,7 @@ export const updateDemandNote = asyncHandler(async (req: AuthRequest, res: Respo
     updateData.pdApprovedAt = new Date();
   }
 
-  if (updateData.status === 'Rejected' && existing.status !== 'Rejected') {
+  if (['Rejected', 'Cancelled'].includes(updateData.status) && !['Rejected', 'Cancelled'].includes(existing.status)) {
     updateData.rejectedBy = user._id;
     updateData.rejectedAt = new Date();
   }
@@ -760,7 +775,7 @@ export const updateDemandNote = asyncHandler(async (req: AuthRequest, res: Respo
         await applyDemandQtyToWorkOrder(existing.workOrderId, existing.drawingNumber, existing.items, session, true);
       } 
       // If items changed and we aren't rejecting, revert old, apply new
-      else if (updateData.items && updateData.status !== 'Rejected') {
+      else if (updateData.items && !['Rejected', 'Cancelled'].includes(updateData.status)) {
         await applyDemandQtyToWorkOrder(existing.workOrderId, existing.drawingNumber, existing.items, session, true);
         const newDrawing = updateData.drawingNumber || existing.drawingNumber;
         await applyDemandQtyToWorkOrder(existing.workOrderId, newDrawing, updateData.items, session, false);
@@ -1011,4 +1026,27 @@ export const importDemandNotes = asyncHandler(async (req: AuthRequest, res: Resp
   }
 
   res.status(200).json(new ApiResponse(200, { successCount, errors }, 'Import processed'));
+});
+
+
+export const revokeDemandNote = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = req.user as any;
+  const { correctionRemarks } = req.body;
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const demandNote = await DemandNoteService.revokeDemandNote(id, user, correctionRemarks);
+  res.status(200).json(new ApiResponse(200, { demandNote }, 'Demand Note revoked and sent back for revision successfully.'));
+});
+
+export const cancelDemandNote = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = req.user as any;
+  const { cancellationRemarks } = req.body;
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const demandNote = await DemandNoteService.cancelDemandNote(id, user, cancellationRemarks);
+  res.status(200).json(new ApiResponse(200, { demandNote }, 'Demand Note cancelled and voided successfully.'));
+});
+
+export const getDemandNoteIssuanceStatus = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const result = await DemandNoteService.getIssuanceStatus(id);
+  res.status(200).json(new ApiResponse(200, result, 'Issuance status fetched successfully.'));
 });

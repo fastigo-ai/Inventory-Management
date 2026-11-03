@@ -135,6 +135,8 @@ export default function DemandNoteDetails() {
       case 'Approved': return <span className={`${baseStyle} bg-emerald-100 text-emerald-700 border-emerald-200`}><CheckCircle className="w-3 h-3"/> {status}</span>;
       case 'Rejected': return <span className={`${baseStyle} bg-red-100 text-red-700 border-red-200`}><AlertCircle className="w-3 h-3"/> {status}</span>;
       case 'Fulfilled': return <span className={`${baseStyle} bg-blue-100 text-blue-700 border-blue-200`}><CheckCircle className="w-3 h-3"/> {status}</span>;
+      case 'Revision Required': return <span className={`${baseStyle} bg-amber-50 text-amber-800 border-amber-300`}>Revision Required</span>;
+      case 'Cancelled': return <span className={`${baseStyle} bg-rose-50 text-rose-700 border-rose-200`}>Cancelled</span>;
       default: return <span className={`${baseStyle} bg-slate-100 text-slate-700 border-slate-200`}>{status}</span>;
     }
   };

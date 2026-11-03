@@ -28,6 +28,21 @@ export const deleteDemandNote = async (id: string) => {
   return response.data;
 };
 
+export const revokeDemandNote = async (id: string, correctionRemarks: string) => {
+  const response = await api.post(`/demand-notes/${id}/revoke`, { correctionRemarks });
+  return response.data;
+};
+
+export const cancelDemandNote = async (id: string, cancellationRemarks: string) => {
+  const response = await api.post(`/demand-notes/${id}/cancel`, { cancellationRemarks });
+  return response.data;
+};
+
+export const getDemandNoteIssuanceStatus = async (id: string) => {
+  const response = await api.get(`/demand-notes/${id}/issuance-status`);
+  return response.data;
+};
+
 export const getContextData = async (
   itemId: string, 
   contractorId?: string, 

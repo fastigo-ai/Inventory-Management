@@ -3,7 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import { toast } from 'sonner';
-import { Save, Plus, Trash2, Loader2, ArrowLeft, Search, X } from 'lucide-react';
+import { Save, Plus, Trash2, Loader2, ArrowLeft, Search, X, RotateCcw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -84,6 +84,7 @@ function DemandNoteEditForm() {
     loaSrNo: ''
   });
   const [dnNumber, setDnNumber] = useState('');
+  const [revocationRemarks, setRevocationRemarks] = useState('');
   const hasAutoPopulated = React.useRef(false);
 
   // Filter items in the table across 4 fields: LOA Sr No, Item Name, Temp Code, Activity
@@ -116,7 +117,8 @@ function DemandNoteEditForm() {
       getDemandNoteById(id).then(res => {
         const dn = res.data.demandNote || res.data;
         if (dn.demandNoteNumber) setDnNumber(dn.demandNoteNumber);
-        if (dn.status === 'Approved' || dn.status === 'Fulfilled' || dn.status === 'Pending PD Approval') {
+        if (dn.revocationRemarks) setRevocationRemarks(dn.revocationRemarks);
+        if (dn.status === 'Approved' || dn.status === 'Fulfilled' || dn.status === 'Pending PD Approval' || dn.status === 'Cancelled') {
           toast.error('This Demand Note cannot be edited.');
           router.push('/site-portal/demand-notes');
           return;
@@ -661,7 +663,8 @@ function DemandNoteEditForm() {
       submitData.append('remarks', formData.remarks);
       submitData.append('package', formData.package);
       submitData.append('circle', formData.circle);
-      submitData.append('status', formData.status);
+      const finalStatus = formData.status === 'Revision Required' ? 'Pending PM Approval' : formData.status;
+      submitData.append('status', finalStatus);
       if (formData.authorizedByEngineer) {
         submitData.append('authorizedByEngineer', formData.authorizedByEngineer);
       }
@@ -716,6 +719,23 @@ function DemandNoteEditForm() {
           Update Demand Note
         </Button>
       </div>
+
+            {formData.status === 'Revision Required' && (
+        <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-xl shadow-xs">
+          <div className="flex items-center gap-2">
+            <RotateCcw className="w-5 h-5 text-amber-600 shrink-0" />
+            <h3 className="text-sm font-bold text-amber-900">Revision Required</h3>
+          </div>
+          <p className="text-xs text-amber-800 mt-1">
+            This Demand Note was revoked and sent back for correction. Please update the necessary fields below. Upon saving, it will automatically route for PM and PD approvals.
+          </p>
+          {revocationRemarks && (
+            <div className="mt-2 p-2.5 bg-white/80 rounded-lg border border-amber-200 text-xs text-amber-900">
+              <span className="font-semibold">Correction Remarks from Approver:</span> {revocationRemarks}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">
         <h3 className="text-lg font-semibold text-slate-800">General Information</h3>

@@ -11,7 +11,9 @@ import {
   Search, 
   UserCheck, 
   AlertCircle,
-  Building
+  Building,
+  RotateCcw,
+  Ban
 } from 'lucide-react';
 import { getDemandNotes } from '@/features/site-portal/api/demand-notes.api';
 import { useAuthStore } from '@/shared/store/auth.store';
@@ -53,7 +55,7 @@ export default function DemandNotesList() {
 
   const historyList = useMemo(() => {
     return demandNotes.filter(
-      (dn) => dn.status === 'Approved' || dn.status === 'Fulfilled' || dn.status === 'Rejected'
+      (dn) => dn.status === 'Approved' || dn.status === 'Fulfilled' || dn.status === 'Rejected' || dn.status === 'Cancelled'
     );
   }, [demandNotes]);
 
@@ -99,6 +101,10 @@ export default function DemandNotesList() {
         return <span className={`${baseStyle} bg-red-50 text-red-700 border-red-200/80`}><AlertCircle className="w-3 h-3 text-red-600" /> Rejected</span>;
       case 'Fulfilled': 
         return <span className={`${baseStyle} bg-blue-50 text-blue-700 border-blue-200/80`}><CheckCircle2 className="w-3 h-3 text-blue-600" /> Fulfilled</span>;
+      case 'Revision Required':
+        return <span className={`${baseStyle} bg-amber-50 text-amber-800 border-amber-300`}><RotateCcw className="w-3 h-3 text-amber-600" /> Revision Required</span>;
+      case 'Cancelled':
+        return <span className={`${baseStyle} bg-rose-50 text-rose-700 border-rose-200`}><Ban className="w-3 h-3 text-rose-600" /> Cancelled</span>;
       default: 
         return <span className={`${baseStyle} bg-slate-100 text-slate-700 border-slate-200`}>{status}</span>;
     }

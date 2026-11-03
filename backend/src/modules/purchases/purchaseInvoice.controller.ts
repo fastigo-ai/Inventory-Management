@@ -19,8 +19,18 @@ export const createPurchaseInvoice = async (req: Request, res: Response): Promis
     const prData = req.body;
     // Map PR fields to PI fields
     if (!prData.invoiceNumber && !prData.purchaseReceiveNumber) {
-      const count = await PurchaseInvoice.countDocuments();
-      prData.invoiceNumber = `INV-${String(count + 1).padStart(5, '0')}`;
+      const existingInvoices = await PurchaseInvoice.find({ invoiceNumber: { $regex: /^INV-(\d+)$/i } })
+        .select('invoiceNumber')
+        .lean();
+      let maxNumber = 0;
+      for (const inv of existingInvoices) {
+        const m = inv.invoiceNumber?.match(/^INV-(\d+)$/i);
+        if (m) {
+          const num = parseInt(m[1], 10);
+          if (num > maxNumber) maxNumber = num;
+        }
+      }
+      prData.invoiceNumber = `INV-${String(maxNumber + 1).padStart(5, '0')}`;
     } else {
       prData.invoiceNumber = prData.invoiceNumber || prData.purchaseReceiveNumber;
     }
@@ -173,7 +183,8 @@ export const createPurchaseInvoice = async (req: Request, res: Response): Promis
     }
 
     if (newPr.lineItems && newPr.lineItems.length > 0) {
-      const inwardEntries = newPr.lineItems.map((item: any) => ({
+      const activeLineItems = newPr.lineItems.filter((item: any) => (Number(item.quantity) || Number(item.totalInventory) || 0) > 0);
+      const inwardEntries = activeLineItems.map((item: any) => ({
         purchaseInvoiceId: newPr._id,
         purchaseOrderId: newPr.purchaseOrderId,
         poNumber: newPr.purchaseOrderNumber,
@@ -207,7 +218,9 @@ export const createPurchaseInvoice = async (req: Request, res: Response): Promis
         status: 'Pending Receipt',
         packingList: [{ packType: 'BOX', quantity: item.quantity || 0 }] // default packing
       }));
-      await StoreInwardEntry.insertMany(inwardEntries);
+      if (inwardEntries.length > 0) {
+        await StoreInwardEntry.insertMany(inwardEntries);
+      }
 
       // Rebuild summary for all items
       for (const item of newPr.lineItems) {
@@ -447,17 +460,19 @@ export const getPurchaseInvoiceById = async (req: Request, res: Response): Promi
 
 export const getNextPurchaseInvoiceNumber = async (req: Request, res: Response): Promise<void> => {
   try {
-    const lastPr = await PurchaseInvoice.findOne({ invoiceNumber: { $regex: /^INV-/i } })
-      .sort({ createdAt: 1 })
+    const existingInvoices = await PurchaseInvoice.find({ invoiceNumber: { $regex: /^INV-(\d+)$/i } })
+      .select('invoiceNumber')
       .lean();
       
-    let nextNumber = 1;
-    if (lastPr && lastPr.invoiceNumber) {
-      const match = lastPr.invoiceNumber.match(/^INV-(\d+)$/i);
+    let maxNumber = 0;
+    for (const inv of existingInvoices) {
+      const match = inv.invoiceNumber?.match(/^INV-(\d+)$/i);
       if (match) {
-        nextNumber = parseInt(match[1], 10) + 1;
+        const num = parseInt(match[1], 10);
+        if (num > maxNumber) maxNumber = num;
       }
     }
+    const nextNumber = maxNumber + 1;
     
     res.status(200).json({
       success: true,

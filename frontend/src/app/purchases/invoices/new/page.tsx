@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Settings, UploadCloud, ChevronDown, User, Table as TableIcon, Trash2, Paperclip, FileText, Plus, Loader2, Search } from "lucide-react";
+import { X, Settings, UploadCloud, ChevronDown, User, Table as TableIcon, Trash2, Paperclip, FileText, Plus, Loader2, Search, Filter } from "lucide-react";
 import Link from "next/link";
 import Select from "react-select";
 import { createPurchaseInvoice, getNextPurchaseInvoiceNumber } from "@/features/purchases/api/purchases.api";
@@ -152,7 +152,7 @@ export default function NewPurchaseInvoicePage() {
     });
   }, []);
 
-  // When vendor changes, set dates and filter POs
+  // When vendor changes, set dates and filter POs and DIs
   useEffect(() => {
     if (vendorName) {
       if (!receiveDate) {
@@ -168,8 +168,23 @@ export default function NewPurchaseInvoicePage() {
           setPurchaseOrderInput(""); // Reset PO when vendor changes and no POs exist
         }
       }
+
+      // Reset selected DI if it does not belong to the selected vendor
+      if (diNo) {
+        const curDI = dis.find(d => d.diNumber === diNo);
+        if (curDI && (curDI.vendorName || '').trim().toLowerCase() !== vendorName.trim().toLowerCase()) {
+          setDiNo('');
+          setDiDate('');
+        }
+      }
     }
-  }, [vendorName, purchaseOrders]);
+  }, [vendorName, purchaseOrders, dis, diNo]);
+
+  const filteredDIs = useMemo(() => {
+    if (!vendorName) return dis;
+    const vName = vendorName.trim().toLowerCase();
+    return dis.filter(d => (d.vendorName || '').trim().toLowerCase() === vName);
+  }, [dis, vendorName]);
 
   const selectedDI = dis.find(d => d.diNumber === diNo);
 
@@ -212,8 +227,9 @@ export default function NewPurchaseInvoicePage() {
             let poQty = 0;
             let poDate = '';
             
+            let poMatch: any = null;
             if (matchingPo && matchingPo.lineItems) {
-              const poMatch = matchingPo.lineItems.find((pItem: any) => {
+              poMatch = matchingPo.lineItems.find((pItem: any) => {
                 if (pItem.isCanceled) return false;
                 const sameItem = 
                   (pItem.itemId && item.itemId && pItem.itemId === item.itemId) ||
@@ -230,32 +246,54 @@ export default function NewPurchaseInvoicePage() {
               }
             }
 
+            const catalogItem = itemsList.find((i: any) => {
+              if (item.itemId && String(i._id) === String(item.itemId)) return true;
+              const d = i.dynamicData || {};
+              const iTemp = String(d.tempCode || d.itemCode || d.sku || '').trim();
+              const rowTemp = String(item.tempCode || '').trim();
+              if (rowTemp && iTemp && rowTemp === iTemp) return true;
+              const iName = String(d.name || d.itemName || d.itemDescription || '').trim().toLowerCase();
+              const rowName = String(item.itemName || '').trim().toLowerCase();
+              return rowName && iName && (rowName === iName || iName.includes(rowName) || rowName.includes(iName));
+            });
+
+            const d = catalogItem?.dynamicData || {};
+            const catalogLoa = d.loaSerialNo || d.loaSrNo || d['LOA Serial No.'] || d.loa || d.sku || '';
+            const resolvedLoa = item.loaSerialNo || item.loaSrNo || poMatch?.loaSerialNo || catalogLoa || '';
+
+            const resolvedRate = Number(item.rate || poMatch?.rate || d.rate || d.price || d.costPrice || 0);
+            const resolvedGstType = item.gstType || poMatch?.gstType || d.gstType || 'Intra State';
+            const isInter = resolvedGstType === 'Inter State';
+            const resolvedCgst = isInter ? 0 : (item.cgst !== undefined && item.cgst !== null && item.cgst !== '' ? Number(item.cgst) : (d.cgst !== undefined ? Number(d.cgst) : 9));
+            const resolvedSgst = isInter ? 0 : (item.sgst !== undefined && item.sgst !== null && item.sgst !== '' ? Number(item.sgst) : (d.sgst !== undefined ? Number(d.sgst) : 9));
+            const resolvedIgst = !isInter ? 0 : (item.igst !== undefined && item.igst !== null && item.igst !== '' ? Number(item.igst) : (d.igst !== undefined ? Number(d.igst) : 18));
+
             return {
               isManual: false,
-              itemId: item.itemId,
+              itemId: item.itemId || catalogItem?._id || '',
               diId: selectedDI._id,
               diLineId: item._id,
-              package: item.package || '',
-              circle: item.circle || '',
+              package: item.package || d.package || '',
+              circle: item.circle || d.circle || '',
               subcircle: '',
-              tempCode: item.tempCode || '',
+              tempCode: item.tempCode || d.tempCode || '',
               itemName: item.itemName,
-              itemDescription: item.description || item.itemName || '',
-              loaSerialNo: '', // Disabled as per user request
-              hsnCode: item.hsnCode || '',
+              itemDescription: item.description || item.itemName || d.name || '',
+              loaSerialNo: resolvedLoa,
+              hsnCode: item.hsnCode || d.hsnCode || '',
               poQuantity: poQty,
               diQuantity: remaining,
               poDate: poDate, 
               srt: 0,
               act: 0,
               totalInvoiceQuantity: 0,
-              unit: item.unit || '',
-              gstType: item.gstType || 'Intra State',
-              cgst: item.cgst || 0,
-              sgst: item.sgst || 0,
-              igst: item.igst || 0,
+              unit: item.unit || d.unit || d.uom || '',
+              gstType: resolvedGstType,
+              cgst: resolvedCgst,
+              sgst: resolvedSgst,
+              igst: resolvedIgst,
               invoiceQuantity: remaining,
-              rate: item.rate || 0,
+              rate: resolvedRate,
               amount: 0,
               totalAmount: 0
             };
@@ -273,33 +311,56 @@ export default function NewPurchaseInvoicePage() {
       if (po && po.lineItems) {
         setLineItems(po.lineItems
           .filter((item: any) => !item.isCanceled)
-          .map((item: any) => ({
-          isManual: false,
-          itemId: item.itemId,
-          package: item.package || '',
-          circle: item.circle || '',
-          subcircle: '',
-          tempCode: item.tempCode || '',
-          itemName: item.itemName,
-          itemDescription: item.description || item.itemDescription || '',
-          loaSerialNo: '', // Disabled as per user request
-          hsnCode: item.hsnCode || '',
-          poQuantity: item.quantity || 0,
-          diQuantity: 0,
-          poDate: po.date ? new Date(po.date).toISOString().split('T')[0] : '',
-          srt: 0,
-          act: 0,
-          totalInvoiceQuantity: 0,
-          unit: item.unit || '',
-          gstType: item.gstType || 'Intra State',
-          cgst: item.cgst || 0,
-          sgst: item.sgst || 0,
-          igst: item.igst || 0,
-          invoiceQuantity: 0,
-          rate: item.rate || 0,
-          amount: 0,
-          totalAmount: 0
-        })));
+          .map((item: any) => {
+            const catalogItem = itemsList.find((i: any) => {
+              if (item.itemId && String(i._id) === String(item.itemId)) return true;
+              const d = i.dynamicData || {};
+              const iTemp = String(d.tempCode || d.itemCode || d.sku || '').trim();
+              const rowTemp = String(item.tempCode || '').trim();
+              if (rowTemp && iTemp && rowTemp === iTemp) return true;
+              const iName = String(d.name || d.itemName || d.itemDescription || '').trim().toLowerCase();
+              const rowName = String(item.itemName || '').trim().toLowerCase();
+              return rowName && iName && (rowName === iName || iName.includes(rowName) || rowName.includes(iName));
+            });
+            const d = catalogItem?.dynamicData || {};
+            const catalogLoa = d.loaSerialNo || d.loaSrNo || d['LOA Serial No.'] || d.loa || d.sku || '';
+            const resolvedLoa = item.loaSerialNo || item.loaSrNo || catalogLoa || '';
+
+            const resolvedRate = Number(item.rate || d.rate || d.price || d.costPrice || 0);
+            const resolvedGstType = item.gstType || d.gstType || 'Intra State';
+            const isInter = resolvedGstType === 'Inter State';
+            const resolvedCgst = isInter ? 0 : (item.cgst !== undefined && item.cgst !== null && item.cgst !== '' ? Number(item.cgst) : (d.cgst !== undefined ? Number(d.cgst) : 9));
+            const resolvedSgst = isInter ? 0 : (item.sgst !== undefined && item.sgst !== null && item.sgst !== '' ? Number(item.sgst) : (d.sgst !== undefined ? Number(d.sgst) : 9));
+            const resolvedIgst = !isInter ? 0 : (item.igst !== undefined && item.igst !== null && item.igst !== '' ? Number(item.igst) : (d.igst !== undefined ? Number(d.igst) : 18));
+
+            return {
+              isManual: false,
+              itemId: item.itemId || catalogItem?._id || '',
+              package: item.package || d.package || '',
+              circle: item.circle || d.circle || '',
+              subcircle: '',
+              tempCode: item.tempCode || d.tempCode || '',
+              itemName: item.itemName,
+              itemDescription: item.description || item.itemDescription || d.name || '',
+              loaSerialNo: resolvedLoa,
+              hsnCode: item.hsnCode || d.hsnCode || '',
+              poQuantity: item.quantity || 0,
+              diQuantity: 0,
+              poDate: po.date ? new Date(po.date).toISOString().split('T')[0] : '',
+              srt: 0,
+              act: 0,
+              totalInvoiceQuantity: 0,
+              unit: item.unit || d.unit || d.uom || '',
+              gstType: resolvedGstType,
+              cgst: resolvedCgst,
+              sgst: resolvedSgst,
+              igst: resolvedIgst,
+              invoiceQuantity: 0,
+              rate: resolvedRate,
+              amount: 0,
+              totalAmount: 0
+            };
+          }));
       } else {
         setLineItems([]);
       }
@@ -333,84 +394,85 @@ export default function NewPurchaseInvoicePage() {
     }
   }, [purchaseOrderInput, purchaseOrders, selectedDI]);
 
+  const getDVal = (d: any, ...keys: string[]): string => {
+    if (!d) return '';
+    for (const key of keys) {
+      if (d[key] !== undefined && d[key] !== null && d[key] !== '') return String(d[key]);
+      const alphaNumKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const found = Object.keys(d).find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === alphaNumKey);
+      if (found && d[found] !== undefined && d[found] !== null && d[found] !== '') return String(d[found]);
+    }
+    return '';
+  };
+
+  const findMatchForItem = (item: any): any => {
+    if (item.itemId) {
+       const match = itemsList.find(i => i._id === item.itemId);
+       if (match) return match;
+    }
+    
+    return itemsList.find((i: any) => {
+      const d = i.dynamicData || {};
+      let matchCount = 0;
+      let checkCount = 0;
+
+      if (item.tempCode) {
+        checkCount++;
+        const dbTemp = getDVal(d, 'tempCode', 'sku', 'itemCode').trim();
+        const rowTemp = String(item.tempCode).trim();
+        if (dbTemp === rowTemp) matchCount++;
+        else return false;
+      }
+      if (item.loaSerialNo) {
+        checkCount++;
+        const dbLoa = getDVal(d, 'loaSerialNo', 'loaSerial', 'loaSrNo', 'LOA Serial No.', 'loa', 'sku').trim();
+        const rowLoa = String(item.loaSerialNo).trim();
+        if (dbLoa === rowLoa) matchCount++;
+        else return false;
+      }
+      if (item.circle) {
+        checkCount++;
+        const dbCirc = getDVal(d, 'circle').trim().toLowerCase();
+        const rowCirc = String(item.circle).trim().toLowerCase();
+        if (dbCirc === rowCirc) matchCount++;
+        else return false;
+      }
+      if (item.package) {
+        checkCount++;
+        const dbPkg = getDVal(d, 'package').replace(/\s+/g, '').toLowerCase();
+        const rowPkg = String(item.package).replace(/\s+/g, '').toLowerCase();
+        if (dbPkg && (rowPkg.includes(dbPkg) || dbPkg.includes(rowPkg))) matchCount++;
+        else return false;
+      }
+      if (item.itemName) {
+        checkCount++;
+        const dbName = getDVal(d, 'name', 'itemName', 'itemDescription').trim().toLowerCase();
+        const rowName = String(item.itemName).trim().toLowerCase();
+        if (dbName && (dbName.includes(rowName) || rowName.includes(dbName))) matchCount++;
+        else return false;
+      }
+
+      return checkCount > 0 && matchCount === checkCount;
+    });
+  };
+
   // Auto-hydrator for missing tempCode or loaSerialNo
   useEffect(() => {
     if (itemsList.length === 0 || lineItems.length === 0) return;
 
-    const getDVal = (d: any, ...keys: string[]): string => {
-      if (!d) return '';
-      for (const key of keys) {
-        if (d[key] !== undefined && d[key] !== null && d[key] !== '') return String(d[key]);
-        const alphaNumKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
-        const found = Object.keys(d).find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === alphaNumKey);
-        if (found && d[found] !== undefined && d[found] !== null && d[found] !== '') return String(d[found]);
-      }
-      return '';
-    };
-
-    const findMatchForItem = (item: any): any => {
-      if (item.itemId) {
-         const match = itemsList.find(i => i._id === item.itemId);
-         if (match) return match;
-      }
-      
-      return itemsList.find((i: any) => {
-        const d = i.dynamicData || {};
-        let matchCount = 0;
-        let checkCount = 0;
-
-        if (item.tempCode) {
-          checkCount++;
-          const dbTemp = getDVal(d, 'tempCode', 'sku', 'itemCode').trim();
-          const rowTemp = String(item.tempCode).trim();
-          if (dbTemp === rowTemp) matchCount++;
-          else return false;
-        }
-        if (item.loaSerialNo) {
-          checkCount++;
-          const dbLoa = getDVal(d, 'loaSerialNo', 'loaSerial', 'sku').trim();
-          const rowLoa = String(item.loaSerialNo).trim();
-          if (dbLoa === rowLoa) matchCount++;
-          else return false;
-        }
-        if (item.circle) {
-          checkCount++;
-          const dbCirc = getDVal(d, 'circle').trim().toLowerCase();
-          const rowCirc = String(item.circle).trim().toLowerCase();
-          if (dbCirc === rowCirc) matchCount++;
-          else return false;
-        }
-        if (item.package) {
-          checkCount++;
-          const dbPkg = getDVal(d, 'package').replace(/\s+/g, '').toLowerCase();
-          const rowPkg = String(item.package).replace(/\s+/g, '').toLowerCase();
-          if (dbPkg && (rowPkg.includes(dbPkg) || dbPkg.includes(rowPkg))) matchCount++;
-          else return false;
-        }
-        if (item.itemName) {
-          checkCount++;
-          const dbName = getDVal(d, 'name', 'itemName', 'itemDescription').trim().toLowerCase();
-          const rowName = String(item.itemName).trim().toLowerCase();
-          if (dbName && (dbName.includes(rowName) || rowName.includes(dbName))) matchCount++;
-          else return false;
-        }
-
-        return checkCount > 0 && matchCount === checkCount;
-      });
-    };
-
     let changed = false;
     const updated = lineItems.map((item: any) => {
-      if (item.loaSerialNo && item.tempCode) return item;
+      if (item.loaSerialNo && item.tempCode && item.itemId) return item;
 
       const match = findMatchForItem(item);
       if (match) {
         const d = match.dynamicData || {};
         let newTempCode = item.tempCode || getDVal(d, 'tempCode', 'sku', 'itemCode');
+        let newLoa = item.loaSerialNo || getDVal(d, 'loaSerialNo', 'loaSrNo', 'LOA Serial No.', 'loa', 'sku');
 
-        if (newTempCode !== item.tempCode) {
+        if (newTempCode !== item.tempCode || newLoa !== item.loaSerialNo || (!item.itemId && match._id)) {
            changed = true;
-           return { ...item, tempCode: newTempCode, itemId: item.itemId || match._id };
+           return { ...item, tempCode: newTempCode, loaSerialNo: newLoa, itemId: item.itemId || match._id };
         }
       }
       return item;
@@ -420,48 +482,124 @@ export default function NewPurchaseInvoicePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemsList, lineItems]);
 
-  // Recalculate amount when quantityToReceive or rate changes
+  // Live Invoice Totals Summary
+  const summaryTotals = useMemo(() => {
+    let totalQty = 0;
+    let taxableAmount = 0;
+    let totalCgst = 0;
+    let totalSgst = 0;
+    let totalIgst = 0;
+    let grandTotal = 0;
+    let invoicedItemsCount = 0;
+
+    lineItems.forEach((item: any) => {
+      const qty = Number(item.totalInvoiceQuantity) || 0;
+      if (qty > 0) invoicedItemsCount++;
+      totalQty += qty;
+      const amt = Number(item.amount) || 0;
+      taxableAmount += amt;
+      const cgst = Number(item.cgst) || 0;
+      const sgst = Number(item.sgst) || 0;
+      const igst = Number(item.igst) || 0;
+      const isInter = item.gstType === 'Inter State';
+      if (isInter) {
+        totalIgst += amt * (igst / 100);
+      } else {
+        totalCgst += amt * (cgst / 100);
+        totalSgst += amt * (sgst / 100);
+      }
+      grandTotal += Number(item.totalAmount) || 0;
+    });
+
+    return {
+      totalQty,
+      taxableAmount,
+      totalCgst,
+      totalSgst,
+      totalIgst,
+      totalTax: totalCgst + totalSgst + totalIgst,
+      grandTotal,
+      invoicedItemsCount,
+      totalItemsCount: lineItems.length
+    };
+  }, [lineItems]);
+
+  // Recalculate amount when totalInvoiceQuantity or rate changes
   const updateLineItem = (index: number, field: string, value: any) => {
     const newItems = [...lineItems];
     newItems[index][field] = value;
     
+    // Handle gstType change defaults
+    if (field === 'gstType') {
+      if (value === 'Inter State') {
+        newItems[index].cgst = 0;
+        newItems[index].sgst = 0;
+        newItems[index].igst = Number(newItems[index].igst) > 0 ? Number(newItems[index].igst) : 18;
+      } else {
+        newItems[index].igst = 0;
+        newItems[index].cgst = Number(newItems[index].cgst) > 0 ? Number(newItems[index].cgst) : 9;
+        newItems[index].sgst = Number(newItems[index].sgst) > 0 ? Number(newItems[index].sgst) : 9;
+      }
+    }
+
     // Auto calculate amount and total quantity
-    if (field === 'srt' || field === 'act' || field === 'rate' || field === 'cgst' || field === 'sgst' || field === 'igst' || field === 'gstType') {
-      const srt = Number(newItems[index].srt) || 0;
-      const act = Number(newItems[index].act) || 0;
+    if (field === 'totalInvoiceQuantity' || field === 'srt' || field === 'act' || field === 'rate' || field === 'cgst' || field === 'sgst' || field === 'igst' || field === 'gstType') {
+      const totInvQty = Number(newItems[index].totalInvoiceQuantity) || 0;
       const rate = Number(newItems[index].rate) || 0;
-      newItems[index].totalInvoiceQuantity = srt + act;
-      newItems[index].invoiceQuantity = (Number(newItems[index].diQuantity) || 0) - newItems[index].totalInvoiceQuantity;
-      newItems[index].amount = newItems[index].totalInvoiceQuantity * rate;
+      newItems[index].invoiceQuantity = (Number(newItems[index].diQuantity) || 0) - totInvQty;
+      newItems[index].amount = totInvQty * rate;
       
       const cgst = Number(newItems[index].cgst) || 0;
       const sgst = Number(newItems[index].sgst) || 0;
       const igst = Number(newItems[index].igst) || 0;
-      const taxRate = newItems[index].gstType === 'Intra State' ? (cgst + sgst) : igst;
+      const taxRate = newItems[index].gstType === 'Inter State' ? igst : (cgst + sgst);
       newItems[index].totalAmount = newItems[index].amount + (newItems[index].amount * taxRate / 100);
     }
 
     // Auto fill LOA Serial No based on package, circle, tempCode, itemName
-    // Disabled as per user request to not automatically fill loa sr no
-    /*
     if (['package', 'circle', 'tempCode', 'itemName', 'itemDescription'].includes(field)) {
        const updatedItem = newItems[index];
        if (!updatedItem.loaSerialNo) {
-          ...
+          const match = findMatchForItem(updatedItem);
+          if (match) {
+             const d = match.dynamicData || {};
+             const newLoa = getDVal(d, 'loaSerialNo', 'loaSrNo', 'LOA Serial No.', 'loa', 'sku');
+             if (newLoa) updatedItem.loaSerialNo = newLoa;
+             if (!updatedItem.tempCode) updatedItem.tempCode = getDVal(d, 'tempCode', 'sku', 'itemCode');
+             if (!updatedItem.itemId && match._id) updatedItem.itemId = match._id;
+          }
        }
     }
-    */
 
     setLineItems(newItems);
   };
 
   const handleSubmit = async (status: 'Draft' | 'Received') => {
-    if (!vendorName || !PurchaseInvoiceNumber || !receiveDate) {
-      alert("Please fill in the required fields");
+    if (!vendorName || !receiveDate) {
+      alert("Please fill in Vendor Name and Received Date");
       return;
     }
 
-    const hasMissingFields = lineItems.some(item => 
+    if (invoiceNumberType === 'manual' && !PurchaseInvoiceNumber) {
+      alert("Please enter the Purchase Invoice Number");
+      return;
+    }
+
+    const activeLineItems = lineItems.filter(item => (Number(item.totalInvoiceQuantity) || 0) > 0);
+    if (activeLineItems.length === 0) {
+      alert("Please enter a Total Invoice Quantity greater than 0 for at least one item before saving.");
+      return;
+    }
+
+    const hasZeroQtyItems = lineItems.length > activeLineItems.length;
+    if (hasZeroQtyItems) {
+      const confirmExclusion = window.confirm(
+        `There are ${lineItems.length - activeLineItems.length} item(s) with 0 invoice quantity. Proceed and include only the ${activeLineItems.length} invoiced item(s)?`
+      );
+      if (!confirmExclusion) return;
+    }
+
+    const hasMissingFields = activeLineItems.some(item => 
       !item.loaSerialNo || String(item.loaSerialNo).trim() === '' ||
       !item.circle || String(item.circle).trim() === '' ||
       !item.itemName || String(item.itemName).trim() === '' ||
@@ -469,17 +607,17 @@ export default function NewPurchaseInvoicePage() {
       !item.package || String(item.package).trim() === ''
     );
     if (hasMissingFields) {
-      alert("Please ensure LOA Sr. No, Circle, Package, Item Name, and Unit are provided for all line items before saving.");
+      alert("Please ensure LOA Sr. No, Circle, Package, Item Name, and Unit are provided for all invoiced items before saving.");
       return;
     }
 
-    const hasUnmatchedItems = lineItems.some(item => !item.itemId);
+    const hasUnmatchedItems = activeLineItems.some(item => !item.itemId);
     if (hasUnmatchedItems) {
-      alert("One or more items are not matched to the Master Item List. Please ensure all items are valid master items before saving.");
+      alert("One or more invoiced items are not matched to the Master Item List. Please ensure all items are valid master items before saving.");
       return;
     }
 
-    const hasMismatchedUnit = lineItems.some(item => {
+    const hasMismatchedUnit = activeLineItems.some(item => {
       const matchedItem = itemsList.find(i => i._id === item.itemId);
       if (matchedItem) {
         const d = matchedItem.dynamicData || {};
@@ -501,9 +639,9 @@ export default function NewPurchaseInvoicePage() {
       return;
     }
 
-    const hasInvalidQuantity = lineItems.some(item => (Number(item.totalInvoiceQuantity) || 0) > (Number(item.invoiceQuantity) || 0));
+    const hasInvalidQuantity = activeLineItems.some(item => item.diQuantity && (Number(item.totalInvoiceQuantity) || 0) > (Number(item.diQuantity) || 0));
     if (hasInvalidQuantity) {
-      const confirmSave = window.confirm("Total Invoice Quantity is greater than Balance Quantity. Are you sure you want to save changes?");
+      const confirmSave = window.confirm("Total Invoice Quantity is greater than available DI Quantity for one or more items. Are you sure you want to save changes?");
       if (!confirmSave) {
         return;
       }
@@ -518,10 +656,12 @@ export default function NewPurchaseInvoicePage() {
         invoiceNumber: invoiceNumberType === 'auto' ? undefined : PurchaseInvoiceNumber,
         receiveDate,
         billingFrom,
-        diNo, diDate, 
+        diNo, 
+        diNumber: diNo,
+        diDate, 
         paymentTerms,
         notes,
-        lineItems,
+        lineItems: activeLineItems,
         status: 'Cleared',
         receiptStatus: status === 'Received' ? 'Received' : 'Pending Receipt',
         attachments: uploadedDocs.map(doc => ({ name: doc.fileName, url: doc.url }))
@@ -719,10 +859,10 @@ export default function NewPurchaseInvoicePage() {
               <div className="col-span-1">
                 <label className="block text-[13px] font-medium text-slate-700 mb-2">DI No</label>
                 <Select
-                  options={dis.map(di => ({ label: di.diNumber, value: di.diNumber }))}
+                  options={filteredDIs.map(di => ({ label: di.diNumber, value: di.diNumber }))}
                   value={diNo ? { label: diNo, value: diNo } : null}
                   onChange={(selected: any) => setDiNo(selected ? selected.value : '')}
-                  placeholder="Select DI No"
+                  placeholder={vendorName ? "Select DI No" : "Select Vendor first"}
                   styles={customSelectStyles}
                   isClearable
                   menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
@@ -769,6 +909,21 @@ export default function NewPurchaseInvoicePage() {
                   <h3 className="text-[15px] font-semibold text-slate-700">Item Table</h3>
                 </div>
                 <div className="flex items-center gap-2">
+                  {lineItems.some(item => (Number(item.totalInvoiceQuantity) || 0) === 0) && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => {
+                        const count = lineItems.filter(item => (Number(item.totalInvoiceQuantity) || 0) === 0).length;
+                        if (window.confirm(`Remove ${count} item(s) with 0 invoice quantity from this table?`)) {
+                          setLineItems(lineItems.filter(item => (Number(item.totalInvoiceQuantity) || 0) > 0));
+                        }
+                      }} 
+                      className="h-8 text-amber-700 border-amber-300 hover:bg-amber-50"
+                    >
+                      <Filter className="w-3.5 h-3.5 mr-1" /> Clear 0-Qty Items
+                    </Button>
+                  )}
                   <Button variant="outline" size="sm" onClick={handleAddItem} className="h-8 text-blue-600 border-blue-200 hover:bg-blue-50">
                     <Plus className="w-4 h-4 mr-1" /> Add Item
                   </Button>
@@ -795,9 +950,7 @@ export default function NewPurchaseInvoicePage() {
                       <th className="px-3 py-3 min-w-[100px] text-right">DI Qty</th>
                       <th className="px-3 py-3 min-w-[100px] text-center">Balance Qty</th>
                       <th className="px-3 py-3 min-w-[80px]">Unit</th>
-                      <th className="px-3 py-3 min-w-[80px] text-right">SRT</th>
-                      <th className="px-3 py-3 min-w-[80px] text-right">ACT</th>
-                      <th className="px-3 py-3 min-w-[100px] text-right">Tot Inv Qty</th>
+                      <th className="px-3 py-3 min-w-[110px] text-right">Tot Inv Qty</th>
                       <th className="px-3 py-3 min-w-[120px] text-right">Rate</th>
                       <th className="px-4 py-3 min-w-[120px] text-right">Amount</th>
                       <th className="px-3 py-3 min-w-[120px]">GST Type</th>
@@ -938,7 +1091,7 @@ export default function NewPurchaseInvoicePage() {
                                circle: circ || newItems[index].circle,
                                tempCode: getVal('tempCode') || getVal('sku') || getVal('itemCode') || newItems[index].tempCode,
                                itemDescription: getVal('description') || getVal('itemDescription') || newItems[index].itemDescription,
-                               loaSerialNo: '', // Disabled as per user request
+                               loaSerialNo: getVal('loaSerialNo') || getVal('loaSrNo') || getVal('sku') || newItems[index].loaSerialNo || '',
                                hsnCode: getVal('hsnCode') || getVal('hsn') || '',
                                unit: getVal('unit') || getVal('uom') || '',
                                gstType: newItems[index].gstType || 'Intra State',
@@ -1148,15 +1301,13 @@ export default function NewPurchaseInvoicePage() {
                               <Input placeholder="Unit" className="h-8 text-[12px] border-slate-200 bg-transparent px-2" value={item.unit || ''} onChange={(e) => updateLineItem(index, 'unit', e.target.value)} />
                             </td>
                             <td className="px-2 py-2">
-                              <Input type="number" placeholder="0" className="h-8 text-[12px] border-slate-200 bg-transparent px-2 text-right" value={item.srt || 0} onChange={(e) => updateLineItem(index, 'srt', e.target.value)} />
-                            </td>
-                            <td className="px-2 py-2">
-                              <Input type="number" placeholder="0" className="h-8 text-[12px] border-slate-200 bg-transparent px-2 text-right" value={item.act || 0} onChange={(e) => updateLineItem(index, 'act', e.target.value)} />
-                            </td>
-                            <td className="px-2 py-2">
-                              <div className={`h-8 flex items-center justify-end px-2 text-[12px] border border-slate-200 rounded bg-slate-50 ${(Number(item.totalInvoiceQuantity) || 0) > (Number(item.invoiceQuantity) || 0) ? 'text-red-500 font-bold border-red-200 bg-red-50' : 'text-slate-700'}`}>
-                                {item.totalInvoiceQuantity || 0}
-                              </div>
+                              <Input
+                                type="number"
+                                placeholder="0"
+                                className={`h-8 text-[12px] border-slate-200 bg-transparent px-2 text-right font-medium ${(Number(item.totalInvoiceQuantity) || 0) > (Number(item.diQuantity) || 0) ? 'text-red-600 border-red-300' : 'text-slate-800'}`}
+                                value={item.totalInvoiceQuantity !== undefined && item.totalInvoiceQuantity !== null ? item.totalInvoiceQuantity : ''}
+                                onChange={(e) => updateLineItem(index, 'totalInvoiceQuantity', e.target.value)}
+                              />
                             </td>
                             <td className="px-2 py-2">
                               <Input type="number" className="h-8 text-[12px] border-slate-200 px-2 text-right bg-transparent" value={item.rate || 0} onChange={(e) => updateLineItem(index, 'rate', e.target.value)} />
@@ -1204,57 +1355,111 @@ export default function NewPurchaseInvoicePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-              {/* Notes */}
-              <div>
-                <label className="flex items-center text-[13px] text-slate-700 font-medium mb-3">
-                  <FileText className="w-4 h-4 mr-2 text-blue-500" /> Notes (For Internal Use)
-                </label>
-                <Textarea 
-                  className="min-h-[120px] text-[13px] resize-y rounded-lg border-slate-200" 
-                  value={notes}
-                  onChange={e => setNotes(e.target.value)}
-                  placeholder="Enter notes for internal use..."
-                />
+            {/* Notes, Attachments & Live Invoice Summary */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-8">
+              {/* Left Column: Notes & Attachments */}
+              <div className="lg:col-span-7 space-y-6">
+                {/* Notes */}
+                <div>
+                  <label className="flex items-center text-[13px] text-slate-700 font-medium mb-3">
+                    <FileText className="w-4 h-4 mr-2 text-blue-500" /> Notes (For Internal Use)
+                  </label>
+                  <Textarea 
+                    className="min-h-[100px] text-[13px] resize-y rounded-lg border-slate-200" 
+                    value={notes}
+                    onChange={e => setNotes(e.target.value)}
+                    placeholder="Enter notes for internal use..."
+                  />
+                </div>
+
+                {/* Attachments */}
+                <div>
+                  <label className="flex items-center text-[13px] text-slate-700 font-medium mb-3">
+                    <Paperclip className="w-4 h-4 mr-2 text-blue-500" /> Attach File(s) to Purchase Invoice
+                  </label>
+                  
+                  {uploadedDocs.length > 0 && (
+                    <div className="mb-3 space-y-2">
+                      {uploadedDocs.map(doc => (
+                        <div key={doc._id} className="text-[13px] text-blue-600 flex items-center">
+                          <a href={doc.url} target="_blank" rel="noreferrer" className="hover:underline">{doc.fileName}</a>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    ref={fileInputRef} 
+                    onChange={handleFileUpload} 
+                  />
+                  <div 
+                    className="border border-dashed border-blue-300 rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-50 transition-colors bg-blue-50/30"
+                    onClick={() => !isUploadingDoc && fileInputRef.current?.click()}
+                  >
+                    <div className="flex flex-col items-center text-[13px] text-blue-600 font-medium">
+                      {isUploadingDoc ? (
+                        <Loader2 className="w-5 h-5 mb-2 animate-spin" />
+                      ) : (
+                        <UploadCloud className="w-5 h-5 mb-2" />
+                      )}
+                      {isUploadingDoc ? "Uploading..." : "Upload File"}
+                      <span className="text-slate-400 font-normal mt-1 text-[12px]">or drag and drop</span>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-2">You can upload a maximum of 5 files, 10MB each</p>
+                </div>
               </div>
 
-              {/* Attachments */}
-              <div>
-                <label className="flex items-center text-[13px] text-slate-700 font-medium mb-3">
-                  <Paperclip className="w-4 h-4 mr-2 text-blue-500" /> Attach File(s) to Purchase Invoice
-                </label>
-                
-                {uploadedDocs.length > 0 && (
-                  <div className="mb-3 space-y-2">
-                    {uploadedDocs.map(doc => (
-                      <div key={doc._id} className="text-[13px] text-blue-600 flex items-center">
-                        <a href={doc.url} target="_blank" rel="noreferrer" className="hover:underline">{doc.fileName}</a>
-                      </div>
-                    ))}
+              {/* Right Column: Live Invoice Summary Card */}
+              <div className="lg:col-span-5">
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 shadow-sm space-y-3 sticky top-4">
+                  <div className="text-[14px] font-bold text-slate-800 border-b border-slate-200 pb-2.5 flex items-center justify-between">
+                    <span>Invoice Summary</span>
+                    <span className="text-[12px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                      {summaryTotals.invoicedItemsCount} of {summaryTotals.totalItemsCount} items billed
+                    </span>
                   </div>
-                )}
 
-                <input 
-                  type="file" 
-                  className="hidden" 
-                  ref={fileInputRef} 
-                  onChange={handleFileUpload} 
-                />
-                <div 
-                  className="border border-dashed border-blue-300 rounded-lg p-8 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-50 transition-colors bg-blue-50/30"
-                  onClick={() => !isUploadingDoc && fileInputRef.current?.click()}
-                >
-                  <div className="flex flex-col items-center text-[13px] text-blue-600 font-medium">
-                    {isUploadingDoc ? (
-                      <Loader2 className="w-5 h-5 mb-2 animate-spin" />
-                    ) : (
-                      <UploadCloud className="w-5 h-5 mb-2" />
-                    )}
-                    {isUploadingDoc ? "Uploading..." : "Upload File"}
-                    <span className="text-slate-400 font-normal mt-1 text-[12px]">or drag and drop</span>
+                  <div className="flex justify-between text-[13px] text-slate-600">
+                    <span>Total Invoiced Quantity</span>
+                    <span className="font-semibold text-slate-800">{summaryTotals.totalQty.toLocaleString('en-IN', { maximumFractionDigits: 3 })}</span>
+                  </div>
+
+                  <div className="flex justify-between text-[13px] text-slate-600">
+                    <span>Subtotal (Taxable Amount)</span>
+                    <span className="font-semibold text-slate-800">₹{summaryTotals.taxableAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+
+                  {summaryTotals.totalCgst > 0 && (
+                    <div className="flex justify-between text-[13px] text-slate-600">
+                      <span>CGST Total</span>
+                      <span className="text-slate-700">₹{summaryTotals.totalCgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
+
+                  {summaryTotals.totalSgst > 0 && (
+                    <div className="flex justify-between text-[13px] text-slate-600">
+                      <span>SGST Total</span>
+                      <span className="text-slate-700">₹{summaryTotals.totalSgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
+
+                  {summaryTotals.totalIgst > 0 && (
+                    <div className="flex justify-between text-[13px] text-slate-600">
+                      <span>IGST Total</span>
+                      <span className="text-slate-700">₹{summaryTotals.totalIgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
+
+                  <div className="border-t border-slate-200 pt-3 flex justify-between items-center text-[15px] font-bold text-slate-900">
+                    <span>Grand Total</span>
+                    <span className="text-[20px] font-extrabold text-blue-700">
+                      ₹{summaryTotals.grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
                   </div>
                 </div>
-                <p className="text-[11px] text-slate-400 mt-3">You can upload a maximum of 5 files, 10MB each</p>
               </div>
             </div>
 
@@ -1399,7 +1604,7 @@ export default function NewPurchaseInvoicePage() {
                         tempCode: d.tempCode || '',
                         itemName: d.name || d.itemDescription || '',
                         itemDescription: d.description || d.itemDescription || '',
-                        loaSerialNo: '', // Disabled as per user request
+                        loaSerialNo: String(d.sku || d.loaSerialNo || d['LOA Serial No.'] || d.loa || ''),
                         hsnCode: '', poQuantity: 0, poDate: '',
                         srt: 0, act: 0, totalInvoiceQuantity: 0,
                         unit: d.unit || '', gstType: 'Intra State',

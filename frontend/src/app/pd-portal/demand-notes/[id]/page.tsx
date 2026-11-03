@@ -2,10 +2,28 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Loader2, FileText, CheckCircle, AlertCircle, Edit, Printer, Building2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  Loader2,
+  FileText,
+  CheckCircle,
+  AlertCircle,
+  Edit,
+  Printer,
+  Building2,
+  RotateCcw,
+  Ban,
+  AlertTriangle
+} from 'lucide-react';
 import { getStockSummary } from '@/features/store/api/store.api';
 import { getContractorActivitySummary, getContractors } from '@/features/contractors/api/contractors.api';
-import { getDemandNoteById, updateDemandNote } from '@/features/site-portal/api/demand-notes.api';
+import {
+  getDemandNoteById,
+  updateDemandNote,
+  revokeDemandNote,
+  cancelDemandNote,
+  getDemandNoteIssuanceStatus
+} from '@/features/site-portal/api/demand-notes.api';
 import { toast } from 'sonner';
 import { DocumentAttachment } from '@/shared/components/DocumentAttachment';
 import { AuditTimeline } from '@/shared/components/audit/AuditTimeline';
@@ -23,9 +41,24 @@ export default function DemandNoteDetailPage() {
   const [stockSummary, setStockSummary] = useState<any[]>([]);
   const [activitySummary, setActivitySummary] = useState<Record<string, any>>({});
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Rejection Modal
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [rejectionRemarks, setRejectionRemarks] = useState('');
   const [isRejecting, setIsRejecting] = useState(false);
+
+  // Revocation Modal (SAP MM Revoke / Send Back for Revision)
+  const [isRevokeModalOpen, setIsRevokeModalOpen] = useState(false);
+  const [correctionRemarks, setCorrectionRemarks] = useState('');
+  const [isRevoking, setIsRevoking] = useState(false);
+
+  // Cancellation Modal (SAP Deletion / Void)
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [cancellationRemarks, setCancellationRemarks] = useState('');
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  // Material issuance tracking
+  const [issuanceInfo, setIssuanceInfo] = useState<{ isIssued: boolean; reason?: string } | null>(null);
 
   const fetchDemandNote = async () => {
     try {
@@ -63,6 +96,16 @@ export default function DemandNoteDetailPage() {
           } catch (err) {
             console.error('Failed to fetch stock', err);
           }
+        }
+
+        // Fetch store issuance status
+        try {
+          const issueRes = await getDemandNoteIssuanceStatus(id as string);
+          if (issueRes?.success && issueRes.data) {
+            setIssuanceInfo(issueRes.data);
+          }
+        } catch (e) {
+          console.error('Failed to check issuance status', e);
         }
       } else {
         toast.error('Failed to fetch Demand Note details');
@@ -112,6 +155,48 @@ export default function DemandNoteDetailPage() {
     }
   };
 
+  const handleRevoke = async () => {
+    if (!correctionRemarks.trim()) {
+      toast.error('Please provide correction remarks for revision');
+      return;
+    }
+    try {
+      setIsRevoking(true);
+      const res = await revokeDemandNote(demandNote._id, correctionRemarks.trim());
+      if (res.success) {
+        toast.success('Demand Note revoked and sent back for revision successfully');
+        setIsRevokeModalOpen(false);
+        setCorrectionRemarks('');
+        fetchDemandNote();
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to revoke Demand Note');
+    } finally {
+      setIsRevoking(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!cancellationRemarks.trim()) {
+      toast.error('Please provide cancellation remarks');
+      return;
+    }
+    try {
+      setIsCancelling(true);
+      const res = await cancelDemandNote(demandNote._id, cancellationRemarks.trim());
+      if (res.success) {
+        toast.success('Demand Note cancelled and voided successfully');
+        setIsCancelModalOpen(false);
+        setCancellationRemarks('');
+        fetchDemandNote();
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to cancel Demand Note');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const baseStyle = "px-2.5 py-1 text-xs font-semibold rounded-full border flex items-center gap-1.5";
     switch (status) {
@@ -120,6 +205,8 @@ export default function DemandNoteDetailPage() {
       case 'Pending PM Approval': 
       case 'Pending PD Approval': return <span className={`${baseStyle} bg-amber-100 text-amber-700 border-amber-200`}><AlertCircle className="w-3 h-3"/> {status}</span>;
       case 'Approved': return <span className={`${baseStyle} bg-emerald-100 text-emerald-700 border-emerald-200`}><CheckCircle className="w-3 h-3"/> {status}</span>;
+      case 'Revision Required': return <span className={`${baseStyle} bg-amber-50 text-amber-800 border-amber-300`}><RotateCcw className="w-3 h-3 text-amber-600"/> Revision Required</span>;
+      case 'Cancelled': return <span className={`${baseStyle} bg-rose-50 text-rose-700 border-rose-200`}><Ban className="w-3 h-3 text-rose-600"/> Cancelled</span>;
       case 'Rejected': return <span className={`${baseStyle} bg-red-100 text-red-700 border-red-200`}><AlertCircle className="w-3 h-3"/> {status}</span>;
       case 'Fulfilled': return <span className={`${baseStyle} bg-blue-100 text-blue-700 border-blue-200`}><CheckCircle className="w-3 h-3"/> {status}</span>;
       default: return <span className={`${baseStyle} bg-slate-100 text-slate-700 border-slate-200`}>{status}</span>;
@@ -200,7 +287,7 @@ export default function DemandNoteDetailPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
         <div className="flex items-center space-x-4">
-          <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 rounded-full transition-colors flex-shrink-0">
+          <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 rounded-full transition-colors flex-shrink-0 cursor-pointer">
             <ArrowLeft className="w-5 h-5 text-slate-600" />
           </button>
           <div>
@@ -211,7 +298,7 @@ export default function DemandNoteDetailPage() {
               </h1>
               {getStatusBadge(demandNote.status)}
             </div>
-            <p className="text-sm text-slate-500 mt-1 flex items-center gap-2">
+            <p className="text-sm text-slate-500 mt-1 flex items-center gap-2 flex-wrap">
               Created on <span className="font-medium text-slate-700">{new Date(demandNote.createdAt).toLocaleDateString()}</span>
               <span className="text-slate-300">•</span>
               Created By <span className="font-medium text-slate-700">
@@ -226,7 +313,7 @@ export default function DemandNoteDetailPage() {
             </p>
           </div>
         </div>
-        <div className="flex space-x-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           {demandNote.status === 'Pending PD Approval' && (
             <>
               <button
@@ -243,6 +330,45 @@ export default function DemandNoteDetailPage() {
               </button>
             </>
           )}
+
+          {/* SAP MM Operations: Revoke for Revision or Cancel/Void */}
+          {demandNote.status === 'Approved' && (
+            <>
+              {issuanceInfo?.isIssued ? (
+                <div
+                  className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg text-xs font-semibold"
+                  title={issuanceInfo.reason || 'Material already issued from store'}
+                >
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  Material Issued (Revocation Locked)
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={() => {
+                      setCorrectionRemarks('');
+                      setIsRevokeModalOpen(true);
+                    }}
+                    className="flex items-center px-4 py-2 bg-amber-500 rounded-lg text-sm font-semibold text-white hover:bg-amber-600 transition-colors shadow-sm cursor-pointer"
+                    title="Send back to Site Engineer for corrections. Previous approvals will reset."
+                  >
+                    <RotateCcw className="w-4 h-4 mr-2" /> Revoke for Revision
+                  </button>
+                  <button
+                    onClick={() => {
+                      setCancellationRemarks('');
+                      setIsCancelModalOpen(true);
+                    }}
+                    className="flex items-center px-4 py-2 bg-rose-600 rounded-lg text-sm font-semibold text-white hover:bg-rose-700 transition-colors shadow-sm cursor-pointer"
+                    title="Void this demand note completely and release work order demands"
+                  >
+                    <Ban className="w-4 h-4 mr-2" /> Cancel / Void
+                  </button>
+                </>
+              )}
+            </>
+          )}
+
           <button
             onClick={() => window.open(`/pd-portal/demand-notes/${demandNote._id}/print`, '_blank')}
             className="flex items-center px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-sm cursor-pointer"
@@ -252,10 +378,45 @@ export default function DemandNoteDetailPage() {
         </div>
       </div>
 
+      {/* SAP Status Notification Banners */}
+      {demandNote.status === 'Revision Required' && (
+        <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-xl shadow-xs flex items-start gap-3">
+          <RotateCcw className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h4 className="text-sm font-bold text-amber-900">Revoked for Revision</h4>
+            <p className="text-xs text-amber-800 mt-1">
+              This Demand Note was revoked and sent back to the site team for correction. Once edited and saved, it will require PM and PD approvals again.
+            </p>
+            {demandNote.revocationRemarks && (
+              <div className="mt-2 p-2.5 bg-white/80 rounded-lg border border-amber-200 text-xs text-amber-900">
+                <span className="font-semibold">Correction Remarks:</span> {demandNote.revocationRemarks}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {demandNote.status === 'Cancelled' && (
+        <div className="bg-rose-50 border-l-4 border-rose-500 p-4 rounded-xl shadow-xs flex items-start gap-3">
+          <Ban className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h4 className="text-sm font-bold text-rose-900">Cancelled / Voided Demand Note</h4>
+            <p className="text-xs text-rose-800 mt-1">
+              This Demand Note has been cancelled and voided. All work order demanded quantities have been released back.
+            </p>
+            {demandNote.cancellationRemarks && (
+              <div className="mt-2 p-2.5 bg-white/80 rounded-lg border border-rose-200 text-xs text-rose-900">
+                <span className="font-semibold">Cancellation Remarks:</span> {demandNote.cancellationRemarks}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Approval Audit Trail Timeline Card */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs">
         <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Approval Lifecycle & Audit Trail</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 gap-4">
           {/* Step 1: Requisition */}
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/70 flex items-start gap-3">
             <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 shrink-0 mt-0.5">
@@ -333,6 +494,41 @@ export default function DemandNoteDetailPage() {
               )}
             </div>
           </div>
+
+          {/* Step 4: Revocation / Cancellation Status (if applicable) */}
+          {demandNote.revokedBy && (
+            <div className="p-3.5 rounded-xl border border-amber-300 bg-amber-50/70 flex items-start gap-3">
+              <div className="w-7 h-7 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
+                <RotateCcw className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-800">4. Revocation for Revision</p>
+                <p className="text-xs text-amber-900 font-semibold">
+                  {demandNote.revokedBy.firstName} {demandNote.revokedBy.lastName}
+                </p>
+                {demandNote.revokedAt && (
+                  <p className="text-[11px] text-slate-400 mt-0.5">{new Date(demandNote.revokedAt).toLocaleString()}</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {demandNote.cancelledBy && (
+            <div className="p-3.5 rounded-xl border border-rose-300 bg-rose-50/70 flex items-start gap-3">
+              <div className="w-7 h-7 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center shrink-0 mt-0.5">
+                <Ban className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-800">Voided / Cancelled</p>
+                <p className="text-xs text-rose-900 font-semibold">
+                  {demandNote.cancelledBy.firstName} {demandNote.cancelledBy.lastName}
+                </p>
+                {demandNote.cancelledAt && (
+                  <p className="text-[11px] text-slate-400 mt-0.5">{new Date(demandNote.cancelledAt).toLocaleString()}</p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -348,13 +544,25 @@ export default function DemandNoteDetailPage() {
               <span className="col-span-2 text-sm font-medium text-slate-800">{demandNote.contractorName || '-'}</span>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <span className="text-sm text-slate-500">Town / Circle</span>
-              <span className="col-span-2 text-sm font-medium text-slate-800">{demandNote.circle || '-'}</span>
+              <span className="text-sm text-slate-500">Package</span>
+              <span className="col-span-2 text-sm font-medium text-slate-800">{demandNote.package}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <span className="text-sm text-slate-500">Circle</span>
+              <span className="col-span-2 text-sm font-medium text-slate-800">{demandNote.circle}</span>
             </div>
             <div className="grid grid-cols-3 gap-2">
               <span className="text-sm text-slate-500">Sub Circle</span>
               <span className="col-span-2 text-sm font-medium text-slate-800">{demandNote.subcircle || '-'}</span>
             </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-indigo-500" /> Location & Tracking
+          </h2>
+          <div className="space-y-4">
             <div className="grid grid-cols-3 gap-2">
               <span className="text-sm text-slate-500">Division</span>
               <span className="col-span-2 text-sm font-medium text-slate-800">{demandNote.division || '-'}</span>
@@ -367,136 +575,71 @@ export default function DemandNoteDetailPage() {
               <span className="text-sm text-slate-500">Location</span>
               <span className="col-span-2 text-sm font-medium text-slate-800">{demandNote.location || '-'}</span>
             </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-indigo-500" /> Additional Info
-          </h2>
-          <div className="space-y-4">
             <div className="grid grid-cols-3 gap-2">
-              <span className="text-sm text-slate-500">Package</span>
-              <span className="col-span-2 text-sm font-medium text-slate-800">{demandNote.package || '-'}</span>
+              <span className="text-sm text-slate-500">Drawing / Scheme</span>
+              <span className="col-span-2 text-sm font-medium text-slate-800">{demandNote.drawingNumber || '-'}</span>
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              <span className="text-sm text-slate-500">Status</span>
-              <span className="col-span-2">{getStatusBadge(demandNote.status)}</span>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <span className="text-sm text-slate-500">Remarks</span>
-              <span className="col-span-2 text-sm font-medium text-slate-800">{demandNote.remarks || 'No remarks provided'}</span>
-            </div>
-            {demandNote.pmApprovalRemarks && (
-              <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-slate-100">
-                <span className="text-sm text-slate-500">PM Approval Remarks</span>
-                <span className="col-span-2 text-sm font-medium text-slate-800">{demandNote.pmApprovalRemarks}</span>
-              </div>
-            )}
-            {demandNote.status === 'Rejected' && (
-              <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-slate-100">
-                <span className="text-sm text-slate-500">Rejection Reason</span>
-                <span className="col-span-2 text-sm font-medium text-red-600">{demandNote.rejectionRemarks || 'No reason provided'}</span>
-              </div>
-            )}
           </div>
         </div>
       </div>
 
-      {/* Items Table */}
-      <div className="mt-8">
+      {/* Requested Items Table */}
+      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold text-slate-800">Requested Items</h2>
-          <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold">
-            {demandNote.items?.filter((item: any) => Number(item.demandQty) > 0).length || 0} Items
+          <span className="text-xs font-semibold px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full">
+            {demandNote.items?.length || 0} Items
           </span>
         </div>
-        
+
         {(() => {
-          const tableData: any[] = [];
-          const validItems = demandNote.items?.filter((item: any) => Number(item.demandQty) > 0) || [];
-          if (validItems.length > 0) {
-            const grouped = validItems.reduce((acc: any, item: any, originalIdx: number) => {
-              const act = item.activity || 'Uncategorized Activity';
+          let tableData: any[] = [];
+          if (demandNote && demandNote.items) {
+            const grouped = demandNote.items.reduce((acc: any, item: any, originalIdx: number) => {
+              const act = item.activity || 'General';
               if (!acc[act]) acc[act] = [];
               acc[act].push({ ...item, originalIdx });
               return acc;
             }, {});
 
-            Object.entries(grouped).forEach(([activityName, itemsGroup]: [string, any]) => {
-              tableData.push({ isGroupRow: true, activityName });
-              
-              itemsGroup.forEach((item: any) => {
-                const stockMatch = stockSummary.find(s => {
-                  if (item.tempCode && s.tempCode && String(item.tempCode).trim() === String(s.tempCode).trim()) return true;
-                  return String(s.loaSrNo) === String(item.loaSrNo) && String(s.activity) === String(item.activity) && (s.description === item.itemName || s.itemName === item.itemName);
-                });
-                
-                const clean = (s: any) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
-                const cleanTemp = clean(item.tempCode || item.materialCode);
-                const cleanAct = clean(item.activity);
-                const cleanLoa = clean(item.loaSrNo || item.loaSerialNo);
-                const exactKey = `${cleanTemp}_${cleanAct}_${cleanLoa}`;
-                let tillIssued = 0;
-                let consumption = 0;
-                let jmcDone = 0;
-                
-                if (activitySummary) {
-                  // Find the exact single matching key from activitySummary (or drawing-prefixed key) to avoid duplicate addition
-                  let targetEntry = null;
-                  for (const [key, val] of Object.entries(activitySummary)) {
-                    const cleanKey = clean(key);
-                    if (cleanKey === exactKey || cleanKey === `_${exactKey}` || cleanKey.endsWith(`_${exactKey}`)) {
-                      targetEntry = val;
-                      break;
-                    }
-                  }
+            Object.entries(grouped).forEach(([activityName, activityItems]: [string, any]) => {
+              tableData.push({
+                isGroupRow: true,
+                activityName: activityName,
+                itemCount: activityItems.length
+              });
 
-                  if (!targetEntry && cleanAct && cleanLoa) {
-                    const fallbackKey = `${cleanAct}_${cleanLoa}`;
-                    for (const [key, val] of Object.entries(activitySummary)) {
-                      const cleanKey = clean(key);
-                      if (cleanKey === fallbackKey) {
-                        targetEntry = val;
-                        break;
-                      }
-                    }
-                  }
-
-                  if (targetEntry) {
-                    tillIssued = Number((targetEntry as any).tillIssued) || 0;
-                    consumption = Number((targetEntry as any).wipConsumed) || 0;
-                    jmcDone = Number((targetEntry as any).jmcDone) || 0;
-                  }
-                }
-
-                if (consumption === 0 && item.wipQty) {
-                  consumption = Number(item.wipQty) || 0;
-                }
-                if (jmcDone === 0 && item.jmcQty) {
-                  jmcDone = Number(item.jmcQty) || 0;
-                }
-                if (tillIssued === 0 && item.alreadyIssuedQty) {
-                  tillIssued = Number(item.alreadyIssuedQty) || 0;
-                }
+              activityItems.forEach((item: any) => {
+                const stockItem = stockSummary.find((s: any) => 
+                  s.tempCode === item.tempCode || s.itemName === item.itemName
+                );
+                const currentStock = stockItem ? (stockItem.goodStock || stockItem.currentStock || 0) : (item.stockBal || 0);
                 
-                const inStock = stockMatch ? stockMatch.totalBalanceQty : 0;
-                const circleLoaQty = stockMatch ? (stockMatch.circleLoaQty || 0) : 0;
-                const invoiceQty = stockMatch ? ((stockMatch.acceptedQty || 0) + (stockMatch.mhrovQty || 0)) : 0;
-                const misc = Number(item.miscellaneousQty || 0);
-                const wipReq = Number(item.wipRequiredQty || 0);
-                const contractorBalance = Number(tillIssued || 0) - Number(jmcDone || 0) - Number(consumption || 0) - wipReq - misc;
+                const itemActSummary = activitySummary[item.activity] || {};
+                const circleLoaQty = item.circleLoaQty !== undefined ? item.circleLoaQty : (itemActSummary.loaQty || 0);
+                const invoiceQty = item.circleBomQty !== undefined ? item.circleBomQty : (itemActSummary.invoiceQty || 0);
+                const tillIssued = item.alreadyIssuedQty !== undefined ? item.alreadyIssuedQty : (itemActSummary.issuedQty || 0);
+                const consumption = item.wipQty !== undefined ? item.wipQty : (itemActSummary.consumption || 0);
+                const jmcDone = item.jmcQty !== undefined ? item.jmcQty : (itemActSummary.jmcDone || 0);
+                const contractorBalance = tillIssued - consumption;
 
                 tableData.push({
-                  ...item,
                   isGroupRow: false,
-                  inStock: Number(Number(inStock).toFixed(3)),
-                  circleLoaQty: Number(Number(circleLoaQty).toFixed(3)),
-                  invoiceQty: Number(Number(invoiceQty).toFixed(3)),
-                  tillIssued: Number(Number(tillIssued).toFixed(3)),
-                  consumption: Number(Number(consumption).toFixed(3)),
-                  jmcDone: Number(Number(jmcDone).toFixed(3)),
-                  contractorBalance: Number(Number(contractorBalance).toFixed(3))
+                  originalIdx: item.originalIdx,
+                  tempCode: item.tempCode,
+                  materialCode: item.tempCode,
+                  itemName: item.itemName,
+                  activity: item.activity,
+                  loaSrNo: item.loaSrNo,
+                  circleLoaQty: circleLoaQty,
+                  invoiceQty: invoiceQty,
+                  unit: item.unit,
+                  inStock: currentStock,
+                  tillIssued: tillIssued,
+                  consumption: consumption,
+                  jmcDone: jmcDone,
+                  contractorBalance: contractorBalance,
+                  demandQty: item.demandQty
                 });
               });
             });
@@ -543,18 +686,110 @@ export default function DemandNoteDetailPage() {
             <div className="p-6 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
               <button
                 onClick={() => setIsRejectModalOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
                 disabled={isRejecting}
               >
                 Cancel
               </button>
               <button
                 onClick={handleReject}
-                disabled={isRejecting}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+                disabled={isRejecting || !rejectionRemarks.trim()}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {isRejecting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                 Confirm Rejection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Revocation Modal (SAP MM Revoke for Revision) */}
+      {isRevokeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="p-6 border-b border-slate-200">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <RotateCcw className="w-5 h-5 text-amber-600" /> Revoke Demand Note for Revision
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Moves status to <strong>Revision Required</strong> and resets approvals. The site engineer will be able to edit items/details and resubmit for fresh PM and PD sign-off.
+              </p>
+            </div>
+            <div className="p-6">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Correction Remarks <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={correctionRemarks}
+                onChange={(e) => setCorrectionRemarks(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg border border-slate-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-colors text-sm"
+                rows={4}
+                placeholder="Specify what needs to be corrected by the site engineer..."
+                required
+              />
+            </div>
+            <div className="p-6 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
+              <button
+                onClick={() => setIsRevokeModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+                disabled={isRevoking}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRevoke}
+                disabled={isRevoking || !correctionRemarks.trim()}
+                className="px-4 py-2 text-sm font-medium text-white bg-amber-500 rounded-lg hover:bg-amber-600 transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+              >
+                {isRevoking ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Confirm & Revoke
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancellation Modal (SAP Deletion / Void) */}
+      {isCancelModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="p-6 border-b border-slate-200">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <Ban className="w-5 h-5 text-rose-600" /> Cancel & Void Demand Note
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Permanently cancels this Demand Note and releases any work order demands back to available scope.
+              </p>
+            </div>
+            <div className="p-6">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Cancellation Remarks <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={cancellationRemarks}
+                onChange={(e) => setCancellationRemarks(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg border border-slate-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 transition-colors text-sm"
+                rows={4}
+                placeholder="State reason for cancelling (e.g. wrong contractor or work order selected)..."
+                required
+              />
+            </div>
+            <div className="p-6 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
+              <button
+                onClick={() => setIsCancelModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+                disabled={isCancelling}
+              >
+                Close
+              </button>
+              <button
+                onClick={handleCancel}
+                disabled={isCancelling || !cancellationRemarks.trim()}
+                className="px-4 py-2 text-sm font-medium text-white bg-rose-600 rounded-lg hover:bg-rose-700 transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+              >
+                {isCancelling ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Confirm & Cancel
               </button>
             </div>
           </div>

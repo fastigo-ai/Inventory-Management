@@ -28,6 +28,37 @@ const uploadToCloudinary = (buffer: Buffer, folder: string): Promise<any> => {
 // Helper: Build items array for an auto-created Supply bill from an approved
 // Supply 60% bill, at the given percentage with 0% GST
 // ─────────────────────────────────────────────────────────────────────────────
+
+const buildAutoSupplyItemsFromErection = (erectionItems: any[], supplyItems: any[], percentage: number, defaultRefNumber?: string) => {
+  return erectionItems.map((item: any) => {
+    const srcItem = supplyItems?.find((si: any) =>
+      (si.itemId && item.itemId && si.itemId.toString() === item.itemId.toString()) ||
+      (si.loaSrNo && item.loaSrNo && String(si.loaSrNo).trim().toLowerCase() === String(item.loaSrNo).trim().toLowerCase()) ||
+      (si.tempCode && item.tempCode && String(si.tempCode).trim().toLowerCase() === String(item.tempCode).trim().toLowerCase())
+    );
+
+    const base = srcItem ? (Number(srcItem.boqRate) || 0) : (Number(item.boqRate) || 0);
+    const qty = Number(item.raBillQty) || 0;
+    const billedBase = Number((qty * base * (percentage / 100)).toFixed(2));
+
+    return {
+      loaSrNo: srcItem ? srcItem.loaSrNo : (item.loaSrNo || ''),
+      itemId: item.itemId || srcItem?.itemId,
+      tempCode: srcItem ? srcItem.tempCode : (item.tempCode || ''),
+      refNumber: item.refNumber || defaultRefNumber || '',
+      itemName: (srcItem ? srcItem.itemName : '') || item.itemName || 'Item',
+      diNo: srcItem ? srcItem.diNo : '',
+      diDate: srcItem ? srcItem.diDate : undefined,
+      diQty: srcItem ? srcItem.diQty : 0,
+      sourceDoneQty: qty,
+      raBillQty: qty,
+      boqRate: base,
+      totalAmount: billedBase,
+      gstAmount: 0
+    };
+  });
+};
+
 const buildAutoSupplyItems = (sourceItems: any[], percentage: number) => {
   return sourceItems.map((item: any) => {
     const base = Number(item.boqRate) || 0;
@@ -341,7 +372,7 @@ export const updateClientBillStatus = asyncHandler(async (req: any, res: Respons
           const existingDraft = await ClientBill.findOne({ parentBillId: bill._id, stage: '30%' });
           if (!existingDraft) {
             // Auto-create Supply 30% Draft
-            const thirtyPctItems = buildAutoSupplyItems(supplySource.items as any[], 30);
+            const thirtyPctItems = buildAutoSupplyItemsFromErection(bill.items as any[], supplySource.items as any[], 30, bill.raBillNo);
             const supplyDraft = new ClientBill({
               raBillNo: `${supplySource.raBillNo}-S30-AUTO`,
               raBillDate: new Date(),
@@ -364,7 +395,7 @@ export const updateClientBillStatus = asyncHandler(async (req: any, res: Respons
           const existingDraft = await ClientBill.findOne({ parentBillId: bill._id, stage: '10%' });
           if (!existingDraft) {
             // Auto-create Supply 10% Draft
-            const tenPctItems = buildAutoSupplyItems(supplySource.items as any[], 10);
+            const tenPctItems = buildAutoSupplyItemsFromErection(bill.items as any[], supplySource.items as any[], 10, bill.raBillNo);
             const supplyDraft = new ClientBill({
               raBillNo: `${supplySource.raBillNo}-S10-AUTO`,
               raBillDate: new Date(),

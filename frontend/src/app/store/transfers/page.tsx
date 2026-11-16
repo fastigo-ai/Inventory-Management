@@ -30,7 +30,15 @@ export default function StoreTransfersPage() {
   }, [searchParams]);
 
   const { user } = useAuthStore();
-  const currentStoreCircle = user?.assignedCircle || 'Unknown';
+  const currentStoreCircle = user?.assignedCircle || '';
+  const isSuperOrAdmin =
+    user?.role?.name === 'Super Admin' ||
+    user?.role?.name === 'Admin' ||
+    user?.role?.name === 'CEO' ||
+    user?.role?.name === 'Project Director' ||
+    user?.role?.permissions?.includes('*') ||
+    !currentStoreCircle ||
+    currentStoreCircle.toLowerCase() === 'all';
 
   useEffect(() => {
     fetchTransfers();
@@ -43,14 +51,21 @@ export default function StoreTransfersPage() {
       const res = await getStoreTransfers();
       const allTransfers = res.data || [];
       
-      const cleanStoreString = (str: string) => (str || '').toLowerCase().replace(/store|circle/g, '').trim();
-      const currentCleanStore = cleanStoreString(currentStoreCircle);
+      const clean = (str: string) => (str || '').toLowerCase().replace(/store|circle/gi, '').trim();
+      const currentCleanStore = clean(currentStoreCircle);
+
+      const matchesStore = (transferStore: string) => {
+        if (isSuperOrAdmin || !currentCleanStore || currentCleanStore === 'all') return true;
+        const norm = clean(transferStore);
+        if (!norm) return true;
+        return norm.includes(currentCleanStore) || currentCleanStore.includes(norm);
+      };
       
       if (activeTab === 'incoming') {
-        setTransfers(allTransfers.filter((t: any) => t.status !== 'REJECTED' && cleanStoreString(t.toStore) === currentCleanStore));
+        setTransfers(allTransfers.filter((t: any) => t.status !== 'REJECTED' && matchesStore(t.toStore)));
       } else {
         // Outgoing transfers
-        setTransfers(allTransfers.filter((t: any) => cleanStoreString(t.fromStore) === currentCleanStore));
+        setTransfers(allTransfers.filter((t: any) => matchesStore(t.fromStore)));
       }
     } catch (error) {
       console.error(error);

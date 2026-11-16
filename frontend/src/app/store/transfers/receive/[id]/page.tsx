@@ -31,7 +31,14 @@ export default function ReceiveTransferPage() {
       setLoading(true);
       const res = await getStoreTransferById(id);
       setTransfer(res.data);
-      setItems(res.data.items || []);
+      const rawItems = res.data.items || [];
+      const initializedItems = rawItems.map((it: any) => ({
+        ...it,
+        receivedQty: (it.receivedQty !== undefined && it.receivedQty !== null && it.receivedQty > 0)
+          ? it.receivedQty 
+          : (it.dispatchedQty !== undefined && it.dispatchedQty !== null ? it.dispatchedQty : (it.requestedQty || 0))
+      }));
+      setItems(initializedItems);
       setFormData({
         ...formData,
         remarks: res.data.remarks || ""
@@ -198,7 +205,7 @@ export default function ReceiveTransferPage() {
                         <Input 
                           type="number" 
                           min="0"
-                          value={item.receivedQty || ""} 
+                          value={item.receivedQty !== undefined && item.receivedQty !== null ? item.receivedQty : ""} 
                           onChange={(e) => handleItemChange(index, 'receivedQty', Number(e.target.value))} 
                           className="w-full"
                         />

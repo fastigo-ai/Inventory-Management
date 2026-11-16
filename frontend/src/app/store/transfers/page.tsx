@@ -10,6 +10,7 @@ import { DataTableTopControls, DataTableBottomControls } from "@/shared/componen
 import { useAuthStore } from "@/shared/store/auth.store";
 import { TransferStatistics } from "@/features/store/components/TransferStatistics";
 import { BarChart3 } from "lucide-react";
+import { formatDate } from "@/shared/utils/date";
 
 export default function StoreTransfersPage() {
   const router = useRouter();
@@ -196,7 +197,7 @@ export default function StoreTransfersPage() {
                       paginatedData.map((t: any) => (
                         <tr key={t._id} className="hover:bg-slate-50 transition-colors">
                           <td className="px-6 py-4 font-medium text-slate-900">
-                            {new Date(t.requestDate).toLocaleDateString()}
+                            {formatDate(t.requestDate)}
                           </td>
                           <td className="px-6 py-4 text-slate-600">{t.fromStore}</td>
                           <td className="px-6 py-4 text-slate-600">{t.toStore}</td>

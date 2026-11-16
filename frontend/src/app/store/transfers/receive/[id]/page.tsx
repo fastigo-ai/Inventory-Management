@@ -6,6 +6,7 @@ import { getStoreTransferById, receiveStoreTransfer } from "@/features/store/api
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Save } from "lucide-react";
+import { formatDate } from "@/shared/utils/date";
 
 export default function ReceiveTransferPage() {
   const router = useRouter();
@@ -110,7 +111,7 @@ export default function ReceiveTransferPage() {
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <span className="block text-xs text-blue-600 font-semibold uppercase">Request Date</span>
-                <span className="text-sm text-slate-700">{new Date(transfer.requestDate).toLocaleDateString()}</span>
+                <span className="text-sm text-slate-700">{formatDate(transfer.requestDate)}</span>
               </div>
               <div>
                 <span className="block text-xs text-blue-600 font-semibold uppercase">From Store</span>

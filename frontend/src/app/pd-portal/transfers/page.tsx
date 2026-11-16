@@ -28,6 +28,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { formatDate } from "@/shared/utils/date";
 import { useAuthStore } from "@/shared/store/auth.store";
 
 export default function PDStoreTransfersPage() {
@@ -511,7 +512,7 @@ export default function PDStoreTransfersPage() {
                       <tr key={t._id} className="hover:bg-slate-50/80 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="font-medium text-slate-900">
-                            {new Date(t.requestDate).toLocaleDateString()}
+                            {formatDate(t.requestDate)}
                           </div>
                           <div className="text-xs text-slate-400">
                             Req by: {t.requestedBy ? `${t.requestedBy.firstName || ''} ${t.requestedBy.lastName || ''}`.trim() || t.requestedBy.email : 'Store Manager'}
@@ -617,7 +618,7 @@ export default function PDStoreTransfersPage() {
                     )}
                   </h2>
                   <p className="text-xs text-slate-400">
-                    ID: {selectedTransfer._id} • Created: {new Date(selectedTransfer.requestDate).toLocaleDateString()}
+                    ID: {selectedTransfer._id} • Created: {formatDate(selectedTransfer.requestDate)}
                   </p>
                 </div>
               </div>

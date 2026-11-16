@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { getStoreTransferById } from "@/features/store/api/store.api";
 import { Loader2 } from "lucide-react";
+import { formatDate } from "@/shared/utils/date";
 
 export function TransferDetailModal({ 
   transferId, 
@@ -67,7 +68,7 @@ export function TransferDetailModal({
               <div>
                 <span className="block text-xs font-semibold text-slate-500 uppercase">Request Date</span>
                 <span className="block text-sm font-medium text-slate-800 mt-1">
-                  {new Date(transfer.requestDate).toLocaleDateString()}
+                  {formatDate(transfer.requestDate)}
                 </span>
               </div>
               <div>

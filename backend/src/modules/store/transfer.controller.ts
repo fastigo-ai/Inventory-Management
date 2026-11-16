@@ -872,9 +872,22 @@ export async function reverseInwardStockUpdate(entryId: string) {
 
 const parseCsvDate = (dateStr: string): Date | undefined => {
   if (!dateStr) return undefined;
-  let d = new Date(dateStr);
+  const trimmed = String(dateStr).trim();
+  // Check if it's an Excel numeric serial date (e.g. 45884, 46119)
+  if (/^\d{5}$/.test(trimmed)) {
+    const serial = Number(trimmed);
+    if (serial >= 30000 && serial <= 60000) {
+      return new Date((serial - 25569) * 86400 * 1000);
+    }
+  }
+
+  let d = new Date(trimmed);
+  if (!Number.isNaN(d.getTime()) && d.getUTCFullYear() >= 30000 && d.getUTCFullYear() <= 60000) {
+    return new Date((d.getUTCFullYear() - 25569) * 86400 * 1000);
+  }
+
   if (Number.isNaN(d.getTime())) {
-    const parts = dateStr.split(/[-/.]/);
+    const parts = trimmed.split(/[-/.]/);
     if (parts.length === 3) {
       if (parts[2].length === 4) d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
       else if (parts[2].length === 2) d = new Date(`20${parts[2]}-${parts[1]}-${parts[0]}`);

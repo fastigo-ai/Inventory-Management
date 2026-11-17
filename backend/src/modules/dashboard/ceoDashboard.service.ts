@@ -14,6 +14,7 @@ import DemandNote from '../demand-notes/demandNote.schema';
 import { ClientBill } from '../client-billing/clientBill.schema';
 import { JmcRegister } from '../jmc/jmc.schema';
 import { HandoverCertificate } from '../contractor-billing/handoverCertificate.schema';
+import { ItemSummary } from '../reports/summary/summary.schema';
 
 const ceoDashboardCache = new Map<string, { timestamp: number; data: any; promise: Promise<any> | null }>();
 const CEO_DASHBOARD_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
@@ -180,6 +181,21 @@ export const buildCeoDashboardSummary = async (filters: any) => {
       handoverMatch.createdAt = dateQuery;
     }
 
+    const summaryMatch: any = {};
+    if (pkg && pkg !== 'All') {
+      const pkgNum = pkg.includes('1') ? '1' : pkg.includes('2') ? '2' : '';
+      if (pkgNum) {
+        summaryMatch.package = new RegExp(`Package[\\s-]*${pkgNum}`, 'i');
+      }
+    } else if (pkgFilters && pkgFilters.length > 0) {
+      summaryMatch.package = { $in: pkgFilters };
+    }
+    if (circle && circle !== 'All') {
+      summaryMatch.circle = new RegExp(`^${circle.trim()}$`, 'i');
+    } else if (circleFilters && circleFilters.length > 0) {
+      summaryMatch.circle = { $in: circleFilters };
+    }
+
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
@@ -217,6 +233,7 @@ export const buildCeoDashboardSummary = async (filters: any) => {
       packagePo,
       packageContractorBilled,
       packageClientBilled,
+      packageLoa,
       pendingMhrovs,
       pendingBills
     ] = await Promise.all([
@@ -301,7 +318,48 @@ export const buildCeoDashboardSummary = async (filters: any) => {
         { $match: { status: { $ne: 'Cancelled' } } },
         { $unwind: "$lineItems" },
         { $match: piLineItemQuery },
-        { $group: { _id: null, totalValue: { $sum: "$total" }, totalQty: { $sum: "$lineItems.quantity" } } }
+        {
+          $lookup: {
+            from: "items",
+            localField: "lineItems.itemId",
+            foreignField: "_id",
+            as: "itemData"
+          }
+        },
+        { $unwind: { path: "$itemData", preserveNullAndEmptyArrays: true } },
+        {
+          $project: {
+            quantity: {
+              $convert: { input: "$lineItems.quantity", to: "double", onError: 0, onNull: 0 }
+            },
+            rate: {
+              $convert: {
+                input: {
+                  $cond: [
+                    { $gt: ["$lineItems.rate", 0] },
+                    "$lineItems.rate",
+                    {
+                      $ifNull: [
+                        "$itemData.dynamicData.supplyRateWithGst",
+                        { $ifNull: ["$itemData.dynamicData.costPrice", 0] }
+                      ]
+                    }
+                  ]
+                },
+                to: "double",
+                onError: 0,
+                onNull: 0
+              }
+            }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalValue: { $sum: { $multiply: ["$quantity", "$rate"] } },
+            totalQty: { $sum: "$quantity" }
+          }
+        }
       ]),
 
       ContractorInvoice.aggregate([
@@ -492,6 +550,72 @@ export const buildCeoDashboardSummary = async (filters: any) => {
         }
       ]),
 
+      ItemSummary.aggregate([
+        { $match: summaryMatch },
+        {
+          $lookup: {
+            from: "items",
+            localField: "itemId",
+            foreignField: "_id",
+            as: "itemData"
+          }
+        },
+        { $unwind: { path: "$itemData", preserveNullAndEmptyArrays: true } },
+        {
+          $project: {
+            package: 1,
+            circle: 1,
+            loaQty: { $convert: { input: "$loaQty", to: "double", onError: 0, onNull: 0 } },
+            invQty: { $convert: { input: "$invQty", to: "double", onError: 0, onNull: 0 } },
+            jmcQty: { $convert: { input: "$jmcQty", to: "double", onError: 0, onNull: 0 } },
+            supplyRate: {
+              $convert: {
+                input: {
+                  $ifNull: [
+                    "$itemData.dynamicData.supplyRateWithGst",
+                    { $ifNull: ["$itemData.dynamicData.costPrice", 0] }
+                  ]
+                },
+                to: "double",
+                onError: 0,
+                onNull: 0
+              }
+            },
+            erectionRate: {
+              $convert: {
+                input: {
+                  $ifNull: [
+                    "$itemData.dynamicData.erectionRateWithGst",
+                    0
+                  ]
+                },
+                to: "double",
+                onError: 0,
+                onNull: 0
+              }
+            }
+          }
+        },
+        {
+          $group: {
+            _id: "$package",
+            totalLoaQty: { $sum: "$loaQty" },
+            totalInvQty: { $sum: "$invQty" },
+            totalJmcQty: { $sum: "$jmcQty" },
+            totalSupplyLoaValue: { $sum: { $multiply: ["$loaQty", "$supplyRate"] } },
+            totalErectionLoaValue: { $sum: { $multiply: ["$loaQty", "$erectionRate"] } },
+            totalLoaValue: {
+              $sum: {
+                $multiply: [
+                  "$loaQty",
+                  { $add: ["$supplyRate", "$erectionRate"] }
+                ]
+              }
+            }
+          }
+        }
+      ]),
+
       Mhrov.find({ status: { $ne: 'Done' }, createdAt: { $lte: sevenDaysAgo } }).select('circle').lean(),
 
       ContractorInvoice.find({ status: { $ne: 'Payment Processed' }, grandTotal: { $gt: 1000000 } }).sort({ grandTotal: -1 }).limit(1).lean()
@@ -522,17 +646,36 @@ export const buildCeoDashboardSummary = async (filters: any) => {
 
     // Contractor & Client Billing (Supply + Erection Reconciliation)
     let contractorBilled = 0;
+    let contractorBase = 0;
+    let contractorGst = 0;
+    let contractorCount = 0;
     let contractorPending = 0;
+
     let erectionBilled = 0;
     let erectionBase = 0;
     let erectionGst = 0;
     let erectionCount = 0;
+
+    let erection90Billed = 0;
+    let erection90Base = 0;
+    let erection90Gst = 0;
+    let erection90Count = 0;
 
     let supplyBilled = 0;
     let supplyBase = 0;
     let supplyGst = 0;
     let supplyPending = 0;
     let supplyCount = 0;
+
+    let supply60Billed = 0;
+    let supply60Base = 0;
+    let supply60Gst = 0;
+    let supply60Count = 0;
+
+    let supply30Billed = 0;
+    let supply30Base = 0;
+    let supply30Gst = 0;
+    let supply30Count = 0;
 
     const normalizeCircle = (c: any) => {
       if (!c) return 'Unknown';
@@ -555,10 +698,26 @@ export const buildCeoDashboardSummary = async (filters: any) => {
           supplyBase: 0,
           supplyGst: 0,
           supplyCount: 0,
+          supply60Amount: 0,
+          supply60Base: 0,
+          supply60Gst: 0,
+          supply60Count: 0,
+          supply30Amount: 0,
+          supply30Base: 0,
+          supply30Gst: 0,
+          supply30Count: 0,
           erectionAmount: 0,
           erectionBase: 0,
           erectionGst: 0,
           erectionCount: 0,
+          erection90Amount: 0,
+          erection90Base: 0,
+          erection90Gst: 0,
+          erection90Count: 0,
+          contractorAmount: 0,
+          contractorBase: 0,
+          contractorGst: 0,
+          contractorCount: 0,
           totalAmount: 0,
           totalCount: 0
         };
@@ -566,8 +725,21 @@ export const buildCeoDashboardSummary = async (filters: any) => {
       return circleBillingMap[key];
     };
 
-    // Process Client Bills (Supply 60%)
+    // Process Client Bills (Supply 60% & 30%)
     clientBillAgg.forEach(b => {
+      const is30 = b._id.stage === '30%';
+      if (is30) {
+        supply30Billed += b.totalValue;
+        supply30Base += b.baseValue;
+        supply30Gst += b.gstValue;
+        supply30Count += b.count;
+      } else {
+        supply60Billed += b.totalValue;
+        supply60Base += b.baseValue;
+        supply60Gst += b.gstValue;
+        supply60Count += b.count;
+      }
+
       supplyBilled += b.totalValue;
       supplyBase += b.baseValue;
       supplyGst += b.gstValue;
@@ -577,6 +749,17 @@ export const buildCeoDashboardSummary = async (filters: any) => {
       }
 
       const bucket = getCircleBilling(b._id.circle);
+      if (is30) {
+        bucket.supply30Amount += b.totalValue;
+        bucket.supply30Base += b.baseValue;
+        bucket.supply30Gst += b.gstValue;
+        bucket.supply30Count += b.count;
+      } else {
+        bucket.supply60Amount += b.totalValue;
+        bucket.supply60Base += b.baseValue;
+        bucket.supply60Gst += b.gstValue;
+        bucket.supply60Count += b.count;
+      }
       bucket.supplyAmount += b.totalValue;
       bucket.supplyBase += b.baseValue;
       bucket.supplyGst += b.gstValue;
@@ -585,9 +768,21 @@ export const buildCeoDashboardSummary = async (filters: any) => {
       bucket.totalCount += b.count;
     });
 
-    // Process Contractor Invoices (Erection 90%)
+    // Process Contractor Invoices (Erection 90% & Contractor Bills)
     contractorBillAgg.forEach(b => {
-      contractorBilled += b.totalValue;
+      const isContractorBill = b._id.billingCategory === 'Contractor Bill';
+      if (isContractorBill) {
+        contractorBilled += b.totalValue;
+        contractorBase += b.baseValue;
+        contractorGst += b.gstValue;
+        contractorCount += b.count;
+      } else {
+        erection90Billed += b.totalValue;
+        erection90Base += b.baseValue;
+        erection90Gst += b.gstValue;
+        erection90Count += b.count;
+      }
+
       erectionBilled += b.totalValue;
       erectionBase += b.baseValue;
       erectionGst += b.gstValue;
@@ -597,6 +792,17 @@ export const buildCeoDashboardSummary = async (filters: any) => {
       }
 
       const bucket = getCircleBilling(b._id.circle);
+      if (isContractorBill) {
+        bucket.contractorAmount += b.totalValue;
+        bucket.contractorBase += b.baseValue;
+        bucket.contractorGst += b.gstValue;
+        bucket.contractorCount += b.count;
+      } else {
+        bucket.erection90Amount += b.totalValue;
+        bucket.erection90Base += b.baseValue;
+        bucket.erection90Gst += b.gstValue;
+        bucket.erection90Count += b.count;
+      }
       bucket.erectionAmount += b.totalValue;
       bucket.erectionBase += b.baseValue;
       bucket.erectionGst += b.gstValue;
@@ -772,40 +978,107 @@ export const buildCeoDashboardSummary = async (filters: any) => {
         let circles: string[] = [];
         if (normPkgName.includes('Package 1')) circles = ['Solan', 'Nahan'];
         if (normPkgName.includes('Package 2')) circles = ['Rampur', 'Rohru'];
-        packagesMap[normPkgName] = { name: normPkgName, physical: 0, financial: 0, billedValue: 0, pendingValue: 0, _totalQty: 0, _jmcQty: 0, _poValue: 0, circles };
+        packagesMap[normPkgName] = {
+          name: normPkgName,
+          circles,
+          loaValue: 0,
+          supplyLoaValue: 0,
+          erectionLoaValue: 0,
+          loaQty: 0,
+          inwardQty: 0,
+          jmcQty: 0,
+          billedValue: 0,
+          supplyBilledValue: 0,
+          erectionBilledValue: 0,
+          pendingValue: 0,
+          _totalQty: 0,
+          _jmcQty: 0,
+          _poValue: 0
+        };
       }
       return normPkgName;
     };
 
-    packageInwards.forEach(p => { const name = initPackage(p._id); packagesMap[name]._totalQty += p.totalQty; });
-    packageJmc.forEach(p => { const name = initPackage(p._id); packagesMap[name]._jmcQty += p.jmcQty; });
+    // Pre-initialize both packages
+    initPackage('Package 1 (S/N)');
+    initPackage('Package 2 (R/R)');
+
+    packageInwards.forEach(p => { const name = initPackage(p._id); packagesMap[name]._totalQty += p.totalQty; packagesMap[name].inwardQty += p.totalQty; });
+    packageJmc.forEach(p => { const name = initPackage(p._id); packagesMap[name]._jmcQty += p.jmcQty; packagesMap[name].jmcQty += p.jmcQty; });
     packagePo.forEach(p => { const name = initPackage(p._id); packagesMap[name]._poValue += p.totalValue; });
     
+    (packageLoa || []).forEach(p => {
+      const name = initPackage(p._id);
+      packagesMap[name].loaValue += p.totalLoaValue || 0;
+      packagesMap[name].supplyLoaValue += p.totalSupplyLoaValue || 0;
+      packagesMap[name].erectionLoaValue += p.totalErectionLoaValue || 0;
+      packagesMap[name].loaQty += p.totalLoaQty || 0;
+      if (packagesMap[name].inwardQty === 0 && p.totalInvQty) {
+        packagesMap[name].inwardQty = p.totalInvQty;
+      }
+      if (packagesMap[name].jmcQty === 0 && p.totalJmcQty) {
+        packagesMap[name].jmcQty = p.totalJmcQty;
+      }
+    });
+
     packageContractorBilled.forEach(p => {
       const pName = initPackage(p._id.pkg);
       packagesMap[pName].billedValue += p.totalValue;
+      packagesMap[pName].erectionBilledValue += p.totalValue;
     });
     
     packageClientBilled.forEach(p => {
       const pName = initPackage(p._id.pkg);
-      if (p._id.status === 'Approved') packagesMap[pName].billedValue += p.totalValue;
-      else packagesMap[pName].pendingValue += p.totalValue;
+      if (p._id.status === 'Approved') {
+        packagesMap[pName].billedValue += p.totalValue;
+        packagesMap[pName].supplyBilledValue += p.totalValue;
+      } else {
+        packagesMap[pName].pendingValue += p.totalValue;
+      }
     });
 
     const packageStats = Object.values(packagesMap).map((p: any) => {
-      let finPercent = 0;
-      if (p._poValue > 0) {
-        finPercent = Math.min(100, Math.round((p.billedValue / p._poValue) * 100));
-      } else if (p.billedValue > 0) {
-        finPercent = 100;
-      }
+      const targetLoa = p.loaValue > 0 ? p.loaValue : (p._poValue > 0 ? p._poValue : p.billedValue);
+      const finPercent = targetLoa > 0 ? Math.min(100, Math.round((p.billedValue / targetLoa) * 100)) : 0;
+      const supplyPercent = p.supplyLoaValue > 0 ? Math.min(100, Math.round((p.supplyBilledValue / p.supplyLoaValue) * 100)) : finPercent;
+      const erectionPercent = p.erectionLoaValue > 0 ? Math.min(100, Math.round((p.erectionBilledValue / p.erectionLoaValue) * 100)) : 0;
+      
+      const loaQty = p.loaQty || 0;
+      const inwardQty = p.inwardQty || p._totalQty || 0;
+      const jmcQty = p.jmcQty || p._jmcQty || 0;
+
+      // Material execution: inward / loa target qty
+      const materialExecutionPercent = loaQty > 0 ? Math.min(100, Math.round((inwardQty / loaQty) * 100)) : (p._totalQty > 0 ? Math.min(100, Math.round((p._jmcQty / p._totalQty) * 100)) : 0);
+      // Physical site installed: jmc / loa target qty
+      const siteInstalledPercent = loaQty > 0 ? Math.min(100, Math.round((jmcQty / loaQty) * 100 * 10) / 10) : 0;
+      // Site installation vs inward stock
+      const jmcVsInwardPercent = inwardQty > 0 ? Math.min(100, Math.round((jmcQty / inwardQty) * 100)) : 0;
+
+      const targetCr = Math.round((targetLoa / 10000000) * 100) / 100;
+      const billedCr = Math.round((p.billedValue / 10000000) * 100) / 100;
+      const pendingCr = Math.round((p.pendingValue / 10000000) * 100) / 100;
+      const backlogCr = Math.max(0, Math.round((targetCr - billedCr) * 100) / 100);
+
       return {
         name: p.name,
         circles: p.circles,
-        physical: p._totalQty > 0 ? Math.min(100, Math.round((p._jmcQty / p._totalQty) * 100)) : 0,
+        loaValue: targetCr,
+        billedValue: billedCr,
+        pendingValue: pendingCr,
+        backlogValue: backlogCr,
         financial: finPercent,
-        billedValue: Math.round((p.billedValue / 10000000) * 100) / 100,
-        pendingValue: Math.round((p.pendingValue / 10000000) * 100) / 100
+        physical: materialExecutionPercent,
+        siteInstalledPercent,
+        jmcVsInwardPercent,
+        supplyLoaValue: Math.round((p.supplyLoaValue / 10000000) * 100) / 100,
+        supplyBilledValue: Math.round((p.supplyBilledValue / 10000000) * 100) / 100,
+        supplyPercent,
+        erectionLoaValue: Math.round((p.erectionLoaValue / 10000000) * 100) / 100,
+        erectionBilledValue: Math.round((p.erectionBilledValue / 10000000) * 100) / 100,
+        erectionPercent,
+        loaQty,
+        inwardQty,
+        jmcQty
       };
     });
 
@@ -863,11 +1136,31 @@ export const buildCeoDashboardSummary = async (filters: any) => {
         supplyBaseAmount: supplyBase,
         supplyGstAmount: supplyGst,
         supplyCount,
+        supply60Billed: supply60Billed / 10000000,
+        supply60BilledRaw: supply60Billed,
+        supply60BaseAmount: supply60Base,
+        supply60GstAmount: supply60Gst,
+        supply60Count,
+        supply30Billed: supply30Billed / 10000000,
+        supply30BilledRaw: supply30Billed,
+        supply30BaseAmount: supply30Base,
+        supply30GstAmount: supply30Gst,
+        supply30Count,
         erectionBilled: erectionBilled / 10000000,
         erectionBilledRaw: erectionBilled,
         erectionBaseAmount: erectionBase,
         erectionGstAmount: erectionGst,
         erectionCount,
+        erection90Billed: erection90Billed / 10000000,
+        erection90BilledRaw: erection90Billed,
+        erection90BaseAmount: erection90Base,
+        erection90GstAmount: erection90Gst,
+        erection90Count,
+        contractorBilled: contractorBilled / 10000000,
+        contractorBilledRaw: contractorBilled,
+        contractorBaseAmount: contractorBase,
+        contractorGstAmount: contractorGst,
+        contractorCount,
         retentionBilled: 0,
         retentionBilledRaw: 0,
         retentionCount: 0,
@@ -894,13 +1187,12 @@ export const buildCeoDashboardSummary = async (filters: any) => {
           { name: 'WIP Required', total: totalIssuedQty, completed: totalWipReqQty, balance: Math.max(0, totalIssuedQty - totalWipReqQty) },
         ].map(i => ({ ...i, total: Math.round(i.total), completed: Math.round(i.completed), balance: Math.round(i.balance) })),
         financialProgress: [
-          { name: 'Purchase Value', billed: Math.round((totalPurchaseValue / 10000000) * 100) / 100, pending: 0 },
-          { name: 'MHROV Value', billed: Math.round(((totalPurchaseValue * 0.8) / 10000000) * 100) / 100, pending: 0 },
-          { name: 'Contractor Billing', billed: Math.round((contractorBilled / 10000000) * 100) / 100, pending: Math.round((contractorPending / 10000000) * 100) / 100 },
-          { name: 'Supply Billing', billed: Math.round((supplyBilled / 10000000) * 100) / 100, pending: Math.round((supplyPending / 10000000) * 100) / 100 },
-          { name: 'Total Billed', billed: Math.round(((contractorBilled + supplyBilled) / 10000000) * 100) / 100, pending: 0 },
-          { name: 'Pending', billed: 0, pending: Math.round(((contractorPending + supplyPending) / 10000000) * 100) / 100 },
-          { name: 'Remaining Project Value', billed: Math.round((Math.max(0, totalPurchaseValue - (contractorBilled + supplyBilled)) / 10000000) * 100) / 100, pending: 0 },
+          { name: 'Invoice Value (Procurement)', billed: Math.round((totalPIValue / 10000000) * 100) / 100, pending: 0, count: piTotal, type: 'inward' },
+          { name: 'Supply Billed (60%)', billed: Math.round((supply60Billed / 10000000) * 100) / 100, pending: Math.round((supplyPending / 10000000) * 100) / 100, count: supply60Count, type: 'milestone' },
+          { name: 'Supply Billed (30%)', billed: Math.round((supply30Billed / 10000000) * 100) / 100, pending: 0, count: supply30Count, type: 'milestone' },
+          { name: 'Erection Billed (90%)', billed: Math.round((erection90Billed / 10000000) * 100) / 100, pending: Math.round((contractorPending / 10000000) * 100) / 100, count: erection90Count, type: 'milestone' },
+          { name: 'Contractor Bills', billed: Math.round((contractorBilled / 10000000) * 100) / 100, pending: 0, count: contractorCount, type: 'milestone' },
+          { name: 'Retention (10%)', billed: 0, pending: 0, count: 0, type: 'retention' }
         ]
       },
       packages: packageStats,

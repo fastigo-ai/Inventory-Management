@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { 
   Package, TrendingUp, Settings, MapPin, Layers, Briefcase, Calendar, 
   Bell, ChevronDown, Clock, Info, AlertTriangle, ArrowRight, Truck, CheckCircle2,
-  RefreshCw, FileText, ArrowUpRight, BarChart3, ShieldCheck
+  RefreshCw, FileText, ArrowUpRight, BarChart3, ShieldCheck, Eye, EyeOff, ChevronUp
 } from 'lucide-react';
 import { fetchCeoDashboardData } from '@/features/ceo-portal/api/dashboard.api';
 import { useAuthStore } from '@/shared/store/auth.store';
@@ -44,6 +44,23 @@ export default function CeoDashboardPage() {
     subCircle: [],
     dateRange: 'All Time'
   });
+
+  // Visibility toggles for Executive Analytics & Scorecards (visible in screenshot)
+  const [showCharts, setShowCharts] = useState(true);
+  const [showScorecards, setShowScorecards] = useState(true);
+
+  const allAnalyticsVisible = showCharts && showScorecards;
+  const anyAnalyticsVisible = showCharts || showScorecards;
+
+  const toggleAllAnalytics = () => {
+    if (anyAnalyticsVisible) {
+      setShowCharts(false);
+      setShowScorecards(false);
+    } else {
+      setShowCharts(true);
+      setShowScorecards(true);
+    }
+  };
 
   const getAvailableCircles = () => {
     let circles: string[] = [];
@@ -409,18 +426,97 @@ export default function CeoDashboardPage() {
           />
         </section>
 
-        {/* 4. High-Value Actionable Charts (Funnel + Financial Cashflow) */}
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <MaterialConversionFunnel kpis={data?.kpis} />
-          <FinancialProgressChart data={data?.charts.financialProgress || []} />
+        {/* Executive Analytics & Scorecards Section Header with Collapse/Expand Controls */}
+        <section className="bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-xs">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center font-bold">
+                <BarChart3 className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                  Executive Analytics & Performance Scorecards
+                  {!anyAnalyticsVisible && (
+                    <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-semibold normal-case">
+                      Collapsed
+                    </span>
+                  )}
+                </h2>
+                <p className="text-[11px] text-slate-500">
+                  Funnel, Financial Milestones, Package Variance, Circle Execution & Bottlenecks
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowCharts(prev => !prev)}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${
+                  showCharts
+                    ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                }`}
+                title={showCharts ? "Hide conversion funnel & financial chart" : "Show conversion funnel & financial chart"}
+              >
+                {showCharts ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                <span>{showCharts ? "Hide Charts" : "Show Charts"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowScorecards(prev => !prev)}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${
+                  showScorecards
+                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                }`}
+                title={showScorecards ? "Hide package, circle & alert scorecards" : "Show package, circle & alert scorecards"}
+              >
+                {showScorecards ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                <span>{showScorecards ? "Hide Scorecards" : "Show Scorecards"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={toggleAllAnalytics}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs bg-slate-800 text-white hover:bg-slate-900 border-slate-800"
+                title={anyAnalyticsVisible ? "Collapse all analytics" : "Expand all analytics"}
+              >
+                {anyAnalyticsVisible ? (
+                  <>
+                    <EyeOff className="w-3.5 h-3.5 text-slate-300" />
+                    <span>Collapse All</span>
+                    <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
+                  </>
+                ) : (
+                  <>
+                    <Eye className="w-3.5 h-3.5 text-slate-300" />
+                    <span>Expand All</span>
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </section>
 
+        {/* 4. High-Value Actionable Charts (Funnel + Financial Milestones) */}
+        {showCharts && (
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-2 duration-200">
+            <MaterialConversionFunnel kpis={data?.kpis} />
+            <FinancialProgressChart data={data?.charts.financialProgress || []} kpis={data?.kpis} />
+          </section>
+        )}
+
         {/* 5. Execution Summaries & Operational Scorecards (3 Columns) */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <PackageSummary packages={data?.packages || []} />
-          <CirclePerformance circles={data?.circles || []} />
-          <KeyInsights alerts={data?.alerts || []} />
-        </section>
+        {showScorecards && (
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-top-2 duration-200">
+            <PackageSummary packages={data?.packages || []} />
+            <CirclePerformance circles={data?.circles || []} />
+            <KeyInsights alerts={data?.alerts || []} />
+          </section>
+        )}
 
         {/* 6. Document Flow & Transaction Lifecycle (SAP Document Lifecycle Stepper) */}
         <section>

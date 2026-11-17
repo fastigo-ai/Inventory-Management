@@ -209,7 +209,9 @@ function build(b: any, i: number) {
     balCont: Math.max(0, Math.round((issuedQty - (db.wipQty || 0) - returnedQty)*1000)/1000) 
   };
   
-  const vendorStr = Array.isArray(db.vendors) && db.vendors.length > 0 ? db.vendors.join(', ') : 'N/A';
+  const vendorList = Array.isArray(db.vendors) ? db.vendors.filter(Boolean) : (typeof db.vendorName === 'string' && db.vendorName ? [db.vendorName] : []);
+  it.vendors = vendorList;
+  const vendorStr = vendorList.length > 0 ? vendorList.join(', ') : 'N/A';
   d.mis_v = { vendors: vendorStr, poQty: poQty, diQty: diQty, invQty: invQty, mrhovQty: mhrovQty };
   
   d.mis_b_c_s = { 
@@ -364,6 +366,56 @@ export default function OperationsHub() {
   const [colWidths, setColWidths] = useState<Record<string, number>>({});
   const resizingRef = React.useRef<{ id: string, startX: number, startW: number } | null>(null);
 
+  // Contractor MIS expand/compress state
+  const [expandedContractorRows, setExpandedContractorRows] = useState<Set<string>>(new Set());
+  const [expandAllContractors, setExpandAllContractors] = useState<boolean>(false);
+
+  const isContractorExpanded = (rowKey: string) => {
+    if (expandAllContractors) {
+      return !expandedContractorRows.has(rowKey);
+    }
+    return expandedContractorRows.has(rowKey);
+  };
+
+  const toggleContractorRow = (rowKey: string) => {
+    setExpandedContractorRows(prev => {
+      const next = new Set(prev);
+      if (next.has(rowKey)) next.delete(rowKey);
+      else next.add(rowKey);
+      return next;
+    });
+  };
+
+  const toggleExpandAllContractors = () => {
+    setExpandAllContractors(prev => !prev);
+    setExpandedContractorRows(new Set());
+  };
+
+  // Vendor MIS expand/compress state
+  const [expandedVendorRows, setExpandedVendorRows] = useState<Set<string>>(new Set());
+  const [expandAllVendors, setExpandAllVendors] = useState<boolean>(false);
+
+  const isVendorExpanded = (rowKey: string) => {
+    if (expandAllVendors) {
+      return !expandedVendorRows.has(rowKey);
+    }
+    return expandedVendorRows.has(rowKey);
+  };
+
+  const toggleVendorRow = (rowKey: string) => {
+    setExpandedVendorRows(prev => {
+      const next = new Set(prev);
+      if (next.has(rowKey)) next.delete(rowKey);
+      else next.add(rowKey);
+      return next;
+    });
+  };
+
+  const toggleExpandAllVendors = () => {
+    setExpandAllVendors(prev => !prev);
+    setExpandedVendorRows(new Set());
+  };
+
   const [apiKpis, setApiKpis] = useState({ 
     piCount: 0, val: 0, qty: 0, 
     availableStock: 0,
@@ -371,6 +423,10 @@ export default function OperationsHub() {
     transitDetails: [] as any[],
     woCount: 0, totalWoValue: 0,
     supplyBilled: 0, erectionBilled: 0, retentionBilled: 0,
+    supply60Billed: 0, supply60Count: 0, supply60BaseAmount: 0, supply60GstAmount: 0,
+    supply30Billed: 0, supply30Count: 0, supply30BaseAmount: 0, supply30GstAmount: 0,
+    erection90Billed: 0, erection90Count: 0, erection90BaseAmount: 0, erection90GstAmount: 0,
+    contractorBilled: 0, contractorCount: 0, contractorBaseAmount: 0, contractorGstAmount: 0,
     supplyCount: 0, erectionCount: 0, retentionCount: 0, totalBillingCount: 0,
     supplyBaseAmount: 0, supplyGstAmount: 0,
     erectionBaseAmount: 0, erectionGstAmount: 0,
@@ -443,6 +499,22 @@ export default function OperationsHub() {
         supplyBilled: res?.kpis?.supplyBilledRaw !== undefined ? res?.kpis?.supplyBilledRaw : ((res?.kpis?.supplyBilled || 0) * 1e7),
         erectionBilled: res?.kpis?.erectionBilledRaw !== undefined ? res?.kpis?.erectionBilledRaw : ((res?.kpis?.erectionBilled || 0) * 1e7),
         retentionBilled: res?.kpis?.retentionBilledRaw !== undefined ? res?.kpis?.retentionBilledRaw : ((res?.kpis?.retentionBilled || 0) * 1e7),
+        supply60Billed: res?.kpis?.supply60BilledRaw !== undefined ? res?.kpis?.supply60BilledRaw : ((res?.kpis?.supply60Billed || 0) * 1e7),
+        supply60Count: res?.kpis?.supply60Count || 0,
+        supply60BaseAmount: res?.kpis?.supply60BaseAmount || 0,
+        supply60GstAmount: res?.kpis?.supply60GstAmount || 0,
+        supply30Billed: res?.kpis?.supply30BilledRaw !== undefined ? res?.kpis?.supply30BilledRaw : ((res?.kpis?.supply30Billed || 0) * 1e7),
+        supply30Count: res?.kpis?.supply30Count || 0,
+        supply30BaseAmount: res?.kpis?.supply30BaseAmount || 0,
+        supply30GstAmount: res?.kpis?.supply30GstAmount || 0,
+        erection90Billed: res?.kpis?.erection90BilledRaw !== undefined ? res?.kpis?.erection90BilledRaw : ((res?.kpis?.erection90Billed || 0) * 1e7),
+        erection90Count: res?.kpis?.erection90Count || 0,
+        erection90BaseAmount: res?.kpis?.erection90BaseAmount || 0,
+        erection90GstAmount: res?.kpis?.erection90GstAmount || 0,
+        contractorBilled: res?.kpis?.contractorBilledRaw !== undefined ? res?.kpis?.contractorBilledRaw : ((res?.kpis?.contractorBilled || 0) * 1e7),
+        contractorCount: res?.kpis?.contractorCount || 0,
+        contractorBaseAmount: res?.kpis?.contractorBaseAmount || 0,
+        contractorGstAmount: res?.kpis?.contractorGstAmount || 0,
         supplyCount: res?.kpis?.supplyCount || 0,
         erectionCount: res?.kpis?.erectionCount || 0,
         retentionCount: res?.kpis?.retentionCount || 0,
@@ -489,6 +561,22 @@ export default function OperationsHub() {
         supplyBilled: res?.kpis?.supplyBilledRaw !== undefined ? res?.kpis?.supplyBilledRaw : ((res?.kpis?.supplyBilled || 0) * 1e7),
         erectionBilled: res?.kpis?.erectionBilledRaw !== undefined ? res?.kpis?.erectionBilledRaw : ((res?.kpis?.erectionBilled || 0) * 1e7),
         retentionBilled: res?.kpis?.retentionBilledRaw !== undefined ? res?.kpis?.retentionBilledRaw : ((res?.kpis?.retentionBilled || 0) * 1e7),
+        supply60Billed: res?.kpis?.supply60BilledRaw !== undefined ? res?.kpis?.supply60BilledRaw : ((res?.kpis?.supply60Billed || 0) * 1e7),
+        supply60Count: res?.kpis?.supply60Count || 0,
+        supply60BaseAmount: res?.kpis?.supply60BaseAmount || 0,
+        supply60GstAmount: res?.kpis?.supply60GstAmount || 0,
+        supply30Billed: res?.kpis?.supply30BilledRaw !== undefined ? res?.kpis?.supply30BilledRaw : ((res?.kpis?.supply30Billed || 0) * 1e7),
+        supply30Count: res?.kpis?.supply30Count || 0,
+        supply30BaseAmount: res?.kpis?.supply30BaseAmount || 0,
+        supply30GstAmount: res?.kpis?.supply30GstAmount || 0,
+        erection90Billed: res?.kpis?.erection90BilledRaw !== undefined ? res?.kpis?.erection90BilledRaw : ((res?.kpis?.erection90Billed || 0) * 1e7),
+        erection90Count: res?.kpis?.erection90Count || 0,
+        erection90BaseAmount: res?.kpis?.erection90BaseAmount || 0,
+        erection90GstAmount: res?.kpis?.erection90GstAmount || 0,
+        contractorBilled: res?.kpis?.contractorBilledRaw !== undefined ? res?.kpis?.contractorBilledRaw : ((res?.kpis?.contractorBilled || 0) * 1e7),
+        contractorCount: res?.kpis?.contractorCount || 0,
+        contractorBaseAmount: res?.kpis?.contractorBaseAmount || 0,
+        contractorGstAmount: res?.kpis?.contractorGstAmount || 0,
         supplyCount: res?.kpis?.supplyCount || 0,
         erectionCount: res?.kpis?.erectionCount || 0,
         retentionCount: res?.kpis?.retentionCount || 0,
@@ -610,6 +698,8 @@ export default function OperationsHub() {
   const getColWidth = (c: any, isCompactDensity: boolean) => {
     if (colWidths[c.id] !== undefined) return colWidths[c.id];
     if (c.type === 'checkbox') return isCompactDensity ? 38 : 44;
+    if (c.id === 'mis_c.contractors') return 260;
+    if (c.id === 'mis_v.vendors') return 260;
     if (c.isSticky && c.defaultW) return c.defaultW;
     return undefined;
   };
@@ -769,6 +859,7 @@ export default function OperationsHub() {
       const contractorStr = contractorList.length > 0 ? contractorList.join(', ') : '—';
 
       const vendorList = Array.from(grp.allVendors as Set<string>);
+      grp.vendors = vendorList;
       const vendorStr = vendorList.length > 0 ? vendorList.join(', ') : 'N/A';
 
       const poVal = grp._poVal || (grp._poQty * grp.rate);
@@ -1328,6 +1419,136 @@ export default function OperationsHub() {
                   </span>
                 </div>
               );
+            } else if (c.id === 'mis_c.contractors') {
+              const rowKey = it.uid || it.code || String(it.sr);
+              const isExp = isContractorExpanded(rowKey);
+              const rawList = (Array.isArray(it.contractors) && it.contractors.length > 0)
+                ? it.contractors
+                : (typeof v === 'string' && v !== '—' ? v.split(',').map((s: string) => s.trim()).filter(Boolean) : []);
+
+              if (rawList.length === 0) {
+                content = <span className="text-slate-400 font-mono">—</span>;
+              } else if (rawList.length === 1) {
+                content = (
+                  <span className="font-semibold text-slate-800 text-[11px] px-1.5 py-0.5 rounded bg-slate-100 border border-slate-300 shadow-2xs inline-block truncate max-w-[220px]" title={rawList[0]}>
+                    {rawList[0]}
+                  </span>
+                );
+              } else if (!isExp) {
+                // Compressed state
+                const remaining = rawList.length - 1;
+                content = (
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span 
+                      className="font-semibold text-slate-800 text-[11px] px-1.5 py-0.5 rounded bg-slate-100 border border-slate-300 shadow-2xs truncate max-w-[130px] inline-block shrink-0" 
+                      title={rawList[0]}
+                    >
+                      {rawList[0]}
+                    </span>
+                    <button 
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); toggleContractorRow(rowKey); }}
+                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-300 transition-all cursor-pointer shadow-2xs shrink-0 active:scale-95"
+                      title={`Click to expand all ${rawList.length} contractors:\n• ${rawList.join('\n• ')}`}
+                    >
+                      +{remaining} more ▾
+                    </button>
+                  </div>
+                );
+              } else {
+                // Expanded state
+                content = (
+                  <div className="flex flex-wrap items-center gap-1.5 py-1">
+                    {rawList.map((cName: string, cIdx: number) => {
+                      const cQty = it.contractorBreakdown?.[cName];
+                      return (
+                        <span 
+                          key={cIdx} 
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-white text-slate-800 border border-slate-300 shadow-2xs hover:border-blue-400 transition-colors"
+                          title={cQty !== undefined ? `${cName}: ${inr(cQty)} issued` : cName}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                          <span>{cName}</span>
+                          {cQty !== undefined && (
+                            <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-100 px-1 rounded border border-slate-200">
+                              {inr(cQty)}
+                            </span>
+                          )}
+                        </span>
+                      );
+                    })}
+                    <button 
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); toggleContractorRow(rowKey); }}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 hover:bg-slate-300 text-slate-700 border border-slate-400 transition-all cursor-pointer shadow-2xs shrink-0 active:scale-95"
+                      title="Compress back"
+                    >
+                      Compress ▴
+                    </button>
+                  </div>
+                );
+              }
+            } else if (c.id === 'mis_v.vendors') {
+              const rowKey = it.uid || it.code || String(it.sr);
+              const isExp = isVendorExpanded(rowKey);
+              const rawList = (Array.isArray(it.vendors) && it.vendors.length > 0)
+                ? it.vendors
+                : (typeof v === 'string' && v !== '—' && v !== 'N/A' ? v.split(',').map((s: string) => s.trim()).filter(Boolean) : []);
+
+              if (rawList.length === 0) {
+                content = <span className="text-slate-400 font-mono">—</span>;
+              } else if (rawList.length === 1) {
+                content = (
+                  <span className="font-semibold text-slate-800 text-[11px] px-1.5 py-0.5 rounded bg-slate-100 border border-slate-300 shadow-2xs inline-block truncate max-w-[220px]" title={rawList[0]}>
+                    {rawList[0]}
+                  </span>
+                );
+              } else if (!isExp) {
+                // Compressed state
+                const remaining = rawList.length - 1;
+                content = (
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span 
+                      className="font-semibold text-slate-800 text-[11px] px-1.5 py-0.5 rounded bg-slate-100 border border-slate-300 shadow-2xs truncate max-w-[130px] inline-block shrink-0" 
+                      title={rawList[0]}
+                    >
+                      {rawList[0]}
+                    </span>
+                    <button 
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); toggleVendorRow(rowKey); }}
+                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 transition-all cursor-pointer shadow-2xs shrink-0 active:scale-95"
+                      title={`Click to expand all ${rawList.length} vendors:\n• ${rawList.join('\n• ')}`}
+                    >
+                      +{remaining} more ▾
+                    </button>
+                  </div>
+                );
+              } else {
+                // Expanded state
+                content = (
+                  <div className="flex flex-wrap items-center gap-1.5 py-1">
+                    {rawList.map((vName: string, vIdx: number) => (
+                      <span 
+                        key={vIdx} 
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-white text-slate-800 border border-slate-300 shadow-2xs hover:border-rose-400 transition-colors"
+                        title={vName}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                        <span>{vName}</span>
+                      </span>
+                    ))}
+                    <button 
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); toggleVendorRow(rowKey); }}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 hover:bg-slate-300 text-slate-700 border border-slate-400 transition-all cursor-pointer shadow-2xs shrink-0 active:scale-95"
+                      title="Compress back"
+                    >
+                      Compress ▴
+                    </button>
+                  </div>
+                );
+              }
             } else {
               content = <span className="text-slate-600">{String(v)}</span>;
             }
@@ -1342,19 +1563,27 @@ export default function OperationsHub() {
               ? (isEven ? 'bg-slate-50' : 'bg-slate-100') 
               : (isEven ? 'bg-white' : 'bg-[#f8fafc]');
 
+          const isContractorCol = c.id === 'mis_c.contractors';
+          const isContractorExp = isContractorCol && isContractorExpanded(it.uid || it.code || String(it.sr));
+
+          const isVendorCol = c.id === 'mis_v.vendors';
+          const isVendorExp = isVendorCol && isVendorExpanded(it.uid || it.code || String(it.sr));
+
+          const isExpandedTextCol = isContractorExp || isVendorExp;
+
           return (
             <td 
               key={c.id} 
               className={`border-r border-slate-200 border-b border-slate-200 ${c.id === 'bom' ? 'border-r-2 border-slate-400' : ''} ${align} ${c.cls} ${rowBg} ${hoverBg} ${c.isSticky ? `${stickyBg} group-hover:bg-[#eaf2fc]` : ''}`}
               style={{ 
-                width: colW,
+                width: isExpandedTextCol ? Math.max(colW || 260, 320) : colW,
                 minWidth: colW,
-                maxWidth: colW,
+                maxWidth: isExpandedTextCol ? undefined : colW,
                 padding: c.type === 'checkbox' ? '0' : (colWidths[c.id] !== undefined && colWidths[c.id] < 10 ? '0' : (isCompact ? '4px 8px' : '8px 12px')),
                 left: stickyLeft !== undefined ? stickyLeft : undefined
               }}
             >
-              <div className={`w-full overflow-hidden truncate ${c.type === 'money' || c.type === 'qty' || c.type === 'stock' || c.type === 'pct' ? 'text-right' : ''}`}>
+              <div className={`w-full ${isExpandedTextCol ? '' : 'overflow-hidden truncate'} ${c.type === 'money' || c.type === 'qty' || c.type === 'stock' || c.type === 'pct' ? 'text-right' : ''}`}>
                 {content}
               </div>
             </td>
@@ -1567,69 +1796,125 @@ export default function OperationsHub() {
             </div>
           </div>
 
-          <div className="flex flex-col md:flex-row items-center gap-4 text-center md:text-left justify-between bg-slate-50 p-4 rounded-lg border border-slate-100">
-            <div className="flex-1">
-              <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Supply Billed (60%)</div>
-              {kpiLoading ? (
-                <div className="h-6 w-20 bg-slate-200 animate-pulse rounded mx-auto md:mx-0"></div>
-              ) : (
-                <>
-                  <div className="text-lg font-extrabold text-slate-800">₹{cr(apiKpis.supplyBilled)} Cr</div>
-                  <div className="text-[10px] text-slate-500 font-medium mt-0.5">
-                    {apiKpis.supplyCount} Client Bills
-                    {apiKpis.supplyBaseAmount > 0 && <span className="text-slate-400 ml-1">(Base: ₹{cr(apiKpis.supplyBaseAmount)} + GST: ₹{cr(apiKpis.supplyGstAmount)})</span>}
-                  </div>
-                </>
-              )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 bg-slate-50 p-3.5 rounded-lg border border-slate-200/80">
+            {/* Supply 60% */}
+            <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-2xs flex flex-col justify-between">
+              <div>
+                <div className="text-[10px] uppercase font-bold text-slate-500 mb-1 flex items-center justify-between">
+                  <span>Supply (60%)</span>
+                  <span className="text-[9px] bg-blue-50 text-blue-700 px-1.5 py-0.2 rounded font-semibold">{apiKpis.supply60Count} Bills</span>
+                </div>
+                {kpiLoading ? (
+                  <div className="h-6 w-20 bg-slate-200 animate-pulse rounded"></div>
+                ) : (
+                  <>
+                    <div className="text-base font-extrabold text-slate-800">₹{cr(apiKpis.supply60Billed)} Cr</div>
+                    <div className="text-[10px] text-slate-500 font-medium mt-0.5 truncate" title={`Base: ₹${cr(apiKpis.supply60BaseAmount)} + GST: ₹${cr(apiKpis.supply60GstAmount)}`}>
+                      Base: ₹{cr(apiKpis.supply60BaseAmount)} + GST: ₹{cr(apiKpis.supply60GstAmount)}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
-            <div className="text-slate-300 font-bold text-xl">+</div>
-
-            <div className="flex-1">
-              <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Erection Billed (90%)</div>
-              {kpiLoading ? (
-                <div className="h-6 w-20 bg-slate-200 animate-pulse rounded mx-auto md:mx-0"></div>
-              ) : (
-                <>
-                  <div className="text-lg font-extrabold text-slate-800">₹{cr(apiKpis.erectionBilled)} Cr</div>
-                  <div className="text-[10px] text-slate-500 font-medium mt-0.5">
-                    {apiKpis.erectionCount} Contractor Bills
-                    {apiKpis.erectionBaseAmount > 0 && <span className="text-slate-400 ml-1">(Base: ₹{cr(apiKpis.erectionBaseAmount)} + GST: ₹{cr(apiKpis.erectionGstAmount)})</span>}
-                  </div>
-                </>
-              )}
+            {/* Supply 30% */}
+            <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-2xs flex flex-col justify-between">
+              <div>
+                <div className="text-[10px] uppercase font-bold text-cyan-700 mb-1 flex items-center justify-between">
+                  <span>+ Supply (30%)</span>
+                  <span className="text-[9px] bg-cyan-50 text-cyan-700 px-1.5 py-0.2 rounded font-semibold">{apiKpis.supply30Count} Bills</span>
+                </div>
+                {kpiLoading ? (
+                  <div className="h-6 w-20 bg-slate-200 animate-pulse rounded"></div>
+                ) : (
+                  <>
+                    <div className="text-base font-extrabold text-slate-800">₹{cr(apiKpis.supply30Billed)} Cr</div>
+                    <div className="text-[10px] text-slate-500 font-medium mt-0.5 truncate" title={`Base: ₹${cr(apiKpis.supply30BaseAmount)} + GST: ₹${cr(apiKpis.supply30GstAmount)}`}>
+                      Base: ₹{cr(apiKpis.supply30BaseAmount)} + GST: ₹{cr(apiKpis.supply30GstAmount)}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
-            <div className="text-slate-300 font-bold text-xl">+</div>
-
-            <div className="flex-1">
-              <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Retention / Handover (10%)</div>
-              {kpiLoading ? (
-                <div className="h-6 w-20 bg-slate-200 animate-pulse rounded mx-auto md:mx-0"></div>
-              ) : (
-                <>
-                  <div className="text-lg font-extrabold text-slate-800">₹{cr(apiKpis.retentionBilled)} Cr</div>
-                  <div className="text-[10px] text-slate-400 font-medium mt-0.5">Milestone Pending</div>
-                </>
-              )}
+            {/* Erection 90% */}
+            <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-2xs flex flex-col justify-between">
+              <div>
+                <div className="text-[10px] uppercase font-bold text-amber-700 mb-1 flex items-center justify-between">
+                  <span>+ Erection (90%)</span>
+                  <span className="text-[9px] bg-amber-50 text-amber-700 px-1.5 py-0.2 rounded font-semibold">{apiKpis.erection90Count} Bills</span>
+                </div>
+                {kpiLoading ? (
+                  <div className="h-6 w-20 bg-slate-200 animate-pulse rounded"></div>
+                ) : (
+                  <>
+                    <div className="text-base font-extrabold text-slate-800">₹{cr(apiKpis.erection90Billed)} Cr</div>
+                    <div className="text-[10px] text-slate-500 font-medium mt-0.5 truncate" title={`Base: ₹${cr(apiKpis.erection90BaseAmount)} + GST: ₹${cr(apiKpis.erection90GstAmount)}`}>
+                      Base: ₹{cr(apiKpis.erection90BaseAmount)} + GST: ₹{cr(apiKpis.erection90GstAmount)}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
-            <div className="text-slate-300 font-bold text-xl">=</div>
+            {/* Contractor Bills */}
+            <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-2xs flex flex-col justify-between">
+              <div>
+                <div className="text-[10px] uppercase font-bold text-emerald-700 mb-1 flex items-center justify-between">
+                  <span>+ Contractor Bills</span>
+                  <span className="text-[9px] bg-emerald-50 text-emerald-700 px-1.5 py-0.2 rounded font-semibold">{apiKpis.contractorCount} Bills</span>
+                </div>
+                {kpiLoading ? (
+                  <div className="h-6 w-20 bg-slate-200 animate-pulse rounded"></div>
+                ) : (
+                  <>
+                    <div className="text-base font-extrabold text-slate-800">₹{cr(apiKpis.contractorBilled)} Cr</div>
+                    <div className="text-[10px] text-slate-500 font-medium mt-0.5 truncate" title={`Base: ₹${cr(apiKpis.contractorBaseAmount)} + GST: ₹${cr(apiKpis.contractorGstAmount)}`}>
+                      Base: ₹{cr(apiKpis.contractorBaseAmount)} + GST: ₹{cr(apiKpis.contractorGstAmount)}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
 
-            <div className="flex-1 bg-purple-50 rounded p-3 border border-purple-100 shadow-sm">
-              <div className="text-[10px] uppercase font-bold text-purple-600 mb-1">Total RA Billed</div>
-              {kpiLoading ? (
-                <div className="h-7 w-24 bg-purple-200/60 animate-pulse rounded mx-auto md:mx-0"></div>
-              ) : (
-                <>
-                  <div className="text-xl font-extrabold text-purple-700">
-                    ₹{cr(apiKpis.supplyBilled + apiKpis.erectionBilled + apiKpis.retentionBilled)} Cr
-                  </div>
-                  <div className="text-[10px] text-purple-500 font-semibold mt-0.5">
-                    {apiKpis.totalBillingCount || (apiKpis.supplyCount + apiKpis.erectionCount)} Total Certified / Booked
-                  </div>
-                </>
-              )}
+            {/* Retention / Handover 10% */}
+            <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-2xs flex flex-col justify-between">
+              <div>
+                <div className="text-[10px] uppercase font-bold text-slate-500 mb-1 flex items-center justify-between">
+                  <span>+ Retention (10%)</span>
+                  <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.2 rounded font-semibold">Pending</span>
+                </div>
+                {kpiLoading ? (
+                  <div className="h-6 w-20 bg-slate-200 animate-pulse rounded"></div>
+                ) : (
+                  <>
+                    <div className="text-base font-extrabold text-slate-800">₹{cr(apiKpis.retentionBilled)} Cr</div>
+                    <div className="text-[10px] text-slate-400 font-medium mt-0.5">Milestone Pending</div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Total RA Billed */}
+            <div className="bg-purple-50 p-3 rounded-lg border border-purple-200 shadow-2xs flex flex-col justify-between">
+              <div>
+                <div className="text-[10px] uppercase font-bold text-purple-700 mb-1 flex items-center justify-between">
+                  <span>= Total RA Billed</span>
+                  <span className="text-[9px] bg-purple-200/80 text-purple-900 px-1.5 py-0.2 rounded font-bold">
+                    {apiKpis.totalBillingCount || (apiKpis.supplyCount + apiKpis.erectionCount)} Total
+                  </span>
+                </div>
+                {kpiLoading ? (
+                  <div className="h-6 w-24 bg-purple-200/60 animate-pulse rounded"></div>
+                ) : (
+                  <>
+                    <div className="text-base font-extrabold text-purple-800">
+                      ₹{cr(apiKpis.supplyBilled + apiKpis.erectionBilled + apiKpis.retentionBilled)} Cr
+                    </div>
+                    <div className="text-[10px] text-purple-600 font-semibold mt-0.5">Certified / Booked</div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1642,7 +1927,7 @@ export default function OperationsHub() {
                   Circle-Wise RA Billing Reconciliation Ledger
                 </span>
                 <span className="text-[10px] text-slate-500 font-normal">
-                  All circles verified against Client Bills (60%) & Contractor Invoices (90%)
+                  All circles verified against Client Bills (60% & 30%) and Contractor Invoices (Erection 90% & Contractor Bills)
                 </span>
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
@@ -1659,11 +1944,19 @@ export default function OperationsHub() {
                         <div className="space-y-1 text-[11px]">
                           <div className="flex justify-between items-center text-slate-500">
                             <span>Supply (60%):</span>
-                            <span className="font-semibold text-slate-700">₹{cr(c.supplyAmount)} Cr <span className="text-[9px] text-slate-400">({c.supplyCount})</span></span>
+                            <span className="font-semibold text-slate-700">₹{cr(c.supply60Amount || 0)} Cr <span className="text-[9px] text-slate-400">({c.supply60Count || 0})</span></span>
+                          </div>
+                          <div className="flex justify-between items-center text-slate-500">
+                            <span>Supply (30%):</span>
+                            <span className="font-semibold text-slate-700">₹{cr(c.supply30Amount || 0)} Cr <span className="text-[9px] text-slate-400">({c.supply30Count || 0})</span></span>
                           </div>
                           <div className="flex justify-between items-center text-slate-500">
                             <span>Erection (90%):</span>
-                            <span className="font-semibold text-slate-700">₹{cr(c.erectionAmount)} Cr <span className="text-[9px] text-slate-400">({c.erectionCount})</span></span>
+                            <span className="font-semibold text-slate-700">₹{cr(c.erection90Amount || 0)} Cr <span className="text-[9px] text-slate-400">({c.erection90Count || 0})</span></span>
+                          </div>
+                          <div className="flex justify-between items-center text-slate-500">
+                            <span>Contractor Bill:</span>
+                            <span className="font-semibold text-slate-700">₹{cr(c.contractorAmount || 0)} Cr <span className="text-[9px] text-slate-400">({c.contractorCount || 0})</span></span>
                           </div>
                         </div>
                       </div>
@@ -2173,15 +2466,15 @@ export default function OperationsHub() {
             </div>
           </div>
 
-          <div className="overflow-x-auto relative">
+          <div className="overflow-auto relative max-h-[calc(100vh-210px)] min-h-[420px] border-b border-slate-300">
             <table className="w-full text-left border-collapse border border-slate-300 text-xs whitespace-nowrap min-w-max select-text">
-              <thead className="sticky top-0 z-20 bg-slate-50 shadow-2xs">
+              <thead className="z-20 bg-slate-50">
                 {/* Group Header */}
-                <tr>
+                <tr className="h-7 min-h-[28px] max-h-[28px]">
                   {curCols.filter(c => c.isSticky).length > 0 && (
                     <th 
                       colSpan={curCols.filter(c => c.isSticky).length} 
-                      className="sticky left-0 z-30 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-800 bg-slate-200 border-r-2 border-slate-400 border-b border-slate-300 shadow-xs"
+                      className="sticky left-0 top-0 z-40 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-800 bg-slate-200 border-r-2 border-slate-400 border-b border-slate-300 shadow-xs h-7 leading-tight"
                     >
                       Item Master & Target
                     </th>
@@ -2189,7 +2482,7 @@ export default function OperationsHub() {
                   {curCols.filter(c => !c.isSticky && c.sp === null).length > 0 && (
                     <th 
                       colSpan={curCols.filter(c => !c.isSticky && c.sp === null).length} 
-                      className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-700 bg-slate-100 border-r border-slate-300 border-b border-slate-300"
+                      className="sticky top-0 z-20 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-700 bg-slate-100 border-r border-slate-300 border-b border-slate-300 h-7 leading-tight"
                     >
                       General Info
                     </th>
@@ -2200,28 +2493,29 @@ export default function OperationsHub() {
                     const m = [...MODS, ...MODS_MIS].find(mod => mod.id === s.m)!;
                     const theme = getColor(m.color);
                     return (
-                      <th key={s.id} colSpan={n} className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider border-r border-slate-300 border-b ${theme.bg} ${theme.text}`}>
+                      <th key={s.id} colSpan={n} className={`sticky top-0 z-20 px-3 py-1 text-[10px] font-bold uppercase tracking-wider border-r border-slate-300 border-b h-7 leading-tight ${theme.bg} ${theme.text}`}>
                         {s.name}
                       </th>
                     );
                   })}
                 </tr>
                 {/* Column Headers */}
-                <tr className="bg-[#f1f5f9] text-slate-700 text-[11px] font-bold uppercase tracking-wider border-b border-slate-300">
+                <tr className="bg-[#f1f5f9] text-slate-700 text-[11px] font-bold uppercase tracking-wider border-b border-slate-300 shadow-xs">
                   {curCols.map((c, i) => {
                     const isCompact = density === 'compact';
                     const colW = getColWidth(c, isCompact);
                     const stickyLeft = getStickyLeft(c);
+                    const isStickyCol = c.isSticky;
                     return (
                     <th 
                       key={c.id} 
-                      className={`relative border-r border-slate-300 border-b border-slate-300 bg-[#f1f5f9] hover:bg-[#e2e8f0] transition-colors group ${c.cls} ${c.isSticky ? 'z-40 bg-[#f1f5f9]' : ''} ${c.id === 'bom' ? 'border-r-2 border-slate-400' : ''} ${c.type === 'money' || c.type === 'qty' || c.type === 'stock' || c.type === 'pct' ? 'text-right' : ''}`}
+                      className={`sticky top-[28px] border-r border-slate-300 border-b border-slate-300 bg-[#f1f5f9] hover:bg-[#e2e8f0] transition-colors group ${isStickyCol ? 'z-35' : 'z-25'} ${c.id === 'bom' ? 'border-r-2 border-slate-400' : ''} ${c.type === 'money' || c.type === 'qty' || c.type === 'stock' || c.type === 'pct' ? 'text-right' : ''} ${c.id === 'select' || c.id === 'sr' ? 'text-center' : ''}`}
                       style={{ 
                         width: colW,
                         minWidth: colW,
                         maxWidth: colW,
                         padding: c.type === 'checkbox' ? '0' : (colWidths[c.id] !== undefined && colWidths[c.id] < 10 ? '0' : (isCompact ? '6px 8px' : '10px 12px')),
-                        left: stickyLeft !== undefined ? stickyLeft : undefined
+                        left: isStickyCol && stickyLeft !== undefined ? stickyLeft : undefined
                       }}
                     >
                       {c.type === 'checkbox' ? (
@@ -2243,6 +2537,40 @@ export default function OperationsHub() {
                             {c.label}
                             {sort?.id === c.id && (sort.dir === 1 ? ' ↑' : ' ↓')}
                           </div>
+                          {c.id === 'mis_c.contractors' && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleExpandAllContractors();
+                              }}
+                              className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase transition-all shadow-2xs border shrink-0 ${
+                                expandAllContractors
+                                  ? 'bg-blue-600 text-white border-blue-700 hover:bg-blue-700'
+                                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100 hover:text-blue-700'
+                              }`}
+                              title={expandAllContractors ? "Compress all contractor cells" : "Expand all contractor cells"}
+                            >
+                              {expandAllContractors ? "Compress All" : "Expand All"}
+                            </button>
+                          )}
+                          {c.id === 'mis_v.vendors' && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleExpandAllVendors();
+                              }}
+                              className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase transition-all shadow-2xs border shrink-0 ${
+                                expandAllVendors
+                                  ? 'bg-rose-600 text-white border-rose-700 hover:bg-rose-700'
+                                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100 hover:text-rose-700'
+                              }`}
+                              title={expandAllVendors ? "Compress all vendor cells" : "Expand all vendor cells"}
+                            >
+                              {expandAllVendors ? "Compress All" : "Expand All"}
+                            </button>
+                          )}
                         </div>
                       )}
                       {c.type !== 'checkbox' && (

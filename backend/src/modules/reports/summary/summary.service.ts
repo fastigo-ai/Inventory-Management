@@ -560,9 +560,24 @@ export class SummaryService {
             const qty = Number(line.erectedQty || line.jmcDoneQty || 0);
             const amt = Number(line.totalAmount || line.baseAmount || 0);
             if (qty > 0 || amt > 0) {
+              const increments: any = {};
+              if (inv.billingCategory === 'Erection Bill') {
+                if (inv.stage === '10%') {
+                  increments.er10Qty = qty;
+                  increments.er10Amt = amt;
+                } else {
+                  increments.er90Qty = qty;
+                  increments.er90Amt = amt;
+                }
+              } else {
+                increments.cBillQty = qty;
+                increments.cBillAmt = amt;
+              }
               await SummaryService.updateSummary({
-                itemId, circle: inv.legacyMetadata?.circle || '', package: inv.legacyMetadata?.package || '',
-                increments: { cBillQty: qty, cBillAmt: amt },
+                itemId,
+                circle: (inv as any).circle || inv.legacyMetadata?.circle || '',
+                package: (inv as any).package || inv.legacyMetadata?.package || '',
+                increments,
                 companyId: item.companyId?.toString()
               });
             }
@@ -1181,7 +1196,10 @@ export class SummaryService {
             { $unwind: "$items" },
             ...(itemsMatch ? [{ $match: itemsMatch }] : []),
             { $group: {
-                _id: "$items.itemId",
+                _id: {
+                  itemId: "$items.itemId",
+                  circle: { $ifNull: ["$circle", { $ifNull: ["$legacyMetadata.circle", ""] }] }
+                },
                 ra60Qty: {
                   $sum: {
                     $cond: [
@@ -1282,9 +1300,64 @@ export class SummaryService {
             { $unwind: "$lineItems" },
             ...(lineItemMatch ? [{ $match: lineItemMatch }] : []),
             { $group: {
-                _id: "$lineItems.itemId",
-                cBillQty: { $sum: { $ifNull: ["$lineItems.erectedQty", "$lineItems.jmcDoneQty"] } },
-                cBillAmt: { $sum: { $ifNull: ["$lineItems.totalAmount", "$lineItems.baseAmount"] } }
+                _id: {
+                  itemId: "$lineItems.itemId",
+                  circle: { $ifNull: ["$circle", { $ifNull: ["$legacyMetadata.circle", ""] }] }
+                },
+                cBillQty: {
+                  $sum: {
+                    $cond: [
+                      { $ne: ["$billingCategory", "Erection Bill"] },
+                      { $ifNull: ["$lineItems.erectedQty", "$lineItems.jmcDoneQty"] },
+                      0
+                    ]
+                  }
+                },
+                cBillAmt: {
+                  $sum: {
+                    $cond: [
+                      { $ne: ["$billingCategory", "Erection Bill"] },
+                      { $ifNull: ["$lineItems.totalAmount", "$lineItems.baseAmount"] },
+                      0
+                    ]
+                  }
+                },
+                er90Qty: {
+                  $sum: {
+                    $cond: [
+                      { $and: [{ $eq: ["$billingCategory", "Erection Bill"] }, { $eq: ["$stage", "90%"] }] },
+                      { $ifNull: ["$lineItems.erectedQty", "$lineItems.jmcDoneQty"] },
+                      0
+                    ]
+                  }
+                },
+                er90Amt: {
+                  $sum: {
+                    $cond: [
+                      { $and: [{ $eq: ["$billingCategory", "Erection Bill"] }, { $eq: ["$stage", "90%"] }] },
+                      { $ifNull: ["$lineItems.totalAmount", "$lineItems.baseAmount"] },
+                      0
+                    ]
+                  }
+                },
+                er10Qty: {
+                  $sum: {
+                    $cond: [
+                      { $and: [{ $eq: ["$billingCategory", "Erection Bill"] }, { $eq: ["$stage", "10%"] }] },
+                      { $ifNull: ["$lineItems.erectedQty", "$lineItems.jmcDoneQty"] },
+                      0
+                    ]
+                  }
+                },
+                er10Amt: {
+                  $sum: {
+                    $cond: [
+                      { $and: [{ $eq: ["$billingCategory", "Erection Bill"] }, { $eq: ["$stage", "10%"] }] },
+                      { $ifNull: ["$lineItems.totalAmount", "$lineItems.baseAmount"] },
+                      0
+                    ]
+                  }
+                }
               }
             }
           ]).toArray(),
@@ -1335,6 +1408,37 @@ export class SummaryService {
           return m;
         };
 
+        const toCircleMap = (arr: any[]) => {
+          const m = new Map<string, any>();
+          for (const item of arr) {
+            if (!item || !item._id) continue;
+            let itemIdStr = '';
+            let circ = '';
+            if (typeof item._id === 'object' && item._id !== null) {
+              if (item._id.itemId) itemIdStr = item._id.itemId.toString();
+              if (item._id.circle) circ = normalizeCircle(String(item._id.circle));
+            } else {
+              itemIdStr = item._id.toString();
+            }
+            if (itemIdStr) {
+              if (circ) {
+                m.set(`${itemIdStr}_${circ.toLowerCase()}`, item);
+              }
+              const existing = m.get(itemIdStr);
+              if (!existing) {
+                m.set(itemIdStr, { ...item });
+              } else {
+                for (const [k, v] of Object.entries(item)) {
+                  if (k !== '_id' && typeof v === 'number') {
+                    existing[k] = (existing[k] || 0) + v;
+                  }
+                }
+              }
+            }
+          }
+          return m;
+        };
+
         const inwardMap = toMap(latestInwards);
         const diMap = toMap(latestDIs);
         const piMap = toMap(latestPIs);
@@ -1344,8 +1448,8 @@ export class SummaryService {
         const mhrovMap = toMap(latestMHROVs);
         const cbMap = toMap(latestCBs);
         const woMap = toMap(latestWOs);
-        const cbAggMap = toMap(cbAgg);
-        const ciAggMap = toMap(ciAgg);
+        const cbAggMap = toCircleMap(cbAgg);
+        const ciAggMap = toCircleMap(ciAgg);
         const mhrovAggMap = toMap(mhrovAgg);
         const retAggMap = toMap(retAgg);
         const stAggMap = toMap(stAgg);
@@ -1361,8 +1465,10 @@ export class SummaryService {
           const mh = mhrovMap.get(itemIdStr);
           const cb = cbMap.get(itemIdStr);
           const wo = woMap.get(itemIdStr);
-          const cba = cbAggMap.get(itemIdStr);
-          const cia = ciAggMap.get(itemIdStr);
+
+          const docCirc = normalizeCircle(doc.circle || '').toLowerCase();
+          const cba = (docCirc ? cbAggMap.get(`${itemIdStr}_${docCirc}`) : null) || (!doc.circle ? cbAggMap.get(itemIdStr) : null);
+          const cia = (docCirc ? ciAggMap.get(`${itemIdStr}_${docCirc}`) : null) || (!doc.circle ? ciAggMap.get(itemIdStr) : null);
           const mha = mhrovAggMap.get(itemIdStr);
           const reta = retAggMap.get(itemIdStr);
           const sta = stAggMap.get(itemIdStr);
@@ -1396,20 +1502,27 @@ export class SummaryService {
           const raNo = cb?.raNo || doc.raNo || null;
           const raDate = cb?.raDate || doc.raDate || null;
 
-          const ra60Qty = cba?.ra60Qty ?? doc.ra60Qty ?? 0;
-          const ra60Amt = cba?.ra60Amt ?? doc.ra60Amt ?? 0;
-          const ra30Qty = cba?.ra30Qty ?? doc.ra30Qty ?? 0;
-          const ra30Amt = cba?.ra30Amt ?? doc.ra30Amt ?? 0;
-          const ra10Qty = cba?.ra10Qty ?? doc.ra10Qty ?? 0;
-          const ra10Amt = cba?.ra10Amt ?? doc.ra10Amt ?? 0;
+          const ra60Qty = cba ? (cba.ra60Qty ?? 0) : (doc.ra60Qty ?? 0);
+          const ra60Amt = cba ? (cba.ra60Amt ?? 0) : (doc.ra60Amt ?? 0);
+          const ra30Qty = cba ? (cba.ra30Qty ?? 0) : (doc.ra30Qty ?? 0);
+          const ra30Amt = cba ? (cba.ra30Amt ?? 0) : (doc.ra30Amt ?? 0);
+          const ra10Qty = cba ? (cba.ra10Qty ?? 0) : (doc.ra10Qty ?? 0);
+          const ra10Amt = cba ? (cba.ra10Amt ?? 0) : (doc.ra10Amt ?? 0);
 
-          const er90Qty = cba?.er90Qty ?? doc.er90Qty ?? 0;
-          const er90Amt = cba?.er90Amt ?? doc.er90Amt ?? 0;
-          const er10Qty = cba?.er10Qty ?? doc.er10Qty ?? 0;
-          const er10Amt = cba?.er10Amt ?? doc.er10Amt ?? 0;
+          const liveEr90Qty = (cba?.er90Qty || 0) + (cia?.er90Qty || 0);
+          const er90Qty = (cba || cia) ? liveEr90Qty : (doc.er90Qty || 0);
 
-          const cBillQty = cia?.cBillQty ?? doc.cBillQty ?? 0;
-          const cBillAmt = cia?.cBillAmt ?? doc.cBillAmt ?? 0;
+          const liveEr90Amt = (cba?.er90Amt || 0) + (cia?.er90Amt || 0);
+          const er90Amt = (cba || cia) ? liveEr90Amt : (doc.er90Amt || 0);
+
+          const liveEr10Qty = (cba?.er10Qty || 0) + (cia?.er10Qty || 0);
+          const er10Qty = (cba || cia) ? liveEr10Qty : (doc.er10Qty || 0);
+
+          const liveEr10Amt = (cba?.er10Amt || 0) + (cia?.er10Amt || 0);
+          const er10Amt = (cba || cia) ? liveEr10Amt : (doc.er10Amt || 0);
+
+          const cBillQty = cia ? (cia.cBillQty ?? 0) : (doc.cBillQty ?? 0);
+          const cBillAmt = cia ? (cia.cBillAmt ?? 0) : (doc.cBillAmt ?? 0);
 
           const mhrovQty = mha?.mhrovQty ?? doc.mhrovQty ?? 0;
           const returnedQty = reta?.returnedQty ?? doc.returnedQty ?? 0;
@@ -1540,7 +1653,10 @@ export class SummaryService {
           { $match: { status: { $ne: 'Rejected' } } },
           { $unwind: "$items" },
           { $group: {
-              _id: "$items.itemId",
+              _id: {
+                itemId: "$items.itemId",
+                circle: { $ifNull: ["$circle", { $ifNull: ["$legacyMetadata.circle", ""] }] }
+              },
               ra60Qty: {
                 $sum: {
                   $cond: [
@@ -1639,9 +1755,64 @@ export class SummaryService {
           { $match: { status: { $ne: 'Rejected' } } },
           { $unwind: "$lineItems" },
           { $group: {
-              _id: "$lineItems.itemId",
-              cBillQty: { $sum: { $ifNull: ["$lineItems.erectedQty", "$lineItems.jmcDoneQty"] } },
-              cBillAmt: { $sum: { $ifNull: ["$lineItems.totalAmount", "$lineItems.baseAmount"] } }
+              _id: {
+                itemId: "$lineItems.itemId",
+                circle: { $ifNull: ["$circle", { $ifNull: ["$legacyMetadata.circle", ""] }] }
+              },
+              cBillQty: {
+                $sum: {
+                  $cond: [
+                    { $ne: ["$billingCategory", "Erection Bill"] },
+                    { $ifNull: ["$lineItems.erectedQty", "$lineItems.jmcDoneQty"] },
+                    0
+                  ]
+                }
+              },
+              cBillAmt: {
+                $sum: {
+                  $cond: [
+                    { $ne: ["$billingCategory", "Erection Bill"] },
+                    { $ifNull: ["$lineItems.totalAmount", "$lineItems.baseAmount"] },
+                    0
+                  ]
+                }
+              },
+              er90Qty: {
+                $sum: {
+                  $cond: [
+                    { $and: [{ $eq: ["$billingCategory", "Erection Bill"] }, { $eq: ["$stage", "90%"] }] },
+                    { $ifNull: ["$lineItems.erectedQty", "$lineItems.jmcDoneQty"] },
+                    0
+                  ]
+                }
+              },
+              er90Amt: {
+                $sum: {
+                  $cond: [
+                    { $and: [{ $eq: ["$billingCategory", "Erection Bill"] }, { $eq: ["$stage", "90%"] }] },
+                    { $ifNull: ["$lineItems.totalAmount", "$lineItems.baseAmount"] },
+                    0
+                  ]
+                }
+              },
+              er10Qty: {
+                $sum: {
+                  $cond: [
+                    { $and: [{ $eq: ["$billingCategory", "Erection Bill"] }, { $eq: ["$stage", "10%"] }] },
+                    { $ifNull: ["$lineItems.erectedQty", "$lineItems.jmcDoneQty"] },
+                    0
+                  ]
+                }
+              },
+              er10Amt: {
+                $sum: {
+                  $cond: [
+                    { $and: [{ $eq: ["$billingCategory", "Erection Bill"] }, { $eq: ["$stage", "10%"] }] },
+                    { $ifNull: ["$lineItems.totalAmount", "$lineItems.baseAmount"] },
+                    0
+                  ]
+                }
+              }
             }
           }
         ]).toArray(),
@@ -1697,33 +1868,47 @@ export class SummaryService {
         ]).toArray()
       ]);
 
-      const itemUpdates = new Map<string, any>();
-      const getOrCreate = (id: any) => {
-        const s = id.toString();
-        if (!itemUpdates.has(s)) itemUpdates.set(s, {});
-        return itemUpdates.get(s);
+      const itemUpdates = new Map<string, { itemId: string; circle: string; fields: any }>();
+      const getOrCreate = (id: any, circle?: string) => {
+        let itemIdStr = '';
+        let circ = circle ? normalizeCircle(circle) : '';
+        if (typeof id === 'object' && id !== null) {
+          if (id.itemId) itemIdStr = id.itemId.toString();
+          if (id.circle && !circ) circ = normalizeCircle(String(id.circle));
+        } else if (id) {
+          itemIdStr = id.toString();
+        }
+        const key = circ ? `${itemIdStr}_${circ.toLowerCase()}` : itemIdStr;
+        if (!itemUpdates.has(key)) {
+          itemUpdates.set(key, { itemId: itemIdStr, circle: circ, fields: {} });
+        }
+        return itemUpdates.get(key)!.fields;
       };
 
       cbAgg.forEach((r: any) => {
         if (!r._id) return;
         const u = getOrCreate(r._id);
-        u.ra60Qty = r.ra60Qty || 0;
-        u.ra60Amt = r.ra60Amt || 0;
-        u.ra30Qty = r.ra30Qty || 0;
-        u.ra30Amt = r.ra30Amt || 0;
-        u.ra10Qty = r.ra10Qty || 0;
-        u.ra10Amt = r.ra10Amt || 0;
-        u.er90Qty = r.er90Qty || 0;
-        u.er90Amt = r.er90Amt || 0;
-        u.er10Qty = r.er10Qty || 0;
-        u.er10Amt = r.er10Amt || 0;
+        u.ra60Qty = (u.ra60Qty || 0) + (r.ra60Qty || 0);
+        u.ra60Amt = (u.ra60Amt || 0) + (r.ra60Amt || 0);
+        u.ra30Qty = (u.ra30Qty || 0) + (r.ra30Qty || 0);
+        u.ra30Amt = (u.ra30Amt || 0) + (r.ra30Amt || 0);
+        u.ra10Qty = (u.ra10Qty || 0) + (r.ra10Qty || 0);
+        u.ra10Amt = (u.ra10Amt || 0) + (r.ra10Amt || 0);
+        u.er90Qty = (u.er90Qty || 0) + (r.er90Qty || 0);
+        u.er90Amt = (u.er90Amt || 0) + (r.er90Amt || 0);
+        u.er10Qty = (u.er10Qty || 0) + (r.er10Qty || 0);
+        u.er10Amt = (u.er10Amt || 0) + (r.er10Amt || 0);
       });
 
       ciAgg.forEach((r: any) => {
         if (!r._id) return;
         const u = getOrCreate(r._id);
-        u.cBillQty = r.cBillQty || 0;
-        u.cBillAmt = r.cBillAmt || 0;
+        u.cBillQty = (u.cBillQty || 0) + (r.cBillQty || 0);
+        u.cBillAmt = (u.cBillAmt || 0) + (r.cBillAmt || 0);
+        u.er90Qty = (u.er90Qty || 0) + (r.er90Qty || 0);
+        u.er90Amt = (u.er90Amt || 0) + (r.er90Amt || 0);
+        u.er10Qty = (u.er10Qty || 0) + (r.er10Qty || 0);
+        u.er10Amt = (u.er10Amt || 0) + (r.er10Amt || 0);
       });
 
       mhrovAgg.forEach((r: any) => {
@@ -1758,10 +1943,15 @@ export class SummaryService {
       });
 
       const bulkOps: any[] = [];
-      for (const [idStr, fields] of itemUpdates.entries()) {
+      for (const { itemId, circle, fields } of itemUpdates.values()) {
+        if (!itemId) continue;
+        const filter: any = { itemId: new mongoose.Types.ObjectId(itemId) };
+        if (circle) {
+          filter.circle = { $regex: new RegExp(`^${circle}$`, 'i') };
+        }
         bulkOps.push({
           updateMany: {
-            filter: { itemId: new mongoose.Types.ObjectId(idStr) },
+            filter,
             update: { $set: fields }
           }
         });

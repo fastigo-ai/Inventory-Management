@@ -69,28 +69,14 @@ export const getDashboardSummary = asyncHandler(async (req: Request, res: Respon
     user: entry.createdBy ? `${entry.createdBy.firstName} ${entry.createdBy.lastName}` : 'System'
   }));
 
-  // 4. Executive Financials
-  const poSpendResult = await PurchaseOrder.aggregate([
-    { $match: { isDeleted: { $ne: true } } },
-    { $match: { status: { $ne: 'Cancelled' } } },
-    { $group: { _id: null, totalSpend: { $sum: '$total' } } }
-  ]);
-  const totalProcurementSpend = poSpendResult[0]?.totalSpend || 0;
-
-  const contractorLiabilitiesResult = await ContractorInvoice.aggregate([
-    { $match: { status: { $in: ['Approved', 'Submitted'] } } },
-    { $group: { _id: null, totalLiabilities: { $sum: '$grandTotal' } } }
-  ]);
-  const totalContractorLiabilities = contractorLiabilitiesResult[0]?.totalLiabilities || 0;
-
   const dashboardData = {
     summary: {
-      totalStockValue,
+      totalStockValue: 0,
       totalItemsInStock,
       pendingReceiptsCount,
       pendingVerificationCount,
-      totalProcurementSpend,
-      totalContractorLiabilities
+      totalProcurementSpend: 0,
+      totalContractorLiabilities: 0
     },
     topStockedItems,
     lowStockItems,

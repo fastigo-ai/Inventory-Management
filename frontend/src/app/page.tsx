@@ -7,7 +7,8 @@ import { Building, Package, Tag, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { getDashboardSummary } from '@/features/dashboard/api/dashboard.api';
 import { PendingActions } from '@/features/dashboard/components/PendingActions';
-import { ExecutiveFinancials } from '@/features/dashboard/components/ExecutiveFinancials';
+import { TopStockedItems } from '@/features/dashboard/components/TopStockedItems';
+import { RecentActivity } from '@/features/dashboard/components/RecentActivity';
 import { SitePortalDashboard } from '@/features/dashboard/components/SitePortalDashboard';
 import { StockSummaryTable } from "@/features/store/components/StockSummaryTable";
 import { getStockSummary } from "@/features/store/api/store.api";
@@ -142,25 +143,33 @@ export default function Home() {
       <div className="p-6 flex gap-6 flex-1 bg-slate-50/50">
         
         {loading ? (
-          <div className="flex-1 flex gap-6 w-full">
-            {/* Left Card Skeleton (Financials/Site Dashboard) */}
-            <div className="flex-1 min-w-[300px] bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col gap-4">
-              <div className="h-6 w-1/3 bg-slate-200 rounded animate-pulse mb-2"></div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="h-24 bg-slate-100 rounded-lg animate-pulse"></div>
-                <div className="h-24 bg-slate-100 rounded-lg animate-pulse"></div>
-                <div className="h-24 bg-slate-100 rounded-lg animate-pulse"></div>
-                <div className="h-24 bg-slate-100 rounded-lg animate-pulse"></div>
+          <div className="flex-1 flex flex-col lg:flex-row gap-6 w-full">
+            {/* Left Column Skeleton (Operational items & Activity) */}
+            <div className="flex-1 flex flex-col gap-6">
+              <div className="h-[320px] bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col gap-4">
+                <div className="h-6 w-1/3 bg-slate-200 rounded animate-pulse mb-2"></div>
+                <div className="space-y-3">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="h-10 bg-slate-100 rounded-lg animate-pulse"></div>
+                  ))}
+                </div>
               </div>
-              <div className="h-48 bg-slate-100 rounded-lg animate-pulse mt-4"></div>
+              <div className="h-[320px] bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col gap-4">
+                <div className="h-6 w-1/3 bg-slate-200 rounded animate-pulse mb-2"></div>
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-14 bg-slate-100 rounded-lg animate-pulse"></div>
+                  ))}
+                </div>
+              </div>
             </div>
             
             {/* Right Card Skeleton (Pending Actions) */}
             {!isSitePortal && activeTab === 'dashboard' && (
-              <div className="flex-1 min-w-[300px] bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col gap-4">
-                <div className="h-6 w-1/4 bg-slate-200 rounded animate-pulse mb-2"></div>
-                <div className="flex flex-col gap-3">
-                  {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div className="w-full lg:w-[380px] shrink-0 bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col gap-4">
+                <div className="h-28 bg-slate-200 rounded-xl animate-pulse"></div>
+                <div className="flex-1 flex flex-col gap-3">
+                  {[1, 2, 3].map((i) => (
                     <div key={i} className="h-16 bg-slate-100 rounded-lg animate-pulse"></div>
                   ))}
                 </div>
@@ -170,17 +179,15 @@ export default function Home() {
         ) : isSitePortal ? (
           <SitePortalDashboard data={data} onFilterChange={setSiteFilters} />
         ) : activeTab === 'dashboard' ? (
-          <>
-            {/* Dashboard Content */}
-            <div className="flex-1 flex gap-6">
-              <div className="flex-1 min-w-[300px]">
-                <ExecutiveFinancials summary={data?.summary || {}} />
-              </div>
-              <div className="flex-1 min-w-[300px]">
-                <PendingActions summary={data?.summary || {}} />
-              </div>
+          <div className="flex-1 flex flex-col lg:flex-row gap-6">
+            <div className="flex-1 flex flex-col gap-6">
+              <TopStockedItems items={data?.topStockedItems || []} />
+              <RecentActivity activities={data?.recentActivities || []} />
             </div>
-          </>
+            <div className="w-full lg:w-[380px] shrink-0">
+              <PendingActions summary={data?.summary || {}} />
+            </div>
+          </div>
         ) : (
           <div className="flex-1 w-full max-w-[1400px] mx-auto flex flex-col gap-6">
             {isStoreManager && (

@@ -622,6 +622,7 @@ export default function ItemSummaryMatrixPage() {
                   {showSupplyBill && <th className="p-2 min-w-[100px] bg-indigo-50 text-right font-bold text-indigo-900 border-b border-r border-slate-200">Supply Bill 60%</th>}
                   {showSupplyBill && <th className="p-2 min-w-[100px] bg-indigo-50 text-right font-bold text-indigo-900 border-b border-r border-slate-200">Supply Bill 30%</th>}
                   {showSupplyBill && <th className="p-2 min-w-[100px] bg-indigo-50 text-right font-bold text-indigo-900 border-b border-r border-slate-200">Supply Bill 10%</th>}
+                  {showSupplyBill && <th className="p-2 min-w-[125px] bg-emerald-50 text-right font-bold text-emerald-900 border-b border-r border-slate-200">Bill Amount</th>}
                   {showSupplyBill && <th className="p-2 min-w-[100px] bg-indigo-50 text-right font-bold text-indigo-900 border-b border-r border-slate-200">Supply Bill Cumulative</th>}
                   {showSupplyBill && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900 border-b border-r border-slate-200">Bal for Supply Bill</th>}
                   
@@ -660,6 +661,9 @@ export default function ItemSummaryMatrixPage() {
                     const supplyBillQty_30 = (r.supplyBilledSolan_30 || 0) + (r.supplyBilledNahan_30 || 0) + (r.supplyBilledRampur_30 || 0) + (r.supplyBilledRohru_30 || 0);
                     const supplyBillQty_10 = (r.supplyBilledSolan_10 || 0) + (r.supplyBilledNahan_10 || 0) + (r.supplyBilledRampur_10 || 0) + (r.supplyBilledRohru_10 || 0);
                     const supplyBillQty = (r.supplyBilledSolan || 0) + (r.supplyBilledNahan || 0) + (r.supplyBilledRampur || 0) + (r.supplyBilledRohru || 0);
+                    const supplyBillAmt = (r.supplyBilledAmountSolan || 0) + (r.supplyBilledAmountNahan || 0) + (r.supplyBilledAmountRampur || 0) + (r.supplyBilledAmountRohru || 0)
+                      || (r.supplyBilledAmount || 0)
+                      || ((supplyBillQty || 0) * (r.rate || 0));
                     const erectionBillQty_90 = (r.erectionBilledSolan_90 || 0) + (r.erectionBilledNahan_90 || 0) + (r.erectionBilledRampur_90 || 0) + (r.erectionBilledRohru_90 || 0);
                     const erectionBillQty_10 = (r.erectionBilledSolan_10 || 0) + (r.erectionBilledNahan_10 || 0) + (r.erectionBilledRampur_10 || 0) + (r.erectionBilledRohru_10 || 0);
                     const erectionBillQty = (r.erectionBilledSolan || 0) + (r.erectionBilledNahan || 0) + (r.erectionBilledRampur || 0) + (r.erectionBilledRohru || 0);
@@ -671,6 +675,7 @@ export default function ItemSummaryMatrixPage() {
 
                     const fmtQty = (v: any) => (v ? Math.round(v).toLocaleString('en-IN') : '-');
                     const fmtBal = (v: any) => (v != null ? Math.round(v).toLocaleString('en-IN') : '-');
+                    const fmtAmt = (v: any) => (v ? `₹${Math.round(v).toLocaleString('en-IN')}` : '-');
 
                     return (
                       <tr key={idx} className="hover:bg-slate-50 group">
@@ -713,6 +718,7 @@ export default function ItemSummaryMatrixPage() {
                         {showSupplyBill && <td className="p-2 text-right text-indigo-900 font-medium bg-indigo-50/20 border-b border-r border-slate-200">{fmtQty(supplyBillQty_60)}</td>}
                         {showSupplyBill && <td className="p-2 text-right text-indigo-900 font-medium bg-indigo-50/20 border-b border-r border-slate-200">{fmtQty(supplyBillQty_30)}</td>}
                         {showSupplyBill && <td className="p-2 text-right text-indigo-900 font-medium bg-indigo-50/20 border-b border-r border-slate-200">{fmtQty(supplyBillQty_10)}</td>}
+                        {showSupplyBill && <td className="p-2 text-right text-emerald-900 font-semibold bg-emerald-50/25 border-b border-r border-slate-200">{fmtAmt(supplyBillAmt)}</td>}
                         {showSupplyBill && <td className="p-2 text-right text-indigo-900 font-bold bg-indigo-100/30 border-b border-r border-slate-200">{fmtQty(supplyBillQty)}</td>}
                         {showSupplyBill && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20 border-b border-r border-slate-200">{fmtBal(bal?.supplyBill)}</td>}
                         
@@ -739,6 +745,10 @@ export default function ItemSummaryMatrixPage() {
                   let totalInvQty = 0;
                   let totalMhrov = 0;
                   let totalJmc = 0;
+                  let totalSupply60 = 0;
+                  let totalSupply30 = 0;
+                  let totalSupply10 = 0;
+                  let totalSupplyBillAmt = 0;
                   let totalSupplyBill = 0;
                   let totalErectionBill = 0;
                   let totalWipConsumed = 0;
@@ -761,7 +771,20 @@ export default function ItemSummaryMatrixPage() {
                     totalInvQty += (r.invQty || 0);
                     totalMhrov += (r.mhrovSolan || r.mhrovNahan || r.mhrovRampur || r.mhrovRohru || r.mhrov?.solan || r.mhrov?.nahan || r.mhrov?.rampur || r.mhrov?.rohru || 0);
                     totalJmc += (r.imcSolan || r.imcNahan || r.imcRampur || r.imcRohru || r.imc?.solan || r.imc?.nahan || r.imc?.rampur || r.imc?.rohru || 0);
-                    totalSupplyBill += (r.supplyBilledSolan || r.supplyBilledNahan || r.supplyBilledRampur || r.supplyBilledRohru || 0);
+                    
+                    const s60 = (r.supplyBilledSolan_60 || 0) + (r.supplyBilledNahan_60 || 0) + (r.supplyBilledRampur_60 || 0) + (r.supplyBilledRohru_60 || 0);
+                    const s30 = (r.supplyBilledSolan_30 || 0) + (r.supplyBilledNahan_30 || 0) + (r.supplyBilledRampur_30 || 0) + (r.supplyBilledRohru_30 || 0);
+                    const s10 = (r.supplyBilledSolan_10 || 0) + (r.supplyBilledNahan_10 || 0) + (r.supplyBilledRampur_10 || 0) + (r.supplyBilledRohru_10 || 0);
+                    const sCum = (r.supplyBilledSolan || 0) + (r.supplyBilledNahan || 0) + (r.supplyBilledRampur || 0) + (r.supplyBilledRohru || 0);
+                    const sAmt = (r.supplyBilledAmountSolan || 0) + (r.supplyBilledAmountNahan || 0) + (r.supplyBilledAmountRampur || 0) + (r.supplyBilledAmountRohru || 0)
+                      || (r.supplyBilledAmount || 0)
+                      || (sCum * (r.rate || 0));
+
+                    totalSupply60 += s60;
+                    totalSupply30 += s30;
+                    totalSupply10 += s10;
+                    totalSupplyBill += sCum;
+                    totalSupplyBillAmt += sAmt;
                     totalErectionBill += (r.erectionBilledSolan || r.erectionBilledNahan || r.erectionBilledRampur || r.erectionBilledRohru || 0);
                     totalWipConsumed += (r.wipConsumedSolan || r.wipConsumedNahan || r.wipConsumedRampur || r.wipConsumedRohru || 0);
                     totalWipRequired += (r.wipRequiredSolan || r.wipRequiredNahan || r.wipRequiredRampur || r.wipRequiredRohru || 0);
@@ -806,10 +829,11 @@ export default function ItemSummaryMatrixPage() {
                       {showImc && <td className="p-2 text-right text-fuchsia-300 border-r border-slate-700">{fmtTotal(totalJmc)}</td>}
                       {showImc && <td className="p-2 text-right text-orange-300 border-r border-slate-700">{fmtTotal(totalBalImc)}</td>}
                       
-                      {showSupplyBill && <td className="p-2 text-right text-indigo-300 border-r border-slate-700">{fmtTotal(totalSupplyBill)}</td>}
-                      {showSupplyBill && <td className="p-2 text-right text-indigo-300 border-r border-slate-700"></td>}
-                      {showSupplyBill && <td className="p-2 text-right text-indigo-300 border-r border-slate-700"></td>}
-                      {showSupplyBill && <td className="p-2 text-right text-indigo-300 border-r border-slate-700"></td>}
+                      {showSupplyBill && <td className="p-2 text-right text-indigo-300 border-r border-slate-700">{fmtTotal(totalSupply60)}</td>}
+                      {showSupplyBill && <td className="p-2 text-right text-indigo-300 border-r border-slate-700">{fmtTotal(totalSupply30)}</td>}
+                      {showSupplyBill && <td className="p-2 text-right text-indigo-300 border-r border-slate-700">{fmtTotal(totalSupply10)}</td>}
+                      {showSupplyBill && <td className="p-2 text-right text-emerald-300 font-semibold border-r border-slate-700">{totalSupplyBillAmt ? `₹${Math.round(totalSupplyBillAmt).toLocaleString('en-IN')}` : '-'}</td>}
+                      {showSupplyBill && <td className="p-2 text-right text-indigo-300 font-bold border-r border-slate-700">{fmtTotal(totalSupplyBill)}</td>}
                       {showSupplyBill && <td className="p-2 text-right text-orange-300 border-r border-slate-700">{fmtTotal(totalBalSupplyBill)}</td>}
                       
                       {showErectionBill && <td className="p-2 text-right text-violet-300 border-r border-slate-700">{fmtTotal(totalErectionBill)}</td>}

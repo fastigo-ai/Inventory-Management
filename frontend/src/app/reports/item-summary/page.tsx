@@ -579,10 +579,10 @@ export default function ItemSummaryMatrixPage() {
           </div>
         ) : (
           <div className="overflow-x-auto max-h-[70vh]">
-            <table className="w-full text-left border-collapse text-[11px]">
+            <table className="w-full text-left border-separate border-spacing-0 text-[11px]">
               <thead>
-                <tr className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200 divide-x divide-slate-200 sticky top-0 z-20">
-                  <th className="p-2 min-w-[40px] text-center bg-slate-100">
+                <tr className="bg-slate-50 text-slate-600 font-semibold sticky top-0 z-30">
+                  <th className="p-2 text-center bg-slate-100 sticky left-0 top-0 z-40 w-[40px] min-w-[40px] max-w-[40px] border-b border-r border-slate-200">
                     <input 
                       type="checkbox"
                       checked={data.length > 0 && selectedItems.size === data.length}
@@ -596,49 +596,49 @@ export default function ItemSummaryMatrixPage() {
                       className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer"
                     />
                   </th>
-                  <th className="p-2 min-w-[40px] text-center bg-slate-100">Sr. No.</th>
-                  <th className="p-2 min-w-[80px] bg-slate-100">Temp Code</th>
-                  <th className="p-2 min-w-[220px] bg-slate-100">Item Name</th>
-                  <th className="p-2 min-w-[120px] bg-slate-100">Package</th>
-                  <th className="p-2 min-w-[100px] bg-slate-100">Circle</th>
+                  <th className="p-2 text-center bg-slate-100 sticky left-[40px] top-0 z-40 w-[55px] min-w-[55px] max-w-[55px] border-b border-r border-slate-200">Sr. No.</th>
+                  <th className="p-2 bg-slate-100 sticky left-[95px] top-0 z-40 w-[80px] min-w-[80px] max-w-[80px] border-b border-r border-slate-200">Temp Code</th>
+                  <th className="p-2 bg-slate-100 sticky left-[175px] top-0 z-40 w-[220px] min-w-[220px] max-w-[220px] border-b border-r border-slate-200">Item Name</th>
+                  <th className="p-2 bg-slate-100 sticky left-[395px] top-0 z-40 w-[115px] min-w-[115px] max-w-[115px] border-b border-r border-slate-200">Package</th>
+                  <th className="p-2 bg-slate-100 sticky left-[510px] top-0 z-40 w-[85px] min-w-[85px] max-w-[85px] border-b border-r border-slate-200">Circle</th>
 
-                  <th className="p-2 min-w-[100px] bg-amber-50 text-right font-bold text-amber-900">LOA Quantity</th>
-                  <th className="p-2 min-w-[100px] bg-amber-50 text-right font-bold text-amber-900">BOM Quantity</th>
+                  <th className="p-2 bg-amber-100 text-right font-bold text-amber-900 sticky left-[595px] top-0 z-40 w-[95px] min-w-[95px] max-w-[95px] border-b border-r border-slate-200">LOA Quantity</th>
+                  <th className="p-2 bg-amber-100 text-right font-bold text-amber-900 sticky left-[690px] top-0 z-40 w-[95px] min-w-[95px] max-w-[95px] border-b border-r-2 border-r-amber-400 shadow-[4px_0_8px_-2px_rgba(0,0,0,0.12)]">BOM Quantity</th>
                   
-                  {showDi && <th className="p-2 min-w-[100px] bg-blue-50 text-right font-bold text-blue-900">Total DI Done</th>}
-                  {showDi && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900">Bal for DI against LOA</th>}
-                  {showDi && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900">Bal for Dispatch against BOM</th>}
+                  {showDi && <th className="p-2 min-w-[100px] bg-blue-50 text-right font-bold text-blue-900 border-b border-r border-slate-200">Total DI Done</th>}
+                  {showDi && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900 border-b border-r border-slate-200">Bal for DI against LOA</th>}
+                  {showDi && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900 border-b border-r border-slate-200">Bal for Dispatch against BOM</th>}
                   
-                  {showMrn && <th className="p-2 min-w-[100px] bg-emerald-50 text-right font-bold text-emerald-900">Total PI Done (IR)</th>}
-                  {showMrn && <th className="p-2 min-w-[100px] bg-emerald-50 text-right font-bold text-emerald-900">Invoice Qty</th>}
-                  {showMrn && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900">Bal for IR</th>}
+                  {showMrn && <th className="p-2 min-w-[100px] bg-emerald-50 text-right font-bold text-emerald-900 border-b border-r border-slate-200">Total PI Done (IR)</th>}
+                  {showMrn && <th className="p-2 min-w-[100px] bg-emerald-50 text-right font-bold text-emerald-900 border-b border-r border-slate-200">Invoice Qty</th>}
+                  {showMrn && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900 border-b border-r border-slate-200">Bal for IR</th>}
                   
-                  {showMhrov && <th className="p-2 min-w-[100px] bg-cyan-50 text-right font-bold text-cyan-900">Total MRHOV Done</th>}
-                  {showMhrov && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900">Bal for MRHOV</th>}
+                  {showMhrov && <th className="p-2 min-w-[100px] bg-cyan-50 text-right font-bold text-cyan-900 border-b border-r border-slate-200">Total MRHOV Done</th>}
+                  {showMhrov && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900 border-b border-r border-slate-200">Bal for MRHOV</th>}
                   
-                  {showImc && <th className="p-2 min-w-[100px] bg-fuchsia-50 text-right font-bold text-fuchsia-900">Total JMC Done</th>}
-                  {showImc && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900">Bal for JMC</th>}
+                  {showImc && <th className="p-2 min-w-[100px] bg-fuchsia-50 text-right font-bold text-fuchsia-900 border-b border-r border-slate-200">Total JMC Done</th>}
+                  {showImc && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900 border-b border-r border-slate-200">Bal for JMC</th>}
                   
-                  {showSupplyBill && <th className="p-2 min-w-[100px] bg-indigo-50 text-right font-bold text-indigo-900">Supply Bill 60%</th>}
-                  {showSupplyBill && <th className="p-2 min-w-[100px] bg-indigo-50 text-right font-bold text-indigo-900">Supply Bill 30%</th>}
-                  {showSupplyBill && <th className="p-2 min-w-[100px] bg-indigo-50 text-right font-bold text-indigo-900">Supply Bill 10%</th>}
-                  {showSupplyBill && <th className="p-2 min-w-[100px] bg-indigo-50 text-right font-bold text-indigo-900">Supply Bill Cumulative</th>}
-                  {showSupplyBill && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900">Bal for Supply Bill</th>}
+                  {showSupplyBill && <th className="p-2 min-w-[100px] bg-indigo-50 text-right font-bold text-indigo-900 border-b border-r border-slate-200">Supply Bill 60%</th>}
+                  {showSupplyBill && <th className="p-2 min-w-[100px] bg-indigo-50 text-right font-bold text-indigo-900 border-b border-r border-slate-200">Supply Bill 30%</th>}
+                  {showSupplyBill && <th className="p-2 min-w-[100px] bg-indigo-50 text-right font-bold text-indigo-900 border-b border-r border-slate-200">Supply Bill 10%</th>}
+                  {showSupplyBill && <th className="p-2 min-w-[100px] bg-indigo-50 text-right font-bold text-indigo-900 border-b border-r border-slate-200">Supply Bill Cumulative</th>}
+                  {showSupplyBill && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900 border-b border-r border-slate-200">Bal for Supply Bill</th>}
                   
-                  {showErectionBill && <th className="p-2 min-w-[100px] bg-violet-50 text-right font-bold text-violet-900">Erection Bill 90%</th>}
-                  {showErectionBill && <th className="p-2 min-w-[100px] bg-violet-50 text-right font-bold text-violet-900">Erection Bill 10%</th>}
-                  {showErectionBill && <th className="p-2 min-w-[100px] bg-violet-50 text-right font-bold text-violet-900">Erection Bill Cumulative</th>}
-                  {showErectionBill && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900">Bal for Erection Bill</th>}
+                  {showErectionBill && <th className="p-2 min-w-[100px] bg-violet-50 text-right font-bold text-violet-900 border-b border-r border-slate-200">Erection Bill 90%</th>}
+                  {showErectionBill && <th className="p-2 min-w-[100px] bg-violet-50 text-right font-bold text-violet-900 border-b border-r border-slate-200">Erection Bill 10%</th>}
+                  {showErectionBill && <th className="p-2 min-w-[100px] bg-violet-50 text-right font-bold text-violet-900 border-b border-r border-slate-200">Erection Bill Cumulative</th>}
+                  {showErectionBill && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900 border-b border-r border-slate-200">Bal for Erection Bill</th>}
 
-                  {showWipConsumed && <th className="p-2 min-w-[100px] bg-pink-50 text-right font-bold text-pink-900">WIP Consumed</th>}
-                  {showWipRequired && <th className="p-2 min-w-[100px] bg-teal-50 text-right font-bold text-teal-900">WIP Required</th>}
+                  {showWipConsumed && <th className="p-2 min-w-[100px] bg-pink-50 text-right font-bold text-pink-900 border-b border-r border-slate-200">WIP Consumed</th>}
+                  {showWipRequired && <th className="p-2 min-w-[100px] bg-teal-50 text-right font-bold text-teal-900 border-b border-r border-slate-200">WIP Required</th>}
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-slate-200 font-mono text-[11px]">
                 {data.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="p-8 text-center text-slate-400 font-sans">
+                    <td colSpan={30} className="p-8 text-center text-slate-400 font-sans bg-white border-b border-slate-200">
                       No summary items found matching selected filters.
                     </td>
                   </tr>
@@ -673,8 +673,8 @@ export default function ItemSummaryMatrixPage() {
                     const fmtBal = (v: any) => (v != null ? Math.round(v).toLocaleString('en-IN') : '-');
 
                     return (
-                      <tr key={idx} className="hover:bg-slate-50">
-                        <td className="p-2 border-r bg-white sticky left-0 z-10 text-center">
+                      <tr key={idx} className="hover:bg-slate-50 group">
+                        <td className="p-2 border-b border-r border-slate-200 bg-white group-hover:bg-slate-50 sticky left-0 z-20 text-center w-[40px] min-w-[40px] max-w-[40px]">
                           <input 
                             type="checkbox" 
                             checked={selectedItems.has(r.tempCode || String(idx))}
@@ -687,42 +687,42 @@ export default function ItemSummaryMatrixPage() {
                             className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3 h-3 cursor-pointer"
                           />
                         </td>
-                        <td className="p-2 text-center text-slate-500 border-r">{r.loaSerialNo || (idx + 1 + (Number(filters.page || 1) - 1) * Number(filters.limit || 50))}</td>
-                        <td className="p-2 text-slate-700 border-r">{r.tempCode}</td>
-                        <td className="p-2 font-medium text-slate-900 border-r max-w-[220px] truncate" title={r.itemName || r.name}>{r.itemName || r.name}</td>
-                        <td className="p-2 text-slate-700 border-r">{r.package}</td>
-                        <td className="p-2 text-slate-700 border-r">{r.circle}</td>
+                        <td className="p-2 text-center text-slate-500 border-b border-r border-slate-200 bg-white group-hover:bg-slate-50 sticky left-[40px] z-20 w-[55px] min-w-[55px] max-w-[55px]">{r.loaSerialNo || (idx + 1 + (Number(filters.page || 1) - 1) * Number(filters.limit || 50))}</td>
+                        <td className="p-2 text-slate-700 border-b border-r border-slate-200 bg-white group-hover:bg-slate-50 sticky left-[95px] z-20 w-[80px] min-w-[80px] max-w-[80px]">{r.tempCode}</td>
+                        <td className="p-2 font-medium text-slate-900 border-b border-r border-slate-200 bg-white group-hover:bg-slate-50 sticky left-[175px] z-20 w-[220px] min-w-[220px] max-w-[220px] truncate" title={r.itemName || r.name}>{r.itemName || r.name}</td>
+                        <td className="p-2 text-slate-700 border-b border-r border-slate-200 bg-white group-hover:bg-slate-50 sticky left-[395px] z-20 w-[115px] min-w-[115px] max-w-[115px]">{r.package}</td>
+                        <td className="p-2 text-slate-700 border-b border-r border-slate-200 bg-white group-hover:bg-slate-50 sticky left-[510px] z-20 w-[85px] min-w-[85px] max-w-[85px]">{r.circle}</td>
 
-                        <td className="p-2 text-right text-amber-900 font-medium bg-amber-50/20">{fmtQty(loaQty)}</td>
-                        <td className="p-2 text-right text-amber-900 font-medium bg-amber-50/20">{fmtQty(bomQty)}</td>
+                        <td className="p-2 text-right text-amber-900 font-medium bg-[#fffdf5] group-hover:bg-[#fef3c7] border-b border-r border-slate-200 sticky left-[595px] z-20 w-[95px] min-w-[95px] max-w-[95px]">{fmtQty(loaQty)}</td>
+                        <td className="p-2 text-right text-amber-900 font-medium bg-[#fffdf5] group-hover:bg-[#fef3c7] border-b border-r-2 border-r-amber-400 shadow-[4px_0_8px_-2px_rgba(0,0,0,0.12)] sticky left-[690px] z-20 w-[95px] min-w-[95px] max-w-[95px]">{fmtQty(bomQty)}</td>
 
-                        {showDi && <td className="p-2 text-right text-blue-900 font-medium bg-blue-50/20">{fmtQty(diQty)}</td>}
-                        {showDi && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{fmtBal(bal?.diVsLoa)}</td>}
-                        {showDi && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{fmtBal(bal?.diVsBom)}</td>}
+                        {showDi && <td className="p-2 text-right text-blue-900 font-medium bg-blue-50/20 border-b border-r border-slate-200">{fmtQty(diQty)}</td>}
+                        {showDi && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20 border-b border-r border-slate-200">{fmtBal(bal?.diVsLoa)}</td>}
+                        {showDi && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20 border-b border-r border-slate-200">{fmtBal(bal?.diVsBom)}</td>}
                         
-                        {showMrn && <td className="p-2 text-right text-emerald-900 font-medium bg-emerald-50/20">{fmtQty(piQty)}</td>}
-                        {showMrn && <td className="p-2 text-right text-emerald-900 font-medium bg-emerald-50/20">{fmtQty(r.invQty || 0)}</td>}
-                        {showMrn && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{fmtBal(bal?.mrn)}</td>}
+                        {showMrn && <td className="p-2 text-right text-emerald-900 font-medium bg-emerald-50/20 border-b border-r border-slate-200">{fmtQty(piQty)}</td>}
+                        {showMrn && <td className="p-2 text-right text-emerald-900 font-medium bg-emerald-50/20 border-b border-r border-slate-200">{fmtQty(r.invQty || 0)}</td>}
+                        {showMrn && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20 border-b border-r border-slate-200">{fmtBal(bal?.mrn)}</td>}
                         
-                        {showMhrov && <td className="p-2 text-right text-cyan-900 font-medium bg-cyan-50/20">{fmtQty(mhrovQty)}</td>}
-                        {showMhrov && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{fmtBal(bal?.mhrov)}</td>}
+                        {showMhrov && <td className="p-2 text-right text-cyan-900 font-medium bg-cyan-50/20 border-b border-r border-slate-200">{fmtQty(mhrovQty)}</td>}
+                        {showMhrov && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20 border-b border-r border-slate-200">{fmtBal(bal?.mhrov)}</td>}
                         
-                        {showImc && <td className="p-2 text-right text-fuchsia-900 font-medium bg-fuchsia-50/20">{fmtQty(jmcQty)}</td>}
-                        {showImc && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{fmtBal(bal?.imc)}</td>}
+                        {showImc && <td className="p-2 text-right text-fuchsia-900 font-medium bg-fuchsia-50/20 border-b border-r border-slate-200">{fmtQty(jmcQty)}</td>}
+                        {showImc && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20 border-b border-r border-slate-200">{fmtBal(bal?.imc)}</td>}
                         
-                        {showSupplyBill && <td className="p-2 text-right text-indigo-900 font-medium bg-indigo-50/20">{fmtQty(supplyBillQty_60)}</td>}
-                        {showSupplyBill && <td className="p-2 text-right text-indigo-900 font-medium bg-indigo-50/20">{fmtQty(supplyBillQty_30)}</td>}
-                        {showSupplyBill && <td className="p-2 text-right text-indigo-900 font-medium bg-indigo-50/20">{fmtQty(supplyBillQty_10)}</td>}
-                        {showSupplyBill && <td className="p-2 text-right text-indigo-900 font-bold bg-indigo-100/30">{fmtQty(supplyBillQty)}</td>}
-                        {showSupplyBill && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{fmtBal(bal?.supplyBill)}</td>}
+                        {showSupplyBill && <td className="p-2 text-right text-indigo-900 font-medium bg-indigo-50/20 border-b border-r border-slate-200">{fmtQty(supplyBillQty_60)}</td>}
+                        {showSupplyBill && <td className="p-2 text-right text-indigo-900 font-medium bg-indigo-50/20 border-b border-r border-slate-200">{fmtQty(supplyBillQty_30)}</td>}
+                        {showSupplyBill && <td className="p-2 text-right text-indigo-900 font-medium bg-indigo-50/20 border-b border-r border-slate-200">{fmtQty(supplyBillQty_10)}</td>}
+                        {showSupplyBill && <td className="p-2 text-right text-indigo-900 font-bold bg-indigo-100/30 border-b border-r border-slate-200">{fmtQty(supplyBillQty)}</td>}
+                        {showSupplyBill && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20 border-b border-r border-slate-200">{fmtBal(bal?.supplyBill)}</td>}
                         
-                        {showErectionBill && <td className="p-2 text-right text-violet-900 font-medium bg-violet-50/20">{fmtQty(erectionBillQty_90)}</td>}
-                        {showErectionBill && <td className="p-2 text-right text-violet-900 font-medium bg-violet-50/20">{fmtQty(erectionBillQty_10)}</td>}
-                        {showErectionBill && <td className="p-2 text-right text-violet-900 font-bold bg-violet-100/30">{fmtQty(erectionBillQty)}</td>}
-                        {showErectionBill && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20">{fmtBal(bal?.erectionBill)}</td>}
+                        {showErectionBill && <td className="p-2 text-right text-violet-900 font-medium bg-violet-50/20 border-b border-r border-slate-200">{fmtQty(erectionBillQty_90)}</td>}
+                        {showErectionBill && <td className="p-2 text-right text-violet-900 font-medium bg-violet-50/20 border-b border-r border-slate-200">{fmtQty(erectionBillQty_10)}</td>}
+                        {showErectionBill && <td className="p-2 text-right text-violet-900 font-bold bg-violet-100/30 border-b border-r border-slate-200">{fmtQty(erectionBillQty)}</td>}
+                        {showErectionBill && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20 border-b border-r border-slate-200">{fmtBal(bal?.erectionBill)}</td>}
 
-                        {showWipConsumed && <td className="p-2 text-right text-pink-900 font-medium bg-pink-50/20">{fmtQty(wipConsQty)}</td>}
-                        {showWipRequired && <td className="p-2 text-right text-teal-900 font-medium bg-teal-50/20">{fmtQty(wipReqQty)}</td>}
+                        {showWipConsumed && <td className="p-2 text-right text-pink-900 font-medium bg-pink-50/20 border-b border-r border-slate-200">{fmtQty(wipConsQty)}</td>}
+                        {showWipRequired && <td className="p-2 text-right text-teal-900 font-medium bg-teal-50/20 border-b border-r border-slate-200">{fmtQty(wipReqQty)}</td>}
                       </tr>
                     );
                   })
@@ -780,40 +780,45 @@ export default function ItemSummaryMatrixPage() {
                   });
 
                   return (
-                    <tr className="bg-slate-800 text-white font-bold divide-x divide-slate-700 text-[11px]">
-                      <td colSpan={6} className="p-2 text-right font-sans">
-                        {selectedItems.size > 0 ? `TOTAL (Selected ${selectedItems.size} items)` : 'TOTAL (Current Page)'}
+                    <tr className="bg-slate-800 text-white font-bold text-[11px] sticky bottom-0 z-30">
+                      <td className="p-2 bg-slate-800 sticky left-0 bottom-0 z-40 border-r border-slate-700 w-[40px] min-w-[40px] max-w-[40px]"></td>
+                      <td className="p-2 bg-slate-800 sticky left-[40px] bottom-0 z-40 border-r border-slate-700 w-[55px] min-w-[55px] max-w-[55px]"></td>
+                      <td className="p-2 bg-slate-800 sticky left-[95px] bottom-0 z-40 border-r border-slate-700 w-[80px] min-w-[80px] max-w-[80px]"></td>
+                      <td className="p-2 bg-slate-800 sticky left-[175px] bottom-0 z-40 border-r border-slate-700 w-[220px] min-w-[220px] max-w-[220px] font-sans text-right pr-2 truncate">
+                        {selectedItems.size > 0 ? `TOTAL (${selectedItems.size} Selected)` : 'TOTAL (Current Page)'}
                       </td>
-                      <td className="p-2 text-right text-amber-300">{fmtTotal(totalLoa)}</td>
-                      <td className="p-2 text-right text-amber-300">{fmtTotal(totalBom)}</td>
+                      <td className="p-2 bg-slate-800 sticky left-[395px] bottom-0 z-40 border-r border-slate-700 w-[115px] min-w-[115px] max-w-[115px]"></td>
+                      <td className="p-2 bg-slate-800 sticky left-[510px] bottom-0 z-40 border-r border-slate-700 w-[85px] min-w-[85px] max-w-[85px]"></td>
+                      <td className="p-2 text-right text-amber-300 sticky left-[595px] bottom-0 z-40 bg-slate-800 border-r border-slate-700 w-[95px] min-w-[95px] max-w-[95px]">{fmtTotal(totalLoa)}</td>
+                      <td className="p-2 text-right text-amber-300 sticky left-[690px] bottom-0 z-40 bg-slate-800 border-r-2 border-r-amber-400 shadow-[4px_0_8px_-2px_rgba(0,0,0,0.3)] w-[95px] min-w-[95px] max-w-[95px]">{fmtTotal(totalBom)}</td>
                       
-                      {showDi && <td className="p-2 text-right text-blue-300">{fmtTotal(totalDi)}</td>}
-                      {showDi && <td className="p-2 text-right text-orange-300">{fmtTotal(totalBalDiLoa)}</td>}
-                      {showDi && <td className="p-2 text-right text-orange-300">{fmtTotal(totalBalDiBom)}</td>}
+                      {showDi && <td className="p-2 text-right text-blue-300 border-r border-slate-700">{fmtTotal(totalDi)}</td>}
+                      {showDi && <td className="p-2 text-right text-orange-300 border-r border-slate-700">{fmtTotal(totalBalDiLoa)}</td>}
+                      {showDi && <td className="p-2 text-right text-orange-300 border-r border-slate-700">{fmtTotal(totalBalDiBom)}</td>}
                       
-                      {showMrn && <td className="p-2 text-right text-emerald-300">{fmtTotal(totalPi)}</td>}
-                      {showMrn && <td className="p-2 text-right text-emerald-300">{fmtTotal(totalInvQty)}</td>}
-                      {showMrn && <td className="p-2 text-right text-orange-300">{fmtTotal(totalBalMrn)}</td>}
+                      {showMrn && <td className="p-2 text-right text-emerald-300 border-r border-slate-700">{fmtTotal(totalPi)}</td>}
+                      {showMrn && <td className="p-2 text-right text-emerald-300 border-r border-slate-700">{fmtTotal(totalInvQty)}</td>}
+                      {showMrn && <td className="p-2 text-right text-orange-300 border-r border-slate-700">{fmtTotal(totalBalMrn)}</td>}
                       
-                      {showMhrov && <td className="p-2 text-right text-cyan-300">{fmtTotal(totalMhrov)}</td>}
-                      {showMhrov && <td className="p-2 text-right text-orange-300">{fmtTotal(totalBalMhrov)}</td>}
+                      {showMhrov && <td className="p-2 text-right text-cyan-300 border-r border-slate-700">{fmtTotal(totalMhrov)}</td>}
+                      {showMhrov && <td className="p-2 text-right text-orange-300 border-r border-slate-700">{fmtTotal(totalBalMhrov)}</td>}
                       
-                      {showImc && <td className="p-2 text-right text-fuchsia-300">{fmtTotal(totalJmc)}</td>}
-                      {showImc && <td className="p-2 text-right text-orange-300">{fmtTotal(totalBalImc)}</td>}
+                      {showImc && <td className="p-2 text-right text-fuchsia-300 border-r border-slate-700">{fmtTotal(totalJmc)}</td>}
+                      {showImc && <td className="p-2 text-right text-orange-300 border-r border-slate-700">{fmtTotal(totalBalImc)}</td>}
                       
-                      {showSupplyBill && <td className="p-2 text-right text-indigo-300">{fmtTotal(totalSupplyBill)}</td>}
-                      {showSupplyBill && <td className="p-2 text-right text-indigo-300"></td>}
-                      {showSupplyBill && <td className="p-2 text-right text-indigo-300"></td>}
-                      {showSupplyBill && <td className="p-2 text-right text-indigo-300"></td>}
-                      {showSupplyBill && <td className="p-2 text-right text-orange-300">{fmtTotal(totalBalSupplyBill)}</td>}
+                      {showSupplyBill && <td className="p-2 text-right text-indigo-300 border-r border-slate-700">{fmtTotal(totalSupplyBill)}</td>}
+                      {showSupplyBill && <td className="p-2 text-right text-indigo-300 border-r border-slate-700"></td>}
+                      {showSupplyBill && <td className="p-2 text-right text-indigo-300 border-r border-slate-700"></td>}
+                      {showSupplyBill && <td className="p-2 text-right text-indigo-300 border-r border-slate-700"></td>}
+                      {showSupplyBill && <td className="p-2 text-right text-orange-300 border-r border-slate-700">{fmtTotal(totalBalSupplyBill)}</td>}
                       
-                      {showErectionBill && <td className="p-2 text-right text-violet-300">{fmtTotal(totalErectionBill)}</td>}
-                      {showErectionBill && <td className="p-2 text-right text-violet-300"></td>}
-                      {showErectionBill && <td className="p-2 text-right text-violet-300"></td>}
-                      {showErectionBill && <td className="p-2 text-right text-orange-300">{fmtTotal(totalBalErectionBill)}</td>}
+                      {showErectionBill && <td className="p-2 text-right text-violet-300 border-r border-slate-700">{fmtTotal(totalErectionBill)}</td>}
+                      {showErectionBill && <td className="p-2 text-right text-violet-300 border-r border-slate-700"></td>}
+                      {showErectionBill && <td className="p-2 text-right text-violet-300 border-r border-slate-700"></td>}
+                      {showErectionBill && <td className="p-2 text-right text-orange-300 border-r border-slate-700">{fmtTotal(totalBalErectionBill)}</td>}
 
-                      {showWipConsumed && <td className="p-2 text-right text-rose-300">{fmtTotal(totalWipConsumed)}</td>}
-                      {showWipRequired && <td className="p-2 text-right text-emerald-300">{fmtTotal(totalWipRequired)}</td>}
+                      {showWipConsumed && <td className="p-2 text-right text-rose-300 border-r border-slate-700">{fmtTotal(totalWipConsumed)}</td>}
+                      {showWipRequired && <td className="p-2 text-right text-emerald-300 border-r border-slate-700">{fmtTotal(totalWipRequired)}</td>}
                     </tr>
                   );
                 })()}

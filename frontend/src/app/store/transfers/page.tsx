@@ -208,41 +208,53 @@ export default function StoreTransfersPage() {
                               <span className="text-amber-600 font-medium text-xs flex items-center justify-center gap-1 w-full italic">
                                 Awaiting PD Approval
                               </span>
-                            ) : activeTab === 'incoming' && t.status === 'PENDING' ? (
-                              <button
-                                onClick={async () => {
-                                  try {
-                                    await updateStoreTransferStatus(t._id, 'Approved');
-                                    window.location.reload();
-                                  } catch (e) { console.error(e); }
-                                }}
-                                className="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center justify-center gap-1 w-full"
-                              >
-                                Approve
-                              </button>
-                            ) : t.status === 'Approved' ? (
-                              <button
-                                onClick={() => router.push(`/store/transfers/dispatch/${t._id}`)}
-                                className="text-purple-600 hover:text-purple-800 font-medium text-sm flex items-center justify-center gap-1 w-full"
-                              >
-                                <Send className="w-4 h-4" />
-                                Dispatch
-                              </button>
-                            ) : t.status === 'IN_TRANSIT' ? (
-                              <button
-                                onClick={() => router.push(`/store/transfers/receive/${t._id}`)}
-                                className="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center justify-center gap-1 w-full"
-                              >
-                                <ArrowRightLeft className="w-4 h-4" />
-                                View / Receive
-                              </button>
+                            ) : activeTab === 'incoming' ? (
+                              t.status === 'PENDING' ? (
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      await updateStoreTransferStatus(t._id, 'Approved');
+                                      window.location.reload();
+                                    } catch (e) { console.error(e); }
+                                  }}
+                                  className="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center justify-center gap-1 w-full"
+                                >
+                                  Approve
+                                </button>
+                              ) : t.status === 'IN_TRANSIT' || t.status === 'Approved' ? (
+                                <button
+                                  onClick={() => router.push(`/store/transfers/receive/${t._id}`)}
+                                  className="text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-3 py-1.5 rounded-lg font-semibold text-xs flex items-center justify-center gap-1.5 shadow-xs mx-auto transition-colors"
+                                >
+                                  <ArrowRightLeft className="w-3.5 h-3.5" />
+                                  Receive Material
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => router.push(`/store/transfers/receive/${t._id}`)}
+                                  className="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center justify-center gap-1 w-full"
+                                >
+                                  View
+                                </button>
+                              )
                             ) : (
-                              <button
-                                onClick={() => router.push(`/store/transfers/receive/${t._id}`)}
-                                className="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center justify-center gap-1 w-full"
-                              >
-                                View
-                              </button>
+                              /* Outgoing tab */
+                              t.status === 'Approved' ? (
+                                <button
+                                  onClick={() => router.push(`/store/transfers/dispatch/${t._id}`)}
+                                  className="text-purple-600 hover:text-purple-800 font-medium text-sm flex items-center justify-center gap-1 w-full"
+                                >
+                                  <Send className="w-4 h-4" />
+                                  Dispatch
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => router.push(`/store/transfers/dispatch/${t._id}`)}
+                                  className="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center justify-center gap-1 w-full"
+                                >
+                                  View
+                                </button>
+                              )
                             )}
                           </td>
                         </tr>

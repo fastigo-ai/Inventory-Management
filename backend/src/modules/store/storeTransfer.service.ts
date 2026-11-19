@@ -176,7 +176,12 @@ export class StoreTransferService {
       throw new ApiError(400, `Transfer is already ${transfer.status.toLowerCase()}.`);
     }
 
-    transfer.status = 'Approved';
+    // If the outward transfer already has dispatch details (vehicle / challan), approving it immediately puts it IN_TRANSIT
+    if (transfer.truckNumber || transfer.challanNo) {
+      transfer.status = 'IN_TRANSIT';
+    } else {
+      transfer.status = 'Approved';
+    }
     transfer.pdApprovedBy = user._id;
     transfer.pdApprovedAt = new Date();
     if (remarks) {

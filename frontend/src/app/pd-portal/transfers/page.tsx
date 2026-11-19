@@ -28,6 +28,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { normalizeStoreName } from "@/shared/utils/store";
 import { formatDate } from "@/shared/utils/date";
 import { useAuthStore } from "@/shared/store/auth.store";
 
@@ -522,11 +523,11 @@ export default function PDStoreTransfersPage() {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded text-xs">
-                              {t.fromStore}
+                              {normalizeStoreName(t.fromStore)}
                             </span>
                             <ArrowRightLeft className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                             <span className="font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded text-xs">
-                              {t.toStore}
+                              {normalizeStoreName(t.toStore)}
                             </span>
                           </div>
                           <div className="flex items-center gap-2 mt-1">

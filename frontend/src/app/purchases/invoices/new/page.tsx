@@ -317,7 +317,7 @@ export default function NewPurchaseInvoicePage() {
       }
     };
     fetchAndSetDI();
-  }, [selectedDI]);
+  }, [selectedDI, itemsList, purchaseOrders]);
 
   // When PO changes, populate or cross-reference line items
   useEffect(() => {

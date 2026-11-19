@@ -15,7 +15,7 @@ import { Mhrov } from './mhrov.schema';
 import { WipRegister } from '../wip/wip.schema';
 import { JmcRegister } from '../jmc/jmc.schema';
 import { SummaryService } from '../reports/summary/summary.service';
-import { expandCircle, normalizeStore } from '../../utils/hierarchy';
+import { expandCircle, normalizeStore, extractCanonicalStoreName } from '../../utils/hierarchy';
 // 
 // NEW API: Filter Options for MHROV DI Search
 // 
@@ -414,7 +414,7 @@ export const getStoreTransfers = asyncHandler(async (req: Request, res: Response
 
   const cleanStoreName = storeNameRaw ? String(storeNameRaw).replace(/store/i, '').trim() : '';
   const expandedStoreNames = expandCircle(cleanStoreName) || [cleanStoreName];
-  const storeRegex = cleanStoreName ? new RegExp(`^(${expandedStoreNames.join('|')})(\\s+(store|circle))?$`, 'i') : null;
+  const storeRegex = cleanStoreName ? new RegExp(`\\b(${expandedStoreNames.join('|')})\\b`, 'i') : null;
 
   if (roleName === 'Project Director') {
     const scope = StoreTransferService.getPDScope(user);
@@ -1018,8 +1018,8 @@ export const importStoreTransfers = asyncHandler(async (req: Request, res: Respo
           requestDate: parseCsvDate(row['Date']) || new Date(),
           registerType: 'OUTWARD',
           status: 'IN_TRANSIT',
-          fromStore: row['From'] || row['FromStore'] || 'Unknown Store',
-          toStore: row['To'] || row['ToStore'] || 'Unknown Store',
+          fromStore: extractCanonicalStoreName(row['From'] || row['FromStore']) || 'Unknown Store',
+          toStore: extractCanonicalStoreName(row['To'] || row['ToStore']) || 'Unknown Store',
           requestedBy: user ? user._id : null,
           vendorName: row['Name of Vendor'] || row['VendorName'] || '',
           
@@ -1220,8 +1220,8 @@ export const importReceivedStoreTransfers = asyncHandler(async (req: Request, re
           requestDate: parseCsvDate(row['Date of Received']) || new Date(),
           registerType: 'INWARD',
           status: 'RECEIVED',
-          fromStore: row['From'] || 'Unknown Store',
-          toStore: row['To'] || 'Unknown Store',
+          fromStore: extractCanonicalStoreName(row['From']) || 'Unknown Store',
+          toStore: extractCanonicalStoreName(row['To']) || 'Unknown Store',
           requestedBy: user ? user._id : null,
           vendorName: row['Name of Vendor'] || '',
           

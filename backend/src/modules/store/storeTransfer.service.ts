@@ -3,6 +3,7 @@ import { StoreTransfer, IStoreTransfer } from './storeTransfer.schema';
 import { ApiError } from '../../core/utils/ApiError';
 import { SummaryService } from '../reports/summary/summary.service';
 import Item from '../items/item.model';
+import { extractCanonicalStoreName } from '../../utils/hierarchy';
 
 export class StoreTransferService {
   /**
@@ -143,9 +144,14 @@ export class StoreTransferService {
       transferData.status = 'Pending PD Approval';
     }
 
-    // Automatically resolve origin and destination circles and packages
-    const origin = this.resolveStoreInfo(transferData.fromStore || user?.assignedCircle || '');
-    const dest = this.resolveStoreInfo(transferData.toStore || '');
+    // Automatically normalize and resolve origin and destination circles and packages
+    const rawFrom = transferData.fromStore || user?.assignedCircle || '';
+    const rawTo = transferData.toStore || '';
+    transferData.fromStore = extractCanonicalStoreName(rawFrom);
+    transferData.toStore = extractCanonicalStoreName(rawTo);
+
+    const origin = this.resolveStoreInfo(rawFrom);
+    const dest = this.resolveStoreInfo(rawTo);
 
     transferData.originCircle = origin.circle;
     transferData.originSubcircle = origin.subcircle;

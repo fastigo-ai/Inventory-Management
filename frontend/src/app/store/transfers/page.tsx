@@ -11,6 +11,7 @@ import { useAuthStore } from "@/shared/store/auth.store";
 import { TransferStatistics } from "@/features/store/components/TransferStatistics";
 import { BarChart3 } from "lucide-react";
 import { formatDate } from "@/shared/utils/date";
+import { normalizeStoreName } from "@/shared/utils/store";
 
 export default function StoreTransfersPage() {
   const router = useRouter();
@@ -59,7 +60,11 @@ export default function StoreTransfersPage() {
         if (isSuperOrAdmin || !currentCleanStore || currentCleanStore === 'all') return true;
         const norm = clean(transferStore);
         if (!norm) return true;
-        return norm.includes(currentCleanStore) || currentCleanStore.includes(norm);
+        // Check full name match
+        if (norm.includes(currentCleanStore) || currentCleanStore.includes(norm)) return true;
+        // Check normalized last-part match (e.g. "rohru - rohru" → "rohru")
+        const lastPart = clean(normalizeStoreName(transferStore));
+        return lastPart.includes(currentCleanStore) || currentCleanStore.includes(lastPart);
       };
       
       if (activeTab === 'incoming') {
@@ -199,8 +204,8 @@ export default function StoreTransfersPage() {
                           <td className="px-6 py-4 font-medium text-slate-900">
                             {formatDate(t.requestDate)}
                           </td>
-                          <td className="px-6 py-4 text-slate-600">{t.fromStore}</td>
-                          <td className="px-6 py-4 text-slate-600">{t.toStore}</td>
+                          <td className="px-6 py-4 text-slate-600">{normalizeStoreName(t.fromStore)}</td>
+                          <td className="px-6 py-4 text-slate-600">{normalizeStoreName(t.toStore)}</td>
                           <td className="px-6 py-4 text-slate-600">{t.items?.length || 0} items</td>
                           <td className="px-6 py-4">{getStatusBadge(t.status)}</td>
                           <td className="px-6 py-4 text-center">

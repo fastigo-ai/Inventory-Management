@@ -15,6 +15,8 @@ import { deleteStoreTransfer } from "@/features/store/api/store.api";
 import { toast } from "sonner";
 import { Eye, Trash2, Edit, LayoutDashboard, List as ListIcon } from "lucide-react";
 import { OutwardTransferStatistics } from "@/features/store/components/OutwardTransferStatistics";
+import { formatDate } from "@/shared/utils/date";
+import { normalizeStoreName } from "@/shared/utils/store";
 
 export default function OutwardRegisterPage() {
   const router = useRouter();
@@ -79,8 +81,6 @@ export default function OutwardRegisterPage() {
       setLoading(false);
     }
   };
-
-  const formatDate = (d: any) => d ? new Date(d).toLocaleDateString() : "-";
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -325,8 +325,8 @@ export default function OutwardRegisterPage() {
                             <td className="px-4 py-3 border-r border-slate-100 text-slate-500">{formatDate(t.minDate)}</td>
                             <td className="px-4 py-3 border-r border-slate-100">{t.challanNo}</td>
                             <td className="px-4 py-3 border-r border-slate-100 text-slate-500">{formatDate(t.challanDate)}</td>
-                            <td className="px-4 py-3 border-r border-slate-100 text-slate-600">{t.fromStore}</td>
-                            <td className="px-4 py-3 border-r border-slate-100 font-medium text-slate-800">{t.toStore}</td>
+                            <td className="px-4 py-3 border-r border-slate-100 text-slate-600">{normalizeStoreName(t.fromStore)}</td>
+                            <td className="px-4 py-3 border-r border-slate-100 font-medium text-slate-800">{normalizeStoreName(t.toStore)}</td>
                             <td className="px-4 py-3 border-r border-slate-100">{t.transportName}</td>
                             <td className="px-4 py-3 border-r border-slate-100">{t.truckNumber}</td>
                             <td className="px-4 py-3 border-r border-slate-100">{t.grNumber}</td>

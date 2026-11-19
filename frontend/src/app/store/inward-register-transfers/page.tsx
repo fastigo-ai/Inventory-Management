@@ -9,6 +9,8 @@ import { DataTableTopControls, DataTableBottomControls } from "@/shared/componen
 import { BulkImportModal } from "./BulkImportModal";
 import { InwardTransferStatistics } from "@/features/store/components/InwardTransferStatistics";
 import { LayoutDashboard, List as ListIcon } from "lucide-react";
+import { formatDate } from "@/shared/utils/date";
+import { normalizeStoreName } from "@/shared/utils/store";
 
 export default function InwardRegisterTransfersPage() {
   const [transfers, setTransfers] = useState<any[]>([]);
@@ -84,8 +86,6 @@ export default function InwardRegisterTransfersPage() {
     totalPages,
     totalItems
   } = useClientTable(transfers);
-
-  const formatDate = (d: any) => d ? new Date(d).toLocaleDateString() : "-";
 
   return (
     <div className="flex-1 bg-slate-50 min-h-screen">
@@ -194,8 +194,8 @@ export default function InwardRegisterTransfersPage() {
                       <td className="px-4 py-3 border-r border-slate-100 text-slate-500">{formatDate(t.minDate)}</td>
                       <td className="px-4 py-3 border-r border-slate-100">{t.challanNo}</td>
                       <td className="px-4 py-3 border-r border-slate-100 text-slate-500">{formatDate(t.challanDate)}</td>
-                      <td className="px-4 py-3 border-r border-slate-100 text-slate-600">{t.fromStore}</td>
-                      <td className="px-4 py-3 border-r border-slate-100 font-medium text-slate-800">{t.toStore}</td>
+                      <td className="px-4 py-3 border-r border-slate-100 text-slate-600">{normalizeStoreName(t.fromStore)}</td>
+                      <td className="px-4 py-3 border-r border-slate-100 font-medium text-slate-800">{normalizeStoreName(t.toStore)}</td>
                       <td className="px-4 py-3 border-r border-slate-100">{t.transportName}</td>
                       <td className="px-4 py-3 border-r border-slate-100">{t.truckNumber}</td>
                       <td className="px-4 py-3 border-r border-slate-100">{t.grNumber}</td>

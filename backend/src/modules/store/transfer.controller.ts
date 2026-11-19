@@ -521,7 +521,14 @@ export const getStoreTransferById = asyncHandler(async (req: Request, res: Respo
 export const updateStoreTransfer = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const user = (req as any).user;
-  const isAdmin = user?.role?.name === "Admin" || user?.role?.name === "Super Admin" || user?.role?.permissions?.includes("*");
+  const roleName = user?.role?.name?.trim();
+  const isPrivileged = 
+    roleName === "Admin" || 
+    roleName === "Super Admin" || 
+    roleName === "CEO" || 
+    roleName === "Project Director" || 
+    roleName === "Project Manager" || 
+    user?.role?.permissions?.includes("*");
   const payload = req.body;
 
   const session = await mongoose.startSession();
@@ -533,12 +540,11 @@ export const updateStoreTransfer = asyncHandler(async (req: Request, res: Respon
       throw new ApiError(404, 'Transfer not found');
     }
 
-    if (transfer.status !== 'PENDING') {
-      if (!isAdmin) {
-        throw new ApiError(403, 'Only Admins can edit transfers that have already been dispatched or received.');
+    if (!isPrivileged) {
+      if (transfer.status === 'RECEIVED') {
+        throw new ApiError(403, 'Transfers that have already been marked as RECEIVED cannot be modified by store managers. Contact Project Director or Admin.');
       }
-    } else {
-      if (!isAdmin && user.assignedCircle && user.assignedCircle !== transfer.fromStore) {
+      if (user.assignedCircle && user.assignedCircle !== transfer.fromStore) {
         throw new ApiError(403, 'You can only edit transfers originating from your assigned store.');
       }
     }
@@ -560,7 +566,14 @@ export const updateStoreTransfer = asyncHandler(async (req: Request, res: Respon
 export const deleteStoreTransfer = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const user = (req as any).user;
-  const isAdmin = user?.role?.name === "Admin" || user?.role?.name === "Super Admin" || user?.role?.permissions?.includes("*");
+  const roleName = user?.role?.name?.trim();
+  const isPrivileged = 
+    roleName === "Admin" || 
+    roleName === "Super Admin" || 
+    roleName === "CEO" || 
+    roleName === "Project Director" || 
+    roleName === "Project Manager" || 
+    user?.role?.permissions?.includes("*");
 
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -571,12 +584,11 @@ export const deleteStoreTransfer = asyncHandler(async (req: Request, res: Respon
       throw new ApiError(404, 'Transfer not found');
     }
 
-    if (transfer.status !== 'PENDING') {
-      if (!isAdmin) {
-        throw new ApiError(403, 'Only Admins can delete transfers that have already been dispatched or received.');
+    if (!isPrivileged) {
+      if (transfer.status !== 'PENDING' && transfer.status !== 'Pending PD Approval' && transfer.status !== 'REJECTED') {
+        throw new ApiError(403, 'Transfers that have been approved or dispatched cannot be deleted by store managers. Contact Project Director or Admin.');
       }
-    } else {
-      if (!isAdmin && user.assignedCircle && user.assignedCircle !== transfer.fromStore) {
+      if (user.assignedCircle && user.assignedCircle !== transfer.fromStore) {
         throw new ApiError(403, 'You can only delete transfers originating from your assigned store.');
       }
     }

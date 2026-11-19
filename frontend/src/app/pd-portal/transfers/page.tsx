@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
@@ -18,13 +19,17 @@ import {
   UserCheck,
   FileText,
   ShieldCheck,
-  Send
+  Send,
+  Edit,
+  Trash2
 } from "lucide-react";
 import { 
   getStoreTransfers, 
   approveStoreTransferByPD, 
-  rejectStoreTransferByPD 
+  rejectStoreTransferByPD,
+  deleteStoreTransfer
 } from "@/features/store/api/store.api";
+import { TransferEditModal } from "@/features/store/components/TransferEditModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -168,6 +173,27 @@ export default function PDStoreTransfersPage() {
       toast.error(error.response?.data?.message || "Failed to approve transfer");
     } finally {
       setIsActionLoading(false);
+    }
+  };
+
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editTransferId, setEditTransferId] = useState<string | null>(null);
+
+  const handleEditTransfer = (tId: string) => {
+    setEditTransferId(tId);
+    setIsEditModalOpen(true);
+  };
+
+  const handleDeleteTransfer = async (tId: string) => {
+    if (!confirm("Are you sure you want to delete this store transfer? This action cannot be undone.")) return;
+    try {
+      await deleteStoreTransfer(tId);
+      toast.success("Transfer deleted successfully");
+      setIsModalOpen(false);
+      fetchTransfers();
+    } catch (error: any) {
+      console.error("Delete failed", error);
+      toast.error(error.response?.data?.message || "Failed to delete transfer");
     }
   };
 
@@ -577,14 +603,30 @@ export default function PDStoreTransfersPage() {
                               Review & Decide
                             </Button>
                           ) : (
-                            <Button
-                              variant="outline"
-                              onClick={() => handleOpenReview(t)}
-                              className="text-xs h-8 px-3 rounded-lg font-medium flex items-center gap-1.5 mx-auto text-slate-600"
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                              View Details
-                            </Button>
+                            <div className="flex items-center justify-center gap-1.5">
+                              <Button
+                                variant="outline"
+                                onClick={() => handleOpenReview(t)}
+                                className="text-xs h-7 px-2 rounded-lg font-medium flex items-center gap-1 text-slate-600"
+                              >
+                                <Eye className="w-3 h-3" />
+                                View
+                              </Button>
+                              <button
+                                onClick={() => handleEditTransfer(t._id)}
+                                className="p-1 text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+                                title="Edit Details"
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTransfer(t._id)}
+                                className="p-1 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                title="Delete Transfer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -842,11 +884,46 @@ export default function PDStoreTransfersPage() {
                   )}
                 </div>
               )}
+
+              {selectedTransfer.status !== 'Pending PD Approval' && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => handleEditTransfer(selectedTransfer._id)}
+                    className="text-xs h-9 text-slate-700 hover:bg-slate-100 flex items-center gap-1.5"
+                  >
+                    <Edit className="w-3.5 h-3.5" />
+                    Edit Details
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleDeleteTransfer(selectedTransfer._id)}
+                    className="text-xs h-9 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 flex items-center gap-1.5"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete
+                  </Button>
+                </div>
+              )}
             </div>
 
           </div>
         </div>
       )}
+
+      {/* Edit Transfer Modal */}
+      <TransferEditModal
+        transferId={editTransferId}
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditTransferId(null);
+        }}
+        onSuccess={() => {
+          fetchTransfers();
+          setIsModalOpen(false);
+        }}
+      />
 
     </div>
   );

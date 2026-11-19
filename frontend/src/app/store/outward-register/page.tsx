@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { getStoreTransfers } from "@/features/store/api/store.api";
-import { Download, Plus, Upload, Clock, CheckCircle2, Truck, PackageCheck, XCircle, Send } from "lucide-react";
+import { 
+  Download, Plus, Upload, Clock, CheckCircle2, Truck, PackageCheck, XCircle, Send,
+  Filter, Search, X, Calendar, RotateCcw, FileText, Package
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { OutwardImportModal } from "@/features/store/components/OutwardImportModal";
@@ -200,6 +203,110 @@ export default function OutwardRegisterPage() {
     document.body.removeChild(link);
   };
 
+  // Search & Filter State
+  const [searchDoc, setSearchDoc] = useState("");
+  const [searchMaterial, setSearchMaterial] = useState("");
+  const [searchVehicle, setSearchVehicle] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [fromStoreFilter, setFromStoreFilter] = useState("ALL");
+  const [toStoreFilter, setToStoreFilter] = useState("ALL");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [showFilters, setShowFilters] = useState(true);
+
+  // Dynamic store lists
+  const uniqueFromStores = useMemo(() => {
+    const s = new Set<string>();
+    transfers.forEach(t => {
+      const n = normalizeStoreName(t.fromStore);
+      if (n) s.add(n);
+    });
+    return Array.from(s).sort();
+  }, [transfers]);
+
+  const uniqueToStores = useMemo(() => {
+    const s = new Set<string>();
+    transfers.forEach(t => {
+      const n = normalizeStoreName(t.toStore);
+      if (n) s.add(n);
+    });
+    return Array.from(s).sort();
+  }, [transfers]);
+
+  const filteredTransfers = useMemo(() => {
+    return transfers.filter((t: any) => {
+      if (statusFilter !== 'ALL' && t.status !== statusFilter) return false;
+
+      if (fromStoreFilter !== 'ALL') {
+        const norm = normalizeStoreName(t.fromStore).toLowerCase();
+        if (norm !== fromStoreFilter.toLowerCase()) return false;
+      }
+
+      if (toStoreFilter !== 'ALL') {
+        const norm = normalizeStoreName(t.toStore).toLowerCase();
+        if (norm !== toStoreFilter.toLowerCase()) return false;
+      }
+
+      if (startDate) {
+        const tDate = t.date ? new Date(t.date).toISOString().split('T')[0] : '';
+        if (tDate && tDate < startDate) return false;
+      }
+      if (endDate) {
+        const tDate = t.date ? new Date(t.date).toISOString().split('T')[0] : '';
+        if (tDate && tDate > endDate) return false;
+      }
+
+      if (searchDoc.trim()) {
+        const q = searchDoc.toLowerCase().trim();
+        const ch = (t.challanNo || '').toLowerCase();
+        const min = (t.minNo || '').toLowerCase();
+        const minB = (t.minBookNo || '').toLowerCase();
+        const gr = (t.grNumber || '').toLowerCase();
+        if (!ch.includes(q) && !min.includes(q) && !minB.includes(q) && !gr.includes(q)) return false;
+      }
+
+      if (searchMaterial.trim()) {
+        const q = searchMaterial.toLowerCase().trim();
+        const desc = (t.description || '').toLowerCase();
+        const loa = (t.loaSerialNo || '').toLowerCase();
+        const vendor = (t.vendorName || '').toLowerCase();
+        if (!desc.includes(q) && !loa.includes(q) && !vendor.includes(q)) return false;
+      }
+
+      if (searchVehicle.trim()) {
+        const q = searchVehicle.toLowerCase().trim();
+        const truck = (t.truckNumber || '').toLowerCase();
+        const driver = (t.driverName || '').toLowerCase();
+        const mobile = (t.driverMobile || '').toLowerCase();
+        const transport = (t.transportName || '').toLowerCase();
+        if (!truck.includes(q) && !driver.includes(q) && !mobile.includes(q) && !transport.includes(q)) return false;
+      }
+
+      return true;
+    });
+  }, [transfers, statusFilter, fromStoreFilter, toStoreFilter, startDate, endDate, searchDoc, searchMaterial, searchVehicle]);
+
+  const activeFilterCount = (statusFilter !== 'ALL' ? 1 : 0) +
+    (fromStoreFilter !== 'ALL' ? 1 : 0) +
+    (toStoreFilter !== 'ALL' ? 1 : 0) +
+    (startDate ? 1 : 0) +
+    (endDate ? 1 : 0) +
+    (searchDoc.trim() ? 1 : 0) +
+    (searchMaterial.trim() ? 1 : 0) +
+    (searchVehicle.trim() ? 1 : 0);
+
+  const handleClearFilters = () => {
+    setSearchDoc("");
+    setSearchMaterial("");
+    setSearchVehicle("");
+    setStatusFilter("ALL");
+    setFromStoreFilter("ALL");
+    setToStoreFilter("ALL");
+    setStartDate("");
+    setEndDate("");
+    setSearchTerm("");
+  };
+
   const {
     paginatedData,
     searchTerm,
@@ -210,7 +317,7 @@ export default function OutwardRegisterPage() {
     setCurrentPage,
     totalPages,
     totalItems
-  } = useClientTable(transfers);
+  } = useClientTable(filteredTransfers);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this transfer? This action cannot be undone.")) return;
@@ -295,13 +402,165 @@ export default function OutwardRegisterPage() {
               </div>
             ) : (
               <>
-                <DataTableTopControls
-                  searchTerm={searchTerm}
-                  setSearchTerm={setSearchTerm}
-                  pageSize={pageSize}
-                  setPageSize={setPageSize}
-                  totalItems={totalItems}
-                />
+                {/* Search & Filter Toolbar */}
+                <div className="p-4 bg-white border-b border-slate-200 space-y-3">
+                  {/* Row 1: Search Inputs */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {/* General Search */}
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <Search className="w-4 h-4 text-slate-400" />
+                      </div>
+                      <input
+                        type="text"
+                        className="bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-9 pr-3 py-2 transition-all outline-none"
+                        placeholder="Search all columns..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </div>
+
+                    {/* Document Search */}
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <FileText className="w-4 h-4 text-slate-400" />
+                      </div>
+                      <input
+                        type="text"
+                        className="bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-9 pr-3 py-2 transition-all outline-none"
+                        placeholder="Challan / MIN / GR No..."
+                        value={searchDoc}
+                        onChange={(e) => setSearchDoc(e.target.value)}
+                      />
+                      {searchDoc && (
+                        <button onClick={() => setSearchDoc('')} className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Material Search */}
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <Package className="w-4 h-4 text-slate-400" />
+                      </div>
+                      <input
+                        type="text"
+                        className="bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-9 pr-3 py-2 transition-all outline-none"
+                        placeholder="Material / LOA / Vendor..."
+                        value={searchMaterial}
+                        onChange={(e) => setSearchMaterial(e.target.value)}
+                      />
+                      {searchMaterial && (
+                        <button onClick={() => setSearchMaterial('')} className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Vehicle / Driver Search */}
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <Truck className="w-4 h-4 text-slate-400" />
+                      </div>
+                      <input
+                        type="text"
+                        className="bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-9 pr-3 py-2 transition-all outline-none"
+                        placeholder="Truck No / Driver / Transport..."
+                        value={searchVehicle}
+                        onChange={(e) => setSearchVehicle(e.target.value)}
+                      />
+                      {searchVehicle && (
+                        <button onClick={() => setSearchVehicle('')} className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Row 2: Dropdowns and Date Filters */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-1">
+                    {/* Status Filter */}
+                    <div>
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      >
+                        <option value="ALL">All Statuses</option>
+                        <option value="Approved">Approved</option>
+                        <option value="IN_TRANSIT">In Transit</option>
+                        <option value="RECEIVED">Received</option>
+                        <option value="Pending PD Approval">Pending PD Approval</option>
+                        <option value="REJECTED">Rejected</option>
+                      </select>
+                    </div>
+
+                    {/* From Store Filter */}
+                    <div>
+                      <select
+                        value={fromStoreFilter}
+                        onChange={(e) => setFromStoreFilter(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      >
+                        <option value="ALL">All Origin Stores</option>
+                        {uniqueFromStores.map((st) => (
+                          <option key={st} value={st}>From: {st}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* To Store Filter */}
+                    <div>
+                      <select
+                        value={toStoreFilter}
+                        onChange={(e) => setToStoreFilter(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      >
+                        <option value="ALL">All Receiving Stores</option>
+                        {uniqueToStores.map((st) => (
+                          <option key={st} value={st}>To: {st}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Start Date */}
+                    <div>
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        title="Start Date"
+                      />
+                    </div>
+
+                    {/* End Date */}
+                    <div>
+                      <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        title="End Date"
+                      />
+                    </div>
+
+                    {/* Clear Filters Button */}
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleClearFilters}
+                        disabled={activeFilterCount === 0 && !searchTerm}
+                        className="w-full h-8 text-xs text-slate-600 hover:text-slate-900 border-slate-200 disabled:opacity-40"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5 mr-1" />
+                        Clear {activeFilterCount > 0 && `(${activeFilterCount})`}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm text-left whitespace-nowrap table-fixed">
                     <thead className="bg-slate-50 border-y border-slate-200 text-xs font-semibold text-slate-600 uppercase">

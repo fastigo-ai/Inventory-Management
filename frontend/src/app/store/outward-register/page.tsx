@@ -17,9 +17,39 @@ import { Eye, Trash2, Edit, LayoutDashboard, List as ListIcon } from "lucide-rea
 import { OutwardTransferStatistics } from "@/features/store/components/OutwardTransferStatistics";
 import { formatDate } from "@/shared/utils/date";
 import { normalizeStoreName } from "@/shared/utils/store";
+import { useResizableColumns } from "@/shared/hooks/useResizableColumns";
+import { ResizableTh } from "@/shared/components/ResizableHeader";
+
+const DEFAULT_COL_WIDTHS: Record<string, number> = {
+  srNo: 70,
+  date: 110,
+  vendorName: 180,
+  description: 250,
+  loaSerialNo: 130,
+  loaQty: 90,
+  unit: 80,
+  transferQty: 120,
+  minBookNo: 120,
+  minNo: 110,
+  minDate: 110,
+  challanNo: 150,
+  challanDate: 110,
+  fromStore: 120,
+  toStore: 120,
+  transportName: 140,
+  truckNumber: 130,
+  grNumber: 110,
+  grDate: 110,
+  driverName: 140,
+  driverMobile: 130,
+  remarks: 200,
+  status: 140,
+  actions: 120,
+};
 
 export default function OutwardRegisterPage() {
   const router = useRouter();
+  const { colWidths, handleMouseDown } = useResizableColumns('outward_register', DEFAULT_COL_WIDTHS);
   const [transfers, setTransfers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -273,33 +303,33 @@ export default function OutwardRegisterPage() {
                   totalItems={totalItems}
                 />
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-left whitespace-nowrap">
+                  <table className="w-full text-sm text-left whitespace-nowrap table-fixed">
                     <thead className="bg-slate-50 border-y border-slate-200 text-xs font-semibold text-slate-600 uppercase">
                       <tr>
-                        <th className="px-4 py-3 border-r border-slate-200">Sr. No</th>
-                        <th className="px-4 py-3 border-r border-slate-200">Date</th>
-                        <th className="px-4 py-3 border-r border-slate-200">Name of Vendor</th>
-                        <th className="px-4 py-3 border-r border-slate-200">Description of Material</th>
-                        <th className="px-4 py-3 border-r border-slate-200">LOA Serial No</th>
-                        <th className="px-4 py-3 border-r border-slate-200">LOA Qty</th>
-                        <th className="px-4 py-3 border-r border-slate-200">Unit</th>
-                        <th className="px-4 py-3 border-r border-slate-200 bg-blue-50">Transfer Qty.</th>
-                        <th className="px-4 py-3 border-r border-slate-200">MIN BOOK No.</th>
-                        <th className="px-4 py-3 border-r border-slate-200">MIN No.</th>
-                        <th className="px-4 py-3 border-r border-slate-200">MIN Date</th>
-                        <th className="px-4 py-3 border-r border-slate-200">Challan No.</th>
-                        <th className="px-4 py-3 border-r border-slate-200">Challan Date</th>
-                        <th className="px-4 py-3 border-r border-slate-200">From</th>
-                        <th className="px-4 py-3 border-r border-slate-200">To</th>
-                        <th className="px-4 py-3 border-r border-slate-200">Transport</th>
-                        <th className="px-4 py-3 border-r border-slate-200">Truck No.</th>
-                        <th className="px-4 py-3 border-r border-slate-200">GR No.</th>
-                        <th className="px-4 py-3 border-r border-slate-200">GR Date</th>
-                        <th className="px-4 py-3 border-r border-slate-200">Driver Name</th>
-                        <th className="px-4 py-3 border-r border-slate-200">Mobile No.</th>
-                        <th className="px-4 py-3 border-r border-slate-200">Remark</th>
-                        <th className="px-4 py-3 border-r border-slate-200 text-center">Status</th>
-                        <th className="px-4 py-3 text-center sticky right-0 bg-slate-50 z-10 shadow-[-4px_0_12px_rgba(0,0,0,0.05)]">Actions</th>
+                        <ResizableTh id="srNo" width={colWidths.srNo} onResizeStart={handleMouseDown} className="px-4 py-3 border-r border-slate-200 text-center">Sr. No</ResizableTh>
+                        <ResizableTh id="date" width={colWidths.date} onResizeStart={handleMouseDown} className="px-4 py-3 border-r border-slate-200">Date</ResizableTh>
+                        <ResizableTh id="vendorName" width={colWidths.vendorName} onResizeStart={handleMouseDown} className="px-4 py-3 border-r border-slate-200">Name of Vendor</ResizableTh>
+                        <ResizableTh id="description" width={colWidths.description} onResizeStart={handleMouseDown} className="px-4 py-3 border-r border-slate-200">Description of Material</ResizableTh>
+                        <ResizableTh id="loaSerialNo" width={colWidths.loaSerialNo} onResizeStart={handleMouseDown} className="px-4 py-3 border-r border-slate-200">LOA Serial No</ResizableTh>
+                        <ResizableTh id="loaQty" width={colWidths.loaQty} onResizeStart={handleMouseDown} className="px-4 py-3 border-r border-slate-200">LOA Qty</ResizableTh>
+                        <ResizableTh id="unit" width={colWidths.unit} onResizeStart={handleMouseDown} className="px-4 py-3 border-r border-slate-200">Unit</ResizableTh>
+                        <ResizableTh id="transferQty" width={colWidths.transferQty} onResizeStart={handleMouseDown} className="px-4 py-3 border-r border-slate-200 bg-blue-50/70">Transfer Qty.</ResizableTh>
+                        <ResizableTh id="minBookNo" width={colWidths.minBookNo} onResizeStart={handleMouseDown} className="px-4 py-3 border-r border-slate-200">MIN BOOK No.</ResizableTh>
+                        <ResizableTh id="minNo" width={colWidths.minNo} onResizeStart={handleMouseDown} className="px-4 py-3 border-r border-slate-200">MIN No.</ResizableTh>
+                        <ResizableTh id="minDate" width={colWidths.minDate} onResizeStart={handleMouseDown} className="px-4 py-3 border-r border-slate-200">MIN Date</ResizableTh>
+                        <ResizableTh id="challanNo" width={colWidths.challanNo} onResizeStart={handleMouseDown} className="px-4 py-3 border-r border-slate-200">Challan No.</ResizableTh>
+                        <ResizableTh id="challanDate" width={colWidths.challanDate} onResizeStart={handleMouseDown} className="px-4 py-3 border-r border-slate-200">Challan Date</ResizableTh>
+                        <ResizableTh id="fromStore" width={colWidths.fromStore} onResizeStart={handleMouseDown} className="px-4 py-3 border-r border-slate-200">From</ResizableTh>
+                        <ResizableTh id="toStore" width={colWidths.toStore} onResizeStart={handleMouseDown} className="px-4 py-3 border-r border-slate-200">To</ResizableTh>
+                        <ResizableTh id="transportName" width={colWidths.transportName} onResizeStart={handleMouseDown} className="px-4 py-3 border-r border-slate-200">Transport</ResizableTh>
+                        <ResizableTh id="truckNumber" width={colWidths.truckNumber} onResizeStart={handleMouseDown} className="px-4 py-3 border-r border-slate-200">Truck No.</ResizableTh>
+                        <ResizableTh id="grNumber" width={colWidths.grNumber} onResizeStart={handleMouseDown} className="px-4 py-3 border-r border-slate-200">GR No.</ResizableTh>
+                        <ResizableTh id="grDate" width={colWidths.grDate} onResizeStart={handleMouseDown} className="px-4 py-3 border-r border-slate-200">GR Date</ResizableTh>
+                        <ResizableTh id="driverName" width={colWidths.driverName} onResizeStart={handleMouseDown} className="px-4 py-3 border-r border-slate-200">Driver Name</ResizableTh>
+                        <ResizableTh id="driverMobile" width={colWidths.driverMobile} onResizeStart={handleMouseDown} className="px-4 py-3 border-r border-slate-200">Mobile No.</ResizableTh>
+                        <ResizableTh id="remarks" width={colWidths.remarks} onResizeStart={handleMouseDown} className="px-4 py-3 border-r border-slate-200">Remark</ResizableTh>
+                        <ResizableTh id="status" width={colWidths.status} onResizeStart={handleMouseDown} className="px-4 py-3 border-r border-slate-200 text-center">Status</ResizableTh>
+                        <th style={{ width: `${colWidths.actions}px`, minWidth: `${colWidths.actions}px` }} className="px-4 py-3 text-center sticky right-0 bg-slate-50 z-20 shadow-[-4px_0_12px_rgba(0,0,0,0.05)] border-l border-slate-200">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -312,30 +342,30 @@ export default function OutwardRegisterPage() {
                       ) : (
                         paginatedData.map((t: any, idx: number) => (
                           <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-4 py-3 border-r border-slate-100 text-center">{t.srNo}</td>
-                            <td className="px-4 py-3 border-r border-slate-100">{formatDate(t.date)}</td>
-                            <td className="px-4 py-3 border-r border-slate-100 font-medium text-slate-800">{t.vendorName}</td>
-                            <td className="px-4 py-3 border-r border-slate-100">{t.description}</td>
-                            <td className="px-4 py-3 border-r border-slate-100 text-slate-500">{t.loaSerialNo}</td>
-                            <td className="px-4 py-3 border-r border-slate-100 font-medium text-slate-700">{t.loaQty}</td>
-                            <td className="px-4 py-3 border-r border-slate-100 text-slate-500">{t.unit}</td>
-                            <td className="px-4 py-3 border-r border-slate-100 font-bold text-blue-700 bg-blue-50/50">{t.transferQty}</td>
-                            <td className="px-4 py-3 border-r border-slate-100">{t.minBookNo}</td>
-                            <td className="px-4 py-3 border-r border-slate-100 font-medium">{t.minNo}</td>
-                            <td className="px-4 py-3 border-r border-slate-100 text-slate-500">{formatDate(t.minDate)}</td>
-                            <td className="px-4 py-3 border-r border-slate-100">{t.challanNo}</td>
-                            <td className="px-4 py-3 border-r border-slate-100 text-slate-500">{formatDate(t.challanDate)}</td>
-                            <td className="px-4 py-3 border-r border-slate-100 text-slate-600">{normalizeStoreName(t.fromStore)}</td>
-                            <td className="px-4 py-3 border-r border-slate-100 font-medium text-slate-800">{normalizeStoreName(t.toStore)}</td>
-                            <td className="px-4 py-3 border-r border-slate-100">{t.transportName}</td>
-                            <td className="px-4 py-3 border-r border-slate-100">{t.truckNumber}</td>
-                            <td className="px-4 py-3 border-r border-slate-100">{t.grNumber}</td>
-                            <td className="px-4 py-3 border-r border-slate-100 text-slate-500">{formatDate(t.grDate)}</td>
-                            <td className="px-4 py-3 border-r border-slate-100">{t.driverName}</td>
-                            <td className="px-4 py-3 border-r border-slate-100">{t.driverMobile}</td>
-                            <td className="px-4 py-3 border-r border-slate-100 text-slate-500">{t.remarks}</td>
-                            <td className="px-4 py-3 border-r border-slate-100 text-center">{getStatusBadge(t.status)}</td>
-                            <td className="px-4 py-3 text-center sticky right-0 bg-white group-hover:bg-slate-50 transition-colors z-10 shadow-[-4px_0_12px_rgba(0,0,0,0.02)]">
+                            <td style={{ width: `${colWidths.srNo}px` }} className="px-4 py-3 border-r border-slate-100 text-center overflow-hidden text-ellipsis">{t.srNo}</td>
+                            <td style={{ width: `${colWidths.date}px` }} className="px-4 py-3 border-r border-slate-100 overflow-hidden text-ellipsis">{formatDate(t.date)}</td>
+                            <td style={{ width: `${colWidths.vendorName}px` }} className="px-4 py-3 border-r border-slate-100 font-medium text-slate-800 overflow-hidden text-ellipsis" title={t.vendorName}>{t.vendorName}</td>
+                            <td style={{ width: `${colWidths.description}px` }} className="px-4 py-3 border-r border-slate-100 overflow-hidden text-ellipsis" title={t.description}>{t.description}</td>
+                            <td style={{ width: `${colWidths.loaSerialNo}px` }} className="px-4 py-3 border-r border-slate-100 text-slate-500 overflow-hidden text-ellipsis">{t.loaSerialNo}</td>
+                            <td style={{ width: `${colWidths.loaQty}px` }} className="px-4 py-3 border-r border-slate-100 font-medium text-slate-700 overflow-hidden text-ellipsis">{t.loaQty}</td>
+                            <td style={{ width: `${colWidths.unit}px` }} className="px-4 py-3 border-r border-slate-100 text-slate-500 overflow-hidden text-ellipsis">{t.unit}</td>
+                            <td style={{ width: `${colWidths.transferQty}px` }} className="px-4 py-3 border-r border-slate-100 font-bold text-blue-700 bg-blue-50/50 overflow-hidden text-ellipsis">{t.transferQty}</td>
+                            <td style={{ width: `${colWidths.minBookNo}px` }} className="px-4 py-3 border-r border-slate-100 overflow-hidden text-ellipsis">{t.minBookNo}</td>
+                            <td style={{ width: `${colWidths.minNo}px` }} className="px-4 py-3 border-r border-slate-100 font-medium overflow-hidden text-ellipsis">{t.minNo}</td>
+                            <td style={{ width: `${colWidths.minDate}px` }} className="px-4 py-3 border-r border-slate-100 text-slate-500 overflow-hidden text-ellipsis">{formatDate(t.minDate)}</td>
+                            <td style={{ width: `${colWidths.challanNo}px` }} className="px-4 py-3 border-r border-slate-100 overflow-hidden text-ellipsis" title={t.challanNo}>{t.challanNo}</td>
+                            <td style={{ width: `${colWidths.challanDate}px` }} className="px-4 py-3 border-r border-slate-100 text-slate-500 overflow-hidden text-ellipsis">{formatDate(t.challanDate)}</td>
+                            <td style={{ width: `${colWidths.fromStore}px` }} className="px-4 py-3 border-r border-slate-100 text-slate-600 overflow-hidden text-ellipsis">{normalizeStoreName(t.fromStore)}</td>
+                            <td style={{ width: `${colWidths.toStore}px` }} className="px-4 py-3 border-r border-slate-100 font-medium text-slate-800 overflow-hidden text-ellipsis">{normalizeStoreName(t.toStore)}</td>
+                            <td style={{ width: `${colWidths.transportName}px` }} className="px-4 py-3 border-r border-slate-100 overflow-hidden text-ellipsis" title={t.transportName}>{t.transportName}</td>
+                            <td style={{ width: `${colWidths.truckNumber}px` }} className="px-4 py-3 border-r border-slate-100 overflow-hidden text-ellipsis" title={t.truckNumber}>{t.truckNumber}</td>
+                            <td style={{ width: `${colWidths.grNumber}px` }} className="px-4 py-3 border-r border-slate-100 overflow-hidden text-ellipsis">{t.grNumber}</td>
+                            <td style={{ width: `${colWidths.grDate}px` }} className="px-4 py-3 border-r border-slate-100 text-slate-500 overflow-hidden text-ellipsis">{formatDate(t.grDate)}</td>
+                            <td style={{ width: `${colWidths.driverName}px` }} className="px-4 py-3 border-r border-slate-100 overflow-hidden text-ellipsis" title={t.driverName}>{t.driverName}</td>
+                            <td style={{ width: `${colWidths.driverMobile}px` }} className="px-4 py-3 border-r border-slate-100 overflow-hidden text-ellipsis">{t.driverMobile}</td>
+                            <td style={{ width: `${colWidths.remarks}px` }} className="px-4 py-3 border-r border-slate-100 text-slate-500 overflow-hidden text-ellipsis" title={t.remarks}>{t.remarks}</td>
+                            <td style={{ width: `${colWidths.status}px` }} className="px-4 py-3 border-r border-slate-100 text-center overflow-hidden text-ellipsis">{getStatusBadge(t.status)}</td>
+                            <td style={{ width: `${colWidths.actions}px` }} className="px-4 py-3 text-center sticky right-0 bg-white group-hover:bg-slate-50 transition-colors z-20 shadow-[-4px_0_12px_rgba(0,0,0,0.02)] border-l border-slate-200">
                               <div className="flex items-center justify-center gap-1.5">
                                 {t.status === 'Approved' && (
                                   <button 

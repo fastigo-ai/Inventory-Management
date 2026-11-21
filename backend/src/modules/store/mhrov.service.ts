@@ -28,6 +28,14 @@ export class MhrovService {
       throw new ApiError(404, 'MHROV not found');
     }
 
+    // Once an MHROV is Done, it cannot transition back to Pending or Pending Signature
+    if (mhrov.status?.toUpperCase() === 'DONE' && matchedStatus !== 'Done') {
+      throw new ApiError(
+        400,
+        'Cannot change status of an MHROV that is already Done. Once marked as Done, it cannot return to Pending.'
+      );
+    }
+
     mhrov.status = matchedStatus;
     await mhrov.save();
 

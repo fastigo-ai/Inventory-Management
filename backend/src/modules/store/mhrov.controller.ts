@@ -1290,8 +1290,13 @@ export const updateMhrov = asyncHandler(async (req: Request, res: Response) => {
     user?.role?.name === 'Project Manager' ||
     user?.role?.permissions?.includes('*');
 
-  if (mhrov.status === 'Done' && !isSuperOrAdmin) {
-    throw new ApiError(400, 'Cannot edit a completed MHROV');
+  if (mhrov.status === 'Done') {
+    if (status && status !== 'Done') {
+      throw new ApiError(400, 'Cannot change status of an MHROV that is already Done.');
+    }
+    if (!isSuperOrAdmin) {
+      throw new ApiError(400, 'Cannot edit a completed MHROV');
+    }
   }
 
   let parsedItems: any[] = mhrov.items || [];

@@ -412,51 +412,57 @@ export default function MhrovPage() {
                           {new Date(mhrov.mhrovDate).toLocaleDateString()}
                         </td>
                         <td className="px-6 py-3" onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger
-                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold uppercase tracking-wider transition-all hover:ring-2 hover:ring-indigo-300 outline-none cursor-pointer border shadow-2xs ${
-                                mhrov.status?.toUpperCase() === "DONE" || mhrov.status?.toUpperCase() === "VERIFIED"
-                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
-                                  : mhrov.status?.toUpperCase() === "PENDING"
-                                  ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
-                                  : "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-                              }`}
-                              title="Click to change status"
+                          {mhrov.status?.toUpperCase() === "DONE" || mhrov.status?.toUpperCase() === "VERIFIED" ? (
+                            <span
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              title="Completed MHROV (Locked)"
                             >
-                              {mhrov.status?.toUpperCase() === "DONE" || mhrov.status?.toUpperCase() === "VERIFIED" ? (
-                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                              ) : mhrov.status?.toUpperCase() === "PENDING" ? (
-                                <Clock className="w-3 h-3 text-amber-600" />
-                              ) : (
-                                <FileText className="w-3 h-3 text-blue-600" />
-                              )}
-                              <span>{mhrov.status || "PENDING"}</span>
-                              <ChevronDown className="w-3 h-3 opacity-60 ml-0.5" />
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start" className="w-48">
-                              <DropdownMenuItem
-                                onClick={() => handleQuickStatusChange(mhrov._id, "Pending")}
-                                className={mhrov.status === "Pending" ? "font-semibold bg-amber-50" : ""}
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              <span>Done</span>
+                            </span>
+                          ) : (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold uppercase tracking-wider transition-all hover:ring-2 hover:ring-indigo-300 outline-none cursor-pointer border shadow-2xs ${
+                                  mhrov.status?.toUpperCase() === "PENDING"
+                                    ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                                    : "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                                }`}
+                                title="Click to change status"
                               >
-                                <Clock className="w-3.5 h-3.5 mr-2 text-amber-500" />
-                                Mark as Pending
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleQuickStatusChange(mhrov._id, "Pending Signature")}
-                                className={mhrov.status === "Pending Signature" ? "font-semibold bg-blue-50" : ""}
-                              >
-                                <FileText className="w-3.5 h-3.5 mr-2 text-blue-500" />
-                                Mark as Pending Signature
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleQuickStatusChange(mhrov._id, "Done")}
-                                className={mhrov.status === "Done" ? "font-semibold bg-emerald-50" : ""}
-                              >
-                                <CheckCircle2 className="w-3.5 h-3.5 mr-2 text-emerald-500" />
-                                Mark as Done
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                                {mhrov.status?.toUpperCase() === "PENDING" ? (
+                                  <Clock className="w-3 h-3 text-amber-600" />
+                                ) : (
+                                  <FileText className="w-3 h-3 text-blue-600" />
+                                )}
+                                <span>{mhrov.status || "PENDING"}</span>
+                                <ChevronDown className="w-3 h-3 opacity-60 ml-0.5" />
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start" className="w-48">
+                                <DropdownMenuItem
+                                  onClick={() => handleQuickStatusChange(mhrov._id, "Pending")}
+                                  className={mhrov.status === "Pending" ? "font-semibold bg-amber-50" : ""}
+                                >
+                                  <Clock className="w-3.5 h-3.5 mr-2 text-amber-500" />
+                                  Mark as Pending
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleQuickStatusChange(mhrov._id, "Pending Signature")}
+                                  className={mhrov.status === "Pending Signature" ? "font-semibold bg-blue-50" : ""}
+                                >
+                                  <FileText className="w-3.5 h-3.5 mr-2 text-blue-500" />
+                                  Mark as Pending Signature
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleQuickStatusChange(mhrov._id, "Done")}
+                                  className="text-emerald-700 font-semibold"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5 mr-2 text-emerald-500" />
+                                  Mark as Done
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
                         </td>
                         <td className="px-6 py-3 max-w-[200px] truncate" title={refList.join(", ")}>
                           {refList.join(", ") || "-"}
@@ -465,15 +471,17 @@ export default function MhrovPage() {
                           {itemCount} {itemCount === 1 ? 'Item' : 'Items'}
                         </td>
                         <td className="px-6 py-3 text-right flex justify-end items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 border-indigo-200 shadow-2xs font-medium"
-                            onClick={() => router.push(`/site-portal/mhrov/edit/${mhrov._id}`)}
-                          >
-                            <Edit className="w-3.5 h-3.5 mr-1" />
-                            Edit
-                          </Button>
+                          {!(mhrov.status?.toUpperCase() === "DONE" || mhrov.status?.toUpperCase() === "VERIFIED") && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 border-indigo-200 shadow-2xs font-medium"
+                              onClick={() => router.push(`/site-portal/mhrov/edit/${mhrov._id}`)}
+                            >
+                              <Edit className="w-3.5 h-3.5 mr-1" />
+                              Edit
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="sm"

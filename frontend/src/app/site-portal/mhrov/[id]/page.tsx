@@ -136,49 +136,53 @@ export default function MhrovDetailPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              {/* Change Status Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  disabled={updatingStatus}
-                  className="inline-flex items-center justify-center rounded-lg text-xs sm:text-sm font-medium border border-slate-300 bg-white hover:bg-slate-50 h-9 px-3 text-slate-700 shadow-xs cursor-pointer"
-                >
-                  <span>Change Status</span>
-                  <ChevronDown className="w-4 h-4 ml-1.5 text-slate-500" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onClick={() => handleStatusChange("Pending")}
-                    className={mhrov.status === "Pending" ? "font-semibold bg-amber-50" : ""}
-                  >
-                    <Clock className="w-4 h-4 mr-2 text-amber-500" />
-                    Mark as Pending
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => handleStatusChange("Pending Signature")}
-                    className={mhrov.status === "Pending Signature" ? "font-semibold bg-blue-50" : ""}
-                  >
-                    <FileText className="w-4 h-4 mr-2 text-blue-500" />
-                    Mark as Pending Signature
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => handleStatusChange("Done")}
-                    className={mhrov.status === "Done" ? "font-semibold bg-emerald-50" : ""}
-                  >
-                    <CheckCircle2 className="w-4 h-4 mr-2 text-emerald-500" />
-                    Mark as Done
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {/* Only allow status change and editing if not already Done */}
+              {!isDone && (
+                <>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      disabled={updatingStatus}
+                      className="inline-flex items-center justify-center rounded-lg text-xs sm:text-sm font-medium border border-slate-300 bg-white hover:bg-slate-50 h-9 px-3 text-slate-700 shadow-xs cursor-pointer"
+                    >
+                      <span>Change Status</span>
+                      <ChevronDown className="w-4 h-4 ml-1.5 text-slate-500" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={() => handleStatusChange("Pending")}
+                        className={mhrov.status === "Pending" ? "font-semibold bg-amber-50" : ""}
+                      >
+                        <Clock className="w-4 h-4 mr-2 text-amber-500" />
+                        Mark as Pending
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleStatusChange("Pending Signature")}
+                        className={mhrov.status === "Pending Signature" ? "font-semibold bg-blue-50" : ""}
+                      >
+                        <FileText className="w-4 h-4 mr-2 text-blue-500" />
+                        Mark as Pending Signature
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleStatusChange("Done")}
+                        className="text-emerald-700 font-semibold"
+                      >
+                        <CheckCircle2 className="w-4 h-4 mr-2 text-emerald-500" />
+                        Mark as Done
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
 
-              {/* Edit Button */}
-              <Button
-                variant="outline"
-                onClick={() => router.push(`/site-portal/mhrov/edit/${mhrov._id}`)}
-                className="border-slate-300 bg-white hover:bg-slate-50 font-medium text-xs sm:text-sm h-9 shadow-xs"
-              >
-                <Edit className="w-4 h-4 mr-1.5 text-slate-600" />
-                Edit MHROV
-              </Button>
+                  {/* Edit Button */}
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push(`/site-portal/mhrov/edit/${mhrov._id}`)}
+                    className="border-slate-300 bg-white hover:bg-slate-50 font-medium text-xs sm:text-sm h-9 shadow-xs"
+                  >
+                    <Edit className="w-4 h-4 mr-1.5 text-slate-600" />
+                    Edit MHROV
+                  </Button>
+                </>
+              )}
 
               {mhrov.documentUrl && (
                 <Button

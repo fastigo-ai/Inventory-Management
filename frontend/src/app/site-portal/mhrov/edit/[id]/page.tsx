@@ -64,6 +64,13 @@ export default function EditMhrovPage() {
       setLoading(true);
       const res = await getMhrovById(id);
       const data = res.data;
+
+      if (data.status?.toUpperCase() === 'DONE' || data.status?.toUpperCase() === 'VERIFIED') {
+        toast.error("Cannot edit a completed (Done) MHROV.");
+        router.push(`/site-portal/mhrov/${id}`);
+        return;
+      }
+
       setValue("mhrovNumber", data.mhrovNumber);
       setValue("mhrovDate", data.mhrovDate ? new Date(data.mhrovDate).toISOString().split("T")[0] : "");
       setValue("status", data.status);

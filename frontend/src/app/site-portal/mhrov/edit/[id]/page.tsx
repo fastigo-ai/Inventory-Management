@@ -68,15 +68,28 @@ export default function EditMhrovPage() {
       setValue("mhrovDate", data.mhrovDate ? new Date(data.mhrovDate).toISOString().split("T")[0] : "");
       setValue("status", data.status);
       
-      if (data.inwardEntries && Array.isArray(data.inwardEntries)) {
-        const items = data.inwardEntries
-          .filter((e: any) => e && e._id)
-          .map((e: any) => ({
+      let items: any[] = [];
+      if (data.inwardEntries && Array.isArray(data.inwardEntries) && data.inwardEntries.length > 0) {
+        items = data.inwardEntries
+          .filter((e: any) => e && (e._id || e.itemId))
+          .map((e: any, idx: number) => ({
             ...e,
+            _id: e._id || `entry-${idx}`,
             mhrovDoneQty: e.mhrovDoneQty !== undefined ? e.mhrovDoneQty : (e.totalQty || e.invoiceQty || 0)
           }));
-        setSelectedCartItems(items);
+      } else if (data.items && Array.isArray(data.items) && data.items.length > 0) {
+        items = data.items.map((it: any, idx: number) => ({
+          _id: it.inwardEntryId || it._id || `item-${idx}`,
+          diId: it.diId,
+          itemId: it.itemId,
+          itemName: it.itemId?.dynamicData?.name || it.itemId?.name || 'Item',
+          vendorName: it.diId?.vendorName || '',
+          diRefNo: it.diId?.diNumber || '',
+          mhrovDoneQty: it.mhrovDoneQty || 0,
+          totalQty: it.mhrovDoneQty || 0
+        }));
       }
+      setSelectedCartItems(items);
     } catch (error) {
       console.error(error);
       toast.error("Failed to load MHROV details");
@@ -208,6 +221,7 @@ export default function EditMhrovPage() {
       formData.append("items", JSON.stringify(selectedCartItems.map(i => ({
         diId: i.diId?._id || i.diId,
         itemId: i.itemId?._id || i.itemId,
+        inwardEntryId: i.inwardEntryId || (!i.diId && i._id && !String(i._id).startsWith('item-') && !String(i._id).startsWith('synthetic-') && !String(i._id).startsWith('entry-') ? i._id : undefined),
         mhrovDoneQty: Number(i.mhrovDoneQty)
       }))));
       

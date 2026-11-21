@@ -202,6 +202,11 @@ export const updateMhrov = async (id: string, formData: FormData) => {
   return response.data;
 };
 
+export const updateMhrovStatus = async (id: string, status: string) => {
+  const response = await api.put(`/store/mhrov/${id}/status`, { status });
+  return response.data;
+};
+
 export const getMhrovs = async () => {
   const response = await api.get('/store/mhrov');
   return response.data;

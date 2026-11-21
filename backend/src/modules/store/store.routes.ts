@@ -5,6 +5,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 import {
   createMhrov,
   updateMhrov,
+  updateMhrovStatus,
   getMhrovs,
   exportMhrovs,
   importMhrovs,
@@ -126,6 +127,7 @@ router.get('/mhrov', getMhrovs);
 router.get('/mhrov/export', exportMhrovs);
 router.post('/mhrov/import', upload.single('file'), importMhrovs);
 router.get('/mhrov/dashboard/data', getMhrovDashboardData);
+router.put('/mhrov/:id/status', updateMhrovStatus);
 router.route('/mhrov/:id').get(getMhrovById).put(upload.single('document'), updateMhrov);
 
 export default router;

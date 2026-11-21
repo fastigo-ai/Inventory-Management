@@ -18,6 +18,7 @@ import { JmcRegister } from '../jmc/jmc.schema';
 import cloudinary from '../../core/utils/cloudinary';
 import { SummaryService } from '../reports/summary/summary.service';
 import { expandCircle, normalizeStore } from '../../utils/hierarchy';
+import { mhrovService } from './mhrov.service';
 
 const normalizeUserPackage = (pkg: string) => {
   if (!pkg) return pkg;
@@ -804,7 +805,7 @@ export const getMhrovs = asyncHandler(async (req: Request, res: Response) => {
   const filter: any = {};
   
   if (req.query.status) {
-    filter.status = req.query.status;
+    filter.status = new RegExp('^' + String(req.query.status).trim() + '$', 'i');
   }
 
   if (user && user.role?.name !== 'Admin' && user.role?.name !== 'Super Admin' && !user.role?.permissions?.includes('*')) {
@@ -1277,13 +1278,20 @@ export const updateMhrov = asyncHandler(async (req: Request, res: Response) => {
 
   const mhrov = await Mhrov.findById(mhrovId);
   if (!mhrov) {
-    res.status(404);
-    throw new Error('MHROV not found');
+    throw new ApiError(404, 'MHROV not found');
   }
   
-  if (mhrov.status === 'Done') {
-    res.status(400);
-    throw new Error('Cannot edit a completed MHROV');
+  const user = (req as any).user;
+  const isSuperOrAdmin =
+    user?.role?.name === 'Super Admin' ||
+    user?.role?.name === 'Admin' ||
+    user?.role?.name === 'CEO' ||
+    user?.role?.name === 'Project Director' ||
+    user?.role?.name === 'Project Manager' ||
+    user?.role?.permissions?.includes('*');
+
+  if (mhrov.status === 'Done' && !isSuperOrAdmin) {
+    throw new ApiError(400, 'Cannot edit a completed MHROV');
   }
 
   let parsedItems: any[] = mhrov.items || [];
@@ -1368,6 +1376,13 @@ export const updateMhrov = asyncHandler(async (req: Request, res: Response) => {
   })();
 
   res.status(200).json(new ApiResponse(200, mhrov, 'MHROV updated successfully'));
+});
+
+export const updateMhrovStatus = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  const updatedMhrov = await mhrovService.updateStatus(id as string, status);
+  res.status(200).json(new ApiResponse(200, updatedMhrov, `MHROV status updated to ${updatedMhrov.status}`));
 });
 
 export const getMhrovById = asyncHandler(async (req: Request, res: Response) => {

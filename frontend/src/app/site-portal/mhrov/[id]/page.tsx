@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { getMhrovById } from "@/features/store/api/store.api";
+import { getMhrovById, updateMhrovStatus } from "@/features/store/api/store.api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, Download, FileText, CheckCircle2, Clock, AlertCircle, Box, MapPin, Package, Calendar, ListTodo } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ArrowLeft, Download, FileText, CheckCircle2, Clock, AlertCircle, Box, MapPin, Package, Calendar, ListTodo, ChevronDown, Edit } from "lucide-react";
 import { toast } from "sonner";
 
 export default function MhrovDetailPage() {
@@ -15,6 +16,7 @@ export default function MhrovDetailPage() {
 
   const [mhrov, setMhrov] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   useEffect(() => {
     if (id) fetchMhrovDetails();
@@ -30,6 +32,20 @@ export default function MhrovDetailPage() {
       toast.error("Failed to load MHROV details");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (newStatus: string) => {
+    try {
+      setUpdatingStatus(true);
+      await updateMhrovStatus(id, newStatus);
+      setMhrov((prev: any) => ({ ...prev, status: newStatus }));
+      toast.success(`MHROV status updated to "${newStatus}"`);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error?.response?.data?.message || "Failed to update status");
+    } finally {
+      setUpdatingStatus(false);
     }
   };
 
@@ -119,15 +135,61 @@ export default function MhrovDetailPage() {
               </p>
             </div>
 
-            {mhrov.documentUrl && (
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Change Status Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  disabled={updatingStatus}
+                  className="inline-flex items-center justify-center rounded-lg text-xs sm:text-sm font-medium border border-slate-300 bg-white hover:bg-slate-50 h-9 px-3 text-slate-700 shadow-xs cursor-pointer"
+                >
+                  <span>Change Status</span>
+                  <ChevronDown className="w-4 h-4 ml-1.5 text-slate-500" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => handleStatusChange("Pending")}
+                    className={mhrov.status === "Pending" ? "font-semibold bg-amber-50" : ""}
+                  >
+                    <Clock className="w-4 h-4 mr-2 text-amber-500" />
+                    Mark as Pending
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleStatusChange("Pending Signature")}
+                    className={mhrov.status === "Pending Signature" ? "font-semibold bg-blue-50" : ""}
+                  >
+                    <FileText className="w-4 h-4 mr-2 text-blue-500" />
+                    Mark as Pending Signature
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleStatusChange("Done")}
+                    className={mhrov.status === "Done" ? "font-semibold bg-emerald-50" : ""}
+                  >
+                    <CheckCircle2 className="w-4 h-4 mr-2 text-emerald-500" />
+                    Mark as Done
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Edit Button */}
               <Button
-                onClick={() => window.open(mhrov.documentUrl, "_blank")}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-200 hover:shadow-lg hover:-translate-y-0.5 transition-all w-full md:w-auto"
+                variant="outline"
+                onClick={() => router.push(`/site-portal/mhrov/edit/${mhrov._id}`)}
+                className="border-slate-300 bg-white hover:bg-slate-50 font-medium text-xs sm:text-sm h-9 shadow-xs"
               >
-                <Download className="w-4 h-4 mr-2" />
-                Download Document
+                <Edit className="w-4 h-4 mr-1.5 text-slate-600" />
+                Edit MHROV
               </Button>
-            )}
+
+              {mhrov.documentUrl && (
+                <Button
+                  onClick={() => window.open(mhrov.documentUrl, "_blank")}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-200 hover:shadow-lg hover:-translate-y-0.5 transition-all w-full md:w-auto h-9"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download Document
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </div>

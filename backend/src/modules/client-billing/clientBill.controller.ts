@@ -104,6 +104,44 @@ const parseUploadedFiles = async (files: Express.Multer.File[]) => {
   return { invoiceDocUrl, diDocUrl, mhrovDocUrl, additionalDocsUrls };
 };
 
+export const resolveItemsForCircle = async (items: any[], circle: string) => {
+  if (!circle || !Array.isArray(items) || items.length === 0) return items;
+  const normCirc = circle.trim().toLowerCase();
+  const circleItems = await Item.find({
+    $or: [
+      { 'dynamicData.circle': { $regex: new RegExp(`^${normCirc}$`, 'i') } },
+      { circle: { $regex: new RegExp(`^${normCirc}$`, 'i') } }
+    ]
+  }).lean();
+  if (!circleItems.length) return items;
+
+  return items.map((item: any) => {
+    const currentItemIdStr = item.itemId ? item.itemId.toString() : '';
+    const itemTc = String(item.tempCode || '').trim().toLowerCase();
+    const itemLoa = String(item.loaSrNo || '').trim().toLowerCase();
+    const itemName = String(item.itemName || '').trim().toLowerCase();
+
+    const alreadyValid = circleItems.some((ci: any) => ci._id.toString() === currentItemIdStr);
+    if (alreadyValid) return item;
+
+    const match = circleItems.find((ci: any) => {
+      const d = (ci as any).dynamicData || {};
+      const cTc = String(d.tempCode || d.itemCode || ci.tempCode || '').trim().toLowerCase();
+      const cLoa = String(d.loaSerialNo || d.loaSrNo || d.sku || ci.sku || '').trim().toLowerCase();
+      const cName = String(d.itemName || d.name || '').trim().toLowerCase();
+      return (itemTc && cTc && itemTc === cTc && itemLoa && cLoa && itemLoa === cLoa) ||
+             (itemTc && cTc && itemTc === cTc) ||
+             (itemLoa && cLoa && itemLoa === cLoa) ||
+             (itemName && cName && itemName === cName);
+    });
+
+    if (match) {
+      return { ...item, itemId: match._id };
+    }
+    return item;
+  });
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CREATE CLIENT BILL
 // ─────────────────────────────────────────────────────────────────────────────
@@ -133,6 +171,7 @@ export const createClientBill = asyncHandler(async (req: any, res: Response) => 
   });
 
   if (!isLegacyBulkUpload) {
+    parsedItems = await resolveItemsForCircle(parsedItems, req.user.assignedCircle);
     const validation = await validateClientLedgerLimits(req.user.assignedCircle, req.user.assignedPackage, parsedItems, billType, stage);
     if (!validation.valid) {
       return res.status(400).json(new ApiResponse(400, null, validation.message));
@@ -199,6 +238,7 @@ export const updateClientBill = asyncHandler(async (req: any, res: Response) => 
   }
 
   if (!isLegacyBulkUpload) {
+    parsedItems = await resolveItemsForCircle(parsedItems, bill.circle);
     const validation = await validateClientLedgerLimits(bill.circle, bill.package, parsedItems, billType || bill.billType, stage || bill.stage, id);
     if (!validation.valid) {
       return res.status(400).json(new ApiResponse(400, null, validation.message));
@@ -657,8 +697,11 @@ export const bulkImportClientBills = asyncHandler(async (req: any, res: Response
          // 2. Validate Item
          const searchTemp = tempCode.toLowerCase();
          const searchLoa = loaSrNo.toLowerCase();
+         const targetCircle = (circleFromCsv || assignedCircle || '').trim().toLowerCase();
          let itemIdObj = allItems.find(i => {
            const d = i.dynamicData || {};
+           const itemCirc = String(d.circle || i.circle || '').trim().toLowerCase();
+           if (targetCircle && itemCirc && itemCirc !== targetCircle) return false;
            const iTemp = String(d.tempCode || d.itemCode || i.tempCode || '').trim().toLowerCase();
            const iLoa = String(d.loaSerialNo || d.loaSrNo || d.sku || i.sku || '').trim().toLowerCase();
            const iId = String(i._id).toLowerCase();
@@ -666,7 +709,18 @@ export const bulkImportClientBills = asyncHandler(async (req: any, res: Response
                   (searchLoa && iLoa === searchLoa) ||
                   (searchTemp && iId === searchTemp);
          });
-         
+         if (!itemIdObj) {
+           itemIdObj = allItems.find(i => {
+             const d = i.dynamicData || {};
+             const iTemp = String(d.tempCode || d.itemCode || i.tempCode || '').trim().toLowerCase();
+             const iLoa = String(d.loaSerialNo || d.loaSrNo || d.sku || i.sku || '').trim().toLowerCase();
+             const iId = String(i._id).toLowerCase();
+             return (searchTemp && iTemp === searchTemp) || 
+                    (searchLoa && iLoa === searchLoa) ||
+                    (searchTemp && iId === searchTemp);
+           });
+         }
+
          if (!itemIdObj) {
             results.failed++;
             results.errors.push({ raBillNo, reason: `Item not found in master data for LOA Sr No: '${loaSrNo}' / TempCode: '${tempCode}'` });

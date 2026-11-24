@@ -641,7 +641,7 @@ async function computeItemMatrixSummaryInner(pkgArray: string[], circArray: stri
   };
 
   // 1-5. Run all 7 transaction queries concurrently in parallel with tight field projection
-  const [dis, inwards, mhrovs, mins, jmcs, contractorInvoices, pis, wips, wipReqs] = await Promise.all([
+  const [dis, inwards, mhrovs, mins, jmcs, [contractorInvoices, clientErectionBills], pis, wips, wipReqs] = await Promise.all([
     DI.find(
       { status: { $ne: 'Cancelled' } },
       { circle: 1, 'lineItems.quantity': 1, 'lineItems.itemId': 1, 'lineItems.tempCode': 1, 'lineItems.loaSerialNo': 1, 'lineItems.loaSrNo': 1, 'lineItems.circle': 1 }
@@ -662,10 +662,23 @@ async function computeItemMatrixSummaryInner(pkgArray: string[], circArray: stri
       { status: { $nin: ['Rejected', 'Cancelled'] } },
       { circle: 1, 'items.approvedQty': 1, 'items.claimedQty': 1, 'items.itemId': 1, 'items.tempCode': 1, 'items.loaSerialNo': 1, 'items.loaSrNo': 1, 'items.circle': 1 }
     ).lean(),
-    ClientBill.find(
-      { billType: 'Erection', status: { $nin: ['Draft', 'Rejected'] as any[] } },
-      { circle: 1, package: 1, stage: 1, 'items.raBillQty': 1, 'items.itemId': 1, 'items.tempCode': 1, 'items.loaSrNo': 1 }
-    ).lean(),
+    Promise.all([
+      ContractorInvoice.find(
+        {
+          status: { $nin: ['Draft', 'Rejected'] as any[] },
+          $or: [
+            { billingCategory: 'Erection Bill' },
+            { invoiceNumber: /\/ER\//i },
+            { stage: { $in: ['90%', '10%'] } }
+          ]
+        },
+        { circle: 1, package: 1, stage: 1, legacyMetadata: 1, 'lineItems.erectedQty': 1, 'lineItems.jmcDoneQty': 1, 'lineItems.itemId': 1, 'lineItems.tempCode': 1, 'lineItems.loaSerialNo': 1, 'lineItems.loaSrNo': 1, 'lineItems.legacyData': 1, 'lineItems.circle': 1 }
+      ).lean(),
+      ClientBill.find(
+        { billType: 'Erection', status: { $nin: ['Draft', 'Rejected'] as any[] } },
+        { circle: 1, package: 1, stage: 1, 'items.raBillQty': 1, 'items.itemId': 1, 'items.tempCode': 1, 'items.loaSrNo': 1 }
+      ).lean()
+    ]),
     ClientBill.find(
       { billType: 'Supply', status: { $nin: ['Draft', 'Rejected'] as any[] } },
       { circle: 1, package: 1, stage: 1, 'items.raBillQty': 1, 'items.itemId': 1, 'items.tempCode': 1, 'items.loaSrNo': 1, 'items.totalAmount': 1, 'items.boqRate': 1 }
@@ -953,14 +966,17 @@ async function computeItemMatrixSummaryInner(pkgArray: string[], circArray: stri
   // 4b. Erection Billed
   const getErecInit = () => ({ solan: 0, solan_90: 0, solan_60: 0, solan_30: 0, solan_10: 0, nahan: 0, nahan_90: 0, nahan_60: 0, nahan_30: 0, nahan_10: 0, rampur: 0, rampur_90: 0, rampur_60: 0, rampur_30: 0, rampur_10: 0, rohru: 0, rohru_90: 0, rohru_60: 0, rohru_30: 0, rohru_10: 0 });
   const erectionMap = new Map<string, Record<string, number>>();
-  contractorInvoices.forEach(doc => {
-    const docCirc = ((doc as any).circle || '').toLowerCase();
+  const allErectionDocs = [...(contractorInvoices || []), ...(clientErectionBills || [])];
+  allErectionDocs.forEach(doc => {
+    const docCirc = ((doc as any).circle || (doc as any).legacyMetadata?.circle || '').toLowerCase();
     const stageStr = ((doc as any).stage || '').toLowerCase();
-    ((doc as any).items || []).forEach((line: any) => {
-      const qty = Number(line.raBillQty || 0);
+    const lines = (doc as any).lineItems || (doc as any).items || [];
+    lines.forEach((line: any) => {
+      const qty = Number(line.erectedQty || line.jmcDoneQty || line.raBillQty || 0);
       if (qty > 0) {
         const lineCirc = (line.circle || docCirc || '').toLowerCase();
-        const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, line.loaSerialNo || line.loaSrNo || line.sku, line.package || (doc as any).package, lineCirc);
+        const loaSr = line.loaSerialNo || line.loaSrNo || line.legacyData?.loaSerialNo || line.sku;
+        const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, loaSr, line.package || (doc as any).package, lineCirc);
         
         const applyQty = (obj: any, c: string, q: number) => {
            obj[c] += q;

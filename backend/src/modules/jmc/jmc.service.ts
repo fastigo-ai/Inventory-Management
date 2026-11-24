@@ -12,11 +12,12 @@ export class JmcService {
       throw new ApiError(404, 'JMC Register entry not found');
     }
 
-    if (jmc.status === 'Approved') {
+    if (jmc.approvalStatus === 'Approved') {
       throw new ApiError(400, 'JMC is already approved and cannot be re-sent for approval');
     }
 
-    jmc.status = 'Pending PM Approval';
+    jmc.approvalStatus = 'Pending PM Approval';
+    jmc.status = 'Submitted';
     jmc.pmStatus = 'Pending';
     jmc.pdStatus = 'Pending';
     jmc.pmApprovedBy = undefined;
@@ -28,6 +29,7 @@ export class JmcService {
     jmc.rejectedBy = undefined;
     jmc.rejectedAt = undefined;
     jmc.rejectionRemarks = '';
+    jmc.approvalRemarks = '';
 
     await jmc.save();
     return jmc;
@@ -42,7 +44,7 @@ export class JmcService {
       throw new ApiError(404, 'JMC Register entry not found');
     }
 
-    if (jmc.status === 'Approved') {
+    if (jmc.approvalStatus === 'Approved') {
       throw new ApiError(400, 'JMC is already approved');
     }
 
@@ -72,39 +74,45 @@ export class JmcService {
       jmc.pdApprovalRemarks = remarks || jmc.pdApprovalRemarks || 'Approved by Admin';
       jmc.pdStatus = 'Approved';
 
+      jmc.approvalStatus = 'Approved';
       jmc.status = 'Approved';
+      jmc.approvalRemarks = remarks || 'Approved by Admin';
       await jmc.save();
       return jmc;
     }
 
     // PM Approval
-    if (isPM && (jmc.status === 'Pending PM Approval' || jmc.status === 'Submitted' || jmc.status === 'Draft')) {
+    if (isPM && (jmc.approvalStatus === 'Pending PM Approval' || jmc.approvalStatus === 'Draft' || jmc.status === 'Submitted')) {
       jmc.pmApprovedBy = user._id;
       jmc.pmApprovedAt = new Date();
       jmc.pmApprovalRemarks = remarks || '';
       jmc.pmStatus = 'Approved';
 
       if (jmc.pdStatus === 'Approved') {
+        jmc.approvalStatus = 'Approved';
         jmc.status = 'Approved';
       } else {
-        jmc.status = 'Pending PD Approval';
+        jmc.approvalStatus = 'Pending PD Approval';
       }
+      jmc.approvalRemarks = remarks || jmc.approvalRemarks || '';
       await jmc.save();
       return jmc;
     }
 
     // PD Approval
-    if (isPD && (jmc.status === 'Pending PD Approval' || jmc.status === 'Pending PM Approval' || jmc.status === 'Submitted')) {
+    if (isPD && (jmc.approvalStatus === 'Pending PD Approval' || jmc.approvalStatus === 'Pending PM Approval' || jmc.status === 'Submitted')) {
       jmc.pdApprovedBy = user._id;
       jmc.pdApprovedAt = new Date();
       jmc.pdApprovalRemarks = remarks || '';
       jmc.pdStatus = 'Approved';
 
       if (jmc.pmStatus === 'Approved') {
+        jmc.approvalStatus = 'Approved';
         jmc.status = 'Approved';
       } else {
-        jmc.status = 'Pending PM Approval';
+        jmc.approvalStatus = 'Pending PM Approval';
       }
+      jmc.approvalRemarks = remarks || jmc.approvalRemarks || '';
       await jmc.save();
       return jmc;
     }
@@ -140,13 +148,22 @@ export class JmcService {
       throw new ApiError(403, 'You do not have permission to reject JMCs');
     }
 
-    jmc.status = 'Rejected';
+    // DO NOT mark jmc.status as 'Rejected' - JMC remains Submitted
+    jmc.status = 'Submitted';
+    jmc.approvalStatus = 'Rejected';
     jmc.rejectedBy = user._id;
     jmc.rejectedAt = new Date();
     jmc.rejectionRemarks = remarks.trim();
+    jmc.approvalRemarks = remarks.trim();
 
-    if (isPM) jmc.pmStatus = 'Rejected';
-    if (isPD) jmc.pdStatus = 'Rejected';
+    if (isPM) {
+      jmc.pmStatus = 'Rejected';
+      jmc.pmApprovalRemarks = remarks.trim();
+    }
+    if (isPD) {
+      jmc.pdStatus = 'Rejected';
+      jmc.pdApprovalRemarks = remarks.trim();
+    }
 
     await jmc.save();
     return jmc;

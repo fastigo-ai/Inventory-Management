@@ -357,7 +357,10 @@ export const getPMPortalDashboardSummary = asyncHandler(async (req: any, res: Re
   
   const pendingJmcsCount = await JmcRegister.countDocuments({
     ...baseQuery,
-    status: { $in: ['Submitted', 'Pending PM Approval', 'Pending Approval'] }
+    $or: [
+      { approvalStatus: { $in: ['Pending PM Approval', 'Pending Approval'] } },
+      { status: { $in: ['Pending PM Approval', 'Pending Approval'] } }
+    ]
   });
   
   const pendingInvoicesCount = await ClientBill.countDocuments({
@@ -494,7 +497,10 @@ export const getPDPortalDashboardSummary = asyncHandler(async (req: any, res: Re
   
   const pendingJmcsCount = await JmcRegister.countDocuments({
     ...baseQuery,
-    status: { $in: ['Pending PD Approval'] }
+    $or: [
+      { approvalStatus: 'Pending PD Approval' },
+      { status: 'Pending PD Approval' }
+    ]
   });
   
   const pendingInvoicesCount = await ClientBill.countDocuments({

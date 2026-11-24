@@ -35,7 +35,8 @@ export interface IJmcRegister extends Document, ITrackingPlugin {
   items: IJmcItem[];
   claimedAmount: number;
   approvedAmount: number;
-  status: 'Draft' | 'Submitted' | 'Pending PM Approval' | 'Pending PD Approval' | 'Approved' | 'Rejected';
+  status: 'Draft' | 'Submitted' | 'Approved';
+  approvalStatus: 'Draft' | 'Pending PM Approval' | 'Pending PD Approval' | 'Approved' | 'Rejected';
   pmApprovedBy?: mongoose.Types.ObjectId;
   pmApprovedAt?: Date;
   pmApprovalRemarks?: string;
@@ -47,6 +48,7 @@ export interface IJmcRegister extends Document, ITrackingPlugin {
   rejectedBy?: mongoose.Types.ObjectId;
   rejectedAt?: Date;
   rejectionRemarks?: string;
+  approvalRemarks?: string;
   remarks: string;
   createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
@@ -91,9 +93,15 @@ const JmcRegisterSchema = new Schema<IJmcRegister>(
     approvedAmount: { type: Number, default: 0 },
     status: { 
       type: String, 
-      enum: ['Draft', 'Submitted', 'Pending PM Approval', 'Pending PD Approval', 'Approved', 'Rejected'], 
+      enum: ['Draft', 'Submitted', 'Approved'], 
       default: 'Draft', 
       index: true 
+    },
+    approvalStatus: {
+      type: String,
+      enum: ['Draft', 'Pending PM Approval', 'Pending PD Approval', 'Approved', 'Rejected'],
+      default: 'Draft',
+      index: true
     },
     pmApprovedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     pmApprovedAt: { type: Date },
@@ -106,6 +114,7 @@ const JmcRegisterSchema = new Schema<IJmcRegister>(
     rejectedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     rejectedAt: { type: Date },
     rejectionRemarks: { type: String, default: '' },
+    approvalRemarks: { type: String, default: '' },
     remarks: { type: String, default: '' },
     drawingNo: { type: String, default: '' },
     drawingSheetUrl: { type: String, default: '' }
@@ -116,6 +125,7 @@ const JmcRegisterSchema = new Schema<IJmcRegister>(
 JmcRegisterSchema.index({ createdAt: -1 });
 JmcRegisterSchema.index({ contractorId: 1, circle: 1, status: 1 });
 JmcRegisterSchema.index({ circle: 1, status: 1 });
+JmcRegisterSchema.index({ circle: 1, approvalStatus: 1 });
 
 import { trackingPlugin } from '../../core/plugins/tracking.plugin';
 JmcRegisterSchema.plugin(trackingPlugin);

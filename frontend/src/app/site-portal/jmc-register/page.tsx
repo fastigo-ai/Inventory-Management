@@ -28,7 +28,7 @@ export default function JmcRegisterPage() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    const urlStatus = searchParams.get('status');
+    const urlStatus = searchParams.get('approvalStatus') || searchParams.get('status');
     if (urlStatus) {
       setStatusFilter(urlStatus);
     }
@@ -114,7 +114,10 @@ export default function JmcRegisterPage() {
       };
       if (debouncedSearchTerm) params.search = debouncedSearchTerm;
       if (selectedContractor !== 'All') params.contractorId = selectedContractor;
-      if (statusFilter !== 'All') params.status = statusFilter;
+      if (statusFilter !== 'All') {
+        params.approvalStatus = statusFilter;
+        params.status = statusFilter;
+      }
       if (startDate) params.startDate = startDate;
       if (endDate) params.endDate = endDate;
       if (debouncedFilters.location) params.location = debouncedFilters.location;
@@ -469,13 +472,14 @@ export default function JmcRegisterPage() {
                     <th className="px-6 py-4">Claimed (₹)</th>
                     <th className="px-6 py-4">Approved (₹)</th>
                     <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4">Approval Status</th>
                     <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {loading ? (
                     <tr>
-                      <td colSpan={9} className="px-6 py-16">
+                      <td colSpan={10} className="px-6 py-16">
                         <div className="flex flex-col items-center justify-center">
                           <div className="w-8 h-8 border-4 border-[#0076f2] border-t-transparent rounded-full animate-spin"></div>
                           <p className="mt-3 text-sm font-medium text-slate-500">Loading data...</p>
@@ -484,168 +488,207 @@ export default function JmcRegisterPage() {
                     </tr>
                   ) : paginatedData.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="px-6 py-12 text-center">
+                      <td colSpan={10} className="px-6 py-12 text-center">
                         <FileText className="w-8 h-8 text-slate-300 mx-auto mb-3" />
                         <p className="text-slate-500 font-medium">No JMC entries found.</p>
                       </td>
                     </tr>
                   ) : (
-                    paginatedData.map((entry: any) => (
-                      <tr 
-                        key={entry._id} 
-                        className="hover:bg-slate-50 transition-colors cursor-pointer"
-                        onClick={() => router.push(`/site-portal/jmc-register/${entry._id}`)}
-                      >
-                        <td className="px-6 py-4 font-medium text-blue-600">{entry.jmcNumber}</td>
-                        <td className="px-6 py-4 text-slate-600">{new Date(entry.date).toLocaleDateString()}</td>
-                        <td className="px-6 py-4 text-slate-700">{entry.contractorId?.name || entry.contractorId?.vendorName || entry.contractorId?.dynamicData?.companyName || entry.contractorId?.dynamicData?.name || '-'}</td>
-                        <td className="px-6 py-4 text-slate-600">{entry.package || '-'}</td>
-                        <td className="px-6 py-4 text-slate-600">{entry.circle || '-'}</td>
-                        <td className="px-6 py-4 font-medium text-slate-700">{(entry.claimedAmount || 0).toFixed(2)}</td>
-                        <td className="px-6 py-4 font-semibold text-green-700">{(entry.approvedAmount || 0).toFixed(2)}</td>
-                        <td className="px-6 py-4">
-                          {entry.status === 'Approved' ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                              Approved
-                            </span>
-                          ) : entry.status === 'Pending PM Approval' ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 animate-pulse">
-                              <Clock className="w-3.5 h-3.5 text-amber-600" />
-                              Pending PM Approval
-                            </span>
-                          ) : entry.status === 'Pending PD Approval' ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-800 animate-pulse">
-                              <Clock className="w-3.5 h-3.5 text-purple-600" />
-                              Pending PD Approval
-                            </span>
-                          ) : entry.status === 'Rejected' ? (
-                            <span 
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-red-100 text-red-800 cursor-help"
-                              title={entry.rejectionRemarks ? `Rejected: ${entry.rejectionRemarks}` : 'Rejected'}
-                            >
-                              <XCircle className="w-3.5 h-3.5 text-red-600" />
-                              Rejected
-                            </span>
-                          ) : entry.status === 'Submitted' ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-800">
-                              Submitted
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700">
-                              {entry.status || 'Draft'}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex justify-end items-center gap-1.5">
-                            {/* Send for Approval Button */}
-                            {(entry.status === 'Draft' || entry.status === 'Submitted' || entry.status === 'Rejected') && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleSendForApproval(entry._id);
-                                }}
-                                disabled={actionLoading}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-md text-xs font-semibold transition-colors shadow-2xs"
-                                title="Send JMC for PM & PD Approval"
-                              >
-                                <Send className="w-3.5 h-3.5 text-blue-600" />
-                                {entry.status === 'Rejected' ? 'Re-send' : 'Send for Approval'}
-                              </button>
-                            )}
+                    paginatedData.map((entry: any) => {
+                      const currentAppStatus = entry.approvalStatus || (entry.status === 'Approved' ? 'Approved' : 'Draft');
+                      const hasRemark = entry.rejectionRemarks || entry.approvalRemarks || entry.pdApprovalRemarks || entry.pmApprovalRemarks;
 
-                            {/* PM Approve / Reject */}
-                            {isPM && (entry.status === 'Pending PM Approval' || (isSuperOrAdmin && entry.status === 'Submitted')) && (
-                              <>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleApprove(entry._id);
-                                  }}
-                                  disabled={actionLoading}
-                                  className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-md text-xs font-semibold transition-colors shadow-2xs"
-                                  title="Approve as Project Manager"
-                                >
+                      return (
+                        <tr 
+                          key={entry._id} 
+                          className="hover:bg-slate-50 transition-colors cursor-pointer"
+                          onClick={() => router.push(`/site-portal/jmc-register/${entry._id}`)}
+                        >
+                          <td className="px-6 py-4 font-medium text-blue-600">{entry.jmcNumber}</td>
+                          <td className="px-6 py-4 text-slate-600">{new Date(entry.date).toLocaleDateString()}</td>
+                          <td className="px-6 py-4 text-slate-700">{entry.contractorId?.name || entry.contractorId?.vendorName || entry.contractorId?.dynamicData?.companyName || entry.contractorId?.dynamicData?.name || '-'}</td>
+                          <td className="px-6 py-4 text-slate-600">{entry.package || '-'}</td>
+                          <td className="px-6 py-4 text-slate-600">{entry.circle || '-'}</td>
+                          <td className="px-6 py-4 font-medium text-slate-700">{(entry.claimedAmount || 0).toFixed(2)}</td>
+                          <td className="px-6 py-4 font-semibold text-green-700">{(entry.approvedAmount || 0).toFixed(2)}</td>
+                          <td className="px-6 py-4">
+                            {entry.status === 'Approved' ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                Approved
+                              </span>
+                            ) : entry.status === 'Submitted' ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                                Submitted
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700">
+                                {entry.status || 'Draft'}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 min-w-[180px]">
+                            {currentAppStatus === 'Approved' ? (
+                              <div>
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">
                                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                                  Approve (PM)
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openRejectModal(entry._id);
-                                  }}
-                                  disabled={actionLoading}
-                                  className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-300 rounded-md text-xs font-semibold transition-colors shadow-2xs"
-                                  title="Reject JMC"
+                                  Approved
+                                </span>
+                                {hasRemark && (
+                                  <div className="text-[11px] text-emerald-700 mt-1 max-w-[200px] truncate" title={hasRemark}>
+                                    {hasRemark}
+                                  </div>
+                                )}
+                              </div>
+                            ) : currentAppStatus === 'Pending PM Approval' ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 animate-pulse">
+                                <Clock className="w-3.5 h-3.5 text-amber-600" />
+                                Pending PM Approval
+                              </span>
+                            ) : currentAppStatus === 'Pending PD Approval' ? (
+                              <div>
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-800 animate-pulse">
+                                  <Clock className="w-3.5 h-3.5 text-purple-600" />
+                                  Pending PD Approval
+                                </span>
+                                {entry.pmApprovalRemarks && (
+                                  <div className="text-[11px] text-slate-500 mt-1 max-w-[200px] truncate" title={entry.pmApprovalRemarks}>
+                                    PM: {entry.pmApprovalRemarks}
+                                  </div>
+                                )}
+                              </div>
+                            ) : currentAppStatus === 'Rejected' ? (
+                              <div>
+                                <span 
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-red-100 text-red-800"
                                 >
                                   <XCircle className="w-3.5 h-3.5 text-red-600" />
-                                  Reject
-                                </button>
-                              </>
+                                  Rejected
+                                </span>
+                                <div 
+                                  className="text-xs font-medium text-red-700 mt-1 max-w-[220px] bg-red-50 p-1.5 rounded border border-red-200 shadow-2xs break-words" 
+                                  title={entry.rejectionRemarks || entry.approvalRemarks}
+                                >
+                                  <span className="font-bold">Remark: </span>
+                                  {entry.rejectionRemarks || entry.approvalRemarks || 'Correction required'}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700">
+                                Draft
+                              </span>
                             )}
-
-                            {/* PD Approve / Reject */}
-                            {isPD && entry.status === 'Pending PD Approval' && (
-                              <>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex justify-end items-center gap-1.5">
+                              {/* Send for Approval Button */}
+                              {(currentAppStatus === 'Draft' || currentAppStatus === 'Rejected') && entry.status !== 'Approved' && (
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleApprove(entry._id);
+                                    handleSendForApproval(entry._id);
                                   }}
                                   disabled={actionLoading}
-                                  className="inline-flex items-center gap-1 px-2 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-300 rounded-md text-xs font-semibold transition-colors shadow-2xs"
-                                  title="Approve as Project Director"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-md text-xs font-semibold transition-colors shadow-2xs"
+                                  title="Send JMC for PM & PD Approval"
                                 >
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-purple-600" />
-                                  Approve (PD)
+                                  <Send className="w-3.5 h-3.5 text-blue-600" />
+                                  {currentAppStatus === 'Rejected' ? 'Re-send' : 'Send for Approval'}
                                 </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openRejectModal(entry._id);
-                                  }}
-                                  disabled={actionLoading}
-                                  className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-300 rounded-md text-xs font-semibold transition-colors shadow-2xs"
-                                  title="Reject JMC"
-                                >
-                                  <XCircle className="w-3.5 h-3.5 text-red-600" />
-                                  Reject
-                                </button>
-                              </>
-                            )}
+                              )}
 
-                            {/* Standard View, Edit, Delete */}
-                            <button 
-                              onClick={(e) => { e.stopPropagation(); router.push(`/site-portal/jmc-register/${entry._id}`); }} 
-                              className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                              title="View"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                            {entry.status !== 'Approved' && (
+                              {/* PM Approve / Reject */}
+                              {isPM && (currentAppStatus === 'Pending PM Approval' || (isSuperOrAdmin && currentAppStatus === 'Draft' && entry.status === 'Submitted')) && (
+                                <>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleApprove(entry._id);
+                                    }}
+                                    disabled={actionLoading}
+                                    className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-md text-xs font-semibold transition-colors shadow-2xs"
+                                    title="Approve as Project Manager"
+                                  >
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                    Approve (PM)
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openRejectModal(entry._id);
+                                    }}
+                                    disabled={actionLoading}
+                                    className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-300 rounded-md text-xs font-semibold transition-colors shadow-2xs"
+                                    title="Reject JMC"
+                                  >
+                                    <XCircle className="w-3.5 h-3.5 text-red-600" />
+                                    Reject
+                                  </button>
+                                </>
+                              )}
+
+                              {/* PD Approve / Reject */}
+                              {isPD && currentAppStatus === 'Pending PD Approval' && (
+                                <>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleApprove(entry._id);
+                                    }}
+                                    disabled={actionLoading}
+                                    className="inline-flex items-center gap-1 px-2 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-300 rounded-md text-xs font-semibold transition-colors shadow-2xs"
+                                    title="Approve as Project Director"
+                                  >
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-purple-600" />
+                                    Approve (PD)
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openRejectModal(entry._id);
+                                    }}
+                                    disabled={actionLoading}
+                                    className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-300 rounded-md text-xs font-semibold transition-colors shadow-2xs"
+                                    title="Reject JMC"
+                                  >
+                                    <XCircle className="w-3.5 h-3.5 text-red-600" />
+                                    Reject
+                                  </button>
+                                </>
+                              )}
+
+                              {/* Standard View, Edit, Delete */}
                               <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  router.push(`/site-portal/jmc-register/${entry._id}`);
-                                }} 
-                                className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
-                                title="Edit"
+                                onClick={(e) => { e.stopPropagation(); router.push(`/site-portal/jmc-register/${entry._id}`); }} 
+                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                                title="View"
                               >
-                                <Edit className="w-4 h-4" />
+                                <Eye className="w-4 h-4" />
                               </button>
-                            )}
-                            <button 
-                              onClick={(e) => handleDelete(e, entry._id)} 
-                              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                              {entry.status !== 'Approved' && currentAppStatus !== 'Approved' && (
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    router.push(`/site-portal/jmc-register/${entry._id}`);
+                                  }} 
+                                  className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
+                                  title="Edit"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                              )}
+                              <button 
+                                onClick={(e) => handleDelete(e, entry._id)} 
+                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>

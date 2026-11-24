@@ -1198,7 +1198,8 @@ export class SummaryService {
             { $group: {
                 _id: {
                   itemId: "$items.itemId",
-                  circle: { $ifNull: ["$circle", { $ifNull: ["$legacyMetadata.circle", ""] }] }
+                  circle: { $ifNull: ["$circle", { $ifNull: ["$legacyMetadata.circle", ""] }] },
+                  tempCode: { $ifNull: ["$items.tempCode", ""] }
                 },
                 ra60Qty: {
                   $sum: {
@@ -1302,7 +1303,8 @@ export class SummaryService {
             { $group: {
                 _id: {
                   itemId: "$lineItems.itemId",
-                  circle: { $ifNull: ["$circle", { $ifNull: ["$legacyMetadata.circle", ""] }] }
+                  circle: { $ifNull: ["$circle", { $ifNull: ["$legacyMetadata.circle", ""] }] },
+                  tempCode: { $ifNull: ["$lineItems.tempCode", ""] }
                 },
                 cBillQty: {
                   $sum: {
@@ -1414,15 +1416,40 @@ export class SummaryService {
             if (!item || !item._id) continue;
             let itemIdStr = '';
             let circ = '';
+            let tc = '';
             if (typeof item._id === 'object' && item._id !== null) {
               if (item._id.itemId) itemIdStr = item._id.itemId.toString();
               if (item._id.circle) circ = normalizeCircle(String(item._id.circle));
+              if (item._id.tempCode) tc = String(item._id.tempCode).trim().toLowerCase();
             } else {
               itemIdStr = item._id.toString();
             }
             if (itemIdStr) {
               if (circ) {
-                m.set(`${itemIdStr}_${circ.toLowerCase()}`, item);
+                const circKey = `${itemIdStr}_${circ.toLowerCase()}`;
+                const exCirc = m.get(circKey);
+                if (!exCirc) {
+                  m.set(circKey, { ...item });
+                } else {
+                  for (const [k, v] of Object.entries(item)) {
+                    if (k !== '_id' && typeof v === 'number') {
+                      exCirc[k] = (exCirc[k] || 0) + v;
+                    }
+                  }
+                }
+                if (tc) {
+                  const tcKey = `tc_${tc}_${circ.toLowerCase()}`;
+                  const exTc = m.get(tcKey);
+                  if (!exTc) {
+                    m.set(tcKey, { ...item });
+                  } else {
+                    for (const [k, v] of Object.entries(item)) {
+                      if (k !== '_id' && typeof v === 'number') {
+                        exTc[k] = (exTc[k] || 0) + v;
+                      }
+                    }
+                  }
+                }
               }
               const existing = m.get(itemIdStr);
               if (!existing) {
@@ -1467,8 +1494,14 @@ export class SummaryService {
           const wo = woMap.get(itemIdStr);
 
           const docCirc = normalizeCircle(doc.circle || '').toLowerCase();
-          const cba = (docCirc ? cbAggMap.get(`${itemIdStr}_${docCirc}`) : null) || (!doc.circle ? cbAggMap.get(itemIdStr) : null);
-          const cia = (docCirc ? ciAggMap.get(`${itemIdStr}_${docCirc}`) : null) || (!doc.circle ? ciAggMap.get(itemIdStr) : null);
+          const docTc = String(doc.tempCode || '').trim().toLowerCase();
+          const cba = (docCirc ? cbAggMap.get(`${itemIdStr}_${docCirc}`) : null) 
+            || (!doc.circle ? cbAggMap.get(itemIdStr) : null)
+            || (docCirc && docTc ? cbAggMap.get(`tc_${docTc}_${docCirc}`) : null);
+
+          const cia = (docCirc ? ciAggMap.get(`${itemIdStr}_${docCirc}`) : null) 
+            || (!doc.circle ? ciAggMap.get(itemIdStr) : null)
+            || (docCirc && docTc ? ciAggMap.get(`tc_${docTc}_${docCirc}`) : null);
           const mha = mhrovAggMap.get(itemIdStr);
           const reta = retAggMap.get(itemIdStr);
           const sta = stAggMap.get(itemIdStr);
@@ -1580,6 +1613,8 @@ export class SummaryService {
             er90Amt,
             er10Qty,
             er10Amt,
+            erectionBilled: (er90Qty || 0) + (er10Qty || 0),
+            erectionBilledAmount: (er90Amt || 0) + (er10Amt || 0),
             cBillQty,
             cBillAmt,
             mhrovQty,

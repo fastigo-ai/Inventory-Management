@@ -236,6 +236,10 @@ export default function StoreTransfersPage() {
   };
   const { colWidths, handleMouseDown } = useResizableColumns('store-transfers-table', initialColWidths);
 
+  const totalTableWidth = useMemo(() => {
+    return Object.values(colWidths).reduce((sum, w) => sum + (Number(w) || 100), 0);
+  }, [colWidths]);
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Pending PD Approval':
@@ -544,7 +548,10 @@ export default function StoreTransfersPage() {
 
               {/* Table with Resizable Columns */}
               <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left whitespace-nowrap table-fixed">
+                <table 
+                  className="w-full text-sm text-left whitespace-nowrap table-fixed border-collapse"
+                  style={{ minWidth: `${Math.max(totalTableWidth, 1000)}px` }}
+                >
                   <thead className="bg-slate-50 border-y border-slate-200 text-xs font-semibold text-slate-600 uppercase">
                     <tr>
                       <ResizableTh id="requestDate" width={colWidths.requestDate} onResizeStart={handleMouseDown} className="px-4 py-3 border-r border-slate-200">Request Date</ResizableTh>

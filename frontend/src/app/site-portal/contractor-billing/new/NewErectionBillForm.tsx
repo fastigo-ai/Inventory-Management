@@ -114,12 +114,17 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
           ? res.data
           : [];
         
+        const isCompletedStatus = (st: string) => {
+          const s = String(st || '').trim().toLowerCase();
+          return s === 'approved' || s === 'submitted' || s === 'verified' || s === 'done';
+        };
+
         const validJmcs = Array.isArray(jmcs) ? jmcs.filter((j: any) => {
           const jmcCircle = j.circle?.trim().toLowerCase() || '';
           const jmcDiv = j.division?.trim().toLowerCase() || '';
           return jmcCircle === targetCircle.trim().toLowerCase() && 
                  jmcDiv === selectedDivision.trim().toLowerCase() && 
-                 j.status === 'Approved' && 
+                 isCompletedStatus(j.status) && 
                  j.contractorId;
         }) : [];
         
@@ -197,13 +202,16 @@ export default function NewErectionBillForm({ onBack }: { onBack: () => void }) 
           
           if (jmc.items) {
             jmc.items.forEach((item: any) => {
-              if (item.itemId) {
+              const itemOid = item.itemId ? (typeof item.itemId === 'object' ? item.itemId._id : item.itemId) : (item._id || item.tempCode || '');
+              if (itemOid) {
                 aggregated.push({
                   contractorId: cId,
-                  itemId: typeof item.itemId === 'object' ? item.itemId._id : item.itemId,
+                  itemId: itemOid,
+                  tempCode: item.tempCode || (typeof item.itemId === 'object' ? item.itemId.dynamicData?.tempCode : ''),
+                  loaSerialNo: item.loaSerialNo || item.loaSrNo || '',
                   activity: item.activity || '',
                   jmcQty: Number(item.approvedQty) || Number(item.claimedQty) || 0,
-                  description: typeof item.itemId === 'object' ? (item.itemId.dynamicData?.itemName || item.itemId.dynamicData?.description) : '',
+                  description: typeof item.itemId === 'object' ? (item.itemId.dynamicData?.itemName || item.itemId.dynamicData?.description) : (item.description || ''),
                 });
               }
             });

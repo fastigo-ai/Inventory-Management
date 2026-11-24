@@ -121,7 +121,7 @@ export default function NewContractorBill() {
 
   useEffect(() => {
     if (contractorId) {
-      api.get(`/jmc?contractorId=${contractorId}`).then(res => {
+      api.get(`/jmc?contractorId=${contractorId}&limit=5000`).then(res => {
         const arr = res.data?.data?.data || res.data?.data || res.data || [];
         const jmcs = Array.isArray(arr) ? arr : (arr.jmcs && Array.isArray(arr.jmcs) ? arr.jmcs : []);
         setAvailableJmcs(jmcs);
@@ -168,19 +168,28 @@ export default function NewContractorBill() {
 
   useEffect(() => {
     const map: Record<string, number> = {};
+    const isCompletedStatus = (st: string) => {
+      const s = String(st || '').trim().toLowerCase();
+      return s === 'approved' || s === 'submitted' || s === 'verified' || s === 'done';
+    };
+
     availableJmcs.forEach((jmc: any) => {
-      if (jmc.status === 'Approved' && jmc.items) {
+      if (isCompletedStatus(jmc.status) && jmc.items) {
         if (selectedJmcIds.length > 0 && !selectedJmcIds.includes(String(jmc._id))) return;
         
         jmc.items.forEach((item: any) => {
-          if (item.itemId) {
-            const tc = String(item.tempCode || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.tempCode || '') : '')).trim();
-            const loaNo = String(item.loaSrNo || item.loaSerialNo || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.loaSrNo || item.itemId.dynamicData?.sku || item.itemId.loaSrNo || item.itemId.loaSerialNo || '') : '')).trim();
-            const key = `${tc}_${loaNo}`;
-            if (key !== '_') {
-              if (!map[key]) map[key] = 0;
-              map[key] += (Number(item.approvedQty) || Number(item.claimedQty) || 0);
-            }
+          const itemOid = item.itemId ? (typeof item.itemId === 'object' ? String(item.itemId._id || '') : String(item.itemId)) : '';
+          const tc = String(item.tempCode || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.tempCode || '') : '')).trim();
+          const loaNo = String(item.loaSrNo || item.loaSerialNo || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.loaSrNo || item.itemId.dynamicData?.sku || item.itemId.loaSrNo || item.itemId.loaSerialNo || '') : '')).trim();
+          const qty = Number(item.approvedQty) || Number(item.claimedQty) || 0;
+
+          if (itemOid) {
+            const idKey = `id_${itemOid}`;
+            map[idKey] = (map[idKey] || 0) + qty;
+          }
+          const fbKey = `${tc}_${loaNo}`;
+          if (fbKey !== '_') {
+            map[fbKey] = (map[fbKey] || 0) + qty;
           }
         });
       }
@@ -191,11 +200,9 @@ export default function NewContractorBill() {
   const [prevBilledJmcMap, setPrevBilledJmcMap] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    if (contractorId) {
-      let query = `/contractor-billing/invoices?contractorId=${contractorId}`;
-      if (selectedJmcId) {
-        query += `&jmcId=${selectedJmcId}`;
-      }
+    if (contractorId && selectedJmcIds.length > 0) {
+      const jmcParams = selectedJmcIds.join(',');
+      const query = `/contractor-billing/invoices?contractorId=${contractorId}&jmcIds=${jmcParams}`;
       api.get(query).then(res => {
         const arr = res.data?.data?.data || res.data?.data || res.data || [];
         const invoices = Array.isArray(arr) ? arr : (arr.invoices && Array.isArray(arr.invoices) ? arr.invoices : []);
@@ -203,14 +210,27 @@ export default function NewContractorBill() {
         const map: Record<string, number> = {};
         
         invoices.forEach((inv: any) => {
+          // Strictly only deduct invoices linked to the currently selected JMCs
+          const invJmcs = (inv.jmcIds || []).map((id: any) => String(id?._id || id));
+          const isRelevant = selectedJmcIds.some(id => invJmcs.includes(id));
+          if (!isRelevant && invJmcs.length > 0) return;
+
           if (inv.status !== 'Rejected' && inv.lineItems) {
             inv.lineItems.forEach((item: any) => {
-              if (item.itemId && (inv.stage === '90%' || inv.stage === '100%')) {
+              if (inv.stage === '90%' || inv.stage === '100%') {
+                const itemOid = item.itemId ? (typeof item.itemId === 'object' ? String(item.itemId._id || '') : String(item.itemId)) : '';
                 const tc = String(item.tempCode || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.tempCode || '') : '')).trim();
                 const loaNo = String(item.loaSrNo || item.loaSerialNo || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.loaSrNo || item.itemId.dynamicData?.sku || item.itemId.loaSrNo || item.itemId.loaSerialNo || '') : '')).trim();
-                const key = `${tc}_${loaNo}`;
-                if (!map[key]) map[key] = 0;
-                map[key] += (item.jmcDoneQty || 0);
+                const billedQty = Number(item.jmcDoneQty || item.erectedQty || item.qty || 0);
+
+                if (itemOid) {
+                  const idKey = `id_${itemOid}`;
+                  map[idKey] = (map[idKey] || 0) + billedQty;
+                }
+                const fbKey = `${tc}_${loaNo}`;
+                if (fbKey !== '_') {
+                  map[fbKey] = (map[fbKey] || 0) + billedQty;
+                }
               }
             });
           }
@@ -221,7 +241,7 @@ export default function NewContractorBill() {
       setContractorInvoices([]);
       setPrevBilledJmcMap({});
     }
-  }, [contractorId, selectedJmcId]);
+  }, [contractorId, selectedJmcIds]);
 
   useEffect(() => {
     let pkg = user?.assignedPackage;
@@ -252,9 +272,10 @@ export default function NewContractorBill() {
       jmcs.forEach(jmc => {
         if (jmc.items) {
           jmc.items.forEach((item: any) => {
+            const itemOid = item.itemId ? (typeof item.itemId === 'object' ? String(item.itemId._id || '') : String(item.itemId)) : '';
             const tc = String(item.tempCode || (typeof item.itemId === 'object' ? item.itemId.dynamicData?.tempCode : '')).trim();
             const loaNo = String(item.loaSrNo || item.loaSerialNo || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.loaSrNo || item.itemId.dynamicData?.sku) : '')).trim();
-            const key = `${tc}_${loaNo}`;
+            const key = itemOid ? `id_${itemOid}` : `${tc}_${loaNo}`;
             if (!combinedJmcItemsMap.has(key)) {
               combinedJmcItemsMap.set(key, { ...item, _sourceJmcNo: jmc.jmcNumber });
             } else {
@@ -269,17 +290,21 @@ export default function NewContractorBill() {
       
       if (combinedJmcItemsMap.size > 0) {
         const newItems = Array.from(combinedJmcItemsMap.values()).map((item: any) => {
+          const itemOid = item.itemId ? (typeof item.itemId === 'object' ? String(item.itemId._id || '') : String(item.itemId)) : '';
           const tc = String(item.tempCode || (typeof item.itemId === 'object' ? item.itemId.dynamicData?.tempCode : '')).trim();
           const loaNo = String(item.loaSrNo || item.loaSerialNo || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.loaSrNo || item.itemId.dynamicData?.sku) : '')).trim();
-          const key = `${tc}_${loaNo}`;
+          const idKey = itemOid ? `id_${itemOid}` : '';
+          const fbKey = `${tc}_${loaNo}`;
           
-          const maxQty = Math.max(0, (jmcItemMap[key] || 0) - (prevBilledJmcMap[key] || 0));
+          const totalJmc = (idKey && jmcItemMap[idKey] !== undefined) ? jmcItemMap[idKey] : (jmcItemMap[fbKey] || 0);
+          const totalBilled = (idKey && prevBilledJmcMap[idKey] !== undefined) ? prevBilledJmcMap[idKey] : (prevBilledJmcMap[fbKey] || 0);
+          const maxQty = Math.max(0, totalJmc - totalBilled);
           
           const act = item.activity || (typeof item.itemId === 'object' ? item.itemId.dynamicData?.activity : '');
           const itemName = item.description || (typeof item.itemId === 'object' ? (item.itemId.dynamicData?.itemName || item.itemId.dynamicData?.description || item.itemId.itemName) : '');
           const unit = item.unit || (typeof item.itemId === 'object' ? item.itemId.dynamicData?.unit : '');
           
-          const woRate = woItemMap[key]?.rate;
+          const woRate = (idKey && woItemMap[idKey]?.rate) || woItemMap[fbKey]?.rate;
           const finalRate = typeof woRate === 'number' && woRate > 0 ? woRate : (item.rate || 0);
           
           return {
@@ -293,13 +318,12 @@ export default function NewContractorBill() {
             tempCode: tc || "",
             loaSerialNo: loaNo || "",
             loaQty: item.totalLoaQty || 0,
-            woQty: woItemMap[key]?.woQty || 0,
-            woAmount: (woItemMap[key]?.woQty || 0) * (finalRate || 0),
+            woQty: (idKey && woItemMap[idKey]?.woQty) || woItemMap[fbKey]?.woQty || 0,
+            woAmount: ((idKey && woItemMap[idKey]?.woQty) || woItemMap[fbKey]?.woQty || 0) * (finalRate || 0),
             _sourceJmcNo: item._sourceJmcNo
           };
         });
         
-        // Filter out items that have 0 maxQty if we want, or keep them. Let's keep them so the user sees everything but 0 qty.
         setLineItems(newItems);
       }
     } else if (billingCategory === 'Contractor Bill' && selectedJmcIds.length === 0) {

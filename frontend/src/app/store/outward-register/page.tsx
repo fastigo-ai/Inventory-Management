@@ -62,6 +62,10 @@ export default function OutwardRegisterPage() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
 
+  const totalTableWidth = useMemo(() => {
+    return Object.values(colWidths).reduce((sum, w) => sum + (Number(w) || 100), 0);
+  }, [colWidths]);
+
   useEffect(() => {
     fetchTransfers();
   }, []);
@@ -562,7 +566,10 @@ export default function OutwardRegisterPage() {
                   </div>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-left whitespace-nowrap table-fixed">
+                  <table 
+                    className="text-sm text-left whitespace-nowrap table-fixed border-collapse"
+                    style={{ width: `${totalTableWidth}px`, minWidth: `${totalTableWidth}px` }}
+                  >
                     <thead className="bg-slate-50 border-y border-slate-200 text-xs font-semibold text-slate-600 uppercase">
                       <tr>
                         <ResizableTh id="srNo" width={colWidths.srNo} onResizeStart={handleMouseDown} className="px-4 py-3 border-r border-slate-200 text-center">Sr. No</ResizableTh>

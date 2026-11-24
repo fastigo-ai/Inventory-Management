@@ -111,16 +111,31 @@ export const createInvoiceService = async (data: any, user: any) => {
     if (jmcIds && jmcIds.length > 0 && dbJmcs.length > 0) {
       let found = false;
       dbJmcs.forEach(dbJmc => {
-        const dbItem = dbJmc.items.find((i: any) => i.itemId?.toString() === item.itemId?.toString());
+        const dbItem = dbJmc.items.find((i: any) => {
+          if (i.itemId && item.itemId && i.itemId.toString() === item.itemId.toString()) return true;
+          const iTc = String(i.tempCode || '').trim().toLowerCase();
+          const itemTc = String(item.tempCode || '').trim().toLowerCase();
+          const iLoa = String(i.loaSerialNo || i.loaSrNo || '').trim().toLowerCase();
+          const itemLoa = String(item.loaSerialNo || item.loaSrNo || '').trim().toLowerCase();
+          if (iTc && itemTc && iTc === itemTc) return true;
+          if (iLoa && itemLoa && iLoa === itemLoa) return true;
+          return false;
+        });
         if (dbItem) {
           found = true;
           authoritativeQty += Number(dbItem.approvedQty || dbItem.claimedQty || 0);
         }
       });
-      if (!found) throw new ApiError(400, `Item ${item.itemId} not found in any linked JMC`);
+      if (!found) throw new ApiError(400, `Item ${item.itemId || item.tempCode || 'unidentified'} not found in any linked JMC`);
     } else if (mhrovId && dbMhrov) {
-      const dbItem = dbMhrov.items?.find((i: any) => i.itemId?.toString() === item.itemId?.toString());
-      if (!dbItem) throw new ApiError(400, `Item ${item.itemId} not found in linked MHROV`);
+      const dbItem = dbMhrov.items?.find((i: any) => {
+        if (i.itemId && item.itemId && i.itemId.toString() === item.itemId.toString()) return true;
+        const iTc = String(i.tempCode || '').trim().toLowerCase();
+        const itemTc = String(item.tempCode || '').trim().toLowerCase();
+        if (iTc && itemTc && iTc === itemTc) return true;
+        return false;
+      });
+      if (!dbItem) throw new ApiError(400, `Item ${item.itemId || item.tempCode || 'unidentified'} not found in linked MHROV`);
       authoritativeQty = Number(dbItem.mhrovDoneQty || 0);
     } else {
       // Direct bill or bulk upload: take whichever positive quantity was provided
@@ -404,6 +419,18 @@ export const getInvoicesService = async (query: any, user: any) => {
 
   if (query.status && query.status !== 'All') {
     filter.status = query.status;
+  }
+
+  if (query.jmcId && query.jmcId !== 'All') {
+    if (mongoose.Types.ObjectId.isValid(query.jmcId)) {
+      filter.jmcIds = new mongoose.Types.ObjectId(query.jmcId);
+    }
+  } else if (query.jmcIds && query.jmcIds !== 'All') {
+    const rawIds = Array.isArray(query.jmcIds) ? query.jmcIds : String(query.jmcIds).split(',').map(s => s.trim()).filter(Boolean);
+    const validOids = rawIds.filter((id: string) => mongoose.Types.ObjectId.isValid(id)).map((id: string) => new mongoose.Types.ObjectId(id));
+    if (validOids.length > 0) {
+      filter.jmcIds = { $in: validOids };
+    }
   }
 
   const targetCircle = (query.circle && query.circle !== 'All') ? String(query.circle) : 

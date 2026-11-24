@@ -752,17 +752,27 @@ export class JmcImportService {
           if (item.itemId) item.prevQty = prevQtyMap[item.itemId.toString()] || 0;
         }
 
-        const existingJmc = await JmcRegister.findOne({ 
-          contractorId: contractorId || null, 
-          package: pkg, 
-          drawingNo: meta.DrawingNo,
-          location: loc, 
-          circle: circ, 
-          division: div, 
-          subDivision: subDiv, 
-          subStation: subStn, 
-          feeder 
-        });
+        // Match existing JMC by Contractor + Circle + (DrawingNo OR Location)
+        const matchConditions: any[] = [];
+        if (meta.DrawingNo && String(meta.DrawingNo).trim() !== '') {
+          matchConditions.push({
+            contractorId: contractorId || null,
+            circle: new RegExp(`^${circ}$`, 'i'),
+            drawingNo: String(meta.DrawingNo).trim()
+          });
+        }
+        if (loc && String(loc).trim() !== '') {
+          const escapedLoc = loc.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          matchConditions.push({
+            contractorId: contractorId || null,
+            circle: new RegExp(`^${circ}$`, 'i'),
+            location: new RegExp(`^${escapedLoc}$`, 'i')
+          });
+        }
+
+        const existingJmc = matchConditions.length > 0 
+          ? await JmcRegister.findOne({ $or: matchConditions })
+          : null;
 
         if (existingJmc) {
           if (conflictStrategy === 'skip') {
@@ -779,6 +789,9 @@ export class JmcImportService {
             }
           } else if (conflictStrategy === 'update') {
             if (existingJmc.status !== 'Approved') {
+              if (meta.DrawingNo && !existingJmc.drawingNo) existingJmc.drawingNo = String(meta.DrawingNo).trim();
+              if (subStn && !existingJmc.subStation) existingJmc.subStation = subStn;
+              if (feeder && !existingJmc.feeder) existingJmc.feeder = feeder;
               for (const newItem of jmcItems) {
                 const existingItem = existingJmc.items.find((i: any) => 
                   (i.itemId && newItem.itemId && i.itemId.toString() === newItem.itemId.toString()) ||

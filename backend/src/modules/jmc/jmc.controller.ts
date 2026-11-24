@@ -397,18 +397,6 @@ export const deleteJmc = asyncHandler(async (req: Request, res: Response) => {
 });
 
 
-const METADATA_LABELS: Record<string, string> = {
-  "Name Of Circle :": "Circle",
-  "Name Of Division :": "Division",
-  "Name Of Sub/Division :": "SubDivision",
-  "Name Of Sub/Station :": "SubStation",
-  "Name Of Feeder :": "Feeder",
-  "Location :": "Location",
-  "Drawing No :": "DrawingNo",
-  "Name of Contractor": "Contractor",
-  "JMC Number :": "JmcNumber",
-};
-
 export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) => {
   if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
     return res.status(400).json(new ApiResponse(400, null, 'No files uploaded'));
@@ -416,31 +404,21 @@ export const uploadJmcExcel = asyncHandler(async (req: Request, res: Response) =
 
   const user = (req as any).user;
   const conflictStrategy = req.body.conflictStrategy || 'skip';
-  const clientId = req.body.clientId;
+  const clientId = (req.query.clientId as string) || (req.body.clientId as string);
 
-  try {
-    const result = await JmcImportService.processBulkUpload(
-      req.files as any[],
-      user,
-      conflictStrategy,
-      clientId
+  const result = await JmcImportService.processBulkUpload(req.files, user, conflictStrategy, clientId);
+
+  if (!result.success) {
+    return res.status(400).json(
+      new ApiResponse(
+        400,
+        { missingItems: result.missingItems },
+        `Import rejected: ${result.missingItems?.length || 0} item(s) not found in Master Item List. Nothing was saved.`
+      )
     );
-
-    if (!result.success) {
-      return res.status(400).json({
-        success: false,
-        message: `Import rejected: ${result.missingItems?.length || 0} item(s) not found in Master Item List. Nothing was saved.`,
-        data: {
-          totalSaved: 0,
-          missingItems: result.missingItems
-        }
-      });
-    }
-
-    return res.status(200).json(
-      new ApiResponse(200, { totalSaved: result.totalSaved, flagged: result.flagged }, `Successfully imported ${result.totalSaved} JMC records.`)
-    );
-  } catch (error: any) {
-    return res.status(400).json(new ApiResponse(400, null, error.message || 'Error processing Excel upload'));
   }
+
+  res.status(200).json(
+    new ApiResponse(200, { totalSaved: result.totalSaved, flagged: result.flagged }, `Successfully imported ${result.totalSaved} JMC records.`)
+  );
 });

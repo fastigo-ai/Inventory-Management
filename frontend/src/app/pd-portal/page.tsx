@@ -77,7 +77,7 @@ export default function PDPortalDashboard() {
               )}
               {(pendingApprovals?.jmcs || 0) > 0 && (
                 <Link
-                  href="/site-portal/jmc-register"
+                  href="/site-portal/jmc-register?status=Pending%20PD%20Approval"
                   className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-xs px-3 py-1.5 rounded-lg border border-slate-700 transition-colors"
                 >
                   <Clock className="w-3.5 h-3.5 text-blue-400" />

@@ -69,7 +69,7 @@ export default function PMPortalDashboard() {
               </div>
             </Link>
 
-            <Link href="#" className="block group">
+            <Link href="/site-portal/jmc-register?status=Pending%20PM%20Approval" className="block group">
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
                 <div className="absolute -right-6 -top-6 w-24 h-24 bg-blue-50 rounded-full group-hover:bg-blue-100 transition-colors"></div>
                 <div className="relative z-10 flex items-center justify-between">

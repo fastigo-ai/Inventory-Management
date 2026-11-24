@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { JmcRegister } from './jmc.schema';
+import { JmcService } from './jmc.service';
 import { ApiResponse } from '../../core/utils/ApiResponse';
 import { ApiError } from '../../core/utils/ApiError';
 import { asyncHandler } from '../../core/utils/asyncHandler';
@@ -167,6 +168,9 @@ export const getJmcs = asyncHandler(async (req: Request, res: Response) => {
   if (req.query.subDivision) filter.subDivision = { $regex: new RegExp(req.query.subDivision as string, 'i') };
   if (req.query.subStation) filter.subStation = { $regex: new RegExp(req.query.subStation as string, 'i') };
   if (req.query.drawingNo) filter.drawingNo = { $regex: new RegExp(req.query.drawingNo as string, 'i') };
+  if (req.query.status && req.query.status !== 'All') {
+    filter.status = req.query.status;
+  }
 
   if (search && search.trim() !== '') {
     filter.jmcNumber = { $regex: search, $options: 'i' };
@@ -180,6 +184,9 @@ export const getJmcs = asyncHandler(async (req: Request, res: Response) => {
       ? JmcRegister.find(filter)
           .populate('contractorId', 'name vendorName dynamicData')
           .populate('workOrderId', 'workOrderNumber')
+          .populate('pmApprovedBy', 'firstName lastName email')
+          .populate('pdApprovedBy', 'firstName lastName email')
+          .populate('rejectedBy', 'firstName lastName email')
           .populate('items.itemId')
           .sort({ createdAt: -1 })
           .skip(skip)
@@ -188,6 +195,9 @@ export const getJmcs = asyncHandler(async (req: Request, res: Response) => {
       : JmcRegister.find(filter)
           .populate('contractorId', 'name vendorName dynamicData')
           .populate('workOrderId', 'workOrderNumber')
+          .populate('pmApprovedBy', 'firstName lastName email')
+          .populate('pdApprovedBy', 'firstName lastName email')
+          .populate('rejectedBy', 'firstName lastName email')
           .populate('items.itemId')
           .sort({ createdAt: -1 })
           .lean(),
@@ -222,7 +232,10 @@ export const getJmcById = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const jmc = await JmcRegister.findById(id)
     .populate('contractorId', 'name vendorName dynamicData')
-    .populate('workOrderId', 'workOrderNumber');
+    .populate('workOrderId', 'workOrderNumber')
+    .populate('pmApprovedBy', 'firstName lastName email')
+    .populate('pdApprovedBy', 'firstName lastName email')
+    .populate('rejectedBy', 'firstName lastName email');
 
   if (!jmc) {
     throw new ApiError(404, 'JMC Register entry not found');
@@ -230,6 +243,35 @@ export const getJmcById = asyncHandler(async (req: Request, res: Response) => {
 
   res.status(200).json(
     new ApiResponse(200, jmc, 'JMC Register entry fetched successfully')
+  );
+});
+
+export const sendJmcForApproval = asyncHandler(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const user = (req as any).user;
+  const result = await JmcService.sendForApproval(id, user);
+  res.status(200).json(
+    new ApiResponse(200, result, 'JMC submitted for PM and PD approval successfully')
+  );
+});
+
+export const approveJmc = asyncHandler(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const user = (req as any).user;
+  const { remarks } = req.body;
+  const result = await JmcService.approveJmc(id, user, remarks);
+  res.status(200).json(
+    new ApiResponse(200, result, 'JMC approved successfully')
+  );
+});
+
+export const rejectJmc = asyncHandler(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const user = (req as any).user;
+  const { remarks } = req.body;
+  const result = await JmcService.rejectJmc(id, user, remarks);
+  res.status(200).json(
+    new ApiResponse(200, result, 'JMC rejected successfully')
   );
 });
 

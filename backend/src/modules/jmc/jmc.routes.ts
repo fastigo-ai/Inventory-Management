@@ -9,7 +9,10 @@ import {
   getJmcById,
   updateJmc,
   deleteJmc,
-  uploadJmcExcel
+  uploadJmcExcel,
+  sendJmcForApproval,
+  approveJmc,
+  rejectJmc
 } from './jmc.controller';
 
 import { exportJmcExcel } from './jmc.export';
@@ -19,9 +22,14 @@ const router = Router();
 router.use(authenticate);
 
 const allRoles = ['Admin', 'Site Manager', 'Project Manager', 'Project Director', 'Store Manager', 'System Admin', 'Contractor'];
+const approvalRoles = ['Admin', 'Super Admin', 'Project Manager', 'Project Director', 'CEO'];
 
 router.post('/upload', requireRole(allRoles), upload.array('files'), uploadJmcExcel);
 router.get('/export/template', exportJmcExcel);
+
+router.post('/:id/send-for-approval', requireRole(allRoles), sendJmcForApproval);
+router.post('/:id/approve', requireRole(approvalRoles), approveJmc);
+router.post('/:id/reject', requireRole(approvalRoles), rejectJmc);
 
 router.route('/')
   .get(getJmcs)

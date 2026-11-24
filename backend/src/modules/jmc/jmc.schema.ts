@@ -35,7 +35,18 @@ export interface IJmcRegister extends Document, ITrackingPlugin {
   items: IJmcItem[];
   claimedAmount: number;
   approvedAmount: number;
-  status: 'Draft' | 'Submitted' | 'Approved' | 'Rejected';
+  status: 'Draft' | 'Submitted' | 'Pending PM Approval' | 'Pending PD Approval' | 'Approved' | 'Rejected';
+  pmApprovedBy?: mongoose.Types.ObjectId;
+  pmApprovedAt?: Date;
+  pmApprovalRemarks?: string;
+  pmStatus?: 'Pending' | 'Approved' | 'Rejected';
+  pdApprovedBy?: mongoose.Types.ObjectId;
+  pdApprovedAt?: Date;
+  pdApprovalRemarks?: string;
+  pdStatus?: 'Pending' | 'Approved' | 'Rejected';
+  rejectedBy?: mongoose.Types.ObjectId;
+  rejectedAt?: Date;
+  rejectionRemarks?: string;
   remarks: string;
   createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
@@ -78,7 +89,23 @@ const JmcRegisterSchema = new Schema<IJmcRegister>(
     items: [JmcItemSchema],
     claimedAmount: { type: Number, default: 0 },
     approvedAmount: { type: Number, default: 0 },
-    status: { type: String, enum: ['Draft', 'Submitted', 'Approved', 'Rejected'], default: 'Draft', index: true },
+    status: { 
+      type: String, 
+      enum: ['Draft', 'Submitted', 'Pending PM Approval', 'Pending PD Approval', 'Approved', 'Rejected'], 
+      default: 'Draft', 
+      index: true 
+    },
+    pmApprovedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    pmApprovedAt: { type: Date },
+    pmApprovalRemarks: { type: String, default: '' },
+    pmStatus: { type: String, enum: ['Pending', 'Approved', 'Rejected'], default: 'Pending' },
+    pdApprovedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    pdApprovedAt: { type: Date },
+    pdApprovalRemarks: { type: String, default: '' },
+    pdStatus: { type: String, enum: ['Pending', 'Approved', 'Rejected'], default: 'Pending' },
+    rejectedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    rejectedAt: { type: Date },
+    rejectionRemarks: { type: String, default: '' },
     remarks: { type: String, default: '' },
     drawingNo: { type: String, default: '' },
     drawingSheetUrl: { type: String, default: '' }

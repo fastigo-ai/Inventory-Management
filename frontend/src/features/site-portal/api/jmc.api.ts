@@ -20,6 +20,18 @@ export const deleteJmc = async (id: string) => {
   return api.delete(`/jmc/${id}`);
 };
 
+export const sendJmcForApproval = async (id: string) => {
+  return api.post(`/jmc/${id}/send-for-approval`);
+};
+
+export const approveJmc = async (id: string, remarks?: string) => {
+  return api.post(`/jmc/${id}/approve`, { remarks });
+};
+
+export const rejectJmc = async (id: string, remarks: string) => {
+  return api.post(`/jmc/${id}/reject`, { remarks });
+};
+
 export const uploadJmcExcel = async (formData: FormData, onUploadProgress?: (progressEvent: any) => void) => {
   const response = await api.post('/jmc/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },

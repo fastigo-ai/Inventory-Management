@@ -1,15 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getJmcs, deleteJmc, exportJmcTemplate } from "@/features/site-portal/api/jmc.api";
+import { getJmcs, deleteJmc, exportJmcTemplate, sendJmcForApproval, approveJmc, rejectJmc } from "@/features/site-portal/api/jmc.api";
 import { getContractors } from "@/features/contractors/api/contractors.api";
-import { FileText, Plus, Trash2, Download, Edit, Eye, MoreVertical, TrendingUp, Users, IndianRupee, Filter } from "lucide-react";
+import { FileText, Plus, Trash2, Download, Edit, Eye, MoreVertical, TrendingUp, Users, IndianRupee, Filter, Send, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { useClientTable } from "@/shared/hooks/useClientTable";
 import { DataTableTopControls, DataTableBottomControls } from "@/shared/components/DataTableControls";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { JmcBulkUploadModal } from "@/features/site-portal/components/JmcBulkUploadModal";
 import { useAuthStore } from "@/shared/store/auth.store";
+import { toast } from "sonner";
 
 export default function JmcRegisterPage() {
   const user = useAuthStore(state => state.user);
@@ -20,9 +21,34 @@ export default function JmcRegisterPage() {
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [selectedContractor, setSelectedContractor] = useState<string>('All');
   const [contractorsList, setContractorsList] = useState<any[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string>('All');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const urlStatus = searchParams.get('status');
+    if (urlStatus) {
+      setStatusFilter(urlStatus);
+    }
+  }, [searchParams]);
+
+  // Role permissions
+  const userRole = user?.role?.name || '';
+  const isSuperOrAdmin =
+    userRole === 'Admin' ||
+    userRole === 'Super Admin' ||
+    userRole === 'CEO' ||
+    user?.role?.permissions?.includes('*');
+  const isPM = userRole === 'Project Manager' || userRole === 'PM' || isSuperOrAdmin;
+  const isPD = userRole === 'Project Director' || userRole === 'PD' || isSuperOrAdmin;
+
+  // Rejection modal state
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectRemarks, setRejectRemarks] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Server-side Pagination & Search state
   const [searchTerm, setSearchTerm] = useState('');
@@ -67,7 +93,7 @@ export default function JmcRegisterPage() {
 
   useEffect(() => {
     fetchJmcs();
-  }, [selectedContractor, startDate, endDate, currentPage, pageSize, debouncedSearchTerm, debouncedFilters]);
+  }, [selectedContractor, statusFilter, startDate, endDate, currentPage, pageSize, debouncedSearchTerm, debouncedFilters]);
 
   const fetchContractors = async () => {
     try {
@@ -88,6 +114,7 @@ export default function JmcRegisterPage() {
       };
       if (debouncedSearchTerm) params.search = debouncedSearchTerm;
       if (selectedContractor !== 'All') params.contractorId = selectedContractor;
+      if (statusFilter !== 'All') params.status = statusFilter;
       if (startDate) params.startDate = startDate;
       if (endDate) params.endDate = endDate;
       if (debouncedFilters.location) params.location = debouncedFilters.location;
@@ -107,6 +134,62 @@ export default function JmcRegisterPage() {
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSendForApproval = async (id: string) => {
+    try {
+      setActionLoading(true);
+      await sendJmcForApproval(id);
+      toast.success("JMC sent for PM & PD approval successfully");
+      fetchJmcs();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || "Failed to send JMC for approval");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleApprove = async (id: string) => {
+    try {
+      setActionLoading(true);
+      await approveJmc(id);
+      toast.success("JMC approved successfully");
+      fetchJmcs();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || "Failed to approve JMC");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const openRejectModal = (id: string) => {
+    setRejectingId(id);
+    setRejectRemarks('');
+    setRejectModalOpen(true);
+  };
+
+  const handleConfirmReject = async () => {
+    if (!rejectingId) return;
+    if (!rejectRemarks.trim()) {
+      toast.error("Please enter rejection remarks");
+      return;
+    }
+    try {
+      setActionLoading(true);
+      await rejectJmc(rejectingId, rejectRemarks.trim());
+      toast.success("JMC rejected successfully");
+      setRejectModalOpen(false);
+      setRejectingId(null);
+      setRejectRemarks('');
+      fetchJmcs();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || "Failed to reject JMC");
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -219,6 +302,23 @@ export default function JmcRegisterPage() {
                 onChange={(e) => setEndDate(e.target.value)}
                 className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
               />
+            </div>
+            {/* Status Filter */}
+            <div className="xl:col-span-2">
+              <label className="text-xs text-slate-500 font-medium mb-1.5 block">Approval Status</label>
+              <select 
+                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="All">All Statuses</option>
+                <option value="Draft">Draft</option>
+                <option value="Submitted">Submitted</option>
+                <option value="Pending PM Approval">Pending PM Approval</option>
+                <option value="Pending PD Approval">Pending PD Approval</option>
+                <option value="Approved">Approved</option>
+                <option value="Rejected">Rejected</option>
+              </select>
             </div>
             {/* Contractor */}
             {contractorsList.length > 0 && (
@@ -404,15 +504,121 @@ export default function JmcRegisterPage() {
                         <td className="px-6 py-4 font-medium text-slate-700">{(entry.claimedAmount || 0).toFixed(2)}</td>
                         <td className="px-6 py-4 font-semibold text-green-700">{(entry.approvedAmount || 0).toFixed(2)}</td>
                         <td className="px-6 py-4">
-                          <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide ${entry.status === 'Approved' ? 'bg-emerald-100 text-emerald-700' : entry.status === 'Submitted' ? 'bg-blue-100 text-blue-700' : entry.status === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'}`}>
-                            {entry.status}
-                          </span>
+                          {entry.status === 'Approved' ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                              Approved
+                            </span>
+                          ) : entry.status === 'Pending PM Approval' ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 animate-pulse">
+                              <Clock className="w-3.5 h-3.5 text-amber-600" />
+                              Pending PM Approval
+                            </span>
+                          ) : entry.status === 'Pending PD Approval' ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-800 animate-pulse">
+                              <Clock className="w-3.5 h-3.5 text-purple-600" />
+                              Pending PD Approval
+                            </span>
+                          ) : entry.status === 'Rejected' ? (
+                            <span 
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-red-100 text-red-800 cursor-help"
+                              title={entry.rejectionRemarks ? `Rejected: ${entry.rejectionRemarks}` : 'Rejected'}
+                            >
+                              <XCircle className="w-3.5 h-3.5 text-red-600" />
+                              Rejected
+                            </span>
+                          ) : entry.status === 'Submitted' ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-800">
+                              Submitted
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700">
+                              {entry.status || 'Draft'}
+                            </span>
+                          )}
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <div className="flex justify-end items-center gap-1">
+                          <div className="flex justify-end items-center gap-1.5">
+                            {/* Send for Approval Button */}
+                            {(entry.status === 'Draft' || entry.status === 'Submitted' || entry.status === 'Rejected') && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSendForApproval(entry._id);
+                                }}
+                                disabled={actionLoading}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-md text-xs font-semibold transition-colors shadow-2xs"
+                                title="Send JMC for PM & PD Approval"
+                              >
+                                <Send className="w-3.5 h-3.5 text-blue-600" />
+                                {entry.status === 'Rejected' ? 'Re-send' : 'Send for Approval'}
+                              </button>
+                            )}
+
+                            {/* PM Approve / Reject */}
+                            {isPM && (entry.status === 'Pending PM Approval' || (isSuperOrAdmin && entry.status === 'Submitted')) && (
+                              <>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleApprove(entry._id);
+                                  }}
+                                  disabled={actionLoading}
+                                  className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-md text-xs font-semibold transition-colors shadow-2xs"
+                                  title="Approve as Project Manager"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                  Approve (PM)
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openRejectModal(entry._id);
+                                  }}
+                                  disabled={actionLoading}
+                                  className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-300 rounded-md text-xs font-semibold transition-colors shadow-2xs"
+                                  title="Reject JMC"
+                                >
+                                  <XCircle className="w-3.5 h-3.5 text-red-600" />
+                                  Reject
+                                </button>
+                              </>
+                            )}
+
+                            {/* PD Approve / Reject */}
+                            {isPD && entry.status === 'Pending PD Approval' && (
+                              <>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleApprove(entry._id);
+                                  }}
+                                  disabled={actionLoading}
+                                  className="inline-flex items-center gap-1 px-2 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-300 rounded-md text-xs font-semibold transition-colors shadow-2xs"
+                                  title="Approve as Project Director"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-purple-600" />
+                                  Approve (PD)
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openRejectModal(entry._id);
+                                  }}
+                                  disabled={actionLoading}
+                                  className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-300 rounded-md text-xs font-semibold transition-colors shadow-2xs"
+                                  title="Reject JMC"
+                                >
+                                  <XCircle className="w-3.5 h-3.5 text-red-600" />
+                                  Reject
+                                </button>
+                              </>
+                            )}
+
+                            {/* Standard View, Edit, Delete */}
                             <button 
                               onClick={(e) => { e.stopPropagation(); router.push(`/site-portal/jmc-register/${entry._id}`); }} 
-                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                              className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
                               title="View"
                             >
                               <Eye className="w-4 h-4" />
@@ -423,7 +629,7 @@ export default function JmcRegisterPage() {
                                   e.stopPropagation();
                                   router.push(`/site-portal/jmc-register/${entry._id}`);
                                 }} 
-                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors"
+                                className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
                                 title="Edit"
                               >
                                 <Edit className="w-4 h-4" />
@@ -431,7 +637,7 @@ export default function JmcRegisterPage() {
                             )}
                             <button 
                               onClick={(e) => handleDelete(e, entry._id)} 
-                              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
                               title="Delete"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -461,6 +667,50 @@ export default function JmcRegisterPage() {
         onOpenChange={setUploadModalOpen}
         onSuccess={fetchJmcs}
       />
+
+      {/* Rejection Modal Dialog */}
+      {rejectModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6 animate-in fade-in zoom-in-95">
+            <h3 className="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
+              <XCircle className="w-5 h-5 text-red-600" />
+              Reject JMC Entry
+            </h3>
+            <p className="text-xs text-slate-500 mb-4">
+              Please specify the reason for rejecting this JMC. The contractor/user will see this remark and can correct the items before re-submitting for approval.
+            </p>
+            <textarea
+              value={rejectRemarks}
+              onChange={(e) => setRejectRemarks(e.target.value)}
+              rows={3}
+              placeholder="Enter rejection reason / remarks (mandatory)..."
+              className="w-full text-sm p-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 mb-4"
+            />
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setRejectModalOpen(false);
+                  setRejectingId(null);
+                  setRejectRemarks('');
+                }}
+                disabled={actionLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="bg-red-600 hover:bg-red-700 text-white"
+                onClick={handleConfirmReject}
+                disabled={actionLoading || !rejectRemarks.trim()}
+              >
+                Confirm Rejection
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

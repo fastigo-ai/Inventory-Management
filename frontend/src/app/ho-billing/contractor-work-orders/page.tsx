@@ -5,6 +5,7 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Plus, Search, Filter, Upload, Download, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getContractorWorkOrders, getContractorWorkOrderFilters } from '@/features/contractors/api/contractorWorkOrder.api';
+import { getContractors } from '@/features/contractors/api/contractors.api';
 import { ImportWOModal } from '@/features/contractors/components/ImportWOModal';
 import { toast } from 'sonner';
 import Papa from 'papaparse';
@@ -22,6 +23,7 @@ export default function ContractorWorkOrdersPage() {
   const search = searchParams.get('search') || '';
   const packageFilter = searchParams.get('package') || '';
   const circleFilter = searchParams.get('circle') || '';
+  const contractorFilter = searchParams.get('contractorId') || searchParams.get('contractor') || '';
   const activityFilter = searchParams.get('activity') || '';
   const dateFrom = searchParams.get('dateFrom') || '';
   const dateTo = searchParams.get('dateTo') || '';
@@ -31,23 +33,53 @@ export default function ContractorWorkOrdersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
 
-  const [availableFilters, setAvailableFilters] = useState<{packages: string[], circles: string[], activities: string[]}>({ packages: [], circles: [], activities: [] });
+  const [availableFilters, setAvailableFilters] = useState<{
+    packages: string[];
+    circles: string[];
+    activities: string[];
+    contractors: { _id: string; name: string }[];
+  }>({ packages: [], circles: [], activities: [], contractors: [] });
+
+  const [contractorsList, setContractorsList] = useState<{ _id: string; name: string }[]>([]);
 
   const [localFilters, setLocalFilters] = useState({
-    search, package: packageFilter, circle: circleFilter, activity: activityFilter, dateFrom, dateTo
+    search, package: packageFilter, circle: circleFilter, contractorId: contractorFilter, activity: activityFilter, dateFrom, dateTo
   });
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(Boolean(packageFilter || circleFilter || contractorFilter || activityFilter || dateFrom || dateTo));
 
   const fetchFilters = async () => {
     try {
       const res = await getContractorWorkOrderFilters({ package: localFilters.package, circle: localFilters.circle });
-      if (res.success) {
-        setAvailableFilters(res.data || { packages: [], circles: [], activities: [] });
+      if (res.success && res.data) {
+        setAvailableFilters({
+          packages: res.data.packages || [],
+          circles: res.data.circles || [],
+          activities: res.data.activities || [],
+          contractors: res.data.contractors || []
+        });
+        if (res.data.contractors && res.data.contractors.length > 0) {
+          setContractorsList(res.data.contractors);
+        }
       }
     } catch (error) {
       console.error('Failed to load filters', error);
     }
   };
+
+  useEffect(() => {
+    getContractors().then(res => {
+      const list = res?.data?.contractors || res?.contractors || res?.data || res || [];
+      const formatted = list.map((c: any) => ({
+        _id: c._id?.toString() || c._id,
+        name: c.dynamicData?.companyName || c.dynamicData?.displayName || c.dynamicData?.contractorName || c.name || 'Unknown'
+      })).filter((c: any) => c._id && c.name);
+      const unique = Array.from(new Map(formatted.map((c: any) => [c._id, c])).values()) as { _id: string; name: string }[];
+      unique.sort((a, b) => a.name.localeCompare(b.name));
+      if (unique.length > 0) {
+        setContractorsList(prev => prev.length > 0 ? prev : unique);
+      }
+    }).catch(err => console.error('Failed to load contractors fallback', err));
+  }, []);
 
   useEffect(() => {
     fetchFilters();
@@ -60,6 +92,7 @@ export default function ContractorWorkOrdersPage() {
         search, 
         package: packageFilter, 
         circle: circleFilter, 
+        contractorId: contractorFilter,
         activity: activityFilter, 
         dateFrom, 
         dateTo, 
@@ -80,8 +113,8 @@ export default function ContractorWorkOrdersPage() {
 
   useEffect(() => {
     fetchWorkOrders();
-    setLocalFilters({ search, package: packageFilter, circle: circleFilter, activity: activityFilter, dateFrom, dateTo });
-  }, [search, packageFilter, circleFilter, activityFilter, dateFrom, dateTo, page, limit]);
+    setLocalFilters({ search, package: packageFilter, circle: circleFilter, contractorId: contractorFilter, activity: activityFilter, dateFrom, dateTo });
+  }, [search, packageFilter, circleFilter, contractorFilter, activityFilter, dateFrom, dateTo, page, limit]);
 
   const applyFilters = () => {
     const params = new URLSearchParams(searchParams.toString());
@@ -244,7 +277,7 @@ export default function ContractorWorkOrdersPage() {
           </div>
           
           {showFilters && (
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 pt-4 border-t border-slate-200">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 pt-4 border-t border-slate-200">
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Package</label>
                 <select
@@ -268,6 +301,19 @@ export default function ContractorWorkOrdersPage() {
                   <option value="">All Circles</option>
                   {availableFilters.circles.map((circ: string) => (
                     <option key={circ} value={circ}>{circ}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Contractor</label>
+                <select
+                  value={localFilters.contractorId}
+                  onChange={(e) => setLocalFilters({ ...localFilters, contractorId: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white"
+                >
+                  <option value="">All Contractors</option>
+                  {contractorsList.map((c: any) => (
+                    <option key={c._id} value={c._id}>{c.name}</option>
                   ))}
                 </select>
               </div>

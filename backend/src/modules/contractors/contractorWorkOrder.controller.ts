@@ -49,7 +49,10 @@ export const getWorkOrders = asyncHandler(async (req: AuthRequest, res: Response
   const { page = 1, limit = 50, package: pkg, circle, division, search, status, contractorId, activity, dateFrom, dateTo } = req.query;
   const filter: any = {};
 
-  if (contractorId) filter.contractorId = contractorId;
+  const contractor = contractorId || req.query.contractor;
+  if (contractor && contractor !== 'All' && contractor !== 'all') {
+    filter.contractorId = contractor;
+  }
   if (pkg) filter.package = pkg;
   if (circle) filter.circle = circle;
   if (division) filter.division = division;
@@ -164,10 +167,21 @@ export const getFilters = asyncHandler(async (req: Request, res: Response) => {
   const circles = await ContractorWorkOrder.distinct('circle', packageFilter);
   const activities = await ContractorWorkOrder.distinct('activities', circleFilter);
   
+  const contractorIds = await ContractorWorkOrder.distinct('contractorId', circleFilter);
+  const contractorsFromDb = await Contractor.find({ _id: { $in: contractorIds } })
+    .select('_id name dynamicData.contractorName dynamicData.companyName dynamicData.displayName')
+    .lean();
+
+  const formattedContractors = contractorsFromDb.map((c: any) => ({
+    _id: c._id.toString(),
+    name: c.dynamicData?.companyName || c.dynamicData?.displayName || c.dynamicData?.contractorName || c.name || 'Unknown'
+  })).sort((a: any, b: any) => a.name.localeCompare(b.name));
+
   res.status(200).json(new ApiResponse(200, {
     packages: packages.filter(Boolean),
     circles: circles.filter(Boolean),
-    activities: activities.filter(Boolean)
+    activities: activities.filter(Boolean),
+    contractors: formattedContractors
   }, 'Filters fetched successfully'));
 });
 

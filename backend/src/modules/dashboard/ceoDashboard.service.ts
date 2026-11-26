@@ -709,6 +709,7 @@ export const buildCeoDashboardSummary = async (filters: any) => {
     const totalJmcQty = jmcAgg[0]?.totalJmcQty || 0;
     const totalJmcApprovedQty = jmcAgg[0]?.totalApprovedQty || 0;
     const totalJmcSubmittedQty = jmcAgg[0]?.totalSubmittedQty || 0;
+    const totalJmcDone = totalJmcApprovedQty + totalJmcSubmittedQty;
 
     const totalWipQty = wipAgg[0]?.totalWipQty || 0;
     const totalWipApprovedQty = wipAgg[0]?.totalApprovedQty || 0;
@@ -1202,7 +1203,8 @@ export const buildCeoDashboardSummary = async (filters: any) => {
         inTransitQty: inTransitUnits,
         transitDetails: transitDetails,
         materialIssued: totalIssuedQty,
-        jmcConsumed: totalJmcApprovedQty > 0 ? totalJmcApprovedQty : totalJmcQty,
+        jmcConsumed: totalJmcDone > 0 ? totalJmcDone : totalJmcQty,
+        totalJmcDone: totalJmcDone,
         jmcApprovedQty: totalJmcApprovedQty,
         jmcSubmittedQty: totalJmcSubmittedQty,
         wip: totalWipQty,
@@ -1262,7 +1264,7 @@ export const buildCeoDashboardSummary = async (filters: any) => {
           { name: 'MHROV', total: totalInwardQty, completed: totalMhrovQty, balance: Math.max(0, totalInwardQty - totalMhrovQty) },
           { name: 'Available', total: totalInwardQty, completed: Math.max(0, totalInwardQty - totalIssuedQty), balance: totalIssuedQty },
           { name: 'Issued', total: totalInwardQty, completed: totalIssuedQty, balance: Math.max(0, totalInwardQty - totalIssuedQty) },
-          { name: 'JMC', total: totalIssuedQty, completed: totalJmcQty, balance: Math.max(0, totalIssuedQty - totalJmcQty) },
+          { name: 'JMC', total: totalIssuedQty, completed: totalJmcDone > 0 ? totalJmcDone : totalJmcQty, balance: Math.max(0, totalIssuedQty - (totalJmcDone > 0 ? totalJmcDone : totalJmcQty)) },
           { name: 'WIP Consumed', total: totalIssuedQty, completed: totalWipQty, balance: Math.max(0, totalIssuedQty - totalWipQty) },
           { name: 'WIP Required', total: totalIssuedQty, completed: totalWipReqQty, balance: Math.max(0, totalIssuedQty - totalWipReqQty) },
         ].map(i => ({ ...i, total: Math.round(i.total), completed: Math.round(i.completed), balance: Math.round(i.balance) })),

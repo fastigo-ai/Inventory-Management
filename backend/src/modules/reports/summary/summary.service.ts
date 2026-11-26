@@ -515,10 +515,28 @@ export class SummaryService {
 
       // 10. Rebuild from JmcRegister
       const { JmcRegister } = await import('../../jmc/jmc.schema');
-      const jmcs = await JmcRegister.find({ 'items.itemId': itemId, status: { $ne: 'Rejected' } });
+      const itemLoa = (item.dynamicData?.loaSerialNo || item.dynamicData?.loaSrNo || item.dynamicData?.sku || item.sku || '').toString().trim();
+      const itemCirc = (item.dynamicData?.circle || item.circle || '').toString().trim().toLowerCase();
+
+      const jmcQuery: any = { status: { $ne: 'Rejected' } };
+      if (itemLoa) {
+        jmcQuery.$or = [
+          { 'items.itemId': itemId },
+          { 'items.loaSerialNo': itemLoa },
+          { 'items.loaSrNo': itemLoa }
+        ];
+      } else {
+        jmcQuery['items.itemId'] = itemId;
+      }
+
+      const jmcs = await JmcRegister.find(jmcQuery).lean();
       for (const jmc of jmcs) {
+        const docCirc = (jmc.circle || '').toString().trim().toLowerCase();
         for (const line of jmc.items) {
-          if (line.itemId?.toString() === itemIdStr) {
+          const lineLoa = (line.loaSerialNo || (line as any).loaSrNo || '').toString().trim();
+          const lineCirc = (line.circle || docCirc || '').toLowerCase();
+          const isMatch = line.itemId?.toString() === itemIdStr || (lineLoa && itemLoa && lineLoa === itemLoa && (!itemCirc || !lineCirc || itemCirc === lineCirc));
+          if (isMatch) {
             const qty = Number(line.approvedQty || line.claimedQty || 0);
             if (qty > 0) {
               await SummaryService.updateSummary({

@@ -28,6 +28,7 @@ export default function ItemSummaryMatrixPage() {
   const [showImc, setShowImc] = useState(true);
   const [showSupplyBill, setShowSupplyBill] = useState(true);
   const [showErectionBill, setShowErectionBill] = useState(true);
+  const [showContractorBill, setShowContractorBill] = useState(true);
   const [showWipConsumed, setShowWipConsumed] = useState(true);
   const [showWipRequired, setShowWipRequired] = useState(true);
 
@@ -152,6 +153,11 @@ export default function ItemSummaryMatrixPage() {
       acc.erecRampur += (r.erectionBilledRampur || 0);
       acc.erecRohru += (r.erectionBilledRohru || 0);
 
+      acc.contSolan += (r.contractorBilledSolan || 0);
+      acc.contNahan += (r.contractorBilledNahan || 0);
+      acc.contRampur += (r.contractorBilledRampur || 0);
+      acc.contRohru += (r.contractorBilledRohru || 0);
+
       acc.wipConsSolan += (r.wipConsumedSolan || 0);
       acc.wipConsNahan += (r.wipConsumedNahan || 0);
       acc.wipConsRampur += (r.wipConsumedRampur || 0);
@@ -168,6 +174,7 @@ export default function ItemSummaryMatrixPage() {
       acc.balImc += (r.balImc || 0);
       acc.balSupplyBill += (r.balSupplyBill || 0);
       acc.balErectionBill += (r.balErectionBill || 0);
+      acc.balContractorBill += (r.balContractorBill || 0);
 
       ['solan', 'nahan', 'rampur', 'rohru'].forEach(c => {
         const b = r.allBalances ? r.allBalances[c] : (r.balances || {});
@@ -177,6 +184,7 @@ export default function ItemSummaryMatrixPage() {
         acc.balTotals[c].imc += (b.imc || 0);
         acc.balTotals[c].supplyBill += (b.supplyBill || 0);
         acc.balTotals[c].erectionBill += (b.erectionBill || 0);
+        acc.balTotals[c].contractorBill += (b.contractorBill || 0);
       });
 
       return acc;
@@ -189,14 +197,15 @@ export default function ItemSummaryMatrixPage() {
       imcSolan: 0, imcNahan: 0, imcRampur: 0, imcRohru: 0,
       supSolan: 0, supNahan: 0, supRampur: 0, supRohru: 0,
       erecSolan: 0, erecNahan: 0, erecRampur: 0, erecRohru: 0,
+      contSolan: 0, contNahan: 0, contRampur: 0, contRohru: 0,
       wipConsSolan: 0, wipConsNahan: 0, wipConsRampur: 0, wipConsRohru: 0,
       wipReqSolan: 0, wipReqNahan: 0, wipReqRampur: 0, wipReqRohru: 0,
-      balDiLoa: 0, balDiBom: 0, balMrn: 0, balImc: 0, balSupplyBill: 0, balErectionBill: 0,
+      balDiLoa: 0, balDiBom: 0, balMrn: 0, balImc: 0, balSupplyBill: 0, balErectionBill: 0, balContractorBill: 0,
       balTotals: {
-        solan: { diVsLoa: 0, diVsBom: 0, mrn: 0, imc: 0, supplyBill: 0, erectionBill: 0 },
-        nahan: { diVsLoa: 0, diVsBom: 0, mrn: 0, imc: 0, supplyBill: 0, erectionBill: 0 },
-        rampur: { diVsLoa: 0, diVsBom: 0, mrn: 0, imc: 0, supplyBill: 0, erectionBill: 0 },
-        rohru: { diVsLoa: 0, diVsBom: 0, mrn: 0, imc: 0, supplyBill: 0, erectionBill: 0 }
+        solan: { diVsLoa: 0, diVsBom: 0, mrn: 0, imc: 0, supplyBill: 0, erectionBill: 0, contractorBill: 0 },
+        nahan: { diVsLoa: 0, diVsBom: 0, mrn: 0, imc: 0, supplyBill: 0, erectionBill: 0, contractorBill: 0 },
+        rampur: { diVsLoa: 0, diVsBom: 0, mrn: 0, imc: 0, supplyBill: 0, erectionBill: 0, contractorBill: 0 },
+        rohru: { diVsLoa: 0, diVsBom: 0, mrn: 0, imc: 0, supplyBill: 0, erectionBill: 0, contractorBill: 0 }
       }
     });
   }, [data, selectedItems]);
@@ -224,12 +233,13 @@ export default function ItemSummaryMatrixPage() {
       'Total JMC Solan', 'Total JMC Nahan', 'Total JMC Rampur', 'Total JMC Rohru',
       'Total Supply Billed Solan', 'Total Supply Billed Nahan', 'Total Supply Billed Rampur', 'Total Supply Billed Rohru',
       'Total Erection Billed Solan', 'Total Erection Billed Nahan', 'Total Erection Billed Rampur', 'Total Erection Billed Rohru',
+      'Total Contractor Billed Solan', 'Total Contractor Billed Nahan', 'Total Contractor Billed Rampur', 'Total Contractor Billed Rohru',
       'Total WIP Consumed Solan', 'Total WIP Consumed Nahan', 'Total WIP Consumed Rampur', 'Total WIP Consumed Rohru',
       'Total WIP Required Solan', 'Total WIP Required Nahan', 'Total WIP Required Rampur', 'Total WIP Required Rohru',
       ...['SOLAN', 'NAHAN', 'RAMPUR', 'ROHRU'].flatMap(c => [
         `Bal for DI (${c})`, `Bal for Dispatch (${c})`,
         `Bal for IR (${c})`, `Bal for MRHOv (${c})`, `Bal for JMC (${c})`,
-        `Bal for Supply (${c})`, `Bal for Erection (${c})`
+        `Bal for Supply (${c})`, `Bal for Erection (${c})`, `Bal for Contractor (${c})`
       ])
     ];
 
@@ -250,6 +260,7 @@ export default function ItemSummaryMatrixPage() {
         cv(r.imcSolan), cv(r.imcNahan), cv(r.imcRampur), cv(r.imcRohru),
         cv(r.supplyBilledSolan), cv(r.supplyBilledNahan), cv(r.supplyBilledRampur), cv(r.supplyBilledRohru),
         cv(r.erectionBilledSolan), cv(r.erectionBilledNahan), cv(r.erectionBilledRampur), cv(r.erectionBilledRohru),
+        cv(r.contractorBilledSolan), cv(r.contractorBilledNahan), cv(r.contractorBilledRampur), cv(r.contractorBilledRohru),
         cv(r.wipConsumedSolan), cv(r.wipConsumedNahan), cv(r.wipConsumedRampur), cv(r.wipConsumedRohru),
         cv(r.wipRequiredSolan), cv(r.wipRequiredNahan), cv(r.wipRequiredRampur), cv(r.wipRequiredRohru),
         ...['solan', 'nahan', 'rampur', 'rohru'].flatMap(c => {
@@ -261,7 +272,8 @@ export default function ItemSummaryMatrixPage() {
             b.mhrov != null ? Math.round(b.mhrov).toLocaleString('en-IN') : '-', 
             b.imc != null ? Math.round(b.imc).toLocaleString('en-IN') : '-', 
             b.supplyBill != null ? Math.round(b.supplyBill).toLocaleString('en-IN') : '-', 
-            b.erectionBill != null ? Math.round(b.erectionBill).toLocaleString('en-IN') : '-'
+            b.erectionBill != null ? Math.round(b.erectionBill).toLocaleString('en-IN') : '-',
+            b.contractorBill != null ? Math.round(b.contractorBill).toLocaleString('en-IN') : '-'
           ];
         })
       ];
@@ -296,12 +308,13 @@ export default function ItemSummaryMatrixPage() {
       'Total JMC Solan', 'Total JMC Nahan', 'Total JMC Rampur', 'Total JMC Rohru',
       'Total Supply Billed Solan', 'Total Supply Billed Nahan', 'Total Supply Billed Rampur', 'Total Supply Billed Rohru',
       'Total Erection Billed Solan', 'Total Erection Billed Nahan', 'Total Erection Billed Rampur', 'Total Erection Billed Rohru',
+      'Total Contractor Billed Solan', 'Total Contractor Billed Nahan', 'Total Contractor Billed Rampur', 'Total Contractor Billed Rohru',
       'Total WIP Consumed Solan', 'Total WIP Consumed Nahan', 'Total WIP Consumed Rampur', 'Total WIP Consumed Rohru',
       'Total WIP Required Solan', 'Total WIP Required Nahan', 'Total WIP Required Rampur', 'Total WIP Required Rohru',
       ...['SOLAN', 'NAHAN', 'RAMPUR', 'ROHRU'].flatMap(c => [
         `Bal for DI against ${c} LOA`, `Bal for Dispatch against ${c} LOA`,
         `Bal for IR-${c}`, `Bal for MRHOv-${c}`, `Bal for JMC-${c}`,
-        `Bal for Supply Bill-${c}`, `Bal for Erection Bill-${c}`
+        `Bal for Supply Bill-${c}`, `Bal for Erection Bill-${c}`, `Bal for Contractor Bill-${c}`
       ])
     ];
 
@@ -318,6 +331,7 @@ export default function ItemSummaryMatrixPage() {
         cv(r.imcSolan), cv(r.imcNahan), cv(r.imcRampur), cv(r.imcRohru),
         cv(r.supplyBilledSolan), cv(r.supplyBilledNahan), cv(r.supplyBilledRampur), cv(r.supplyBilledRohru),
         cv(r.erectionBilledSolan), cv(r.erectionBilledNahan), cv(r.erectionBilledRampur), cv(r.erectionBilledRohru),
+        cv(r.contractorBilledSolan), cv(r.contractorBilledNahan), cv(r.contractorBilledRampur), cv(r.contractorBilledRohru),
         cv(r.wipConsumedSolan), cv(r.wipConsumedNahan), cv(r.wipConsumedRampur), cv(r.wipConsumedRohru),
         cv(r.wipRequiredSolan), cv(r.wipRequiredNahan), cv(r.wipRequiredRampur), cv(r.wipRequiredRohru),
         ...['solan', 'nahan', 'rampur', 'rohru'].flatMap(c => {
@@ -329,7 +343,8 @@ export default function ItemSummaryMatrixPage() {
             b.mhrov != null ? String(Math.round(b.mhrov)) : '0', 
             b.imc != null ? String(Math.round(b.imc)) : '0', 
             b.supplyBill != null ? String(Math.round(b.supplyBill)) : '0', 
-            b.erectionBill != null ? String(Math.round(b.erectionBill)) : '0'
+            b.erectionBill != null ? String(Math.round(b.erectionBill)) : '0',
+            b.contractorBill != null ? String(Math.round(b.contractorBill)) : '0'
           ];
         })
       ].join(',');
@@ -561,6 +576,10 @@ export default function ItemSummaryMatrixPage() {
             Erection Bill / RA
           </label>
           <label className="flex items-center gap-1.5 cursor-pointer hover:text-indigo-600">
+            <input type="checkbox" checked={showContractorBill} onChange={e => setShowContractorBill(e.target.checked)} className="rounded text-indigo-600 focus:ring-indigo-500" />
+            Contractor Billing
+          </label>
+          <label className="flex items-center gap-1.5 cursor-pointer hover:text-indigo-600">
             <input type="checkbox" checked={showWipConsumed} onChange={e => setShowWipConsumed(e.target.checked)} className="rounded text-indigo-600 focus:ring-indigo-500" />
             WIP Consumed
           </label>
@@ -631,6 +650,12 @@ export default function ItemSummaryMatrixPage() {
                   {showErectionBill && <th className="p-2 min-w-[100px] bg-violet-50 text-right font-bold text-violet-900 border-b border-r border-slate-200">Erection Bill Cumulative</th>}
                   {showErectionBill && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900 border-b border-r border-slate-200">Bal for Erection Bill</th>}
 
+                  {showContractorBill && <th className="p-2 min-w-[100px] bg-amber-50 text-right font-bold text-amber-900 border-b border-r border-slate-200">Contractor Bill 90%</th>}
+                  {showContractorBill && <th className="p-2 min-w-[100px] bg-amber-50 text-right font-bold text-amber-900 border-b border-r border-slate-200">Contractor Bill 10%</th>}
+                  {showContractorBill && <th className="p-2 min-w-[125px] bg-emerald-50 text-right font-bold text-emerald-900 border-b border-r border-slate-200">Contractor Bill Amount</th>}
+                  {showContractorBill && <th className="p-2 min-w-[100px] bg-amber-50 text-right font-bold text-amber-900 border-b border-r border-slate-200">Contractor Bill Cumulative</th>}
+                  {showContractorBill && <th className="p-2 min-w-[100px] bg-orange-50 text-right font-bold text-orange-900 border-b border-r border-slate-200">Bal for Contractor Bill</th>}
+
                   {showWipConsumed && <th className="p-2 min-w-[100px] bg-pink-50 text-right font-bold text-pink-900 border-b border-r border-slate-200">WIP Consumed</th>}
                   {showWipRequired && <th className="p-2 min-w-[100px] bg-teal-50 text-right font-bold text-teal-900 border-b border-r border-slate-200">WIP Required</th>}
                 </tr>
@@ -668,10 +693,17 @@ export default function ItemSummaryMatrixPage() {
                     const erectionBillQty_10 = (r.erectionBilledSolan_10 || 0) + (r.erectionBilledNahan_10 || 0) + (r.erectionBilledRampur_10 || 0) + (r.erectionBilledRohru_10 || 0);
                     const erectionBillQty = (r.erectionBilledSolan || 0) + (r.erectionBilledNahan || 0) + (r.erectionBilledRampur || 0) + (r.erectionBilledRohru || 0);
                     
+                    const contractorBillQty_90 = (r.contractorBilledSolan_90 || 0) + (r.contractorBilledNahan_90 || 0) + (r.contractorBilledRampur_90 || 0) + (r.contractorBilledRohru_90 || 0);
+                    const contractorBillQty_10 = (r.contractorBilledSolan_10 || 0) + (r.contractorBilledNahan_10 || 0) + (r.contractorBilledRampur_10 || 0) + (r.contractorBilledRohru_10 || 0);
+                    const contractorBillQty = (r.contractorBilledSolan || 0) + (r.contractorBilledNahan || 0) + (r.contractorBilledRampur || 0) + (r.contractorBilledRohru || 0);
+                    const contractorBillAmt = (r.contractorBilledAmountSolan || 0) + (r.contractorBilledAmountNahan || 0) + (r.contractorBilledAmountRampur || 0) + (r.contractorBilledAmountRohru || 0)
+                      || (r.contractorBilledAmount || 0);
+
                     const wipConsQty = (r.wipConsumedSolan || 0) + (r.wipConsumedNahan || 0) + (r.wipConsumedRampur || 0) + (r.wipConsumedRohru || 0);
                     const wipReqQty = (r.wipRequiredSolan || 0) + (r.wipRequiredNahan || 0) + (r.wipRequiredRampur || 0) + (r.wipRequiredRohru || 0);
 
                     const bal = r.balances || {};
+                    const balContractorBill = bal?.contractorBill != null ? bal.contractorBill : (jmcQty - contractorBillQty);
 
                     const fmtQty = (v: any) => (v ? Math.round(v).toLocaleString('en-IN') : '-');
                     const fmtBal = (v: any) => (v != null ? Math.round(v).toLocaleString('en-IN') : '-');
@@ -727,6 +759,12 @@ export default function ItemSummaryMatrixPage() {
                         {showErectionBill && <td className="p-2 text-right text-violet-900 font-bold bg-violet-100/30 border-b border-r border-slate-200">{fmtQty(erectionBillQty)}</td>}
                         {showErectionBill && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20 border-b border-r border-slate-200">{fmtBal(bal?.erectionBill)}</td>}
 
+                        {showContractorBill && <td className="p-2 text-right text-amber-900 font-medium bg-amber-50/20 border-b border-r border-slate-200">{fmtQty(contractorBillQty_90)}</td>}
+                        {showContractorBill && <td className="p-2 text-right text-amber-900 font-medium bg-amber-50/20 border-b border-r border-slate-200">{fmtQty(contractorBillQty_10)}</td>}
+                        {showContractorBill && <td className="p-2 text-right text-emerald-900 font-semibold bg-emerald-50/25 border-b border-r border-slate-200">{fmtAmt(contractorBillAmt)}</td>}
+                        {showContractorBill && <td className="p-2 text-right text-amber-900 font-bold bg-amber-100/30 border-b border-r border-slate-200">{fmtQty(contractorBillQty)}</td>}
+                        {showContractorBill && <td className="p-2 text-right text-orange-900 font-medium bg-orange-50/20 border-b border-r border-slate-200">{fmtBal(balContractorBill)}</td>}
+
                         {showWipConsumed && <td className="p-2 text-right text-pink-900 font-medium bg-pink-50/20 border-b border-r border-slate-200">{fmtQty(wipConsQty)}</td>}
                         {showWipRequired && <td className="p-2 text-right text-teal-900 font-medium bg-teal-50/20 border-b border-r border-slate-200">{fmtQty(wipReqQty)}</td>}
                       </tr>
@@ -751,6 +789,10 @@ export default function ItemSummaryMatrixPage() {
                   let totalSupplyBillAmt = 0;
                   let totalSupplyBill = 0;
                   let totalErectionBill = 0;
+                  let totalContractor90 = 0;
+                  let totalContractor10 = 0;
+                  let totalContractorAmt = 0;
+                  let totalContractor = 0;
                   let totalWipConsumed = 0;
                   let totalWipRequired = 0;
                   
@@ -761,6 +803,7 @@ export default function ItemSummaryMatrixPage() {
                   let totalBalImc = 0;
                   let totalBalSupplyBill = 0;
                   let totalBalErectionBill = 0;
+                  let totalBalContractorBill = 0;
 
                   data.forEach(r => {
                     if (selectedItems.size > 0 && !selectedItems.has(r.tempCode || '')) return;
@@ -786,6 +829,18 @@ export default function ItemSummaryMatrixPage() {
                     totalSupplyBill += sCum;
                     totalSupplyBillAmt += sAmt;
                     totalErectionBill += (r.erectionBilledSolan || r.erectionBilledNahan || r.erectionBilledRampur || r.erectionBilledRohru || 0);
+
+                    const cb90 = (r.contractorBilledSolan_90 || 0) + (r.contractorBilledNahan_90 || 0) + (r.contractorBilledRampur_90 || 0) + (r.contractorBilledRohru_90 || 0);
+                    const cb10 = (r.contractorBilledSolan_10 || 0) + (r.contractorBilledNahan_10 || 0) + (r.contractorBilledRampur_10 || 0) + (r.contractorBilledRohru_10 || 0);
+                    const cbCum = (r.contractorBilledSolan || 0) + (r.contractorBilledNahan || 0) + (r.contractorBilledRampur || 0) + (r.contractorBilledRohru || 0);
+                    const cbAmt = (r.contractorBilledAmountSolan || 0) + (r.contractorBilledAmountNahan || 0) + (r.contractorBilledAmountRampur || 0) + (r.contractorBilledAmountRohru || 0)
+                      || (r.contractorBilledAmount || 0);
+
+                    totalContractor90 += cb90;
+                    totalContractor10 += cb10;
+                    totalContractor += cbCum;
+                    totalContractorAmt += cbAmt;
+
                     totalWipConsumed += (r.wipConsumedSolan || r.wipConsumedNahan || r.wipConsumedRampur || r.wipConsumedRohru || 0);
                     totalWipRequired += (r.wipRequiredSolan || r.wipRequiredNahan || r.wipRequiredRampur || r.wipRequiredRohru || 0);
                     
@@ -800,6 +855,7 @@ export default function ItemSummaryMatrixPage() {
                     totalBalImc += (bal?.imc || 0);
                     totalBalSupplyBill += (bal?.supplyBill || 0);
                     totalBalErectionBill += (bal?.erectionBill || 0);
+                    totalBalContractorBill += (bal?.contractorBill || 0);
                   });
 
                   return (
@@ -840,6 +896,12 @@ export default function ItemSummaryMatrixPage() {
                       {showErectionBill && <td className="p-2 text-right text-violet-300 border-r border-slate-700"></td>}
                       {showErectionBill && <td className="p-2 text-right text-violet-300 border-r border-slate-700"></td>}
                       {showErectionBill && <td className="p-2 text-right text-orange-300 border-r border-slate-700">{fmtTotal(totalBalErectionBill)}</td>}
+
+                      {showContractorBill && <td className="p-2 text-right text-amber-300 border-r border-slate-700">{fmtTotal(totalContractor90)}</td>}
+                      {showContractorBill && <td className="p-2 text-right text-amber-300 border-r border-slate-700">{fmtTotal(totalContractor10)}</td>}
+                      {showContractorBill && <td className="p-2 text-right text-emerald-300 font-semibold border-r border-slate-700">{totalContractorAmt ? `₹${Math.round(totalContractorAmt).toLocaleString('en-IN')}` : '-'}</td>}
+                      {showContractorBill && <td className="p-2 text-right text-amber-300 font-bold border-r border-slate-700">{fmtTotal(totalContractor)}</td>}
+                      {showContractorBill && <td className="p-2 text-right text-orange-300 border-r border-slate-700">{fmtTotal(totalBalContractorBill)}</td>}
 
                       {showWipConsumed && <td className="p-2 text-right text-rose-300 border-r border-slate-700">{fmtTotal(totalWipConsumed)}</td>}
                       {showWipRequired && <td className="p-2 text-right text-emerald-300 border-r border-slate-700">{fmtTotal(totalWipRequired)}</td>}

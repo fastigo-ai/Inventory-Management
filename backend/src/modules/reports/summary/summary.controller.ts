@@ -669,19 +669,30 @@ async function computeItemMatrixSummaryInner(pkgArray: string[], circArray: stri
     ).lean(),
     Promise.all([
       ContractorInvoice.find(
+        { status: { $nin: ['Draft', 'Rejected'] as any[] } },
         {
-          status: { $nin: ['Draft', 'Rejected'] as any[] },
-          $or: [
-            { billingCategory: 'Erection Bill' },
-            { invoiceNumber: /\/ER\//i },
-            { stage: { $in: ['90%', '10%'] } }
-          ]
-        },
-        { circle: 1, package: 1, stage: 1, legacyMetadata: 1, 'lineItems.erectedQty': 1, 'lineItems.jmcDoneQty': 1, 'lineItems.itemId': 1, 'lineItems.tempCode': 1, 'lineItems.loaSerialNo': 1, 'lineItems.loaSrNo': 1, 'lineItems.legacyData': 1, 'lineItems.circle': 1 }
+          invoiceNumber: 1,
+          billingCategory: 1,
+          circle: 1,
+          package: 1,
+          stage: 1,
+          legacyMetadata: 1,
+          'lineItems.erectedQty': 1,
+          'lineItems.jmcDoneQty': 1,
+          'lineItems.itemId': 1,
+          'lineItems.tempCode': 1,
+          'lineItems.loaSerialNo': 1,
+          'lineItems.loaSrNo': 1,
+          'lineItems.legacyData': 1,
+          'lineItems.circle': 1,
+          'lineItems.totalAmount': 1,
+          'lineItems.baseAmount': 1,
+          'lineItems.rate': 1
+        }
       ).lean(),
       ClientBill.find(
         { billType: 'Erection', status: { $nin: ['Draft', 'Rejected'] as any[] } },
-        { circle: 1, package: 1, stage: 1, 'items.raBillQty': 1, 'items.itemId': 1, 'items.tempCode': 1, 'items.loaSrNo': 1, 'items.loaSerialNo': 1 }
+        { circle: 1, package: 1, stage: 1, 'items.raBillQty': 1, 'items.itemId': 1, 'items.tempCode': 1, 'items.loaSrNo': 1, 'items.loaSerialNo': 1, 'items.totalAmount': 1, 'items.boqRate': 1 }
       ).lean()
     ]),
     ClientBill.find(
@@ -971,7 +982,12 @@ async function computeItemMatrixSummaryInner(pkgArray: string[], circArray: stri
   // 4b. Erection Billed
   const getErecInit = () => ({ solan: 0, solan_90: 0, solan_60: 0, solan_30: 0, solan_10: 0, nahan: 0, nahan_90: 0, nahan_60: 0, nahan_30: 0, nahan_10: 0, rampur: 0, rampur_90: 0, rampur_60: 0, rampur_30: 0, rampur_10: 0, rohru: 0, rohru_90: 0, rohru_60: 0, rohru_30: 0, rohru_10: 0 });
   const erectionMap = new Map<string, Record<string, number>>();
-  const allErectionDocs = [...(contractorInvoices || []), ...(clientErectionBills || [])];
+  const allErectionDocs = [
+    ...(contractorInvoices || []).filter(doc => 
+      (doc as any).billingCategory === 'Erection Bill' || (String((doc as any).invoiceNumber || '').includes('/ER/') && !String((doc as any).invoiceNumber || '').includes('/CB/'))
+    ),
+    ...(clientErectionBills || [])
+  ];
   allErectionDocs.forEach(doc => {
     const docCirc = ((doc as any).circle || (doc as any).legacyMetadata?.circle || '').toLowerCase();
     const stageStr = ((doc as any).stage || '').toLowerCase();
@@ -1028,6 +1044,82 @@ async function computeItemMatrixSummaryInner(pkgArray: string[], circArray: stri
                  else if (lineCirc.includes('rampur')) applyQty(erecObj, 'rampur', distributedQty);
                  else if (lineCirc.includes('rohru')) applyQty(erecObj, 'rohru', distributedQty);
                  else applyQty(erecObj, 'nahan', distributedQty);
+              }
+           });
+        }
+      }
+    });
+  });
+
+  // 4c. Contractor Billed
+  const getContInit = () => ({
+    solan: 0, solan_90: 0, solan_10: 0, solan_amt: 0,
+    nahan: 0, nahan_90: 0, nahan_10: 0, nahan_amt: 0,
+    rampur: 0, rampur_90: 0, rampur_10: 0, rampur_amt: 0,
+    rohru: 0, rohru_90: 0, rohru_10: 0, rohru_amt: 0
+  });
+  const contractorBillMap = new Map<string, Record<string, number>>();
+  const allContractorBillDocs = (contractorInvoices || []).filter(doc => 
+    (doc as any).billingCategory === 'Contractor Bill' || String((doc as any).invoiceNumber || '').includes('/CB/')
+  );
+  allContractorBillDocs.forEach(doc => {
+    const docCirc = ((doc as any).circle || (doc as any).legacyMetadata?.circle || '').toLowerCase();
+    const stageStr = ((doc as any).stage || '').toLowerCase();
+    const lines = (doc as any).lineItems || [];
+    lines.forEach((line: any) => {
+      const qty = Number(line.erectedQty || line.jmcDoneQty || 0);
+      const lineAmt = Number(line.totalAmount || line.baseAmount || 0) || (qty * Number(line.rate || 0));
+      if (qty > 0 || lineAmt > 0) {
+        const lineCirc = (line.circle || docCirc || '').toLowerCase();
+        const loaSr = line.loaSerialNo || line.loaSrNo || line.legacyData?.loaSerialNo || line.sku;
+        const targetTCs = getTargetTempCodes(line.itemId, line.tempCode, loaSr, line.package || (doc as any).package || (doc as any).legacyMetadata?.package, lineCirc);
+        
+        const applyQty = (obj: any, c: string, q: number, amt: number) => {
+           obj[c] += q;
+           obj[`${c}_amt`] = (obj[`${c}_amt`] || 0) + amt;
+           if (stageStr.includes('90')) obj[`${c}_90`] += q;
+           else if (stageStr.includes('10')) obj[`${c}_10`] += q;
+           else obj[`${c}_90`] += q;
+        };
+
+        if (targetTCs.length === 1) {
+           const tc = targetTCs[0];
+           if (!contractorBillMap.has(tc)) contractorBillMap.set(tc, getContInit());
+           const contObj = contractorBillMap.get(tc)!;
+           if (lineCirc.includes('solan')) applyQty(contObj, 'solan', qty, lineAmt);
+           else if (lineCirc.includes('nahan')) applyQty(contObj, 'nahan', qty, lineAmt);
+           else if (lineCirc.includes('rampur')) applyQty(contObj, 'rampur', qty, lineAmt);
+           else if (lineCirc.includes('rohru')) applyQty(contObj, 'rohru', qty, lineAmt);
+           else applyQty(contObj, 'nahan', qty, lineAmt);
+        } else if (targetTCs.length > 1) {
+           let totalLoaQty = 0;
+           targetTCs.forEach(tc => {
+              const grp = groupedItemsMap.get(tc);
+              if (grp) {
+                 if (lineCirc.includes('solan')) totalLoaQty += grp.solanLoaQty;
+                 else if (lineCirc.includes('nahan')) totalLoaQty += grp.nahanLoaQty;
+                 else if (lineCirc.includes('rampur')) totalLoaQty += grp.rampurLoaQty;
+                 else if (lineCirc.includes('rohru')) totalLoaQty += grp.rohruLoaQty;
+              }
+           });
+           targetTCs.forEach(tc => {
+              const grp = groupedItemsMap.get(tc);
+              if (grp) {
+                 let myLoaQty = 0;
+                 if (lineCirc.includes('solan')) myLoaQty = grp.solanLoaQty;
+                 else if (lineCirc.includes('nahan')) myLoaQty = grp.nahanLoaQty;
+                 else if (lineCirc.includes('rampur')) myLoaQty = grp.rampurLoaQty;
+                 else if (lineCirc.includes('rohru')) myLoaQty = grp.rohruLoaQty;
+                 
+                 const distributedQty = totalLoaQty > 0 ? (qty * (myLoaQty / totalLoaQty)) : (qty / targetTCs.length);
+                 const distributedAmt = totalLoaQty > 0 ? (lineAmt * (myLoaQty / totalLoaQty)) : (lineAmt / targetTCs.length);
+                 if (!contractorBillMap.has(tc)) contractorBillMap.set(tc, getContInit());
+                 const contObj = contractorBillMap.get(tc)!;
+                 if (lineCirc.includes('solan')) applyQty(contObj, 'solan', distributedQty, distributedAmt);
+                 else if (lineCirc.includes('nahan')) applyQty(contObj, 'nahan', distributedQty, distributedAmt);
+                 else if (lineCirc.includes('rampur')) applyQty(contObj, 'rampur', distributedQty, distributedAmt);
+                 else if (lineCirc.includes('rohru')) applyQty(contObj, 'rohru', distributedQty, distributedAmt);
+                 else applyQty(contObj, 'nahan', distributedQty, distributedAmt);
               }
            });
         }
@@ -1232,6 +1324,7 @@ async function computeItemMatrixSummaryInner(pkgArray: string[], circArray: stri
     const imcObj = imcMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
     const supObj = supplyBilledMap.get(groupKey) || getSupInit();
     const erecObj = erectionMap.get(groupKey) || { solan: 0, solan_90: 0, solan_60: 0, solan_30: 0, solan_10: 0, nahan: 0, nahan_90: 0, nahan_60: 0, nahan_30: 0, nahan_10: 0, rampur: 0, rampur_90: 0, rampur_60: 0, rampur_30: 0, rampur_10: 0, rohru: 0, rohru_90: 0, rohru_60: 0, rohru_30: 0, rohru_10: 0 };
+    const contObj = contractorBillMap.get(groupKey) || getContInit();
     const wipConsObj = wipConsumedMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
     const wipReqObj = wipRequiredMap.get(groupKey) || { solan: 0, nahan: 0, rampur: 0, rohru: 0 };
 
@@ -1247,20 +1340,21 @@ async function computeItemMatrixSummaryInner(pkgArray: string[], circArray: stri
     let targetImc = 0;
     let targetSupBilled = 0;
     let targetErecBilled = 0;
+    let targetContractorBilled = 0;
 
     const includesCirc = (c: string) => evalCircle.some(ec => ec.includes(c));
 
     if (includesCirc('SOLAN')) {
-      targetLoa += solanLoaQty; targetBom += solanBomQty; targetDi += diObj.solan; targetInward += invObj.solan; targetMhrov += mhrovObj.solan; targetMin += minObj.solan; targetImc += imcObj.solan; targetSupBilled += supObj.solan; targetErecBilled += erecObj.solan;
+      targetLoa += solanLoaQty; targetBom += solanBomQty; targetDi += diObj.solan; targetInward += invObj.solan; targetMhrov += mhrovObj.solan; targetMin += minObj.solan; targetImc += imcObj.solan; targetSupBilled += supObj.solan; targetErecBilled += erecObj.solan; targetContractorBilled += contObj.solan;
     }
     if (includesCirc('NAHAN')) {
-      targetLoa += nahanLoaQty; targetBom += nahanBomQty; targetDi += diObj.nahan; targetInward += invObj.nahan; targetMhrov += mhrovObj.nahan; targetMin += minObj.nahan; targetImc += imcObj.nahan; targetSupBilled += supObj.nahan; targetErecBilled += erecObj.nahan;
+      targetLoa += nahanLoaQty; targetBom += nahanBomQty; targetDi += diObj.nahan; targetInward += invObj.nahan; targetMhrov += mhrovObj.nahan; targetMin += minObj.nahan; targetImc += imcObj.nahan; targetSupBilled += supObj.nahan; targetErecBilled += erecObj.nahan; targetContractorBilled += contObj.nahan;
     }
     if (includesCirc('RAMPUR')) {
-      targetLoa += rampurLoaQty; targetBom += rampurBomQty; targetDi += diObj.rampur; targetInward += invObj.rampur; targetMhrov += mhrovObj.rampur; targetMin += minObj.rampur; targetImc += imcObj.rampur; targetSupBilled += supObj.rampur; targetErecBilled += erecObj.rampur;
+      targetLoa += rampurLoaQty; targetBom += rampurBomQty; targetDi += diObj.rampur; targetInward += invObj.rampur; targetMhrov += mhrovObj.rampur; targetMin += minObj.rampur; targetImc += imcObj.rampur; targetSupBilled += supObj.rampur; targetErecBilled += erecObj.rampur; targetContractorBilled += contObj.rampur;
     }
     if (includesCirc('ROHRU')) {
-      targetLoa += rohruLoaQty; targetBom += rohruBomQty; targetDi += diObj.rohru; targetInward += invObj.rohru; targetMhrov += mhrovObj.rohru; targetMin += minObj.rohru; targetImc += imcObj.rohru; targetSupBilled += supObj.rohru; targetErecBilled += erecObj.rohru;
+      targetLoa += rohruLoaQty; targetBom += rohruBomQty; targetDi += diObj.rohru; targetInward += invObj.rohru; targetMhrov += mhrovObj.rohru; targetMin += minObj.rohru; targetImc += imcObj.rohru; targetSupBilled += supObj.rohru; targetErecBilled += erecObj.rohru; targetContractorBilled += contObj.rohru;
     }
 
     const balDiLoa = targetLoa - targetDi;
@@ -1270,6 +1364,7 @@ async function computeItemMatrixSummaryInner(pkgArray: string[], circArray: stri
     const balImc = targetMhrov - targetMin;
     const balSupplyBill = targetInward - targetSupBilled;
     const balErectionBill = targetImc - targetErecBilled;
+    const balContractorBill = targetImc - targetContractorBilled;
 
     const allBalances = {
       solan: {
@@ -1279,7 +1374,8 @@ async function computeItemMatrixSummaryInner(pkgArray: string[], circArray: stri
         mhrov: invObj.solan - mhrovObj.solan,
         imc: mhrovObj.solan - minObj.solan,
         supplyBill: invObj.solan - supObj.solan,
-        erectionBill: imcObj.solan - erecObj.solan
+        erectionBill: imcObj.solan - erecObj.solan,
+        contractorBill: imcObj.solan - contObj.solan
       },
       nahan: {
         diVsLoa: nahanLoaQty - diObj.nahan,
@@ -1288,7 +1384,8 @@ async function computeItemMatrixSummaryInner(pkgArray: string[], circArray: stri
         mhrov: invObj.nahan - mhrovObj.nahan,
         imc: mhrovObj.nahan - minObj.nahan,
         supplyBill: invObj.nahan - supObj.nahan,
-        erectionBill: imcObj.nahan - erecObj.nahan
+        erectionBill: imcObj.nahan - erecObj.nahan,
+        contractorBill: imcObj.nahan - contObj.nahan
       },
       rampur: {
         diVsLoa: rampurLoaQty - diObj.rampur,
@@ -1297,7 +1394,8 @@ async function computeItemMatrixSummaryInner(pkgArray: string[], circArray: stri
         mhrov: invObj.rampur - mhrovObj.rampur,
         imc: mhrovObj.rampur - minObj.rampur,
         supplyBill: invObj.rampur - supObj.rampur,
-        erectionBill: imcObj.rampur - erecObj.rampur
+        erectionBill: imcObj.rampur - erecObj.rampur,
+        contractorBill: imcObj.rampur - contObj.rampur
       },
       rohru: {
         diVsLoa: rohruLoaQty - diObj.rohru,
@@ -1306,7 +1404,8 @@ async function computeItemMatrixSummaryInner(pkgArray: string[], circArray: stri
         mhrov: invObj.rohru - mhrovObj.rohru,
         imc: mhrovObj.rohru - minObj.rohru,
         supplyBill: invObj.rohru - supObj.rohru,
-        erectionBill: imcObj.rohru - erecObj.rohru
+        erectionBill: imcObj.rohru - erecObj.rohru,
+        contractorBill: imcObj.rohru - contObj.rohru
       }
     };
 
@@ -1408,6 +1507,28 @@ async function computeItemMatrixSummaryInner(pkgArray: string[], circArray: stri
       erectionBilledRampur_10: erecObj.rampur_10,
       erectionBilledRohru_10: erecObj.rohru_10,
 
+      // Flat Contractor Billed
+      contractorBilledNahan: contObj.nahan,
+      contractorBilledSolan: contObj.solan,
+      contractorBilledRampur: contObj.rampur,
+      contractorBilledRohru: contObj.rohru,
+
+      contractorBilledNahan_90: contObj.nahan_90,
+      contractorBilledSolan_90: contObj.solan_90,
+      contractorBilledRampur_90: contObj.rampur_90,
+      contractorBilledRohru_90: contObj.rohru_90,
+
+      contractorBilledNahan_10: contObj.nahan_10,
+      contractorBilledSolan_10: contObj.solan_10,
+      contractorBilledRampur_10: contObj.rampur_10,
+      contractorBilledRohru_10: contObj.rohru_10,
+
+      contractorBilledAmountNahan: contObj.nahan_amt,
+      contractorBilledAmountSolan: contObj.solan_amt,
+      contractorBilledAmountRampur: contObj.rampur_amt,
+      contractorBilledAmountRohru: contObj.rohru_amt,
+      contractorBilledAmount: (contObj.solan_amt || 0) + (contObj.nahan_amt || 0) + (contObj.rampur_amt || 0) + (contObj.rohru_amt || 0),
+
       // Flat WIP Consumed
       wipConsumedNahan: wipConsObj.nahan,
       wipConsumedSolan: wipConsObj.solan,
@@ -1428,6 +1549,7 @@ async function computeItemMatrixSummaryInner(pkgArray: string[], circArray: stri
       balImc,
       balSupplyBill,
       balErectionBill,
+      balContractorBill,
 
       // Nested objects
       loaQuantities: { nahan: nahanLoaQty, solan: solanLoaQty, rampur: rampurLoaQty, rohru: rohruLoaQty },
@@ -1439,6 +1561,7 @@ async function computeItemMatrixSummaryInner(pkgArray: string[], circArray: stri
       imc: imcObj,
       supplyBilled: supObj,
       erectionBilled: erecObj,
+      contractorBilled: contObj,
       wipConsumed: wipConsObj,
       wipRequired: wipReqObj,
       balances: {
@@ -1448,7 +1571,8 @@ async function computeItemMatrixSummaryInner(pkgArray: string[], circArray: stri
         mhrov: balMhrov,
         imc: balImc,
         supplyBill: balSupplyBill,
-        erectionBill: balErectionBill
+        erectionBill: balErectionBill,
+        contractorBill: balContractorBill
       },
       allBalances
     };

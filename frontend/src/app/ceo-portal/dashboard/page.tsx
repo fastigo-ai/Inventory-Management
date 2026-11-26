@@ -294,12 +294,12 @@ export default function CeoDashboardPage() {
           <SapExecutiveTile
             title="JMC Work Certified"
             subtitle="Joint Measurement Completed"
-            value={inr(data?.kpis?.jmcConsumed)}
-            subValue="Installed & Verified"
+            value={inr(data?.kpis?.jmcApprovedQty ?? data?.kpis?.jmcConsumed)}
+            subValue={`Approved: ${inr(data?.kpis?.jmcApprovedQty ?? data?.kpis?.jmcConsumed)} | Submitted: ${inr(data?.kpis?.jmcSubmittedQty)}`}
             badgeText="JMC Done"
             status="positive"
             icon={CheckCircle2}
-            change="41% of Issued"
+            change={`${data?.kpis?.materialIssued ? Math.round(((data?.kpis?.jmcApprovedQty ?? data?.kpis?.jmcConsumed ?? 0) / data.kpis.materialIssued) * 100) : 0}% of Issued`}
             changeType="positive"
           />
 
@@ -307,7 +307,7 @@ export default function CeoDashboardPage() {
             title="Active WIP (Field)"
             subtitle="Work in Progress at Site"
             value={inr(data?.kpis?.wip)}
-            subValue="Under Active Execution"
+            subValue={data?.kpis?.wipSubmittedQty ? `Submitted: ${inr(data?.kpis?.wipSubmittedQty)} | Approved: ${inr(data?.kpis?.wipApprovedQty)}` : "Under Active Execution"}
             badgeText="WIP"
             status="warning"
             icon={Settings}

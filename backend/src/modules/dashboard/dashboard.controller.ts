@@ -165,9 +165,10 @@ export const getSitePortalDashboardSummary = asyncHandler(async (req: any, res: 
           item: { $ifNull: ["$items.description", { $ifNull: ["$items.activity", { $ifNull: ["$items.tempCode", "Unknown"] }] }] },
           tempCode: "$items.tempCode",
           qty: {
-            $add: [
-              { $convert: { input: "$items.claimedQty", to: "double", onError: 0, onNull: 0 } },
-              { $convert: { input: "$items.approvedQty", to: "double", onError: 0, onNull: 0 } }
+            $cond: [
+              { $gt: [{ $convert: { input: "$items.approvedQty", to: "double", onError: 0, onNull: 0 } }, 0] },
+              { $convert: { input: "$items.approvedQty", to: "double", onError: 0, onNull: 0 } },
+              { $convert: { input: "$items.claimedQty", to: "double", onError: 0, onNull: 0 } }
             ]
           }
         }
@@ -419,9 +420,10 @@ export const getPMPortalDashboardSummary = asyncHandler(async (req: any, res: Re
         _id: null,
         totalWipQty: {
           $sum: {
-            $add: [
-              { $convert: { input: "$items.claimedQty", to: "double", onError: 0, onNull: 0 } },
-              { $convert: { input: "$items.approvedQty", to: "double", onError: 0, onNull: 0 } }
+            $cond: [
+              { $gt: [{ $convert: { input: "$items.approvedQty", to: "double", onError: 0, onNull: 0 } }, 0] },
+              { $convert: { input: "$items.approvedQty", to: "double", onError: 0, onNull: 0 } },
+              { $convert: { input: "$items.claimedQty", to: "double", onError: 0, onNull: 0 } }
             ]
           }
         }
@@ -574,9 +576,10 @@ export const getPDPortalDashboardSummary = asyncHandler(async (req: any, res: Re
         _id: null,
         totalWipQty: {
           $sum: {
-            $add: [
-              { $convert: { input: "$items.claimedQty", to: "double", onError: 0, onNull: 0 } },
-              { $convert: { input: "$items.approvedQty", to: "double", onError: 0, onNull: 0 } }
+            $cond: [
+              { $gt: [{ $convert: { input: "$items.approvedQty", to: "double", onError: 0, onNull: 0 } }, 0] },
+              { $convert: { input: "$items.approvedQty", to: "double", onError: 0, onNull: 0 } },
+              { $convert: { input: "$items.claimedQty", to: "double", onError: 0, onNull: 0 } }
             ]
           }
         }

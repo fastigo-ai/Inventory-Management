@@ -294,19 +294,76 @@ export const buildCeoDashboardSummary = async (filters: any) => {
       JmcRegister.aggregate([
         { $match: baseQuery },
         { $unwind: "$items" },
-        { $group: { _id: null, totalJmcQty: { $sum: { $add: ["$items.claimedQty", "$items.approvedQty"] } } } }
+        {
+          $group: {
+            _id: null,
+            totalJmcQty: {
+              $sum: {
+                $cond: [
+                  { $gt: [{ $convert: { input: "$items.approvedQty", to: "double", onError: 0, onNull: 0 } }, 0] },
+                  { $convert: { input: "$items.approvedQty", to: "double", onError: 0, onNull: 0 } },
+                  { $convert: { input: "$items.claimedQty", to: "double", onError: 0, onNull: 0 } }
+                ]
+              }
+            },
+            totalApprovedQty: {
+              $sum: { $convert: { input: "$items.approvedQty", to: "double", onError: 0, onNull: 0 } }
+            },
+            totalSubmittedQty: {
+              $sum: { $convert: { input: "$items.claimedQty", to: "double", onError: 0, onNull: 0 } }
+            }
+          }
+        }
       ]),
 
       WipRegister.aggregate([
         { $match: baseQuery },
         { $unwind: "$items" },
-        { $group: { _id: null, totalWipQty: { $sum: { $add: ["$items.claimedQty", "$items.approvedQty"] } } } }
+        {
+          $group: {
+            _id: null,
+            totalWipQty: {
+              $sum: {
+                $cond: [
+                  { $gt: [{ $convert: { input: "$items.approvedQty", to: "double", onError: 0, onNull: 0 } }, 0] },
+                  { $convert: { input: "$items.approvedQty", to: "double", onError: 0, onNull: 0 } },
+                  { $convert: { input: "$items.claimedQty", to: "double", onError: 0, onNull: 0 } }
+                ]
+              }
+            },
+            totalApprovedQty: {
+              $sum: { $convert: { input: "$items.approvedQty", to: "double", onError: 0, onNull: 0 } }
+            },
+            totalSubmittedQty: {
+              $sum: { $convert: { input: "$items.claimedQty", to: "double", onError: 0, onNull: 0 } }
+            }
+          }
+        }
       ]),
 
       WipRequiredRegister.aggregate([
         { $match: baseQuery },
         { $unwind: "$items" },
-        { $group: { _id: null, totalWipReqQty: { $sum: { $add: ["$items.claimedQty", "$items.approvedQty"] } } } }
+        {
+          $group: {
+            _id: null,
+            totalWipReqQty: {
+              $sum: {
+                $cond: [
+                  { $gt: [{ $convert: { input: "$items.approvedQty", to: "double", onError: 0, onNull: 0 } }, 0] },
+                  { $convert: { input: "$items.approvedQty", to: "double", onError: 0, onNull: 0 } },
+                  { $convert: { input: "$items.claimedQty", to: "double", onError: 0, onNull: 0 } }
+                ]
+              }
+            },
+            totalApprovedQty: {
+              $sum: { $convert: { input: "$items.approvedQty", to: "double", onError: 0, onNull: 0 } }
+            },
+            totalSubmittedQty: {
+              $sum: { $convert: { input: "$items.claimedQty", to: "double", onError: 0, onNull: 0 } }
+            }
+          }
+        }
       ]),
 
       PurchaseOrder.aggregate([
@@ -509,7 +566,20 @@ export const buildCeoDashboardSummary = async (filters: any) => {
       JmcRegister.aggregate([
         { $match: baseQuery },
         { $unwind: "$items" },
-        { $group: { _id: "$package", jmcQty: { $sum: { $add: ["$items.claimedQty", "$items.approvedQty"] } } } }
+        {
+          $group: {
+            _id: "$package",
+            jmcQty: {
+              $sum: {
+                $cond: [
+                  { $gt: [{ $convert: { input: "$items.approvedQty", to: "double", onError: 0, onNull: 0 } }, 0] },
+                  { $convert: { input: "$items.approvedQty", to: "double", onError: 0, onNull: 0 } },
+                  { $convert: { input: "$items.claimedQty", to: "double", onError: 0, onNull: 0 } }
+                ]
+              }
+            }
+          }
+        }
       ]),
 
       PurchaseOrder.aggregate([
@@ -637,7 +707,13 @@ export const buildCeoDashboardSummary = async (filters: any) => {
     const availableStock = totalInwardQty + totalTransferInQty - totalIssuedQty - totalTransferOutQty;
 
     const totalJmcQty = jmcAgg[0]?.totalJmcQty || 0;
+    const totalJmcApprovedQty = jmcAgg[0]?.totalApprovedQty || 0;
+    const totalJmcSubmittedQty = jmcAgg[0]?.totalSubmittedQty || 0;
+
     const totalWipQty = wipAgg[0]?.totalWipQty || 0;
+    const totalWipApprovedQty = wipAgg[0]?.totalApprovedQty || 0;
+    const totalWipSubmittedQty = wipAgg[0]?.totalSubmittedQty || 0;
+
     const totalWipReqQty = wipReqAgg[0]?.totalWipReqQty || 0;
 
     const totalPurchaseValue = poAgg[0]?.totalValue || 0;
@@ -1126,8 +1202,12 @@ export const buildCeoDashboardSummary = async (filters: any) => {
         inTransitQty: inTransitUnits,
         transitDetails: transitDetails,
         materialIssued: totalIssuedQty,
-        jmcConsumed: totalJmcQty,
+        jmcConsumed: totalJmcApprovedQty > 0 ? totalJmcApprovedQty : totalJmcQty,
+        jmcApprovedQty: totalJmcApprovedQty,
+        jmcSubmittedQty: totalJmcSubmittedQty,
         wip: totalWipQty,
+        wipApprovedQty: totalWipApprovedQty,
+        wipSubmittedQty: totalWipSubmittedQty,
         totalBillingValue: (supplyBilled + erectionBilled) / 10000000,
         totalBillingValueRaw: supplyBilled + erectionBilled,
         pendingBilling: (supplyPending + contractorPending) / 10000000,

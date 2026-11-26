@@ -294,12 +294,12 @@ export default function CeoDashboardPage() {
           <SapExecutiveTile
             title="JMC Work Certified"
             subtitle="Joint Measurement Completed"
-            value={inr(data?.kpis?.totalJmcDone ?? ((data?.kpis?.jmcApprovedQty || 0) + (data?.kpis?.jmcSubmittedQty || 0)) ?? data?.kpis?.jmcConsumed)}
+            value={inr(data?.kpis?.totalJmcDone ?? data?.kpis?.jmcConsumed ?? ((data?.kpis?.jmcApprovedQty || 0) + (data?.kpis?.jmcSubmittedQty || 0)))}
             subValue={`Approved: ${inr(data?.kpis?.jmcApprovedQty)} | Submitted: ${inr(data?.kpis?.jmcSubmittedQty)}`}
             badgeText="JMC Done"
             status="positive"
             icon={CheckCircle2}
-            change={`${data?.kpis?.materialIssued ? Math.round((((data?.kpis?.totalJmcDone ?? ((data?.kpis?.jmcApprovedQty || 0) + (data?.kpis?.jmcSubmittedQty || 0))) || data?.kpis?.jmcConsumed || 0) / data.kpis.materialIssued) * 100) : 0}% of Issued`}
+            change={`${data?.kpis?.materialIssued ? Math.round(((data?.kpis?.totalJmcDone ?? data?.kpis?.jmcConsumed ?? ((data?.kpis?.jmcApprovedQty || 0) + (data?.kpis?.jmcSubmittedQty || 0))) / data.kpis.materialIssued) * 100) : 0}% of Issued`}
             changeType="positive"
           />
 

@@ -41,6 +41,7 @@ export const getSummaries = asyncHandler(async (req: Request, res: Response) => 
 
 export const clearSummaryCache = asyncHandler(async (req: Request, res: Response) => {
   SummaryService.clearCache();
+  matrixCache.clear();
   res.status(200).json(new ApiResponse(200, null, 'Summary cache cleared successfully'));
 });
 
@@ -594,9 +595,24 @@ async function computeItemMatrixSummaryInner(pkgArray: string[], circArray: stri
   }
 
   const getTargetTempCodes = (lineItemId: any, lineTempCode: any, lineLoaSrNo?: any, linePkg?: any, lineCircle?: any): string[] => {
-    const idStr = lineItemId ? lineItemId.toString() : '';
     const circ = String(lineCircle || '').trim().toLowerCase();
+    const loaSr = String(lineLoaSrNo || '').trim();
 
+    // 1. If line explicitly specifies an LOA Serial Number and circle, match that specific item first!
+    if (loaSr && circ) {
+      const key = `${loaSr}___${circ}`;
+      if (loaCircMap.has(key)) return loaCircMap.get(key)!;
+    }
+    if (loaSr) {
+      if (loaMap.has(loaSr)) {
+        if (!circ) return loaMap.get(loaSr)!;
+        const matches = loaMap.get(loaSr)!.filter(k => groupedItemsMap.get(k)!.validCircles.has(circ));
+        if (matches.length > 0) return matches;
+      }
+    }
+
+    // 2. Next, check lineItemId if present
+    const idStr = lineItemId ? lineItemId.toString() : '';
     if (idStr && itemIdToKeyMap.has(idStr)) {
       const mappedKey = itemIdToKeyMap.get(idStr)!;
       const grp = groupedItemsMap.get(mappedKey);
@@ -609,19 +625,8 @@ async function computeItemMatrixSummaryInner(pkgArray: string[], circArray: stri
          return [mappedKey];
       }
     }
-    const loaSr = String(lineLoaSrNo || '').trim();
 
-    if (loaSr && circ) {
-      const key = `${loaSr}___${circ}`;
-      if (loaCircMap.has(key)) return loaCircMap.get(key)!;
-    }
-    if (loaSr) {
-      if (loaMap.has(loaSr)) {
-        if (!circ) return loaMap.get(loaSr)!;
-        const matches = loaMap.get(loaSr)!.filter(k => groupedItemsMap.get(k)!.validCircles.has(circ));
-        if (matches.length > 0) return matches;
-      }
-    }
+    // 3. Fallback to tempCode + circle
     let tc = String(lineTempCode || '').trim();
     if (!tc && idStr && itemIdToKeyMap.has(idStr)) {
       tc = groupedItemsMap.get(itemIdToKeyMap.get(idStr)!)?.tempCode || '';
@@ -676,12 +681,12 @@ async function computeItemMatrixSummaryInner(pkgArray: string[], circArray: stri
       ).lean(),
       ClientBill.find(
         { billType: 'Erection', status: { $nin: ['Draft', 'Rejected'] as any[] } },
-        { circle: 1, package: 1, stage: 1, 'items.raBillQty': 1, 'items.itemId': 1, 'items.tempCode': 1, 'items.loaSrNo': 1 }
+        { circle: 1, package: 1, stage: 1, 'items.raBillQty': 1, 'items.itemId': 1, 'items.tempCode': 1, 'items.loaSrNo': 1, 'items.loaSerialNo': 1 }
       ).lean()
     ]),
     ClientBill.find(
       { billType: 'Supply', status: { $nin: ['Draft', 'Rejected'] as any[] } },
-      { circle: 1, package: 1, stage: 1, 'items.raBillQty': 1, 'items.itemId': 1, 'items.tempCode': 1, 'items.loaSrNo': 1, 'items.totalAmount': 1, 'items.boqRate': 1 }
+      { circle: 1, package: 1, stage: 1, 'items.raBillQty': 1, 'items.itemId': 1, 'items.tempCode': 1, 'items.loaSrNo': 1, 'items.loaSerialNo': 1, 'items.totalAmount': 1, 'items.boqRate': 1 }
     ).lean(),
     WipRegister.find(
       { status: { $nin: ['Rejected', 'Cancelled'] } },
@@ -1460,6 +1465,9 @@ async function computeItemMatrixSummaryInner(pkgArray: string[], circArray: stri
  * GET /api/v1/reports/item-matrix-summary
  */
 export const getItemMatrixSummary = asyncHandler(async (req: Request, res: Response) => {
+  if (req.query.refresh === 'true' || req.query.refresh === '1') {
+    matrixCache.clear();
+  }
   const { package: pkg, circle, targetCircle, search, page, limit } = req.query;
 
   const rows = await computeItemMatrixSummary({

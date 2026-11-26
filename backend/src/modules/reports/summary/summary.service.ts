@@ -537,7 +537,7 @@ export class SummaryService {
           const lineCirc = (line.circle || docCirc || '').toLowerCase();
           const isMatch = line.itemId?.toString() === itemIdStr || (lineLoa && itemLoa && lineLoa === itemLoa && (!itemCirc || !lineCirc || itemCirc === lineCirc));
           if (isMatch) {
-            const qty = Number(line.approvedQty || line.claimedQty || 0);
+            const qty = Number(line.approvedQty || 0) + Number(line.claimedQty || 0);
             if (qty > 0) {
               await SummaryService.updateSummary({
                 itemId, circle: jmc.circle || '', package: jmc.package || '',
@@ -556,7 +556,7 @@ export class SummaryService {
       for (const wip of wips) {
         for (const line of wip.items) {
           if (line.itemId?.toString() === itemIdStr) {
-            const qty = Number(line.approvedQty || line.claimedQty || 0);
+            const qty = Number(line.approvedQty || 0) + Number(line.claimedQty || 0);
             if (qty > 0) {
               await SummaryService.updateSummary({
                 itemId, circle: wip.circle || '', package: wip.package || '',

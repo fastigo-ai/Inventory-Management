@@ -683,6 +683,7 @@ export class WipImportService {
 
     // ——— PASS 2: ALL VALIDATED — NOW SAVE ——————————————————————————————
     const flagged: any[] = [];
+    const batchCreatedIds = new Set<string>();
     let totalSaved = 0;
     const currentYearStr = new Date().getFullYear().toString().slice(-2);
     const lastWip = await WipRegister.findOne({ wipNumber: new RegExp(`^WIP/${currentYearStr}/`) }).sort({ wipNumber: -1 }).select('wipNumber').lean();
@@ -841,6 +842,10 @@ export class WipImportService {
               drawingNo: validDrawingNo
             });
           }
+
+          if (existingWip && batchCreatedIds.has(existingWip._id.toString())) {
+            existingWip = null;
+          }
         }
 
         if (existingWip) {
@@ -919,7 +924,7 @@ export class WipImportService {
               initialCount++;
               const wipNumber = `WIP/${currentYearStr}/${initialCount.toString().padStart(4, '0')}`;
 
-              await WipRegister.create({
+              const created = await WipRegister.create({
                 wipNumber,
                 date: new Date(),
                 contractorId: contractorId || null,
@@ -939,6 +944,7 @@ export class WipImportService {
                 remarks: `Uploaded from ${sourceFile} (${sheetName}). ${!meta.Contractor ? 'Warning: No contractor name found in sheet.' : ''}`.trim(),
                 createdBy: user._id
               });
+              if (created) batchCreatedIds.add(created._id.toString());
               saved = true;
             } catch (err: any) {
               if (err.code === 11000 && err.keyPattern && err.keyPattern.wipNumber) {

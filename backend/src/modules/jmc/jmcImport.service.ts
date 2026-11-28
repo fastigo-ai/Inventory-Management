@@ -632,6 +632,7 @@ export class JmcImportService {
 
     // ——— PASS 2: ALL VALIDATED — NOW SAVE ——————————————————————————————
     const flagged: any[] = [];
+    const batchCreatedIds = new Set<string>();
     let totalSaved = 0;
     const currentYearStr = new Date().getFullYear().toString().slice(-2);
     const lastJmc = await JmcRegister.findOne({ jmcNumber: new RegExp(`^JMC/${currentYearStr}/`) }).sort({ jmcNumber: -1 }).select('jmcNumber').lean();
@@ -785,6 +786,10 @@ export class JmcImportService {
           });
         }
 
+        if (existingJmc && batchCreatedIds.has(existingJmc._id.toString())) {
+          existingJmc = null;
+        }
+
         if (existingJmc) {
           if (conflictStrategy === 'skip') {
             flagged.push({ sourceFile, issue: `Skipped duplicate JMC for ${circ} - ${subDiv} - ${loc}` });
@@ -829,7 +834,7 @@ export class JmcImportService {
         const existingJmcNo = meta.JmcNumber || null;
 
         if (existingJmcNo) {
-          await JmcRegister.findOneAndUpdate({ jmcNumber: existingJmcNo }, {
+          const upserted = await JmcRegister.findOneAndUpdate({ jmcNumber: existingJmcNo }, {
             $set: {
               date: new Date(),
               contractorId: contractorId || null,
@@ -851,7 +856,8 @@ export class JmcImportService {
               status: 'Submitted',
               createdBy: user._id
             }
-          }, { upsert: true });
+          }, { upsert: true, new: true });
+          if (upserted) batchCreatedIds.add(upserted._id.toString());
         } else {
           let saved = false;
           let attempts = 0;
@@ -860,7 +866,7 @@ export class JmcImportService {
               initialCount++;
               const jmcNumber = `JMC/${currentYearStr}/${initialCount.toString().padStart(4, '0')}`;
 
-              await JmcRegister.create({
+              const created = await JmcRegister.create({
                 jmcNumber,
                 date: new Date(),
                 contractorId: contractorId || null,
@@ -881,6 +887,7 @@ export class JmcImportService {
                 remarks: `Uploaded from ${sourceFile} (${sheetName}). ${!meta.Contractor ? 'Warning: No contractor name found in sheet.' : ''}`.trim(),
                 createdBy: user._id
               });
+              if (created) batchCreatedIds.add(created._id.toString());
               saved = true;
             } catch (err: any) {
               if (err.code === 11000 && err.keyPattern && err.keyPattern.jmcNumber) {

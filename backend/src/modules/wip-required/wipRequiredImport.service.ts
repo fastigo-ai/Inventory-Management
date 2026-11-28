@@ -810,26 +810,37 @@ export class WipRequiredImportService {
         }
 
         if (!existingWip) {
-          const matchConditions: any[] = [];
-          if (meta.DrawingNo && String(meta.DrawingNo).trim() !== '') {
-            matchConditions.push({
-              contractorId: contractorId || null,
-              circle: new RegExp(`^${circ}$`, 'i'),
-              drawingNo: String(meta.DrawingNo).trim()
+          const isPlaceholderDrawing = (drg: any) => {
+            const d = String(drg || '').trim().toLowerCase();
+            return !d || d === 'n/a' || d === 'na' || d === '-' || d === 'none' || d === 'null' || d === 'nil';
+          };
+          const validDrawingNo = !isPlaceholderDrawing(meta.DrawingNo) ? String(meta.DrawingNo).trim() : null;
+          const cleanLoc = loc && String(loc).trim() !== '' ? loc.trim() : null;
+
+          const matchCriteria: any = {
+            contractorId: contractorId || null,
+            circle: new RegExp(`^${circ}$`, 'i'),
+          };
+
+          if (cleanLoc && validDrawingNo) {
+            const escapedLoc = cleanLoc.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            existingWip = await WipRequiredRegister.findOne({
+              ...matchCriteria,
+              location: new RegExp(`^${escapedLoc}$`, 'i'),
+              drawingNo: validDrawingNo
             });
-          }
-          if (loc && String(loc).trim() !== '') {
-            const escapedLoc = loc.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            matchConditions.push({
-              contractorId: contractorId || null,
-              circle: new RegExp(`^${circ}$`, 'i'),
+          } else if (cleanLoc) {
+            const escapedLoc = cleanLoc.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            existingWip = await WipRequiredRegister.findOne({
+              ...matchCriteria,
               location: new RegExp(`^${escapedLoc}$`, 'i')
             });
+          } else if (validDrawingNo) {
+            existingWip = await WipRequiredRegister.findOne({
+              ...matchCriteria,
+              drawingNo: validDrawingNo
+            });
           }
-
-          existingWip = matchConditions.length > 0 
-            ? await WipRequiredRegister.findOne({ $or: matchConditions })
-            : null;
         }
 
         if (existingWip) {

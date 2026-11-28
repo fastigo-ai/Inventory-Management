@@ -752,27 +752,38 @@ export class JmcImportService {
           if (item.itemId) item.prevQty = prevQtyMap[item.itemId.toString()] || 0;
         }
 
-        // Match existing JMC by Contractor + Circle + (DrawingNo OR Location)
-        const matchConditions: any[] = [];
-        if (meta.DrawingNo && String(meta.DrawingNo).trim() !== '') {
-          matchConditions.push({
-            contractorId: contractorId || null,
-            circle: new RegExp(`^${circ}$`, 'i'),
-            drawingNo: String(meta.DrawingNo).trim()
+        const isPlaceholderDrawing = (drg: any) => {
+          const d = String(drg || '').trim().toLowerCase();
+          return !d || d === 'n/a' || d === 'na' || d === '-' || d === 'none' || d === 'null' || d === 'nil';
+        };
+        const validDrawingNo = !isPlaceholderDrawing(meta.DrawingNo) ? String(meta.DrawingNo).trim() : null;
+        const cleanLoc = loc && String(loc).trim() !== '' ? loc.trim() : null;
+
+        const matchCriteria: any = {
+          contractorId: contractorId || null,
+          circle: new RegExp(`^${circ}$`, 'i'),
+        };
+
+        let existingJmc = null;
+        if (cleanLoc && validDrawingNo) {
+          const escapedLoc = cleanLoc.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          existingJmc = await JmcRegister.findOne({
+            ...matchCriteria,
+            location: new RegExp(`^${escapedLoc}$`, 'i'),
+            drawingNo: validDrawingNo
           });
-        }
-        if (loc && String(loc).trim() !== '') {
-          const escapedLoc = loc.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          matchConditions.push({
-            contractorId: contractorId || null,
-            circle: new RegExp(`^${circ}$`, 'i'),
+        } else if (cleanLoc) {
+          const escapedLoc = cleanLoc.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          existingJmc = await JmcRegister.findOne({
+            ...matchCriteria,
             location: new RegExp(`^${escapedLoc}$`, 'i')
           });
+        } else if (validDrawingNo) {
+          existingJmc = await JmcRegister.findOne({
+            ...matchCriteria,
+            drawingNo: validDrawingNo
+          });
         }
-
-        const existingJmc = matchConditions.length > 0 
-          ? await JmcRegister.findOne({ $or: matchConditions })
-          : null;
 
         if (existingJmc) {
           if (conflictStrategy === 'skip') {

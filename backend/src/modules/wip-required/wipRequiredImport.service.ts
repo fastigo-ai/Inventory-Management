@@ -410,7 +410,7 @@ export class WipRequiredImportService {
             break;
           }
         }
-        if (labelFound) break;
+        if (labelFound) continue;
 
         let matchCount = 0;
         for (let c = 0; c < 5; c++) {
